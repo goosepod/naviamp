@@ -93,6 +93,7 @@ class AudioWaveformTest {
         assertEquals(false, backend.verifyNetworkCertificates)
         assertEquals(1, backend.internetConfigurationCount)
         assertEquals("https://music.example/stream", backend.createdUrl)
+        assertTrue(backend.createdBoundedUrl)
         assertEquals(BassStreamHandle(1), backend.freedStream)
     }
 
@@ -218,6 +219,35 @@ class AudioWaveformTest {
     }
 
     @Test
+    fun cancelledSharedBassAnalyzerFreesItsBoundedNetworkStream() = runTest {
+        lateinit var analysisJob: Job
+        val backend = FakeBassAudioBackend(
+            chunks = List(4) { FloatArray(16_384) { 0.5f } },
+            onRead = { readCount ->
+                if (readCount == 1) analysisJob.cancel()
+            },
+        )
+        val analyzer = BassAudioWaveformAnalyzer(bass = backend)
+        analysisJob = launch(start = CoroutineStart.LAZY) {
+            analyzer.analyze(
+                AudioWaveformAnalysisSource(
+                    cacheKey = "long-track",
+                    streamUrl = "https://music.example/dj-set.flac",
+                    bucketCount = 100,
+                ),
+            )
+        }
+
+        analysisJob.start()
+        analysisJob.join()
+
+        assertTrue(analysisJob.isCancelled)
+        assertEquals(1, backend.readCount)
+        assertTrue(backend.createdBoundedUrl)
+        assertEquals(BassStreamHandle(1), backend.freedStream)
+    }
+
+    @Test
     fun suppressesIsolatedLeadingWaveformSpikeAndRestoresDynamicRange() {
         val waveform = cleanWaveformAmplitudes(
             listOf(1.0f, 0.08f, 0.12f) + List(29) { 0.10f },
@@ -263,6 +293,8 @@ private class FakeBassAudioBackend(
         private set
     var createdUrl: String? = null
         private set
+    var createdBoundedUrl: Boolean = false
+        private set
     var freedStream: BassStreamHandle? = null
         private set
 
@@ -284,6 +316,11 @@ private class FakeBassAudioBackend(
     override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> {
         createdUrl = url
         return Result.success(BassStreamHandle(1))
+    }
+
+    override fun createBoundedUrlDecodeStream(url: String): Result<BassStreamHandle> {
+        createdBoundedUrl = true
+        return createUrlDecodeStream(url)
     }
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =

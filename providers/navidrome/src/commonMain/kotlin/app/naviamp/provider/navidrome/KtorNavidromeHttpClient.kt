@@ -4,6 +4,7 @@ import app.naviamp.domain.network.NaviampUserAgent
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.headers
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsChannel
@@ -194,40 +195,42 @@ class KtorNavidromeHttpClient(
             return false
         }
         return runCatching {
-            val response = client.request(url) {
-                method = HttpMethod.Get
+            // Keep audio on the live response channel instead of allowing Ktor to save the full
+            // response in memory before the cache writer receives its first chunk.
+            client.prepareGet(url) {
                 headers {
                     (DefaultNavidromeHeaders + headers).forEach { (name, value) -> append(name, value) }
                 }
-            }
-            val statusCode = response.status.value
-            if (!response.status.isSuccess()) {
-                val rateLimitError = rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])
+            }.execute { response ->
+                val statusCode = response.status.value
+                if (!response.status.isSuccess()) {
+                    val rateLimitError = rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])
+                    recordApiCall(
+                        method = HttpMethod.Get.value,
+                        url = url,
+                        startedAt = startedAt,
+                        success = false,
+                        errorMessage = rateLimitError?.message ?: "HTTP $statusCode.",
+                    )
+                    return@execute false
+                }
+
+                val channel = response.bodyAsChannel()
+                val buffer = ByteArray(64 * 1024)
+                while (!channel.isClosedForRead) {
+                    val read = channel.readAvailable(buffer, 0, buffer.size)
+                    if (read == -1) break
+                    if (read > 0) writeChunk(buffer, read)
+                }
                 recordApiCall(
                     method = HttpMethod.Get.value,
                     url = url,
                     startedAt = startedAt,
-                    success = false,
-                    errorMessage = rateLimitError?.message ?: "HTTP $statusCode.",
+                    success = true,
+                    errorMessage = null,
                 )
-                return false
+                true
             }
-
-            val channel = response.bodyAsChannel()
-            val buffer = ByteArray(64 * 1024)
-            while (!channel.isClosedForRead) {
-                val read = channel.readAvailable(buffer, 0, buffer.size)
-                if (read == -1) break
-                if (read > 0) writeChunk(buffer, read)
-            }
-            recordApiCall(
-                method = HttpMethod.Get.value,
-                url = url,
-                startedAt = startedAt,
-                success = true,
-                errorMessage = null,
-            )
-            true
         }.getOrElse { error ->
             if (error is CancellationException) throw error
             recordApiCall(

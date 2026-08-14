@@ -93,6 +93,10 @@ class AndroidBassAudioBackend(
         bass.createUrlDecodeStream(url)
             .toHandleResult("BASS_StreamCreateURL decode failed")
 
+    override fun createBoundedUrlDecodeStream(url: String): Result<BassStreamHandle> =
+        bass.createUrlDecodeStream(url, bounded = true)
+            .toHandleResult("BASS_StreamCreateURL bounded decode failed")
+
     override fun createMixer(
         frequency: Int,
         channels: Int,

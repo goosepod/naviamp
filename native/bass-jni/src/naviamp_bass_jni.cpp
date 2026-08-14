@@ -751,14 +751,15 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateFileStream(JNIEnv* 
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateUrlDecodeStream(JNIEnv* env, jobject thiz, jstring url) {
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateUrlDecodeStream(JNIEnv* env, jobject thiz, jstring url, jboolean bounded) {
     (void)thiz;
     const char* chars = env->GetStringUTFChars(url, nullptr);
     if (chars == nullptr) return 0;
     HSTREAM stream = BASS_StreamCreateURL(
         chars,
         0,
-        BASS_STREAM_STATUS | BASS_SAMPLE_FLOAT | BASS_STREAM_DECODE,
+        BASS_STREAM_STATUS | BASS_SAMPLE_FLOAT | BASS_STREAM_DECODE |
+            (bounded == JNI_TRUE ? BASS_STREAM_BLOCK : 0),
         nullptr,
         nullptr
     );
@@ -1158,11 +1159,14 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateFileStr
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlDecodeStream(JNIEnv* env, jobject thiz, jstring url) {
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlDecodeStream(JNIEnv* env, jobject thiz, jstring url, jboolean bounded) {
     (void)thiz;
     const char* chars = env->GetStringUTFChars(url, nullptr);
     if (chars == nullptr) return 0;
-    HSTREAM stream = create_url_stream(chars, stream_flags() | BASS_STREAM_DECODE);
+    HSTREAM stream = create_url_stream(
+        chars,
+        stream_flags() | BASS_STREAM_DECODE | (bounded == JNI_TRUE ? BASS_STREAM_BLOCK : 0)
+    );
     env->ReleaseStringUTFChars(url, chars);
     return static_cast<jint>(stream);
 }

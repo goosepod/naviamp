@@ -225,6 +225,15 @@ interface BassAudioBackend {
 
     fun createUrlDecodeStream(url: String): Result<BassStreamHandle>
 
+    /**
+     * Creates a sequential network decoder whose download buffer stays bounded.
+     *
+     * Waveform analysis reads from beginning to end and does not need the full remote file retained
+     * for seeking. Backends should map this to their native small-block streaming facility.
+     */
+    fun createBoundedUrlDecodeStream(url: String): Result<BassStreamHandle> =
+        createUrlDecodeStream(url)
+
     fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> =
         unsupportedBassOperation("BASS channel info")
 

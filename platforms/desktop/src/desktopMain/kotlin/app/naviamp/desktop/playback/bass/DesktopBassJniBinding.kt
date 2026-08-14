@@ -50,7 +50,8 @@ class DesktopBassJniBinding private constructor(
 
     fun createFileStream(path: String): Int = nativeCreateFileStream(path)
 
-    fun createUrlDecodeStream(url: String): Int = nativeCreateUrlDecodeStream(url)
+    fun createUrlDecodeStream(url: String, bounded: Boolean = false): Int =
+        nativeCreateUrlDecodeStream(url, bounded)
 
     fun createFileDecodeStream(path: String): Int = nativeCreateFileDecodeStream(path)
 
@@ -154,7 +155,7 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeConfigureInternetStreams(): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateFileStream(path: String): Int
-    private external fun nativeCreateUrlDecodeStream(url: String): Int
+    private external fun nativeCreateUrlDecodeStream(url: String, bounded: Boolean): Int
     private external fun nativeCreateFileDecodeStream(path: String): Int
     private external fun nativeCreateMixer(frequency: Int, channels: Int, queueSources: Boolean): Int
     private external fun nativeChannelInfoFrequency(stream: Int): Int

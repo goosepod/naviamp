@@ -5,6 +5,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
@@ -130,42 +131,45 @@ class KtorSharedHttpClient(
     ): Boolean {
         val startedAt = currentTimeMillis()
         return runCatching {
-            val response = client.get(url) {
+            // The scoped request API exposes the live response channel. A regular get/request call
+            // may save the complete body before returning, which exhausts memory for large audio.
+            client.prepareGet(url) {
                 headers {
                     (defaultHeaders + mapOf(HttpHeaders.Accept to "*/*") + headers).forEach { (name, value) ->
                         append(name, value)
                     }
                 }
-            }
-            val statusCode = response.status.value
-            if (!response.status.isSuccess()) {
+            }.execute { response ->
+                val statusCode = response.status.value
+                if (!response.status.isSuccess()) {
+                    callRecorder?.invoke(
+                        sharedHttpCall(
+                            url = url,
+                            startedAt = startedAt,
+                            statusCode = statusCode,
+                            errorMessage = "HTTP $statusCode.",
+                        ),
+                    )
+                    return@execute false
+                }
+
+                val channel = response.bodyAsChannel()
+                val buffer = ByteArray(64 * 1024)
+                while (!channel.isClosedForRead) {
+                    val read = channel.readAvailable(buffer, 0, buffer.size)
+                    if (read == -1) break
+                    if (read > 0) writeChunk(buffer, read)
+                }
                 callRecorder?.invoke(
                     sharedHttpCall(
                         url = url,
                         startedAt = startedAt,
                         statusCode = statusCode,
-                        errorMessage = "HTTP $statusCode.",
+                        errorMessage = null,
                     ),
                 )
-                return false
+                true
             }
-
-            val channel = response.bodyAsChannel()
-            val buffer = ByteArray(64 * 1024)
-            while (!channel.isClosedForRead) {
-                val read = channel.readAvailable(buffer, 0, buffer.size)
-                if (read == -1) break
-                if (read > 0) writeChunk(buffer, read)
-            }
-            callRecorder?.invoke(
-                sharedHttpCall(
-                    url = url,
-                    startedAt = startedAt,
-                    statusCode = statusCode,
-                    errorMessage = null,
-                ),
-            )
-            true
         }.getOrElse { error ->
             callRecorder?.invoke(
                 sharedHttpCall(

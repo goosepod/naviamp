@@ -38,7 +38,12 @@ extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateFileStream(JNIEnv* env, jobject thiz, jstring path);
 
 extern "C" JNIEXPORT jint JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlDecodeStream(JNIEnv* env, jobject thiz, jstring url);
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlDecodeStream(
+    JNIEnv* env,
+    jobject thiz,
+    jstring url,
+    jboolean bounded
+);
 
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateFileDecodeStream(JNIEnv* env, jobject thiz, jstring path);

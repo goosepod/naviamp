@@ -5,6 +5,7 @@ import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.headers
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -38,16 +39,15 @@ class KtorJellyfinHttpClient(
         return JellyfinBinaryResponse(response.status.value, response.body<ByteArray>())
     }
 
+    // The scoped request keeps large audio responses on the live channel instead of in memory.
     override suspend fun download(
         url: String,
         headers: Map<String, String>,
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
-    ): Boolean {
-        val response = client.request(url) {
-            method = HttpMethod.Get
-            headers { headers.forEach { (name, value) -> append(name, value) } }
-        }
-        if (response.status.value !in 200..299) return false
+    ): Boolean = client.prepareGet(url) {
+        headers { headers.forEach { (name, value) -> append(name, value) } }
+    }.execute { response ->
+        if (response.status.value !in 200..299) return@execute false
         val channel = response.bodyAsChannel()
         val buffer = ByteArray(64 * 1024)
         while (!channel.isClosedForRead) {
@@ -55,7 +55,7 @@ class KtorJellyfinHttpClient(
             if (count == -1) break
             if (count > 0) writeChunk(buffer, count)
         }
-        return true
+        true
     }
 
     private suspend fun request(

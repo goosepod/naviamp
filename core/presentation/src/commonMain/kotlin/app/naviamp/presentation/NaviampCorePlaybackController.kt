@@ -241,7 +241,10 @@ class NaviampCorePlaybackController(
                 effects.restoreQueue(restored.playbackQueue, restored.restoredStartPositionSeconds)
                 persistedQueue = restored.playbackQueue
                 persistedStationId = null
-                loadTrackSidecars(restored.currentTrack)
+                // Restored metadata and transport state must be usable immediately. Waveform,
+                // lyrics, and tag loading can be expensive for long tracks, so resume that work
+                // in the controller's cancellable background sidecar job.
+                loadCurrentTrackSidecars()
                 if (stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
                     effects.startOrRestore()
                 }

@@ -87,6 +87,7 @@ class NaviampCorePlaybackControllerTest {
         )
 
         fixture.controller.restoreSession("source")
+        runCurrent()
 
         assertEquals("remembered-two", fixture.live.state.value.currentTrack?.id?.value)
         assertEquals(restoredTracks, fixture.live.state.value.queue.tracks)
@@ -94,6 +95,30 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(42.0, fixture.effects.restoredStartPositionSeconds)
         assertEquals("remembered-two", fixture.sidecars.loadedTracks.single())
         assertEquals(0, fixture.effects.starts)
+    }
+
+    @Test
+    fun restoredTrackIsPublishedBeforeItsSidecarsFinishLoading() = runTest {
+        val sidecars = PlaybackTestSidecars(blockingTrackId = "long-track")
+        val fixture = playbackFixture(this, sidecars)
+        fixture.sessionRepository.sessions["source"] = PlaybackSessionSettings.fromTracks(
+            listOf(playbackTrack("long-track")),
+            currentIndex = 0,
+            positionSeconds = 151.0,
+        )
+
+        val restored = fixture.controller.restoreSession("source")
+        runCurrent()
+
+        assertTrue(restored)
+        assertEquals("long-track", fixture.store.state.value.shell.nowPlaying?.title)
+        assertEquals(151.0, fixture.store.state.value.shell.nowPlaying?.positionSeconds)
+        assertEquals(true, fixture.store.state.value.shell.nowPlaying?.canPlayPause)
+        assertEquals(listOf("long-track"), sidecars.loadedTracks)
+
+        fixture.controller.resetForSourceChange("source", "other-source")
+        runCurrent()
+        assertEquals(listOf("long-track"), sidecars.cancelledTracks)
     }
 
     @Test

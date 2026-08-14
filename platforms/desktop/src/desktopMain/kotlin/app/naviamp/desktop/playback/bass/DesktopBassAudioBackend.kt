@@ -151,6 +151,12 @@ class DesktopBassAudioBackend(
             .toHandleResult("BASS_StreamCreateURL decode failed")
     }
 
+    override fun createBoundedUrlDecodeStream(url: String): Result<BassStreamHandle> {
+        bass.loadAvailablePlugins()
+        return bass.createUrlDecodeStream(url, bounded = true)
+            .toHandleResult("BASS_StreamCreateURL bounded decode failed")
+    }
+
     override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> {
         val frequency = bass.channelInfoFrequency(stream.value)
         val channels = bass.channelInfoChannels(stream.value)

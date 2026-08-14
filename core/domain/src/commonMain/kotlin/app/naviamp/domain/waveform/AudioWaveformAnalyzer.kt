@@ -31,7 +31,7 @@ class BassAudioWaveformAnalyzer(
         bass.configureInternetStreams().getOrElse { return null }
         val stream = localFilePath(source.streamUrl)
             ?.let(bass::createFileDecodeStream)
-            ?: bass.createUrlDecodeStream(source.streamUrl)
+            ?: bass.createBoundedUrlDecodeStream(source.streamUrl)
         val handle = stream.getOrElse { return null }
         return try {
             analyzeBassFloatPcmWaveform(

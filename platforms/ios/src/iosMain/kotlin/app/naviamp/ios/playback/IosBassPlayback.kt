@@ -53,6 +53,7 @@ import app.naviamp.ios.bass.native.BASS_Mixer_StreamCreate
 import app.naviamp.ios.bass.native.BASS_POS_BYTE
 import app.naviamp.ios.bass.native.BASS_POS_MIXER_RESET
 import app.naviamp.ios.bass.native.BASS_SAMPLE_FLOAT
+import app.naviamp.ios.bass.native.BASS_STREAM_BLOCK
 import app.naviamp.ios.bass.native.BASS_STREAM_DECODE
 import app.naviamp.ios.bass.native.BASS_STREAM_PRESCAN
 import app.naviamp.ios.bass.native.BASS_STREAM_STATUS
@@ -260,6 +261,13 @@ class IosBassAudioBackend : BassAudioBackend {
             url,
             (BASS_STREAM_STATUS or BASS_SAMPLE_FLOAT or BASS_STREAM_DECODE).toUInt(),
             "BASS_StreamCreateURL decode failed",
+        )
+
+    override fun createBoundedUrlDecodeStream(url: String): Result<BassStreamHandle> =
+        createUrl(
+            url,
+            (BASS_STREAM_STATUS or BASS_SAMPLE_FLOAT or BASS_STREAM_DECODE or BASS_STREAM_BLOCK).toUInt(),
+            "BASS_StreamCreateURL bounded decode failed",
         )
 
     override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> = memScoped {
