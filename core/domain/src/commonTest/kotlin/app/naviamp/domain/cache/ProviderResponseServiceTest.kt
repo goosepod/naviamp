@@ -80,6 +80,29 @@ class ProviderResponseServiceTest {
     }
 
     @Test
+    fun albumCachePreservesEditionAndOriginalReleaseYears() = runTest {
+        val cache = RecordingProviderResponseCacheRepository()
+        val provider = FakeSearchProvider().apply {
+            albumDetails = AlbumDetails(
+                album = album("reissue").copy(releaseYear = 2002, originalReleaseYear = 1979),
+                tracks = listOf(
+                    track("reissue-track").copy(albumReleaseYear = 2002, originalReleaseYear = 1979),
+                ),
+            )
+        }
+        val service = ProviderResponseService(cache)
+
+        service.album(provider, AlbumId("reissue"))
+        provider.albumDetails = AlbumDetails(album("changed"), emptyList())
+        val cached = service.album(provider, AlbumId("reissue"))
+
+        assertEquals(2002, cached.album.releaseYear)
+        assertEquals(1979, cached.album.originalReleaseYear)
+        assertEquals(2002, cached.tracks.single().albumReleaseYear)
+        assertEquals(1979, cached.tracks.single().originalReleaseYear)
+    }
+
+    @Test
     fun albumInformationUsesItsOwnCachedProviderResponse() = runTest {
         val cache = RecordingProviderResponseCacheRepository()
         val provider = FakeSearchProvider().apply {

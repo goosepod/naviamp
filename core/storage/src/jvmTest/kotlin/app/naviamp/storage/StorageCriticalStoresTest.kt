@@ -61,6 +61,20 @@ class StorageCriticalStoresTest {
     }
 
     @Test
+    fun libraryAlbumYearsUseEarliestAvailableYear() = withStorage { fixture ->
+        fixture.library.upsertLibraryAlbums(
+            fixture.sourceId,
+            listOf(
+                Album(AlbumId("reissue"), "Reissue", "Artist", null, null, 2002, 1993),
+                Album(AlbumId("single-date"), "Single Date", "Artist", null, null, 1980),
+                Album(AlbumId("reversed"), "Reversed", "Artist", null, null, 1975, 2010),
+            ),
+        )
+
+        assertEquals(listOf(1993, 1980, 1975), fixture.library.libraryAlbumYears(fixture.sourceId).map { it.year })
+    }
+
+    @Test
     fun playbackHistoryPreservesMetadataOrderingAndDuplicatePlays() = withStorage { fixture ->
         val history = StoragePlaybackHistoryStore(fixture.queries)
         val track = testTrack(

@@ -32,6 +32,18 @@ class PlaybackSessionMappingTest {
     }
 
     @Test
+    fun playbackSessionPreservesEditionAndOriginalReleaseYears() {
+        val original = track("reissue").copy(albumReleaseYear = 2002, originalReleaseYear = 1979)
+
+        val restored = PlaybackSessionSettings.fromTracks(listOf(original), currentIndex = 0)
+            ?.toTracks()
+            ?.single()
+
+        assertEquals(2002, restored?.albumReleaseYear)
+        assertEquals(1979, restored?.originalReleaseYear)
+    }
+
+    @Test
     fun restoredTrackSessionBuildsQueueAndProgressFromSavedSession() {
         val session = PlaybackSessionSettings.fromTracks(
             tracks = listOf(track("one"), track("two", durationSeconds = 240)),

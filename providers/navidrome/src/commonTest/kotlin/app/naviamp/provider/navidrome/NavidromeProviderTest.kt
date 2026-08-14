@@ -567,6 +567,39 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun albumUsesLegacyAndEditionYearsWhenOriginalDateIsMissing() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "album": {
+                      "id": "compilation-1",
+                      "name": "Compilation",
+                      "artist": "Various Artists",
+                      "year": 1979,
+                      "releaseDate": {"year": 2002},
+                      "song": [
+                        {"id": "track-1979", "title": "Early Track", "artist": "Artist One", "album": "Compilation", "year": 1979},
+                        {"id": "track-1992", "title": "Later Track", "artist": "Artist Two", "album": "Compilation", "year": 1992}
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val details = provider.album(AlbumId("compilation-1"))
+
+        assertEquals(2002, details.album.releaseYear)
+        assertEquals(1979, details.album.originalReleaseYear)
+        assertEquals(listOf(1979, 1992), details.tracks.map { it.originalReleaseYear })
+    }
+
+    @Test
     fun albumMapsOptionalAlbumInformation() = runTest {
         val http = SequencedHttpClient(
             listOf(

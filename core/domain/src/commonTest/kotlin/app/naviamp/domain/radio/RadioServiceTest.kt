@@ -165,6 +165,41 @@ class RadioServiceTest {
     }
 
     @Test
+    fun tunedRadioTracksUseOriginalReleaseYearInsteadOfReissueYear() {
+        val seed = track("seed", albumReleaseYear = 2002, originalReleaseYear = 1979)
+        val tracks = listOf(
+            track("same-era-reissue", albumReleaseYear = 2015, originalReleaseYear = 1978),
+            track("same-edition-year-wrong-era", albumReleaseYear = 2004, originalReleaseYear = 1965),
+            track("same-era", albumReleaseYear = 1972),
+        )
+
+        val tuned = tunedRadioTracks(
+            seedTrack = seed,
+            tracks = tracks,
+            tuning = RadioTuningSettings(sameDecadeOnly = true),
+        )
+
+        assertEquals(listOf("same-era-reissue", "same-era"), tuned.map { it.id.value })
+    }
+
+    @Test
+    fun tunedRadioTracksUseEarlierYearWhenOriginalAndEditionAreReversed() {
+        val seed = track("seed", albumReleaseYear = 1979, originalReleaseYear = 2002)
+        val tracks = listOf(
+            track("same-era", albumReleaseYear = 1978),
+            track("later-era", albumReleaseYear = 2001),
+        )
+
+        val tuned = tunedRadioTracks(
+            seedTrack = seed,
+            tracks = tracks,
+            tuning = RadioTuningSettings(sameDecadeOnly = true),
+        )
+
+        assertEquals(listOf("same-era"), tuned.map { it.id.value })
+    }
+
+    @Test
     fun tunedRadioTracksCanBroadenArtistSpread() {
         val tracks = listOf(
             track("artist-one-a", artistId = ArtistId("artist-one")),
@@ -433,6 +468,7 @@ private fun track(
     id: String,
     artistId: ArtistId? = ArtistId("artist-one"),
     albumReleaseYear: Int? = null,
+    originalReleaseYear: Int? = null,
     favoritedAtIso8601: String? = null,
     userRating: Int? = null,
     playCount: Int? = null,
@@ -444,6 +480,7 @@ private fun track(
         artistName = "Artist",
         albumTitle = "Album",
         albumReleaseYear = albumReleaseYear,
+        originalReleaseYear = originalReleaseYear,
         durationSeconds = 180,
         coverArtId = null,
         audioInfo = null,
