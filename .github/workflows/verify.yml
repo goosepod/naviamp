@@ -104,6 +104,9 @@ jobs:
 
       - name: Create test emulator
         run: |
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-35;google_apis;x86_64"
           echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-35;google_apis;x86_64"
 
