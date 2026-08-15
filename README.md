@@ -4,142 +4,112 @@
 
 # Naviamp
 
-Naviamp is a music player for people who run their own music library. It connects to Navidrome,
-Subsonic/OpenSubsonic, Jellyfin, and Bandcamp, then gives that library a polished app experience on
-desktop, Android, and iOS.
+Naviamp is a modern music player for the libraries you already own and the services you already
+use. Connect Navidrome, another Subsonic/OpenSubsonic server, Jellyfin, or your Bandcamp collection,
+then browse, discover, queue, download, and play from one polished app on desktop, Android, and iOS.
 
-The goal is simple: keep your music on your server, but make browsing, playback, discovery, lyrics, radio, playlists, and visualizers feel like they belong in a modern native player.
+Your music stays with the server you choose. Naviamp brings the player.
 
 <p align="center">
-  <img src="readme-assets/screenshots/desktop-queue.png" alt="Naviamp desktop player" width="700">
+  <img src="readme-assets/screenshots/desktop-now-playing-queue.png" alt="Naviamp desktop Now Playing screen and queue" width="780">
 </p>
 
-## Highlights
+## The big hitters
 
-- Browse albums, artists, tracks, playlists, genres, favorites, recently added music, recently played music, and random library picks, with separate navigation for every credited track artist.
-- Play from a focused Now Playing screen with queue controls, waveforms, ratings, favorites, lyrics, volume, repeat, shuffle, and track details close at hand.
-- Build smarter listening sessions with Sonic Analysis, Sonic Mix, Sonic Path, sonic-backed track radio, sonic autoplay, and related-track queues when your server supports it.
-- Create and edit smart playlists, then save generated sonic results and normal track selections back to your server.
-- Use internet radio alongside your library, including station browsing, playback, and now-playing metadata.
-- Customize the player with Aurora gradients, adjustable blurred album art, a selected solid color, album-art-driven accents, waveform display, compact layouts, display toggles, and desktop visualizers.
-- Tune playback with ReplayGain, gapless playback, crossfade, sample-rate converter quality, and sample-rate matching.
-- Follow along with embedded or downloaded lyrics, including synced lyric highlighting where available.
-- Keep the same app model across macOS, Windows, Linux, Android, and iOS, with shared UI and playback behavior wherever the platforms allow it.
+- **A real library experience.** Browse albums, artists, tracks, genres, favorites, recently added
+  and recently played music, random picks, and every credited artist on a track.
+- **Powerful discovery.** Build Artist, Album, and Genre mixes; use Sonic Mix and Sonic Path; start
+  track radio; explore related music; and let sonic autoplay keep the queue moving when the server
+  supports similarity data.
+- **Playlists that go further.** Create and edit regular playlists, add music from throughout the
+  app, save generated queues, and build reusable smart playlists on compatible servers.
+- **A full Now Playing experience.** Manage Back To, Up Next, and related queues alongside waveform
+  seeking, favorites, ratings, lyrics, repeat, shuffle, volume, and detailed audio metadata.
+- **Internet radio.** Browse, create, edit, and play internet radio stations next to the rest of your
+  music, with live now-playing metadata when the station provides it.
+- **Downloads and offline listening.** Keep music on the device, choose storage and cache behavior,
+  and use an offline dashboard when the server is out of reach.
+- **Serious playback controls.** ReplayGain, gapless playback, crossfade, sample-rate matching,
+  configurable resampling quality, and native BASS playback are built in.
+- **Make it yours.** Album-art colors, Aurora gradients, blur and solid-color treatments, compact
+  layouts, configurable metadata, waveforms, and a large collection of reactive desktop
+  visualizers are all available.
+- **One app across devices.** Naviamp targets macOS, Windows, Linux, Android, and iOS with shared
+  product behavior, secure credential storage, settings sync, and Android Auto support.
 
-## Sonic Analysis and Discovery
+## Supported music services
 
-Naviamp can use server-side sonic similarity data to turn a large library into something easier to explore. When connected to a compatible Navidrome/OpenSubsonic server with sonic support enabled, Naviamp can build queues from how songs sound, not only from tags or album metadata.
+| Service | What Naviamp brings |
+| --- | --- |
+| **Navidrome** | The fullest experience, including native authentication, smart playlists, ratings, favorites, rich OpenSubsonic features, and sonic discovery when enabled on the server. |
+| **Subsonic and OpenSubsonic** | Connect compatible self-hosted servers through the standard protocol. Naviamp detects advertised capabilities and shows only the features the server can provide. |
+| **Jellyfin** | Connect directly to Jellyfin music libraries for browsing, search, playback, downloads, playlists, lyrics, and favorites. |
+| **Bandcamp** | Play and download your collection through Bandcamp's Subsonic beta using credentials generated in Fan Settings. Playlist support follows the capabilities of the beta service. |
 
-Sonic-powered features include:
-
-- Sonic Mix: start with multiple seed tracks and build a cohesive queue around them.
-- Sonic Path: choose a starting track and destination track, then generate a musical path between them.
-- Track Radio: use sonic similarity as the preferred radio engine when available.
-- Related tracks: show sonic-backed recommendations in the player queue area.
-- Sonic autoplay: keep playback going with similar tracks when the current queue ends.
-- Playlist saving: save generated sonic results as regular playlists for later listening.
-
-If sonic support is not available from the server, Naviamp hides or falls back from those features instead of showing broken controls.
-
-## Smart Playlists
-
-Naviamp includes smart playlist support for building reusable listening rules rather than only static track lists. Smart playlists are useful for views like recent additions, favorites, genres, deep cuts, or other library slices that should update over time.
-
-The player also keeps playlist workflows close to where listening happens:
-
-- Add tracks, albums, artists, search results, downloads, and generated results to playlists.
-- Create a new playlist from add-to-playlist dialogs.
-- Save sonic-generated queues as playlists.
-- Browse and play server playlists from the main library and Android Auto.
-- Preserve playlist actions across desktop and Android where supported.
+Provider capabilities differ. Naviamp gracefully hides or falls back from server-specific features
+instead of leaving non-working controls on screen. Sonic features require a server that advertises
+compatible similarity support, and smart-playlist editing remains provider-specific.
 
 ## Screenshots
 
 <table>
   <tr>
-    <td><img src="readme-assets/screenshots/now-playing-compact.png" alt="Compact Now Playing screen" width="220"></td>
-    <td><img src="readme-assets/screenshots/home-discovery.png" alt="Home discovery screen" width="220"></td>
-    <td><img src="readme-assets/screenshots/playlists.png" alt="Playlist list" width="220"></td>
+    <td><img src="readme-assets/screenshots/compact-now-playing.png" alt="Compact Now Playing screen" width="250"></td>
+    <td><img src="readme-assets/screenshots/mobile-queue.png" alt="Now Playing queue on a narrow layout" width="250"></td>
+    <td><img src="readme-assets/screenshots/mix-builders.png" alt="Artist, album, genre, Sonic Path, and Sonic Mix builders" width="250"></td>
   </tr>
   <tr>
-    <td><img src="readme-assets/screenshots/smart-playlist-editor.png" alt="Smart playlist editor" width="220"></td>
-    <td><img src="readme-assets/screenshots/library-artists.png" alt="Artist library" width="220"></td>
-    <td><img src="readme-assets/screenshots/search-results.png" alt="Search results" width="220"></td>
+    <td><img src="readme-assets/screenshots/playlists.png" alt="Playlist library" width="250"></td>
+    <td><img src="readme-assets/screenshots/library-artists.png" alt="Artist library with alphabetical navigation" width="250"></td>
+    <td><img src="readme-assets/screenshots/search.png" alt="Library search results" width="250"></td>
   </tr>
   <tr>
-    <td><img src="readme-assets/screenshots/internet-radio.png" alt="Internet radio" width="220"></td>
-    <td><img src="readme-assets/screenshots/offline-mode.png" alt="Offline mode" width="220"></td>
-    <td><img src="readme-assets/screenshots/settings.png" alt="Settings" width="220"></td>
-  </tr>
-  <tr>
-    <td><img src="readme-assets/screenshots/now-playing-menu.png" alt="Now Playing menu" width="220"></td>
-    <td><img src="readme-assets/screenshots/artist-detail-popular-tracks.png" alt="Artist detail with popular tracks" width="220"></td>
-    <td><img src="readme-assets/screenshots/artist-detail-similar-artists.png" alt="Artist detail with similar artists" width="220"></td>
+    <td><img src="readme-assets/screenshots/internet-radio.png" alt="Internet radio stations" width="250"></td>
+    <td><img src="readme-assets/screenshots/offline-downloads.png" alt="Downloads and offline dashboard" width="250"></td>
+    <td><img src="readme-assets/screenshots/settings.png" alt="Naviamp settings" width="250"></td>
   </tr>
 </table>
 
-## Playback
+## Discovery and playlists
 
-Naviamp uses the BASS audio engine for playback. The player is designed around fast queue changes, clear transport controls, and a Now Playing screen that can stay compact without hiding the important details.
+Naviamp can turn a large library into a listening session without making you manually assemble
+every queue. Artist, Album, and Genre Mix work broadly; servers with sonic similarity support also
+unlock Sonic Mix, Sonic Path, related tracks, track radio, and sonic autoplay. Generated results can
+be edited in the queue or saved as a normal playlist.
 
-Playback features include:
+Regular playlist workflows live wherever you are browsing: add tracks, albums, artists, search
+results, downloads, and generated mixes; create a playlist without leaving the picker; reorder and
+remove tracks; or start a playlist in order or shuffled. Compatible servers can also expose smart
+playlists whose rules keep the contents fresh over time.
 
-- Back To, Up Next, and Related queue views.
-- Shuffle, repeat, seek, previous, next, and volume controls.
-- ReplayGain support.
-- Gapless playback and configurable crossfade.
-- Sample-rate converter quality settings.
-- Sample-rate matching for users who want the output device to follow the current track where the platform allows it.
-- Waveform-based seeking.
-- Configurable Now Playing metadata, including album year, bitrate info, volume bar, and long-text scrolling.
-- Individually clickable artist credits, including multi-artist tracks and compatible legacy display credits.
-- A compact desktop layout that moves volume below transport controls and hides it when vertical space is constrained.
+## Playback and presentation
 
-## Visualizers
+Naviamp uses the BASS audio engine and combines its playback controls with a flexible shared UI:
 
-The desktop app includes GPU-backed visualizers that react to the playing track and use album-art-derived colors. Visualizers can be selected from the player and remembered between launches.
+- Back To, Up Next, and Related queue views with queue editing.
+- Waveform seeking, synced and unsynced lyrics, favorite and rating actions, and clickable artist
+  credits.
+- ReplayGain, gapless playback, crossfade, sample-rate matching, and resampler quality controls.
+- Configurable artwork, colors, gradients, blur, metadata, long-text behavior, and compact layouts.
+- Desktop visualizers ranging from reactive bars and fluid gradients to particles, terrain, tunnels,
+  vinyl grooves, and album art.
+- Internet-radio playback and metadata alongside normal library playback.
+- Download, cache, and offline controls for listening away from the server.
 
-Current visualizer styles include reactive bars, fluid gradients, audio sphere, audio tunnel, ribbon trail, spectral ridge, mountains, frequency terrain, particle field, particle galaxy, wave interference, vinyl groove, and album art.
+## Platforms and downloads
 
-## Platforms
+Naviamp 2.0 is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA
+preview is also available for users who can provide their own signing.
 
-Naviamp currently targets:
+Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
+Windows and macOS desktop packages are not publisher-signed and may show an operating-system
+warning. See [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
 
-- macOS
-- Windows
-- Linux
-- Android
-- iOS
+## Building from source
 
-The desktop app is built with Compose Multiplatform. The Android app shares the same core domain and UI model where practical, so features can move across platforms without being rebuilt from scratch.
-
-## Naviamp 2.0 Development
-
-Naviamp 2.0 is planned as one shared application hosted by thin Android, Desktop, and iOS platform applications. Feature releases on the v1 line are frozen during this work; v1 maintenance releases are limited to bug fixes.
-
-The architecture, milestones, progress checklist, BASS playback target, and multi-computer working agreement are maintained in the [Naviamp 2.0 cross-platform plan](docs/v2-cross-platform-plan.md). Naviamp 2.0 is now feature-frozen on `release/v2.0.0`; only stabilization and release-preparation changes belong on that branch.
-
-## Requirements
-
-To use Naviamp, you need:
-
-- A Navidrome server or another compatible OpenSubsonic server.
-- A user account on that server.
-- Sonic similarity support on the server if you want Sonic Mix, Sonic Path, and sonic-backed recommendations.
-
-Navidrome is the first-class server target for Naviamp.
-
-## Building from Source
-
-Naviamp uses Kotlin Multiplatform, Compose Multiplatform, Gradle, SQLDelight, and native BASS integration.
-
-Basic requirements:
-
-- JDK 17 or newer.
-- Android Studio or Android SDK if building Android.
-- Platform-specific packaging tools if building installers.
-
-Clone the project and use the checked-in Gradle wrapper:
+Naviamp uses Kotlin Multiplatform, Compose Multiplatform, Gradle, SQLDelight, and native BASS
+integration. You will need JDK 17 or newer, plus the Android SDK or platform packaging tools for the
+targets you want to build.
 
 ```shell
 git clone https://github.com/goosepod/naviamp.git
@@ -157,64 +127,37 @@ make macos-test
 make android-debug
 ```
 
-Useful build targets:
-
-- `make test` runs the complete local non-device gate: Core-first architecture checks, SQLDelight
-  migration verification, shared/provider/desktop/Android unit tests, native Desktop BASS tests,
-  Android BASS package verification, and the aggregate coverage floor.
-- `make coverage` verifies the aggregate 60% line-coverage floor and writes the browsable report to
-  `build/reports/kover/html/index.html`.
-- `make macos-test` builds, stages, and opens a local macOS app at `build/local-test/Naviamp.app`.
-- `make macos-standalone` creates a macOS release zip under `apps/desktop/build/compose/distributions`.
+- `make test` runs the complete local non-device gate, including architecture checks, migrations,
+  shared/provider/platform tests, native playback verification, and aggregate coverage.
+- `make coverage` verifies the aggregate coverage floor and writes a browsable report.
+- `make macos-test` builds, stages, and opens a local macOS app.
 - `make android-debug` builds the Android debug APK.
-- `make desktop-test` runs the desktop test task.
-- `make linux-test` builds and stages a Linux desktop app when run on Linux with the required native playback resources.
-- For iOS Simulator development, build normally through Xcode or `xcodebuild` and keep its default
-  ad-hoc simulator signing enabled. Do not pass `CODE_SIGNING_ALLOWED=NO`: an unsigned simulator app
-  cannot reliably use Keychain-backed provider-token storage and will report that it could not
-  securely store the native provider token.
-- `scripts/build-ios-unsigned-ipa.sh` creates an unsigned physical-device IPA on macOS with Xcode;
-  see [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) before distributing or installing it.
+- Windows and Linux standalone/installer targets must run on their respective operating systems.
 
-The full test matrix, including Android emulator, iOS Simulator/Keychain, and three-desktop-OS CI
-coverage, is documented in [Testing Naviamp](docs/testing.md).
+The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared
+architecture and platform boundaries are documented in the
+[Naviamp 2.0 cross-platform plan](docs/v2-cross-platform-plan.md).
 
-Windows and Linux installer targets must run on their target operating system because `jpackage` packages for the current OS:
-
-```shell
-make windows-standalone
-make windows-installer
-make linux-standalone
-make linux-installer
-```
-
-Desktop credentials use the operating system's secure store: macOS Keychain on macOS, DPAPI on Windows, and Secret Service on Linux. Linux installations therefore need `secret-tool` (normally supplied by the `libsecret-tools` package) and an available Secret Service implementation such as GNOME Keyring or KDE Wallet.
-
-Android release builds require a local signing configuration. Use `.env.android-signing.example` as the template for the required signing values.
-
-## Project Layout
+## Project layout
 
 ```text
-apps/
-  android/        Android app target
-  desktop/        Compose Multiplatform desktop app
-core/
-  domain/         Shared models, playback, queues, settings, and provider contracts
-  storage/        Shared SQLDelight storage
-  ui/             Shared Compose UI and platform UI seams
-providers/
-  navidrome/      Navidrome and OpenSubsonic provider implementation
-native/           Native playback and visualizer support code
+apps/             Thin Android, Desktop, and iOS application hosts
+core/domain/      Shared models, playback, discovery, settings, and provider contracts
+core/storage/     Shared SQLDelight persistence and migrations
+core/ui/          Shared Compose UI and platform UI seams
+providers/        Navidrome/OpenSubsonic and Jellyfin provider implementations
+platforms/        Narrow operating-system and native playback adapters
+native/           Native BASS playback and visualizer support
 readme-assets/    Images used by this README
 ```
 
 ## License
 
-Naviamp is licensed under the GNU General Public License v3.0, with an additional
-permission to link and distribute the application with BASS. See [LICENSE](LICENSE) and the
-[BASS linking exception](BASS-LINKING-EXCEPTION.md).
+Naviamp is licensed under the GNU General Public License v3.0, with additional permission to link
+and distribute the application with BASS. See [LICENSE](LICENSE), the
+[BASS linking exception](BASS-LINKING-EXCEPTION.md), and
+[third-party notices](THIRD_PARTY_NOTICES.md).
 
 BASS and its add-ons are separately licensed. Naviamp currently uses BASS under its free
 non-commercial terms; commercial use requires the appropriate BASS license for every supported
-platform. See [third-party notices](THIRD_PARTY_NOTICES.md) for the BASS terms and bundled decoder
-acknowledgements.
+platform.
