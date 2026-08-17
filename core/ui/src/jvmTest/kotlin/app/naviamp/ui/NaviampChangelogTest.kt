@@ -16,6 +16,7 @@ class NaviampChangelogTest {
         assertTrue(entries.any { "Recently Played Radio" in it })
         assertTrue(entries.any { "5, 10, 20, or 50" in it })
         assertTrue(entries.any { "Starting radio from an album" in it })
+        assertTrue(entries.any { "scrub bar" in it })
         assertTrue(entries.any { "Playlist names" in it })
     }
 }

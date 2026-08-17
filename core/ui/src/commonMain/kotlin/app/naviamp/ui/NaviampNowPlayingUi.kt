@@ -1539,6 +1539,42 @@ private fun WaveformScrubber(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
+            .semantics {
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    current = drawValue().coerceIn(0f, 1f),
+                    range = 0f..1f,
+                )
+                if (enabled) {
+                    setProgress { targetValue ->
+                        val boundedValue = targetValue.coerceIn(0f, 1f)
+                        onValueChange(boundedValue)
+                        onValueChangeFinished(boundedValue)
+                        true
+                    }
+                }
+            }
+            .pointerInput(enabled) {
+                if (!enabled) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    fun fractionForX(x: Float): Float =
+                        waveformSeekFraction(x, size.width)
+
+                    var latestValue = fractionForX(down.position.x)
+                    onValueChange(latestValue)
+                    down.consume()
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        latestValue = fractionForX(change.position.x)
+                        change.consume()
+                        if (!change.pressed) break
+                        onValueChange(latestValue)
+                    }
+                    onValueChangeFinished(latestValue)
+                }
+            },
     ) {
         Canvas(
             modifier = Modifier.fillMaxSize(),
@@ -1582,48 +1618,11 @@ private fun WaveformScrubber(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics {
-                    progressBarRangeInfo = ProgressBarRangeInfo(
-                        current = drawValue().coerceIn(0f, 1f),
-                        range = 0f..1f,
-                    )
-                    if (enabled) {
-                        setProgress { targetValue ->
-                            val boundedValue = targetValue.coerceIn(0f, 1f)
-                            onValueChange(boundedValue)
-                            onValueChangeFinished(boundedValue)
-                            true
-                        }
-                    }
-                }
-                .pointerInput(enabled) {
-                    if (!enabled) return@pointerInput
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        fun fractionForX(x: Float): Float =
-                            (x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f)
-
-                        var latestValue = fractionForX(down.position.x)
-                        onValueChange(latestValue)
-                        down.consume()
-
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            latestValue = fractionForX(change.position.x)
-                            change.consume()
-                            if (!change.pressed) break
-                            onValueChange(latestValue)
-                        }
-                        onValueChangeFinished(latestValue)
-                    }
-                },
-        )
     }
 }
+
+internal fun waveformSeekFraction(x: Float, width: Int): Float =
+    (x / width.coerceAtLeast(1)).coerceIn(0f, 1f)
 
 private fun DrawScope.drawFallbackScrubLine(
     value: Float,

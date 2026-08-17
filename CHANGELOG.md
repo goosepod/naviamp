@@ -22,6 +22,7 @@ more consistent look.
 
 - Recently Played Radio now appears on Home after you start a station, making it easy to return to stations you enjoyed.
 - Starting radio from an album now begins with a song from that album.
+- The Now Playing scrub bar now seeks to the position you select.
 - Includes additional fixes and polish for radio playback and Home screen behavior.
 
 ## v2.0.0

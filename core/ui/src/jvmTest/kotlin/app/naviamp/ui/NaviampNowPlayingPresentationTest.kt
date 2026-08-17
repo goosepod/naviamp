@@ -24,6 +24,13 @@ import kotlin.test.assertTrue
 
 class NaviampNowPlayingPresentationTest {
     @Test
+    fun waveformSeekFractionUsesTheVisibleScrubberBounds() {
+        assertEquals(0f, waveformSeekFraction(x = -20f, width = 200))
+        assertEquals(0.5f, waveformSeekFraction(x = 100f, width = 200))
+        assertEquals(1f, waveformSeekFraction(x = 240f, width = 200))
+    }
+
+    @Test
     fun lyricsTimingSelectorExposesOnlyModesSupportedByLoadedLyrics() {
         assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.Plain, LyricsTiming.WordSynced))
         assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.LineSynced, LyricsTiming.WordSynced))
