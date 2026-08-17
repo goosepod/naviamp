@@ -33,12 +33,12 @@ class RecentRadioStreamsTest {
 
     @Test
     fun recentRadioStreamsAreLimited() {
-        val streams = (1..14).map { genreRecentRadioStream(Genre("Genre $it")) }
+        val streams = (1..55).map { genreRecentRadioStream(Genre("Genre $it")) }
         val recent = recentRadioStreamsWith(streams, libraryRecentRadioStream())
 
         assertEquals(MaxRecentRadioStreams, recent.size)
         assertEquals("library", recent.first().id)
-        assertEquals("genre:Genre 11", recent.last().id)
+        assertEquals("genre:Genre 49", recent.last().id)
     }
 
     @Test

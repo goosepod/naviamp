@@ -13,9 +13,9 @@ class NaviampChangelogTest {
         assertTrue(changelog.all { section -> section.entries.isNotEmpty() })
         assertTrue(changelog.flatMap { it.entries }.all { entry -> entry.lines().size == 1 })
         val entries = changelog.flatMap { it.entries }
-        assertTrue(entries.any { "shared application" in it })
-        assertTrue(entries.any { "Jellyfin" in it && "Bandcamp" in it })
-        assertTrue(entries.any { "secure credential storage" in it })
-        assertTrue(entries.any { "installer upgrade ordering" in it })
+        assertTrue(entries.any { "Recently Played Radio" in it })
+        assertTrue(entries.any { "5, 10, 20, or 50" in it })
+        assertTrue(entries.any { "Starting radio from an album" in it })
+        assertTrue(entries.any { "Playlist names" in it })
     }
 }

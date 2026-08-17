@@ -5,6 +5,7 @@ import app.naviamp.app.NaviampKeepDownloadedToggleResult
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
@@ -150,6 +151,9 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
         assertTrue(fixture.effects.selections.isEmpty())
         assertEquals("Playing track radio.", fixture.store.state.value.overlays.status)
+        val recentSection = fixture.store.state.value.shell.home.content.collectionSections
+            .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentRadio }
+        assertEquals("track:current", recentSection.items.single().mediaItem.id)
 
         fixture.live.replace(
             fixture.live.state.value.copy(
@@ -358,6 +362,27 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         },
         NaviampCoreDownloadedPlaybackPort { _, _ -> },
     )
+    var recentRadioStreams = emptyList<app.naviamp.domain.settings.RecentRadioStream>()
+    val generatedRadio = NaviampCoreMediaTransactions(
+        stateStore = store,
+        busyIndicator = NaviampCoreBusyIndicator(store),
+        providerSource = { provider },
+        registry = NaviampCoreMediaRegistry(),
+        playback = live,
+        queue = queue,
+        effects = effects,
+        queuePlayback = NaviampCoreQueuePlaybackController(live, queue, effects, { presenter.publish() }, {}),
+        downloads = downloads,
+        mediaDetails = mediaDetails,
+        recentRadioStreams = NaviampRecentRadioStreamController(
+            load = { recentRadioStreams },
+            save = { recentRadioStreams = it },
+        ),
+        externalUri = NaviampCoreExternalUriPort {},
+        favoritedAtIso8601 = { "now" },
+        publishNowPlaying = { presenter.publish() },
+        openNowPlaying = {},
+    )
     val controller = NaviampCoreNowPlayingMediaController(
         stateStore = store,
         providerSource = { provider },
@@ -375,6 +400,7 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         mediaDetails = mediaDetails,
         navigation = navigation,
         radio = radio,
+        generatedRadio = generatedRadio,
         favoritedAtIso8601 = { "now" },
     )
     presenter.publish()

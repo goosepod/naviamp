@@ -34,6 +34,21 @@ class NaviampActionCatalogTest {
             ),
             actions.map { it.action },
         )
+        assertEquals("Start Radio", actions.first { it.action == NaviampAction.StartTrackRadio }.label)
+    }
+
+    @Test
+    fun albumRadioAppearsBeforeFavoriteWithTheSharedLabel() {
+        val actions = albumRowActions(
+            canStartRadio = true,
+            canFavorite = true,
+        )
+
+        assertEquals(
+            listOf(NaviampAction.StartAlbumRadio, NaviampAction.ToggleFavorite),
+            actions.map { it.action },
+        )
+        assertEquals("Start Radio", actions.first().label)
     }
 
     @Test

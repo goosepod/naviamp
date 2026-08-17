@@ -34,10 +34,30 @@ class RadioService(
         }
     }
 
-    suspend fun albumRadio(albumId: AlbumId, fallbackTracks: List<Track> = emptyList()): List<Track> =
-        provider.albumRadio(albumId, count = fetchCount).ifEmpty {
-            fallbackTracks.ifEmpty { albumTracks(albumId) }.shuffled()
-        }.let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
+    suspend fun albumRadio(albumId: AlbumId, fallbackTracks: List<Track> = emptyList()): List<Track> {
+        val albumTracks = fallbackTracks.ifEmpty { albumTracks(albumId) }
+        val seedTrack = albumTracks.randomOrNull()
+        val providerTracks = provider.albumRadio(albumId, count = fetchCount)
+        if (seedTrack == null) {
+            val fallback = providerTracks.ifEmpty { albumTracks.shuffled() }
+            return tunedRadioTracks(
+                seedTrack = fallback.firstOrNull(),
+                tracks = fallback,
+                tuning = tuning,
+                targetCount = count,
+            )
+        }
+        val candidates = providerTracks
+            .ifEmpty { albumTracks.shuffled() }
+            .filterNot { track -> track.id == seedTrack.id }
+        val tuned = tunedRadioTracks(
+            seedTrack = seedTrack,
+            tracks = candidates,
+            tuning = tuning,
+            targetCount = (count - 1).coerceAtLeast(0),
+        )
+        return generatedRadioQueue(seedTrack, tuned).take(count)
+    }
 
     suspend fun artistRadio(artistId: ArtistId): List<Track> =
         provider.artistRadio(artistId, count = fetchCount)

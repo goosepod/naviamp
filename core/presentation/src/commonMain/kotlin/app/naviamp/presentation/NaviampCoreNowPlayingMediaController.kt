@@ -6,7 +6,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.media.resolveTrackArtistNavigation
 import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.media.ratedTrackUpdate
-import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingCurrentTrackAction
@@ -40,6 +39,7 @@ class NaviampCoreNowPlayingMediaController(
     private val mediaDetails: NaviampCoreMediaDetailController,
     private val navigation: NaviampCoreNavigationController,
     private val radio: NaviampCoreInternetRadioController,
+    private val generatedRadio: NaviampCoreTrackRadioTransactions,
     private val favoritedAtIso8601: () -> String,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
@@ -124,7 +124,7 @@ class NaviampCoreNowPlayingMediaController(
     private suspend fun currentTrack(request: NowPlayingCurrentTrackUiActionRequest) {
         val track = currentTrackOrPublish() ?: return
         when (request.action) {
-            NowPlayingCurrentTrackAction.StartRadio -> startTrackRadio(track)
+            NowPlayingCurrentTrackAction.StartRadio -> generatedRadio.startTrackRadio(track)
             NowPlayingCurrentTrackAction.AddToPlaylist -> addToPlaylist(track, request.playlistChoice?.id)
             NowPlayingCurrentTrackAction.CreatePlaylistAndAdd -> createPlaylist(track, request.playlistName)
             NowPlayingCurrentTrackAction.Download -> downloads.downloadTracks(track.title, listOf(track), includeCompletedCount = false)
@@ -173,9 +173,11 @@ class NaviampCoreNowPlayingMediaController(
         val resolved = request.resolveAction(live.queue.tracks, related)
         val track = resolved.track
         when (resolved.action) {
-            NowPlayingItemAction.StartRadio -> track?.let { startTrackRadio(it) } ?: staleTrack()
-            NowPlayingItemAction.PlayTrackRadioNext -> track?.let { addTrackRadio(it, playNext = true) } ?: staleTrack()
-            NowPlayingItemAction.AddTrackRadioToQueue -> track?.let { addTrackRadio(it, playNext = false) } ?: staleTrack()
+            NowPlayingItemAction.StartRadio -> track?.let { generatedRadio.startTrackRadio(it) } ?: staleTrack()
+            NowPlayingItemAction.PlayTrackRadioNext ->
+                track?.let { generatedRadio.addTrackRadio(it, playNext = true) } ?: staleTrack()
+            NowPlayingItemAction.AddTrackRadioToQueue ->
+                track?.let { generatedRadio.addTrackRadio(it, playNext = false) } ?: staleTrack()
             NowPlayingItemAction.PlayNext -> when (val target = request.target) {
                 is NowPlayingItemTarget.QueueIndex -> applyQueueMutation(queue.moveToNext(target.index))
                 else -> track?.let { applyQueueUpdate(queue.playNextTracks(listOf(it), "track")) } ?: staleTrack()
@@ -197,39 +199,6 @@ class NaviampCoreNowPlayingMediaController(
         }
     }
 
-    private suspend fun startTrackRadio(seed: Track) {
-        val provider = providerOrPublish() ?: return
-        publishStatus("Building track radio...")
-        runCatching {
-            val settings = stateStore.state.value.shell.playback.settings
-            RadioService(provider, tuning = settings.radioTuning)
-                .trackRadio(seed, settings.sonicSimilarityEnabled)
-        }.onSuccess { fetched ->
-            if (fetched.isEmpty()) publishStatus("Track radio did not return any tracks.")
-            else {
-                val update = queue.replaceGeneratedRadioUpcomingTracks(
-                    currentTrack = seed,
-                    fetchedTracks = fetched,
-                    requestIsCurrent = playback.state.value.currentTrack?.id == seed.id,
-                )
-                applyQueueMutation(update)
-                publishStatus("Playing track radio.")
-            }
-        }.onFailure { publishStatus(it.message ?: "Could not build track radio.") }
-    }
-
-    private suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
-        val provider = providerOrPublish() ?: return
-        runCatching {
-            val settings = stateStore.state.value.shell.playback.settings
-            RadioService(provider, tuning = settings.radioTuning)
-                .trackRadio(seed, settings.sonicSimilarityEnabled)
-        }.onSuccess { tracks ->
-            if (playNext) applyQueueUpdate(queue.playNextTracks(tracks, "radio tracks"))
-            else applyQueueUpdate(queue.appendTracks(tracks, "radio tracks"))
-        }.onFailure { publishStatus(it.message ?: "Could not load track radio.") }
-    }
-
     private suspend fun selectRadioDj(id: String?) {
         val current = stateStore.state.value.shell.playback.settings
         val selected = id?.let { requested -> current.radioDjs.firstOrNull { it.id == requested } }
@@ -243,7 +212,7 @@ class NaviampCoreNowPlayingMediaController(
         )
         settings.apply(updated, redownload = false)
         stateStore.updateShell { shell -> shell.copy(playback = shell.playback.copy(settings = updated)) }
-        currentTrack()?.let { startTrackRadio(it) }
+        currentTrack()?.let { generatedRadio.startTrackRadio(it) }
         publishStatus(selected?.let { "Selected ${it.name} DJ." } ?: "Default radio selected.")
     }
 

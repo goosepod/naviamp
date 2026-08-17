@@ -759,10 +759,28 @@ fun SharedMediaRow(
         MultiCoverArt(colors = colors, covers = coverUrls, size = coverArtSize, cornerRadius = coverArtCornerRadius)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(item.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        if (item.meta.isNotBlank()) {
-            Text(item.meta, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    item.subtitle,
+                    color = colors.secondaryText,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (item.meta.isNotBlank()) {
+                    Text(
+                        item.meta,
+                        color = colors.mutedText,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
         if (item.favoriteActive) {
             Icon(
@@ -781,7 +799,7 @@ fun SharedMediaRow(
         } else {
             null
         }
-        val allMenuItems = listOfNotNull(favoriteMenuItem) + menuItems
+        val allMenuItems = menuItems + listOfNotNull(favoriteMenuItem)
         if (allMenuItems.isNotEmpty()) {
             NaviampRowOverflowMenu(colors = colors, items = allMenuItems)
         }
@@ -861,7 +879,7 @@ fun SharedAlbumGridTile(
                     )
                 }
             }
-            val allMenuItems = listOfNotNull(favoriteMenuItem) + menuItems
+            val allMenuItems = menuItems + listOfNotNull(favoriteMenuItem)
             if (allMenuItems.isNotEmpty()) {
                 NaviampRowOverflowMenu(colors = colors, items = allMenuItems)
             }

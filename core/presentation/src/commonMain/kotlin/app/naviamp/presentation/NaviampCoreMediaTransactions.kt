@@ -31,6 +31,7 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.withRecentRadioStreams
 
 fun interface NaviampCoreExternalUriPort {
     fun open(uri: String)
@@ -58,6 +59,11 @@ class NaviampCoreQueuePlaybackController(
 }
 
 /** Shared media transactions used by every route; only final audio/URI effects cross the host boundary. */
+interface NaviampCoreTrackRadioTransactions {
+    suspend fun startTrackRadio(seed: Track)
+    suspend fun addTrackRadio(seed: Track, playNext: Boolean)
+}
+
 class NaviampCoreMediaTransactions(
     private val stateStore: NaviampCoreStateStore,
     private val busyIndicator: NaviampCoreBusyIndicator,
@@ -74,7 +80,7 @@ class NaviampCoreMediaTransactions(
     private val favoritedAtIso8601: () -> String,
     private val publishNowPlaying: () -> Unit,
     private val openNowPlaying: () -> Unit,
-) {
+) : NaviampCoreTrackRadioTransactions {
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
     }
@@ -82,7 +88,7 @@ class NaviampCoreMediaTransactions(
     fun playNext(tracks: List<Track>) = apply(queue.playNextTracks(tracks, "tracks"))
     fun addToQueue(tracks: List<Track>) = apply(queue.appendTracks(tracks, "tracks"))
 
-    suspend fun startTrackRadio(seed: Track) {
+    override suspend fun startTrackRadio(seed: Track) {
         val provider = providerOrPublish() ?: return
         busyIndicator.during("Building track radio...") {
             publish("Building track radio...")
@@ -112,7 +118,7 @@ class NaviampCoreMediaTransactions(
         }
     }
 
-    suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
+    override suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
         val provider = providerOrPublish() ?: return
         busyIndicator.during("Loading track radio...") {
             runCatching {
@@ -319,23 +325,32 @@ class NaviampCoreMediaTransactions(
         val updated = recentRadioStreams.remember(stream.withRadioCoverArtIds(tracks))
         val provider = providerSource.current()
         stateStore.updateShell { shell ->
+            val recentItems = updated.map { recent ->
+                val coverArtUrls = recent.coverArtIds
+                    .mapNotNull { id -> provider?.coverArtUrl(id) }
+                    .distinct()
+                    .take(4)
+                SharedMediaItemUi(
+                    id = recent.id,
+                    title = recent.label,
+                    subtitle = "Radio",
+                    coverArtUrl = coverArtUrls.firstOrNull(),
+                    coverArtUrls = coverArtUrls,
+                )
+            }
+            val content = shell.home.content.withRecentRadioStreams(
+                streams = recentItems,
+                interfaceSettings = shell.general.interfaceSettings,
+            )
+            val collectionPage = shell.home.collectionPage?.let { page ->
+                content.collectionSections
+                    .firstOrNull { it.id == page.section.id }
+                    ?.let { section -> page.copy(section = section) }
+            }
             shell.copy(
                 home = shell.home.copy(
-                    content = shell.home.content.copy(
-                        recentRadioStreams = updated.map { recent ->
-                            val coverArtUrls = recent.coverArtIds
-                                .mapNotNull { id -> provider?.coverArtUrl(id) }
-                                .distinct()
-                                .take(4)
-                            SharedMediaItemUi(
-                                id = recent.id,
-                                title = recent.label,
-                                subtitle = "Radio",
-                                coverArtUrl = coverArtUrls.firstOrNull(),
-                                coverArtUrls = coverArtUrls,
-                            )
-                        },
-                    ),
+                    content = content,
+                    collectionPage = collectionPage,
                 ),
             )
         }

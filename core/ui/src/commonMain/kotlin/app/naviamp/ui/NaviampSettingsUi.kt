@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import app.naviamp.domain.network.NaviampAppVersion
+import app.naviamp.domain.network.NaviampAppBuildNumber
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -99,6 +100,7 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.settings.HomeSectionIds
+import app.naviamp.domain.settings.RecentRadioHomeItemLimits
 import app.naviamp.domain.settings.DesktopShortcutPlatform
 import app.naviamp.domain.settings.GlobalShortcutAction
 import app.naviamp.domain.settings.KeyboardShortcutBinding
@@ -155,7 +157,7 @@ data class NaviampStorageLocationUi(val id: String, val label: String, val path:
 
 data class NaviampAboutUi(
     val version: String = NaviampAppVersion,
-    val buildNumber: String = "Unknown",
+    val buildNumber: String = NaviampAppBuildNumber,
     val libraries: List<String> = DefaultNaviampLibraries,
     val changelog: List<NaviampChangelogSectionUi> = DefaultNaviampChangelog,
 )
@@ -1334,6 +1336,25 @@ private fun HomeScreenSectionPresentationSettings(
         }
     }
 
+    if (selectedSection.id == HomeSectionIds.RecentRadio) {
+        SettingsSectionTitle("Stations shown", colors)
+        RecentRadioHomeItemLimits.forEach { limit ->
+            SelectableSettingsRow(
+                title = limit.toString(),
+                subtitle = "Show the $limit most recently played stations on Home",
+                selected = presentation.homeItemLimit == limit,
+                colors = colors,
+            ) {
+                onInterfaceSettingsChanged(
+                    interfaceSettings.withHomeSectionPresentation(
+                        selectedSection.id,
+                        presentation.copy(homeItemLimit = limit),
+                    ),
+                )
+            }
+        }
+    }
+
     SettingsSectionTitle("Dedicated page", colors)
     HomeSectionPageLayout.entries.forEach { layout ->
         SelectableSettingsRow(
@@ -2366,25 +2387,18 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Rebuilt Naviamp as one shared application for Android, macOS, Windows, Linux, and the iOS preview.",
-            "Added generic Subsonic/OpenSubsonic, Jellyfin, and Bandcamp connections alongside Navidrome.",
-            "Added shared BASS playback with gapless transitions, crossfade, ReplayGain, equalization, sample-rate matching, waveforms, and visualizers.",
-            "Added persistent downloads, keep-downloaded collections, cache controls, offline playback, and credential-free settings sync.",
-            "Added customizable Home layouts, Navibeat and provider mixes, generated stations, internet radio, smart playlists, Sonic Mix, Sonic Path, and Sonic Autoplay.",
-            "Added plain, line-synchronized, and word-synchronized lyrics with independent download and display preferences.",
-            "Added Stable and Beta update channels plus correctly versioned upgrade packages for every supported release platform.",
+            "Choose whether Home shows your 5, 10, 20, or 50 most recently played radio stations.",
+            "Start Radio is now available from album and track menus throughout Home.",
+            "Album lists have a refreshed, consistent appearance with clearer artist and release-year information.",
+            "Playlist names have more room to breathe while Play and Shuffle remain close at hand.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Fixed queue transitions, repeat, seeking, waveforms, downloaded-source playback, and cross-provider cold restoration.",
-            "Reduced Android background network, CPU, and battery use by bounding prefetch and publication work.",
-            "Fixed Jellyfin libraries, transcoding, playlists, recently played reporting, lyrics, downloads, and offline fallback.",
-            "Fixed Bandcamp collection discovery, complete queue saves, playlist saving state, and unsupported reordering feedback.",
-            "Fixed secure credential storage and prominent connection errors across supported operating systems.",
-            "Fixed responsive navigation, aligned track numbers, Home layout switching, carousel snapping, pinned headers, and refresh menus.",
-            "Fixed package identity, icons, semantic versions, installer upgrade ordering, and release filenames.",
+            "Recently Played Radio now appears on Home after you start a station, making it easy to return to stations you enjoyed.",
+            "Starting radio from an album now begins with a song from that album.",
+            "Includes additional fixes and polish for radio playback and Home screen behavior.",
         ),
     ),
 )

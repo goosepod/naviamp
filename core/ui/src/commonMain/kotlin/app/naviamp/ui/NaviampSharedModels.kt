@@ -583,6 +583,7 @@ data class SharedHomeCollectionSectionUi(
     val items: List<SharedHomeCollectionItemUi>,
     val supportedHomeLayouts: Set<HomeSectionLayout> = HomeSectionLayout.entries.toSet(),
     val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,
+    val homeItemLimit: Int? = null,
     val supportedPageLayouts: Set<HomeSectionPageLayout> = HomeSectionPageLayout.entries.toSet(),
     val defaultPageLayout: HomeSectionPageLayout = HomeSectionPageLayout.Grid,
 )

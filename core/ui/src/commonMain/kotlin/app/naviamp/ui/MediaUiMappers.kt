@@ -2,7 +2,6 @@ package app.naviamp.ui
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
-import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Genre
@@ -25,7 +24,6 @@ import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.navibeat.statusLabel
 import app.naviamp.domain.media.groupedByReleaseSection
-import app.naviamp.domain.media.releaseSection
 import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.lyrics.timing
 import app.naviamp.domain.settings.AlbumSortOrder
@@ -75,11 +73,7 @@ fun Album.toSharedMediaItemUi(
         id = id.value,
         title = title,
         subtitle = artistName,
-        meta = listOfNotNull(
-            releaseSection().label.removeSuffix("s"),
-            releaseYear?.toString(),
-            "Explicit".takeIf { explicitStatus == AlbumExplicitStatus.Explicit },
-        ).joinToString(" "),
+        meta = releaseYear?.toString().orEmpty(),
         releaseYear = releaseYear,
         coverArtUrl = coverArtUrl(coverArtId ?: id.value),
         favoriteActive = favoritedAtIso8601 != null,
@@ -198,6 +192,7 @@ fun HomeContent.toSharedHomeUi(
                     title = title,
                     items = items,
                     homeLayout = presentation.homeLayout,
+                    homeItemLimit = presentation.homeItemLimit,
                     defaultPageLayout = presentation.pageLayout,
                 ),
             )
@@ -346,6 +341,39 @@ fun HomeContent.toSharedHomeUi(
         genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         decadeLabel = decadeLabel,
         decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+    )
+}
+
+fun SharedHomeUi.withRecentRadioStreams(
+    streams: List<SharedMediaItemUi>,
+    interfaceSettings: InterfaceSettings,
+): SharedHomeUi {
+    val remainingSections = collectionSections.filterNot { it.id == HomeSectionIds.RecentRadio }
+    val updatedSections = if (streams.isEmpty()) {
+        remainingSections
+    } else {
+        val presentation = interfaceSettings.homeSectionPresentation(HomeSectionIds.RecentRadio)
+        remainingSections + SharedHomeCollectionSectionUi(
+            id = HomeSectionIds.RecentRadio,
+            title = "RECENTLY PLAYED RADIO",
+            items = streams.map { item ->
+                SharedHomeCollectionItemUi(
+                    mediaItem = item,
+                    mediaKind = SharedMediaItemKind.RadioStation,
+                    action = SharedHomeCollectionItemAction.SelectRecentRadio,
+                )
+            },
+            homeLayout = presentation.homeLayout,
+            homeItemLimit = presentation.homeItemLimit,
+            defaultPageLayout = presentation.pageLayout,
+        )
+    }
+    val orderIndex = interfaceSettings.resolvedHomeSectionOrder(updatedSections.map { it.id })
+        .withIndex()
+        .associate { it.value to it.index }
+    return copy(
+        recentRadioStreams = streams,
+        collectionSections = updatedSections.sortedBy { orderIndex[it.id] ?: Int.MAX_VALUE },
     )
 }
 

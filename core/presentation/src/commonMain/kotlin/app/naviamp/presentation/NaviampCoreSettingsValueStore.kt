@@ -4,6 +4,7 @@ import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.radio.MaxRecentRadioStreams
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.VisualizerSettings
@@ -56,7 +57,7 @@ internal fun naviampCoreSettingsValueCatalogWithoutMigration(
             loadRecentRadioStreams = {
                 read(values, json, KeyRecentRadio, emptyList<RecentRadioStream>())
             },
-            saveRecentRadioStreams = { write(values, json, KeyRecentRadio, it) },
+            saveRecentRadioStreams = { write(values, json, KeyRecentRadio, it.take(MaxRecentRadioStreams)) },
             loadRecentInternetRadioStations = {
                 read(values, json, KeyRecentInternetRadio, emptyList<SavedInternetRadioStation>())
             },
