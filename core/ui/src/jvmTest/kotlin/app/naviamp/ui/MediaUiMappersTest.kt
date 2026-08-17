@@ -29,6 +29,7 @@ import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.HomeSectionPresentationSettings
 import app.naviamp.domain.settings.ConnectionFormState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,6 +39,41 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun recentRadioUpdateAddsVisibleSectionWithSavedPresentationAndOrder() {
+        val settings = InterfaceSettings(
+            homeSectionOrder = listOf(HomeSectionIds.RecentRadio, HomeSectionIds.MixesForYou),
+            homeSectionPresentations = mapOf(
+                HomeSectionIds.RecentRadio to HomeSectionPresentationSettings(
+                    homeLayout = HomeSectionLayout.Grid,
+                    pageLayout = HomeSectionPageLayout.List,
+                ),
+            ),
+        )
+        val initial = HomeContent(
+            mixAlbums = listOf(Album(AlbumId("mix"), "Mix", "Artist", null, null)),
+        ).toSharedHomeUi(
+            coverArtUrl = { null },
+            interfaceSettings = settings,
+        )
+
+        val updated = initial.withRecentRadioStreams(
+            streams = listOf(SharedMediaItemUi("library", "Library Radio", "Radio")),
+            interfaceSettings = settings,
+        )
+
+        assertEquals(
+            listOf(HomeSectionIds.RecentRadio, HomeSectionIds.MixesForYou),
+            updated.collectionSections.take(2).map { it.id },
+        )
+        val section = updated.collectionSections.first()
+        assertEquals(HomeSectionLayout.Grid, section.homeLayout)
+        assertEquals(10, section.homeItemLimit)
+        assertEquals(HomeSectionPageLayout.List, section.defaultPageLayout)
+        assertEquals(SharedHomeCollectionItemAction.SelectRecentRadio, section.items.single().action)
+        assertEquals("library", updated.recentRadioStreams.single().id)
+    }
+
     @Test
     fun homeMapsRemainingSectionsAndAppliesSavedSectionOrder() {
         val navibeatPlaylist = Playlist(
@@ -530,7 +566,7 @@ class MediaUiMappersTest {
         ).toSharedArtistDetailUi(coverArtUrl = { null })
 
         assertEquals(listOf("Albums", "EPs"), ui.albumSections.map { it.title })
-        assertEquals("Album 2026 Explicit", ui.albumSections.first().albums.single().meta)
+        assertEquals("2026", ui.albumSections.first().albums.single().meta)
         assertEquals("2 albums, EPs, and singles", ui.localLibraryLabel)
         assertEquals("", ui.sourceContextLabel)
     }

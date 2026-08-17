@@ -10,13 +10,14 @@ import app.naviamp.domain.settings.SavedAlbum
 import app.naviamp.domain.settings.SavedArtist
 import app.naviamp.domain.settings.SavedTrack
 
-const val MaxRecentRadioStreams = 12
+const val MaxRecentRadioStreams = 50
 
 fun recentRadioStreamsWith(
     recentStreams: List<RecentRadioStream>,
     stream: RecentRadioStream,
     limit: Int = MaxRecentRadioStreams,
 ): List<RecentRadioStream> =
+    // This list is persisted newest-last-played first, so trimming its tail removes the oldest stations.
     (listOf(stream) + recentStreams.filterNot { it.id == stream.id }).take(limit)
 
 fun RecentRadioStream.withRadioCoverArtIds(tracks: List<Track>, limit: Int = 4): RecentRadioStream {

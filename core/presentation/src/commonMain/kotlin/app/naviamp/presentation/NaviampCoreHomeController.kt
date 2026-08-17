@@ -201,6 +201,7 @@ class NaviampCoreHomeController(
                 val presentation = settings.homeSectionPresentation(section.id)
                 section.copy(
                     homeLayout = presentation.homeLayout,
+                    homeItemLimit = presentation.homeItemLimit,
                     defaultPageLayout = presentation.pageLayout,
                 )
             }

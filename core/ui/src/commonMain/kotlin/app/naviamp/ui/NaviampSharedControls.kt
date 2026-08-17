@@ -312,14 +312,15 @@ internal fun MiniPlayerIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     selected: Boolean = false,
+    size: Dp = 38.dp,
 ) {
     NaviampTooltip(contentDescription, colors) {
         IconButton(
             enabled = enabled,
             onClick = onClick,
             modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(19.dp))
+                .size(size)
+                .clip(RoundedCornerShape(size / 2f))
                 .background(if (selected && enabled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
         ) {
             Icon(
@@ -329,7 +330,7 @@ internal fun MiniPlayerIconButton(
                     !enabled -> colors.mutedText
                     else -> colors.primaryText
                 },
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(size * 0.58f),
             )
         }
     }

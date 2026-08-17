@@ -4,11 +4,14 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 val generatedNaviampVersionSources = layout.buildDirectory.dir("generated/naviampVersion/commonMain")
 val generateNaviampVersion by tasks.registering {
     val versionFile = rootProject.layout.projectDirectory.file("VERSION")
+    val buildNumberFile = rootProject.layout.projectDirectory.file("VERSION_CODE")
     val outputDir = generatedNaviampVersionSources
     inputs.file(versionFile)
+    inputs.file(buildNumberFile)
     outputs.dir(outputDir)
     doLast {
         val version = versionFile.asFile.readText().trim()
+        val buildNumber = buildNumberFile.asFile.readText().trim()
         val escapedVersion = version.replace("\\", "\\\\").replace("\"", "\\\"")
         val packageDir = outputDir.get().file("app/naviamp/domain/network").asFile
         packageDir.mkdirs()
@@ -17,6 +20,7 @@ val generateNaviampVersion by tasks.registering {
             package app.naviamp.domain.network
 
             const val NaviampAppVersion = "$escapedVersion"
+            const val NaviampAppBuildNumber = "$buildNumber"
             const val NaviampClientName = "Naviamp"
             const val NaviampUserAgent = "Naviamp/$escapedVersion"
             const val NaviampProjectUserAgent = "Naviamp/$escapedVersion (https://github.com/jbmcmichael/Naviamp)"

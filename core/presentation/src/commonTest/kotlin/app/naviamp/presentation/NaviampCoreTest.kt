@@ -360,6 +360,10 @@ class NaviampCoreTest {
         assertEquals(listOf(provider.track.id.value), effects.selections.single().tracks.map { it.id.value })
         assertEquals("library", persisted.single().id)
         assertEquals("library", core.state.value.shell.home.content.recentRadioStreams.single().id)
+        val section = core.state.value.shell.home.content.collectionSections
+            .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentRadio }
+        assertEquals("library", section.items.single().mediaItem.id)
+        assertEquals(app.naviamp.ui.SharedHomeCollectionItemAction.SelectRecentRadio, section.items.single().action)
     }
 
     @Test

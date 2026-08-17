@@ -400,28 +400,43 @@ private fun PlaylistListRow(
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
             }
-            Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    playlist.subtitle,
+                    color = colors.secondaryText,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                MiniPlayerIconButton(
+                    colors,
+                    true,
+                    NaviampTransportIcons.Play,
+                    stringResource(Res.string.playlists_play),
+                    onClick = {
+                        onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Play(shuffle = false)))
+                    },
+                    size = 28.dp,
+                )
+                MiniPlayerIconButton(
+                    colors,
+                    playlist.meta != "1 track",
+                    NaviampTransportIcons.Shuffle,
+                    stringResource(Res.string.playlists_shuffle),
+                    onClick = {
+                        onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Play(shuffle = true)))
+                    },
+                    size = 28.dp,
+                )
+            }
         }
-        MiniPlayerIconButton(
-            colors,
-            true,
-            NaviampTransportIcons.Play,
-            stringResource(Res.string.playlists_play),
-            onClick = {
-                onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Play(shuffle = false)))
-            },
-        )
-        MiniPlayerIconButton(
-            colors,
-            playlist.meta != "1 track",
-            NaviampTransportIcons.Shuffle,
-            stringResource(Res.string.playlists_shuffle),
-            onClick = {
-                onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Play(shuffle = true)))
-            },
-        )
         NaviampRowOverflowMenu(
             colors = colors,
             items = playlistRowActions(

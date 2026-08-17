@@ -35,6 +35,23 @@ class RadioServiceTest {
     }
 
     @Test
+    fun albumRadioAlwaysStartsWithATrackFromTheSelectedAlbum() = runTest {
+        val albumTracks = listOf(track("album-one-a"), track("album-one-b"))
+        val provider = FakeRadioProvider(
+            radioTracks = listOf(track("recommendation-one"), track("recommendation-two")),
+            albumTracksById = mapOf(AlbumId("album-one") to albumTracks),
+        )
+
+        val tracks = RadioService(provider).albumRadio(AlbumId("album-one"))
+
+        assertEquals(true, tracks.first() in albumTracks)
+        assertEquals(
+            setOf("recommendation-one", "recommendation-two"),
+            tracks.drop(1).map { it.id.value }.toSet(),
+        )
+    }
+
+    @Test
     fun artistSeedUsesProviderResponseServiceForArtistAndAlbumDetails() = runTest {
         val cache = RecordingProviderResponseCacheRepository()
         val provider = FakeRadioProvider()
@@ -368,6 +385,9 @@ class RadioServiceTest {
             error("unused")
 
         override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> =
+            radioTracks
+
+        override suspend fun albumRadio(albumId: AlbumId, count: Int): List<Track> =
             radioTracks
 
         override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =

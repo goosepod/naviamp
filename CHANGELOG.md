@@ -6,6 +6,25 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.0.1
+
+This update makes radio easier to start and revisit, while giving album and playlist lists a clearer,
+more consistent look.
+
+### Features
+
+- Choose whether Home shows your 5, 10, 20, or 50 most recently played radio stations.
+- Start Radio is now available from album and track menus throughout Home.
+- Album lists have a refreshed, consistent appearance with clearer artist and release-year information.
+- Playlist names have more room to breathe while Play and Shuffle remain close at hand.
+
+### Bug Fixes
+
+- Recently Played Radio now appears on Home after you start a station, making it easy to return to stations you enjoyed.
+- Starting radio from an album now begins with a song from that album.
+- The Now Playing scrub bar now seeks to the position you select.
+- Includes additional fixes and polish for radio playback and Home screen behavior.
+
 ## v2.0.0
 
 Naviamp 2.0 is a complete cross-platform rebuild around one shared application, with thin Android,

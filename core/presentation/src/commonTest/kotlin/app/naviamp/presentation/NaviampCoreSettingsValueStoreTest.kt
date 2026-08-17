@@ -1,5 +1,8 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.Genre
+import app.naviamp.domain.radio.MaxRecentRadioStreams
+import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import kotlin.test.Test
@@ -18,6 +21,12 @@ class NaviampCoreSettingsValueStoreTest {
         assertEquals(48, settings.loadInterface().albumBlurRadiusDp)
         catalog.savePlayback(PlaybackSettings(crossfadeDurationSeconds = 999))
         assertEquals(999, settings.loadPlayback().crossfadeDurationSeconds)
+
+        settings.saveRecentRadioStreams(
+            (1..55).map { index -> genreRecentRadioStream(Genre("Genre $index")) },
+        )
+        assertEquals(MaxRecentRadioStreams, settings.loadRecentRadioStreams().size)
+        assertEquals("genre:Genre 50", settings.loadRecentRadioStreams().last().id)
 
         values.entries["naviamp.interface"] = "not-json"
         assertEquals(InterfaceSettings(), settings.loadInterface())

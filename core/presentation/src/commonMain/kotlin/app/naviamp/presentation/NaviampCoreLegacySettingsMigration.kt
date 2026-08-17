@@ -9,6 +9,7 @@ import app.naviamp.domain.radio.RadioArtistSpread
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioFamiliarity
 import app.naviamp.domain.radio.RadioTuningSettings
+import app.naviamp.domain.radio.MaxRecentRadioStreams
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
@@ -136,7 +137,7 @@ fun migrateLegacyNaviampSettings(
     }
     migrateSection(legacy, destination, KeyRecentRadio, listOf("recent_radio_streams")) {
         settings.saveRecentRadioStreams(
-            legacy.list("recent_radio_streams", RecentRadioStream.serializer(), json).take(12),
+            legacy.list("recent_radio_streams", RecentRadioStream.serializer(), json).take(MaxRecentRadioStreams),
         )
         migrated += NaviampCoreSettingsMigrationSection.RecentRadio
     }

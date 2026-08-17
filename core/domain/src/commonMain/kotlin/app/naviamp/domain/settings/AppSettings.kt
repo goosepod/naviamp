@@ -177,7 +177,8 @@ data class InterfaceSettings(
         nowPlaying = nowPlaying.normalized(),
         homeSectionPresentations = homeSectionPresentations
             .filterKeys { it.isNotBlank() }
-            .mapKeys { (id, _) -> id.trim() },
+            .map { (id, presentation) -> id.trim() to presentation.normalized(id.trim()) }
+            .toMap(),
         homeSectionOrder = homeSectionOrder.map(String::trim).filter(String::isNotBlank).distinct(),
         globalKeyboardShortcuts = globalKeyboardShortcuts.normalized(),
     )
@@ -200,10 +201,23 @@ enum class HomeSectionPageLayout(val label: String) {
 data class HomeSectionPresentationSettings(
     val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,
     val pageLayout: HomeSectionPageLayout = HomeSectionPageLayout.Grid,
+    val homeItemLimit: Int? = null,
 )
 
+val RecentRadioHomeItemLimits = listOf(5, 10, 20, 50)
+const val DefaultRecentRadioHomeItemLimit = 10
+
+private fun HomeSectionPresentationSettings.normalized(sectionId: String): HomeSectionPresentationSettings =
+    copy(
+        homeItemLimit = if (sectionId == HomeSectionIds.RecentRadio) {
+            homeItemLimit?.takeIf { it in RecentRadioHomeItemLimits } ?: DefaultRecentRadioHomeItemLimit
+        } else {
+            null
+        },
+    )
+
 fun InterfaceSettings.homeSectionPresentation(sectionId: String): HomeSectionPresentationSettings =
-    homeSectionPresentations[sectionId] ?: defaultHomeSectionPresentation(sectionId)
+    (homeSectionPresentations[sectionId] ?: defaultHomeSectionPresentation(sectionId)).normalized(sectionId)
 
 fun defaultHomeSectionPresentation(sectionId: String): HomeSectionPresentationSettings =
     HomeSectionPresentationSettings(
@@ -212,13 +226,14 @@ fun defaultHomeSectionPresentation(sectionId: String): HomeSectionPresentationSe
         } else {
             HomeSectionLayout.List
         },
+        homeItemLimit = if (sectionId == HomeSectionIds.RecentRadio) DefaultRecentRadioHomeItemLimit else null,
     )
 
 fun InterfaceSettings.withHomeSectionPresentation(
     sectionId: String,
     presentation: HomeSectionPresentationSettings,
 ): InterfaceSettings = copy(
-    homeSectionPresentations = homeSectionPresentations + (sectionId to presentation),
+    homeSectionPresentations = homeSectionPresentations + (sectionId to presentation.normalized(sectionId)),
 ).normalized()
 
 fun InterfaceSettings.resolvedHomeSectionOrder(

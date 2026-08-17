@@ -328,24 +328,6 @@ class NaviampCore private constructor(
                 nowPlayingPresenter,
                 services.clockEpochMillis,
             )
-            val nowPlaying = NaviampCoreNowPlayingMediaController(
-                stateStore,
-                providerSource,
-                livePlayback,
-                queue,
-                services.playback.effects,
-                nowPlayingPresenter,
-                playback,
-                services.playback.settings,
-                visualizerSettings,
-                services.playback.sidecars,
-                downloads,
-                mediaDetails,
-                navigation,
-                radio,
-                services.favoritedAtIso8601,
-                mediaRegistry,
-            )
             val generatedRadioRecents = NaviampRecentRadioStreamController(
                 load = services.radio.generatedRecents.load,
                 save = services.radio.generatedRecents.save,
@@ -367,6 +349,25 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 navigation::openNowPlaying,
+            )
+            val nowPlaying = NaviampCoreNowPlayingMediaController(
+                stateStore,
+                providerSource,
+                livePlayback,
+                queue,
+                services.playback.effects,
+                nowPlayingPresenter,
+                playback,
+                services.playback.settings,
+                visualizerSettings,
+                services.playback.sidecars,
+                downloads,
+                mediaDetails,
+                navigation,
+                radio,
+                mediaTransactions,
+                services.favoritedAtIso8601,
+                mediaRegistry,
             )
             val recentRadio = NaviampCoreRecentRadioController(
                 recents = generatedRadioRecents,

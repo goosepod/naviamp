@@ -96,12 +96,14 @@ private fun HomeCollectionSection(
     onTitleSelected: () -> Unit,
     onItemSelected: (SharedHomeCollectionItemUi) -> Unit,
 ) {
-    if (section.items.isEmpty()) return
+    val homeSection = section.copy(items = section.items.take(section.homeItemLimit ?: section.items.size))
+    if (homeSection.items.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        when (section.homeLayout) {
+        when (homeSection.homeLayout) {
             HomeSectionLayout.Carousel -> HomeCollectionCarousel(
-                section = section,
+                section = homeSection,
                 colors = colors,
+                actions = actions,
                 mediaActions = mediaActions,
                 onTitleSelected = onTitleSelected,
                 onItemSelected = onItemSelected,
@@ -109,7 +111,7 @@ private fun HomeCollectionSection(
             HomeSectionLayout.List -> {
                 HomeCollectionSectionTitle(section.title, colors, onTitleSelected)
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    section.items.forEach { item ->
+                    homeSection.items.forEach { item ->
                         HomeCollectionItemListRow(item, colors, actions, mediaActions)
                     }
                 }
@@ -121,13 +123,13 @@ private fun HomeCollectionSection(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    section.items.forEach { item ->
+                    homeSection.items.forEach { item ->
                         HomeCollectionGridCard(
                             item = item,
                             colors = colors,
                             width = HomeCollectionHomeGridCardWidth,
                             onClick = { onItemSelected(item) },
-                            menuItems = navibeatMixMenuItems(item, mediaActions),
+                            menuItems = homeCollectionMenuItems(item, actions, mediaActions, includeFavorite = true),
                         )
                     }
                 }
@@ -140,6 +142,7 @@ private fun HomeCollectionSection(
 private fun HomeCollectionCarousel(
     section: SharedHomeCollectionSectionUi,
     colors: NaviampColors,
+    actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
     onTitleSelected: () -> Unit,
     onItemSelected: (SharedHomeCollectionItemUi) -> Unit,
@@ -208,7 +211,7 @@ private fun HomeCollectionCarousel(
                     colors = colors,
                     width = HomeCollectionCarouselCardWidth,
                     onClick = { onItemSelected(item) },
-                    menuItems = navibeatMixMenuItems(item, mediaActions),
+                    menuItems = homeCollectionMenuItems(item, actions, mediaActions, includeFavorite = true),
                 )
             }
         }
@@ -442,26 +445,81 @@ private fun dispatchHomeCollectionItem(
     }
 }
 
-private fun navibeatMixMenuItems(
+private fun homeCollectionMenuItems(
     item: SharedHomeCollectionItemUi,
+    actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
-): List<NaviampRowMenuItem> = if (item.artwork == SharedHomeCollectionArtwork.NavibeatGenerated) {
-    listOf(
-        NaviampRowMenuItem("Shuffle mix", NaviampTransportIcons.Shuffle, {
+    includeFavorite: Boolean = false,
+): List<NaviampRowMenuItem> = buildList {
+    if (item.artwork == SharedHomeCollectionArtwork.NavibeatGenerated) {
+        add(NaviampRowMenuItem("Shuffle mix", NaviampTransportIcons.Shuffle, {
             mediaActions.onMediaItemAction(
                 item.mediaItem.playlistActionRequest(
                     NaviampPlaylistMediaCommand.Detail(NaviampPlaylistDetailCommand.Play(shuffle = true)),
                 ),
             )
-        }),
-        NaviampRowMenuItem("View", NaviampIcons.Playlist, {
+        }))
+        add(NaviampRowMenuItem("View", NaviampIcons.Playlist, {
             mediaActions.onMediaItemAction(
                 item.mediaItem.playlistActionRequest(NaviampPlaylistMediaCommand.Select),
             )
-        }),
-    )
-} else {
-    emptyList()
+        }))
+        return@buildList
+    }
+    when (item.mediaKind) {
+        SharedMediaItemKind.Album -> {
+            add(NaviampRowMenuItem("Start Radio", NaviampTransportIcons.Radio, {
+                mediaActions.onMediaItemAction(
+                    item.mediaItem.albumActionRequest(NaviampArtistAlbumCommand.StartRadio),
+                )
+            }))
+            if (includeFavorite && item.mediaItem.canFavorite) {
+                add(NaviampRowMenuItem(
+                    if (item.mediaItem.favoriteActive) "Remove favorite" else "Favorite",
+                    NaviampTransportIcons.Heart,
+                    {
+                        mediaActions.onMediaItemAction(
+                            item.mediaItem.albumActionRequest(NaviampArtistAlbumCommand.ToggleFavorite),
+                        )
+                    },
+                ))
+            }
+        }
+        SharedMediaItemKind.Track -> item.track?.let { track ->
+            add(NaviampRowMenuItem("Start Radio", NaviampTransportIcons.Radio, {
+                dispatchHomeTrackAction(item, track, SharedTrackRowAction.StartRadio, actions)
+            }))
+            if (includeFavorite && track.canToggleFavorite) {
+                add(NaviampRowMenuItem(
+                    if (track.favoriteActive) "Unfavorite" else "Favorite",
+                    NaviampTransportIcons.Heart,
+                    { dispatchHomeTrackAction(item, track, SharedTrackRowAction.ToggleFavorite, actions) },
+                ))
+            }
+        }
+        else -> Unit
+    }
+}
+
+private fun dispatchHomeTrackAction(
+    item: SharedHomeCollectionItemUi,
+    track: SharedTrackRowUi,
+    action: SharedTrackRowAction,
+    actions: NaviampHomeActions,
+) {
+    when (item.action) {
+        SharedHomeCollectionItemAction.SelectRecentTrack ->
+            actions.onRecentlyPlayedTrackAction(SharedTrackRowActionRequest(track, action))
+        SharedHomeCollectionItemAction.SelectSonicTrack ->
+            actions.onSonicDiscoveryTrackAction(
+                SharedHomeDiscoveryTrackActionRequest(
+                    rowId = item.discoveryRowId.orEmpty(),
+                    track = track,
+                    action = action,
+                ),
+            )
+        else -> Unit
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -498,7 +556,7 @@ private fun SharedHomeCollectionPage(
                             colors = colors,
                             width = tileWidth,
                             onClick = { dispatchHomeCollectionItem(item, actions, mediaActions) },
-                            menuItems = navibeatMixMenuItems(item, mediaActions),
+                            menuItems = homeCollectionMenuItems(item, actions, mediaActions, includeFavorite = true),
                         )
                     }
                 }
@@ -677,6 +735,9 @@ private fun HomeCollectionItemListRow(
                 canAddToQueue = true,
                 canDownload = true,
                 canAddToPlaylist = false,
+                background = true,
+                horizontalPadding = 8.dp,
+                verticalPadding = 7.dp,
             )
         }
         SharedHomeCollectionItemAction.SelectSonicTrack -> item.track?.let { track ->
@@ -695,10 +756,13 @@ private fun HomeCollectionItemListRow(
                     )
                 },
                 canSelect = true,
-                canStartRadio = false,
+                canStartRadio = true,
                 canAddToQueue = true,
                 canDownload = false,
                 canAddToPlaylist = false,
+                background = true,
+                horizontalPadding = 8.dp,
+                verticalPadding = 7.dp,
                 swipeContext = TrackSwipeContext.Related,
             )
         }
@@ -714,7 +778,7 @@ private fun HomeCollectionItemListRow(
             item = item.mediaItem,
             colors = colors,
             onClick = { dispatchHomeCollectionItem(item, actions, mediaActions) },
-            menuItems = navibeatMixMenuItems(item, mediaActions),
+            menuItems = homeCollectionMenuItems(item, actions, mediaActions),
             onFavoriteToggled = if (item.mediaKind == SharedMediaItemKind.Album) {
                 { album ->
                     mediaActions.onMediaItemAction(
@@ -831,6 +895,9 @@ private fun RecentPlayedSection(
                 canAddToQueue = true,
                 canDownload = true,
                 canAddToPlaylist = false,
+                background = true,
+                horizontalPadding = 8.dp,
+                verticalPadding = 7.dp,
             )
         }
     }
@@ -862,10 +929,13 @@ private fun SonicDiscoverySection(
                             )
                         },
                         canSelect = true,
-                        canStartRadio = false,
+                        canStartRadio = true,
                         canAddToQueue = true,
                         canDownload = false,
                         canAddToPlaylist = false,
+                        background = true,
+                        horizontalPadding = 8.dp,
+                        verticalPadding = 7.dp,
                         swipeContext = TrackSwipeContext.Related,
                     )
                 }
