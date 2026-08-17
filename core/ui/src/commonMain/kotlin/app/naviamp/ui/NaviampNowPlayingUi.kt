@@ -1523,7 +1523,7 @@ private fun currentPlaybackProgress(
 }
 
 @Composable
-private fun WaveformScrubber(
+internal fun WaveformScrubber(
     amplitudes: List<Float>,
     value: Float,
     drawValue: () -> Float = { value },
