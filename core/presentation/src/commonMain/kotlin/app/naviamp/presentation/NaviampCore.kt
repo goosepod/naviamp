@@ -211,6 +211,7 @@ class NaviampCore private constructor(
             val catalog = NaviampCoreCatalogController(
                 stateStore,
                 providerSource,
+                libraryGenreRefresh = services.content.libraryGenreRefresh,
                 mediaRegistry = mediaRegistry,
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged

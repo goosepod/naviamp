@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS genre_ontology_metadata (
+  singleton_id INTEGER NOT NULL PRIMARY KEY CHECK(singleton_id = 1),
+  source_name TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  snapshot_version TEXT NOT NULL,
+  payload_sha256 TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS genre_ontology_genre (
+  genre_id TEXT NOT NULL PRIMARY KEY,
+  canonical_name TEXT NOT NULL,
+  disambiguation TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS genre_ontology_relation (
+  relation_type TEXT NOT NULL,
+  source_genre_id TEXT NOT NULL REFERENCES genre_ontology_genre(genre_id) ON DELETE CASCADE,
+  target_genre_id TEXT NOT NULL REFERENCES genre_ontology_genre(genre_id) ON DELETE CASCADE,
+  PRIMARY KEY(relation_type, source_genre_id, target_genre_id)
+);
+
+CREATE INDEX IF NOT EXISTS genre_ontology_genre_name
+ON genre_ontology_genre(canonical_name);
+
+CREATE INDEX IF NOT EXISTS genre_ontology_relation_target
+ON genre_ontology_relation(relation_type, target_genre_id, source_genre_id);

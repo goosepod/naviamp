@@ -53,7 +53,7 @@ fun initializeNaviampStorageDatabase(driver: SqlDriver): NaviampStorageDatabase 
         )
     }
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
-    return NaviampStorageDatabase(driver)
+    return NaviampStorageDatabase(driver).also(::installBundledGenreOntology)
 }
 
 private fun SqlDriver.storageDatabaseVersion(): Long =

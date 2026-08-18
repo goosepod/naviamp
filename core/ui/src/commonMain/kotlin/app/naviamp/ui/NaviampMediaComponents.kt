@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1072,8 +1073,12 @@ fun GenreMixBuilderContent(
     val onSearch = actions.onSearch
     val onGenreSelected = actions.onGenreSelected
     val onGenreRemoved = actions.onGenreRemoved
+    val onBranchToggled = actions.onBranchToggled
     val onReset = actions.onReset
     val onPlayMix = actions.onPlay
+    LaunchedEffect(builder.initialized) {
+        if (!builder.initialized) onSearch()
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1122,17 +1127,109 @@ fun GenreMixBuilderContent(
         (builder.status ?: if (builder.loading) stringResource(Res.string.mix_loading_genres) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            builder.suggestedGenres.forEach { genre ->
-                GenreMixGenreRow(
-                    genre = genre,
-                    colors = colors,
-                    onClick = { onGenreSelected(genre) },
+        val browsingOntology = builder.query.isBlank() &&
+            (builder.treeRows.isNotEmpty() || builder.unmatchedGenres.isNotEmpty())
+        if (browsingOntology) {
+            if (builder.treeRows.isNotEmpty()) {
+                Text(
+                    stringResource(Res.string.mix_browse_genres),
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    builder.treeRows.forEach { row ->
+                        GenreMixTreeRow(
+                            row = row,
+                            colors = colors,
+                            onToggle = { onBranchToggled(row.ontologyId) },
+                            onSelect = { row.genre?.let(onGenreSelected) },
+                        )
+                    }
+                }
+            }
+            if (builder.unmatchedGenres.isNotEmpty()) {
+                Text(
+                    stringResource(Res.string.mix_other_genres),
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    builder.unmatchedGenres
+                        .filterNot { unmatched -> builder.selectedGenres.any { it.id.equals(unmatched.id, true) } }
+                        .forEach { genre ->
+                            GenreMixGenreRow(genre, colors) { onGenreSelected(genre) }
+                        }
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                builder.suggestedGenres.forEach { genre ->
+                    GenreMixGenreRow(
+                        genre = genre,
+                        colors = colors,
+                        onClick = { onGenreSelected(genre) },
+                    )
+                }
             }
         }
         if (showPlayMixButton && builder.selectedGenres.isNotEmpty()) {
             PrimaryButton(stringResource(Res.string.mix_play_mix), colors, onClick = onPlayMix)
+        }
+    }
+}
+
+@Composable
+private fun GenreMixTreeRow(
+    row: SharedGenreMixTreeRowUi,
+    colors: NaviampColors,
+    onToggle: () -> Unit,
+    onSelect: () -> Unit,
+) {
+    val rowAction = when {
+        row.genre != null && !row.selected -> onSelect
+        row.expandable -> onToggle
+        else -> null
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = (row.depth * 18).dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = if (row.genre != null) 0.14f else 0.08f))
+            .then(if (rowAction != null) Modifier.clickable(onClick = rowAction) else Modifier)
+            .padding(end = 12.dp, top = 8.dp, bottom = 8.dp),
+    ) {
+        if (row.expandable) {
+            IconButton(onClick = onToggle, modifier = Modifier.size(34.dp)) {
+                Icon(
+                    if (row.expanded) NaviampIcons.ChevronDown else NaviampIcons.ChevronRight,
+                    contentDescription = if (row.expanded) {
+                        stringResource(Res.string.mix_collapse_genre, row.title)
+                    } else {
+                        stringResource(Res.string.mix_expand_genre, row.title)
+                    },
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        } else {
+            Spacer(Modifier.width(34.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                row.title,
+                color = if (row.genre != null) colors.primaryText else colors.secondaryText,
+                fontSize = 14.sp,
+                fontWeight = if (row.genre != null) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (row.subtitle.isNotBlank()) {
+                Text(row.subtitle, color = colors.secondaryText, fontSize = 11.sp)
+            }
         }
     }
 }

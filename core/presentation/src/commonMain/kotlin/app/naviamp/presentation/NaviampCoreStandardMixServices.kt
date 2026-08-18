@@ -100,6 +100,8 @@ fun naviampCoreStandardMixServices(
             genreMixBuilderService(
                 provider = providerSource::current,
                 homeContent = ::homeContent,
+                sourceId = sourceId,
+                libraryIndex = libraryIndex,
             )
         },
     )

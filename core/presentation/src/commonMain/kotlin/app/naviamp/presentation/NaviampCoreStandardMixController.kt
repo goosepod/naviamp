@@ -7,12 +7,16 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.genremix.GenreMixBuilderService
+import app.naviamp.domain.library.LibraryGenreOntologyProjection
 import app.naviamp.domain.mixbuilder.albumMixGeneratedQueue
 import app.naviamp.domain.mixbuilder.artistMixGeneratedQueue
 import app.naviamp.domain.mixbuilder.genreMixGeneratedQueue
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedGenreMixItemUi
+import app.naviamp.ui.SharedGenreMixTreeRowUi
+import app.naviamp.ui.genreDisplayTitle
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
 
@@ -39,6 +43,8 @@ class NaviampCoreStandardMixController(
     private var albumTracks = emptyMap<String, List<Track>>()
     private var selectedGenres = emptyList<Genre>()
     private var genreSuggestions = emptyList<Genre>()
+    private var genreProjection = LibraryGenreOntologyProjection()
+    private var expandedGenreOntologyIds = emptySet<String>()
     private var artistGeneration = 0L
     private var albumGeneration = 0L
     private var genreGeneration = 0L
@@ -111,6 +117,7 @@ class NaviampCoreStandardMixController(
             NaviampCoreCommand.GenreAction.Search -> loadGenreSuggestions()
             is NaviampCoreCommand.GenreAction.Select -> selectGenre(action.genre.id)
             is NaviampCoreCommand.GenreAction.Remove -> removeGenre(action.genre.id)
+            is NaviampCoreCommand.GenreAction.ToggleBranch -> toggleGenreBranch(action.ontologyId)
             NaviampCoreCommand.GenreAction.Reset -> resetGenre()
             NaviampCoreCommand.GenreAction.Play -> playGenreMix()
         }
@@ -272,10 +279,13 @@ class NaviampCoreStandardMixController(
     private suspend fun loadGenreSuggestions() {
         val generation = ++genreGeneration
         updateGenreUi { it.copy(loading = true, status = null) }
-        runCatching { genreService().searchSuggestions(currentGenreUi().query, selectedGenres) }
-            .onSuccess { suggestions ->
-                if (generation != genreGeneration) return@onSuccess
-                genreSuggestions = suggestions
+        runCatching {
+            val service = genreService()
+            service.browseProjection() to service.searchSuggestions(currentGenreUi().query, selectedGenres)
+        }.onSuccess { (projection, suggestions) ->
+            if (generation != genreGeneration) return@onSuccess
+            genreProjection = projection
+            genreSuggestions = suggestions
                 publishGenre(false, if (suggestions.isEmpty()) "No genres matched." else null)
             }
             .onFailure { cause ->
@@ -284,7 +294,7 @@ class NaviampCoreStandardMixController(
     }
 
     private suspend fun selectGenre(id: String) {
-        val genre = genreSuggestions.firstOrNull { it.name == id }
+        val genre = (genreSuggestions + genreProjection.selectableGenres).firstOrNull { it.name == id }
         if (genre == null) {
             publishGenre(false, "Genre is no longer available.")
             return
@@ -298,10 +308,23 @@ class NaviampCoreStandardMixController(
         loadGenreSuggestions()
     }
 
+    private fun toggleGenreBranch(ontologyId: String) {
+        val node = genreProjection.nodes.firstOrNull { it.id == ontologyId } ?: return
+        if (node.childIds.isEmpty()) return
+        expandedGenreOntologyIds = if (ontologyId in expandedGenreOntologyIds) {
+            expandedGenreOntologyIds - ontologyId
+        } else {
+            expandedGenreOntologyIds + ontologyId
+        }
+        publishGenre(loading = false, status = currentGenreUi().status)
+    }
+
     private suspend fun resetGenre() {
         selectedGenres = emptyList()
         genreSuggestions = emptyList()
-        updateGenreUi { SharedGenreMixBuilderUi() }
+        genreProjection = LibraryGenreOntologyProjection()
+        expandedGenreOntologyIds = emptySet()
+        updateGenreUi { SharedGenreMixBuilderUi(initialized = true) }
         loadGenreSuggestions()
     }
 
@@ -345,8 +368,13 @@ class NaviampCoreStandardMixController(
             it.copy(
                 selectedGenres = selectedGenres.map(Genre::toSharedGenreMixItemUi),
                 suggestedGenres = genreSuggestions.map(Genre::toSharedGenreMixItemUi),
+                treeRows = genreTreeRows(genreProjection, expandedGenreOntologyIds, selectedGenres),
+                unmatchedGenres = genreProjection.unmatchedGenreNames
+                    .map(::Genre)
+                    .map(Genre::toSharedGenreMixItemUi),
                 loading = loading,
                 status = status,
+                initialized = true,
             )
         }
     }
@@ -372,3 +400,45 @@ class NaviampCoreStandardMixController(
         stateStore.updateShell { shell -> shell.copy(genreMixBuilder = transform(shell.genreMixBuilder)) }
     }
 }
+
+internal fun genreTreeRows(
+    projection: LibraryGenreOntologyProjection,
+    expandedIds: Set<String>,
+    selectedGenres: List<Genre>,
+): List<SharedGenreMixTreeRowUi> {
+    val nodesById = projection.nodes.associateBy { it.id }
+    val selectedNames = selectedGenres.map { it.name.lowercase() }.toSet()
+    val rows = mutableListOf<SharedGenreMixTreeRowUi>()
+    fun appendNode(id: String, depth: Int, path: Set<String>) {
+        if (id in path) return
+        val node = nodesById[id] ?: return
+        val providerName = node.libraryGenreNames.firstOrNull()
+        rows += SharedGenreMixTreeRowUi(
+            ontologyId = node.id,
+            title = genreDisplayTitle(node.canonicalName),
+            subtitle = genreCountSubtitle(node.trackCount, node.albumCount),
+            depth = depth,
+            expandable = node.childIds.isNotEmpty(),
+            expanded = node.id in expandedIds,
+            genre = providerName?.let { SharedGenreMixItemUi(id = it, title = it) },
+            selected = providerName?.lowercase() in selectedNames,
+        )
+        if (node.id in expandedIds) {
+            node.childIds
+                .mapNotNull(nodesById::get)
+                .sortedBy { it.canonicalName.lowercase() }
+                .forEach { child -> appendNode(child.id, depth + 1, path + id) }
+        }
+    }
+    projection.rootIds
+        .mapNotNull(nodesById::get)
+        .sortedBy { it.canonicalName.lowercase() }
+        .forEach { appendNode(it.id, depth = 0, path = emptySet()) }
+    return rows
+}
+
+private fun genreCountSubtitle(trackCount: Int?, albumCount: Int?): String =
+    listOfNotNull(
+        trackCount?.let { "$it ${if (it == 1) "track" else "tracks"}" },
+        albumCount?.let { "$it ${if (it == 1) "album" else "albums"}" },
+    ).joinToString(" · ")

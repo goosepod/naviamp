@@ -1,4 +1,5 @@
 .gradle/
+/.gradle-user-home/
 .codex/
 .local-docs/
 # Synced private product watchlist; the local path may be a symlink.
@@ -14,8 +15,12 @@ local.properties
 *.jks
 *.keystore
 /.kotlin/
+/.tmp/
+**/hs_err_pid*.log
+**/replay_pid*.log
 **/.cxx/
 apps/desktop/vendor/mpv/*/mpv
 apps/desktop/vendor/mpv/*/mpv.exe
 apps/desktop/bin/
+/platforms/desktop/bin/
 /assets/

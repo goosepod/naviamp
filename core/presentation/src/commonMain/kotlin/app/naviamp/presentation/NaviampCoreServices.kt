@@ -20,7 +20,12 @@ data class NaviampCoreContentServices(
     val homeLibrary: HomeLibraryRepository? = null,
     val sonicHomeDiscovery: NaviampCoreSonicHomeDiscoverySource? = null,
     val externalUri: NaviampCoreExternalUriPort,
+    val libraryGenreRefresh: NaviampCoreLibraryGenreRefreshPort = NaviampCoreLibraryGenreRefreshPort { },
 )
+
+fun interface NaviampCoreLibraryGenreRefreshPort {
+    suspend fun refresh()
+}
 
 /** Common services used to construct the three standard mix feature controllers. */
 data class NaviampCoreMixServices(

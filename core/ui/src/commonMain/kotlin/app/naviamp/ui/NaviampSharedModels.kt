@@ -725,8 +725,11 @@ data class SharedGenreMixBuilderUi(
     val query: String = "",
     val selectedGenres: List<SharedGenreMixItemUi> = emptyList(),
     val suggestedGenres: List<SharedGenreMixItemUi> = emptyList(),
+    val treeRows: List<SharedGenreMixTreeRowUi> = emptyList(),
+    val unmatchedGenres: List<SharedGenreMixItemUi> = emptyList(),
     val status: String? = null,
     val loading: Boolean = false,
+    val initialized: Boolean = false,
 )
 
 data class SharedGenreMixBuilderActions(
@@ -734,6 +737,7 @@ data class SharedGenreMixBuilderActions(
     val onSearch: () -> Unit,
     val onGenreSelected: (SharedGenreMixItemUi) -> Unit,
     val onGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    val onBranchToggled: (String) -> Unit,
     val onReset: () -> Unit,
     val onPlay: () -> Unit,
 )
@@ -962,6 +966,17 @@ data class SharedGenreMixItemUi(
     val id: String,
     val title: String,
     val subtitle: String = "",
+)
+
+data class SharedGenreMixTreeRowUi(
+    val ontologyId: String,
+    val title: String,
+    val subtitle: String = "",
+    val depth: Int,
+    val expandable: Boolean,
+    val expanded: Boolean,
+    val genre: SharedGenreMixItemUi? = null,
+    val selected: Boolean = false,
 )
 
 data class NowPlayingUi(

@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS library_genre_inventory_metadata (
+  source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
+  ontology_payload_sha256 TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS library_genre_inventory (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  source_name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  matched_genre_id TEXT REFERENCES genre_ontology_genre(genre_id) ON DELETE SET NULL,
+  match_kind TEXT NOT NULL,
+  PRIMARY KEY(source_id, normalized_name)
+);
+
+CREATE INDEX IF NOT EXISTS library_genre_inventory_match
+ON library_genre_inventory(source_id, matched_genre_id);

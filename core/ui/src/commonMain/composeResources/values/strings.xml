@@ -402,6 +402,10 @@
     <string name="mix_loading_artists">Loading artists...</string>
     <string name="mix_loading_albums">Loading albums...</string>
     <string name="mix_loading_genres">Loading genres...</string>
+    <string name="mix_browse_genres">Browse genres</string>
+    <string name="mix_other_genres">Other genres</string>
+    <string name="mix_expand_genre">Expand %1$s</string>
+    <string name="mix_collapse_genre">Collapse %1$s</string>
     <string name="mix_play_mix">Play Mix</string>
     <string name="mix_build_mix">Build Mix</string>
     <string name="mix_add_to_queue">Add to Queue</string>

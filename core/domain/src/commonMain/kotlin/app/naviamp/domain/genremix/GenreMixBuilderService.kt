@@ -1,10 +1,16 @@
 package app.naviamp.domain.genremix
 
 import app.naviamp.domain.Genre
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.library.LibraryGenreInventoryLimit
+import app.naviamp.domain.library.LibraryGenreOntologyProjection
 import app.naviamp.domain.provider.MediaProvider
 
 class GenreMixBuilderService(
+    private val ontologyProjection: suspend () -> LibraryGenreOntologyProjection = {
+        LibraryGenreOntologyProjection()
+    },
     private val genres: suspend (Long) -> List<Genre>,
 ) {
     suspend fun allGenres(limit: Int = GenreMixGenreLimit): List<Genre> =
@@ -15,19 +21,34 @@ class GenreMixBuilderService(
         selectedGenres: List<Genre>,
         limit: Int = GenreMixGenreLimit,
     ): List<Genre> {
-        val allGenres = allGenres(limit)
+        val allGenres = genres(LibraryGenreInventoryLimit.toLong())
         val filtered = query.trim().takeIf { it.isNotBlank() }?.let { trimmed ->
             allGenres.filter { genre -> genre.name.contains(trimmed, ignoreCase = true) }
         } ?: allGenres
         return filtered.genreMixSuggestions(selectedGenres, limit)
     }
+
+    suspend fun browseProjection(): LibraryGenreOntologyProjection =
+        ontologyProjection()
 }
 
 fun genreMixBuilderService(
     provider: () -> MediaProvider?,
     homeContent: () -> HomeContent,
-): GenreMixBuilderService =
-    GenreMixBuilderService(
+    sourceId: () -> String? = { provider()?.cacheNamespace },
+    libraryIndex: LocalLibraryIndexRepository? = null,
+): GenreMixBuilderService {
+    suspend fun loadStoredProjection(): LibraryGenreOntologyProjection {
+        val activeSourceId = sourceId() ?: return LibraryGenreOntologyProjection()
+        val repository = libraryIndex ?: return LibraryGenreOntologyProjection()
+        if (repository.libraryGenreInventory(activeSourceId).isEmpty()) {
+            val loaded = provider()?.genres(LibraryGenreInventoryLimit).orEmpty()
+            repository.replaceLibraryGenreInventory(activeSourceId, loaded)
+        }
+        return repository.libraryGenreOntologyProjection(activeSourceId)
+    }
+
+    return GenreMixBuilderService(
         genres = { limit ->
             val home = homeContent()
             val recentGenreOrder = home.recentlyPlayedTracks
@@ -35,14 +56,29 @@ fun genreMixBuilderService(
                 .distinctBy(String::lowercase)
                 .mapIndexed { index, name -> name.lowercase() to index }
                 .toMap()
-            provider()?.genres(limit.toInt()).orEmpty()
-                .ifEmpty { home.genres }
+            val activeSourceId = sourceId()
+            val storedGenres = loadStoredProjection().selectableGenres
+            val genres = storedGenres.ifEmpty {
+                provider()?.genres(maxOf(limit.toInt(), LibraryGenreInventoryLimit)).orEmpty().also { loaded ->
+                    if (activeSourceId != null && libraryIndex != null) {
+                        libraryIndex.replaceLibraryGenreInventory(activeSourceId, loaded)
+                    }
+                }.let { loaded ->
+                    activeSourceId
+                        ?.let { libraryIndex?.libraryGenreOntologyProjection(it)?.selectableGenres }
+                        .orEmpty()
+                        .ifEmpty { loaded }
+                }
+            }
+            genres.ifEmpty { home.genres }
                 .sortedWith(
                     compareBy<Genre> { genre -> recentGenreOrder[genre.name.lowercase()] ?: Int.MAX_VALUE }
                         .thenBy { genre -> genre.name.lowercase() },
                 )
         },
+        ontologyProjection = ::loadStoredProjection,
     )
+}
 
 fun List<Genre>.genreMixSuggestions(
     selectedGenres: List<Genre>,

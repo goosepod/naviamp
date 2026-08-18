@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.Genre
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
@@ -357,6 +358,14 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
     fun upsertLibraryAlbums(sourceId: String, albums: List<Album>)
 
     fun upsertLibraryTracks(sourceId: String, tracks: List<Track>)
+
+    fun replaceLibraryGenreInventory(sourceId: String, genres: List<Genre>) = Unit
+
+    fun libraryGenreInventory(sourceId: String): List<app.naviamp.domain.library.LibraryGenreInventoryItem> =
+        emptyList()
+
+    fun libraryGenreOntologyProjection(sourceId: String): app.naviamp.domain.library.LibraryGenreOntologyProjection =
+        app.naviamp.domain.library.LibraryGenreOntologyProjection()
 
     fun librarySnapshot(sourceId: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot
 

@@ -2381,6 +2381,7 @@ private val DefaultNaviampLibraries = listOf(
     "BASS audio engine and add-ons",
     "Skiko and Skia",
     "Navidrome and OpenSubsonic APIs",
+    "MusicBrainz genre ontology (CC0)",
 )
 
 private val DefaultNaviampChangelog = listOf(

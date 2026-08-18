@@ -10,6 +10,8 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.genremix.GenreMixBuilderService
+import app.naviamp.domain.library.LibraryGenreOntologyNode
+import app.naviamp.domain.library.LibraryGenreOntologyProjection
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTracksClient
 import app.naviamp.domain.popular.ArtistPopularTracksResult
@@ -89,6 +91,58 @@ class NaviampCoreStandardMixControllerTest {
     }
 
     @Test
+    fun genreBuilderBrowsesAncestorsAndPlaysTheOriginalServerGenreName() = runTest {
+        val projection = LibraryGenreOntologyProjection(
+            nodes = listOf(
+                LibraryGenreOntologyNode("music", "Music", emptyList(), emptyList(), listOf("rock")),
+                LibraryGenreOntologyNode("rock", "Rock", emptyList(), listOf("music"), listOf("dream-pop")),
+                LibraryGenreOntologyNode(
+                    "dream-pop",
+                    "Dream Pop",
+                    listOf("Dream-Pop"),
+                    listOf("rock"),
+                    emptyList(),
+                    albumCount = 12,
+                    trackCount = 345,
+                ),
+            ),
+            rootIds = listOf("music"),
+            unmatchedGenreNames = listOf("Server Only"),
+        )
+        val genreService = GenreMixBuilderService(
+            genres = { listOf(Genre("Dream-Pop"), Genre("Server Only")) },
+            ontologyProjection = { projection },
+        )
+        val fixture = fixture(genreService)
+
+        fixture.controller.initializeGenre()
+        var ui = fixture.store.state.value.shell.genreMixBuilder
+        assertEquals(listOf("Music"), ui.treeRows.map { it.title })
+        assertEquals(listOf("Server Only"), ui.unmatchedGenres.map { it.title })
+
+        fixture.controller.execute(
+            NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.ToggleBranch("music")),
+        )
+        fixture.controller.execute(
+            NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.ToggleBranch("rock")),
+        )
+        ui = fixture.store.state.value.shell.genreMixBuilder
+        assertEquals(listOf("Music", "Rock", "Dream Pop"), ui.treeRows.map { it.title })
+        assertEquals(listOf(0, 1, 2), ui.treeRows.map { it.depth })
+        assertEquals(listOf("", "", "345 tracks · 12 albums"), ui.treeRows.map { it.subtitle })
+
+        fixture.controller.execute(
+            NaviampCoreCommand.MixBuilder.Genre(
+                NaviampCoreCommand.GenreAction.Select(requireNotNull(ui.treeRows.last().genre)),
+            ),
+        )
+        fixture.controller.execute(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Play))
+
+        assertEquals(listOf("Dream-Pop"), fixture.playback.genrePlays)
+        assertEquals(true, fixture.store.state.value.shell.genreMixBuilder.treeRows.last().selected)
+    }
+
+    @Test
     fun emptyBuilderPlaybackProducesCommonValidationStatus() = runTest {
         val fixture = fixture()
 
@@ -101,7 +155,11 @@ class NaviampCoreStandardMixControllerTest {
         assertEquals("Select at least one genre first.", fixture.store.state.value.shell.genreMixBuilder.status)
     }
 
-    private fun fixture(): StandardMixFixture {
+    private fun fixture(
+        genreService: GenreMixBuilderService = GenreMixBuilderService {
+            listOf(Genre("Ambient"), Genre("Rock"))
+        },
+    ): StandardMixFixture {
         val artistA = Artist(ArtistId("artist-a"), "Artist A")
         val artistB = Artist(ArtistId("artist-b"), "Artist B")
         val albumA = Album(AlbumId("album-a"), "Album A", "Artist A", null, null)
@@ -141,7 +199,6 @@ class NaviampCoreStandardMixControllerTest {
             albumTracks = { album, _ -> listOf(track("track-${album.id.value}")) },
             similarArtistsService = similar,
         )
-        val genreService = GenreMixBuilderService { listOf(Genre("Ambient"), Genre("Rock")) }
         val store = NaviampCoreStateStore()
         val playback = StandardMixTestPlayback()
         return StandardMixFixture(

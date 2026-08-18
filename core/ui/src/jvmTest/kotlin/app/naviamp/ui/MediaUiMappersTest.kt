@@ -7,6 +7,7 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Genre
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumExplicitStatus
@@ -39,6 +40,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun genreLabelsAreTitleCasedWithoutChangingProviderPlaybackNames() {
+        val item = Genre("dream-pop / r&b").toSharedGenreMixItemUi()
+
+        assertEquals("dream-pop / r&b", item.id)
+        assertEquals("Dream-Pop / R&B", item.title)
+        assertEquals("Drum'n'bass", genreDisplayTitle("DRUM'N'BASS"))
+    }
+
     @Test
     fun recentRadioUpdateAddsVisibleSectionWithSavedPresentationAndOrder() {
         val settings = InterfaceSettings(

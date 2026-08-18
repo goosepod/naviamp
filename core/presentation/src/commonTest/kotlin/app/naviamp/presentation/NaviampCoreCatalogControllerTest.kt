@@ -94,6 +94,37 @@ class NaviampCoreCatalogControllerTest {
     }
 
     @Test
+    fun fullLibraryRefreshAlsoRefreshesTheSourceGenreInventory() = runTest {
+        var refreshes = 0
+        val provider = CatalogTestProvider()
+        val controller = NaviampCoreCatalogController(
+            stateStore = NaviampCoreStateStore(),
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            libraryGenreRefresh = NaviampCoreLibraryGenreRefreshPort { refreshes += 1 },
+        )
+
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        controller.execute(NaviampCoreCommand.Library.LoadMore)
+
+        assertEquals(1, refreshes)
+    }
+
+    @Test
+    fun genreInventoryFailureDoesNotHideTheBrowsableLibrary() = runTest {
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { CatalogTestProvider() },
+            libraryGenreRefresh = NaviampCoreLibraryGenreRefreshPort { error("genre endpoint unavailable") },
+        )
+
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+
+        assertEquals(listOf("artist-1", "artist-2", "artist-3"), store.state.value.shell.library.artists.map { it.id })
+        assertNull(store.state.value.shell.library.syncStatus.message)
+    }
+
+    @Test
     fun libraryQueryUsesProviderPagingSearchAndJumpIntentStaysInCore() = runTest {
         val provider = CatalogTestProvider()
         val store = NaviampCoreStateStore()

@@ -11,6 +11,7 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.library.refreshLibraryGenreInventory
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
@@ -163,6 +164,11 @@ fun naviampCoreStoredServiceCatalog(
     )
     val services = defaults.copy(
         content = defaults.content.copy(
+            libraryGenreRefresh = NaviampCoreLibraryGenreRefreshPort {
+                val activeSourceId = sourceId() ?: return@NaviampCoreLibraryGenreRefreshPort
+                val provider = providerSource.current() ?: return@NaviampCoreLibraryGenreRefreshPort
+                refreshLibraryGenreInventory(activeSourceId, provider, repositories.libraryIndex)
+            },
             homeSupplement = NaviampCoreHomeSupplementSource {
                 NaviampCoreHomeSupplement(
                     sourceId = sourceId(),

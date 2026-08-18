@@ -126,6 +126,7 @@ fun createNaviampCoreActions(
             onSearch = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Search)) },
             onGenreSelected = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Select(it))) },
             onGenreRemoved = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Remove(it))) },
+            onBranchToggled = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.ToggleBranch(it))) },
             onReset = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Reset)) },
             onPlay = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Play)) },
         ),

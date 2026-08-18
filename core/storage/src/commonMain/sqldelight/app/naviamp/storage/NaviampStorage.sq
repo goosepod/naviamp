@@ -96,6 +96,71 @@ CREATE TABLE library_track (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE genre_ontology_metadata (
+  singleton_id INTEGER NOT NULL PRIMARY KEY CHECK(singleton_id = 1),
+  source_name TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  snapshot_version TEXT NOT NULL,
+  payload_sha256 TEXT NOT NULL
+);
+
+CREATE TABLE genre_ontology_genre (
+  genre_id TEXT NOT NULL PRIMARY KEY,
+  canonical_name TEXT NOT NULL,
+  disambiguation TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE genre_ontology_alias (
+  genre_id TEXT NOT NULL REFERENCES genre_ontology_genre(genre_id) ON DELETE CASCADE,
+  alias_name TEXT NOT NULL,
+  alias_source TEXT NOT NULL,
+  PRIMARY KEY(genre_id, alias_name)
+);
+
+CREATE TABLE genre_ontology_relation (
+  relation_type TEXT NOT NULL,
+  source_genre_id TEXT NOT NULL REFERENCES genre_ontology_genre(genre_id) ON DELETE CASCADE,
+  target_genre_id TEXT NOT NULL REFERENCES genre_ontology_genre(genre_id) ON DELETE CASCADE,
+  PRIMARY KEY(relation_type, source_genre_id, target_genre_id)
+);
+
+CREATE INDEX genre_ontology_genre_name
+ON genre_ontology_genre(canonical_name);
+
+CREATE INDEX genre_ontology_alias_name
+ON genre_ontology_alias(alias_name);
+
+CREATE INDEX genre_ontology_relation_target
+ON genre_ontology_relation(relation_type, target_genre_id, source_genre_id);
+
+CREATE TABLE library_genre_inventory_metadata (
+  source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
+  ontology_payload_sha256 TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
+CREATE TABLE library_genre_inventory (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  source_name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  matched_genre_id TEXT REFERENCES genre_ontology_genre(genre_id) ON DELETE SET NULL,
+  match_kind TEXT NOT NULL,
+  PRIMARY KEY(source_id, normalized_name)
+);
+
+CREATE INDEX library_genre_inventory_match
+ON library_genre_inventory(source_id, matched_genre_id);
+
+CREATE TABLE library_genre_inventory_count (
+  source_id TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  album_count INTEGER,
+  track_count INTEGER,
+  PRIMARY KEY(source_id, normalized_name),
+  FOREIGN KEY(source_id, normalized_name)
+    REFERENCES library_genre_inventory(source_id, normalized_name) ON DELETE CASCADE
+);
+
 CREATE TABLE artist_popular_track (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_artist_id TEXT NOT NULL,
@@ -1371,6 +1436,14 @@ clearLibraryForSource:
 DELETE FROM library_track
 WHERE source_id = ?;
 
+clearLibraryGenreInventoryForSource:
+DELETE FROM library_genre_inventory
+WHERE source_id = ?;
+
+clearLibraryGenreInventoryMetadataForSource:
+DELETE FROM library_genre_inventory_metadata
+WHERE source_id = ?;
+
 clearArtistPopularTracksForSource:
 DELETE FROM artist_popular_track
 WHERE source_id = ?;
@@ -1592,6 +1665,12 @@ WHERE provider_id = ?;
 clearLibraryTracks:
 DELETE FROM library_track;
 
+clearLibraryGenreInventory:
+DELETE FROM library_genre_inventory;
+
+clearLibraryGenreInventoryMetadata:
+DELETE FROM library_genre_inventory_metadata;
+
 clearArtistPopularTracks:
 DELETE FROM artist_popular_track;
 
@@ -1603,3 +1682,102 @@ DELETE FROM library_artist;
 
 clearMediaSources:
 DELETE FROM media_source;
+
+selectGenreOntologyMetadata:
+SELECT source_name, source_url, snapshot_version, payload_sha256
+FROM genre_ontology_metadata
+WHERE singleton_id = 1;
+
+selectGenreOntologyCounts:
+SELECT
+  (SELECT COUNT(*) FROM genre_ontology_genre) AS genre_count,
+  (SELECT COUNT(*) FROM genre_ontology_relation) AS relation_count;
+
+selectGenreOntologyGenres:
+SELECT genre_id, canonical_name, disambiguation
+FROM genre_ontology_genre
+ORDER BY canonical_name COLLATE NOCASE, genre_id;
+
+selectGenreOntologyAliases:
+SELECT genre_id, alias_name, alias_source
+FROM genre_ontology_alias
+ORDER BY genre_id, alias_name COLLATE NOCASE;
+
+selectGenreOntologyRelations:
+SELECT relation_type, source_genre_id, target_genre_id
+FROM genre_ontology_relation
+ORDER BY relation_type, source_genre_id, target_genre_id;
+
+clearGenreOntologyRelations:
+DELETE FROM genre_ontology_relation;
+
+clearGenreOntologyAliases:
+DELETE FROM genre_ontology_alias;
+
+clearGenreOntologyGenres:
+DELETE FROM genre_ontology_genre;
+
+upsertGenreOntologyGenre:
+INSERT OR REPLACE INTO genre_ontology_genre(genre_id, canonical_name, disambiguation)
+VALUES (?, ?, ?);
+
+upsertGenreOntologyAlias:
+INSERT OR REPLACE INTO genre_ontology_alias(genre_id, alias_name, alias_source)
+VALUES (?, ?, ?);
+
+upsertGenreOntologyRelation:
+INSERT OR REPLACE INTO genre_ontology_relation(relation_type, source_genre_id, target_genre_id)
+VALUES (?, ?, ?);
+
+upsertGenreOntologyMetadata:
+INSERT OR REPLACE INTO genre_ontology_metadata(
+  singleton_id,
+  source_name,
+  source_url,
+  snapshot_version,
+  payload_sha256
+) VALUES (1, ?, ?, ?, ?);
+
+selectLibraryGenreInventory:
+SELECT
+  library_genre_inventory.source_name,
+  library_genre_inventory.normalized_name,
+  library_genre_inventory.matched_genre_id,
+  library_genre_inventory.match_kind,
+  library_genre_inventory_count.album_count,
+  library_genre_inventory_count.track_count
+FROM library_genre_inventory
+LEFT JOIN library_genre_inventory_count
+  ON library_genre_inventory_count.source_id = library_genre_inventory.source_id
+  AND library_genre_inventory_count.normalized_name = library_genre_inventory.normalized_name
+WHERE library_genre_inventory.source_id = ?
+ORDER BY library_genre_inventory.normalized_name, library_genre_inventory.source_name;
+
+selectLibraryGenreInventoryMetadata:
+SELECT ontology_payload_sha256, updated_at_epoch_millis
+FROM library_genre_inventory_metadata
+WHERE source_id = ?;
+
+upsertLibraryGenreInventoryItem:
+INSERT OR REPLACE INTO library_genre_inventory(
+  source_id,
+  source_name,
+  normalized_name,
+  matched_genre_id,
+  match_kind
+) VALUES (?, ?, ?, ?, ?);
+
+upsertLibraryGenreInventoryCount:
+INSERT OR REPLACE INTO library_genre_inventory_count(
+  source_id,
+  normalized_name,
+  album_count,
+  track_count
+) VALUES (?, ?, ?, ?);
+
+upsertLibraryGenreInventoryMetadata:
+INSERT OR REPLACE INTO library_genre_inventory_metadata(
+  source_id,
+  ontology_payload_sha256,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?);

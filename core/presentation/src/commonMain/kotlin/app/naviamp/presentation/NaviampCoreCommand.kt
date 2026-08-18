@@ -194,6 +194,7 @@ sealed interface NaviampCoreCommand {
         data object Search : GenreAction
         data class Select(val genre: SharedGenreMixItemUi) : GenreAction
         data class Remove(val genre: SharedGenreMixItemUi) : GenreAction
+        data class ToggleBranch(val ontologyId: String) : GenreAction
         data object Reset : GenreAction
         data object Play : GenreAction
     }

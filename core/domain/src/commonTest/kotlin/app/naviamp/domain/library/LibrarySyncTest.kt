@@ -7,6 +7,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ProviderId
+import app.naviamp.domain.Genre
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -34,7 +35,7 @@ class LibrarySyncTest {
 
         val result = syncLibraryIndex(
             sourceId = "source",
-            provider = FakeLibraryProvider(artists = artists, albums = albums),
+            provider = FakeLibraryProvider(artists = artists, albums = albums, genres = listOf(Genre("Jazz"))),
             libraryIndexRepository = repository,
             artistLimit = 10,
             albumPageSize = 2,
@@ -46,6 +47,7 @@ class LibrarySyncTest {
         assertEquals(artists, repository.artists)
         assertEquals(albums, repository.albums)
         assertEquals(emptyList(), repository.tracks)
+        assertEquals(listOf("Jazz"), repository.genres.map(Genre::name))
         assertEquals(LibrarySyncResult(artistCount = 2, albumCount = 3, trackCount = 0), result)
         assertEquals(
             listOf(
@@ -105,6 +107,7 @@ class LibrarySyncTest {
         private val albums: List<Album> = emptyList(),
         private val tracksByAlbum: Map<AlbumId, List<Track>> = emptyMap(),
         private val scanSignature: String? = null,
+        private val genres: List<Genre> = emptyList(),
     ) : MediaProvider {
         override val id: ProviderId = ProviderId("provider")
         override val displayName: String = "Provider"
@@ -147,6 +150,9 @@ class LibrarySyncTest {
         override suspend fun tracks(limit: Int): List<Track> =
             emptyList()
 
+        override suspend fun genres(limit: Int): List<Genre> =
+            genres.take(limit)
+
         override suspend fun search(query: String, limit: Int): MediaSearchResults =
             MediaSearchResults()
 
@@ -168,6 +174,8 @@ class LibrarySyncTest {
         var trackDetailAlbumWrites = 0
             private set
         var checkedScanSignature: String? = null
+            private set
+        var genres = emptyList<Genre>()
             private set
 
         override fun mediaSource(sourceId: String) =
@@ -196,6 +204,10 @@ class LibrarySyncTest {
 
         override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {
             this.tracks += tracks
+        }
+
+        override fun replaceLibraryGenreInventory(sourceId: String, genres: List<Genre>) {
+            this.genres = genres
         }
 
         override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot =

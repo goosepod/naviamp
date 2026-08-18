@@ -11,6 +11,13 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.library.GenreOntologyGenre
+import app.naviamp.domain.library.GenreOntologyParentRelation
+import app.naviamp.domain.library.LibraryGenreInventoryItem
+import app.naviamp.domain.library.LibraryGenreMatchKind
+import app.naviamp.domain.library.LibraryGenreOntologyProjection
+import app.naviamp.domain.library.matchLibraryGenres
+import app.naviamp.domain.library.projectLibraryGenreOntology
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 
@@ -108,6 +115,53 @@ class StorageLibraryIndexStore(
             }
         }
     }
+
+    override fun replaceLibraryGenreInventory(sourceId: String, genres: List<app.naviamp.domain.Genre>) {
+        val ontologyGenres = ontologyGenres()
+        val sourceGenresByNormalizedName = genres.associateBy { app.naviamp.domain.library.normalizeGenreName(it.name) }
+        val inventory = matchLibraryGenres(genres.map { it.name }, ontologyGenres).map { item ->
+            val genre = sourceGenresByNormalizedName[item.normalizedName]
+            item.copy(albumCount = genre?.albumCount, trackCount = genre?.trackCount)
+        }
+        val ontologySha = queries.selectGenreOntologyMetadata().executeAsOneOrNull()?.payload_sha256.orEmpty()
+        queries.transaction {
+            queries.clearLibraryGenreInventoryForSource(sourceId)
+            inventory.forEach { item ->
+                queries.upsertLibraryGenreInventoryItem(
+                    source_id = sourceId,
+                    source_name = item.sourceName,
+                    normalized_name = item.normalizedName,
+                    matched_genre_id = item.matchedGenreId,
+                    match_kind = item.matchKind.name,
+                )
+                queries.upsertLibraryGenreInventoryCount(
+                    source_id = sourceId,
+                    normalized_name = item.normalizedName,
+                    album_count = item.albumCount?.toLong(),
+                    track_count = item.trackCount?.toLong(),
+                )
+            }
+            queries.upsertLibraryGenreInventoryMetadata(
+                source_id = sourceId,
+                ontology_payload_sha256 = ontologySha,
+                updated_at_epoch_millis = nowMillis(),
+            )
+        }
+    }
+
+    override fun libraryGenreInventory(sourceId: String): List<LibraryGenreInventoryItem> {
+        rematchLibraryGenresWhenOntologyChanged(sourceId)
+        return storedLibraryGenreInventory(sourceId)
+    }
+
+    override fun libraryGenreOntologyProjection(sourceId: String): LibraryGenreOntologyProjection =
+        projectLibraryGenreOntology(
+            inventory = libraryGenreInventory(sourceId),
+            ontologyGenres = ontologyGenres(),
+            parentRelations = queries.selectGenreOntologyRelations().executeAsList()
+                .filter { it.relation_type == "subgenre" }
+                .map { GenreOntologyParentRelation(it.source_genre_id, it.target_genre_id) },
+        )
 
     override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot =
         LibrarySnapshot(
@@ -253,16 +307,60 @@ class StorageLibraryIndexStore(
     override fun clearLibraryData(sourceId: String?) {
         queries.transaction {
             if (sourceId == null) {
+                queries.clearLibraryGenreInventory()
+                queries.clearLibraryGenreInventoryMetadata()
                 queries.clearArtistPopularTracks()
                 queries.clearLibraryTracks()
                 queries.clearLibraryAlbums()
                 queries.clearLibraryArtists()
             } else {
+                queries.clearLibraryGenreInventoryForSource(sourceId)
+                queries.clearLibraryGenreInventoryMetadataForSource(sourceId)
                 queries.clearArtistPopularTracksForSource(sourceId)
                 queries.clearLibraryForSource(sourceId)
                 queries.clearLibraryAlbumsForSource(sourceId)
                 queries.clearLibraryArtistsForSource(sourceId)
             }
+        }
+    }
+
+    private fun ontologyGenres(): List<GenreOntologyGenre> {
+        val aliasesByGenreId = queries.selectGenreOntologyAliases().executeAsList()
+            .groupBy({ it.genre_id }, { it.alias_name })
+        return queries.selectGenreOntologyGenres().executeAsList().map {
+            GenreOntologyGenre(
+                id = it.genre_id,
+                canonicalName = it.canonical_name,
+                aliases = aliasesByGenreId[it.genre_id].orEmpty(),
+            )
+        }
+    }
+
+    private fun storedLibraryGenreInventory(sourceId: String): List<LibraryGenreInventoryItem> =
+        queries.selectLibraryGenreInventory(sourceId).executeAsList().map {
+            LibraryGenreInventoryItem(
+                sourceName = it.source_name,
+                normalizedName = it.normalized_name,
+                matchedGenreId = it.matched_genre_id,
+                matchKind = runCatching { LibraryGenreMatchKind.valueOf(it.match_kind) }
+                    .getOrDefault(LibraryGenreMatchKind.Unmatched),
+                albumCount = it.album_count?.toInt(),
+                trackCount = it.track_count?.toInt(),
+            )
+        }
+
+    private fun rematchLibraryGenresWhenOntologyChanged(sourceId: String) {
+        val ontologySha = queries.selectGenreOntologyMetadata().executeAsOneOrNull()?.payload_sha256.orEmpty()
+        val inventorySha = queries.selectLibraryGenreInventoryMetadata(sourceId)
+            .executeAsOneOrNull()
+            ?.ontology_payload_sha256
+        if (inventorySha != null && inventorySha != ontologySha) {
+            replaceLibraryGenreInventory(
+                sourceId = sourceId,
+                genres = storedLibraryGenreInventory(sourceId).map {
+                    app.naviamp.domain.Genre(it.sourceName, it.albumCount, it.trackCount)
+                },
+            )
         }
     }
 

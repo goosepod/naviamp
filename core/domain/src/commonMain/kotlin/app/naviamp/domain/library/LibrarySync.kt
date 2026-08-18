@@ -6,6 +6,8 @@ import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
 
+const val LibraryGenreInventoryLimit = 5_000
+
 enum class LibrarySyncProgressPhase {
     LoadingArtists,
     IndexedArtists,
@@ -101,6 +103,10 @@ suspend fun syncLibraryIndex(
         }
     }
 
+    // Genre discovery supplements the primary index. A provider-specific genre endpoint failure
+    // must not leave an otherwise successful artist/album import marked as incomplete.
+    runCatching { refreshLibraryGenreInventory(sourceId, provider, libraryIndexRepository) }
+
     libraryIndexRepository.markLibrarySyncCompleted(sourceId)
     onProgress(
         LibrarySyncProgress(
@@ -115,6 +121,18 @@ suspend fun syncLibraryIndex(
         artistCount = artists.size,
         albumCount = albums.size,
         trackCount = trackCount,
+    )
+}
+
+suspend fun refreshLibraryGenreInventory(
+    sourceId: String,
+    provider: MediaProvider,
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    limit: Int = LibraryGenreInventoryLimit,
+) {
+    libraryIndexRepository.replaceLibraryGenreInventory(
+        sourceId = sourceId,
+        genres = provider.genres(limit),
     )
 }
 

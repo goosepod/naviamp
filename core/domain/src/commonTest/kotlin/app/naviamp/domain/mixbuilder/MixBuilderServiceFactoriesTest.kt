@@ -173,6 +173,17 @@ class MixBuilderServiceFactoriesTest {
     }
 
     @Test
+    fun genreSearchFiltersCompleteInventoryBeforeApplyingResultLimit() = runTest {
+        val genres = (1..500).map { Genre("Genre ${it.toString().padStart(3, '0')}") } + Genre("Techno")
+        val service = genreMixBuilderService(
+            provider = { FakeMixProvider(genres = genres) },
+            homeContent = { HomeContent() },
+        )
+
+        assertEquals(listOf("Techno"), service.searchSuggestions("techno", emptyList()).map { it.name })
+    }
+
+    @Test
     fun suggestionCoordinatorPublishesLoadingSuggestionsAndStatuses() = runTest {
         val loadingStates = mutableListOf<Boolean>()
         val suggestionsStates = mutableListOf<List<Artist>>()

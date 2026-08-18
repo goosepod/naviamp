@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS genre_ontology_alias (
+  genre_id TEXT NOT NULL REFERENCES genre_ontology_genre(genre_id) ON DELETE CASCADE,
+  alias_name TEXT NOT NULL,
+  alias_source TEXT NOT NULL,
+  PRIMARY KEY(genre_id, alias_name)
+);
+
+CREATE INDEX IF NOT EXISTS genre_ontology_alias_name
+ON genre_ontology_alias(alias_name);

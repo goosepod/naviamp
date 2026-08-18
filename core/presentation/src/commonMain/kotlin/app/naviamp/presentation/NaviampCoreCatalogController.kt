@@ -17,6 +17,7 @@ class NaviampCoreCatalogController(
     private val stateStore: NaviampCoreStateStore,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val libraryPageSize: Int = 50,
+    private val libraryGenreRefresh: NaviampCoreLibraryGenreRefreshPort = NaviampCoreLibraryGenreRefreshPort { },
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
     private var searchGeneration = 0L
@@ -104,7 +105,14 @@ class NaviampCoreCatalogController(
         publishLibraryStatus("Loading library...", loading = true)
         val query = stateStore.state.value.shell.library.query
         runCatching {
-            if (query.isBlank()) provider.artistsPage(request) else provider.searchArtistsPage(query.trim(), request)
+            val page = if (query.isBlank()) {
+                provider.artistsPage(request)
+            } else {
+                provider.searchArtistsPage(query.trim(), request)
+            }
+            // Keep the browsable library available when a provider's optional genre endpoint fails.
+            if (replace && query.isBlank()) runCatching { libraryGenreRefresh.refresh() }
+            page
         }.onSuccess { page ->
             if (generation != libraryGeneration) return@onSuccess
             mediaRegistry.updateLibraryArtists(page.items, replace)

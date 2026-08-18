@@ -147,12 +147,24 @@ fun NaviampInternetRadioStationEditUi.toInternetRadioStation(): InternetRadioSta
 fun Genre.toSharedGenreMixItemUi(): SharedGenreMixItemUi =
     SharedGenreMixItemUi(
         id = name,
-        title = name,
+        title = genreDisplayTitle(name),
         subtitle = listOfNotNull(
             albumCount?.let { "$it albums" },
             trackCount?.let { "$it tracks" },
         ).joinToString(" - "),
     )
+
+fun genreDisplayTitle(name: String): String = buildString {
+    var capitalizeNext = true
+    name.trim().lowercase().forEach { character ->
+        if (character.isLetter() && capitalizeNext) {
+            append(character.titlecase())
+        } else {
+            append(character)
+        }
+        capitalizeNext = !character.isLetterOrDigit() && character != '\''
+    }
+}
 
 fun InternetRadioStation.defaultRadioArtworkUrl(): String =
     radioStationArtworkUrl(this)
