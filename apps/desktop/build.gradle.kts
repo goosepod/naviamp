@@ -363,6 +363,9 @@ tasks.register<Sync>("stageLocalTestApp") {
     dependsOn("verifyDesktopDistributable")
     from(desktopPackagedAppDir)
     into(desktopLocalTestAppDir)
+    doFirst {
+        delete(desktopLocalTestAppDir)
+    }
     doLast {
         refreshMacAppBundleModificationTime(desktopLocalTestAppDir.get().asFile)
     }
@@ -374,6 +377,9 @@ tasks.register<Sync>("stageReleaseApp") {
     dependsOn("verifyDesktopDistributable")
     from(desktopPackagedAppDir)
     into(desktopReleaseAppDir)
+    doFirst {
+        delete(desktopReleaseAppDir)
+    }
     doLast {
         refreshMacAppBundleModificationTime(desktopReleaseAppDir.get().asFile)
     }
