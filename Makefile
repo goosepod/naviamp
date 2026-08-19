@@ -22,6 +22,7 @@ help:
 	@printf "  make windows-installer   Build Windows MSI/EXE installer\n\n"
 	@printf "Linux, run on a Linux runner or shell:\n"
 	@printf "  make linux-test          Build and stage the Linux test app\n"
+	@printf "  make linux-verify        Run native tests, stage the app, and smoke-test launch\n"
 	@printf "  make linux-standalone    Build Linux release zip\n"
 	@printf "  make linux-installer     Build Linux DEB/RPM packages\n\n"
 	@printf "Android:\n"
@@ -115,6 +116,10 @@ linux-test:
 		printf "linux-test must run on Linux so jpackage can create a Linux app image.\n"; \
 		exit 1; \
 	fi
+
+.PHONY: linux-verify
+linux-verify:
+	scripts/linux-verify.sh
 
 .PHONY: linux-standalone linux-release
 linux-standalone linux-release:

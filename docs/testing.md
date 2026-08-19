@@ -19,6 +19,13 @@ line-coverage floor. It prints a combined test count from Gradle's XML reports w
 For a faster Desktop-oriented loop, use `make desktop-test`. To regenerate coverage independently,
 use `make coverage`; its HTML report is written to `build/reports/kover/html/index.html`.
 
+On an x86-64 Linux machine, `make linux-verify` runs the native Desktop tests with a null ALSA
+device, builds and stages the Linux application image, and verifies that the packaged launcher stays
+alive for a bounded Xvfb smoke window. It requires JDK 21 or newer, `xvfb-run`, OpenGL development
+libraries, `libsecret-tools`, and an Android SDK containing API 36 because the root Gradle build also
+configures the Android application. Set the SDK with `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or an ignored
+`local.properties` file. Diagnostics are written under `build/linux-test`.
+
 Kover measures JVM and Android unit-test execution. Kotlin/Native, XCTest, Android instrumentation,
 and native C/JNI execution are intentionally represented by explicit CI gates rather than being
 misreported as JVM line coverage.
