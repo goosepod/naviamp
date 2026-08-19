@@ -47,6 +47,9 @@ data class NaviampNowPlayingContentInput(
     val visualizerAvailable: Boolean,
     val visualizerVisible: Boolean,
     val coverArtUrl: String?,
+    val albumCoverArtUrl: String? = null,
+    val albumReleaseYear: Int? = null,
+    val albumOriginalReleaseYear: Int? = null,
     val playbackQueue: PlaybackQueue,
     val internetRadioStations: List<InternetRadioStation>,
     val currentInternetRadioStationId: String?,
@@ -93,8 +96,8 @@ fun NaviampNowPlayingContentInput.toNowPlayingUi(): NowPlayingUi =
 
 fun NaviampNowPlayingPresentationInput.toPresentationUi(): NaviampNowPlayingPresentationUi =
     NaviampNowPlayingPresentationUi(
-        nowPlaying = content.toNowPlayingUi(),
-        miniNowPlaying = content.toMiniNowPlayingUi(),
+        nowPlaying = content.toNowPlayingUi().withDisplaySettings(displaySettings),
+        miniNowPlaying = content.toMiniNowPlayingUi()?.withDisplaySettings(displaySettings),
         displaySettings = displaySettings,
         visualizerFrame = visualizerFrame,
         selectedVisualizer = selectedVisualizer,
@@ -121,8 +124,8 @@ fun rememberNaviampNowPlayingPresentation(
         content.resolveRadioStations()
     }
     return NaviampNowPlayingPresentationUi(
-        nowPlaying = content.toNowPlayingUi(sections, radioStations),
-        miniNowPlaying = content.toMiniNowPlayingUi(),
+        nowPlaying = content.toNowPlayingUi(sections, radioStations).withDisplaySettings(input.displaySettings),
+        miniNowPlaying = content.toMiniNowPlayingUi()?.withDisplaySettings(input.displaySettings),
         displaySettings = input.displaySettings,
         visualizerFrame = input.visualizerFrame,
         selectedVisualizer = input.selectedVisualizer,
@@ -135,6 +138,7 @@ private fun NaviampNowPlayingContentInput.toMiniNowPlayingUi(): NowPlayingUi? =
         MiniNowPlayingUiConfig(
             stateLabel = stateLabel,
             coverArtUrl = coverArtUrl,
+            albumCoverArtUrl = albumCoverArtUrl,
             isPlaying = playbackState == PlaybackState.Playing,
             isPaused = playbackState == PlaybackState.Paused,
             canPlayPause = capabilities.canPlayPause,
@@ -179,6 +183,9 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
     } ?: nowPlayingTrack?.toTrackNowPlayingUi(
         stateLabel = stateLabel,
         coverArtUrl = coverArtUrl,
+        albumCoverArtUrl = albumCoverArtUrl,
+        albumReleaseYear = albumReleaseYear,
+        albumOriginalReleaseYear = albumOriginalReleaseYear,
         playbackProgress = playbackProgress,
         playbackState = playbackState,
         capabilities = capabilities,

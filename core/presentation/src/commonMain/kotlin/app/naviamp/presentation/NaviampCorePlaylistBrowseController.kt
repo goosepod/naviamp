@@ -4,6 +4,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.domain.navibeat.navibeatMixOrNull
+import app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampMediaItemCommand
@@ -18,6 +19,7 @@ import app.naviamp.ui.toPlaylistChoiceUi
 data class NaviampCorePlaylistBrowseSupplement(
     val recentPlaylistIds: List<String> = emptyList(),
     val keepDownloadedPlaylistIds: Set<String> = emptySet(),
+    val genreCatalog: List<SmartPlaylistGenreOption> = emptyList(),
 )
 
 fun interface NaviampCorePlaylistBrowseSupplementSource {
@@ -28,6 +30,7 @@ fun naviampCorePlaylistBrowseSupplementSource(
     recentPlaylistIds: () -> List<String>,
     sourceId: () -> String?,
     keepDownloadedRepository: KeepDownloadedRepository,
+    genreCatalog: () -> List<SmartPlaylistGenreOption> = { emptyList() },
 ): NaviampCorePlaylistBrowseSupplementSource = NaviampCorePlaylistBrowseSupplementSource {
     NaviampCorePlaylistBrowseSupplement(
         recentPlaylistIds = recentPlaylistIds(),
@@ -39,6 +42,7 @@ fun naviampCorePlaylistBrowseSupplementSource(
                     policy.kind == KeepDownloadedCollectionKind.SmartPlaylist
             }
             .mapTo(mutableSetOf()) { it.collectionId },
+        genreCatalog = genreCatalog(),
     )
 }
 
@@ -90,8 +94,15 @@ class NaviampCorePlaylistBrowseController(
 
     private suspend fun refresh(finalStatus: String? = null) {
         val generation = ++listGeneration
+        val supplement = supplementSource.current()
         stateStore.updateShell { shell ->
-            shell.copy(playlists = shell.playlists.copy(refreshing = true, status = "Loading playlists..."))
+            shell.copy(
+                playlists = shell.playlists.copy(
+                    refreshing = true,
+                    status = "Loading playlists...",
+                    genreCatalog = supplement.genreCatalog,
+                ),
+            )
         }
         val provider = providerSource.current()
         if (provider == null) {
@@ -104,7 +115,6 @@ class NaviampCorePlaylistBrowseController(
                 if (generation != listGeneration) return@onSuccess
                 playlistsById = playlists.associateBy(Playlist::id)
                 mediaRegistry.updatePlaylists(playlists)
-                val supplement = supplementSource.current()
                 val visiblePlaylists = playlists.filter { it.navibeatMixOrNull() == null }
                 stateStore.updateShell { shell ->
                     shell.copy(
@@ -158,6 +168,7 @@ class NaviampCorePlaylistBrowseController(
                     selectedPlaylist = item,
                     detail = null,
                     status = "Loading ${item.title}...",
+                    genreCatalog = supplementSource.current().genreCatalog,
                 ),
             )
         }

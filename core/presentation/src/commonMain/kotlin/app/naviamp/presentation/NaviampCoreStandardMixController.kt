@@ -118,6 +118,7 @@ class NaviampCoreStandardMixController(
             is NaviampCoreCommand.GenreAction.Select -> selectGenre(action.genre.id)
             is NaviampCoreCommand.GenreAction.Remove -> removeGenre(action.genre.id)
             is NaviampCoreCommand.GenreAction.ToggleBranch -> toggleGenreBranch(action.ontologyId)
+            is NaviampCoreCommand.GenreAction.SelectBranch -> selectGenreBranch(action.ontologyId)
             NaviampCoreCommand.GenreAction.Reset -> resetGenre()
             NaviampCoreCommand.GenreAction.Play -> playGenreMix()
         }
@@ -308,6 +309,16 @@ class NaviampCoreStandardMixController(
         loadGenreSuggestions()
     }
 
+    private suspend fun selectGenreBranch(ontologyId: String) {
+        val genres = genreProjection.selectableGenresForSubtree(ontologyId)
+        if (genres.isEmpty()) {
+            publishGenre(false, "Genre group is no longer available.")
+            return
+        }
+        selectedGenres = (selectedGenres + genres).distinctBy { it.name.lowercase() }
+        loadGenreSuggestions()
+    }
+
     private fun toggleGenreBranch(ontologyId: String) {
         val node = genreProjection.nodes.firstOrNull { it.id == ontologyId } ?: return
         if (node.childIds.isEmpty()) return
@@ -364,14 +375,17 @@ class NaviampCoreStandardMixController(
     }
 
     private fun publishGenre(loading: Boolean, status: String?) {
+        val browseOntology = genreProjection.audit.usefulForBrowsing
         updateGenreUi {
             it.copy(
                 selectedGenres = selectedGenres.map(Genre::toSharedGenreMixItemUi),
                 suggestedGenres = genreSuggestions.map(Genre::toSharedGenreMixItemUi),
-                treeRows = genreTreeRows(genreProjection, expandedGenreOntologyIds, selectedGenres),
-                unmatchedGenres = genreProjection.unmatchedGenreNames
+                treeRows = if (browseOntology) {
+                    genreTreeRows(genreProjection, expandedGenreOntologyIds, selectedGenres)
+                } else emptyList(),
+                unmatchedGenres = if (browseOntology) genreProjection.unmatchedGenreNames
                     .map(::Genre)
-                    .map(Genre::toSharedGenreMixItemUi),
+                    .map(Genre::toSharedGenreMixItemUi) else emptyList(),
                 loading = loading,
                 status = status,
                 initialized = true,
@@ -412,16 +426,23 @@ internal fun genreTreeRows(
     fun appendNode(id: String, depth: Int, path: Set<String>) {
         if (id in path) return
         val node = nodesById[id] ?: return
-        val providerName = node.libraryGenreNames.firstOrNull()
+        val providerGenres = projection.selectableGenresForSubtree(node.id)
+        val selectedCount = providerGenres.count { genre -> genre.name.lowercase() in selectedNames }
         rows += SharedGenreMixTreeRowUi(
             ontologyId = node.id,
             title = genreDisplayTitle(node.canonicalName),
-            subtitle = genreCountSubtitle(node.trackCount, node.albumCount),
+            subtitle = genreGroupSubtitle(
+                selectableGenreCount = providerGenres.size,
+                directProviderNames = node.libraryGenreNames,
+                trackCount = node.trackCount,
+                albumCount = node.albumCount,
+            ),
             depth = depth,
             expandable = node.childIds.isNotEmpty(),
             expanded = node.id in expandedIds,
-            genre = providerName?.let { SharedGenreMixItemUi(id = it, title = it) },
-            selected = providerName?.lowercase() in selectedNames,
+            selectableGenreCount = providerGenres.size,
+            selectedGenreCount = selectedCount,
+            selected = providerGenres.isNotEmpty() && selectedCount == providerGenres.size,
         )
         if (node.id in expandedIds) {
             node.childIds
@@ -437,8 +458,17 @@ internal fun genreTreeRows(
     return rows
 }
 
-private fun genreCountSubtitle(trackCount: Int?, albumCount: Int?): String =
-    listOfNotNull(
+private fun genreGroupSubtitle(
+    selectableGenreCount: Int,
+    directProviderNames: List<String>,
+    trackCount: Int?,
+    albumCount: Int?,
+): String = listOfNotNull(
+        when {
+            selectableGenreCount > 1 -> "$selectableGenreCount library genres"
+            directProviderNames.size > 1 -> directProviderNames.joinToString(" · ")
+            else -> null
+        },
         trackCount?.let { "$it ${if (it == 1) "track" else "tracks"}" },
         albumCount?.let { "$it ${if (it == 1) "album" else "albums"}" },
     ).joinToString(" · ")

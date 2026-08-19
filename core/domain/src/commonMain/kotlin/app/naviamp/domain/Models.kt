@@ -46,6 +46,7 @@ data class Album(
     val coverArtId: String?,
     val recentlyAddedAtIso8601: String?,
     val releaseYear: Int? = null,
+    val originalReleaseYear: Int? = null,
     val favoritedAtIso8601: String? = null,
     val releaseTypes: List<String> = emptyList(),
     val explicitStatus: AlbumExplicitStatus = AlbumExplicitStatus.Unknown,
@@ -81,6 +82,7 @@ data class Track(
     val albumId: AlbumId? = null,
     val albumTitle: String?,
     val albumReleaseYear: Int? = null,
+    val originalReleaseYear: Int? = null,
     val durationSeconds: Int?,
     val coverArtId: String?,
     val audioInfo: AudioInfo?,
@@ -95,6 +97,17 @@ data class Track(
     val musicFolderId: String? = null,
     val artistCredits: List<ArtistCredit> = emptyList(),
 )
+
+/** The earliest available year, used to place a recording in its original musical era. */
+val Track.eraReleaseYear: Int?
+    get() = earliestPositiveYear(originalReleaseYear, albumReleaseYear)
+
+/** The earliest available year, used to place an album in its original musical era. */
+val Album.eraReleaseYear: Int?
+    get() = earliestPositiveYear(originalReleaseYear, releaseYear)
+
+private fun earliestPositiveYear(first: Int?, second: Int?): Int? =
+    listOfNotNull(first, second).filter { it > 0 }.minOrNull()
 
 fun Track.resolvedArtistCredits(): List<ArtistCredit> {
     val distinctStructuredCredits = artistCredits

@@ -57,6 +57,11 @@ fun naviampCoreServiceDefaults(
     downloads = unavailableNaviampCoreDownloadServices(),
     playlists = NaviampCorePlaylistServices(
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
+        preview = NaviampCoreSmartPlaylistPreviewPort {
+            app.naviamp.domain.smartplaylist.SmartPlaylistPreview(
+                message = "Local library preview is unavailable.",
+            )
+        },
     ),
     radio = NaviampCoreRadioServices(
         playback = playback.effects as? NaviampCoreInternetRadioPlaybackPort

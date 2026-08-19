@@ -1,6 +1,7 @@
 package app.naviamp.domain.library
 
 import app.naviamp.domain.Genre
+import app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption
 
 enum class LibraryGenreMatchKind {
     Exact,
@@ -43,19 +44,74 @@ data class LibraryGenreOntologyNode(
         get() = libraryGenreNames.isNotEmpty()
 }
 
+data class LibraryGenreOntologyAudit(
+    val inventoryGenreCount: Int = 0,
+    val exactMatchCount: Int = 0,
+    val aliasMatchCount: Int = 0,
+    val normalizedMatchCount: Int = 0,
+    val unmatchedCount: Int = 0,
+    val knownTrackCount: Long? = null,
+    val matchedKnownTrackCount: Long? = null,
+    val projectedRootCount: Int = 0,
+    val largestSelectableGroupSize: Int = 0,
+) {
+    val matchedCount: Int
+        get() = exactMatchCount + aliasMatchCount + normalizedMatchCount
+
+    val nameMatchRatio: Double
+        get() = if (inventoryGenreCount == 0) 0.0 else matchedCount.toDouble() / inventoryGenreCount
+
+    val trackMatchRatio: Double?
+        get() = knownTrackCount?.takeIf { it > 0L }?.let { total ->
+            (matchedKnownTrackCount ?: 0L).toDouble() / total
+        }
+
+    /**
+     * The hierarchy is a product win only when it covers the library and reduces the initial
+     * choice set. Small, fragmented, or poorly matched inventories keep the flat genre browser.
+     */
+    val usefulForBrowsing: Boolean
+        get() {
+            if (inventoryGenreCount < MinimumUsefulGenreInventorySize) return false
+            if ((trackMatchRatio ?: nameMatchRatio) < MinimumUsefulGenreMatchRatio) return false
+            if (largestSelectableGroupSize < MinimumUsefulGenreGroupSize) return false
+            val initialChoiceCount = projectedRootCount + unmatchedCount
+            return initialChoiceCount.toDouble() / inventoryGenreCount <= MaximumUsefulRootChoiceRatio
+        }
+}
+
 data class LibraryGenreOntologyProjection(
     val nodes: List<LibraryGenreOntologyNode> = emptyList(),
     val rootIds: List<String> = emptyList(),
     val unmatchedGenreNames: List<String> = emptyList(),
+    val audit: LibraryGenreOntologyAudit = LibraryGenreOntologyAudit(),
 ) {
     /** Provider names are retained because playback APIs expect the server's vocabulary. */
     val selectableGenres: List<Genre>
         get() = nodes
             .flatMap(LibraryGenreOntologyNode::libraryGenreNames)
             .plus(unmatchedGenreNames)
-            .distinctBy(::normalizeGenreName)
+            .distinctBy { it.lowercase() }
             .sortedBy(::normalizeGenreName)
             .map(::Genre)
+
+    fun selectableGenresForSubtree(ontologyId: String): List<Genre> {
+        val nodesById = nodes.associateBy(LibraryGenreOntologyNode::id)
+        val pending = ArrayDeque(listOf(ontologyId))
+        val visited = linkedSetOf<String>()
+        val names = mutableListOf<String>()
+        while (pending.isNotEmpty()) {
+            val id = pending.removeFirst()
+            if (!visited.add(id)) continue
+            val node = nodesById[id] ?: continue
+            names += node.libraryGenreNames
+            pending.addAll(node.childIds)
+        }
+        return names
+            .distinctBy { it.lowercase() }
+            .sortedBy(::normalizeGenreName)
+            .map(::Genre)
+    }
 }
 
 fun normalizeGenreName(name: String): String = buildString {
@@ -156,7 +212,7 @@ fun projectLibraryGenreOntology(
                 trackCount = inventoryByGenreId[genre.id].sumKnownCounts(LibraryGenreInventoryItem::trackCount),
             )
         }
-    return LibraryGenreOntologyProjection(
+    val projection = LibraryGenreOntologyProjection(
         nodes = nodes,
         rootIds = nodes.filter { it.parentIds.isEmpty() }.map(LibraryGenreOntologyNode::id),
         unmatchedGenreNames = inventory
@@ -164,8 +220,58 @@ fun projectLibraryGenreOntology(
             .map(LibraryGenreInventoryItem::sourceName)
             .sortedBy(::normalizeGenreName),
     )
+    val knownTrackCounts = inventory.mapNotNull(LibraryGenreInventoryItem::trackCount)
+    return projection.copy(
+        audit = LibraryGenreOntologyAudit(
+            inventoryGenreCount = inventory.size,
+            exactMatchCount = inventory.count { it.matchKind == LibraryGenreMatchKind.Exact },
+            aliasMatchCount = inventory.count { it.matchKind == LibraryGenreMatchKind.Alias },
+            normalizedMatchCount = inventory.count { it.matchKind == LibraryGenreMatchKind.Normalized },
+            unmatchedCount = inventory.count { it.matchKind == LibraryGenreMatchKind.Unmatched },
+            knownTrackCount = knownTrackCounts.takeIf { it.isNotEmpty() }?.sumOf(Int::toLong),
+            matchedKnownTrackCount = inventory
+                .filter { it.matchKind != LibraryGenreMatchKind.Unmatched }
+                .mapNotNull(LibraryGenreInventoryItem::trackCount)
+                .takeIf { it.isNotEmpty() }
+                ?.sumOf(Int::toLong),
+            projectedRootCount = projection.rootIds.size,
+            largestSelectableGroupSize = projection.nodes.maxOfOrNull { node ->
+                projection.selectableGenresForSubtree(node.id).size
+            } ?: 0,
+        ),
+    )
+}
+
+fun smartPlaylistGenreCatalog(
+    ontologyGenres: List<GenreOntologyGenre>,
+    inventory: List<LibraryGenreInventoryItem>,
+): List<SmartPlaylistGenreOption> {
+    val inventoryByGenreId = inventory
+        .filter { it.matchedGenreId != null }
+        .groupBy { requireNotNull(it.matchedGenreId) }
+    return ontologyGenres
+        .map { genre ->
+            val matches = inventoryByGenreId[genre.id].orEmpty()
+            SmartPlaylistGenreOption(
+                canonicalName = genre.canonicalName,
+                aliases = genre.aliases,
+                libraryGenreNames = matches
+                    .map(LibraryGenreInventoryItem::sourceName)
+                    .distinctBy(::normalizeGenreName)
+                    .sortedBy(::normalizeGenreName),
+                trackCount = matches.mapNotNull(LibraryGenreInventoryItem::trackCount)
+                    .takeIf(List<Int>::isNotEmpty)
+                    ?.sum(),
+            )
+        }
+        .sortedBy { normalizeGenreName(it.canonicalName) }
 }
 
 private fun List<LibraryGenreInventoryItem>?.sumKnownCounts(
     count: (LibraryGenreInventoryItem) -> Int?,
 ): Int? = this?.mapNotNull(count)?.takeIf { it.isNotEmpty() }?.sum()
+
+private const val MinimumUsefulGenreInventorySize = 4
+private const val MinimumUsefulGenreGroupSize = 2
+private const val MinimumUsefulGenreMatchRatio = 0.60
+private const val MaximumUsefulRootChoiceRatio = 0.80

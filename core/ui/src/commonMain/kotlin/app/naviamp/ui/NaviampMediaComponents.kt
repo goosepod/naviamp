@@ -1074,6 +1074,7 @@ fun GenreMixBuilderContent(
     val onGenreSelected = actions.onGenreSelected
     val onGenreRemoved = actions.onGenreRemoved
     val onBranchToggled = actions.onBranchToggled
+    val onBranchSelected = actions.onBranchSelected
     val onReset = actions.onReset
     val onPlayMix = actions.onPlay
     LaunchedEffect(builder.initialized) {
@@ -1143,7 +1144,7 @@ fun GenreMixBuilderContent(
                             row = row,
                             colors = colors,
                             onToggle = { onBranchToggled(row.ontologyId) },
-                            onSelect = { row.genre?.let(onGenreSelected) },
+                            onSelect = { onBranchSelected(row.ontologyId) },
                         )
                     }
                 }
@@ -1188,7 +1189,7 @@ private fun GenreMixTreeRow(
     onSelect: () -> Unit,
 ) {
     val rowAction = when {
-        row.genre != null && !row.selected -> onSelect
+        row.selectableGenreCount > 0 && !row.selected -> onSelect
         row.expandable -> onToggle
         else -> null
     }
@@ -1198,7 +1199,7 @@ private fun GenreMixTreeRow(
             .fillMaxWidth()
             .padding(start = (row.depth * 18).dp)
             .clip(RoundedCornerShape(6.dp))
-            .background(Color.Black.copy(alpha = if (row.genre != null) 0.14f else 0.08f))
+            .background(Color.Black.copy(alpha = if (row.selectableGenreCount > 0) 0.14f else 0.08f))
             .then(if (rowAction != null) Modifier.clickable(onClick = rowAction) else Modifier)
             .padding(end = 12.dp, top = 8.dp, bottom = 8.dp),
     ) {
@@ -1221,9 +1222,9 @@ private fun GenreMixTreeRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 row.title,
-                color = if (row.genre != null) colors.primaryText else colors.secondaryText,
+                color = if (row.selectableGenreCount > 0) colors.primaryText else colors.secondaryText,
                 fontSize = 14.sp,
-                fontWeight = if (row.genre != null) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (row.selectableGenreCount > 0) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

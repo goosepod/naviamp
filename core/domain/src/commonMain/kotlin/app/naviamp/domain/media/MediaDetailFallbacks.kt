@@ -44,6 +44,7 @@ fun albumDetailsFromLibraryTracks(
         coverArtId = first.coverArtId,
         recentlyAddedAtIso8601 = null,
         releaseYear = first.albumReleaseYear,
+        originalReleaseYear = first.originalReleaseYear,
     )
     return AlbumDetails(album = album, tracks = tracks)
 }
@@ -72,6 +73,7 @@ fun artistDetailsFromLibraryTracks(
                 coverArtId = first.coverArtId,
                 recentlyAddedAtIso8601 = null,
                 releaseYear = first.albumReleaseYear,
+                originalReleaseYear = first.originalReleaseYear,
             )
         }
         .sortedWith(compareBy<Album> { it.releaseYear ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
@@ -338,5 +340,6 @@ fun trackAlbum(track: Track): Album? =
             coverArtId = track.coverArtId,
             recentlyAddedAtIso8601 = null,
             releaseYear = track.albumReleaseYear,
+            originalReleaseYear = track.originalReleaseYear,
         )
     }

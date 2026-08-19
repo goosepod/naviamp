@@ -11,6 +11,7 @@ import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.library.LibraryGenreOntologyNode
+import app.naviamp.domain.library.LibraryGenreOntologyAudit
 import app.naviamp.domain.library.LibraryGenreOntologyProjection
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTracksClient
@@ -95,7 +96,7 @@ class NaviampCoreStandardMixControllerTest {
         val projection = LibraryGenreOntologyProjection(
             nodes = listOf(
                 LibraryGenreOntologyNode("music", "Music", emptyList(), emptyList(), listOf("rock")),
-                LibraryGenreOntologyNode("rock", "Rock", emptyList(), listOf("music"), listOf("dream-pop")),
+                LibraryGenreOntologyNode("rock", "Rock", listOf("Rock"), listOf("music"), listOf("dream-pop", "shoegaze")),
                 LibraryGenreOntologyNode(
                     "dream-pop",
                     "Dream Pop",
@@ -105,12 +106,26 @@ class NaviampCoreStandardMixControllerTest {
                     albumCount = 12,
                     trackCount = 345,
                 ),
+                LibraryGenreOntologyNode(
+                    "shoegaze",
+                    "Shoegaze",
+                    listOf("Shoegaze", "Nu Gaze"),
+                    listOf("rock"),
+                    emptyList(),
+                ),
             ),
             rootIds = listOf("music"),
             unmatchedGenreNames = listOf("Server Only"),
+            audit = LibraryGenreOntologyAudit(
+                inventoryGenreCount = 5,
+                exactMatchCount = 4,
+                unmatchedCount = 1,
+                projectedRootCount = 1,
+                largestSelectableGroupSize = 4,
+            ),
         )
         val genreService = GenreMixBuilderService(
-            genres = { listOf(Genre("Dream-Pop"), Genre("Server Only")) },
+            genres = { listOf(Genre("Rock"), Genre("Dream-Pop"), Genre("Shoegaze"), Genre("Nu Gaze"), Genre("Server Only")) },
             ontologyProjection = { projection },
         )
         val fixture = fixture(genreService)
@@ -127,19 +142,50 @@ class NaviampCoreStandardMixControllerTest {
             NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.ToggleBranch("rock")),
         )
         ui = fixture.store.state.value.shell.genreMixBuilder
-        assertEquals(listOf("Music", "Rock", "Dream Pop"), ui.treeRows.map { it.title })
-        assertEquals(listOf(0, 1, 2), ui.treeRows.map { it.depth })
-        assertEquals(listOf("", "", "345 tracks · 12 albums"), ui.treeRows.map { it.subtitle })
+        assertEquals(listOf("Music", "Rock", "Dream Pop", "Shoegaze"), ui.treeRows.map { it.title })
+        assertEquals(listOf(0, 1, 2, 2), ui.treeRows.map { it.depth })
+        assertEquals(4, ui.treeRows[1].selectableGenreCount)
+        assertEquals("345 tracks · 12 albums", ui.treeRows[2].subtitle)
 
         fixture.controller.execute(
             NaviampCoreCommand.MixBuilder.Genre(
-                NaviampCoreCommand.GenreAction.Select(requireNotNull(ui.treeRows.last().genre)),
+                NaviampCoreCommand.GenreAction.SelectBranch("rock"),
             ),
         )
         fixture.controller.execute(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Play))
 
-        assertEquals(listOf("Dream-Pop"), fixture.playback.genrePlays)
-        assertEquals(true, fixture.store.state.value.shell.genreMixBuilder.treeRows.last().selected)
+        assertEquals(listOf("Dream-Pop", "Nu Gaze", "Rock", "Shoegaze"), fixture.playback.genrePlays)
+        assertEquals(true, fixture.store.state.value.shell.genreMixBuilder.treeRows[1].selected)
+    }
+
+    @Test
+    fun genreBuilderKeepsTheCompleteFlatBrowserWhenTheOntologyIsNotUseful() = runTest {
+        val genres = listOf(Genre("Rock"), Genre("Jazz"), Genre("Server Only"))
+        val projection = LibraryGenreOntologyProjection(
+            nodes = listOf(
+                LibraryGenreOntologyNode("rock", "Rock", listOf("Rock"), emptyList(), emptyList()),
+                LibraryGenreOntologyNode("jazz", "Jazz", listOf("Jazz"), emptyList(), emptyList()),
+            ),
+            rootIds = listOf("rock", "jazz"),
+            unmatchedGenreNames = listOf("Server Only"),
+            audit = LibraryGenreOntologyAudit(
+                inventoryGenreCount = 3,
+                exactMatchCount = 2,
+                unmatchedCount = 1,
+                projectedRootCount = 2,
+                largestSelectableGroupSize = 1,
+            ),
+        )
+        val fixture = fixture(
+            GenreMixBuilderService(genres = { genres }, ontologyProjection = { projection }),
+        )
+
+        fixture.controller.initializeGenre()
+
+        val ui = fixture.store.state.value.shell.genreMixBuilder
+        assertEquals(emptyList(), ui.treeRows)
+        assertEquals(emptyList(), ui.unmatchedGenres)
+        assertEquals(listOf("Rock", "Jazz", "Server Only"), ui.suggestedGenres.map { it.title })
     }
 
     @Test

@@ -450,9 +450,13 @@ data class NaviampPlaylistsScreenUi(
     val refreshing: Boolean = false,
     val availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     val selectedConnectionLibraryIds: List<String> = emptyList(),
+    val genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
 )
 
 data class NaviampSmartPlaylistActions(
+    val onPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview = {
+        app.naviamp.domain.smartplaylist.SmartPlaylistPreview(message = "Preview is unavailable.")
+    },
     val onSave: suspend (SmartPlaylistDefinition) -> Unit,
     val onUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     val onSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
@@ -473,6 +477,7 @@ data class NaviampPlaylistDetailScreenUi(
     val status: String? = null,
     val availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     val selectedConnectionLibraryIds: List<String> = emptyList(),
+    val genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
 )
 
 sealed interface NaviampPlaylistDetailCommand {
@@ -738,6 +743,7 @@ data class SharedGenreMixBuilderActions(
     val onGenreSelected: (SharedGenreMixItemUi) -> Unit,
     val onGenreRemoved: (SharedGenreMixItemUi) -> Unit,
     val onBranchToggled: (String) -> Unit,
+    val onBranchSelected: (String) -> Unit,
     val onReset: () -> Unit,
     val onPlay: () -> Unit,
 )
@@ -975,7 +981,8 @@ data class SharedGenreMixTreeRowUi(
     val depth: Int,
     val expandable: Boolean,
     val expanded: Boolean,
-    val genre: SharedGenreMixItemUi? = null,
+    val selectableGenreCount: Int = 0,
+    val selectedGenreCount: Int = 0,
     val selected: Boolean = false,
 )
 
@@ -986,10 +993,14 @@ data class NowPlayingUi(
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val stateLabel: String,
     val coverArtUrl: String? = null,
+    val trackCoverArtUrl: String? = coverArtUrl,
+    val albumCoverArtUrl: String? = null,
     val isLive: Boolean = false,
     val albumLine: String = "",
     val albumTitle: String = "",
     val albumYear: Int? = null,
+    val albumReleaseYear: Int? = albumYear,
+    val albumOriginalReleaseYear: Int? = null,
     val audioInfo: String = "",
     val waveform: AudioWaveform? = null,
     val visualizerFrame: PlaybackVisualizerFrame? = null,

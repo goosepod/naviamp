@@ -9,7 +9,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.Duration
-import java.time.LocalDate
 import java.util.ArrayDeque
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
@@ -44,6 +43,39 @@ data class RelationRecord(
     val type: String,
     val source: String,
     val target: String,
+    val typeId: String = "",
+)
+
+data class RelationshipTypeDefinition(
+    val id: String,
+    val payloadType: String,
+    val forwardPhrase: String,
+    val reversePhrase: String,
+    val forwardCurrentIsSource: Boolean,
+)
+
+private val MusicBrainzGenreRelationshipDefinitions = listOf(
+    RelationshipTypeDefinition(
+        id = "9d61bc67-fa39-4719-8025-ea056a5bd7e6",
+        payloadType = "subgenre",
+        forwardPhrase = "subgenres",
+        reversePhrase = "subgenre of",
+        forwardCurrentIsSource = false,
+    ),
+    RelationshipTypeDefinition(
+        id = "59117855-52db-4371-8dd3-87a16f285499",
+        payloadType = "influenced_by",
+        forwardPhrase = "influenced by",
+        reversePhrase = "influenced genres",
+        forwardCurrentIsSource = true,
+    ),
+    RelationshipTypeDefinition(
+        id = "723732ec-762c-4cb3-a2d0-e7e797c51915",
+        payloadType = "fusion_of",
+        forwardPhrase = "fusion of",
+        reversePhrase = "has fusion genres",
+        forwardCurrentIsSource = true,
+    ),
 )
 
 @Serializable
@@ -61,6 +93,11 @@ data class OntologyPayload(
     val genres: List<GenreRecord>,
     val aliases: List<GenreAliasRecord>,
     val relations: List<RelationRecord>,
+    val license: String = "",
+    val licenseUrl: String = "",
+    val ingestionMethod: String = "",
+    val inputManifestSha256: String = "",
+    val relationshipTypeIds: Map<String, String> = emptyMap(),
 )
 
 private val NaviampCompatibilityAliases = listOf(
@@ -96,7 +133,8 @@ private data class Options(
         "core/storage/src/commonMain/kotlin/app/naviamp/storage/GeneratedGenreOntologySnapshot.kt",
     ),
     val reportOutput: Path = Path.of("docs/genre-ontology-import-audit.md"),
-    val snapshot: String = LocalDate.now().toString(),
+    val manifestOutput: Path = Path.of(".tmp/genre-ontology/input-manifest.sha256"),
+    val snapshot: String = "",
     val delayMillis: Long = 1_050,
     val maxPages: Int? = null,
 )
@@ -111,7 +149,8 @@ fun main(arguments: Array<String>) {
     val requestPacer = RequestPacer(options.delayMillis)
     val genres = fetchGenres(client, options, requestPacer)
     val aliases = fetchAliases(client, genres, options, requestPacer)
-    val relationships = fetchRelationships(client, genres, options, requestPacer)
+    val relationshipDefinitions = fetchRelationshipDefinitions(client, options, requestPacer)
+    val relationships = fetchRelationships(client, genres, relationshipDefinitions, options, requestPacer)
     val report = auditOntology(genres, relationships, aliases)
 
     if (options.maxPages != null && options.maxPages < genres.size) {
@@ -123,10 +162,19 @@ fun main(arguments: Array<String>) {
         "Refusing to generate a snapshot with ${report.unknownEndpointRelationshipCount} unknown relationship endpoints"
     }
 
+    val inputManifest = buildInputManifest(options.cacheDirectory)
+    options.manifestOutput.parent?.createDirectories()
+    options.manifestOutput.writeText(inputManifest, StandardCharsets.UTF_8)
+    val inputManifestSha256 = sha256(inputManifest)
     val payload = OntologyPayload(
         source = "MusicBrainz CC0 core genre ontology",
         sourceUrl = "https://musicbrainz.org/",
         snapshot = options.snapshot,
+        license = "CC0-1.0",
+        licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/",
+        ingestionMethod = "MusicBrainz web service and versioned relationship definitions with cached-input manifest",
+        inputManifestSha256 = inputManifestSha256,
+        relationshipTypeIds = relationshipDefinitions.associate { it.payloadType to it.id },
         genres = genres.sortedWith(compareBy<GenreRecord> { it.name.lowercase() }.thenBy { it.id }),
         aliases = aliases.sortedWith(compareBy(GenreAliasRecord::genreId, { it.name.lowercase() }, GenreAliasRecord::source)),
         relations = relationships.sortedWith(compareBy(RelationRecord::type, RelationRecord::source, RelationRecord::target)),
@@ -173,6 +221,49 @@ private fun fetchAliases(
     return aliases
 }
 
+private fun fetchRelationshipDefinitions(
+    client: HttpClient,
+    options: Options,
+    requestPacer: RequestPacer,
+): List<RelationshipTypeDefinition> {
+    val directory = options.cacheDirectory.resolve("relationship-types").also(Path::createDirectories)
+    return MusicBrainzGenreRelationshipDefinitions.map { expected ->
+        val cache = directory.resolve("${expected.id}.html")
+        val page = if (cache.exists()) cache.readText() else {
+            requestText(client, "$BaseUrl/relationship/${expected.id}", requestPacer)
+                .also { cache.writeText(it) }
+        }
+        parseRelationshipTypeDefinition(page, expected)
+    }
+}
+
+fun parseRelationshipTypeDefinition(
+    page: String,
+    expected: RelationshipTypeDefinition,
+): RelationshipTypeDefinition {
+    check(page.contains(expected.id, ignoreCase = true)) {
+        "Relationship definition page did not contain expected UUID ${expected.id}"
+    }
+    fun phrase(label: String): String {
+        val expression = Regex(
+            """${Regex.escape(label)}\s*:</[^>]+>\s*<[^>]+>(.*?)</[^>]+>""",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+        )
+        return expression.find(page)
+            ?.groupValues
+            ?.get(1)
+            ?.replace(Regex("<[^>]+>"), "")
+            ?.let(::decodeBasicHtml)
+            ?.trim()
+            ?.takeIf(String::isNotEmpty)
+            ?: error("Relationship ${expected.id} did not expose its $label")
+    }
+    return expected.copy(
+        forwardPhrase = phrase("Forward link phrase"),
+        reversePhrase = phrase("Reverse link phrase"),
+    )
+}
+
 private fun parseOptions(arguments: Array<String>): Options {
     var options = Options()
     var index = 0
@@ -184,6 +275,7 @@ private fun parseOptions(arguments: Array<String>): Options {
             "--json-output" -> options.copy(jsonOutput = Path.of(value()))
             "--kotlin-output" -> options.copy(kotlinOutput = Path.of(value()))
             "--report-output" -> options.copy(reportOutput = Path.of(value()))
+            "--manifest-output" -> options.copy(manifestOutput = Path.of(value()))
             "--snapshot" -> options.copy(snapshot = value())
             "--delay-millis" -> options.copy(delayMillis = value().toLong())
             "--max-pages" -> options.copy(maxPages = value().toInt())
@@ -196,6 +288,9 @@ private fun parseOptions(arguments: Array<String>): Options {
     }
     require(options.delayMillis >= 1_000) { "MusicBrainz release imports must wait at least 1000 ms per request" }
     require(options.maxPages == null || options.maxPages > 0) { "--max-pages must be positive" }
+    require(options.snapshot.isNotBlank() || options.maxPages != null) {
+        "Release imports require an explicit --snapshot label"
+    }
     return options
 }
 
@@ -229,6 +324,7 @@ private fun fetchGenres(client: HttpClient, options: Options, requestPacer: Requ
 private fun fetchRelationships(
     client: HttpClient,
     genres: List<GenreRecord>,
+    relationshipDefinitions: List<RelationshipTypeDefinition>,
     options: Options,
     requestPacer: RequestPacer,
 ): Set<RelationRecord> {
@@ -245,13 +341,20 @@ private fun fetchRelationships(
                 .also { cache.writeText(it) }
                 .also { fetched += 1 }
         }
-        relationships += parseRelationships(page, genre.id)
+        relationships += parseRelationships(page, genre.id, relationshipDefinitions)
         val processed = index + 1
         if (processed == selected.size || processed % 50 == 0) {
             println(
                 "Processed $processed/${selected.size} genre pages " +
                     "($fetched fetched, ${relationships.size} relationships)",
             )
+        }
+    }
+    if (options.maxPages == null) {
+        relationshipDefinitions.forEach { definition ->
+            check(relationships.any { it.typeId == definition.id }) {
+                "No ${definition.payloadType} relationships were recognized for stable type ${definition.id}"
+            }
         }
     }
     return relationships
@@ -307,23 +410,28 @@ fun parseAliases(page: String): List<String> = aliasRowRegex.findAll(page)
     .distinctBy(String::lowercase)
     .toList()
 
-fun parseRelationships(page: String, currentId: String): Set<RelationRecord> = buildSet {
+fun parseRelationships(
+    page: String,
+    currentId: String,
+    definitions: List<RelationshipTypeDefinition> = MusicBrainzGenreRelationshipDefinitions,
+): Set<RelationRecord> = buildSet {
+    val phrases = definitions.flatMap { definition ->
+        listOf(
+            definition.forwardPhrase.lowercase() to (definition to definition.forwardCurrentIsSource),
+            definition.reversePhrase.lowercase() to (definition to !definition.forwardCurrentIsSource),
+        )
+    }.toMap()
     rowRegex.findAll(page).forEach { row ->
         val label = decodeBasicHtml(row.groupValues[1]).trim().lowercase()
-        val (type, currentIsSource) = when (label) {
-            "subgenre of" -> "subgenre" to true
-            "subgenres" -> "subgenre" to false
-            "fusion of" -> "fusion_of" to true
-            "has fusion genres" -> "fusion_of" to false
-            "influenced by" -> "influenced_by" to true
-            "influenced genres" -> "influenced_by" to false
-            else -> return@forEach
-        }
+        val (definition, currentIsSource) = phrases[label] ?: return@forEach
         genreLinkRegex.findAll(row.groupValues[2]).forEach { link ->
             val target = link.groupValues[1].lowercase()
             add(
-                if (currentIsSource) RelationRecord(type, currentId, target)
-                else RelationRecord(type, target, currentId),
+                if (currentIsSource) {
+                    RelationRecord(definition.payloadType, currentId, target, definition.id)
+                } else {
+                    RelationRecord(definition.payloadType, target, currentId, definition.id)
+                },
             )
         }
     }
@@ -493,6 +601,23 @@ ${if (cycleLines.isEmpty()) "" else "\n## Cycle IDs\n\n$cycleLines\n"}
     )
 }
 
+private fun buildInputManifest(cacheDirectory: Path): String {
+    if (!Files.exists(cacheDirectory)) return ""
+    val files = Files.walk(cacheDirectory).use { paths ->
+        paths.filter(Files::isRegularFile)
+            .sorted(compareBy { cacheDirectory.relativize(it).toString() })
+            .toList()
+    }
+    return buildString {
+        files.forEach { path ->
+            val relative = cacheDirectory.relativize(path).toString().replace('\\', '/')
+            append(sha256(Files.readAllBytes(path)))
+            append("  ")
+            appendLine(relative)
+        }
+    }
+}
+
 private fun AuditReport.asConsoleText(): String = buildString {
     appendLine("Genres: $genreCount")
     appendLine("Aliases: $aliasCount ($musicBrainzAliasCount MusicBrainz, $compatibilityAliasCount Naviamp compatibility)")
@@ -502,6 +627,8 @@ private fun AuditReport.asConsoleText(): String = buildString {
     append("Unknown endpoints: $unknownEndpointRelationshipCount")
 }
 
-private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
-    .digest(value.toByteArray(StandardCharsets.UTF_8))
+private fun sha256(value: String): String = sha256(value.toByteArray(StandardCharsets.UTF_8))
+
+private fun sha256(value: ByteArray): String = MessageDigest.getInstance("SHA-256")
+    .digest(value)
     .joinToString("") { "%02x".format(it) }

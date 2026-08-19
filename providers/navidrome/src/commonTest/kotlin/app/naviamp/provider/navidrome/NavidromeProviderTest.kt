@@ -470,7 +470,9 @@ class NavidromeProviderTest {
                         {"id": "artist-2", "name": "Gillian Gilbert"}
                       ],
                       "coverArt": "cover-1",
-                      "year": 1985,
+                      "year": 1981,
+                      "originalReleaseDate": {"year": 1981, "month": 9, "day": 1},
+                      "releaseDate": {"year": 1985, "month": 5, "day": 13},
                       "created": "2026-05-08T12:00:00Z",
                       "starred": "2026-05-10T08:00:00Z",
                       "releaseTypes": ["Album", "Remixes"],
@@ -530,10 +532,13 @@ class NavidromeProviderTest {
         assertEquals(listOf("New Order", "Gillian Gilbert"), details.album.artistCredits.map { it.name })
         assertEquals("album-1", details.tracks.first().albumId?.value)
         assertEquals(1985, details.album.releaseYear)
+        assertEquals(1981, details.album.originalReleaseYear)
         assertEquals("2026-05-10T08:00:00Z", details.album.favoritedAtIso8601)
         assertEquals(listOf("Album", "Remixes"), details.album.releaseTypes)
         assertEquals(AlbumExplicitStatus.Explicit, details.album.explicitStatus)
         assertEquals(1985, details.tracks.first().albumReleaseYear)
+        assertEquals(1981, details.tracks.first().originalReleaseYear)
+        assertEquals(1981, details.tracks.last().originalReleaseYear)
         assertEquals(259, details.tracks.first().durationSeconds)
         assertEquals("FLAC", details.tracks.first().audioInfo?.codec)
         assertEquals(921, details.tracks.first().audioInfo?.bitrateKbps)

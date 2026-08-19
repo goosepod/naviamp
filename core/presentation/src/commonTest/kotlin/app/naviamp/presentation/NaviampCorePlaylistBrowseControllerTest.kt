@@ -48,6 +48,7 @@ class NaviampCorePlaylistBrowseControllerTest {
         assertEquals(listOf("playlist-a", "playlist-b"), state.playlists.map { it.id })
         assertEquals(listOf("playlist-b"), state.recentPlaylistIds)
         assertTrue(state.playlists.first().keepDownloadedActive)
+        assertEquals(listOf("Dream Pop", "Jazz"), state.genreCatalog.map { it.canonicalName })
         assertEquals(SharedPlaylistSortMode.RecentlyPlayed, state.sortMode)
         assertEquals(
             listOf("playlist-a"),
@@ -175,6 +176,9 @@ class NaviampCorePlaylistBrowseControllerTest {
                 NaviampCorePlaylistBrowseSupplement(
                     recentPlaylistIds = listOf("playlist-b"),
                     keepDownloadedPlaylistIds = setOf("playlist-a"),
+                    genreCatalog = listOf("Dream Pop", "Jazz").map {
+                        app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption(it)
+                    },
                 )
             },
         )

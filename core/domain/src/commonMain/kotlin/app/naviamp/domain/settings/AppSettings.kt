@@ -368,6 +368,8 @@ val PlaylistEditSwipeActions: List<TrackSwipeAction> = listOf(
 @Serializable
 data class NowPlayingDisplaySettings(
     val showAlbumYear: Boolean = true,
+    val albumYearPreference: NowPlayingAlbumYearPreference = NowPlayingAlbumYearPreference.Original,
+    val showTrackCover: Boolean = false,
     val showAudioInfo: Boolean = true,
     val showVolumeBar: Boolean = true,
     val scrollTrackTitle: Boolean = true,
@@ -375,6 +377,12 @@ data class NowPlayingDisplaySettings(
     val scrollAlbumName: Boolean = false,
 ) {
     fun normalized(): NowPlayingDisplaySettings = this
+}
+
+@Serializable
+enum class NowPlayingAlbumYearPreference {
+    Original,
+    Release,
 }
 
 @Serializable
@@ -818,6 +826,7 @@ data class SavedAlbum(
     val coverArtId: String? = null,
     val recentlyAddedAtIso8601: String? = null,
     val releaseYear: Int? = null,
+    val originalReleaseYear: Int? = null,
     val favoritedAtIso8601: String? = null,
 ) {
     fun toAlbum(): Album =
@@ -828,6 +837,7 @@ data class SavedAlbum(
             coverArtId = coverArtId,
             recentlyAddedAtIso8601 = recentlyAddedAtIso8601,
             releaseYear = releaseYear,
+            originalReleaseYear = originalReleaseYear,
             favoritedAtIso8601 = favoritedAtIso8601,
         )
 
@@ -840,6 +850,7 @@ data class SavedAlbum(
                 coverArtId = album.coverArtId,
                 recentlyAddedAtIso8601 = album.recentlyAddedAtIso8601,
                 releaseYear = album.releaseYear,
+                originalReleaseYear = album.originalReleaseYear,
                 favoritedAtIso8601 = album.favoritedAtIso8601,
             )
     }
@@ -921,6 +932,7 @@ data class SavedTrack(
     val albumId: String? = null,
     val albumTitle: String? = null,
     val albumReleaseYear: Int? = null,
+    val originalReleaseYear: Int? = null,
     val durationSeconds: Int? = null,
     val coverArtId: String? = null,
     val audioInfo: SavedAudioInfo? = null,
@@ -943,6 +955,7 @@ data class SavedTrack(
             albumId = albumId?.let { AlbumId(it) },
             albumTitle = albumTitle,
             albumReleaseYear = albumReleaseYear,
+            originalReleaseYear = originalReleaseYear,
             durationSeconds = durationSeconds,
             coverArtId = coverArtId,
             audioInfo = audioInfo?.toAudioInfo(),
@@ -968,6 +981,7 @@ data class SavedTrack(
                 albumId = track.albumId?.value,
                 albumTitle = track.albumTitle,
                 albumReleaseYear = track.albumReleaseYear,
+                originalReleaseYear = track.originalReleaseYear,
                 durationSeconds = track.durationSeconds,
                 coverArtId = track.coverArtId,
                 audioInfo = track.audioInfo?.let { SavedAudioInfo.fromAudioInfo(it) },

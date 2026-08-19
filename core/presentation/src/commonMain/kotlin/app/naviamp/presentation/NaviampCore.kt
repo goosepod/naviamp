@@ -313,6 +313,7 @@ class NaviampCore private constructor(
                 NaviampCorePlaylistDownloadPort(downloads::downloadPlaylist),
                 services.playlists.history,
                 services.connection,
+                services.playlists.preview,
                 navigation::openNowPlaying,
                 downloads::playlistTracksChanged,
             )

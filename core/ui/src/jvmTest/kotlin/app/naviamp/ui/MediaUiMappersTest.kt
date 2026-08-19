@@ -30,6 +30,8 @@ import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.NowPlayingAlbumYearPreference
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.HomeSectionPresentationSettings
 import app.naviamp.domain.settings.ConnectionFormState
 import kotlin.test.Test
@@ -41,12 +43,14 @@ import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
     @Test
-    fun genreLabelsAreTitleCasedWithoutChangingProviderPlaybackNames() {
+    fun genreLabelsPreserveProviderCasingAndFormatLowercaseOntologyNames() {
         val item = Genre("dream-pop / r&b").toSharedGenreMixItemUi()
 
         assertEquals("dream-pop / r&b", item.id)
-        assertEquals("Dream-Pop / R&B", item.title)
-        assertEquals("Drum'n'bass", genreDisplayTitle("DRUM'N'BASS"))
+        assertEquals("dream-pop / r&b", item.title)
+        assertEquals("DRUM'N'BASS", genreDisplayTitle("DRUM'N'BASS"))
+        assertEquals("EDM", genreDisplayTitle("edm"))
+        assertEquals("Dream-Pop", genreDisplayTitle("dream-pop"))
     }
 
     @Test
@@ -928,6 +932,78 @@ class MediaUiMappersTest {
 
     private fun item(id: String): NaviampNowPlayingItemUi =
         NaviampNowPlayingItemUi(id = id, title = id, subtitle = "")
+
+    @Test
+    fun nowPlayingDisplaySettingsChooseOriginalYearAndAlbumCoverByDefault() {
+        val ui = NowPlayingUi(
+            title = "Groove Is in the Heart",
+            subtitle = "Deee-Lite",
+            stateLabel = "Playing",
+            albumTitle = "World Clique",
+            albumReleaseYear = 2017,
+            albumOriginalReleaseYear = 1990,
+            trackCoverArtUrl = "cover://track",
+            albumCoverArtUrl = "cover://album",
+        ).withDisplaySettings(NowPlayingDisplaySettings())
+
+        assertEquals(1990, ui.albumYear)
+        assertEquals("World Clique (1990)", ui.albumLine)
+        assertEquals("cover://album", ui.coverArtUrl)
+    }
+
+    @Test
+    fun nowPlayingDisplaySettingsCanChooseEditionYearAndTrackCover() {
+        val ui = NowPlayingUi(
+            title = "Groove Is in the Heart",
+            subtitle = "Deee-Lite",
+            stateLabel = "Playing",
+            albumTitle = "World Clique",
+            albumReleaseYear = 2017,
+            albumOriginalReleaseYear = 1990,
+            trackCoverArtUrl = "cover://track",
+            albumCoverArtUrl = "cover://album",
+        ).withDisplaySettings(
+            NowPlayingDisplaySettings(
+                albumYearPreference = NowPlayingAlbumYearPreference.Release,
+                showTrackCover = true,
+            ),
+        )
+
+        assertEquals(2017, ui.albumYear)
+        assertEquals("World Clique (2017)", ui.albumLine)
+        assertEquals("cover://track", ui.coverArtUrl)
+    }
+
+    @Test
+    fun nowPlayingEditionYearPrefersTheQueuedTrackOverAlbumSidecarData() {
+        val ui = Track(
+            id = TrackId("groove"),
+            title = "Groove Is in the Heart",
+            artistName = "Deee-Lite",
+            albumTitle = "World Clique",
+            albumReleaseYear = 2017,
+            durationSeconds = 231,
+            coverArtId = "cover-track",
+            audioInfo = null,
+            replayGain = null,
+        ).toNowPlayingUi(
+            NowPlayingTrackUiConfig(
+                stateLabel = "Paused",
+                coverArtUrl = "cover://track",
+                albumCoverArtUrl = "cover://album",
+                albumReleaseYear = 1990,
+                albumOriginalReleaseYear = 1990,
+            ),
+        ).withDisplaySettings(
+            NowPlayingDisplaySettings(
+                albumYearPreference = NowPlayingAlbumYearPreference.Release,
+            ),
+        )
+
+        assertEquals(2017, ui.albumReleaseYear)
+        assertEquals(2017, ui.albumYear)
+        assertEquals("World Clique (2017)", ui.albumLine)
+    }
 
     private fun track(id: String): Track =
         Track(

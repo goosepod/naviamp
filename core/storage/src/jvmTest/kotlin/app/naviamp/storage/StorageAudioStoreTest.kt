@@ -72,6 +72,7 @@ class StorageAudioStoreTest {
             assertEquals("track", stored.track.id.value)
             assertEquals("Downloaded track", stored.track.title)
             assertEquals("Artist", stored.track.artistName)
+            assertEquals(1999, stored.track.originalReleaseYear)
             assertEquals("original", stored.qualityKey)
             assertEquals("/downloads/owned.flac", stored.filePath)
         }
@@ -138,6 +139,7 @@ private class StorageAudioStoreFixture(
             album_id = null,
             album_title = "Album",
             album_release_year = 2026L,
+            original_release_year = 1999L,
             duration_seconds = 120L,
             cover_art_id = null,
             audio_codec = "flac",

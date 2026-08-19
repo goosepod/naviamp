@@ -42,8 +42,9 @@ Sources:
 The release-time importer now fetches the canonical genre list from the MusicBrainz web service and
 the public genre pages needed to recover aliases and genre-to-genre relationships. MusicBrainz's
 API does not currently expose either of those datasets on the genre-list response, so the importer
-keeps a local page cache, rate-limits requests to MusicBrainz's public-service limit, and records a
-caller-supplied snapshot date for reproducible release artifacts.
+keeps a local page cache and rate-limits requests to MusicBrainz's public-service limit. The
+caller-supplied snapshot value is a Naviamp release label. Reproducibility comes from the archived
+cache plus its sorted SHA-256 input manifest, whose checksum is embedded in the payload.
 
 It extracts only these concepts:
 
@@ -56,19 +57,21 @@ MusicBrainz data. The initial compatibility rule maps the common Navidrome tag `
 MusicBrainz's canonical `hip hop` genre; the provider's original `Rap` spelling is still sent back
 to Navidrome when building the mix.
 
-Recognize relationship types by their stable UUIDs rather than display strings:
+Relationship concepts are selected by their stable UUIDs rather than hard-coded display strings.
+The importer fetches each selected definition, derives its current forward/reverse phrases, and
+fails if the UUID or expected relationship set cannot be validated:
 
 - Subgenre: `9d61bc67-fa39-4719-8025-ea056a5bd7e6`
 - Influenced by: `59117855-52db-4371-8dd3-87a16f285499`
 - Fusion of: `723732ec-762c-4cb3-a2d0-e7e797c51915`
 
-The importer emits deterministic JSON containing nodes, edges, the source snapshot date,
-relationship UUIDs, license/provenance metadata, and a SHA-256 checksum. It then generates a chunked
+The importer emits deterministic JSON containing nodes, edges, the release label, input-manifest
+checksum, relationship UUIDs, license/provenance metadata, and a payload SHA-256 checksum. It then generates a chunked
 Kotlin payload in shared storage so Android, Desktop, and iOS install identical data without a
 runtime network request. The raw response cache and intermediate JSON remain release-tool inputs and
 are not shipped.
 
-The first audited import, dated 2026-08-15, contains 2,184 genres and 3,485 relationships. Its full
+The first audited import, labeled 2026-08-17, contains 2,184 genres and 3,485 relationships. Its full
 results are recorded in [the import audit](genre-ontology-import-audit.md).
 
 ## Other candidates
@@ -102,6 +105,16 @@ import or scrape it unless its reuse terms are separately cleared.
 
 Source: [Discogs genre/style guidelines](https://support.discogs.com/hc/en-us/articles/360005055213-Database-Guidelines-9-Genres-Styles)
 
+### Rate Your Music
+
+Rate Your Music has a notably consumer-friendly, curated genre hierarchy and is valuable as a manual
+UX benchmark and gap-discovery reference. It is not an approved bundled data source for Naviamp.
+No redistributable taxonomy license or generally available data API was established, its site blocks
+automated access, and its published terms prohibit automated crawling without express permission.
+Do not scrape, copy, or derive the shipped Naviamp hierarchy from RYM unless Sonemic grants explicit
+API access and redistribution/derivative-data rights. A clean-room Naviamp facet layer may use broad
+music-domain knowledge, but must not reproduce RYM's selection or structure.
+
 ### Every Noise, Spotify-derived lists, Rate Your Music, and AllMusic
 
 Do not use these as bundled sources without explicit redistribution rights. Public visibility or an
@@ -119,12 +132,13 @@ useful for manual gap discovery, but not as provenance for shipped edges.
 6. Is the resulting compressed artifact small enough to bundle unchanged on Android, Desktop, and
    iOS?
 
-## Next research task
+## Per-library acceptance gate
 
-Measure canonical-name match coverage against genre names returned by configured Naviamp servers,
-then add normalization and alias handling for common misses. The per-server library projection
-should expose only matched genres and the ancestor nodes required to organize them; ontology nodes
-that do not occur in that library should remain hidden.
+The release tool can compare any number of exported server genre inventories and reports exact,
+alias, normalized, and unmatched coverage, including track-weighted coverage. The app uses the same
+shared audit policy at runtime. It keeps flat browsing unless the inventory has at least four genres,
+weighted coverage is at least 60%, a parent contains at least two selectable server genres, and the
+root projection reduces the initial choice set by at least 20%.
 
 ## Library projection implementation
 
@@ -141,8 +155,11 @@ so incomplete ontology coverage never hides music that exists in the user's libr
 records the bundled ontology checksum; a later ontology release automatically rematches its stored
 provider names before rebuilding the projection.
 
-The shared Genre Mix Builder renders that projection as an expandable browser. Ancestor-only rows
-are navigation containers, direct library matches are selectable, and unmatched provider genres
-appear in a separate section. Search remains a flat list of the provider's original genre names.
+When the acceptance gate passes, the shared Genre Mix Builder renders the projection as an
+expandable browser. Every row containing library genres is selectable: selecting a parent adds all
+of its descendant provider genre names as mix seeds. Multiple provider names mapped to one ontology
+node are retained. Unmatched provider genres appear in a separate section, and search remains a flat
+list of the provider's original genre names. When the gate fails, the tree and unmatched split are
+suppressed and the complete flat list remains available.
 Multiple ontology parents may expose the same node through more than one path, while selection is
 still keyed globally by the provider name so playback seeds are never duplicated.

@@ -106,6 +106,7 @@ class NavidromeCoreProviderSessionPortTest {
         port.persistActiveSession()
 
         assertEquals("native-token", repository.lastPersisted?.nativeToken)
+        assertEquals("source-1", repository.lastPreferredSourceId)
     }
 
     @Test
@@ -314,6 +315,7 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
     ProviderIdentityMigrationRepository {
     private val sources = linkedMapOf(source.id to source)
     var lastPersisted: ProviderMediaSourceConnection? = null
+    var lastPreferredSourceId: String? = null
     var migratedIdentityVersion: Long? = null
     var identityTransform: ((String) -> String)? = null
     var probeState: ProviderIdentityProbeState? = null
@@ -340,6 +342,7 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
         preferredSourceId: String?,
     ): MediaSourceIdentity {
         lastPersisted = connection
+        lastPreferredSourceId = preferredSourceId
         return MediaSourceIdentity("source-1", cacheNamespace, connection.displayName)
     }
 

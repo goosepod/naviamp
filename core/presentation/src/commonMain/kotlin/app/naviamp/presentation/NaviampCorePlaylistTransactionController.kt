@@ -6,6 +6,9 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistPreview
+import app.naviamp.domain.smartplaylist.previewSmartPlaylist
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.ui.NaviampMediaItemCommand
 import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
@@ -38,6 +41,26 @@ fun naviampCorePlaylistHistoryPort(
     recentPlaylistIdsAfterPlayed(current, playlistId, limit = 50).also(persist)
 }
 
+fun interface NaviampCoreSmartPlaylistPreviewPort {
+    suspend fun preview(definition: SmartPlaylistDefinition): SmartPlaylistPreview
+}
+
+fun naviampCoreSmartPlaylistPreviewPort(
+    sourceId: () -> String?,
+    libraryIndex: LocalLibraryIndexRepository,
+    nowEpochMillis: () -> Long,
+): NaviampCoreSmartPlaylistPreviewPort = NaviampCoreSmartPlaylistPreviewPort { definition ->
+    val activeSourceId = sourceId()
+        ?: return@NaviampCoreSmartPlaylistPreviewPort SmartPlaylistPreview(
+            message = "Connect to a library to preview.",
+        )
+    previewSmartPlaylist(
+        definition = definition,
+        tracks = libraryIndex.libraryTracksForSmartPlaylistPreview(activeSourceId),
+        nowEpochMillis = nowEpochMillis(),
+    )
+}
+
 /** Owns playlist playback intent, mutations, smart-playlist policy, and result publication. */
 class NaviampCorePlaylistTransactionController(
     private val stateStore: NaviampCoreStateStore,
@@ -48,6 +71,9 @@ class NaviampCorePlaylistTransactionController(
     private val downloads: NaviampCorePlaylistDownloadPort,
     private val history: NaviampCorePlaylistHistoryPort = naviampCorePlaylistHistoryPort(),
     private val sessionPort: NaviampCoreProviderSessionPort,
+    private val preview: NaviampCoreSmartPlaylistPreviewPort = NaviampCoreSmartPlaylistPreviewPort {
+        SmartPlaylistPreview(message = "Preview is not available for this connection.")
+    },
     private val openNowPlaying: () -> Unit = {},
     private val onPlaylistTracksChanged: suspend (String) -> Unit = {},
 ) : NaviampCoreCommandController {
@@ -80,6 +106,8 @@ class NaviampCorePlaylistTransactionController(
             saveSmartPlaylist(command.definition, command.password)
             NaviampCoreCommandResult.Completed
         }
+        is NaviampCoreCommand.SmartPlaylist.Preview ->
+            NaviampCoreCommandResult.SmartPlaylistPreviewed(preview.preview(command.definition))
         is NaviampCoreCommand.SmartPlaylist.Update -> {
             updateSmartPlaylist(command.playlist, command.definition, command.password)
             NaviampCoreCommandResult.Completed

@@ -7,6 +7,12 @@ import kotlinx.serialization.json.jsonPrimitive
 
 /** Installs versioned, application-owned ontology reference data for both new and upgraded stores. */
 internal fun installBundledGenreOntology(database: NaviampStorageDatabase) {
+    if (database.naviampStorageQueries.selectGenreOntologyMetadata()
+            .executeAsOneOrNull()
+            ?.payload_sha256 == BUNDLED_GENRE_ONTOLOGY_SHA256
+    ) {
+        return
+    }
     installGenreOntologySnapshot(
         database = database,
         snapshotVersion = BUNDLED_GENRE_ONTOLOGY_SNAPSHOT,

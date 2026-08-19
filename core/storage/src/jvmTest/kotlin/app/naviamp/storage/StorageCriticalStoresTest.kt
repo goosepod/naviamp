@@ -28,7 +28,11 @@ class StorageCriticalStoresTest {
     fun libraryIndexRoundTripsSearchesAndClearsPortableMetadata() = withStorage { fixture ->
         val store = fixture.library
         val artist = Artist(ArtistId("artist"), "Björk")
-        val album = Album(AlbumId("album"), "Debut", "Björk", "cover", null, 1993)
+        val album = Album(
+            AlbumId("album"), "Debut", "Björk", "cover", null,
+            releaseYear = 2002,
+            originalReleaseYear = 1993,
+        )
         val track = testTrack(
             id = "track",
             title = "Human Behaviour",
@@ -37,13 +41,16 @@ class StorageCriticalStoresTest {
             genres = listOf("Electronic", "Alternative"),
             playCount = 9,
             lastPlayedAt = "2026-08-12T10:00:00Z",
+            albumReleaseYear = 2002,
+            originalReleaseYear = 1993,
         )
 
         store.upsertLibraryArtists(fixture.sourceId, listOf(artist))
         store.upsertLibraryAlbums(fixture.sourceId, listOf(album))
         store.upsertLibraryTracks(fixture.sourceId, listOf(track))
 
-        assertEquals(track.copy(albumReleaseYear = null), store.librarySnapshot(fixture.sourceId, 10, 0).tracks.single())
+        assertEquals(track, store.librarySnapshot(fixture.sourceId, 10, 0).tracks.single())
+        assertEquals(album, store.librarySnapshot(fixture.sourceId, 10, 0).albums.single())
         assertEquals("track", store.searchLibrary(fixture.sourceId, "behav", 10, 0).tracks.single().id.value)
         assertEquals("track", store.recentlyPlayedLibraryTracks(fixture.sourceId, 10).single().id.value)
         assertEquals(listOf(1993), store.libraryAlbumYears(fixture.sourceId).map { it.year })
@@ -56,7 +63,14 @@ class StorageCriticalStoresTest {
     @Test
     fun playbackHistoryPreservesMetadataOrderingAndDuplicatePlays() = withStorage { fixture ->
         val history = StoragePlaybackHistoryStore(fixture.queries)
-        val track = testTrack(id = "history", title = "History", playCount = null, lastPlayedAt = null)
+        val track = testTrack(
+            id = "history",
+            title = "History",
+            playCount = null,
+            lastPlayedAt = null,
+            albumReleaseYear = 2002,
+            originalReleaseYear = 1993,
+        )
 
         history.recordPlaybackHistory(fixture.sourceId, track, 100L)
         history.recordPlaybackHistory(fixture.sourceId, track.copy(title = "History Again"), 200L)
@@ -65,6 +79,8 @@ class StorageCriticalStoresTest {
         assertEquals(listOf(200L, 100L), rows.map { it.playedAtEpochMillis })
         assertEquals("History Again", rows.first().track.title)
         assertEquals("flac", rows.first().track.audioInfo?.codec)
+        assertEquals(2002, rows.first().track.albumReleaseYear)
+        assertEquals(1993, rows.first().track.originalReleaseYear)
 
         history.clear()
         assertTrue(history.playbackHistory(fixture.sourceId, 10).isEmpty())
@@ -197,6 +213,8 @@ private fun testTrack(
     genres: List<String> = listOf("Electronic"),
     playCount: Int? = 2,
     lastPlayedAt: String? = "2026-08-12T10:00:00Z",
+    albumReleaseYear: Int? = 1993,
+    originalReleaseYear: Int? = null,
 ): Track = Track(
     id = TrackId(id),
     title = title,
@@ -204,7 +222,8 @@ private fun testTrack(
     artistName = "Björk",
     albumId = albumId,
     albumTitle = "Debut",
-    albumReleaseYear = 1993,
+    albumReleaseYear = albumReleaseYear,
+    originalReleaseYear = originalReleaseYear,
     durationSeconds = 240,
     coverArtId = "cover",
     audioInfo = AudioInfo("flac", 900, "audio/flac", 24, 96_000),

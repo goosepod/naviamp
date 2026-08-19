@@ -279,10 +279,26 @@ class NavidromeProvider(
         val album = response.subsonicResponse()["album"]?.jsonObject
             ?: throw NavidromeException("Album was not found.")
         val songs = album["song"] as? JsonArray ?: JsonArray(emptyList())
+        val mappedAlbum = album.toAlbum()
         return AlbumDetails(
-            album = album.toAlbum(),
+            album = mappedAlbum,
             tracks = songs.mapNotNull { song ->
-                (song as? JsonObject)?.toTrack()
+                (song as? JsonObject)?.toTrack()?.let { track ->
+                    if (track.originalReleaseYear != null) {
+                        track
+                    } else {
+                        val trackReleaseYear = track.albumReleaseYear
+                        val albumReleaseYear = mappedAlbum.releaseYear
+                        val inferredOriginalYear = when {
+                            trackReleaseYear != null &&
+                                albumReleaseYear != null &&
+                                trackReleaseYear != albumReleaseYear ->
+                                minOf(trackReleaseYear, albumReleaseYear)
+                            else -> mappedAlbum.originalReleaseYear
+                        }
+                        track.copy(originalReleaseYear = inferredOriginalYear)
+                    }
+                }
             },
         )
     }
@@ -1626,14 +1642,19 @@ class NavidromeProvider(
             AudioCodec.Aac -> "aac"
         }
 
-    private fun JsonObject.toAlbum(): Album =
-        Album(
+    private fun JsonObject.toAlbum(): Album {
+        val editionYear = releaseYearValue()
+        val explicitOriginalYear = originalReleaseYearValue()
+        val legacyYearCandidate = intValue("year")
+            ?.takeIf { it > 0 && this["releaseDate"] is JsonObject }
+        return Album(
             id = AlbumId(stringValue("id") ?: throw NavidromeException("Album is missing an id.")),
             title = stringValue("name") ?: stringValue("title") ?: "Unknown Album",
             artistName = stringValue("artist") ?: "Unknown Artist",
             coverArtId = stringValue("coverArt"),
             recentlyAddedAtIso8601 = stringValue("created"),
-            releaseYear = intValue("year"),
+            releaseYear = editionYear,
+            originalReleaseYear = explicitOriginalYear ?: legacyYearCandidate,
             favoritedAtIso8601 = stringValue("starred"),
             releaseTypes = arrayValue("releaseTypes").mapNotNull { value ->
                 runCatching { value.jsonPrimitive.contentOrNull }.getOrNull()
@@ -1654,6 +1675,7 @@ class NavidromeProvider(
                 )
             },
         )
+    }
 
     private fun JsonObject.toArtist(): Artist =
         Artist(
@@ -1725,6 +1747,7 @@ class NavidromeProvider(
             albumId = stringValue("albumId")?.let { AlbumId(it) },
             albumTitle = stringValue("album"),
             albumReleaseYear = intValue("year"),
+            originalReleaseYear = originalReleaseYearValue(),
             durationSeconds = intValue("duration"),
             coverArtId = stringValue("coverArt"),
             audioInfo = AudioInfo(
@@ -2054,6 +2077,16 @@ private fun JsonObject.metadataStringValue(key: String): String? =
 
 private fun JsonObject.intValue(key: String): Int? =
     stringValue(key)?.toIntOrNull()
+
+private fun JsonObject.originalReleaseYearValue(): Int? =
+    ((this["originalReleaseDate"] as? JsonObject)?.intValue("year")
+        ?: intValue("originalYear")
+        ?: stringValue("originalDate")?.take(4)?.toIntOrNull())
+        ?.takeIf { it > 0 }
+
+private fun JsonObject.releaseYearValue(): Int? =
+    ((this["releaseDate"] as? JsonObject)?.intValue("year") ?: intValue("year"))
+        ?.takeIf { it > 0 }
 
 private fun JsonObject.longValue(key: String): Long? =
     this[key]?.jsonPrimitive?.longOrNull ?: stringValue(key)?.toLongOrNull()

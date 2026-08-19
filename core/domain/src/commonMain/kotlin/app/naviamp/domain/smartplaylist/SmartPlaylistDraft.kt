@@ -13,7 +13,7 @@ data class SmartPlaylistDraft(
     val selectedLibraryIds: List<String>? = null,
 ) {
     fun toDefinition(): SmartPlaylistDefinition {
-        val validConditions = conditions.mapNotNull { it.toConditionOrNull() }
+        val validConditions = conditions.mapNotNull { it.toRuleOrNull() }
         val validGroups = groups.mapNotNull { it.toRuleOrNull() }
         val validRules = validConditions + validGroups
         require(validRules.isNotEmpty()) { "Add at least one complete rule or group." }
@@ -69,7 +69,7 @@ data class SmartPlaylistGroupDraft(
     val conditions: List<SmartPlaylistConditionDraft> = listOf(SmartPlaylistConditionDraft()),
 ) {
     fun toRuleOrNull(): SmartPlaylistGroup? {
-        val validConditions = conditions.mapNotNull { it.toConditionOrNull() }
+        val validConditions = conditions.mapNotNull { it.toRuleOrNull() }
         if (validConditions.isEmpty()) return null
         return SmartPlaylistGroup(match = match, rules = validConditions)
     }
@@ -80,6 +80,7 @@ data class SmartPlaylistConditionDraft(
     val operator: SmartPlaylistOperator = SmartPlaylistFieldCatalog.defaultField.operators.first(),
     val value: String = "",
     val secondValue: String = "",
+    val genreSelection: SmartPlaylistGenreSelection? = null,
 ) {
     fun toConditionOrNull(): SmartPlaylistCondition? {
         val parsedValue = parseValue() ?: return null
@@ -90,9 +91,50 @@ data class SmartPlaylistConditionDraft(
         )
     }
 
+    fun toRuleOrNull(): SmartPlaylistRule? {
+        val condition = toConditionOrNull() ?: return null
+        val selection = genreSelection
+            ?.takeIf { field.field == SmartPlaylistFields.Genre }
+            ?.takeUnless {
+                operator == SmartPlaylistOperator.IsMissing ||
+                    operator == SmartPlaylistOperator.IsPresent
+            }
+            ?: return condition
+        val providerNames = selection.libraryGenreNames
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinctBy(String::lowercase)
+        if (providerNames.isEmpty()) return condition.copy(
+            value = SmartPlaylistValue.Text(selection.canonicalName),
+        )
+        if (providerNames.size == 1) return condition.copy(
+            value = SmartPlaylistValue.Text(providerNames.single()),
+        )
+        val match = when (operator) {
+            SmartPlaylistOperator.IsNot,
+            SmartPlaylistOperator.NotContains,
+            -> SmartPlaylistMatch.All
+            else -> SmartPlaylistMatch.Any
+        }
+        return SmartPlaylistGroup(
+            match = match,
+            rules = providerNames.map { providerName ->
+                condition.copy(value = SmartPlaylistValue.Text(providerName))
+            },
+        )
+    }
+
     private fun parseValue(): SmartPlaylistValue? {
         val first = value.trim()
         val second = secondValue.trim()
+        if (operator == SmartPlaylistOperator.IsMissing || operator == SmartPlaylistOperator.IsPresent) {
+            return SmartPlaylistValue.Flag(
+                when (first.lowercase()) {
+                    "false" -> false
+                    else -> true
+                },
+            )
+        }
         if (operator == SmartPlaylistOperator.InTheRange) {
             val start = field.parseValue(first) ?: return null
             val end = field.parseValue(second) ?: return null

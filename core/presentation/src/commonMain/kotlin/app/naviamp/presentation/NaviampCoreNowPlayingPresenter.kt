@@ -66,6 +66,7 @@ class NaviampCoreNowPlayingPresenter(
         val coverArtForTrack: (app.naviamp.domain.Track) -> String? = { item ->
             item.coverArtId?.let { provider?.coverArtUrl(it) }
         }
+        val album = sidecar.album?.takeIf { candidate -> candidate.id == track?.albumId }
         val nowPlaying = NaviampNowPlayingContentInput(
             stateLabel = live.playbackState.label(),
             playbackEngineName = effects.capabilities.engineName,
@@ -81,6 +82,9 @@ class NaviampCoreNowPlayingPresenter(
             visualizerAvailable = effects.capabilities.supportsVisualizer,
             visualizerVisible = display.visualizerVisible && effects.capabilities.supportsVisualizer,
             coverArtUrl = track?.let(coverArtForTrack),
+            albumCoverArtUrl = album?.coverArtId?.let { provider?.coverArtUrl(it) },
+            albumReleaseYear = album?.releaseYear,
+            albumOriginalReleaseYear = album?.originalReleaseYear,
             playbackQueue = live.queue,
             internetRadioStations = (
                 internetRadioStations() +

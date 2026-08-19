@@ -141,6 +141,26 @@ Before moving an idea into the active v2 plan or a release branch:
 - **Shared-architecture requirement:** Model playback profiles, resolved precedence, queue-group boundaries, persistence, and commands in common code. Platform hosts should only apply capability-gated engine settings and expose native transport integrations. Android Auto, media notifications, desktop media keys, and future iOS controls must observe the same resolved group semantics.
 - **Suggested first slice:** Add optional profiles to saved playlists and explicit `Play album`/`Play work` launches, limited to transition mode and ReplayGain mode. Represent the sequence as grouped queue occurrences while continuing to stream and scrobble its individual tracks. Add “Play next after this group” only after restoration, editing, shuffle, and repeat contracts are tested.
 
+### Multichannel Playback and Stereo Downmixing
+
+- **Status:** Idea
+- **Concept:** Treat channel layout as an explicit playback capability. Preserve and render multichannel audio when the selected output device and platform path support it, while also offering a deliberate, high-quality downmix to stereo for headphones, stereo speakers, and devices that cannot accept the source layout.
+- **Existing foundation:** BASS can decode and render multichannel streams, and Naviamp already routes native playback through the shared `CoreBassPlaybackEngine` and narrow platform backends. The investigation should determine where Naviamp currently assumes stereo, drops channel-layout information, configures mixers or output devices as two-channel, or leaves platform-specific defaults to make an implicit downmix.
+- **Product behavior to define:**
+  - Add a shared output-channel preference such as **Automatic**, **Preserve multichannel**, and **Downmix to stereo**, capability-gating choices that the active route cannot support.
+  - In Automatic mode, prefer the source layout only when the active output can render it correctly; otherwise use Naviamp's tested stereo downmix rather than relying on undocumented device behavior.
+  - Show the detected source channel count/layout and effective output mode in Stats for Nerds so users can tell whether audio is preserved or downmixed.
+  - Decide whether the preference is global, remembered per output device, or both, and define behavior when a route changes during playback.
+- **Downmix requirements:** Define and test a channel matrix for common layouts, including center, surround, rear, and LFE handling; preserve dialogue and overall balance; reserve enough headroom to avoid clipping when channels are summed; and document how ReplayGain and clipping prevention interact with the matrix. Unknown or ambiguous layouts must fall back safely instead of silently assigning channels incorrectly.
+- **Shared-architecture requirement:** Core owns source/effective channel models, output-mode preference, capability decisions, downmix policy and coefficients, settings persistence/sync, diagnostics, and fallback behavior. Android, Desktop, and iOS adapters may expose only the native device/route capabilities and apply the BASS/BASSmix channel configuration or unavoidable operating-system audio-session operation.
+- **Interactions to verify:** Gapless transitions, crossfade, prepared-next playback, ReplayGain, equalizer processing, sample-rate matching and conversion, volume, visualizers, waveform analysis, downloads, transcoded streams, Bluetooth/HDMI/USB/AirPlay routes, and route changes must not accidentally collapse channels, swap layouts, double-apply gain, or restart playback unnecessarily.
+- **Investigation and acceptance work:**
+  - Audit BASS/BASSmix stream creation, mixer channel counts, output initialization, device enumeration, and platform audio-session configuration on Android, Desktop, and iOS.
+  - Build representative fixtures for mono, stereo, quad, 5.1, and 7.1 content in formats Naviamp officially supports, with identifiable signals in every channel.
+  - Add shared matrix/fallback tests and native backend tests that verify reported source channels, selected output channels, coefficient application, headroom, and route-change behavior.
+  - Run physical-device acceptance with stereo headphones/speakers and available HDMI, USB, surround, Bluetooth, and Apple routes; simulators and fake backends are insufficient to claim multichannel output support.
+  - Confirm a multichannel source reaches every speaker in the correct position on a capable route, produces a balanced and unclipped stereo result when downmixed, and degrades predictably when layout metadata or device capabilities are incomplete.
+
 ### Cross-Platform Typography and Spacing Polish
 
 - **Status:** Investigating

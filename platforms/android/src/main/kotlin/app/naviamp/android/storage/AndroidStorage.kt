@@ -37,7 +37,6 @@ import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.DefaultStorageAudioCacheBytes
 import app.naviamp.storage.StorageAudioStore
 import app.naviamp.storage.StorageCachedAudioFile
@@ -48,6 +47,7 @@ import app.naviamp.storage.StorageDownloadedAudioFile
 import app.naviamp.storage.StorageDownloadedTrack
 import app.naviamp.storage.StorageObjectByteStore
 import app.naviamp.storage.StoragePlaybackHistoryItem
+import app.naviamp.storage.initializeNaviampStorageDatabase
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -147,7 +147,7 @@ private class AndroidStorageGraph(
             fileName = AndroidStorageDatabaseName,
         ),
     )
-    private val database = NaviampStorageDatabase(driver)
+    private val database = initializeNaviampStorageDatabase(driver)
     val httpClient = KtorSharedHttpClient()
     val audioFiles = AndroidAudioFileServices(
         initialAudioCacheDirectory = File(context.cacheDir, "audio-cache"),

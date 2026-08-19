@@ -64,6 +64,7 @@ fun NaviampPlaylistsContent(
         onRefresh = actions.onRefresh,
         onSortModeChanged = actions.onSortModeChanged,
         onPlaylistAction = mediaActions.onMediaItemAction,
+        onSmartPlaylistPreview = actions.smartPlaylist.onPreview,
         onSmartPlaylistSave = actions.smartPlaylist.onSave,
         onSmartPlaylistUpdate = actions.smartPlaylist.onUpdate,
         onSmartPlaylistSaveWithPassword = actions.smartPlaylist.onSaveWithPassword,
@@ -74,6 +75,7 @@ fun NaviampPlaylistsContent(
         playlistChoices = playlistChoices,
         availableLibraries = screen.availableLibraries,
         selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
+        genreCatalog = screen.genreCatalog,
     )
 }
 
@@ -88,6 +90,7 @@ private fun PlaylistsContent(
     onRefresh: () -> Unit,
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistAction: (NaviampMediaItemActionRequest) -> Unit,
+    onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
@@ -98,6 +101,7 @@ private fun PlaylistsContent(
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
+    genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
 ) {
     var playlistToRename by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var playlistToDelete by remember { mutableStateOf<SharedMediaItemUi?>(null) }
@@ -271,6 +275,8 @@ private fun PlaylistsContent(
             },
             availableLibraries = availableLibraries,
             selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+            genreCatalog = genreCatalog,
+            onPreview = onSmartPlaylistPreview,
             onDismissRequest = {
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -603,6 +609,7 @@ fun NaviampPlaylistDetailContent(
             )
         },
         onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
+        onSmartPlaylistPreview = playlistsActions.smartPlaylist.onPreview,
         onSmartPlaylistUpdate = playlistsActions.smartPlaylist.onUpdate,
         onSmartPlaylistUpdateWithPassword = playlistsActions.smartPlaylist.onUpdateWithPassword,
         onSmartPlaylistLoad = playlistsActions.smartPlaylist.onLoad,
@@ -613,6 +620,7 @@ fun NaviampPlaylistDetailContent(
         playlistChoices = playlistChoices,
         availableLibraries = screen.availableLibraries,
         selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
+        genreCatalog = screen.genreCatalog,
         detailScrollState = scrollState,
     )
 }
@@ -633,6 +641,7 @@ private fun PlaylistDetailContent(
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
     onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
+    onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
@@ -641,6 +650,7 @@ private fun PlaylistDetailContent(
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
+    genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
     detailScrollState: ScrollState,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
@@ -864,6 +874,8 @@ private fun PlaylistDetailContent(
             saveLabel = stringResource(Res.string.playlists_update),
             availableLibraries = availableLibraries,
             selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+            genreCatalog = genreCatalog,
+            onPreview = onSmartPlaylistPreview,
             onDismissRequest = {
                 smartPlaylistEditorOpen = false
                 smartPlaylistInitialDraft = SmartPlaylistDraft()

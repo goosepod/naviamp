@@ -71,18 +71,7 @@ class StorageDatabaseInitializerTest {
     fun versionTwentyOneDatabaseMissingSelectedLibrariesIsRepairedDuringMigration() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
-            driver.execute(
-                null,
-                """
-                CREATE TABLE media_source (
-                  id TEXT NOT NULL PRIMARY KEY,
-                  provider_id TEXT NOT NULL,
-                  cache_namespace TEXT NOT NULL UNIQUE
-                )
-                """.trimIndent(),
-                0,
-            )
-            driver.execute(null, "PRAGMA user_version = 21", 0)
+            driver.createVersionTwentyOneSchema(includeSelectedMusicFolders = false)
 
             initializeNaviampStorageDatabase(driver)
 
@@ -97,7 +86,7 @@ class StorageDatabaseInitializerTest {
     fun versionTwentyOneDatabasePreservesExistingSelectedLibrariesDuringMigration() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
-            NaviampStorageDatabase.Schema.create(driver)
+            driver.createVersionTwentyOneSchema(includeSelectedMusicFolders = true)
             driver.execute(
                 null,
                 """
@@ -126,6 +115,20 @@ class StorageDatabaseInitializerTest {
 }
 
 private fun JdbcSqliteDriver.userVersion(): Long = queryLong("PRAGMA user_version")
+
+private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFolders: Boolean) {
+    NaviampStorageDatabase.Schema.create(this)
+    execute(null, "ALTER TABLE library_album DROP COLUMN original_release_year", 0)
+    execute(null, "ALTER TABLE library_track DROP COLUMN music_folder_id", 0)
+    execute(null, "ALTER TABLE library_track DROP COLUMN album_release_year", 0)
+    execute(null, "ALTER TABLE library_track DROP COLUMN original_release_year", 0)
+    execute(null, "ALTER TABLE downloaded_audio DROP COLUMN original_release_year", 0)
+    execute(null, "ALTER TABLE playback_history DROP COLUMN original_release_year", 0)
+    if (!includeSelectedMusicFolders) {
+        execute(null, "ALTER TABLE media_source DROP COLUMN selected_music_folder_ids_json", 0)
+    }
+    execute(null, "PRAGMA user_version = 21", 0)
+}
 
 private fun JdbcSqliteDriver.foreignKeysEnabled(): Long = queryLong("PRAGMA foreign_keys")
 

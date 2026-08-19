@@ -347,6 +347,7 @@ class StorageAudioStore(
             album_id = track.albumId?.value,
             album_title = track.albumTitle,
             album_release_year = track.albumReleaseYear?.toLong(),
+            original_release_year = track.originalReleaseYear?.toLong(),
             duration_seconds = track.durationSeconds?.toLong(),
             cover_art_id = track.coverArtId,
             audio_codec = track.audioInfo?.codec,
@@ -375,6 +376,7 @@ private fun Downloaded_audio.toTrack(): Track = Track(
     albumId = album_id?.let(::AlbumId),
     albumTitle = album_title,
     albumReleaseYear = album_release_year?.toInt(),
+    originalReleaseYear = original_release_year?.toInt(),
     durationSeconds = duration_seconds?.toInt(),
     coverArtId = cover_art_id,
     audioInfo = AudioInfo(

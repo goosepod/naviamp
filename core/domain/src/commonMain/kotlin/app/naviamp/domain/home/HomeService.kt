@@ -77,6 +77,7 @@ private fun Track.toMixBuilderAlbum(): Album? {
         coverArtId = coverArtId,
         recentlyAddedAtIso8601 = null,
         releaseYear = albumReleaseYear,
+        originalReleaseYear = originalReleaseYear,
         artistCredits = artistCredits,
     )
 }

@@ -37,6 +37,7 @@ import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,7 +125,7 @@ fun NaviampSharedAppShell(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val nowPlaying = uiState.nowPlaying
+    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(general.interfaceSettings.nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
     val selectedRoute = shellChrome.selectedRoute
@@ -383,7 +384,7 @@ private fun ConnectedContent(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val nowPlaying = uiState.nowPlaying
+    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(general.interfaceSettings.nowPlaying)
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
     val selectedVisualizer = shellChrome.selectedVisualizer
@@ -418,6 +419,7 @@ private fun ConnectedContent(
     val cacheSettings = cache.settings
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
+    val routeStateHolder = rememberSaveableStateHolder()
     val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
     val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
         ?: naviampColorFromHex(DefaultSingleColorHex)!!
@@ -475,19 +477,21 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
             scrollState = playlistDetailScrollState,
         )
-        selectedRoute == SharedRoute.Settings -> NaviampSettingsContent(
-            colors = colors,
-            desktopShortcutPlatform = uiState.capabilities.desktopShortcutPlatform,
-            connectionSettings = connectionSettings,
-            general = general,
-            playback = playback,
-            cache = cache,
-            settingsSync = settingsSync,
-            connectionActions = connectionActions,
-            syncActions = syncActions,
-            valueActions = valueActions,
-            maintenanceActions = maintenanceActions,
-        )
+        selectedRoute == SharedRoute.Settings -> routeStateHolder.SaveableStateProvider(SharedRoute.Settings.name) {
+            NaviampSettingsContent(
+                colors = colors,
+                desktopShortcutPlatform = uiState.capabilities.desktopShortcutPlatform,
+                connectionSettings = connectionSettings,
+                general = general,
+                playback = playback,
+                cache = cache,
+                settingsSync = settingsSync,
+                connectionActions = connectionActions,
+                syncActions = syncActions,
+                valueActions = valueActions,
+                maintenanceActions = maintenanceActions,
+            )
+        }
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHomeRoute(
                 colors = colors,

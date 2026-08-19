@@ -641,6 +641,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
     }
 
     fun updateTrackSidecars(
+        album: app.naviamp.domain.Album?,
         waveform: app.naviamp.domain.waveform.AudioWaveform?,
         audioTags: List<app.naviamp.domain.audio.AudioTag>?,
         relatedTracks: List<app.naviamp.domain.Track>,
@@ -648,6 +649,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
         relatedSimilarityByTrackId: Map<TrackId, Double>,
     ) {
         state = state.copy(
+            album = album,
             waveform = waveform,
             audioTags = audioTags,
             relatedTracks = relatedTracks,
@@ -698,6 +700,7 @@ class NaviampCoreProviderNowPlayingSidecars(
 
     override suspend fun loadForTrack(track: app.naviamp.domain.Track) {
         val generation = ++loadGeneration
+        val previousAlbum = delegate.snapshot().album?.takeIf { it.id == track.albumId }
         delegate.loadForTrack(track)
         val provider = providerSource.current() ?: return
         val activeSourceId = sourceId() ?: provider.cacheNamespace
@@ -706,6 +709,11 @@ class NaviampCoreProviderNowPlayingSidecars(
             settings.streamQualityForNetwork(isMobileData()),
         )
         val loaded = coroutineScope {
+            val album = async {
+                previousAlbum ?: track.albumId?.let { albumId ->
+                    runCatching { provider.album(albumId).album }.getOrNull()
+                }
+            }
             val waveform = async {
                 runCatching {
                     waveformService.loadOrCreateWaveform(
@@ -733,10 +741,11 @@ class NaviampCoreProviderNowPlayingSidecars(
                         )
                 }
             }.getOrNull()
-            LoadedTrackSidecars(waveformResult?.waveform, audioTags, related.await())
+            LoadedTrackSidecars(album.await(), waveformResult?.waveform, audioTags, related.await())
         }
         if (generation == loadGeneration) {
             delegate.updateTrackSidecars(
+                album = loaded.album,
                 waveform = loaded.waveform,
                 audioTags = loaded.audioTags,
                 relatedTracks = loaded.related.tracks,
@@ -846,6 +855,7 @@ class NaviampCoreProviderNowPlayingSidecars(
 private const val CoreLyricsLoadingStatusDelayMillis = 150L
 
 private data class LoadedTrackSidecars(
+    val album: app.naviamp.domain.Album?,
     val waveform: app.naviamp.domain.waveform.AudioWaveform?,
     val audioTags: List<app.naviamp.domain.audio.AudioTag>?,
     val related: LoadedRelatedTracks,

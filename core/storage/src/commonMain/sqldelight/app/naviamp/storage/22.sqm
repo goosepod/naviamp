@@ -24,3 +24,48 @@ ON genre_ontology_genre(canonical_name);
 
 CREATE INDEX IF NOT EXISTS genre_ontology_relation_target
 ON genre_ontology_relation(relation_type, target_genre_id, source_genre_id);
+
+CREATE TABLE IF NOT EXISTS genre_ontology_alias (
+  genre_id TEXT NOT NULL REFERENCES genre_ontology_genre(genre_id) ON DELETE CASCADE,
+  alias_name TEXT NOT NULL,
+  alias_source TEXT NOT NULL,
+  PRIMARY KEY(genre_id, alias_name)
+);
+
+CREATE INDEX IF NOT EXISTS genre_ontology_alias_name
+ON genre_ontology_alias(alias_name);
+
+CREATE TABLE IF NOT EXISTS library_genre_inventory_metadata (
+  source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
+  ontology_payload_sha256 TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS library_genre_inventory (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  source_name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  matched_genre_id TEXT REFERENCES genre_ontology_genre(genre_id) ON DELETE SET NULL,
+  match_kind TEXT NOT NULL,
+  PRIMARY KEY(source_id, normalized_name)
+);
+
+CREATE INDEX IF NOT EXISTS library_genre_inventory_match
+ON library_genre_inventory(source_id, matched_genre_id);
+
+CREATE TABLE IF NOT EXISTS library_genre_inventory_count (
+  source_id TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  album_count INTEGER,
+  track_count INTEGER,
+  PRIMARY KEY(source_id, normalized_name),
+  FOREIGN KEY(source_id, normalized_name)
+    REFERENCES library_genre_inventory(source_id, normalized_name) ON DELETE CASCADE
+);
+
+ALTER TABLE library_track ADD COLUMN music_folder_id TEXT;
+ALTER TABLE library_track ADD COLUMN album_release_year INTEGER;
+ALTER TABLE library_album ADD COLUMN original_release_year INTEGER;
+ALTER TABLE library_track ADD COLUMN original_release_year INTEGER;
+ALTER TABLE downloaded_audio ADD COLUMN original_release_year INTEGER;
+ALTER TABLE playback_history ADD COLUMN original_release_year INTEGER;

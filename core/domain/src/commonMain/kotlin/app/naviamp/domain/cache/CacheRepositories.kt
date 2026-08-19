@@ -367,6 +367,14 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
     fun libraryGenreOntologyProjection(sourceId: String): app.naviamp.domain.library.LibraryGenreOntologyProjection =
         app.naviamp.domain.library.LibraryGenreOntologyProjection()
 
+    /** Canonical names from the complete bundled ontology, independent of library inventory. */
+    fun genreOntologyNames(): List<String> = emptyList()
+
+    fun smartPlaylistGenreCatalog(sourceId: String): List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> =
+        genreOntologyNames().map { app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption(it) }
+
+    fun libraryTracksForSmartPlaylistPreview(sourceId: String): List<Track> = emptyList()
+
     fun librarySnapshot(sourceId: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot
 
     fun searchLibrary(sourceId: String, query: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot

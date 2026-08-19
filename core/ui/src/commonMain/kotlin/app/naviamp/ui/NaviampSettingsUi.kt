@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
@@ -115,6 +116,7 @@ import app.naviamp.domain.settings.withHomeSectionOrder
 import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.LyricsTimingPreference
+import app.naviamp.domain.settings.NowPlayingAlbumYearPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
 import app.naviamp.domain.settings.MaxReplayGainPreampDb
 import app.naviamp.domain.settings.MaxWaveformBucketCount
@@ -260,7 +262,7 @@ fun NaviampSharedSettingsContent(
     onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
     onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
-    var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
+    var selectedCategory by rememberSaveable { mutableStateOf<NaviampSettingsCategory?>(null) }
     val contentScrollState = rememberScrollState()
     LaunchedEffect(selectedCategory) { contentScrollState.scrollTo(0) }
     NaviampSystemBackHandler(enabled = selectedCategory != null) { selectedCategory = null }
@@ -476,7 +478,7 @@ fun NaviampExperienceSettingsSection(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
 ) {
-    var selectedSection by remember { mutableStateOf<ExperienceSettingsPage?>(null) }
+    var selectedSection by rememberSaveable { mutableStateOf<ExperienceSettingsPage?>(null) }
     NaviampSystemBackHandler(enabled = selectedSection != null) { selectedSection = null }
 
     selectedSection?.let { section ->
@@ -943,7 +945,7 @@ private fun AlbumExperienceSettings(
     interfaceSettings: InterfaceSettings,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
 ) {
-    var selectedPage by remember { mutableStateOf<AlbumExperiencePage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<AlbumExperiencePage?>(null) }
 
     selectedPage?.let { page ->
         SettingsSubsectionHeader(page.title, page.subtitle, colors) { selectedPage = null }
@@ -1043,7 +1045,7 @@ private fun HomeScreenExperienceSettings(
     interfaceSettings: InterfaceSettings,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
 ) {
-    var selectedSectionId by remember { mutableStateOf<String?>(null) }
+    var selectedSectionId by rememberSaveable { mutableStateOf<String?>(null) }
     NaviampSystemBackHandler(enabled = selectedSectionId != null) { selectedSectionId = null }
 
     val orderedSections = interfaceSettings
@@ -1676,6 +1678,7 @@ private fun NowPlayingDisplaySettings(
     colors: NaviampColors,
     interfaceSettings: InterfaceSettings,
     showSoftwareVolumePreference: Boolean,
+    onAlbumYearPreferenceClick: () -> Unit,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
 ) {
     val settings = interfaceSettings.normalized().nowPlaying
@@ -1688,6 +1691,21 @@ private fun NowPlayingDisplaySettings(
         checked = settings.showAlbumYear,
         label = stringResource(Res.string.settings_now_playing_show_album_year),
         onCheckedChange = { enabled -> update { it.copy(showAlbumYear = enabled) } },
+    )
+    SettingsRow(
+        title = stringResource(Res.string.settings_now_playing_year_title),
+        subtitle = stringResource(Res.string.settings_now_playing_year_subtitle),
+        colors = colors,
+        value = settings.albumYearPreference.label(),
+        enabled = settings.showAlbumYear,
+        onClick = onAlbumYearPreferenceClick,
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.showTrackCover,
+        label = stringResource(Res.string.settings_now_playing_show_track_cover),
+        subtitle = stringResource(Res.string.settings_now_playing_show_track_cover_subtitle),
+        onCheckedChange = { enabled -> update { it.copy(showTrackCover = enabled) } },
     )
     SettingsCheckboxRow(
         colors = colors,
@@ -1989,7 +2007,7 @@ private fun NaviampConnectionsSettingsSection(
     onCancelConnectionForm: () -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<NaviampSavedConnectionUi?>(null) }
-    var selectedPage by remember { mutableStateOf<SourceSettingsPage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<SourceSettingsPage?>(null) }
     NaviampSystemBackHandler(enabled = isConnectionFormOpen || selectedPage != null) {
         if (isConnectionFormOpen) onCancelConnectionForm() else selectedPage = null
     }
@@ -2749,7 +2767,7 @@ fun NaviampDownloadsSettingsSection(
     onLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     val normalized = cacheSettings.normalized()
-    var selectedPage by remember { mutableStateOf<DownloadsSettingsPage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<DownloadsSettingsPage?>(null) }
     NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
     var pendingDownloadQualitySettings by remember { mutableStateOf<PlaybackSettings?>(null) }
 
@@ -2911,7 +2929,7 @@ fun NaviampAudioCacheSettingsSection(
     onLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     val normalized = cacheSettings.normalized()
-    var selectedPage by remember { mutableStateOf<AudioCacheSettingsPage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<AudioCacheSettingsPage?>(null) }
     NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
 
     selectedPage?.let { page ->
@@ -3183,7 +3201,7 @@ fun NaviampPlaybackSettingsSection(
     showMobileNetworkQuality: Boolean = false,
     downloadBytes: Long = 0L,
 ) {
-    var selectedSection by remember { mutableStateOf<NaviampPlaybackSettingsSection?>(null) }
+    var selectedSection by rememberSaveable { mutableStateOf<NaviampPlaybackSettingsSection?>(null) }
     NaviampSystemBackHandler(enabled = selectedSection != null) { selectedSection = null }
 
     selectedSection?.let { section ->
@@ -3378,7 +3396,7 @@ private fun AudioOutputSettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onBack: () -> Unit,
 ) {
-    var selectedPage by remember { mutableStateOf<AudioOutputSettingsPage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<AudioOutputSettingsPage?>(null) }
     NaviampSystemBackHandler(enabled = true) {
         if (selectedPage == null) onBack() else selectedPage = null
     }
@@ -3939,7 +3957,7 @@ private fun PlayerExperienceSettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
 ) {
-    var selectedPage by remember { mutableStateOf<PlayerBehaviorPage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<PlayerBehaviorPage?>(null) }
 
     selectedPage?.let { page ->
         SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
@@ -3962,6 +3980,19 @@ private fun PlayerExperienceSettings(
                     selected = playbackSettings.upNextSelectionBehavior == behavior,
                 ) {
                     onPlaybackSettingsChanged(playbackSettings.copy(upNextSelectionBehavior = behavior))
+                }
+            }
+            PlayerBehaviorPage.AlbumYear -> NowPlayingAlbumYearPreference.entries.forEach { preference ->
+                SelectableSettingsRow(
+                    colors = colors,
+                    title = preference.label(),
+                    subtitle = preference.subtitle(),
+                    selected = interfaceSettings.normalized().nowPlaying.albumYearPreference == preference,
+                ) {
+                    val normalized = interfaceSettings.normalized()
+                    onInterfaceSettingsChanged(
+                        normalized.copy(nowPlaying = normalized.nowPlaying.copy(albumYearPreference = preference)),
+                    )
                 }
             }
             PlayerBehaviorPage.Waveforms -> WaveformSettings(
@@ -4002,6 +4033,7 @@ private fun PlayerExperienceSettings(
         colors = colors,
         interfaceSettings = interfaceSettings,
         showSoftwareVolumePreference = showSoftwareVolumePreference,
+        onAlbumYearPreferenceClick = { selectedPage = PlayerBehaviorPage.AlbumYear },
         onInterfaceSettingsChanged = onInterfaceSettingsChanged,
     )
     SettingsRow(
@@ -4024,6 +4056,7 @@ private enum class PlayerBehaviorPage(
 ) {
     PreviousClick("Previous Click", "Back button behavior"),
     UpNextSelection("Up Next Selection", "What happens when choosing a queued track"),
+    AlbumYear("Album Year", "Choose which release year Now Playing shows"),
     Waveforms("Waveforms", "Track waveforms and detail"),
 }
 
@@ -4032,6 +4065,7 @@ private fun PlayerBehaviorPage.title(): String =
     when (this) {
         PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_title)
         PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_title)
+        PlayerBehaviorPage.AlbumYear -> stringResource(Res.string.settings_now_playing_year_title)
         PlayerBehaviorPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_title)
     }
 
@@ -4040,6 +4074,7 @@ private fun PlayerBehaviorPage.subtitle(): String =
     when (this) {
         PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_subtitle)
         PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_subtitle)
+        PlayerBehaviorPage.AlbumYear -> stringResource(Res.string.settings_now_playing_year_subtitle)
         PlayerBehaviorPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_subtitle)
     }
 
@@ -4104,6 +4139,18 @@ private fun RadioTuningControls(
             onValueChanged = { value -> onTuningChanged(tuning.copy(otherArtistRunLength = value)) },
         )
     }
+}
+
+@Composable
+private fun NowPlayingAlbumYearPreference.label(): String = when (this) {
+    NowPlayingAlbumYearPreference.Original -> stringResource(Res.string.settings_now_playing_year_original)
+    NowPlayingAlbumYearPreference.Release -> stringResource(Res.string.settings_now_playing_year_release)
+}
+
+@Composable
+private fun NowPlayingAlbumYearPreference.subtitle(): String = when (this) {
+    NowPlayingAlbumYearPreference.Original -> stringResource(Res.string.settings_now_playing_year_original_subtitle)
+    NowPlayingAlbumYearPreference.Release -> stringResource(Res.string.settings_now_playing_year_release_subtitle)
 }
 
 @Composable
@@ -4668,7 +4715,7 @@ private fun EqualizerSettings(
 ) {
     val equalizer = playbackSettings.equalizer.normalized()
     val activeProfile = equalizer.savedProfiles.firstOrNull { it.id == equalizer.profileId }
-    var selectedPage by remember { mutableStateOf<EqualizerSettingsPage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<EqualizerSettingsPage?>(null) }
     NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
     var profileDialogOpen by remember { mutableStateOf(false) }
     var profileName by remember(equalizer.profileId, activeProfile?.name) {
@@ -4854,7 +4901,7 @@ private fun StreamingQualitySettings(
     showMobileNetworkQuality: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
-    var selectedPage by remember { mutableStateOf<StreamingQualitySettingsPage?>(null) }
+    var selectedPage by rememberSaveable { mutableStateOf<StreamingQualitySettingsPage?>(null) }
     NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
     selectedPage?.let { page ->
         SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }

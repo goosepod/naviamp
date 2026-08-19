@@ -1,5 +1,11 @@
 # Naviamp Agent Development Rules
 
+## Release Announcements
+
+Whenever a new Naviamp release is pushed, create a GitHub Discussion in the **Announcements**
+category that explains what is new, what changed, important fixes, and any upgrade or compatibility
+notes. Feature branches and other unreleased work do not receive release announcements.
+
 ## Core Is the Product
 
 These are hard architecture requirements, not preferences. Naviamp is one shared application with
@@ -106,3 +112,23 @@ Treat an unexplained Android/Desktop/iOS implementation difference as architectu
 Generated sources, build scripts, packaging metadata, native resource manifests, and tests that
 exercise a real platform adapter are exempt from common placement, but they must not contain product
 behavior as a workaround.
+
+## Migration Discipline on Unreleased Branches
+
+Before adding a persistence migration, identify the latest migration that exists on `main` or the
+applicable release baseline. When a branch has not been merged into `main` and none of its schema
+changes have shipped in a release, keep the branch's final schema change consolidated into the next
+single migration after that baseline. As the feature evolves, edit that unreleased migration and the
+canonical schema together; do not preserve intermediate branch-development states as additional
+production migrations.
+
+Create a subsequent migration only after the preceding schema version has been merged into the
+release line, shipped, or the user explicitly requires a staged migration sequence. Before making
+that decision, inspect the target branch and release history rather than inferring it from the local
+database's `user_version`.
+
+Local development and test databases may drift through experimental branch schemas. Repair those
+databases directly when needed: first inspect the exact database and affected objects, then make the
+smallest targeted change to branch-owned tables or the schema version marker. Derived branch data
+may be dropped and regenerated when safe. Never add compatibility migrations solely to preserve a
+local test database's branch history, and never alter unrelated user data to avoid a clean reset.

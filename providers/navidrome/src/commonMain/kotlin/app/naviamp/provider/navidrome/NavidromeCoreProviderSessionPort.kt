@@ -68,6 +68,7 @@ class NavidromeCoreProviderSessionPort(
     private var currentSourceId: String? = initialSessionSource?.id
     private val nativeSession = NavidromeNativeSessionController(
         currentProvider = { provider },
+        currentSourceId = { currentSourceId },
         savedConnection = { currentSourceId?.let(mediaSources::mediaSource)?.toNavidromeConnection() },
         replaceProvider = { provider = it },
         repository = mediaSources as? ProviderMediaSourceRepository,

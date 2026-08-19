@@ -146,6 +146,7 @@ private fun NaviampStorageQueries.insertTestDownload(sourceId: String, filePath:
         album_id = null,
         album_title = null,
         album_release_year = null,
+        original_release_year = null,
         duration_seconds = null,
         cover_art_id = null,
         audio_codec = "opus",

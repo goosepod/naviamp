@@ -18,6 +18,7 @@ import app.naviamp.domain.library.LibraryGenreMatchKind
 import app.naviamp.domain.library.LibraryGenreOntologyProjection
 import app.naviamp.domain.library.matchLibraryGenres
 import app.naviamp.domain.library.projectLibraryGenreOntology
+import app.naviamp.domain.library.smartPlaylistGenreCatalog
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 
@@ -77,6 +78,7 @@ class StorageLibraryIndexStore(
                     search_artist_name = album.artistName.searchText(),
                     cover_art_id = album.coverArtId,
                     release_year = album.releaseYear?.toLong(),
+                    original_release_year = album.originalReleaseYear?.toLong(),
                     updated_at_epoch_millis = now,
                 )
             }
@@ -96,6 +98,9 @@ class StorageLibraryIndexStore(
                     artist_name = track.artistName,
                     album_title = track.albumTitle,
                     genre_names = track.genres.joinToString(GenreNameSeparator),
+                    music_folder_id = track.musicFolderId,
+                    album_release_year = track.albumReleaseYear?.toLong(),
+                    original_release_year = track.originalReleaseYear?.toLong(),
                     search_title = track.title.searchText(),
                     search_artist_name = track.artistName.searchText(),
                     search_album_title = track.albumTitle?.searchText(),
@@ -163,6 +168,18 @@ class StorageLibraryIndexStore(
                 .map { GenreOntologyParentRelation(it.source_genre_id, it.target_genre_id) },
         )
 
+    override fun genreOntologyNames(): List<String> =
+        queries.selectGenreOntologyGenres().executeAsList().map { it.canonical_name }
+
+    override fun smartPlaylistGenreCatalog(sourceId: String) =
+        smartPlaylistGenreCatalog(
+            ontologyGenres = ontologyGenres(),
+            inventory = libraryGenreInventory(sourceId),
+        )
+
+    override fun libraryTracksForSmartPlaylistPreview(sourceId: String): List<Track> =
+        queries.selectLibraryTracks(sourceId, Long.MAX_VALUE, 0).executeAsList().map { it.toTrack() }
+
     override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot =
         LibrarySnapshot(
             artists = queries.selectLibraryArtists(sourceId, limit, offset).executeAsList().map {
@@ -179,6 +196,7 @@ class StorageLibraryIndexStore(
                     coverArtId = it.cover_art_id,
                     recentlyAddedAtIso8601 = null,
                     releaseYear = it.release_year?.toInt(),
+                    originalReleaseYear = it.original_release_year?.toInt(),
                 )
             },
             tracks = queries.selectLibraryTracks(sourceId, limit, offset).executeAsList().map {
@@ -203,6 +221,7 @@ class StorageLibraryIndexStore(
                     coverArtId = it.cover_art_id,
                     recentlyAddedAtIso8601 = null,
                     releaseYear = it.release_year?.toInt(),
+                    originalReleaseYear = it.original_release_year?.toInt(),
                 )
             },
             tracks = queries.searchLibraryTracks(sourceId, pattern, pattern, pattern, limit, offset).executeAsList().map {
@@ -297,9 +316,9 @@ class StorageLibraryIndexStore(
     override fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> =
         queries.selectLibraryAlbumYears(sourceId)
             .executeAsList()
-            .map { row ->
+            .mapNotNull { row ->
                 LibraryAlbumYear(
-                    year = row.release_year.toInt(),
+                    year = row.era_release_year?.toInt() ?: return@mapNotNull null,
                     albumCount = row.album_count,
                 )
             }
@@ -383,7 +402,8 @@ private fun Library_track.toTrack(): Track =
         artistName = artist_name,
         albumId = remote_album_id?.let { AlbumId(it) },
         albumTitle = album_title,
-        albumReleaseYear = null,
+        albumReleaseYear = album_release_year?.toInt(),
+        originalReleaseYear = original_release_year?.toInt(),
         durationSeconds = duration_seconds?.toInt(),
         coverArtId = cover_art_id,
         audioInfo = AudioInfo(
@@ -405,6 +425,7 @@ private fun Library_track.toTrack(): Track =
         userRating = user_rating?.toInt(),
         playCount = play_count?.toInt(),
         lastPlayedAtIso8601 = last_played_at_iso8601,
+        musicFolderId = music_folder_id,
     )
 
 private fun SelectRecentlyPlayedLibraryTracks.toTrack(): Track =
@@ -415,7 +436,8 @@ private fun SelectRecentlyPlayedLibraryTracks.toTrack(): Track =
         artistName = artist_name,
         albumId = remote_album_id?.let { AlbumId(it) },
         albumTitle = album_title,
-        albumReleaseYear = null,
+        albumReleaseYear = album_release_year?.toInt(),
+        originalReleaseYear = original_release_year?.toInt(),
         durationSeconds = duration_seconds?.toInt(),
         coverArtId = cover_art_id,
         audioInfo = AudioInfo(
@@ -456,7 +478,8 @@ private fun SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackM
             artistName = artist_name,
             albumId = remote_album_id?.let { AlbumId(it) },
             albumTitle = album_title,
-            albumReleaseYear = null,
+            albumReleaseYear = album_release_year?.toInt(),
+            originalReleaseYear = original_release_year?.toInt(),
             durationSeconds = duration_seconds?.toInt(),
             coverArtId = cover_art_id,
             audioInfo = AudioInfo(

@@ -147,24 +147,40 @@ fun NaviampInternetRadioStationEditUi.toInternetRadioStation(): InternetRadioSta
 fun Genre.toSharedGenreMixItemUi(): SharedGenreMixItemUi =
     SharedGenreMixItemUi(
         id = name,
-        title = genreDisplayTitle(name),
+        title = name.trim(),
         subtitle = listOfNotNull(
             albumCount?.let { "$it albums" },
             trackCount?.let { "$it tracks" },
         ).joinToString(" - "),
     )
 
-fun genreDisplayTitle(name: String): String = buildString {
-    var capitalizeNext = true
-    name.trim().lowercase().forEach { character ->
-        if (character.isLetter() && capitalizeNext) {
-            append(character.titlecase())
-        } else {
-            append(character)
+fun genreDisplayTitle(name: String): String {
+    val trimmed = name.trim()
+    if (trimmed.any(Char::isUpperCase)) return trimmed
+    return buildString {
+        val token = StringBuilder()
+        fun appendToken() {
+            if (token.isEmpty()) return
+            val value = token.toString()
+            append(
+                if (value in GenreDisplayAcronyms) value.uppercase()
+                else value.replaceFirstChar(Char::titlecase),
+            )
+            token.clear()
         }
-        capitalizeNext = !character.isLetterOrDigit() && character != '\''
+        trimmed.forEach { character ->
+            if (character.isLetterOrDigit() || character == '\'') {
+                token.append(character)
+            } else {
+                appendToken()
+                append(character)
+            }
+        }
+        appendToken()
     }
 }
+
+private val GenreDisplayAcronyms = setOf("aor", "dnb", "ebm", "edm", "idm", "r&b", "uk", "us")
 
 fun InternetRadioStation.defaultRadioArtworkUrl(): String =
     radioStationArtworkUrl(this)
@@ -978,9 +994,9 @@ fun Track.compactFavoriteRatingLabel(): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
 }
 
-fun Track.nowPlayingAlbumLine(): String =
+fun Track.nowPlayingAlbumLine(year: Int? = albumReleaseYear): String =
     albumTitle?.let { title ->
-        albumReleaseYear?.let { "$title ($it)" } ?: title
+        year?.let { "$title ($it)" } ?: title
     }.orEmpty()
 
 fun Track.nowPlayingAudioInfoLabel(
@@ -1122,6 +1138,9 @@ private fun List<Pair<String, String>>.replayGainFromTagRows() =
 data class NowPlayingTrackUiConfig(
     val stateLabel: String,
     val coverArtUrl: String?,
+    val albumCoverArtUrl: String? = null,
+    val albumReleaseYear: Int? = null,
+    val albumOriginalReleaseYear: Int? = null,
     val playbackEngineName: String? = null,
     val waveform: AudioWaveform? = null,
     val visualizerFrame: PlaybackVisualizerFrame? = null,
@@ -1182,6 +1201,7 @@ data class NowPlayingRadioUiConfig(
 data class MiniNowPlayingUiConfig(
     val stateLabel: String,
     val coverArtUrl: String?,
+    val albumCoverArtUrl: String? = null,
     val isPlaying: Boolean = false,
     val isPaused: Boolean = false,
     val canPlayPause: Boolean = true,
@@ -1189,17 +1209,26 @@ data class MiniNowPlayingUiConfig(
     val hasNext: Boolean = false,
 )
 
-fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
-    NowPlayingUi(
+fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi {
+    // The queued track identifies the specific edition being played. Album sidecar data can
+    // describe the original release instead (or lag behind the queue), so it is only a fallback.
+    val resolvedAlbumReleaseYear = albumReleaseYear ?: config.albumReleaseYear
+    val resolvedAlbumOriginalReleaseYear = originalReleaseYear ?: config.albumOriginalReleaseYear
+    val defaultAlbumYear = resolvedAlbumOriginalReleaseYear ?: resolvedAlbumReleaseYear
+    return NowPlayingUi(
         id = id.value,
         title = title,
         subtitle = artistName,
         artistCredits = toSharedArtistCreditUis(),
         stateLabel = config.stateLabel,
-        coverArtUrl = config.coverArtUrl,
-        albumLine = nowPlayingAlbumLine(),
+        coverArtUrl = config.albumCoverArtUrl ?: config.coverArtUrl,
+        trackCoverArtUrl = config.coverArtUrl,
+        albumCoverArtUrl = config.albumCoverArtUrl,
+        albumLine = nowPlayingAlbumLine(defaultAlbumYear),
         albumTitle = albumTitle.orEmpty(),
-        albumYear = albumReleaseYear,
+        albumYear = defaultAlbumYear,
+        albumReleaseYear = resolvedAlbumReleaseYear,
+        albumOriginalReleaseYear = resolvedAlbumOriginalReleaseYear,
         audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName, config.streamQuality),
         waveform = config.waveform,
         visualizerFrame = config.visualizerFrame,
@@ -1251,10 +1280,38 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         relatedTabLabel = config.relatedTabLabel,
         relatedEmptyLabel = config.relatedEmptyLabel,
     )
+}
+
+fun NowPlayingUi.withDisplaySettings(
+    settings: app.naviamp.domain.settings.NowPlayingDisplaySettings,
+): NowPlayingUi {
+    if (isLive) return this
+    val year = when (settings.albumYearPreference) {
+        app.naviamp.domain.settings.NowPlayingAlbumYearPreference.Original ->
+            albumOriginalReleaseYear ?: albumReleaseYear
+        app.naviamp.domain.settings.NowPlayingAlbumYearPreference.Release ->
+            albumReleaseYear ?: albumOriginalReleaseYear
+    }
+    val art = if (settings.showTrackCover) {
+        trackCoverArtUrl ?: albumCoverArtUrl
+    } else {
+        albumCoverArtUrl ?: trackCoverArtUrl
+    }
+    return copy(
+        coverArtUrl = art,
+        albumYear = year,
+        albumLine = albumTitle.takeIf(String::isNotBlank)?.let { title ->
+            year?.let { "$title ($it)" } ?: title
+        }.orEmpty(),
+    )
+}
 
 fun Track.toTrackNowPlayingUi(
     stateLabel: String,
     coverArtUrl: String?,
+    albumCoverArtUrl: String? = null,
+    albumReleaseYear: Int? = null,
+    albumOriginalReleaseYear: Int? = null,
     playbackProgress: PlaybackProgress,
     playbackState: PlaybackState,
     capabilities: NowPlayingTrackCapabilities,
@@ -1290,6 +1347,9 @@ fun Track.toTrackNowPlayingUi(
         NowPlayingTrackUiConfig(
             stateLabel = stateLabel,
             coverArtUrl = coverArtUrl,
+            albumCoverArtUrl = albumCoverArtUrl,
+            albumReleaseYear = albumReleaseYear,
+            albumOriginalReleaseYear = albumOriginalReleaseYear,
             playbackEngineName = playbackEngineName,
             waveform = waveform,
             visualizerAvailable = visualizerAvailable,
@@ -1399,7 +1459,9 @@ fun Track?.toMiniNowPlayingUi(config: MiniNowPlayingUiConfig): NowPlayingUi =
         title = this?.title ?: "Queue is empty",
         subtitle = this?.artistName ?: "Nothing Playing",
         stateLabel = config.stateLabel,
-        coverArtUrl = config.coverArtUrl,
+        coverArtUrl = config.albumCoverArtUrl ?: config.coverArtUrl,
+        trackCoverArtUrl = config.coverArtUrl,
+        albumCoverArtUrl = config.albumCoverArtUrl,
         isPlaying = config.isPlaying,
         isPaused = config.isPaused,
         canPlayPause = config.canPlayPause,

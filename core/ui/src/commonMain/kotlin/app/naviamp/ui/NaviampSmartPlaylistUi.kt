@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,18 +42,23 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistFieldCatalog
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldOption
 import app.naviamp.domain.smartplaylist.SmartPlaylistFields
 import app.naviamp.domain.smartplaylist.SmartPlaylistGroupDraft
+import app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption
+import app.naviamp.domain.smartplaylist.SmartPlaylistGenreSelection
 import app.naviamp.domain.smartplaylist.SmartPlaylistLimitMode
 import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
 import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
+import app.naviamp.domain.smartplaylist.SmartPlaylistPreview
 import app.naviamp.domain.smartplaylist.SmartPlaylistSortDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
 import app.naviamp.domain.smartplaylist.displayLabel
+import app.naviamp.domain.smartplaylist.smartPlaylistGenreSuggestions
 import app.naviamp.domain.smartplaylist.updated
 import app.naviamp.domain.smartplaylist.valueLabel
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 fun SmartPlaylistBuilderDialog(
@@ -62,6 +68,10 @@ fun SmartPlaylistBuilderDialog(
     saveLabel: String = "Save",
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
+    genreCatalog: List<SmartPlaylistGenreOption> = emptyList(),
+    onPreview: suspend (SmartPlaylistDefinition) -> SmartPlaylistPreview = {
+        SmartPlaylistPreview(message = "Preview is not available for this connection.")
+    },
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
@@ -85,11 +95,26 @@ fun SmartPlaylistBuilderDialog(
     var passwordSaving by remember { mutableStateOf(false) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var pendingPasswordDefinition by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
+    var livePreview by remember { mutableStateOf<SmartPlaylistPreview?>(null) }
+    var previewLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val definition = remember(draft) {
         runCatching { draft.toDefinition() }
     }
     val jsonPreview = definition.getOrNull()?.toNspJson() ?: definition.exceptionOrNull()?.message.orEmpty()
+
+    LaunchedEffect(definition.getOrNull()) {
+        livePreview = null
+        previewLoading = false
+        val definitionToPreview = definition.getOrNull() ?: return@LaunchedEffect
+        delay(SmartPlaylistPreviewDebounceMillis)
+        previewLoading = true
+        livePreview = runCatching { onPreview(definitionToPreview) }
+            .getOrElse { error ->
+                SmartPlaylistPreview(message = error.message ?: "Could not preview this smart playlist.")
+            }
+        previewLoading = false
+    }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -193,11 +218,17 @@ fun SmartPlaylistBuilderDialog(
                     draft = draft,
                     availableLibraries = availableLibraries,
                     selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+                    genreCatalog = genreCatalog,
                     onDraftChange = { draft = it },
                 )
                 saveMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
+                SmartPlaylistPreviewSection(
+                    colors = colors,
+                    preview = livePreview,
+                    loading = previewLoading,
+                )
                 SmartPlaylistSection(
                     title = "Generated JSON",
                     colors = colors,
@@ -346,6 +377,9 @@ internal const val SmartPlaylistPasswordFieldTestTag = "smart-playlist-password"
 internal const val SmartPlaylistPasswordSaveTestTag = "smart-playlist-password-save"
 internal const val SmartPlaylistLoadPasswordFieldTestTag = "smart-playlist-load-password"
 internal const val SmartPlaylistLoadPasswordConfirmTestTag = "smart-playlist-load-password-confirm"
+internal const val SmartPlaylistGenreValueTestTag = "smart-playlist-genre-value"
+internal const val SmartPlaylistPreviewTestTag = "smart-playlist-preview"
+private const val SmartPlaylistPreviewDebounceMillis = 350L
 
 @Composable
 internal fun SmartPlaylistLoadPasswordDialog(
@@ -428,6 +462,7 @@ private fun SmartPlaylistCustomControls(
     draft: SmartPlaylistDraft,
     availableLibraries: List<ConnectionFormMusicFolder>,
     selectedConnectionLibraryIds: List<String>,
+    genreCatalog: List<SmartPlaylistGenreOption>,
     onDraftChange: (SmartPlaylistDraft) -> Unit,
 ) {
     if (selectedConnectionLibraryIds.size > 1) {
@@ -482,6 +517,7 @@ private fun SmartPlaylistCustomControls(
                 title = "Filter ${index + 1}",
                 colors = colors,
                 condition = condition,
+                genreCatalog = genreCatalog,
                 onConditionChange = { updatedCondition ->
                     onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition)))
                 },
@@ -529,6 +565,7 @@ private fun SmartPlaylistCustomControls(
                         title = "Filter ${conditionIndex + 1}",
                         colors = colors,
                         condition = condition,
+                        genreCatalog = genreCatalog,
                         onConditionChange = { updatedCondition ->
                             onDraftChange(
                                 draft.copy(
@@ -653,6 +690,7 @@ private fun SmartPlaylistRuleControls(
     title: String,
     colors: NaviampColors,
     condition: SmartPlaylistConditionDraft,
+    genreCatalog: List<SmartPlaylistGenreOption>,
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
     onRemove: (() -> Unit)?,
 ) {
@@ -675,7 +713,15 @@ private fun SmartPlaylistRuleControls(
                 .smartPlaylistMenuOrder(CommonSmartPlaylistRuleFields)
                 .map { it.label to it },
             onSelected = { field ->
-                onConditionChange(condition.copy(field = field, operator = field.operators.first(), value = "", secondValue = ""))
+                onConditionChange(
+                    condition.copy(
+                        field = field,
+                        operator = field.operators.first(),
+                        value = "",
+                        secondValue = "",
+                        genreSelection = null,
+                    ),
+                )
             },
         )
         SmartPlaylistDropdown(
@@ -684,12 +730,15 @@ private fun SmartPlaylistRuleControls(
             colors = colors,
             options = condition.field.operators.map { it.displayLabel() to it },
             onSelected = { operator ->
-                onConditionChange(condition.copy(operator = operator, value = "", secondValue = ""))
+                onConditionChange(
+                    condition.copy(operator = operator, value = "", secondValue = "", genreSelection = null),
+                )
             },
         )
         SmartPlaylistConditionValueControls(
             colors = colors,
             condition = condition,
+            genreCatalog = genreCatalog,
             onConditionChange = onConditionChange,
         )
         if (condition.operator == SmartPlaylistOperator.InTheRange) {
@@ -699,6 +748,53 @@ private fun SmartPlaylistRuleControls(
                 label = "End value",
                 colors = colors,
             )
+        }
+    }
+}
+
+@Composable
+private fun SmartPlaylistPreviewSection(
+    colors: NaviampColors,
+    preview: SmartPlaylistPreview?,
+    loading: Boolean,
+) {
+    SmartPlaylistSection(title = "Preview", colors = colors) {
+        Column(
+            modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPreviewTestTag),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            when {
+                loading -> Text("Checking synced library…", color = colors.secondaryText, fontSize = 12.sp)
+                preview == null -> Text("Waiting for a complete filter…", color = colors.secondaryText, fontSize = 12.sp)
+                preview.available -> {
+                    val matching = preview.matchingTrackCount ?: 0
+                    val result = preview.resultTrackCount ?: matching
+                    Text(
+                        buildString {
+                            append(if (matching == 1) "1 matching track" else "$matching matching tracks")
+                            if (result != matching) append(" · $result after limit")
+                        },
+                        color = colors.primaryText,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                    )
+                    preview.exampleTracks.forEach { track ->
+                        Text(
+                            "${track.title} — ${track.artistName}",
+                            color = colors.secondaryText,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+                preview.message != null -> preview.message?.let { message ->
+                    Text(message, color = colors.secondaryText, fontSize = 12.sp)
+                }
+                else -> Text(
+                    "Preview unavailable for locally unindexed fields: ${preview.unsupportedFields.joinToString()}.",
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+            }
         }
     }
 }
@@ -751,9 +847,13 @@ private fun SmartPlaylistNestedSection(
 private fun SmartPlaylistConditionValueControls(
     colors: NaviampColors,
     condition: SmartPlaylistConditionDraft,
+    genreCatalog: List<SmartPlaylistGenreOption>,
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
 ) {
-    if (condition.field.valueType == SmartPlaylistValueType.Boolean) {
+    if (condition.field.valueType == SmartPlaylistValueType.Boolean ||
+        condition.operator == SmartPlaylistOperator.IsMissing ||
+        condition.operator == SmartPlaylistOperator.IsPresent
+    ) {
         SmartPlaylistDropdown(
             label = condition.valueLabel(),
             value = when (condition.value.trim().lowercase()) {
@@ -768,12 +868,114 @@ private fun SmartPlaylistConditionValueControls(
         return
     }
 
-    SmartPlaylistTextField(
-        value = condition.value,
-        onValueChange = { value -> onConditionChange(condition.copy(value = value)) },
-        label = condition.valueLabel(),
-        colors = colors,
-    )
+    if (condition.field.field == SmartPlaylistFields.Genre) {
+        SmartPlaylistGenreTypeahead(
+            value = condition.value,
+            onValueChange = { value ->
+                onConditionChange(condition.copy(value = value, genreSelection = null))
+            },
+            onGenreSelected = { genre ->
+                onConditionChange(
+                    condition.copy(
+                        value = genreDisplayTitle(genre.canonicalName),
+                        genreSelection = SmartPlaylistGenreSelection(
+                            canonicalName = genre.canonicalName,
+                            libraryGenreNames = genre.libraryGenreNames,
+                        ),
+                    ),
+                )
+            },
+            label = condition.valueLabel(),
+            colors = colors,
+            genres = genreCatalog,
+        )
+        condition.genreSelection?.let { selection ->
+            val providerNames = selection.libraryGenreNames
+            Text(
+                when (providerNames.size) {
+                    0 -> "Not currently in this library; saves as ${genreDisplayTitle(selection.canonicalName)}."
+                    1 -> "Matches library tag: ${providerNames.single()}"
+                    else -> "Matches library tags: ${providerNames.joinToString(" or ")}"
+                },
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+            )
+        }
+    } else {
+        SmartPlaylistTextField(
+            value = condition.value,
+            onValueChange = { value -> onConditionChange(condition.copy(value = value)) },
+            label = condition.valueLabel(),
+            colors = colors,
+        )
+    }
+}
+
+@Composable
+private fun SmartPlaylistGenreTypeahead(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onGenreSelected: (SmartPlaylistGenreOption) -> Unit,
+    label: String,
+    colors: NaviampColors,
+    genres: List<SmartPlaylistGenreOption>,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val suggestions = smartPlaylistGenreSuggestions(value, genres)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {
+                onValueChange(it)
+                expanded = it.isNotBlank()
+            },
+            label = { Text(label, color = colors.secondaryText) },
+            singleLine = true,
+            textStyle = TextStyle(fontSize = 13.sp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(SmartPlaylistGenreValueTestTag)
+                .naviampTextInputFocus()
+                .onFocusChanged { focus ->
+                    if (focus.isFocused && value.isNotBlank()) expanded = true
+                },
+        )
+        DropdownMenu(
+            expanded = expanded && value.isNotBlank(),
+            onDismissRequest = { expanded = false },
+            containerColor = colors.controlSurface,
+            properties = PopupProperties(focusable = false),
+            modifier = Modifier.heightIn(max = 280.dp),
+        ) {
+            if (suggestions.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("No matches", color = colors.secondaryText) },
+                    onClick = {},
+                    enabled = false,
+                )
+            }
+            suggestions.forEach { genre ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(genreDisplayTitle(genre.canonicalName), color = colors.primaryText)
+                            Text(
+                                genre.trackCount?.let { count ->
+                                    if (count == 1) "1 track" else "$count tracks"
+                                } ?: "Not in library",
+                                color = colors.secondaryText,
+                                fontSize = 11.sp,
+                            )
+                        }
+                    },
+                    onClick = {
+                        onGenreSelected(genre)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable

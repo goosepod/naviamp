@@ -234,6 +234,54 @@ class SmartPlaylistDraftTest {
     }
 
     @Test
+    fun genreTypeaheadWaitsForInputAndSearchesTheCompleteOntology() {
+        val ontology = listOf("Rock", "Dream Pop", "Dream Trance", "Pop Rock", "Jazz")
+
+        assertEquals(emptyList(), smartPlaylistGenreSuggestions("", ontology))
+        assertEquals(
+            listOf("Dream Pop", "Dream Trance"),
+            smartPlaylistGenreSuggestions("dream", ontology),
+        )
+        assertEquals(listOf("Rock", "Pop Rock"), smartPlaylistGenreSuggestions("rock", ontology))
+    }
+
+    @Test
+    fun canonicalGenreSelectionExpandsToEveryMatchingLibraryTag() {
+        val genreField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Genre }
+        val rule = SmartPlaylistConditionDraft(
+            field = genreField,
+            operator = SmartPlaylistOperator.Contains,
+            value = "Hip Hop",
+            genreSelection = SmartPlaylistGenreSelection(
+                canonicalName = "Hip Hop",
+                libraryGenreNames = listOf("Hip-Hop", "Rap"),
+            ),
+        ).toRuleOrNull() as SmartPlaylistGroup
+
+        assertEquals(SmartPlaylistMatch.Any, rule.match)
+        assertEquals(
+            listOf("Hip-Hop", "Rap"),
+            rule.rules.map { ((it as SmartPlaylistCondition).value as SmartPlaylistValue.Text).value },
+        )
+    }
+
+    @Test
+    fun negativeCanonicalGenreSelectionRequiresEveryAliasToMiss() {
+        val genreField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Genre }
+        val rule = SmartPlaylistConditionDraft(
+            field = genreField,
+            operator = SmartPlaylistOperator.NotContains,
+            value = "Hip Hop",
+            genreSelection = SmartPlaylistGenreSelection(
+                canonicalName = "Hip Hop",
+                libraryGenreNames = listOf("Hip-Hop", "Rap"),
+            ),
+        ).toRuleOrNull() as SmartPlaylistGroup
+
+        assertEquals(SmartPlaylistMatch.All, rule.match)
+    }
+
+    @Test
     fun importsNspJsonToEditableDraft() {
         val definition = SmartPlaylistDefinition.fromNspJson(
             """

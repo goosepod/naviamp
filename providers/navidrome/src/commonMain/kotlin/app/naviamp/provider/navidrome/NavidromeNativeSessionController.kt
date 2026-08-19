@@ -11,6 +11,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
  */
 class NavidromeNativeSessionController(
     private val currentProvider: () -> NavidromeProvider?,
+    private val currentSourceId: () -> String? = { null },
     private val savedConnection: () -> NavidromeConnection?,
     private val replaceProvider: (NavidromeProvider) -> Unit,
     private val repository: ProviderMediaSourceRepository?,
@@ -52,6 +53,7 @@ class NavidromeNativeSessionController(
             connection = active.connectionWithCurrentNativeToken().toProviderMediaSourceConnection(),
             cacheNamespace = active.cacheNamespace,
             providerId = active.id.value,
+            preferredSourceId = currentSourceId(),
         )
     }
 }

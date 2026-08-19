@@ -186,6 +186,14 @@
     <string name="settings_waveforms_detail_subtitle">How many steps to render in each waveform.</string>
     <string name="settings_waveforms_detail_header_subtitle">How many steps to render in each waveform</string>
     <string name="settings_now_playing_show_album_year">Show album year</string>
+    <string name="settings_now_playing_year_title">Album year</string>
+    <string name="settings_now_playing_year_subtitle">Choose which release year Now Playing shows.</string>
+    <string name="settings_now_playing_year_original">Original year</string>
+    <string name="settings_now_playing_year_original_subtitle">Show when the album was first released, when available.</string>
+    <string name="settings_now_playing_year_release">Release year</string>
+    <string name="settings_now_playing_year_release_subtitle">Show the year of this specific edition.</string>
+    <string name="settings_now_playing_show_track_cover">Show track cover</string>
+    <string name="settings_now_playing_show_track_cover_subtitle">Use track-specific artwork when available; otherwise show the album cover.</string>
     <string name="settings_now_playing_show_audio_info">Show bitrate and audio information</string>
     <string name="settings_now_playing_show_volume_bar">Show volume bar</string>
     <string name="settings_now_playing_scroll_track">Scroll track titles</string>

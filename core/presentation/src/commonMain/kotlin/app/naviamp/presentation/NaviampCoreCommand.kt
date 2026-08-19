@@ -122,6 +122,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface SmartPlaylist : NaviampCoreCommand {
+        data class Preview(val definition: SmartPlaylistDefinition) : SmartPlaylist
         data class Save(val definition: SmartPlaylistDefinition, val password: String? = null) : SmartPlaylist
         data class Update(
             val playlist: SharedMediaItemUi,
@@ -195,6 +196,7 @@ sealed interface NaviampCoreCommand {
         data class Select(val genre: SharedGenreMixItemUi) : GenreAction
         data class Remove(val genre: SharedGenreMixItemUi) : GenreAction
         data class ToggleBranch(val ontologyId: String) : GenreAction
+        data class SelectBranch(val ontologyId: String) : GenreAction
         data object Reset : GenreAction
         data object Play : GenreAction
     }
@@ -245,6 +247,9 @@ sealed interface NaviampCoreCommand {
 sealed interface NaviampCoreCommandResult {
     data object Completed : NaviampCoreCommandResult
     data class SmartPlaylistLoaded(val definition: SmartPlaylistDefinition) : NaviampCoreCommandResult
+    data class SmartPlaylistPreviewed(
+        val preview: app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
+    ) : NaviampCoreCommandResult
 }
 
 interface NaviampCoreCommandHandler {

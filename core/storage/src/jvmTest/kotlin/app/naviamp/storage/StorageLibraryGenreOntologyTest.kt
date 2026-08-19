@@ -31,6 +31,7 @@ class StorageLibraryGenreOntologyTest {
             assertEquals(12, first.nodes.single { it.id == "dream-pop" }.albumCount)
             assertEquals(345, first.nodes.single { it.id == "dream-pop" }.trackCount)
             assertEquals(listOf("Jazz"), store.libraryGenreOntologyProjection(sourceTwo).selectableGenres.map { it.name })
+            assertEquals(listOf("Dream Pop", "Jazz", "Music", "Rock"), store.genreOntologyNames())
         }
     }
 

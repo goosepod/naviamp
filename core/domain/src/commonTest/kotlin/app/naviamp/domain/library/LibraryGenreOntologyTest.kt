@@ -67,4 +67,76 @@ class LibraryGenreOntologyTest {
         assertFalse(projection.nodes.single { it.id == "rock" }.directlyInLibrary)
         assertEquals(listOf("Dream-Pop", "Local Style"), projection.selectableGenres.map { it.name })
     }
+
+    @Test
+    fun auditEnablesAWellCoveredHierarchyAndExpandsGroupsToProviderNames() {
+        val genres = listOf(
+            GenreOntologyGenre("music", "Music"),
+            GenreOntologyGenre("rock", "Rock"),
+            GenreOntologyGenre("alternative", "Alternative Rock", aliases = listOf("Alt Rock")),
+            GenreOntologyGenre("dream-pop", "Dream Pop"),
+            GenreOntologyGenre("shoegaze", "Shoegaze"),
+        )
+        val inventory = matchLibraryGenres(
+            listOf("Rock", "Alt Rock", "Dream-Pop", "Shoegaze", "Server Only"),
+            genres,
+        ).map { item -> item.copy(trackCount = if (item.matchedGenreId == null) 5 else 100) }
+        val projection = projectLibraryGenreOntology(
+            inventory = inventory,
+            ontologyGenres = genres,
+            parentRelations = listOf(
+                GenreOntologyParentRelation("rock", "music"),
+                GenreOntologyParentRelation("alternative", "rock"),
+                GenreOntologyParentRelation("dream-pop", "alternative"),
+                GenreOntologyParentRelation("shoegaze", "alternative"),
+            ),
+        )
+
+        assertTrue(projection.audit.usefulForBrowsing)
+        assertEquals(5, projection.audit.inventoryGenreCount)
+        assertEquals(4, projection.audit.matchedCount)
+        assertEquals(4, projection.audit.largestSelectableGroupSize)
+        assertEquals(listOf("Alt Rock", "Dream-Pop", "Rock", "Shoegaze"), projection
+            .selectableGenresForSubtree("rock")
+            .map { it.name })
+    }
+
+    @Test
+    fun auditRejectsFragmentedAndPoorlyMatchedLibraries() {
+        val ontology = listOf(
+            GenreOntologyGenre("rock", "Rock"),
+            GenreOntologyGenre("jazz", "Jazz"),
+        )
+        val projection = projectLibraryGenreOntology(
+            inventory = matchLibraryGenres(
+                listOf("Rock", "Jazz", "Local One", "Local Two", "Local Three"),
+                ontology,
+            ),
+            ontologyGenres = ontology,
+            parentRelations = emptyList(),
+        )
+
+        assertFalse(projection.audit.usefulForBrowsing)
+        assertEquals(2, projection.audit.matchedCount)
+        assertEquals(3, projection.audit.unmatchedCount)
+    }
+
+    @Test
+    fun smartPlaylistCatalogRetainsTheOntologyAndAddsLibraryAvailability() {
+        val ontology = listOf(
+            GenreOntologyGenre("hip-hop", "Hip Hop", aliases = listOf("Rap")),
+            GenreOntologyGenre("jazz", "Jazz"),
+        )
+        val inventory = listOf(
+            LibraryGenreInventoryItem("Rap", "rap", "hip-hop", LibraryGenreMatchKind.Alias, trackCount = 80),
+            LibraryGenreInventoryItem("Hip-Hop", "hip hop", "hip-hop", LibraryGenreMatchKind.Normalized, trackCount = 25),
+        )
+
+        val catalog = smartPlaylistGenreCatalog(ontology, inventory)
+
+        assertEquals(listOf("Hip Hop", "Jazz"), catalog.map { it.canonicalName })
+        assertEquals(listOf("Hip-Hop", "Rap"), catalog.first().libraryGenreNames)
+        assertEquals(105, catalog.first().trackCount)
+        assertFalse(catalog.last().inLibrary)
+    }
 }

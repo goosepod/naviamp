@@ -51,11 +51,11 @@ class StorageProviderIdentityMigrationStoreTest {
             val transform: (String) -> String = { migrated[it] ?: it }
 
             queries.upsertLibraryArtist(source.id, oldArtist, "Artist", "artist", 1L)
-            queries.upsertLibraryAlbum(source.id, oldAlbum, oldArtist, "Album", "Artist", "album", "artist", oldCover, null, 1L)
+            queries.upsertLibraryAlbum(source.id, oldAlbum, oldArtist, "Album", "Artist", "album", "artist", oldCover, null, null, 1L)
             queries.upsertCachedAudio(source.id, oldTrack, "original", "/owned/cache.flac", 10L, "audio/flac", 1L, 1L)
             queries.upsertDownloadedAudio(
                 source.id, oldTrack, "original", "/owned/download.flac", 20L, "audio/flac", "Track",
-                oldArtist, "Artist", oldAlbum, "Album", null, 120L, oldCover, "flac", null, "audio/flac",
+                oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover, "flac", null, "audio/flac",
                 null, null, null, null, 1L,
             )
             queries.upsertKeepDownloadedPolicy(source.id, "playlist", oldPlaylist, "Playlist", 0L, 1L)
@@ -76,7 +76,7 @@ class StorageProviderIdentityMigrationStoreTest {
             )
             catalog.playbackSessions.savePlaybackSession(PlaybackSessionSettings.fromTracks(listOf(track), 0), source.id)
             queries.upsertPlaybackHistory(
-                source.id, oldTrack, "Track", oldArtist, "Artist", oldAlbum, "Album", null, 120L, oldCover,
+                source.id, oldTrack, "Track", oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover,
                 "flac", null, "audio/flac", null, null, null, null, 1L,
             )
             queries.insertPendingProviderAction(source.id, "favorite-track", oldTrack, 1L, null, 1L)
@@ -140,7 +140,7 @@ class StorageProviderIdentityMigrationStoreTest {
             fun download(id: String, path: String, cover: String, downloadedAt: Long) {
                 queries.upsertDownloadedAudio(
                     source.id, id, "transcoded:opus:128", path, 20L, "audio/ogg", "Track",
-                    null, "Artist", null, "Album", null, 120L, cover, "opus", 128L, "audio/ogg",
+                    null, "Artist", null, "Album", null, null, 120L, cover, "opus", 128L, "audio/ogg",
                     null, null, null, null, downloadedAt,
                 )
             }

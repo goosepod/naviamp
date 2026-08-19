@@ -37,6 +37,9 @@ data class NaviampCoreMixServices(
 /** Persistence effects required by playlist product transactions. Queue ownership stays in Core. */
 data class NaviampCorePlaylistServices(
     val history: NaviampCorePlaylistHistoryPort,
+    val preview: NaviampCoreSmartPlaylistPreviewPort = NaviampCoreSmartPlaylistPreviewPort {
+        app.naviamp.domain.smartplaylist.SmartPlaylistPreview(message = "Preview is unavailable.")
+    },
 )
 
 /** Filesystem/network effects required by the Core-owned Downloads feature. */

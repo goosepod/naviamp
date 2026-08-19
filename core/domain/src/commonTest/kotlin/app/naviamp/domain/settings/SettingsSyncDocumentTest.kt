@@ -72,6 +72,8 @@ class SettingsSyncDocumentTest {
                     ),
                     nowPlaying = NowPlayingDisplaySettings(
                         showAlbumYear = false,
+                        albumYearPreference = NowPlayingAlbumYearPreference.Release,
+                        showTrackCover = true,
                         showAudioInfo = false,
                         showVolumeBar = false,
                         scrollTrackTitle = false,
@@ -174,6 +176,8 @@ class SettingsSyncDocumentTest {
         assertEquals(MinAlbumBlurRadiusDp, InterfaceSettings(albumBlurRadiusDp = -1).normalized().albumBlurRadiusDp)
         assertEquals("#A1B2C3", InterfaceSettings(singleColorHex = "a1b2c3").normalized().singleColorHex)
         assertEquals(DefaultSingleColorHex, InterfaceSettings(singleColorHex = "not-a-color").normalized().singleColorHex)
+        assertEquals(NowPlayingAlbumYearPreference.Original, NowPlayingDisplaySettings().albumYearPreference)
+        assertEquals(false, NowPlayingDisplaySettings().showTrackCover)
     }
 
     @Test

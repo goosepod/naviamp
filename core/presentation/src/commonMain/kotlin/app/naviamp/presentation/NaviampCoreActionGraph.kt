@@ -44,13 +44,24 @@ fun createNaviampCoreActions(
 ): NaviampCoreActions {
     fun send(command: NaviampCoreCommand) = handler.dispatch(command)
 
+    suspend fun previewSmartPlaylist(definition: app.naviamp.domain.smartplaylist.SmartPlaylistDefinition) =
+        when (val result = handler.execute(NaviampCoreCommand.SmartPlaylist.Preview(definition))) {
+            is NaviampCoreCommandResult.SmartPlaylistPreviewed -> result.preview
+            NaviampCoreCommandResult.Completed,
+            is NaviampCoreCommandResult.SmartPlaylistLoaded,
+            -> error("Core did not return a smart-playlist preview.")
+        }
+
     suspend fun loadSmartPlaylist(command: NaviampCoreCommand.SmartPlaylist.Load) =
         when (val result = handler.execute(command)) {
             is NaviampCoreCommandResult.SmartPlaylistLoaded -> result.definition
+            is NaviampCoreCommandResult.SmartPlaylistPreviewed ->
+                error("Core did not return a smart-playlist definition.")
             NaviampCoreCommandResult.Completed -> error("Core did not return a smart-playlist definition.")
         }
 
     val smartPlaylist = NaviampSmartPlaylistActions(
+        onPreview = ::previewSmartPlaylist,
         onSave = { definition -> handler.execute(NaviampCoreCommand.SmartPlaylist.Save(definition)) },
         onUpdate = { playlist, definition ->
             handler.execute(NaviampCoreCommand.SmartPlaylist.Update(playlist, definition))
@@ -127,6 +138,7 @@ fun createNaviampCoreActions(
             onGenreSelected = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Select(it))) },
             onGenreRemoved = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Remove(it))) },
             onBranchToggled = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.ToggleBranch(it))) },
+            onBranchSelected = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.SelectBranch(it))) },
             onReset = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Reset)) },
             onPlay = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Play)) },
         ),

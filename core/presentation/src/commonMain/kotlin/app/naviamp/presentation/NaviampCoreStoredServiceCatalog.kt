@@ -188,6 +188,9 @@ fun naviampCoreStoredServiceCatalog(
                 recentPlaylistIds = settings.loadRecentPlaylistIds,
                 sourceId = sourceId,
                 keepDownloadedRepository = repositories.keepDownloaded,
+                genreCatalog = {
+                    sourceId()?.let(repositories.libraryIndex::smartPlaylistGenreCatalog).orEmpty()
+                },
             ),
         ),
         settings = defaults.settings.copy(
@@ -208,6 +211,11 @@ fun naviampCoreStoredServiceCatalog(
         downloads = downloads,
         playlists = defaults.playlists.copy(
             history = naviampCorePlaylistHistoryPort(settings.saveRecentPlaylistIds),
+            preview = naviampCoreSmartPlaylistPreviewPort(
+                sourceId = sourceId,
+                libraryIndex = repositories.libraryIndex,
+                nowEpochMillis = clockEpochMillis,
+            ),
         ),
         radio = defaults.radio.copy(
             recents = internetRadioRecents,

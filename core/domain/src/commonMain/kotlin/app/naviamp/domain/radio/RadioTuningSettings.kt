@@ -1,6 +1,7 @@
 package app.naviamp.domain.radio
 
 import app.naviamp.domain.Track
+import app.naviamp.domain.eraReleaseYear
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -70,12 +71,12 @@ fun tunedRadioTracks(
 ): List<Track> {
     val distinctTracks = tracks.distinctBy { it.id }
     val decadeFiltered = seedTrack
-        ?.albumReleaseYear
+        ?.eraReleaseYear
         ?.takeIf { tuning.sameDecadeOnly }
         ?.let { year ->
             val decadeStart = (year / 10) * 10
             val sameDecade = distinctTracks.filter { track ->
-                track.albumReleaseYear?.let { it in decadeStart..(decadeStart + 9) } == true
+                track.eraReleaseYear?.let { it in decadeStart..(decadeStart + 9) } == true
             }
             sameDecade.ifEmpty { distinctTracks }
         }

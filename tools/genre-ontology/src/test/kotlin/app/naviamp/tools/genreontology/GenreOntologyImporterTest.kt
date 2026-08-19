@@ -27,12 +27,33 @@ class GenreOntologyImporterTest {
 
         assertEquals(
             setOf(
-                RelationRecord("subgenre", current, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                RelationRecord("subgenre", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", current),
-                RelationRecord("influenced_by", current, "cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                RelationRecord("subgenre", current, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "9d61bc67-fa39-4719-8025-ea056a5bd7e6"),
+                RelationRecord("subgenre", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", current, "9d61bc67-fa39-4719-8025-ea056a5bd7e6"),
+                RelationRecord("influenced_by", current, "cccccccc-cccc-cccc-cccc-cccccccccccc", "59117855-52db-4371-8dd3-87a16f285499"),
             ),
             parseRelationships(page, current),
         )
+    }
+
+    @Test
+    fun relationshipDefinitionIsValidatedByStableUuidAndSuppliesLivePhrases() {
+        val expected = RelationshipTypeDefinition(
+            id = "9d61bc67-fa39-4719-8025-ea056a5bd7e6",
+            payloadType = "subgenre",
+            forwardPhrase = "old forward",
+            reversePhrase = "old reverse",
+            forwardCurrentIsSource = false,
+        )
+        val page = """
+            <p>UUID: 9d61bc67-fa39-4719-8025-ea056a5bd7e6</p>
+            <dt>Forward link phrase:</dt><dd>children</dd>
+            <dt>Reverse link phrase:</dt><dd>parent of</dd>
+        """.trimIndent()
+
+        val parsed = parseRelationshipTypeDefinition(page, expected)
+
+        assertEquals("children", parsed.forwardPhrase)
+        assertEquals("parent of", parsed.reversePhrase)
     }
 
     @Test
