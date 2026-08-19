@@ -2,7 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ANDROID_HOME="${ANDROID_HOME:-/Users/jbmcmichael/Library/Android/sdk}"
+ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+if [[ -z "$ANDROID_HOME" && -f "$ROOT_DIR/local.properties" ]]; then
+    ANDROID_HOME="$(sed -n 's/^sdk\.dir=//p' "$ROOT_DIR/local.properties" | tail -n 1)"
+fi
 ADB="${ADB:-$ANDROID_HOME/platform-tools/adb}"
 APP_ID="${APP_ID:-app.naviamp.android}"
 DURATION_SECONDS=180

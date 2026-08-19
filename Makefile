@@ -1,7 +1,6 @@
 GRADLE ?= ./gradlew
 GRADLEW_BAT ?= ./gradlew.bat
 
-ANDROID_HOME ?= /Users/jbmcmichael/Library/Android/sdk
 # Configuration-on-demand is unstable with the current Kotlin Multiplatform build
 # and can fail before Desktop packaging dependencies are resolved.
 GRADLE_COMMON ?=
@@ -53,7 +52,7 @@ bump-version:
 
 .PHONY: clean
 clean:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) clean
+	$(GRADLE) clean
 
 .PHONY: clean-generated
 clean-generated: clean
@@ -61,21 +60,21 @@ clean-generated: clean
 
 .PHONY: macos-test
 macos-test:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:stageLocalTestApp
+	$(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:stageLocalTestApp
 	-pkill -f "$(CURDIR)/build/local-test/Naviamp.app/Contents/MacOS/Naviamp"
 	open -n build/local-test/Naviamp.app
 
 .PHONY: macos-stage
 macos-stage:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:stageReleaseApp
+	$(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:stageReleaseApp
 
 .PHONY: macos-standalone macos-release
 macos-standalone macos-release:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributable
+	$(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributable
 
 .PHONY: macos-installer
 macos-installer:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributionForCurrentOS
+	$(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributionForCurrentOS
 
 .PHONY: windows-test
 windows-test:
@@ -137,48 +136,48 @@ linux-installer:
 
 .PHONY: android-debug
 android-debug:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:assembleDebug
+	$(GRADLE) $(GRADLE_COMMON) :apps:android:assembleDebug
 
 .PHONY: android-release
 android-release:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:assembleRelease :apps:android:bundleRelease
+	$(GRADLE) $(GRADLE_COMMON) :apps:android:assembleRelease :apps:android:bundleRelease
 
 .PHONY: android-play-release
 android-play-release:
 	scripts/require-android-signing.sh
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:bundleRelease
+	$(GRADLE) $(GRADLE_COMMON) :apps:android:bundleRelease
 
 .PHONY: android-auto-dhu
 android-auto-dhu:
-	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh run
+	scripts/android-auto-dhu.sh run
 
 .PHONY: android-auto-start
 android-auto-start:
-	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh start
+	scripts/android-auto-dhu.sh start
 
 .PHONY: android-auto-logs
 android-auto-logs:
-	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh logs
+	scripts/android-auto-dhu.sh logs
 
 .PHONY: android-auto-status
 android-auto-status:
-	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh status
+	scripts/android-auto-dhu.sh status
 
 .PHONY: android-auto-stop
 android-auto-stop:
-	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh stop
+	scripts/android-auto-dhu.sh stop
 
 .PHONY: desktop-test
 desktop-test:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) jvmTest desktopTest
+	$(GRADLE) jvmTest desktopTest
 	scripts/summarize-gradle-tests.sh jvmTest desktopTest
 
 .PHONY: test
 test:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) verifyCoreFirstArchitecture :core:storage:verifySqlDelightMigration :koverVerify :apps:android:testDebugUnitTest :apps:android:testReleaseUnitTest :apps:android:verifyDebugBassNativePackage
+	$(GRADLE) verifyCoreFirstArchitecture :core:storage:verifySqlDelightMigration :koverVerify :apps:android:testDebugUnitTest :apps:android:testReleaseUnitTest :apps:android:verifyDebugBassNativePackage
 	scripts/summarize-gradle-tests.sh jvmTest desktopTest testDebugUnitTest testReleaseUnitTest
 
 .PHONY: coverage
 coverage:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) :koverVerify :koverHtmlReport :koverXmlReport
+	$(GRADLE) :koverVerify :koverHtmlReport :koverXmlReport
 	@printf "Coverage report: build/reports/kover/html/index.html\n"
