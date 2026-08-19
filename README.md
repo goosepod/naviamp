@@ -77,10 +77,16 @@ every queue. Artist, Album, and Genre Mix work broadly; servers with sonic simil
 unlock Sonic Mix, Sonic Path, related tracks, track radio, and sonic autoplay. Generated results can
 be edited in the queue or saved as a normal playlist.
 
+Genre Mix can organize the genre tags found on your server into a library-specific MusicBrainz
+hierarchy. Expand a broad genre to browse its subgenres, or select the parent to include every
+matching descendant in one mix. Tags that do not map cleanly stay visible, and smaller or sparsely
+matched libraries retain the complete flat browser.
+
 Regular playlist workflows live wherever you are browsing: add tracks, albums, artists, search
 results, downloads, and generated mixes; create a playlist without leaving the picker; reorder and
 remove tracks; or start a playlist in order or shuffled. Compatible servers can also expose smart
-playlists whose rules keep the contents fresh over time.
+playlists whose rules keep the contents fresh over time. Navidrome smart playlists include
+genre-aware suggestions and can preview supported rules against the synced library before saving.
 
 ## Playback and presentation
 
@@ -103,7 +109,8 @@ preview is also available for users who can provide their own signing.
 
 Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
 Windows and macOS desktop packages are not publisher-signed and may show an operating-system
-warning. See [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
+warning. See the [Naviamp 2.1 release notes](docs/v2.1-release-notes.md) for upgrade details and
+[Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
 
 ## Building from source
 

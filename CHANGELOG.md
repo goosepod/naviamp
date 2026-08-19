@@ -6,6 +6,40 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.1.0
+
+This release makes genres substantially easier to explore and use, gives Navidrome smart playlists
+immediate feedback, and adds finer control over the artwork and release year shown in Now Playing.
+
+### Features
+
+- Browse the genres that actually exist in your library through a bundled MusicBrainz hierarchy, expand parent genres, and select a whole subgenre branch for a Genre Mix.
+- Search the complete genre ontology while building a Navidrome smart playlist, with suggestions mapped back to the genre names used by your server.
+- Preview supported smart-playlist rules against the synced library before saving, including the matching-track count, post-limit count, and example tracks.
+- Choose whether Now Playing shows an album's original release year or the year of the specific edition.
+- Optionally use track-specific artwork in Now Playing while retaining album artwork as the default and fallback.
+
+### Bug Fixes
+
+- Keep unmatched server genre tags visible and selectable, and automatically use the complete flat genre list when a hierarchy would not organize the library reliably.
+- Preserve the Settings page and its nested state when navigating elsewhere in the app and returning.
+- Preserve original-release metadata through cached, downloaded, queued, and restored media so year-based mixes and Now Playing stay consistent.
+- Make Desktop release staging repeatable when an earlier packaged image contains read-only files.
+
+### System Settings
+
+- Added a reproducible, audited MusicBrainz CC0 genre-ontology importer and bundled the same versioned snapshot on Android, Desktop, and iOS without runtime ontology requests.
+- Added an automated Linux verification command that runs native Desktop tests, stages the application, and performs a bounded Xvfb launch smoke test.
+- Removed developer-machine paths from build and Android helper scripts; SDK discovery now uses standard environment variables or the ignored local properties file.
+
+### Release Notes and Known Limitations
+
+- Existing `v2.0.1` installations can upgrade in place. The shared database migration installs the bundled ontology and preserves existing application data.
+- Hierarchical genre browsing appears only when enough of the current library maps cleanly to useful MusicBrainz parent groups; otherwise Naviamp deliberately keeps the familiar flat list.
+- MusicBrainz supplies the CC0 genre names, aliases, and relationships. Naviamp sends the original provider genre names when requesting music and makes no runtime MusicBrainz requests.
+- Smart-playlist creation and editing remain Navidrome-specific. A local preview is unavailable for rules that use fields not present in the synced library index.
+- The iOS artifact remains an unsigned preview. Windows and macOS packages are not publisher-signed and may show operating-system warnings.
+
 ## v2.0.1
 
 This update makes radio easier to start and revisit, while giving album and playlist lists a clearer,

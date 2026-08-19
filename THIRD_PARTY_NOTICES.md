@@ -1,8 +1,19 @@
 # Third-party notices
 
 Naviamp includes third-party software. This file records the notices most relevant to the native
-audio components shipped with the application. Each component remains under its own license; the
-Naviamp GPL license and BASS linking exception do not replace those terms.
+audio components and data shipped with the application. Each component remains under its own
+license; the Naviamp GPL license and BASS linking exception do not replace those terms.
+
+## MusicBrainz genre ontology
+
+Naviamp bundles a generated snapshot of MusicBrainz genre entities, aliases, and genre-to-genre
+relationships to organize genre tags already present in a user's library. The imported MusicBrainz
+core data is made available under CC0 1.0. Naviamp does not bundle MusicBrainz's supplementary
+artist, recording, or release tag associations and does not contact MusicBrainz at runtime.
+
+MusicBrainz data license: <https://musicbrainz.org/doc/About/Data_License>
+
+CC0 1.0 Universal: <https://creativecommons.org/publicdomain/zero/1.0/>
 
 ## BASS audio library and official add-ons
 

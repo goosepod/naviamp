@@ -2406,19 +2406,19 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Choose whether Home shows your 5, 10, 20, or 50 most recently played radio stations.",
-            "Start Radio is now available from album and track menus throughout Home.",
-            "Album lists have a refreshed, consistent appearance with clearer artist and release-year information.",
-            "Playlist names have more room to breathe while Play and Shuffle remain close at hand.",
+            "Browse your library genres through an expandable MusicBrainz hierarchy and select a whole subgenre branch for a Genre Mix.",
+            "Use genre-aware suggestions while building Navidrome smart playlists.",
+            "Preview supported smart-playlist rules against the synced library before saving.",
+            "Choose whether Now Playing shows an album's original year or the year of the specific edition.",
+            "Optionally show track-specific artwork in Now Playing while keeping album artwork as the default.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Recently Played Radio now appears on Home after you start a station, making it easy to return to stations you enjoyed.",
-            "Starting radio from an album now begins with a song from that album.",
-            "The Now Playing scrub bar now seeks to the position you select.",
-            "Includes additional fixes and polish for radio playback and Home screen behavior.",
+            "Genre browsing keeps unmatched server tags available and falls back to the complete flat list when a hierarchy would not help.",
+            "Settings keeps its page and nested state when you navigate away and return.",
+            "Original-release metadata now survives cached, downloaded, queued, and restored media.",
         ),
     ),
 )
