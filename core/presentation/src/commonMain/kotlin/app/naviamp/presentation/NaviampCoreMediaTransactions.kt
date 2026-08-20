@@ -6,6 +6,13 @@ import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
+import app.naviamp.domain.playback.PlaybackProfile
+import app.naviamp.domain.playback.PlaybackProfileRepository
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.media.favoriteAlbumUpdate
 import app.naviamp.domain.media.favoriteArtistUpdate
 import app.naviamp.domain.media.favoriteTrackUpdate
@@ -44,17 +51,82 @@ class NaviampCoreQueuePlaybackController(
     private val effects: NaviampCorePlaybackEffectPort,
     private val publishNowPlaying: () -> Unit,
     private val openNowPlaying: () -> Unit,
+    private val activeSourceId: () -> String? = { null },
+    private val profiles: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
 ) {
-    fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false): Boolean {
+    fun play(
+        tracks: List<Track>,
+        index: Int = 0,
+        shuffle: Boolean = false,
+        groupTarget: PlaybackProfileTarget? = null,
+        groupLabel: String = "",
+        groupWithoutProfile: Boolean = false,
+    ): Boolean {
         val selected = if (shuffle) tracks.shuffled() else tracks
         if (selected.isEmpty()) return false
-        val update = queue.startQueue(selected, index.coerceIn(selected.indices))
+        val profile = groupTarget?.let { target ->
+            activeSourceId()?.let { sourceId -> profiles.playbackProfile(sourceId, target) }
+        }
+        val group = if (!shuffle && groupTarget != null && (groupWithoutProfile || profile != null)) {
+            PlaybackQueueGroup(
+                id = "${groupTarget.type}:${groupTarget.id}",
+                target = groupTarget,
+                label = groupLabel,
+                startIndex = 0,
+                endIndexExclusive = selected.size,
+                profile = profile ?: PlaybackProfile(),
+            )
+        } else {
+            null
+        }
+        val requestedQueue = PlaybackQueue(
+            tracks = selected,
+            currentIndex = index.coerceIn(selected.indices),
+            groups = listOfNotNull(group),
+        )
+        val update = queue.replaceQueue(requestedQueue)
         if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
         playback.updateCurrentTrack(update.queue.current)
         effects.playQueueSelection(update.queue, update.queue.currentIndex)
         publishNowPlaying()
         openNowPlaying()
         return true
+    }
+
+    fun addToQueue(
+        tracks: List<Track>,
+        groupTarget: PlaybackProfileTarget,
+        groupLabel: String,
+    ) = queue.appendTracks(
+        tracksToAdd = tracks,
+        label = "tracks",
+        group = savedProfileGroup(groupTarget, groupLabel),
+    )
+
+    fun playNext(
+        tracks: List<Track>,
+        groupTarget: PlaybackProfileTarget,
+        groupLabel: String,
+    ) = queue.playNextTracks(
+        tracksToAdd = tracks,
+        label = "tracks",
+        group = savedProfileGroup(groupTarget, groupLabel),
+    )
+
+    private fun savedProfileGroup(
+        target: PlaybackProfileTarget,
+        label: String,
+    ): PlaybackQueueGroup? {
+        val sourceId = activeSourceId() ?: return null
+        val profile = profiles.playbackProfile(sourceId, target) ?: return null
+        return PlaybackQueueGroup(
+            id = "${target.type}:${target.id}",
+            target = target,
+            label = label,
+            startIndex = 0,
+            endIndexExclusive = 0,
+            profile = profile,
+        )
     }
 }
 
@@ -85,8 +157,29 @@ class NaviampCoreMediaTransactions(
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
     }
 
+    fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false) {
+        if (!queuePlayback.play(
+                tracks = tracks,
+                shuffle = shuffle,
+                groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
+                groupLabel = album.title,
+                groupWithoutProfile = true,
+            )
+        ) {
+            publish("No tracks are available.")
+        }
+    }
+
     fun playNext(tracks: List<Track>) = apply(queue.playNextTracks(tracks, "tracks"))
     fun addToQueue(tracks: List<Track>) = apply(queue.appendTracks(tracks, "tracks"))
+
+    fun addAlbumToQueue(album: Album, tracks: List<Track>) = apply(
+        queuePlayback.addToQueue(
+            tracks = tracks,
+            groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
+            groupLabel = album.title,
+        ),
+    )
 
     override suspend fun startTrackRadio(seed: Track) {
         val provider = providerOrPublish() ?: return
@@ -363,7 +456,10 @@ class NaviampCoreMediaTransactions(
 
     private fun apply(update: app.naviamp.domain.playback.PlaybackQueueUpdate) {
         publish(update.status)
-        if (update.tracksChanged) effects.applyQueue(update.queue, clearPreparedNext = true)
+        if (update.tracksChanged) {
+            effects.applyQueue(update.queue, clearPreparedNext = true)
+            publishNowPlaying()
+        }
     }
 
     private fun providerOrPublish() = providerSource.current().also {

@@ -598,14 +598,19 @@ fun BassAudioBackend.bassPlaybackSnapshot(
 ): BassPlaybackSnapshot {
     val progressHandle = playbackSourceHandle(playbackHandle, sourceHandle)
     val decodedPositionSeconds = positionSeconds(progressHandle)
+    val playbackActiveState = activeState(playbackHandle)
     return BassPlaybackSnapshot(
-        activeState = activeState(playbackHandle),
+        activeState = playbackActiveState,
         sourceActiveState = sourceHandle.takeIf { it != 0 }?.let(::activeState),
         progress = PlaybackProgress(
-            positionSeconds = audiblePositionSeconds(
-                playbackStream = BassStreamHandle(playbackHandle),
-                sourceStream = BassStreamHandle(sourceHandle),
-            ) ?: decodedPositionSeconds,
+            positionSeconds = if (playbackActiveState == BassActiveState.Playing) {
+                audiblePositionSeconds(
+                    playbackStream = BassStreamHandle(playbackHandle),
+                    sourceStream = BassStreamHandle(sourceHandle),
+                ) ?: decodedPositionSeconds
+            } else {
+                decodedPositionSeconds
+            },
             durationSeconds = durationSeconds(progressHandle),
             decodedPositionSeconds = decodedPositionSeconds,
         ),

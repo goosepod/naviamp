@@ -40,6 +40,7 @@ class DesktopStorageRepositories private constructor(
     val keepDownloaded get() = repositories.keepDownloaded
     val pendingProviderActions get() = repositories.pendingProviderActions
     val playbackSessions get() = repositories.playbackSessions
+    val playbackProfiles get() = repositories.playbackProfiles
     val playbackHistory get() = repositories.playbackHistory
     val radioDjPresets get() = repositories.radioDjPresets
     val maintenance: CacheMaintenanceRepository<StorageCacheStats> get() = repositories.maintenance

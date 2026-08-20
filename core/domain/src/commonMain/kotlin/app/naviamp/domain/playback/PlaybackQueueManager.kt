@@ -2,6 +2,7 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PreviousButtonBehavior
 
@@ -36,6 +37,7 @@ class PlaybackQueueManager(
         existingTracks: List<Track> = currentQueue.tracks,
         deduplicateExisting: Boolean = false,
         maxHistory: Int? = null,
+        group: PlaybackQueueGroup? = null,
     ): PlaybackQueueUpdate =
         mutation.appendTracks(
             currentQueue = currentQueue,
@@ -44,6 +46,7 @@ class PlaybackQueueManager(
             existingTracks = existingTracks,
             deduplicateExisting = deduplicateExisting,
             maxHistory = maxHistory,
+            group = group,
         )
 
     fun appendQueueTracks(
@@ -60,6 +63,7 @@ class PlaybackQueueManager(
         existingTracks: List<Track> = currentQueue.tracks,
         deduplicateExisting: Boolean = false,
         maxHistory: Int? = null,
+        group: PlaybackQueueGroup? = null,
     ): PlaybackQueueUpdate =
         mutation.playNextTracks(
             currentQueue = currentQueue,
@@ -68,6 +72,7 @@ class PlaybackQueueManager(
             existingTracks = existingTracks,
             deduplicateExisting = deduplicateExisting,
             maxHistory = maxHistory,
+            group = group,
         )
 
     fun updateTrack(

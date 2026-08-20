@@ -26,6 +26,7 @@ class NaviampCoreDiagnosticsTest {
             provider = FakeCoreMediaProvider(supportsSonicSimilarity = true),
             sidecars = NaviampCoreNowPlayingSidecars(),
             playbackEngineRows = listOf("BASS load state" to "Loaded"),
+            playbackProfileRows = listOf("Custom profile active" to "true"),
             external = NaviampCoreDiagnosticsSnapshot(
                 platformRows = listOf("OS" to "Test OS"),
                 storage = StorageCacheStats(
@@ -42,6 +43,7 @@ class NaviampCoreDiagnosticsTest {
         assertEquals("Test OS", byTitle.getValue("Application").rows.toMap()["OS"])
         assertEquals("12", byTitle.getValue("Library").rows.toMap()["Indexed artists"])
         assertEquals("Loaded", byTitle.getValue("Playback engine").rows.toMap()["BASS load state"])
+        assertEquals("true", byTitle.getValue("Playback profile").rows.toMap()["Custom profile active"])
         assertEquals("7 (0 B)", byTitle.getValue("Storage").rows.toMap()["Lyrics"])
         assertTrue("Provider features" in byTitle)
         assertTrue("Track sidecars" in byTitle)

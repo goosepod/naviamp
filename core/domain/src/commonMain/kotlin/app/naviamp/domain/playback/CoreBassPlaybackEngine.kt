@@ -85,6 +85,7 @@ open class CoreBassPlaybackEngine(
     private val bufferPolicy: BassPlaybackBufferPolicy = BassPlaybackBufferPolicy(),
 ) : QueueAwarePlaybackEngine,
     BassPlaybackEngine,
+    RestartOnSeekPlaybackEngine,
     DownloadFallbackAwarePlaybackEngine,
     AudioOutputDevicePlaybackEngine,
     PlaybackEngineDiagnostics {
@@ -250,7 +251,10 @@ open class CoreBassPlaybackEngine(
 
                         var pollingState = BassPlaybackPollingState()
                         while (execution.isCurrent(currentPlaybackId)) {
-                            val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
+                            val snapshot = bass.bassPlaybackSnapshot(
+                                playbackHandle = playbackHandle,
+                                sourceHandle = currentSourceStream,
+                            )
                             val update = planBassPlaybackPollingUpdate(
                                 snapshot = snapshot,
                                 previous = pollingState,
@@ -660,7 +664,10 @@ open class CoreBassPlaybackEngine(
             var pollingState = BassPlaybackPollingState()
             try {
                 while (execution.isCurrent(currentPlaybackId)) {
-                    val snapshot = bass.bassPlaybackSnapshot(stream, currentSourceStream)
+                    val snapshot = bass.bassPlaybackSnapshot(
+                        playbackHandle = stream,
+                        sourceHandle = currentSourceStream,
+                    )
                     val update = planBassPlaybackPollingUpdate(
                         snapshot = snapshot,
                         previous = pollingState,

@@ -133,6 +133,16 @@ fun NaviampAlbumDetailContent(
                 NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.ToggleFavorite),
             )
         },
+        playbackProfile = screen.playbackProfile,
+        playbackProfileStatus = screen.playbackProfileStatus,
+        onPlaybackProfileSaved = { profile ->
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(
+                    detail.album,
+                    NaviampAlbumDetailCommand.SavePlaybackProfile(profile),
+                ),
+            )
+        },
         onArtistSelected = actions.onArtistSelected,
         onTrackAction = actions.onTrackAction,
         playlistChoices = playlistChoices,
@@ -153,6 +163,9 @@ private fun AlbumDetailContent(
     onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (String) -> Unit,
     onAlbumFavoriteToggled: () -> Unit,
+    playbackProfile: app.naviamp.domain.playback.PlaybackProfile,
+    playbackProfileStatus: String?,
+    onPlaybackProfileSaved: (app.naviamp.domain.playback.PlaybackProfile) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
@@ -162,6 +175,7 @@ private fun AlbumDetailContent(
     var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumImageOpen by remember(detail.album.id) { mutableStateOf(false) }
     var informationExpanded by remember(detail.album.id) { mutableStateOf(false) }
+    var playbackProfileOpen by remember(detail.album.id) { mutableStateOf(false) }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         if (request.action == SharedTrackRowAction.AddToPlaylist && request.playlistChoice == null) {
             trackForPlaylist = request.track
@@ -231,6 +245,7 @@ private fun AlbumDetailContent(
                         NaviampDetailAction("Download album", NaviampIcons.Downloads, onAlbumDownload, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Add album to queue", NaviampIcons.Queue, onAlbumAddToQueue, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Add album to playlist", NaviampIcons.Playlist, { addAlbumToPlaylistOpen = true }, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()),
                         NaviampDetailAction(
                             if (detail.album.favoriteActive) "Remove album favorite" else "Favorite album",
                             NaviampTransportIcons.Heart,
@@ -239,6 +254,9 @@ private fun AlbumDetailContent(
                         ),
                     ),
                 )
+                playbackProfileStatus?.let { status ->
+                    Text(status, color = colors.secondaryText, fontSize = 11.sp)
+                }
             }
         }
         Text(
@@ -357,6 +375,15 @@ private fun AlbumDetailContent(
             imageUrl = detail.album.coverArtUrl,
             colors = colors,
             onDismissRequest = { albumImageOpen = false },
+        )
+    }
+    if (playbackProfileOpen) {
+        PlaybackProfileDialog(
+            title = "${detail.album.title} playback profile",
+            initialProfile = playbackProfile,
+            colors = colors,
+            onDismissRequest = { playbackProfileOpen = false },
+            onSave = onPlaybackProfileSaved,
         )
     }
 }

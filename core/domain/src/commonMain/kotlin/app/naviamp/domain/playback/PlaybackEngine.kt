@@ -33,6 +33,9 @@ interface PlaybackEngine {
     fun stop()
 }
 
+/** Native engines whose buffered timeline requires rebuilding the current stream for exact seeks. */
+interface RestartOnSeekPlaybackEngine : PlaybackEngine
+
 /** Optional one-way host shutdown contract for engines that own native resources. */
 interface ReleasablePlaybackEngine : PlaybackEngine {
     fun release()

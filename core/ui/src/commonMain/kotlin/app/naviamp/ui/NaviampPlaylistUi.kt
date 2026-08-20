@@ -608,6 +608,16 @@ fun NaviampPlaylistDetailContent(
                 NaviampPlaylistDetailActionRequest(playlist, NaviampPlaylistDetailCommand.Delete),
             )
         },
+        playbackProfile = screen.playbackProfile,
+        playbackProfileStatus = screen.playbackProfileStatus,
+        onPlaybackProfileSaved = { profile ->
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    detail.playlist,
+                    NaviampPlaylistDetailCommand.SavePlaybackProfile(profile),
+                ),
+            )
+        },
         onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
         onSmartPlaylistPreview = playlistsActions.smartPlaylist.onPreview,
         onSmartPlaylistUpdate = playlistsActions.smartPlaylist.onUpdate,
@@ -640,6 +650,9 @@ private fun PlaylistDetailContent(
     onCopyPlaylist: (String, Boolean) -> Unit,
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
+    playbackProfile: app.naviamp.domain.playback.PlaybackProfile,
+    playbackProfileStatus: String?,
+    onPlaybackProfileSaved: (app.naviamp.domain.playback.PlaybackProfile) -> Unit,
     onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
     onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
@@ -662,6 +675,7 @@ private fun PlaylistDetailContent(
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistLoading by remember { mutableStateOf(false) }
     var smartPlaylistPasswordPromptOpen by remember { mutableStateOf(false) }
+    var playbackProfileOpen by remember(detail.playlist.id) { mutableStateOf(false) }
     var detailViewportBounds by remember { mutableStateOf(Rect.Zero) }
     val coroutineScope = rememberCoroutineScope()
     val editSmartPlaylistLabel = stringResource(Res.string.playlists_edit_smart)
@@ -764,6 +778,7 @@ private fun PlaylistDetailContent(
                         }
                         add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_queue), NaviampIcons.Queue, onAddPlaylistToQueue, detail.tracks.isNotEmpty()))
                         add(NaviampDetailAction(stringResource(Res.string.playlists_download), NaviampIcons.Downloads, onDownloadPlaylist, detail.tracks.isNotEmpty()))
+                        add(NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()))
                         if (!detail.playlist.isSmartPlaylist) {
                             add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_playlist), NaviampIcons.Playlist, { addToPlaylistOpen = true }, detail.tracks.isNotEmpty()))
                             add(NaviampDetailAction(stringResource(Res.string.playlists_bulk_tools_title), NaviampIcons.Settings, { bulkToolsOpen = true }, detail.tracks.isNotEmpty()))
@@ -777,6 +792,9 @@ private fun PlaylistDetailContent(
                         color = colors.secondaryText,
                         fontSize = 12.sp,
                     )
+                }
+                playbackProfileStatus?.let { message ->
+                    Text(message, color = colors.secondaryText, fontSize = 11.sp)
                 }
             }
         }
@@ -904,6 +922,15 @@ private fun PlaylistDetailContent(
                 smartPlaylistEditorOpen = true
                 smartPlaylistLoadMessage = null
             },
+        )
+    }
+    if (playbackProfileOpen) {
+        PlaybackProfileDialog(
+            title = "${detail.playlist.title} playback profile",
+            initialProfile = playbackProfile,
+            colors = colors,
+            onDismissRequest = { playbackProfileOpen = false },
+            onSave = onPlaybackProfileSaved,
         )
     }
 }

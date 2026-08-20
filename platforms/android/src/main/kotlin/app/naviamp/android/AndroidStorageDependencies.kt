@@ -22,6 +22,7 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.playback.PlaybackProfileRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
@@ -48,6 +49,7 @@ class AndroidStorageDependencies(
     MediaSourceRepository by storage,
     ProviderMediaSourceRepository by storage,
     PlaybackSessionRepository by storage,
+    PlaybackProfileRepository by storage,
     LocalLibraryIndexRepository by storage,
     PendingProviderActionRepository by storage,
     RadioDjPresetRepository by storage,

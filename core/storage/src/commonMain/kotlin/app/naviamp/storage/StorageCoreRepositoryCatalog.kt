@@ -60,6 +60,7 @@ class StorageCoreRepositoryCatalog(
     val keepDownloaded = StorageKeepDownloadedStore(queries, nowEpochMillis)
     val radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis)
     val playbackSessions = StoragePlaybackSessionStore(queries, nowEpochMillis)
+    val playbackProfiles = StoragePlaybackProfileStore(queries, nowEpochMillis)
     val playbackHistory = StoragePlaybackHistoryStore(queries)
     val pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis)
     val audioWaveforms = StorageAudioWaveformStore(

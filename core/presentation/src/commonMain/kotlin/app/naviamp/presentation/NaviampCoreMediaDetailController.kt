@@ -85,6 +85,8 @@ class NaviampCoreMediaDetailController(
     private val scope: CoroutineScope,
     private val discovery: NaviampCoreArtistDiscoveryServices = NaviampCoreArtistDiscoveryServices(),
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
+    private val playbackProfiles: NaviampCorePlaybackProfileController =
+        NaviampCorePlaybackProfileController(stateStore),
 ) : NaviampCoreCommandController, NaviampCoreArtistNavigator {
     private var albumGeneration = 0L
     private var artistGeneration = 0L
@@ -299,6 +301,8 @@ class NaviampCoreMediaDetailController(
                                 showAlbumInformation = shell.general.interfaceSettings.showAlbumInformation,
                             ),
                             status = "Connected.",
+                            playbackProfile = playbackProfiles.albumProfile(detail.album.id.value),
+                            playbackProfileStatus = null,
                         ),
                     )
                 }

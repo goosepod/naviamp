@@ -4,6 +4,11 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.playback.PlaybackProfile
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.playback.PlaybackTransitionMode
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -21,6 +26,16 @@ class StoragePlaybackSessionStoreTest {
             val session = PlaybackSessionSettings.fromTracks(
                 tracks = listOf(testTrack("track")),
                 currentIndex = 0,
+                queueGroups = listOf(
+                    PlaybackQueueGroup(
+                        id = "album-group",
+                        target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album"),
+                        label = "Album",
+                        startIndex = 0,
+                        endIndexExclusive = 1,
+                        profile = PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless),
+                    ),
+                ),
                 positionSeconds = 12.5,
             )!!
 

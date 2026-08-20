@@ -3,6 +3,7 @@ package app.naviamp.domain.settings
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.normalizedGroups
 
 data class RestoredPlaybackSession(
     val tracks: List<Track>,
@@ -24,6 +25,7 @@ fun PlaybackSessionSettings.restoredTrackSession(): RestoredPlaybackSession? {
             tracks = tracks,
             currentIndex = currentIndex,
             playNextCount = playNextCount.coerceIn(0, tracks.size - currentIndex - 1),
+            groups = queueGroups,
         ),
         playbackProgress = PlaybackProgress(
             positionSeconds = positionSeconds,
@@ -43,6 +45,7 @@ fun playbackSessionFromQueue(
         tracks = queue.tracks,
         currentIndex = queue.currentIndex,
         playNextCount = queue.playNextCount,
+        queueGroups = queue.normalizedGroups(),
         positionSeconds = positionSeconds,
     )
 

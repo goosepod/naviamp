@@ -10,6 +10,7 @@ data class ResolvedPlaylistDetailActionHandlers<T>(
     val onCopy: (T, String, Boolean) -> Unit,
     val onRename: (T, String) -> Unit,
     val onDelete: (T) -> Unit,
+    val onSavePlaybackProfile: (T, app.naviamp.domain.playback.PlaybackProfile) -> Unit = { _, _ -> },
 )
 
 enum class PlaylistDetailActionDispatchResult {
@@ -43,6 +44,8 @@ fun <T> dispatchResolvedPlaylistDetailAction(
             ?.let { name -> handlers.onRename(playlist, name).dispatched() }
             ?: PlaylistDetailActionDispatchResult.InvalidValue
         NaviampPlaylistDetailCommand.Delete -> handlers.onDelete(playlist).dispatched()
+        is NaviampPlaylistDetailCommand.SavePlaybackProfile ->
+            handlers.onSavePlaybackProfile(playlist, command.profile).dispatched()
     }
 }
 

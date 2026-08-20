@@ -28,6 +28,16 @@ class NaviampNowPlayingPresentationTest {
         assertEquals(0f, waveformSeekFraction(x = -20f, width = 200))
         assertEquals(0.5f, waveformSeekFraction(x = 100f, width = 200))
         assertEquals(1f, waveformSeekFraction(x = 240f, width = 200))
+        assertEquals(0.5f, waveformSeekFraction(x = 98f, width = 196f))
+    }
+
+    @Test
+    fun desktopWaveformWidthUsesLogicalPointerCoordinatesOnScaledDisplays() {
+        assertEquals(
+            196f,
+            waveformPointerInteractionWidth(layoutWidthPx = 208.25f, density = 1.0625f),
+            absoluteTolerance = 0.01f,
+        )
     }
 
     @Test

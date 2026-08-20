@@ -95,6 +95,7 @@ class AndroidNaviampCoreCatalog private constructor(
                 lyricsOffsetRepository = storage,
                 sidecarStatusRepository = storage,
                 playbackSessionRepository = storage,
+                playbackProfileRepository = storage,
                 saveVisualizerSettings = settingsCatalog.storedSettings.saveVisualizer,
                 prepareWaveformAnalysis = prepareWaveformAnalysis,
                 waveformWorkContext = waveformWorkContext,

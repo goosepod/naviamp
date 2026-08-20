@@ -1,0 +1,12 @@
+ALTER TABLE playback_session_state ADD COLUMN queue_groups_payload TEXT;
+
+CREATE TABLE playback_profile (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  transition_mode TEXT NOT NULL,
+  crossfade_duration_seconds INTEGER,
+  replay_gain_mode TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, target_type, target_id)
+);

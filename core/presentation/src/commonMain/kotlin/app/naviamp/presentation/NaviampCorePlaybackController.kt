@@ -12,6 +12,8 @@ import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackRepeatCommandController
 import app.naviamp.app.NaviampPlaybackSeekRequest
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
+import app.naviamp.domain.playback.PlaybackTransitionMode
+import app.naviamp.domain.playback.resolveAgainst
 import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.SleepTimerRequest
@@ -24,10 +26,13 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.settings.streamQualityForNetwork
+import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.PlaybackSessionSavePlan
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.groupAt
+import app.naviamp.domain.queue.groupForTransition
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
@@ -108,6 +113,12 @@ class NaviampCorePlaybackController(
 
     fun diagnostics(): List<Pair<String, String>> =
         effects.diagnostics() + sessions.performanceDiagnostics()
+
+    fun playbackProfileDiagnostics(): List<Pair<String, String>> {
+        val liveQueue = playback.state.value.queue
+        val global = stateStore.state.value.shell.playback.settings
+        return playbackProfileDiagnosticRows(liveQueue, global)
+    }
 
     fun attachNativePlayback() {
         effects.setVisualizerFramesEnabled(display.visualizerVisible)
@@ -535,6 +546,39 @@ class NaviampCorePlaybackController(
     private fun publishStatus(message: String) {
         stateStore.update { state -> state.copy(overlays = state.overlays.copy(status = message)) }
     }
+}
+
+internal fun playbackProfileDiagnosticRows(
+    queue: PlaybackQueue,
+    global: PlaybackSettings,
+): List<Pair<String, String>> {
+    val group = queue.groupAt()
+    val resolvedTrack = group?.profile?.resolveAgainst(global) ?: global
+    val nextIndex = queue.nextIndex(repeatTrack = false)
+    val transitionGroup = nextIndex?.let { queue.groupForTransition(toIndex = it) }
+    val resolvedTransition = transitionGroup?.profile?.resolveAgainst(global) ?: global
+    val transitionSource = when {
+        nextIndex == null -> "No next track"
+        transitionGroup != null && !transitionGroup.profile.isInherited -> "Custom group profile"
+        transitionGroup != null -> "Group inherits global"
+        group != null -> "Global at group boundary"
+        else -> "Global player settings"
+    }
+    return listOf(
+        "Custom profile active" to (group?.profile?.isInherited == false).toString(),
+        "Queue group" to (group?.label?.ifBlank { group.target.type.name } ?: "None"),
+        "Profile target" to group?.let { "${it.target.type.name}: ${it.target.id}" }.orEmpty().ifBlank { "None" },
+        "Transition override" to (group?.profile?.transitionMode?.name ?: "None"),
+        "ReplayGain override" to (group?.profile?.replayGainMode?.name ?: "None"),
+        "Resolved ReplayGain" to resolvedTrack.replayGainMode.displayName,
+        "Next transition source" to transitionSource,
+        "Next transition" to when {
+            nextIndex == null -> "None"
+            resolvedTransition.crossfadeDurationSeconds > 0 -> "Crossfade ${resolvedTransition.crossfadeDurationSeconds}s"
+            resolvedTransition.gaplessEnabled -> PlaybackTransitionMode.Gapless.name
+            else -> "Track break"
+        },
+    )
 }
 
 private const val PlaybackSessionSaveIntervalMillis = 5_000L

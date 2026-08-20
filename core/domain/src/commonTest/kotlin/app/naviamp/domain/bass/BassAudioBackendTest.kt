@@ -3,6 +3,7 @@ package app.naviamp.domain.bass
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BassAudioBackendTest {
@@ -309,6 +310,44 @@ class BassAudioBackendTest {
             ),
             backend.calls,
         )
+    }
+
+    @Test
+    fun mixerReportedAudiblePositionIsUsedForCurrentSource() {
+        val backend = RecordingBassAudioBackend()
+
+        val snapshot = backend.bassPlaybackSnapshot(
+            playbackHandle = 7,
+            sourceHandle = 8,
+        )
+
+        assertEquals(11.0, snapshot.progress.positionSeconds)
+        assertEquals(12.5, snapshot.progress.decodedPositionSeconds)
+        assertEquals(
+            listOf(
+                "positionSeconds:8",
+                "active:7",
+                "active:8",
+                "audiblePositionSeconds:7:8",
+                "durationSeconds:8",
+                "metadata:8",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun pausedMixerUsesExactDecodedPositionInsteadOfStaleAudibleHistory() {
+        val backend = RecordingBassAudioBackend(activeStateValue = BassActiveState.Paused)
+
+        val snapshot = backend.bassPlaybackSnapshot(
+            playbackHandle = 7,
+            sourceHandle = 8,
+        )
+
+        assertEquals(12.5, snapshot.progress.positionSeconds)
+        assertEquals(12.5, snapshot.progress.decodedPositionSeconds)
+        assertFalse(backend.calls.any { it.startsWith("audiblePositionSeconds:") })
     }
 
     @Test
@@ -755,6 +794,7 @@ private class RecordingBassAudioBackend(
     private val createMixerSucceeds: Boolean = true,
     private val addSucceeds: Boolean = true,
     override val lastErrorCode: Int? = null,
+    private val activeStateValue: Int = BassActiveState.Playing,
 ) : BassAudioBackend {
     val calls = mutableListOf<String>()
 
@@ -853,7 +893,7 @@ private class RecordingBassAudioBackend(
 
     override fun activeState(stream: BassStreamHandle): Int {
         calls += "active:${stream.value}"
-        return BassActiveState.Playing
+        return activeStateValue
     }
 
     override fun positionSeconds(stream: BassStreamHandle): Double {

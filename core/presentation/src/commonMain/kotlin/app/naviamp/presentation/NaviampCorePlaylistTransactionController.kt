@@ -76,6 +76,8 @@ class NaviampCorePlaylistTransactionController(
     },
     private val openNowPlaying: () -> Unit = {},
     private val onPlaylistTracksChanged: suspend (String) -> Unit = {},
+    private val playbackProfiles: NaviampCorePlaybackProfileController =
+        NaviampCorePlaybackProfileController(stateStore),
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -174,6 +176,10 @@ class NaviampCorePlaylistTransactionController(
                     provider.deletePlaylist(playlist.id)
                     browseController.refreshAfterMutation("Deleted playlist.")
                     clearDeletedSelection(playlist.id)
+                    return
+                }
+                is NaviampPlaylistDetailCommand.SavePlaybackProfile -> {
+                    playbackProfiles.savePlaylistProfile(playlist.id, command.profile)
                     return
                 }
             }

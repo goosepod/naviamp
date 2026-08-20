@@ -137,6 +137,7 @@ internal class DesktopComposition private constructor(
                 lyricsOffsetRepository = storage.lyricsOffsets,
                 sidecarStatusRepository = SidecarStatusService(storage.sidecarStatuses, nowEpochMillis),
                 playbackSessionRepository = storage.playbackSessions,
+                playbackProfileRepository = storage.playbackProfiles,
                 saveVisualizerSettings = settingsCatalog.storedSettings.saveVisualizer,
                 waveformWorkContext = Dispatchers.IO,
             )

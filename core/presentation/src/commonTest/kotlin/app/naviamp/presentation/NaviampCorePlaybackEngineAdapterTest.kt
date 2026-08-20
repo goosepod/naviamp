@@ -31,6 +31,11 @@ import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.PlaybackQueueGroup
+import app.naviamp.domain.playback.PlaybackProfile
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.playback.PlaybackTransitionMode
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.DownloadedTrackPlayback
@@ -580,6 +585,157 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun queueGroupOverridesTransitionOnlyWithinItsBoundary() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(173.0, 180.0)
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 6) },
+        )
+        val second = provider.track.copy(id = TrackId("second"), title = "Second")
+        val outside = provider.track.copy(id = TrackId("outside"), title = "Outside")
+        val queue = PlaybackQueue(
+            tracks = listOf(provider.track, second, outside),
+            currentIndex = 0,
+            groups = listOf(
+                PlaybackQueueGroup(
+                    id = "album",
+                    target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album"),
+                    label = "Album",
+                    startIndex = 0,
+                    endIndexExclusive = 2,
+                    profile = PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless),
+                ),
+            ),
+        )
+
+        adapter.playQueueSelection(queue, 0)
+        advanceUntilIdle()
+        assertEquals(0, engine.crossfadeSeconds)
+
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        advanceUntilIdle()
+        assertEquals(6, engine.crossfadeSeconds)
+    }
+
+    @Test
+    fun seekingAfterBoundaryCrossfadePreparationRestartsAtTheRequestedSongPosition() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(173.0, 180.0)
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8) },
+        )
+        val outside = provider.track.copy(id = TrackId("outside"), title = "Outside")
+        val queue = PlaybackQueue(
+            tracks = listOf(provider.track, outside),
+            currentIndex = 0,
+            groups = listOf(
+                PlaybackQueueGroup(
+                    id = "album",
+                    target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album"),
+                    label = "Album",
+                    startIndex = 0,
+                    endIndexExclusive = 1,
+                    profile = PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless),
+                ),
+            ),
+        )
+
+        adapter.playQueueSelection(queue, 0)
+        advanceUntilIdle()
+        assertEquals("outside", engine.preparedRequest?.mediaId)
+
+        adapter.seek(74.5)
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), engine.seeks)
+        assertEquals("core-track", engine.request?.mediaId)
+        assertEquals(74.5, engine.request?.startPositionSeconds)
+        assertEquals(
+            listOf("clear", "play:core-track", "prepare:outside", "clear", "play:core-track", "prepare:outside"),
+            engine.events,
+        )
+    }
+
+    @Test
+    fun bassStyleSeekingWithoutPreparedNextRestartsExactlyAndPreservesPause() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(142.0, 389.0)
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(gaplessEnabled = true) },
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+        assertEquals(null, engine.preparedRequest)
+        engine.emitState(PlaybackState.Paused)
+
+        adapter.seek(194.5)
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), engine.seeks)
+        assertEquals(194.5, engine.request?.startPositionSeconds)
+        assertEquals(1, engine.pauseCalls)
+        assertEquals(
+            listOf("clear", "play:core-track", "clear", "play:core-track", "pause"),
+            engine.events,
+        )
+    }
+
+    @Test
+    fun pausedNearEndSeekDoesNotReprepareNextUntilPlaybackResumes() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(173.0, 180.0)
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(gaplessEnabled = true) },
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+        assertEquals("next", engine.preparedRequest?.mediaId)
+        engine.emitState(PlaybackState.Paused)
+
+        adapter.seek(175.0)
+        advanceUntilIdle()
+
+        assertEquals(175.0, engine.request?.startPositionSeconds)
+        assertEquals(null, engine.preparedRequest)
+        assertEquals(1, engine.pauseCalls)
+        assertEquals(
+            listOf("clear", "play:core-track", "prepare:next", "clear", "play:core-track", "pause"),
+            engine.events,
+        )
+
+        adapter.resume()
+        engine.emitState(PlaybackState.Playing)
+        engine.emitProgress(PlaybackProgress(175.0, 180.0))
+        advanceUntilIdle()
+
+        assertEquals("next", engine.preparedRequest?.mediaId)
+    }
+
+    @Test
     fun changingTransitionSettingsReplacesPreparedNextWithoutStartingANewQueue() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine().apply {
@@ -806,7 +962,7 @@ class NaviampCorePlaybackEngineAdapterTest {
 }
 
 private class RecordingPlaybackEngine :
-    PlaybackEngine,
+    app.naviamp.domain.playback.RestartOnSeekPlaybackEngine,
     QueueAwarePlaybackEngine,
     VisualizerPlaybackEngine,
     NetworkCertificateVerificationPlaybackEngine,
@@ -824,6 +980,10 @@ private class RecordingPlaybackEngine :
     var preparedRequest: PlaybackRequest? = null
     var appliedVolume = -1
     var emittedProgress = PlaybackProgress(12.0, 180.0)
+    var crossfadeSeconds = -1
+    val seeks = mutableListOf<Double>()
+    var pauseCalls = 0
+    private var stateCallback: ((PlaybackState) -> Unit)? = null
     private var progressCallback: ((PlaybackProgress) -> Unit)? = null
     private var downloadFallbackListener: (() -> Unit)? = null
     var visualizerReads = 0
@@ -839,15 +999,20 @@ private class RecordingPlaybackEngine :
     ) {
         this.request = request
         events += "play:${request.mediaId}"
+        stateCallback = onStateChanged
         onStateChanged(PlaybackState.Playing)
         progressCallback = onProgressChanged
         onProgressChanged(emittedProgress)
         onMetadataChanged(PlaybackStreamMetadata(title = "Core Stream"))
     }
 
-    override fun pause() = Unit
+    override fun pause() {
+        pauseCalls += 1
+        events += "pause"
+        stateCallback?.invoke(PlaybackState.Paused)
+    }
     override fun resume() = Unit
-    override fun seek(positionSeconds: Double) = Unit
+    override fun seek(positionSeconds: Double) { seeks += positionSeconds }
     override fun setVolume(percent: Int) { appliedVolume = percent }
     override fun stop() = Unit
     override fun setNetworkCertificateVerification(enabled: Boolean) {
@@ -860,7 +1025,9 @@ private class RecordingPlaybackEngine :
         visualizerReads += 1
         return PlaybackVisualizerFrame(listOf(0.5f), 1L)
     }
-    override fun setCrossfadeDuration(seconds: Int) = Unit
+    override fun setCrossfadeDuration(seconds: Int) {
+        crossfadeSeconds = seconds
+    }
     override fun prepareNext(request: PlaybackRequest) {
         preparedRequest = request
         events += "prepare:${request.mediaId}"
@@ -872,6 +1039,10 @@ private class RecordingPlaybackEngine :
 
     fun emitProgress(progress: PlaybackProgress) {
         progressCallback?.invoke(progress)
+    }
+
+    fun emitState(state: PlaybackState) {
+        stateCallback?.invoke(state)
     }
 
     fun emitDownloadFallback() {

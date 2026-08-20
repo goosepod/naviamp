@@ -7,6 +7,8 @@ import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.home.HomeLibraryRepository
+import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
+import app.naviamp.domain.playback.PlaybackProfileRepository
 import app.naviamp.domain.settings.RecentRadioStream
 
 /** Provider-backed product inputs that do not depend on an operating-system API. */
@@ -57,6 +59,7 @@ data class NaviampCorePlaybackServices(
     val sidecars: NaviampCoreNowPlayingSidecarPort,
     val visualizerSettings: NaviampCoreVisualizerSettingsPort,
     val sessions: NaviampPlaybackSessionController,
+    val profiles: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
 )
 
 /** Settings stores and maintenance mechanisms; Core owns their ordering and presentation. */

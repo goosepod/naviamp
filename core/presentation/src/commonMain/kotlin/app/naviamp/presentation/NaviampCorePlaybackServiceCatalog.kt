@@ -15,6 +15,8 @@ import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackLocalAudio
+import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
+import app.naviamp.domain.playback.PlaybackProfileRepository
 import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
@@ -54,6 +56,7 @@ fun naviampCorePlaybackServiceCatalog(
     lyricsOffsetRepository: LyricsOffsetRepository,
     sidecarStatusRepository: SidecarStatusRepository,
     playbackSessionRepository: PlaybackSessionRepository,
+    playbackProfileRepository: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
     saveVisualizerSettings: (VisualizerSettings) -> Unit,
     prepareWaveformAnalysis: suspend () -> Unit = {},
     waveformWorkContext: CoroutineContext = EmptyCoroutineContext,
@@ -128,5 +131,6 @@ fun naviampCorePlaybackServiceCatalog(
             }
         },
         sessions = NaviampPlaybackSessionController(playbackSessionRepository),
+        profiles = playbackProfileRepository,
     )
 }

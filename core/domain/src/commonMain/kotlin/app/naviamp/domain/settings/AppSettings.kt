@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioDjPresetRepository
@@ -887,6 +888,7 @@ data class PlaybackSessionSettings(
     val tracks: List<SavedTrack> = emptyList(),
     val currentIndex: Int = -1,
     val playNextCount: Int = 0,
+    val queueGroups: List<PlaybackQueueGroup> = emptyList(),
     val positionSeconds: Double? = null,
     val internetRadioStation: SavedInternetRadioStation? = null,
     val nowPlayingOpen: Boolean = false,
@@ -902,6 +904,7 @@ data class PlaybackSessionSettings(
             tracks: List<Track>,
             currentIndex: Int,
             playNextCount: Int = 0,
+            queueGroups: List<PlaybackQueueGroup> = emptyList(),
             positionSeconds: Double? = null,
         ): PlaybackSessionSettings? {
             if (tracks.isEmpty() || currentIndex !in tracks.indices) return null
@@ -909,6 +912,7 @@ data class PlaybackSessionSettings(
                 tracks = tracks.map { SavedTrack.fromTrack(it) },
                 currentIndex = currentIndex,
                 playNextCount = playNextCount.coerceIn(0, tracks.size - currentIndex - 1),
+                queueGroups = queueGroups.mapNotNull { it.normalized(tracks.size) },
                 positionSeconds = positionSeconds?.takeIf { it > 0.0 },
             )
         }

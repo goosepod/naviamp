@@ -10,6 +10,7 @@ import app.naviamp.domain.playback.PlaybackShuffleUpdate
 import app.naviamp.domain.playback.PlaybackQueueUpdate
 import app.naviamp.domain.playback.DefaultPreviousRestartThresholdSeconds
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.generatedRadioTracksToAppend
 import app.naviamp.domain.radio.generatedRadioUpcomingTracks
@@ -54,6 +55,7 @@ class NaviampPlaybackQueueCoordinator(
         existingTracks: List<Track> = currentQueue.tracks,
         deduplicateExisting: Boolean = false,
         maxHistory: Int? = null,
+        group: PlaybackQueueGroup? = null,
     ): PlaybackQueueUpdate =
         queueManager.appendTracks(
             currentQueue = currentQueue,
@@ -62,6 +64,7 @@ class NaviampPlaybackQueueCoordinator(
             existingTracks = existingTracks,
             deduplicateExisting = deduplicateExisting,
             maxHistory = maxHistory,
+            group = group,
         ).also(::commit)
 
     fun playNextTracks(
@@ -70,6 +73,7 @@ class NaviampPlaybackQueueCoordinator(
         existingTracks: List<Track> = currentQueue.tracks,
         deduplicateExisting: Boolean = false,
         maxHistory: Int? = null,
+        group: PlaybackQueueGroup? = null,
     ): PlaybackQueueUpdate =
         queueManager.playNextTracks(
             currentQueue = currentQueue,
@@ -78,6 +82,7 @@ class NaviampPlaybackQueueCoordinator(
             existingTracks = existingTracks,
             deduplicateExisting = deduplicateExisting,
             maxHistory = maxHistory,
+            group = group,
         ).also(::commit)
 
     fun removeAt(index: Int): PlaybackQueueMutationUpdate {

@@ -206,6 +206,7 @@ class NaviampIosApplication(
         lyricsOffsetRepository = repositories.lyricsOffsets,
         sidecarStatusRepository = SidecarStatusService(repositories.sidecarStatuses, ::naviampNowEpochMillis),
         playbackSessionRepository = repositories.playbackSessions,
+        playbackProfileRepository = repositories.playbackProfiles,
         saveVisualizerSettings = settings.storedSettings.saveVisualizer,
         verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
         prepareWaveformAnalysis = { waveformBass.init().getOrThrow() },

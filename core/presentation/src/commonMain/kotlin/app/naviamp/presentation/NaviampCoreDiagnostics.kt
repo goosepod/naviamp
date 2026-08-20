@@ -49,6 +49,7 @@ internal fun naviampCoreDiagnostics(
     provider: MediaProvider?,
     sidecars: NaviampCoreNowPlayingSidecars,
     playbackEngineRows: List<Pair<String, String>>,
+    playbackProfileRows: List<Pair<String, String>> = emptyList(),
     external: NaviampCoreDiagnosticsSnapshot,
 ): NaviampDiagnosticsUi {
     val connection = shell.connectionSettings.connection
@@ -137,6 +138,9 @@ internal fun naviampCoreDiagnostics(
     )
     if (playbackEngineRows.isNotEmpty()) {
         sections += NaviampDiagnosticsSectionUi("Playback engine", playbackEngineRows)
+    }
+    if (playbackProfileRows.isNotEmpty()) {
+        sections += NaviampDiagnosticsSectionUi("Playback profile", playbackProfileRows)
     }
     provider?.capabilities?.let { capabilities ->
         sections += NaviampDiagnosticsSectionUi("Provider features", capabilities.diagnosticRows())

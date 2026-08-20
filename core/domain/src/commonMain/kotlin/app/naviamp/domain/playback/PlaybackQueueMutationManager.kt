@@ -2,6 +2,7 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.PlaybackQueueGroup
 
 class PlaybackQueueMutationManager {
     fun appendTracks(
@@ -11,6 +12,7 @@ class PlaybackQueueMutationManager {
         existingTracks: List<Track> = currentQueue.tracks,
         deduplicateExisting: Boolean = false,
         maxHistory: Int? = null,
+        group: PlaybackQueueGroup? = null,
     ): PlaybackQueueUpdate {
         val tracks = appendableTracks(
             tracksToAdd = tracksToAdd,
@@ -19,7 +21,12 @@ class PlaybackQueueMutationManager {
         )
         val nextQueue = when {
             tracks.isEmpty() -> currentQueue
-            currentQueue.isInactiveEmpty -> PlaybackQueue(tracks = tracks, currentIndex = 0)
+            currentQueue.isInactiveEmpty -> PlaybackQueue(
+                tracks = tracks,
+                currentIndex = 0,
+                groups = group?.copy(startIndex = 0, endIndexExclusive = tracks.size)?.let(::listOf).orEmpty(),
+            )
+            group != null -> currentQueue.appendGroupedTracks(tracks, group, maxHistory = maxHistory)
             else -> currentQueue.appendTracks(tracks, maxHistory = maxHistory)
         }
         return PlaybackQueueUpdate(
@@ -57,6 +64,7 @@ class PlaybackQueueMutationManager {
         existingTracks: List<Track> = currentQueue.tracks,
         deduplicateExisting: Boolean = false,
         maxHistory: Int? = null,
+        group: PlaybackQueueGroup? = null,
     ): PlaybackQueueUpdate {
         val tracks = appendableTracks(
             tracksToAdd = tracksToAdd,
@@ -65,7 +73,12 @@ class PlaybackQueueMutationManager {
         )
         val nextQueue = when {
             tracks.isEmpty() -> currentQueue
-            currentQueue.isInactiveEmpty -> PlaybackQueue(tracks = tracks, currentIndex = 0)
+            currentQueue.isInactiveEmpty -> PlaybackQueue(
+                tracks = tracks,
+                currentIndex = 0,
+                groups = group?.copy(startIndex = 0, endIndexExclusive = tracks.size)?.let(::listOf).orEmpty(),
+            )
+            group != null -> currentQueue.playNextGroupedTracks(tracks, group, maxHistory = maxHistory)
             else -> currentQueue.playNextTracks(tracks, maxHistory = maxHistory)
         }
         return PlaybackQueueUpdate(

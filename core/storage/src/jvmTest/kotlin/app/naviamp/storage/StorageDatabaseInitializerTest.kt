@@ -124,6 +124,8 @@ private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFo
     execute(null, "ALTER TABLE library_track DROP COLUMN original_release_year", 0)
     execute(null, "ALTER TABLE downloaded_audio DROP COLUMN original_release_year", 0)
     execute(null, "ALTER TABLE playback_history DROP COLUMN original_release_year", 0)
+    execute(null, "ALTER TABLE playback_session_state DROP COLUMN queue_groups_payload", 0)
+    execute(null, "DROP TABLE playback_profile", 0)
     if (!includeSelectedMusicFolders) {
         execute(null, "ALTER TABLE media_source DROP COLUMN selected_music_folder_ids_json", 0)
     }

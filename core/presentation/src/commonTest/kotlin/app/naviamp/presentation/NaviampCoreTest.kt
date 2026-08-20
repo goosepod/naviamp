@@ -17,6 +17,12 @@ import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
+import app.naviamp.domain.playback.PlaybackProfile
+import app.naviamp.domain.playback.PlaybackProfileAssignment
+import app.naviamp.domain.playback.PlaybackProfileRepository
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.playback.PlaybackTransitionMode
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingProviderAction
@@ -296,7 +302,9 @@ class NaviampCoreTest {
         val provider = FakeCoreMediaProvider()
         val effects = FakeCorePlaybackEffects()
         val current = coreTrack("current")
-        val defaults = fakeCoreServices(provider)
+        val target = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, provider.playlist.id)
+        val profile = PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless)
+        val defaults = fakeCoreServices(provider, profiles = singlePlaybackProfile(target, profile))
         val core = NaviampCore.create(
             scope = this,
             services = defaults.copy(
@@ -307,7 +315,7 @@ class NaviampCoreTest {
                     currentTrack = current,
                     queue = PlaybackQueue(listOf(current), currentIndex = 0),
                 ),
-            ),
+            ).withSource("source"),
         )
 
         core.execute(
@@ -330,6 +338,54 @@ class NaviampCoreTest {
             assertNotNull(core.state.value.shell.nowPlaying).upNext.map { it.title },
         )
         assertEquals("Connected.", core.state.value.shell.playlistDetail.status)
+        assertEquals(target, effects.appliedQueues.single().groups.single().target)
+        assertEquals(profile, effects.appliedQueues.single().groups.single().profile)
+    }
+
+    @Test
+    fun albumAddToQueueImmediatelyRepublishesNowPlayingQueue() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val effects = FakeCorePlaybackEffects()
+        val current = coreTrack("current")
+        val target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, provider.album.id.value)
+        val profile = PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless)
+        val defaults = fakeCoreServices(provider, profiles = singlePlaybackProfile(target, profile))
+        val core = NaviampCore.create(
+            scope = this,
+            services = defaults.copy(playback = defaults.playback.copy(effects = effects)),
+            initialState = NaviampCoreInitialState(
+                playback = NaviampLivePlaybackState(
+                    currentTrack = current,
+                    queue = PlaybackQueue(listOf(current), currentIndex = 0),
+                ),
+            ).withSource("source"),
+        )
+        val albumItem = provider.album.toSharedMediaItemUi(coverArtUrl = { null })
+        core.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(
+                    albumItem,
+                    NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select),
+                ),
+            ),
+        )
+
+        core.execute(
+            NaviampCoreCommand.Detail.Album(
+                NaviampAlbumDetailActionRequest(albumItem, NaviampAlbumDetailCommand.AddToQueue),
+            ),
+        )
+
+        assertEquals(
+            listOf(provider.track.title),
+            assertNotNull(core.state.value.shell.nowPlaying).upNext.map { it.title },
+        )
+        assertEquals(
+            listOf(current.id.value, provider.track.id.value),
+            effects.appliedQueues.single().tracks.map { it.id.value },
+        )
+        assertEquals(target, effects.appliedQueues.single().groups.single().target)
+        assertEquals(profile, effects.appliedQueues.single().groups.single().profile)
     }
 
     @Test
@@ -552,6 +608,7 @@ class NaviampCoreTest {
 internal fun fakeCoreServices(
     provider: MediaProvider? = null,
     playbackEffects: NaviampCorePlaybackEffectPort = FakeCorePlaybackEffects(),
+    profiles: PlaybackProfileRepository = app.naviamp.domain.playback.EmptyPlaybackProfileRepository,
     providerActions: NaviampProviderActionController = NaviampProviderActionController(
         EmptyCorePendingProviderActionRepository,
     ),
@@ -637,11 +694,40 @@ internal fun fakeCoreServices(
             override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = null
             override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) = Unit
         }),
+        profiles = profiles,
     ),
     providerActions = providerActions,
     clockEpochMillis = { 1_000L },
     favoritedAtIso8601 = { "2026-07-21T00:00:00Z" },
 )
+
+private fun NaviampCoreInitialState.withSource(sourceId: String) = copy(
+    connection = NaviampConnectionRuntimeState(
+        phase = NaviampConnectionPhase.Connected,
+        sourceId = sourceId,
+    ),
+    product = product.copy(
+        shell = product.shell.copy(
+            connectionSettings = product.shell.connectionSettings.copy(currentSourceId = sourceId),
+        ),
+    ),
+)
+
+private fun singlePlaybackProfile(
+    capturedTarget: PlaybackProfileTarget,
+    profile: PlaybackProfile,
+) = object : PlaybackProfileRepository {
+    override fun playbackProfile(sourceId: String, target: PlaybackProfileTarget) =
+        profile.takeIf { target == capturedTarget }
+
+    override fun playbackProfiles(sourceId: String) = listOf(PlaybackProfileAssignment(capturedTarget, profile))
+
+    override fun savePlaybackProfile(
+        sourceId: String,
+        target: PlaybackProfileTarget,
+        profile: PlaybackProfile?,
+    ) = Unit
+}
 
 private object EmptyCorePendingProviderActionRepository : PendingProviderActionRepository {
     override fun enqueuePendingProviderAction(

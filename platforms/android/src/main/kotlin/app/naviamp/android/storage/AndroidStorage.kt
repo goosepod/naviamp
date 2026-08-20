@@ -33,6 +33,7 @@ import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.lyrics.naviampOnlineLyricsProviders
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.playback.PlaybackProfileRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.source.SavedMediaSource
@@ -70,6 +71,7 @@ class AndroidStorage private constructor(
     ProviderMediaSourceRepository by graph.repositories.mediaSources,
     ProviderIdentityMigrationRepository by graph.repositories.mediaSources,
     PlaybackSessionRepository by graph.repositories.playbackSessions,
+    PlaybackProfileRepository by graph.repositories.playbackProfiles,
     LocalLibraryIndexRepository by graph.repositories.libraryIndex,
     PendingProviderActionRepository by graph.repositories.pendingProviderActions,
     RadioDjPresetRepository by graph.repositories.radioDjPresets,

@@ -55,6 +55,8 @@ class NaviampCorePlaylistBrowseController(
         NaviampCorePlaylistBrowseSupplementSource { NaviampCorePlaylistBrowseSupplement() },
     private val playlistLimit: Int = 500,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
+    private val playbackProfiles: NaviampCorePlaybackProfileController =
+        NaviampCorePlaybackProfileController(stateStore),
 ) : NaviampCoreCommandController {
     private var listGeneration = 0L
     private var detailGeneration = 0L
@@ -198,6 +200,8 @@ class NaviampCorePlaylistBrowseController(
                                 tracks = tracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
                             ),
                             status = "Connected.",
+                            playbackProfile = playbackProfiles.playlistProfile(resolvedPlaylist.id),
+                            playbackProfileStatus = null,
                         ),
                     )
                 }

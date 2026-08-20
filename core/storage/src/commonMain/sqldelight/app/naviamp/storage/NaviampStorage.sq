@@ -324,7 +324,8 @@ CREATE TABLE playback_session_state (
   position_seconds REAL,
   internet_radio_payload TEXT,
   now_playing_open INTEGER NOT NULL,
-  updated_at_epoch_millis INTEGER NOT NULL
+  updated_at_epoch_millis INTEGER NOT NULL,
+  queue_groups_payload TEXT
 );
 
 CREATE TABLE playback_session_queue (
@@ -333,6 +334,17 @@ CREATE TABLE playback_session_queue (
   remote_track_id TEXT NOT NULL,
   payload TEXT NOT NULL,
   PRIMARY KEY(source_id, queue_index)
+);
+
+CREATE TABLE playback_profile (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  transition_mode TEXT NOT NULL,
+  crossfade_duration_seconds INTEGER,
+  replay_gain_mode TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, target_type, target_id)
 );
 
 CREATE TABLE playback_history (
@@ -557,7 +569,7 @@ DELETE FROM playback_session
 WHERE source_id = ?;
 
 selectPlaybackSessionState:
-SELECT current_index, play_next_count, position_seconds, internet_radio_payload, now_playing_open
+SELECT current_index, play_next_count, queue_groups_payload, position_seconds, internet_radio_payload, now_playing_open
 FROM playback_session_state
 WHERE source_id = ?;
 
@@ -578,11 +590,12 @@ INSERT OR REPLACE INTO playback_session_state(
   source_id,
   current_index,
   play_next_count,
+  queue_groups_payload,
   position_seconds,
   internet_radio_payload,
   now_playing_open,
   updated_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 deletePlaybackSessionQueue:
 DELETE FROM playback_session_queue
@@ -599,6 +612,32 @@ INSERT INTO playback_session_queue(
 deletePlaybackSessionState:
 DELETE FROM playback_session_state
 WHERE source_id = ?;
+
+selectPlaybackProfile:
+SELECT transition_mode, crossfade_duration_seconds, replay_gain_mode
+FROM playback_profile
+WHERE source_id = ? AND target_type = ? AND target_id = ?;
+
+selectPlaybackProfiles:
+SELECT target_type, target_id, transition_mode, crossfade_duration_seconds, replay_gain_mode
+FROM playback_profile
+WHERE source_id = ?
+ORDER BY target_type, target_id;
+
+upsertPlaybackProfile:
+INSERT OR REPLACE INTO playback_profile(
+  source_id,
+  target_type,
+  target_id,
+  transition_mode,
+  crossfade_duration_seconds,
+  replay_gain_mode,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deletePlaybackProfile:
+DELETE FROM playback_profile
+WHERE source_id = ? AND target_type = ? AND target_id = ?;
 
 upsertMediaSource:
 INSERT OR IGNORE INTO media_source(

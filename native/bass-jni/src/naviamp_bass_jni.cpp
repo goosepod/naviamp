@@ -47,6 +47,7 @@ struct BassApi {
     decltype(&::BASS_ChannelSlideAttribute) BASS_ChannelSlideAttribute = nullptr;
     decltype(&::BASS_ChannelSeconds2Bytes) BASS_ChannelSeconds2Bytes = nullptr;
     decltype(&::BASS_Mixer_ChannelSetPosition) BASS_Mixer_ChannelSetPosition = nullptr;
+    decltype(&::BASS_Mixer_ChannelGetPosition) BASS_Mixer_ChannelGetPosition = nullptr;
     decltype(&::BASS_ChannelSetPosition) BASS_ChannelSetPosition = nullptr;
     decltype(&::BASS_ChannelGetPosition) BASS_ChannelGetPosition = nullptr;
     decltype(&::BASS_ChannelBytes2Seconds) BASS_ChannelBytes2Seconds = nullptr;
@@ -104,6 +105,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_ChannelSlideAttribute", bassApi.BASS_ChannelSlideAttribute) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSeconds2Bytes", bassApi.BASS_ChannelSeconds2Bytes) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelSetPosition", bassApi.BASS_Mixer_ChannelSetPosition) && ok;
+    ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelGetPosition", bassApi.BASS_Mixer_ChannelGetPosition) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSetPosition", bassApi.BASS_ChannelSetPosition) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetPosition", bassApi.BASS_ChannelGetPosition) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelBytes2Seconds", bassApi.BASS_ChannelBytes2Seconds) && ok;
@@ -185,6 +187,7 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_ChannelSlideAttribute bassApi.BASS_ChannelSlideAttribute
 #define BASS_ChannelSeconds2Bytes bassApi.BASS_ChannelSeconds2Bytes
 #define BASS_Mixer_ChannelSetPosition bassApi.BASS_Mixer_ChannelSetPosition
+#define BASS_Mixer_ChannelGetPosition bassApi.BASS_Mixer_ChannelGetPosition
 #define BASS_ChannelSetPosition bassApi.BASS_ChannelSetPosition
 #define BASS_ChannelGetPosition bassApi.BASS_ChannelGetPosition
 #define BASS_ChannelBytes2Seconds bassApi.BASS_ChannelBytes2Seconds
@@ -431,7 +434,7 @@ jboolean add_mixer_channel(jint mixer, jint stream) {
 }
 
 jint create_mixer(jint frequency, jint channels, jboolean queueSources) {
-    DWORD flags = BASS_SAMPLE_FLOAT;
+    DWORD flags = BASS_SAMPLE_FLOAT | BASS_MIXER_POSEX;
     if (queueSources == JNI_TRUE) flags |= BASS_MIXER_QUEUE;
     HSTREAM mixer = BASS_Mixer_StreamCreate(
         static_cast<DWORD>(std::max(1, static_cast<int>(frequency))),
@@ -520,10 +523,21 @@ jdouble position_seconds(jint stream) {
 jdouble audible_position_seconds(jint playbackStream, jint sourceStream) {
     DWORD playback = static_cast<DWORD>(playbackStream);
     DWORD progress = sourceStream != 0 ? static_cast<DWORD>(sourceStream) : playback;
+    bool mixerSource = progress != playback;
+    if (mixerSource) {
+        QWORD mixerPositionBytes = BASS_Mixer_ChannelGetPosition(progress, BASS_POS_BYTE);
+        if (mixerPositionBytes != static_cast<QWORD>(-1)) {
+            double mixerPositionSeconds = BASS_ChannelBytes2Seconds(progress, mixerPositionBytes);
+            if (mixerPositionSeconds >= 0.0 && std::isfinite(mixerPositionSeconds)) {
+                return mixerPositionSeconds;
+            }
+        }
+    }
     QWORD positionBytes = BASS_ChannelGetPosition(progress, BASS_POS_BYTE);
     if (positionBytes == static_cast<QWORD>(-1)) return -1.0;
     double decodedSeconds = BASS_ChannelBytes2Seconds(progress, positionBytes);
     if (decodedSeconds < 0.0 || !std::isfinite(decodedSeconds)) return -1.0;
+    if (mixerSource) return decodedSeconds;
 
     DWORD bufferedBytes = BASS_ChannelGetData(playback, nullptr, BASS_DATA_AVAILABLE);
     if (bufferedBytes == static_cast<DWORD>(-1)) return decodedSeconds;

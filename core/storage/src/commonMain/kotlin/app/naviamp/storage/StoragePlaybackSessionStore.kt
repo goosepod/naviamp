@@ -5,6 +5,7 @@ import app.naviamp.domain.cache.PlaybackSessionRepositoryPerformance
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.SavedTrack
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import kotlinx.serialization.json.Json
 import kotlin.time.TimeSource
 
@@ -42,6 +43,9 @@ class StoragePlaybackSessionStore(
                     tracks = tracks,
                     currentIndex = state.current_index.toInt(),
                     playNextCount = state.play_next_count.toInt(),
+                    queueGroups = state.queue_groups_payload
+                        ?.let { json.decodeFromString<List<PlaybackQueueGroup>>(it) }
+                        .orEmpty(),
                     positionSeconds = state.position_seconds,
                     internetRadioStation = radio,
                     nowPlayingOpen = state.now_playing_open != 0L,
@@ -92,6 +96,9 @@ class StoragePlaybackSessionStore(
                 emptyList()
             }
             val radioPayload = session.internetRadioStation?.let { json.encodeToString(it) }
+            val queueGroupsPayload = session.queueGroups
+                .takeIf { it.isNotEmpty() }
+                ?.let { json.encodeToString(it) }
             val encodeMillis = encodeMark.elapsedNow().inWholeMicroseconds / 1_000.0
             val writeMark = TimeSource.Monotonic.markNow()
             queries.transaction {
@@ -110,6 +117,7 @@ class StoragePlaybackSessionStore(
                     source_id = id,
                     current_index = session.currentIndex.toLong(),
                     play_next_count = session.playNextCount.toLong(),
+                    queue_groups_payload = queueGroupsPayload,
                     position_seconds = session.positionSeconds,
                     internet_radio_payload = radioPayload,
                     now_playing_open = if (session.nowPlayingOpen) 1L else 0L,

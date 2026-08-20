@@ -40,7 +40,9 @@ import app.naviamp.ios.bass.native.BASS_LEVEL_MONO
 import app.naviamp.ios.bass.native.BASS_LEVEL_RMS
 import app.naviamp.ios.bass.native.BASS_MIXER_CHAN_NORAMPIN
 import app.naviamp.ios.bass.native.BASS_MIXER_QUEUE
+import app.naviamp.ios.bass.native.BASS_MIXER_POSEX
 import app.naviamp.ios.bass.native.BASS_Mixer_ChannelRemove
+import app.naviamp.ios.bass.native.BASS_Mixer_ChannelGetPosition
 import app.naviamp.ios.bass.native.BASS_Mixer_ChannelSetPosition
 import app.naviamp.ios.bass.native.BASS_Mixer_GetVersion
 import app.naviamp.ios.bass.native.BASS_Mixer_StreamAddChannel
@@ -267,7 +269,7 @@ class IosBassAudioBackend : BassAudioBackend {
     }
 
     override fun createMixer(frequency: Int, channels: Int, queueSources: Boolean): Result<BassStreamHandle> {
-        val flags = (BASS_SAMPLE_FLOAT or if (queueSources) BASS_MIXER_QUEUE else 0).toUInt()
+        val flags = (BASS_SAMPLE_FLOAT or BASS_MIXER_POSEX or if (queueSources) BASS_MIXER_QUEUE else 0).toUInt()
         return BASS_Mixer_StreamCreate(max(1, frequency).toUInt(), max(1, channels).toUInt(), flags)
             .handleResult("BASS_Mixer_StreamCreate failed")
     }
@@ -376,7 +378,16 @@ class IosBassAudioBackend : BassAudioBackend {
 
     override fun audiblePositionSeconds(playbackStream: BassStreamHandle, sourceStream: BassStreamHandle): Double? {
         val progressStream = sourceStream.takeIf { it.value != 0 } ?: playbackStream
+        val mixerSource = progressStream != playbackStream
+        if (mixerSource) {
+            BASS_Mixer_ChannelGetPosition(progressStream.uint, BASS_POS_BYTE.toUInt())
+                .takeUnless { it == ULong.MAX_VALUE }
+                ?.let { BASS_ChannelBytes2Seconds(progressStream.uint, it) }
+                ?.takeIf { it >= 0.0 }
+                ?.let { return it }
+        }
         val decoded = positionSeconds(progressStream) ?: return null
+        if (mixerSource) return decoded
         val bufferedBytes = BASS_ChannelGetData(playbackStream.uint, null, BASS_DATA_AVAILABLE.toUInt())
         if (bufferedBytes == UInt.MAX_VALUE) return decoded
         val buffered = BASS_ChannelBytes2Seconds(playbackStream.uint, bufferedBytes.toULong())

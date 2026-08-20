@@ -3,6 +3,7 @@ package app.naviamp.ui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackProfile
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.cache.StorageCacheStats
@@ -334,6 +335,8 @@ data class NaviampAlbumDetailScreenUi(
     val selectedAlbum: SharedMediaItemUi? = null,
     val detail: SharedAlbumDetailUi? = null,
     val status: String? = null,
+    val playbackProfile: PlaybackProfile = PlaybackProfile(),
+    val playbackProfileStatus: String? = null,
 )
 
 sealed interface NaviampAlbumDetailCommand {
@@ -344,6 +347,7 @@ sealed interface NaviampAlbumDetailCommand {
     data class AddToPlaylist(val choice: NaviampPlaylistChoiceUi) : NaviampAlbumDetailCommand
     data class CreatePlaylistAndAdd(val name: String) : NaviampAlbumDetailCommand
     data object ToggleFavorite : NaviampAlbumDetailCommand
+    data class SavePlaybackProfile(val profile: PlaybackProfile) : NaviampAlbumDetailCommand
 }
 
 data class NaviampAlbumDetailActionRequest(
@@ -478,6 +482,8 @@ data class NaviampPlaylistDetailScreenUi(
     val availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     val selectedConnectionLibraryIds: List<String> = emptyList(),
     val genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
+    val playbackProfile: PlaybackProfile = PlaybackProfile(),
+    val playbackProfileStatus: String? = null,
 )
 
 sealed interface NaviampPlaylistDetailCommand {
@@ -489,6 +495,7 @@ sealed interface NaviampPlaylistDetailCommand {
     data class Copy(val name: String, val deduplicate: Boolean) : NaviampPlaylistDetailCommand
     data class Rename(val name: String) : NaviampPlaylistDetailCommand
     data object Delete : NaviampPlaylistDetailCommand
+    data class SavePlaybackProfile(val profile: PlaybackProfile) : NaviampPlaylistDetailCommand
 }
 
 data class NaviampPlaylistDetailActionRequest(

@@ -18,6 +18,7 @@ class NaviampCoreCollectionActionController(
     private val registry: NaviampCoreMediaRegistry,
     private val transactions: NaviampCoreMediaTransactions,
     private val mediaDetails: NaviampCoreMediaDetailController,
+    private val playbackProfiles: NaviampCorePlaybackProfileController? = null,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Home.SelectStation,
@@ -81,7 +82,7 @@ class NaviampCoreCollectionActionController(
             NaviampArtistAlbumCommand.Select -> Unit
             NaviampArtistAlbumCommand.StartRadio -> transactions.startAlbumRadio(album)
             NaviampArtistAlbumCommand.Download -> albumTracks(album).also { transactions.download(album.title, it) }
-            NaviampArtistAlbumCommand.AddToQueue -> transactions.addToQueue(albumTracks(album))
+            NaviampArtistAlbumCommand.AddToQueue -> transactions.addAlbumToQueue(album, albumTracks(album))
             is NaviampArtistAlbumCommand.AddToPlaylist -> transactions.addToPlaylist(albumTracks(album), command.choice)
             is NaviampArtistAlbumCommand.CreatePlaylistAndAdd -> transactions.createPlaylist(albumTracks(album), command.name)
             NaviampArtistAlbumCommand.ToggleFavorite -> transactions.toggleFavorite(album)
@@ -90,18 +91,20 @@ class NaviampCoreCollectionActionController(
 
     private suspend fun playAlbum(id: String) {
         val album = registry.album(id) ?: return transactions.publish("Album not found.")
-        transactions.play(albumTracks(album))
+        transactions.playAlbum(album, albumTracks(album))
     }
 
     private suspend fun executeAlbum(album: Album, command: NaviampAlbumDetailCommand) {
         when (command) {
-            is NaviampAlbumDetailCommand.Play -> transactions.play(albumTracks(album), shuffle = command.shuffle)
+            is NaviampAlbumDetailCommand.Play -> transactions.playAlbum(album, albumTracks(album), command.shuffle)
             NaviampAlbumDetailCommand.StartRadio -> transactions.startAlbumRadio(album)
             NaviampAlbumDetailCommand.Download -> albumTracks(album).also { transactions.download(album.title, it) }
-            NaviampAlbumDetailCommand.AddToQueue -> transactions.addToQueue(albumTracks(album))
+            NaviampAlbumDetailCommand.AddToQueue -> transactions.addAlbumToQueue(album, albumTracks(album))
             is NaviampAlbumDetailCommand.AddToPlaylist -> transactions.addToPlaylist(albumTracks(album), command.choice)
             is NaviampAlbumDetailCommand.CreatePlaylistAndAdd -> transactions.createPlaylist(albumTracks(album), command.name)
             NaviampAlbumDetailCommand.ToggleFavorite -> transactions.toggleFavorite(album)
+            is NaviampAlbumDetailCommand.SavePlaybackProfile ->
+                playbackProfiles?.saveAlbumProfile(album.id.value, command.profile)
         }
     }
 
