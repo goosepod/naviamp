@@ -2406,19 +2406,18 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Browse your library genres through an expandable MusicBrainz hierarchy and select a whole subgenre branch for a Genre Mix.",
-            "Use genre-aware suggestions while building Navidrome smart playlists.",
-            "Preview supported smart-playlist rules against the synced library before saving.",
-            "Choose whether Now Playing shows an album's original year or the year of the specific edition.",
-            "Optionally show track-specific artwork in Now Playing while keeping album artwork as the default.",
+            "Give an album or saved playlist its own gapless, crossfade, pause, and ReplayGain preferences.",
+            "Carry saved playback profiles through queue groups, direct track selection, and restored sessions.",
+            "See the active profile, resolved ReplayGain mode, and next transition source in Stats for Nerds.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Genre browsing keeps unmatched server tags available and falls back to the complete flat list when a hierarchy would not help.",
-            "Settings keeps its page and nested state when you navigate away and return.",
-            "Original-release metadata now survives cached, downloaded, queued, and restored media.",
+            "Now Playing refreshes its queue immediately after music is added.",
+            "Selecting another track inside a profiled album or playlist keeps its custom playback settings active.",
+            "Waveform seeking now lands at the selected position across display densities and waveform sizes, while playing or paused.",
+            "Prepared gapless and crossfade streams no longer skew the displayed or selected playback position.",
         ),
     ),
 )

@@ -13,11 +13,11 @@ class NaviampChangelogTest {
         assertTrue(changelog.all { section -> section.entries.isNotEmpty() })
         assertTrue(changelog.flatMap { it.entries }.all { entry -> entry.lines().size == 1 })
         val entries = changelog.flatMap { it.entries }
-        assertTrue(entries.any { "MusicBrainz hierarchy" in it })
-        assertTrue(entries.any { "smart-playlist rules" in it })
-        assertTrue(entries.any { "original year" in it })
-        assertTrue(entries.any { "track-specific artwork" in it })
-        assertTrue(entries.any { "unmatched server tags" in it })
-        assertTrue(entries.any { "Settings keeps its page" in it })
+        assertTrue(entries.any { "album or saved playlist" in it })
+        assertTrue(entries.any { "queue groups" in it })
+        assertTrue(entries.any { "Stats for Nerds" in it })
+        assertTrue(entries.any { "refreshes its queue" in it })
+        assertTrue(entries.any { "keeps its custom playback settings" in it })
+        assertTrue(entries.any { "Waveform seeking" in it })
     }
 }

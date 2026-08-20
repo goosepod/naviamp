@@ -6,6 +6,41 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.2.0
+
+This release adds playback profiles for albums and playlists, preserves those preferences through
+explicit queue groups, and makes waveform seeking more accurate and dependable.
+
+### Features
+
+- Assign an album or saved playlist its own transition behavior—inherit, gapless, crossfade, or a deliberate pause—and ReplayGain mode—inherit, off, track, or album.
+- Carry a saved album profile into the queue when playing the album or using Add to Queue, and carry a saved playlist profile when starting that playlist in order.
+- Preserve profile-aware queue groups across track changes, direct selection within the group, session restoration, history pruning, and safe queue additions.
+- Show whether a custom profile is active, its target and overrides, the resolved ReplayGain mode, and the next transition source in Stats for Nerds.
+
+### Bug Fixes
+
+- Refresh Now Playing and its queue immediately after adding music instead of requiring an extra navigation round trip.
+- Keep a custom profile active when selecting another track inside the same album or playlist group, while correctly returning to global player settings at the group boundary.
+- Make waveform seeking line up with the selected position across display densities and waveform-bar counts, both while playing and while paused.
+- Report and seek against the audible BASS mixer position so prepared gapless and crossfade streams do not skew the scrub bar.
+- Avoid preparing the next stream after a paused near-end seek until playback resumes.
+
+### System Settings
+
+- Added source-scoped shared persistence for album, playlist, and future work playback-profile records.
+- Added persisted queue-group metadata to the shared playback session so restoration retains profile boundaries.
+- Extended the shared BASS contract and native adapters with mixer-aware position reporting on Android, Desktop, and iOS.
+
+### Release Notes and Known Limitations
+
+- Existing `v2.1.0` installations can upgrade in place. Shared database migration 23 adds profile and queue-group state without resetting existing application data.
+- Profiles are local to the selected music source and do not modify or synchronize metadata on the provider.
+- An independently queued track uses the global player settings even if its album has a saved profile. The profile applies when the album or configured playlist is launched or enqueued as a group.
+- Playlist profiles take precedence for a playlist-launched group; nested album profiles are not applied inside that group.
+- Work-profile launches and group-aware Play next behavior remain follow-up work.
+- The iOS artifact remains an unsigned preview. Windows and macOS packages are not publisher-signed and may show operating-system warnings.
+
 ## v2.1.0
 
 This release makes genres substantially easier to explore and use, gives Navidrome smart playlists

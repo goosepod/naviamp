@@ -30,7 +30,8 @@ Your music stays with the server you choose. Naviamp brings the player.
 - **Downloads and offline listening.** Keep music on the device, choose storage and cache behavior,
   and use an offline dashboard when the server is out of reach.
 - **Serious playback controls.** ReplayGain, gapless playback, crossfade, sample-rate matching,
-  configurable resampling quality, and native BASS playback are built in.
+  configurable resampling quality, album and playlist playback profiles, and native BASS playback
+  are built in.
 - **Make it yours.** Album-art colors, Aurora gradients, blur and solid-color treatments, compact
   layouts, configurable metadata, waveforms, and a large collection of reactive desktop
   visualizers are all available.
@@ -96,6 +97,7 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 - Waveform seeking, synced and unsynced lyrics, favorite and rating actions, and clickable artist
   credits.
 - ReplayGain, gapless playback, crossfade, sample-rate matching, and resampler quality controls.
+- Per-album and per-playlist playback profiles for transition and ReplayGain overrides.
 - Configurable artwork, colors, gradients, blur, metadata, long-text behavior, and compact layouts.
 - Desktop visualizers ranging from reactive bars and fluid gradients to particles, terrain, tunnels,
   vinyl grooves, and album art.
@@ -104,12 +106,12 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 
 ## Platforms and downloads
 
-Naviamp 2.1 is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA
+Naviamp 2.2 is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA
 preview is also available for users who can provide their own signing.
 
 Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
 Windows and macOS desktop packages are not publisher-signed and may show an operating-system
-warning. See the [Naviamp 2.1 release notes](docs/v2.1-release-notes.md) for upgrade details and
+warning. See the [Naviamp 2.2 release notes](docs/v2.2-release-notes.md) for upgrade details and
 [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
 
 ## Building from source
