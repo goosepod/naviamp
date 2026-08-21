@@ -28,6 +28,7 @@ import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.lyrics.timing
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.radio.sessionSubtitle
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.resolvedHomeSectionOrder
@@ -201,7 +202,7 @@ fun HomeContent.toSharedHomeUi(
         SharedMediaItemUi(
             id = it.id,
             title = it.label,
-            subtitle = "Radio",
+            subtitle = it.sessionSubtitle(),
             coverArtUrl = coverArtUrls.firstOrNull(),
             coverArtUrls = coverArtUrls,
         )
@@ -219,6 +220,7 @@ fun HomeContent.toSharedHomeUi(
                     id = id,
                     title = title,
                     items = items,
+                    visible = presentation.visible,
                     homeLayout = presentation.homeLayout,
                     homeItemLimit = presentation.homeItemLimit,
                     defaultPageLayout = presentation.pageLayout,
@@ -391,6 +393,7 @@ fun SharedHomeUi.withRecentRadioStreams(
                     action = SharedHomeCollectionItemAction.SelectRecentRadio,
                 )
             },
+            visible = presentation.visible,
             homeLayout = presentation.homeLayout,
             homeItemLimit = presentation.homeItemLimit,
             defaultPageLayout = presentation.pageLayout,

@@ -37,6 +37,11 @@ val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
     rootProject.layout.buildDirectory.dir("release/$appName")
 }
 val desktopReleaseArtifactsDir = layout.buildDirectory.dir("release-artifacts")
+// Per-user packages use a distinct upgrade family so Windows never tries to remove a legacy
+// machine-wide installation (and request elevation) while installing the current-user package.
+val windowsInstallerUpgradeUuid = "75051da2-0b4b-4f67-81d9-56d2e36a6437"
+val windowsInstallerResourcesDir = layout.buildDirectory.dir("windows-installer-resources")
+val windowsInstallerIcon = rootProject.file("platforms/desktop/src/desktopMain/resources/icons/naviamp.ico")
 
 kotlin {
     jvm("desktop") {
@@ -128,10 +133,11 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
 
             windows {
-                iconFile.set(rootProject.file("platforms/desktop/src/desktopMain/resources/icons/naviamp.ico"))
-                upgradeUuid = "ddece57e-59fc-4ff9-915d-875876779251"
+                iconFile.set(windowsInstallerIcon)
+                upgradeUuid = windowsInstallerUpgradeUuid
                 msiPackageVersion = naviampWindowsPackageVersion
                 exePackageVersion = naviampWindowsPackageVersion
+                perUserInstall = true
                 menu = true
                 menuGroup = "Naviamp"
             }
@@ -248,6 +254,10 @@ tasks.register("verifyReleaseVersionMetadata") {
         check(linuxDistributionPackageVersion("v2.0.0-beta.2") == "2.0.0~beta.2")
         check(nativeDistributionPackageVersion("v2.0.0-beta.1") == "2.0.0")
         check(desktopExecutableDescription == "Naviamp")
+        val launchEnabledWindowsTemplate = windowsMainWxsWithOptionalLaunch("<UIRef Id=\"JpUI\"/>")
+        check(launchEnabledWindowsTemplate.contains("WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"))
+        check(launchEnabledWindowsTemplate.contains("Value=\"LaunchNaviamp\""))
+        check(launchEnabledWindowsTemplate.contains("[INSTALLDIR]Naviamp.exe"))
         check("Naviamp-$naviampVersionName-${desktopNativePlatform.get()}.msi".contains(naviampVersionName))
         if (desktopNativePlatform.get().startsWith("linux-")) {
             val packageDependencies = tasks.withType<AbstractJPackageTask>()
@@ -317,10 +327,103 @@ tasks.register<Zip>("packageReleaseDistributable") {
     packageDesktopApp("release", release = true)
 }
 
+fun registerWindowsInstaller(format: String) = tasks.register("packageReleaseWindows${format.uppercase()}") {
+    group = "distribution"
+    description = "Builds the per-user Windows ${format.uppercase()} installer with an optional post-install launch."
+    dependsOn("createReleaseDistributable")
+
+    val outputDirectory = layout.buildDirectory.dir("compose/binaries/main-release/$format")
+    val outputFile = outputDirectory.map { it.file("Naviamp-$naviampWindowsPackageVersion.$format") }
+    inputs.dir(desktopReleasePackagedAppDir)
+    inputs.file(rootProject.file("LICENSE"))
+    inputs.file(windowsInstallerIcon)
+    outputs.file(outputFile)
+
+    doLast {
+        check(System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
+            "Windows installers must be built on Windows."
+        }
+
+        val javaHome = File(System.getProperty("java.home"))
+        val jmodTool = javaHome.resolve("bin/jmod.exe")
+        val jpackageTool = javaHome.resolve("bin/jpackage.exe")
+        val jpackageModule = javaHome.resolve("jmods/jdk.jpackage.jmod")
+        check(jmodTool.isFile && jpackageTool.isFile && jpackageModule.isFile) {
+            "The active JDK must include jmod, jpackage, and jdk.jpackage.jmod."
+        }
+
+        val resourcesDirectory = windowsInstallerResourcesDir.get().asFile.resolve(format)
+        val extractedJmodDirectory = resourcesDirectory.resolve("jmod")
+        delete(resourcesDirectory)
+        resourcesDirectory.mkdirs()
+        project.exec {
+            commandLine(
+                jmodTool.absolutePath,
+                "extract",
+                "--dir",
+                extractedJmodDirectory.absolutePath,
+                jpackageModule.absolutePath,
+            )
+        }.assertNormalExitValue()
+
+        val defaultMainWxs = extractedJmodDirectory
+            .resolve("classes/jdk/jpackage/internal/resources/main.wxs")
+        check(defaultMainWxs.isFile) {
+            "The active JDK does not contain the expected Windows jpackage main.wxs template."
+        }
+        resourcesDirectory.resolve("main.wxs").writeText(
+            windowsMainWxsWithOptionalLaunch(defaultMainWxs.readText()),
+        )
+
+        val destination = outputDirectory.get().asFile
+        delete(destination)
+        destination.mkdirs()
+        project.exec {
+            commandLine(
+                jpackageTool.absolutePath,
+                "--type", format,
+                "--name", "Naviamp",
+                "--app-version", naviampWindowsPackageVersion,
+                "--app-image", desktopReleasePackagedAppDir.get().asFile.absolutePath,
+                "--dest", destination.absolutePath,
+                "--description", desktopExecutableDescription,
+                "--vendor", "Naviamp",
+                "--copyright", "Copyright 2026 Naviamp contributors",
+                "--license-file", rootProject.file("LICENSE").absolutePath,
+                "--icon", windowsInstallerIcon.absolutePath,
+                "--resource-dir", resourcesDirectory.absolutePath,
+                "--win-per-user-install",
+                "--win-menu",
+                "--win-menu-group", "Naviamp",
+                "--win-upgrade-uuid", windowsInstallerUpgradeUuid,
+            )
+        }.assertNormalExitValue()
+        check(outputFile.get().asFile.isFile) {
+            "Windows ${format.uppercase()} installer was not produced: ${outputFile.get().asFile.absolutePath}"
+        }
+    }
+}
+
+val packageReleaseWindowsMsi = registerWindowsInstaller("msi")
+val packageReleaseWindowsExe = registerWindowsInstaller("exe")
+
+tasks.register("packageReleaseWindowsInstallers") {
+    group = "distribution"
+    description = "Builds the per-user Windows MSI and EXE installers."
+    dependsOn(packageReleaseWindowsMsi, packageReleaseWindowsExe)
+}
+
 tasks.register("stageReleaseArtifacts") {
     group = "distribution"
     description = "Builds and stages release packages with the complete semantic version in every filename."
-    dependsOn("packageReleaseDistributable", "packageReleaseDistributionForCurrentOS")
+    dependsOn("packageReleaseDistributable")
+    dependsOn(
+        if (desktopNativePlatform.get().startsWith("windows-")) {
+            "packageReleaseWindowsInstallers"
+        } else {
+            "packageReleaseDistributionForCurrentOS"
+        },
+    )
     outputs.dir(desktopReleaseArtifactsDir)
 
     doLast {
@@ -474,6 +577,36 @@ fun refreshMacAppBundleModificationTime(appDirectory: File) {
 fun String.replacePlistStringValue(key: String, value: String): String = replace(
     Regex("(<key>${Regex.escape(key)}</key>\\s*<string>)([^<]*)(</string>)"),
 ) { match -> "${match.groupValues[1]}$value${match.groupValues[3]}" }
+
+fun windowsMainWxsWithOptionalLaunch(defaultMainWxs: String): String {
+    val uiReference = "<UIRef Id=\"JpUI\"/>"
+    check(defaultMainWxs.contains(uiReference)) {
+        "The active JDK's Windows installer template no longer contains the expected JpUI reference."
+    }
+    return defaultMainWxs.replace(
+        uiReference,
+        """
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch Naviamp" />
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+        <Property Id="WixShellExecTarget" Value="[INSTALLDIR]Naviamp.exe" />
+        <CustomAction
+          Id="LaunchNaviamp"
+          BinaryKey="WixCA"
+          DllEntry="WixShellExec"
+          Execute="immediate"
+          Impersonate="yes" />
+
+        <UIRef Id="JpUI"/>
+        <UI>
+          <Publish
+            Dialog="ExitDialog"
+            Control="Finish"
+            Event="DoAction"
+            Value="LaunchNaviamp">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed</Publish>
+        </UI>
+        """.trimIndent(),
+    )
+}
 
 fun desktopNativePlatformId(): String {
     val os = System.getProperty("os.name").lowercase().let { name ->

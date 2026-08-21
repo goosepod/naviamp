@@ -593,6 +593,7 @@ data class SharedHomeCollectionSectionUi(
     val id: String,
     val title: String,
     val items: List<SharedHomeCollectionItemUi>,
+    val visible: Boolean = true,
     val supportedHomeLayouts: Set<HomeSectionLayout> = HomeSectionLayout.entries.toSet(),
     val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,
     val homeItemLimit: Int? = null,

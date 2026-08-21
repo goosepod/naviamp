@@ -361,6 +361,8 @@ class NaviampCore private constructor(
                 load = services.radio.generatedRecents.load,
                 save = services.radio.generatedRecents.save,
                 onChanged = { notifyLocalSettingsChanged() },
+                currentSourceId = { stateStore.state.value.shell.connectionSettings.currentSourceId },
+                nowEpochMillis = services.clockEpochMillis,
             )
             val mediaTransactions = NaviampCoreMediaTransactions(
                 stateStore,
@@ -457,7 +459,6 @@ class NaviampCore private constructor(
                 initialState.connectionInventory,
                 onSourceChanging = { previousSourceId, newSourceId ->
                     playback.resetForSourceChange(previousSourceId, newSourceId)
-                    generatedRadioRecents.clear()
                     radio.resetForSourceChange()
                     home.resetForSourceChange()
                 },
@@ -482,7 +483,10 @@ class NaviampCore private constructor(
                         }
                     }
                     restoreLocalSession(sourceId)
-                    scope.launch { home.refreshAfterConnection() }
+                    scope.launch {
+                        home.refreshAfterConnection()
+                        home.restoreRecentRadioStreams(generatedRadioRecents.current())
+                    }
                     scope.launch { catalog.refreshAfterConnection() }
                     scope.launch { playlistBrowse.refreshAfterConnection() }
                     scope.launch { radio.refreshAfterConnection() }

@@ -102,7 +102,7 @@ windows-installer:
 			printf "windows-installer requires WiX Toolset 3.x on PATH so jpackage can create MSI/EXE installers.\n"; \
 			exit 1; \
 		fi; \
-		$(GRADLEW_BAT) $(GRADLE_COMMON) "$(WINDOWS_DESKTOP_PROPS)" :apps:desktop:packageReleaseDistributionForCurrentOS; \
+		$(GRADLEW_BAT) $(GRADLE_COMMON) "$(WINDOWS_DESKTOP_PROPS)" :apps:desktop:packageReleaseWindowsInstallers; \
 	else \
 		printf "windows-installer must run on Windows so jpackage can create a Windows installer.\n"; \
 		exit 1; \

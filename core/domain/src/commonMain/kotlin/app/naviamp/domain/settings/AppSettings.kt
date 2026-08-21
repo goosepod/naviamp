@@ -203,6 +203,7 @@ data class HomeSectionPresentationSettings(
     val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,
     val pageLayout: HomeSectionPageLayout = HomeSectionPageLayout.Grid,
     val homeItemLimit: Int? = null,
+    val visible: Boolean = true,
 )
 
 val RecentRadioHomeItemLimits = listOf(5, 10, 20, 50)
@@ -789,6 +790,12 @@ data class RecentRadioStream(
     val fromYear: Int? = null,
     val toYear: Int? = null,
     val coverArtIds: List<String> = emptyList(),
+    /** The media source that generated this session. Null identifies legacy seed-only history. */
+    val sourceId: String? = null,
+    /** Start time used to preserve repeated runs of the same radio seed as distinct sessions. */
+    val startedAtEpochMillis: Long? = null,
+    /** The exact generated queue. Empty for history saved by older Naviamp versions. */
+    val sessionTracks: List<SavedTrack> = emptyList(),
 )
 
 @Serializable

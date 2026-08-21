@@ -34,6 +34,7 @@ import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.seededRadioBuildResult
 import app.naviamp.domain.radio.trackRecentRadioStream
 import app.naviamp.domain.radio.withRadioCoverArtIds
+import app.naviamp.domain.radio.sessionSubtitle
 import app.naviamp.domain.Genre
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.NaviampPlaylistChoiceUi
@@ -415,7 +416,7 @@ class NaviampCoreMediaTransactions(
 
     private fun rememberRecentRadio(stream: RecentRadioStream?, tracks: List<Track>) {
         if (stream == null) return
-        val updated = recentRadioStreams.remember(stream.withRadioCoverArtIds(tracks))
+        val updated = recentRadioStreams.remember(stream.withRadioCoverArtIds(tracks), tracks)
         val provider = providerSource.current()
         stateStore.updateShell { shell ->
             val recentItems = updated.map { recent ->
@@ -426,7 +427,7 @@ class NaviampCoreMediaTransactions(
                 SharedMediaItemUi(
                     id = recent.id,
                     title = recent.label,
-                    subtitle = "Radio",
+                    subtitle = recent.sessionSubtitle(),
                     coverArtUrl = coverArtUrls.firstOrNull(),
                     coverArtUrls = coverArtUrls,
                 )

@@ -13,6 +13,7 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.library.refreshLibraryGenreInventory
 import app.naviamp.domain.radio.RadioDjPresetRepository
+import app.naviamp.domain.radio.recentRadioStreamsForSource
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
@@ -170,9 +171,13 @@ fun naviampCoreStoredServiceCatalog(
                 refreshLibraryGenreInventory(activeSourceId, provider, repositories.libraryIndex)
             },
             homeSupplement = NaviampCoreHomeSupplementSource {
+                val activeSourceId = sourceId()
                 NaviampCoreHomeSupplement(
-                    sourceId = sourceId(),
-                    recentRadioStreams = settings.loadRecentRadioStreams(),
+                    sourceId = activeSourceId,
+                    recentRadioStreams = recentRadioStreamsForSource(
+                        settings.loadRecentRadioStreams(),
+                        activeSourceId,
+                    ),
                     recentInternetRadioStations = internetRadioRecents.current(),
                 )
             },

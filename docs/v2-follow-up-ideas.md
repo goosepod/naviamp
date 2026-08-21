@@ -58,16 +58,11 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Durable Start Radio Session History
 
-- **Status:** Idea
-- **Concept:** Verify that every generated session created through **Start Radio** is stored durably in the shared database so users can browse prior radio sessions and reopen them across app relaunches and on every platform. These are the similar-music sessions generated according to the user's DJ preference, not internet-stream radio stations.
-- **Investigation first:** Trace the current Start Radio action, DJ-preference inputs, generated-session model, SQLDelight schema/repository, launch restoration, de-duplication, retention, and Settings Sync behavior before changing code. The feature may already exist; document the evidence and close any persistence or presentation gaps rather than creating a duplicate history system.
-- **Questions to answer:**
-  - Does history preserve the seed/context, DJ preference, generated track list or reproducible generation inputs, provider/source identity, display metadata, and last-played time needed to reopen a prior session reliably?
-  - Should reopening restore the original generated queue exactly or generate a fresh similar-music queue from the saved seed and DJ preference?
-  - How are repeated Start Radio requests, changed DJ preferences, deleted or unavailable tracks, and removed sources handled?
-  - Is retention bounded and user-controllable, can individual sessions or the complete history be removed, and does private data stay source-scoped?
-  - Do Android, Desktop, and iOS all read and mutate the same shared repository behavior, including after cold launch and offline startup?
-- **Acceptance shape:** Start representative radio sessions with different seeds and DJ preferences on each host, restart the application, confirm ordered history and successful reopening, verify unavailable-track and deletion behavior, and add shared repository/controller tests for persistence and migration.
+- **Status:** Implemented on `feature/home-visibility-radio-history`.
+- **Delivered:** Every generated **Start Radio** queue is now stored as a distinct shared session with its source identity, start time, artwork, seed metadata, and exact generated track list. Repeated runs of the same seed remain separate, appear in newest-first order on Home, survive app relaunches through the existing portable settings store, participate in Settings Sync, and reopen the saved queue instead of generating a different one.
+- **Compatibility and retention:** The shared controller retains the newest 50 records across sources and filters source-owned sessions for the active source. Older seed-only entries remain readable and continue to regenerate from their saved seed. The existing common clear operation removes the complete history; no platform-specific history behavior or schema migration was added.
+- **Behavior decisions:** The saved queue is authoritative, so a later DJ-preference change does not alter an old session. Repeated requests create separate records; removed sources' records are hidden unless that source becomes active again. Unavailable tracks enter the normal shared playback failure path. Retention is bounded globally, complete-history clearing remains available through the common controller, and an individual-delete UI is not part of this increment.
+- **Verification:** Common controller, portable serialization, shared Home mapping, settings-sync, Core replay, source-filtering, retention, duplicate-session, and clear-history tests cover the durable contract. Android, Desktop, and iOS consume the same common model and behavior.
 
 ### Album Shuffle Radio
 
@@ -77,7 +72,7 @@ Before moving an idea into the active v2 plan or a release branch:
 - **Decision:** Do not implement this yet. Revisit it after an official OpenSubsonic/Subsonic capability for album collections is finalized and supported by Navidrome; Naviamp should not create a proprietary persisted model or an interim radio implementation while the standard is unsettled.
 - **Standards caveat:** A collection capability may define storage and ordering of typed items without defining client playback-expansion rules. When official support exists, Naviamp will still need a Core-owned policy that expands each album into canonical disc/track order while preserving collection order. Recheck the final specification, advertised extension version, and real server implementations before promoting this idea.
 - **Core behavior:** Model each album as an ordered queue group. Core owns album selection, de-duplication, queue replenishment, group boundaries, progression, persistence, and recovery; provider code supplies eligible albums and their canonical tracks, and hosts only render and invoke the shared mode.
-- **Questions to answer:**
+- **Design notes and remaining accessibility follow-up:**
   - Should selection cover the whole library or support filters such as genre, year, artist, favorites, library folder, rating, or downloaded-only content?
   - How should multi-disc albums, bonus tracks, missing/unavailable tracks, compilations, duplicate releases, and albums with only one playable track be ordered and represented?
   - Should Next Track advance within the album while a separate Skip Album action jumps to the next group, and what should Previous do at an album boundary?
@@ -292,22 +287,22 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Configurable Home Sections and Layouts
 
-- **Status:** Done on `feature/navibeat-mixes`; every current Home section uses the shared section/page foundation, persistent presentation settings, and persistent section ordering.
+- **Status:** Done; every current Home section uses the shared section/page foundation, persistent presentation settings, visibility, and persistent section ordering.
 - **Concept:** Treat every Home section as one shared display unit with a stable ID, title, item type, action policy, supported layouts, Home layout, full-page layout, capability/empty-state policy, visibility, and order. The same unit must render both its Home summary and a dedicated page, rather than maintaining separate bespoke screens.
 - **Dedicated pages:** Section titles are links. Selecting a title opens a Core-owned page bearing that title, a back action to Home, and the complete section contents. Begin with Mixes for You and Navibeat Mixes, then migrate the remaining album, playlist, radio, station, track, and discovery sections onto the same route and display contract.
 - **Desktop rails:** Horizontally scrolling Home presentations need visible previous/next controls so pointer users are not required to know the Shift-plus-wheel gesture. Touch/trackpad swiping remains available.
 - **Layout controls:** Dedicated section pages support List and Grid. Home sections support List, Grid, and Carousel; Carousel is the current horizontally scrolling mixes presentation. Keep the Home and dedicated-page choices separate so Carousel can never be selected for a dedicated page.
 - **Experience settings:** Settings > Experience > Home Screen owns each section's presentation and order. All current sections persist independent Home (List, Grid, or Carousel) and dedicated-page (List or Grid) choices through normal settings storage and Settings Sync. The ordering editor reuses the playlist editor's live reorder interaction: neighboring rows move out of the way while a section is being dragged, and the order continuously previews before drop. Unavailable/capability-gated sections retain their positions, and unknown future section IDs are preserved.
 - **Completed navigation behavior:** Dedicated pages open at the top, while returning to Home restores the prior Home scroll position.
-- **Remaining follow-up:** Per-section hide/show controls remain a separate future addition; hidden sections should retain their saved layout and order.
+- **Visibility:** Settings > Experience > Home Screen can hide or show each section. Hidden sections retain their saved Home layout, dedicated-page layout, item limit, and order, and visibility participates in Settings Sync.
 - **Why it may fit:** Home contains several useful discovery and library summaries, but their value and preferred density vary by listener. Per-section choices would let users prioritize the content they use without requiring separate platform-specific Home screens.
 - **Presentation reference:** Reuse the shared list/grid choice already available for album lists on artist detail pages, adapting it only where a Home section's content and interaction model support both forms.
 - **Questions to answer:**
   - Which Home sections are required, optional, or capability-gated, and what default order preserves the current experience?
-  - Should hidden sections retain their layout and position settings, and how should new sections be inserted after an upgrade?
+  - Hidden sections retain their layout and position; new sections use their default presentation and are appended after known saved section IDs.
   - Which sections genuinely support both list and grid layouts without losing important track, playlist, radio, or discovery actions?
   - How should reorder controls work accessibly with keyboard, touch, screen readers, and narrow screens?
-  - Should these preferences participate in folder-based Settings Sync, and how should older clients preserve unknown section IDs?
+  - Visibility participates in folder-based Settings Sync, and normalization preserves unknown section IDs.
 - **Shared-architecture requirement:** Store ordered section IDs, visibility, and per-section layout in shared settings; validate and migrate them in Core; and render the same configured Home composition on Android, Desktop, and iOS.
 
 ### Configurable Keyboard Playback Controls

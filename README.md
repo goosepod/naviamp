@@ -111,8 +111,30 @@ preview is also available for users who can provide their own signing.
 
 Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
 Windows and macOS desktop packages are not publisher-signed and may show an operating-system
-warning. See the [Naviamp 2.2 release notes](docs/v2.2-release-notes.md) for upgrade details and
+warning. Windows installers install only for the current user and do not require administrator
+permission. See the [Naviamp 2.2 release notes](docs/v2.2-release-notes.md) for upgrade details and
 [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
+
+If an older machine-wide Windows release is already installed, uninstall that copy once before
+using the current-user installer. Removing the old copy may require administrator permission; new
+installations and subsequent upgrades do not.
+
+### Opening Naviamp on macOS
+
+Only bypass the macOS warning for a Naviamp package downloaded from the official GitHub Releases
+page above. Move `Naviamp.app` into Applications, then try to open it once. Open **System Settings →
+Privacy & Security**, scroll to **Security**, and click **Open Anyway** for Naviamp.
+
+Experienced users can instead remove the quarantine marker for this app only and open it from
+Terminal:
+
+```shell
+xattr -dr com.apple.quarantine "/Applications/Naviamp.app"
+open "/Applications/Naviamp.app"
+```
+
+These commands intentionally bypass Gatekeeper for this copy of Naviamp. They do not disable
+Gatekeeper system-wide and do not require `sudo`.
 
 ## Building from source
 

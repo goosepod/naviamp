@@ -11,6 +11,7 @@ import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.home.homeLoadFailureStatus
 import app.naviamp.domain.home.loadHomeContent
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.radio.sessionSubtitle
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.homeSectionPresentation
@@ -18,8 +19,10 @@ import app.naviamp.domain.settings.resolvedHomeSectionOrder
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryService
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.SharedHomeCollectionPageUi
+import app.naviamp.ui.withRecentRadioStreams
 
 fun interface NaviampCoreHomeDateSource {
     fun current(): HomeDate
@@ -195,11 +198,39 @@ class NaviampCoreHomeController(
 
     suspend fun refreshAfterConnection() = refresh()
 
+    fun restoreRecentRadioStreams(streams: List<RecentRadioStream>) {
+        val provider = providerSource.current()
+        stateStore.updateShell { shell ->
+            val recentItems = streams.map { recent ->
+                val coverArtUrls = recent.coverArtIds
+                    .mapNotNull { id -> provider?.coverArtUrl(id) }
+                    .distinct()
+                    .take(4)
+                SharedMediaItemUi(
+                    id = recent.id,
+                    title = recent.label,
+                    subtitle = recent.sessionSubtitle(),
+                    coverArtUrl = coverArtUrls.firstOrNull(),
+                    coverArtUrls = coverArtUrls,
+                )
+            }
+            shell.copy(
+                home = shell.home.copy(
+                    content = shell.home.content.withRecentRadioStreams(
+                        streams = recentItems,
+                        interfaceSettings = shell.general.interfaceSettings,
+                    ),
+                ),
+            )
+        }
+    }
+
     internal fun interfaceSettingsChanged(settings: InterfaceSettings) {
         stateStore.updateShell { shell ->
             val updatedSections = shell.home.content.collectionSections.map { section ->
                 val presentation = settings.homeSectionPresentation(section.id)
                 section.copy(
+                    visible = presentation.visible,
                     homeLayout = presentation.homeLayout,
                     homeItemLimit = presentation.homeItemLimit,
                     defaultPageLayout = presentation.pageLayout,
@@ -210,7 +241,8 @@ class NaviampCoreHomeController(
                 .associate { it.value to it.index }
             val sections = updatedSections.sortedBy { orderIndex[it.id] ?: Int.MAX_VALUE }
             val currentPage = shell.home.collectionPage?.let { page ->
-                val section = sections.firstOrNull { it.id == page.section.id } ?: return@let null
+                val section = sections.firstOrNull { it.id == page.section.id && it.visible }
+                    ?: return@let null
                 page.copy(
                     section = section,
                     layout = settings.homeSectionPresentation(section.id).pageLayout,
@@ -244,7 +276,7 @@ class NaviampCoreHomeController(
 
     private fun openCollection(sectionId: String) {
         val section = stateStore.state.value.shell.home.content.collectionSections
-            .firstOrNull { it.id == sectionId }
+            .firstOrNull { it.id == sectionId && it.visible }
         if (section == null) {
             publish(
                 refreshing = stateStore.state.value.shell.home.refreshing,

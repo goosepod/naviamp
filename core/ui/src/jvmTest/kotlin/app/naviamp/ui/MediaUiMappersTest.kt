@@ -61,6 +61,7 @@ class MediaUiMappersTest {
                 HomeSectionIds.RecentRadio to HomeSectionPresentationSettings(
                     homeLayout = HomeSectionLayout.Grid,
                     pageLayout = HomeSectionPageLayout.List,
+                    visible = false,
                 ),
             ),
         )
@@ -84,6 +85,7 @@ class MediaUiMappersTest {
         assertEquals(HomeSectionLayout.Grid, section.homeLayout)
         assertEquals(10, section.homeItemLimit)
         assertEquals(HomeSectionPageLayout.List, section.defaultPageLayout)
+        assertFalse(section.visible)
         assertEquals(SharedHomeCollectionItemAction.SelectRecentRadio, section.items.single().action)
         assertEquals("library", updated.recentRadioStreams.single().id)
     }

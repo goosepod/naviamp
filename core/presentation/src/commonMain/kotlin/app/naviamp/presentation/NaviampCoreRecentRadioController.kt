@@ -23,6 +23,10 @@ class NaviampCoreRecentRadioController(
             media.publish("Recent radio ${selected.item.title} is no longer available.")
             return NaviampCoreCommandResult.Completed
         }
+        if (stream.sessionTracks.isNotEmpty()) {
+            media.play(stream.sessionTracks.map { it.toTrack() })
+            return NaviampCoreCommandResult.Completed
+        }
         val action = recentRadioAction(stream)
         if (action == null) {
             media.publish("Recent radio ${stream.label} is incomplete.")

@@ -68,6 +68,22 @@ class NaviampCoreHomeControllerTest {
         assertEquals(HomeSectionLayout.List, store.state.value.shell.home.collectionPage?.section?.homeLayout)
         assertEquals(HomeSectionPageLayout.List, store.state.value.shell.home.collectionPage?.layout)
 
+        controller.interfaceSettingsChanged(
+            InterfaceSettings(
+                homeSectionPresentations = mapOf(
+                    SharedHomeCollectionSectionIds.MixesForYou to HomeSectionPresentationSettings(
+                        visible = false,
+                    ),
+                ),
+            ),
+        )
+        assertFalse(
+            store.state.value.shell.home.content.collectionSections
+                .single { it.id == SharedHomeCollectionSectionIds.MixesForYou }
+                .visible,
+        )
+        assertEquals(null, store.state.value.shell.home.collectionPage)
+
         controller.dispatch(NaviampCoreCommand.Home.CloseCollection)
         assertEquals(null, store.state.value.shell.home.collectionPage)
     }

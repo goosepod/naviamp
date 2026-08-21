@@ -153,7 +153,8 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals("Playing track radio.", fixture.store.state.value.overlays.status)
         val recentSection = fixture.store.state.value.shell.home.content.collectionSections
             .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentRadio }
-        assertEquals("track:current", recentSection.items.single().mediaItem.id)
+        assertTrue(recentSection.items.single().mediaItem.id.startsWith("track:current:session:"))
+        assertEquals("2 tracks", recentSection.items.single().mediaItem.subtitle)
 
         fixture.live.replace(
             fixture.live.state.value.copy(

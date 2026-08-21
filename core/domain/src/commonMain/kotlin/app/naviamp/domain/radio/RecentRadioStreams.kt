@@ -12,6 +12,18 @@ import app.naviamp.domain.settings.SavedTrack
 
 const val MaxRecentRadioStreams = 50
 
+fun recentRadioStreamsForSource(
+    streams: List<RecentRadioStream>,
+    sourceId: String?,
+): List<RecentRadioStream> = streams.filter { stream ->
+    stream.sourceId == null || stream.sourceId == sourceId
+}
+
+fun RecentRadioStream.sessionSubtitle(): String =
+    sessionTracks.takeIf { it.isNotEmpty() }
+        ?.let { tracks -> "${tracks.size} ${if (tracks.size == 1) "track" else "tracks"}" }
+        ?: "Radio"
+
 fun recentRadioStreamsWith(
     recentStreams: List<RecentRadioStream>,
     stream: RecentRadioStream,

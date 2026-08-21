@@ -1300,9 +1300,13 @@ private fun HomeScreenSectionPresentationSettings(
             val presentation = interfaceSettings.homeSectionPresentation(section.id)
             SettingsRow(
                 title = section.title,
-                subtitle = "Choose its Home screen and dedicated-page layouts",
+                subtitle = if (presentation.visible) {
+                    "Choose its Home screen and dedicated-page layouts"
+                } else {
+                    "Hidden from Home"
+                },
                 colors = colors,
-                value = presentation.homeLayout.label,
+                value = if (presentation.visible) presentation.homeLayout.label else "Hidden",
             ) {
                 onSelectedSectionChanged(section.id)
             }
@@ -1313,9 +1317,24 @@ private fun HomeScreenSectionPresentationSettings(
     val presentation = interfaceSettings.homeSectionPresentation(selectedSection.id)
     SettingsSubsectionHeader(
         title = selectedSection.title,
-        subtitle = "Choose separate layouts for Home and its dedicated page",
+        subtitle = "Choose whether this section appears and how it is laid out",
         colors = colors,
     ) { onSelectedSectionChanged(null) }
+
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = presentation.visible,
+        label = "Show on Home",
+        subtitle = "Keep this section available in settings while hiding or showing it on Home",
+        onCheckedChange = { visible ->
+            onInterfaceSettingsChanged(
+                interfaceSettings.withHomeSectionPresentation(
+                    selectedSection.id,
+                    presentation.copy(visible = visible),
+                ),
+            )
+        },
+    )
 
     SettingsSectionTitle("Home screen", colors)
     HomeSectionLayout.entries.forEach { layout ->

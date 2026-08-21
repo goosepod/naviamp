@@ -5,6 +5,7 @@ import app.naviamp.domain.radio.MaxRecentRadioStreams
 import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.SavedTrack
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -27,6 +28,15 @@ class NaviampCoreSettingsValueStoreTest {
         )
         assertEquals(MaxRecentRadioStreams, settings.loadRecentRadioStreams().size)
         assertEquals("genre:Genre 50", settings.loadRecentRadioStreams().last().id)
+
+        val session = genreRecentRadioStream(Genre("Ambient")).copy(
+            id = "genre:Ambient:session:123",
+            sourceId = "server-a",
+            startedAtEpochMillis = 123L,
+            sessionTracks = listOf(SavedTrack("track-1", "Track", artistName = "Artist")),
+        )
+        settings.saveRecentRadioStreams(listOf(session))
+        assertEquals(session, settings.loadRecentRadioStreams().single())
 
         values.entries["naviamp.interface"] = "not-json"
         assertEquals(InterfaceSettings(), settings.loadInterface())

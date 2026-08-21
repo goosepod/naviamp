@@ -69,11 +69,12 @@ fun SharedHome(
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
 ) {
+    val visibleSections = home.collectionSections.filter { it.visible }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (home.isEmpty) {
+        if (home.isEmpty || visibleSections.isEmpty()) {
             PlaceholderTile(stringResource(Res.string.home_empty), colors)
         }
-        home.collectionSections.forEach { section ->
+        visibleSections.forEach { section ->
             HomeCollectionSection(
                 section = section,
                 colors = colors,

@@ -55,6 +55,7 @@ class SettingsSyncDocumentTest {
                         "navibeat-mixes" to HomeSectionPresentationSettings(
                             homeLayout = HomeSectionLayout.Grid,
                             pageLayout = HomeSectionPageLayout.List,
+                            visible = false,
                         ),
                     ),
                     homeSectionOrder = listOf("navibeat-mixes", "mixes-for-you", "future-section"),
@@ -100,6 +101,18 @@ class SettingsSyncDocumentTest {
                     radioDjs = listOf(RadioDjPreset(id = "dj", name = " Road DJ ")),
                 ),
                 visualizer = VisualizerSettings(selectedVisualizer = "Waveform"),
+                recentRadioStreams = listOf(
+                    RecentRadioStream(
+                        id = "library:session:123",
+                        label = "Library radio",
+                        kind = RecentRadioKind.Library,
+                        sourceId = "goosepod",
+                        startedAtEpochMillis = 123L,
+                        sessionTracks = listOf(
+                            SavedTrack("track-1", "Track", artistName = "Artist"),
+                        ),
+                    ),
+                ),
             ),
         )
 
@@ -125,11 +138,17 @@ class SettingsSyncDocumentTest {
         assertEquals(SampleRateMatching.Strict, decoded.preferences.playback.sampleRateMatching)
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
+        assertEquals("goosepod", decoded.preferences.recentRadioStreams.single().sourceId)
+        assertEquals("track-1", decoded.preferences.recentRadioStreams.single().sessionTracks.single().id)
         assertTrue(decoded.preferences.interfaceSettings.checkForUpdates)
         assertEquals(ApplicationUpdateChannel.Beta, decoded.preferences.interfaceSettings.applicationUpdateChannel)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)
         assertEquals(
-            HomeSectionPresentationSettings(HomeSectionLayout.Grid, HomeSectionPageLayout.List),
+            HomeSectionPresentationSettings(
+                HomeSectionLayout.Grid,
+                HomeSectionPageLayout.List,
+                visible = false,
+            ),
             decoded.preferences.interfaceSettings.homeSectionPresentation("navibeat-mixes"),
         )
         assertEquals(
