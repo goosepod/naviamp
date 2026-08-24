@@ -2425,19 +2425,16 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Give an album or saved playlist its own gapless, crossfade, pause, and ReplayGain preferences.",
-            "Carry saved playback profiles through queue groups, direct track selection, and restored sessions.",
-            "See the active profile, resolved ReplayGain mode, and next transition source in Stats for Nerds.",
+            "Keep an active album or playlist group together when using Play Next.",
+            "Use Play Next Track to interrupt a group now and resume its remaining tracks afterward.",
             "Optionally downmix multichannel audio to a peak-safe stereo output with channel details in Stats for Nerds.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Now Playing refreshes its queue immediately after music is added.",
-            "Selecting another track inside a profiled album or playlist keeps its custom playback settings active.",
-            "Waveform seeking now lands at the selected position across display densities and waveform sizes, while playing or paused.",
-            "Prepared gapless and crossfade streams no longer skew the displayed or selected playback position.",
+            "Long remote tracks no longer stall waveform analysis by buffering the complete audio file.",
+            "Restoring a long track no longer waits for waveform, lyrics, and tag sidecar work.",
         ),
     ),
 )

@@ -13,12 +13,10 @@ class NaviampChangelogTest {
         assertTrue(changelog.all { section -> section.entries.isNotEmpty() })
         assertTrue(changelog.flatMap { it.entries }.all { entry -> entry.lines().size == 1 })
         val entries = changelog.flatMap { it.entries }
-        assertTrue(entries.any { "album or saved playlist" in it })
-        assertTrue(entries.any { "queue groups" in it })
-        assertTrue(entries.any { "Stats for Nerds" in it })
+        assertTrue(entries.any { "Play Next" in it })
+        assertTrue(entries.any { "interrupt a group" in it })
         assertTrue(entries.any { "downmix multichannel audio" in it })
-        assertTrue(entries.any { "refreshes its queue" in it })
-        assertTrue(entries.any { "keeps its custom playback settings" in it })
-        assertTrue(entries.any { "Waveform seeking" in it })
+        assertTrue(entries.any { "buffering the complete audio file" in it })
+        assertTrue(entries.any { "Restoring a long track" in it })
     }
 }

@@ -6,6 +6,36 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.3.0
+
+This release makes Play Next aware of album and playlist playback groups, adds an optional stereo
+downmix for multichannel audio, and prevents waveform work from stalling on long remote tracks.
+
+### Features
+
+- Keep an active album or playlist playback group together when using Play Next, inserting the requested music after the group boundary.
+- Use Play Next Track when a requested track should interrupt the active group immediately, then resume the remaining grouped tracks afterward.
+- Optionally downmix 3.0, quad, 5.0, 5.1, 6.1, 7.1, and unknown multichannel layouts to a peak-safe stereo output from Playback > Audio Output. The setting is off by default.
+- Show the source layout, active output channels, stereo-downmix preference, and effective channel processing in Stats for Nerds.
+
+### Bug Fixes
+
+- Stream long remote audio incrementally during waveform analysis instead of allowing the HTTP client or native decoder to retain the complete file in memory.
+- Resume restored-track waveform, lyrics, and tag loading in cancellable background work so long tracks do not delay playback restoration.
+
+### System Settings
+
+- Added a shared, persisted stereo-downmix preference and Core-owned peak-safe matrices used identically by Android, Desktop, and iOS BASSmix adapters.
+- Added regression coverage for original-release years across provider responses, radio decade filtering, saved sessions, and the library index.
+- Added regression coverage ensuring the About screen reads the shared application build number.
+
+### Release Notes and Known Limitations
+
+- Existing `v2.2.0` installations can upgrade in place. This release does not add a database migration, and stereo downmix defaults to off for existing and new installations.
+- Changing Stereo Downmix discards any prepared-next stream so the new output policy applies when the next track starts. Restart the current track to apply it immediately.
+- Stereo downmix is supported on Android, macOS, Windows, Linux, and iOS. Native surround output remains unverified and is not claimed by this release.
+- The iOS artifact remains an unsigned preview. Windows and macOS packages are not publisher-signed and may show operating-system warnings.
+
 ## v2.2.0
 
 This release adds playback profiles for albums and playlists, preserves those preferences through

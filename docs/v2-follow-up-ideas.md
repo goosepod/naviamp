@@ -117,7 +117,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Continuous Playback Profiles and Queue Groups
 
-- **Status:** Playback profiles and queue groups shipped in `v2.2.0`; group-aware Play next is implemented on the post-`v2.2.0` development line, while work launches remain a follow-up slice.
+- **Status:** Playback profiles and queue groups shipped in `v2.2.0`; group-aware Play Next is included in the unpublished `release/v2.3.0` preparation branch, while work launches remain a follow-up slice.
 - **Concept:** Let users assign playback preferences to an album, playlist, or classical work so a deliberately continuous sequence can override the global playback settings. A symphony, live recording, concept album, DJ mix, or suite could use gapless transitions and album ReplayGain even when the user's normal preference is crossfade with track ReplayGain.
 - **Server boundary:** OpenSubsonic can expose track and album ReplayGain values, plus newer work and movement metadata, but gapless/crossfade policy and grouped queue behavior are client concerns. Store these preferences in Naviamp's source-scoped local state unless a future interoperable server representation becomes available.
 - **Playback profile options to investigate:**
@@ -139,7 +139,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Stereo Downmixing
 
-- **Status:** Implemented on `feature/stereo-downmix`.
+- **Status:** Implemented on `feature/stereo-downmix` and included in the unpublished `release/v2.3.0` preparation branch.
 - **Concept:** Offer an off-by-default Playback setting that converts decoded sources above two channels to a deliberate stereo output for headphones and ordinary speakers. With the setting disabled, Naviamp retains its existing source-channel mixer behavior; this does not claim verified native surround output.
 - **Shared behavior:** Core owns the persisted preference, decoded-channel layout labels, 3.0/quad/5.0/5.1/6.1/7.1 matrices, unknown-layout fallback, headroom normalization, output-channel selection, and Stats for Nerds descriptions. Android, Desktop, and iOS only pass Core's matrix to BASSmix.
 - **Downmix policy:** Front channels remain side-specific; center and paired surround/rear channels enter at -3 dB; LFE and a single back-center channel enter at -6 dB; each stereo output row is normalized to a maximum absolute sum of 1.0 before ReplayGain, EQ, and user volume. Unknown layouts retain every channel through a conservative, visibly diagnosed fallback.
