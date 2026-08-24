@@ -24,6 +24,7 @@ class NaviampActionCatalogTest {
         assertEquals(
             listOf(
                 NaviampAction.PlayNext,
+                NaviampAction.PlayNextTrack,
                 NaviampAction.StartTrackRadio,
                 NaviampAction.PlayTrackRadioNext,
                 NaviampAction.AddTrackRadioToQueue,
@@ -65,6 +66,7 @@ class NaviampActionCatalogTest {
         assertEquals(
             listOf(
                 NaviampAction.PlayNext,
+                NaviampAction.PlayNextTrack,
                 NaviampAction.AddToQueue,
                 NaviampAction.ToggleFavorite,
                 NaviampAction.GoToAlbum,
@@ -80,6 +82,7 @@ class NaviampActionCatalogTest {
         assertEquals(
             listOf(
                 NaviampAction.PlayNext,
+                NaviampAction.PlayNextTrack,
                 NaviampAction.StartTrackRadio,
                 NaviampAction.PlayTrackRadioNext,
                 NaviampAction.AddTrackRadioToQueue,

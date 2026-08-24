@@ -127,6 +127,7 @@ data class SharedArtistCreditUi(
 enum class SharedTrackRowAction {
     Select,
     PlayNext,
+    PlayNextTrack,
     StartRadio,
     PlayTrackRadioNext,
     AddTrackRadioToQueue,
@@ -181,6 +182,7 @@ fun handleSharedTrackRowAction(
     when (request.action) {
         SharedTrackRowAction.Select -> handlers.onSelect(request.track)
         SharedTrackRowAction.PlayNext -> handlers.onPlayNext(request.track)
+        SharedTrackRowAction.PlayNextTrack -> handlers.onPlayNext(request.track)
         SharedTrackRowAction.StartRadio -> handlers.onStartRadio(request.track)
         SharedTrackRowAction.PlayTrackRadioNext -> handlers.onPlayTrackRadioNext(request.track)
         SharedTrackRowAction.AddTrackRadioToQueue -> handlers.onAddTrackRadioToQueue(request.track)

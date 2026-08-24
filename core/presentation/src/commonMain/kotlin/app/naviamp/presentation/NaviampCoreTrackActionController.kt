@@ -42,6 +42,7 @@ class NaviampCoreTrackActionController(
         when (request.action) {
             app.naviamp.ui.SharedTrackRowAction.Select -> media.play(tracks, index)
             app.naviamp.ui.SharedTrackRowAction.PlayNext -> media.playNext(listOf(track))
+            app.naviamp.ui.SharedTrackRowAction.PlayNextTrack -> media.playNextTrack(track)
             app.naviamp.ui.SharedTrackRowAction.StartRadio -> media.startTrackRadio(track)
             app.naviamp.ui.SharedTrackRowAction.PlayTrackRadioNext -> media.addTrackRadio(track, true)
             app.naviamp.ui.SharedTrackRowAction.AddTrackRadioToQueue -> media.addTrackRadio(track, false)

@@ -76,7 +76,7 @@ class PlaybackQueueGroupsTest {
     }
 
     @Test
-    fun playingAProfiledCollectionNextSplitsAndPreservesTheCurrentGroup() {
+    fun playingAProfiledCollectionNextKeepsTheCurrentGroupTogether() {
         val queue = PlaybackQueue(
             tracks = listOf(track("one"), track("two"), track("three")),
             currentIndex = 0,
@@ -89,15 +89,128 @@ class PlaybackQueueGroupsTest {
         )
 
         assertEquals(
-            listOf("one", "inserted-one", "inserted-two", "two", "three"),
+            listOf("one", "two", "three", "inserted-one", "inserted-two"),
             inserted.tracks.map { it.id.value },
         )
         assertEquals(
-            listOf(0 to 1, 1 to 3, 3 to 5),
+            listOf(0 to 3, 3 to 5),
             inserted.groups.map { it.startIndex to it.endIndexExclusive },
         )
-        assertEquals("inserted-album", inserted.groupAt(1)?.id)
-        assertEquals("current-album:after:1", inserted.groupAt(3)?.id)
+        assertEquals("current-album", inserted.groupAt(1)?.id)
+        assertEquals("inserted-album", inserted.groupAt(3)?.id)
+        assertEquals(listOf("two", "three", "inserted-one", "inserted-two"), inserted.playNext().map { it.id.value })
+    }
+
+    @Test
+    fun playNextTrackInterruptsThenResumesTheCurrentGroup() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("one"), track("two"), track("three"), track("context")),
+            currentIndex = 0,
+            groups = listOf(albumGroup(id = "current-album", start = 0, end = 3)),
+        ).playNextTracks(listOf(track("after-album")))
+
+        val inserted = queue.playNextTrack(track("interrupt"))
+
+        assertEquals(
+            listOf("one", "interrupt", "two", "three", "after-album", "context"),
+            inserted.tracks.map { it.id.value },
+        )
+        assertEquals(
+            listOf(0 to 1, 2 to 4),
+            inserted.groups.map { it.startIndex to it.endIndexExclusive },
+        )
+        assertEquals(
+            listOf("interrupt", "two", "three", "after-album"),
+            inserted.playNext().map { it.id.value },
+        )
+    }
+
+    @Test
+    fun repeatedGroupAwarePlayNextRequestsKeepRequestOrderAfterTheGroup() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("one"), track("two"), track("three"), track("context")),
+            currentIndex = 0,
+            groups = listOf(albumGroup(start = 0, end = 3)),
+        )
+            .playNextTracks(listOf(track("first-request")))
+            .playNextTracks(listOf(track("second-request")))
+
+        assertEquals(
+            listOf("one", "two", "three", "first-request", "second-request", "context"),
+            queue.tracks.map { it.id.value },
+        )
+        assertEquals(
+            listOf("two", "three", "first-request", "second-request"),
+            queue.playNext().map { it.id.value },
+        )
+    }
+
+    @Test
+    fun playNextDoesNotMergeASeparateLaterLaunchOfTheSameAlbum() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("first-one"), track("first-two"), track("second-one"), track("second-two")),
+            currentIndex = 0,
+            groups = listOf(
+                albumGroup(start = 0, end = 2),
+                albumGroup(start = 2, end = 4),
+            ),
+        ).playNextTracks(listOf(track("after-first-launch")))
+
+        assertEquals(
+            listOf("first-one", "first-two", "after-first-launch", "second-one", "second-two"),
+            queue.tracks.map { it.id.value },
+        )
+        assertEquals(
+            listOf(0 to 2, 3 to 5),
+            queue.groups.map { it.startIndex to it.endIndexExclusive },
+        )
+    }
+
+    @Test
+    fun shuffleCannotMoveTheCurrentGroupOrDeferredPlayNextTracks() {
+        val queue = PlaybackQueue(
+            tracks = listOf(
+                track("one"),
+                track("two"),
+                track("three"),
+                track("context-one"),
+                track("context-two"),
+            ),
+            currentIndex = 0,
+            groups = listOf(albumGroup(start = 0, end = 3)),
+        ).playNextTracks(listOf(track("after-album")))
+
+        val shuffled = queue.shuffleUpcoming()?.first
+
+        assertEquals(
+            listOf("two", "three", "after-album"),
+            shuffled?.playNext()?.map { it.id.value },
+        )
+    }
+
+    @Test
+    fun movingAnExistingOccurrenceToPlayNextPlacesItAfterTheCurrentGroup() {
+        val queue = PlaybackQueue(
+            tracks = listOf(
+                track("one"),
+                track("two"),
+                track("three"),
+                track("context-before"),
+                track("selected"),
+                track("context-after"),
+            ),
+            currentIndex = 0,
+            groups = listOf(albumGroup(id = "current-album", start = 0, end = 3)),
+        )
+
+        val moved = queue.moveToPlayNext(4)
+
+        assertEquals(
+            listOf("one", "two", "three", "selected", "context-before", "context-after"),
+            moved.tracks.map { it.id.value },
+        )
+        assertEquals(listOf("two", "three", "selected"), moved.playNext().map { it.id.value })
+        assertEquals(0 to 3, moved.groups.single().let { it.startIndex to it.endIndexExclusive })
     }
 
     @Test
@@ -158,7 +271,6 @@ class PlaybackQueueGroupsTest {
             groups = listOf(albumGroup(start = 0, end = 3)),
         )
 
-        assertTrue(queue.playNextTracks(listOf(track("inserted"))).groups.isEmpty())
         assertTrue(queue.removeAt(2).groups.isEmpty())
         assertTrue(queue.moveToNext(2).groups.isEmpty())
         assertTrue(queue.shuffleUpcoming()!!.first.groups.isEmpty())

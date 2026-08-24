@@ -17,6 +17,7 @@ enum class NaviampAction(
     KeepPlaylistDownloaded("Keep downloaded", NaviampIcons.Downloads),
     RemoveDownload("Remove download", NaviampIcons.Trash),
     PlayNext("Play next", NaviampIcons.Player),
+    PlayNextTrack("Play next track", NaviampIcons.Player),
     AddToQueue("Add to queue", NaviampIcons.Queue),
     RemoveFromQueue("Remove from queue", NaviampIcons.Trash),
     AddToPlaylist("Add to playlist", NaviampIcons.Playlist),
@@ -61,6 +62,7 @@ fun trackRowActions(
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.PlayNext.takeIf { canAddToQueue }?.toSpec(),
+        NaviampAction.PlayNextTrack.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.StartTrackRadio.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.PlayTrackRadioNext.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.AddTrackRadioToQueue.takeIf { canStartRadio }?.toSpec(),
@@ -78,6 +80,7 @@ fun trackRowActions(
 fun queueRowActions(): List<NaviampActionSpec> =
     listOf(
         NaviampAction.PlayNext.toSpec(),
+        NaviampAction.PlayNextTrack.toSpec(),
         NaviampAction.StartTrackRadio.toSpec(),
         NaviampAction.PlayTrackRadioNext.toSpec(),
         NaviampAction.AddTrackRadioToQueue.toSpec(),
@@ -92,7 +95,6 @@ fun upNextQueueRowActions(): List<NaviampActionSpec> =
 
 fun relatedTrackRowActions(): List<NaviampActionSpec> =
     listOf(
-        NaviampAction.PlayNext.toSpec(),
         NaviampAction.AddToQueue.toSpec(),
     ) + queueRowActions()
 

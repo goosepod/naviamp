@@ -6,7 +6,10 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -72,6 +75,30 @@ class PlaybackSessionMappingTest {
         )
 
         assertEquals(null, session?.positionSeconds)
+    }
+
+    @Test
+    fun groupAwarePlayNextBoundarySurvivesSessionRoundTrip() {
+        val group = PlaybackQueueGroup(
+            id = "album:album-id",
+            target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album-id"),
+            label = "Album",
+            startIndex = 0,
+            endIndexExclusive = 3,
+        )
+        val queue = PlaybackQueue(
+            tracks = listOf(track("one"), track("two"), track("three"), track("context")),
+            currentIndex = 0,
+            groups = listOf(group),
+        ).playNextTracks(listOf(track("after-album")))
+
+        val restored = playbackSessionFromQueue(queue)?.restoredPlaybackQueue()
+
+        assertEquals(queue, restored)
+        assertEquals(
+            listOf("two", "three", "after-album"),
+            restored?.playNext()?.map { it.id.value },
+        )
     }
 
     @Test

@@ -75,6 +75,13 @@ class PlaybackQueueManager(
             group = group,
         )
 
+    fun playNextTrack(
+        currentQueue: PlaybackQueue,
+        track: Track,
+        maxHistory: Int? = null,
+    ): PlaybackQueueUpdate =
+        mutation.playNextTrack(currentQueue, track, maxHistory)
+
     fun updateTrack(
         currentQueue: PlaybackQueue,
         updatedTrack: Track,

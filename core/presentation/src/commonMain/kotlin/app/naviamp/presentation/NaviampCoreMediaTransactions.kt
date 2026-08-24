@@ -172,6 +172,7 @@ class NaviampCoreMediaTransactions(
     }
 
     fun playNext(tracks: List<Track>) = apply(queue.playNextTracks(tracks, "tracks"))
+    fun playNextTrack(track: Track) = apply(queue.playNextTrack(track))
     fun addToQueue(tracks: List<Track>) = apply(queue.appendTracks(tracks, "tracks"))
 
     fun addAlbumToQueue(album: Album, tracks: List<Track>) = apply(

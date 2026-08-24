@@ -255,6 +255,16 @@ fun TrackRow(
                 } else {
                     null
                 }
+                NaviampAction.PlayNextTrack -> if (canAddToQueue) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayNextTrack)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
+                }
                 NaviampAction.StartTrackRadio -> if (canStartRadio) {
                     NaviampRowMenuItem(
                         action.label,

@@ -159,15 +159,53 @@ data class PlaybackQueue(
         val prunedTrackCount = maxHistory
             ?.let { (currentIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
             ?: 0
-        val currentAndHistory = this.tracks
-            .take(currentIndex + 1)
-            .drop(prunedTrackCount)
-        val priorityTracks = playNext()
-        val upcoming = contextUpNext()
+        val insertionIndex = playNextInsertionIndex()
+        val retainedGroups = groups
+            .afterDroppingPrefix(prunedTrackCount, this.tracks.size - prunedTrackCount)
+            .afterInserting(
+                insertionIndex = insertionIndex - prunedTrackCount,
+                insertedTrackCount = tracks.size,
+                resultingTrackCount = this.tracks.size + tracks.size - prunedTrackCount,
+            )
         return PlaybackQueue(
-            tracks = currentAndHistory + priorityTracks + tracks + upcoming,
+            tracks = (
+                this.tracks.take(insertionIndex) +
+                    tracks +
+                    this.tracks.drop(insertionIndex)
+                ).drop(prunedTrackCount),
             currentIndex = currentIndex - prunedTrackCount,
-            playNextCount = priorityTracks.size + tracks.size,
+            playNextCount = insertionIndex - currentIndex - 1 + tracks.size,
+            groups = retainedGroups,
+        )
+    }
+
+    /** Inserts ahead of every queued priority item, even when the current track belongs to a group. */
+    fun playNextTrack(
+        track: Track,
+        maxHistory: Int? = null,
+    ): PlaybackQueue {
+        if (currentIndex !in tracks.indices) return appendTracks(listOf(track), maxHistory)
+
+        val prunedTrackCount = maxHistory
+            ?.let { (currentIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
+            ?: 0
+        val insertionIndex = currentIndex + 1
+        val retainedGroups = groups
+            .afterDroppingPrefix(prunedTrackCount, tracks.size - prunedTrackCount)
+            .afterInserting(
+                insertionIndex = insertionIndex - prunedTrackCount,
+                insertedTrackCount = 1,
+                resultingTrackCount = tracks.size + 1 - prunedTrackCount,
+            )
+        return PlaybackQueue(
+            tracks = (
+                tracks.take(insertionIndex) +
+                    track +
+                    tracks.drop(insertionIndex)
+                ).drop(prunedTrackCount),
+            currentIndex = currentIndex - prunedTrackCount,
+            playNextCount = effectivePlayNextCount + 1,
+            groups = retainedGroups,
         )
     }
 
@@ -188,7 +226,7 @@ data class PlaybackQueue(
         val prunedTrackCount = maxHistory
             ?.let { (currentIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
             ?: 0
-        val insertionIndex = currentIndex + 1 + effectivePlayNextCount - prunedTrackCount
+        val insertionIndex = playNextInsertionIndex() - prunedTrackCount
         val next = playNextTracks(tracks, maxHistory)
         val retainedGroups = groups
             .afterDroppingPrefix(prunedTrackCount, this.tracks.size - prunedTrackCount)
@@ -198,6 +236,22 @@ data class PlaybackQueue(
             endIndexExclusive = insertionIndex + tracks.size,
         )
         return next.copy(groups = (retainedGroups + insertedGroup).normalized(next.tracks.size))
+    }
+
+    private fun playNextInsertionIndex(): Int {
+        val priorityEnd = currentIndex + 1 + effectivePlayNextCount
+        val currentGroup = groupAt() ?: return priorityEnd
+        val lineageId = currentGroup.id
+            .substringBefore(":after:")
+            .substringBefore(":reordered:")
+        val groupEnd = normalizedGroups()
+            .filter { group ->
+                (group == currentGroup || group.id.isGeneratedContinuationOf(lineageId)) &&
+                    group.startIndex <= priorityEnd
+            }
+            .maxOfOrNull(PlaybackQueueGroup::endIndexExclusive)
+            ?: currentGroup.endIndexExclusive
+        return maxOf(priorityEnd, groupEnd)
     }
 
     fun replaceUpcomingTracks(
@@ -303,6 +357,24 @@ data class PlaybackQueue(
             tracks = reordered,
             currentIndex = adjustedCurrentIndex,
             playNextCount = effectivePlayNextCount + if (selectedWasPriority) 0 else 1,
+        )
+    }
+
+    /** Moves an existing occurrence after the active group and every earlier Play Next request. */
+    fun moveToPlayNext(index: Int): PlaybackQueue {
+        if (index !in tracks.indices || currentIndex !in tracks.indices || index == currentIndex) return this
+
+        val originalIndexes = tracks.indices.toMutableList()
+        val selectedIndex = originalIndexes.removeAt(index)
+        var insertionIndex = playNextInsertionIndex()
+        if (index < insertionIndex) insertionIndex -= 1
+        val adjustedCurrentIndex = currentIndex - if (index < currentIndex) 1 else 0
+        originalIndexes.add(insertionIndex, selectedIndex)
+        return PlaybackQueue(
+            tracks = originalIndexes.map(tracks::get),
+            currentIndex = adjustedCurrentIndex,
+            playNextCount = insertionIndex - adjustedCurrentIndex,
+            groups = normalizedGroups().afterReordering(originalIndexes, tracks.size),
         )
     }
 

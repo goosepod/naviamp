@@ -179,8 +179,12 @@ class NaviampCoreNowPlayingMediaController(
             NowPlayingItemAction.AddTrackRadioToQueue ->
                 track?.let { generatedRadio.addTrackRadio(it, playNext = false) } ?: staleTrack()
             NowPlayingItemAction.PlayNext -> when (val target = request.target) {
-                is NowPlayingItemTarget.QueueIndex -> applyQueueMutation(queue.moveToNext(target.index))
+                is NowPlayingItemTarget.QueueIndex -> applyQueueMutation(queue.moveToPlayNext(target.index))
                 else -> track?.let { applyQueueUpdate(queue.playNextTracks(listOf(it), "track")) } ?: staleTrack()
+            }
+            NowPlayingItemAction.PlayNextTrack -> when (val target = request.target) {
+                is NowPlayingItemTarget.QueueIndex -> applyQueueMutation(queue.moveToNext(target.index))
+                else -> track?.let { applyQueueUpdate(queue.playNextTrack(it)) } ?: staleTrack()
             }
             NowPlayingItemAction.AddToQueue ->
                 track?.let { applyQueueUpdate(queue.appendTracks(listOf(it), "track")) } ?: staleTrack()

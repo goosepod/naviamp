@@ -2670,6 +2670,8 @@ private fun NowPlayingItemList(
                                             when (action.action) {
                                                 NaviampAction.PlayNext ->
                                                     onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNext))
+                                                NaviampAction.PlayNextTrack ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNextTrack))
                                                 NaviampAction.AddToQueue ->
                                                     onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
                                                 NaviampAction.StartTrackRadio ->

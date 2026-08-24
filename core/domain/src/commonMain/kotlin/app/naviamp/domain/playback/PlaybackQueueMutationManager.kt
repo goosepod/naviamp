@@ -93,6 +93,19 @@ class PlaybackQueueMutationManager {
         )
     }
 
+    fun playNextTrack(
+        currentQueue: PlaybackQueue,
+        track: Track,
+        maxHistory: Int? = null,
+    ): PlaybackQueueUpdate {
+        val nextQueue = currentQueue.playNextTrack(track, maxHistory)
+        return PlaybackQueueUpdate(
+            queue = nextQueue,
+            tracksChanged = true,
+            status = "Added 1 track to play next.",
+        )
+    }
+
     fun updateTrack(
         currentQueue: PlaybackQueue,
         updatedTrack: Track,

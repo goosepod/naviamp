@@ -85,6 +85,12 @@ class NaviampPlaybackQueueCoordinator(
             group = group,
         ).also(::commit)
 
+    fun playNextTrack(
+        track: Track,
+        maxHistory: Int? = null,
+    ): PlaybackQueueUpdate =
+        queueManager.playNextTrack(currentQueue, track, maxHistory).also(::commit)
+
     fun removeAt(index: Int): PlaybackQueueMutationUpdate {
         val queue = currentQueue
         val updatedQueue = queue.removeAt(index)
@@ -97,6 +103,9 @@ class NaviampPlaybackQueueCoordinator(
 
     fun moveToNext(index: Int): PlaybackQueueMutationUpdate =
         mutateQueue(clearPreparedNext = true) { queue -> queue.moveToNext(index) }
+
+    fun moveToPlayNext(index: Int): PlaybackQueueMutationUpdate =
+        mutateQueue(clearPreparedNext = true) { queue -> queue.moveToPlayNext(index) }
 
     fun clearUpcoming(): PlaybackQueueMutationUpdate =
         mutateQueue(clearPreparedNext = true, transform = PlaybackQueue::clearUpcoming)

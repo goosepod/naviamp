@@ -107,6 +107,7 @@ fun handleResolvedTrackRowAction(
     when (request.action) {
         SharedTrackRowAction.Select -> handlers.onSelect(index, track)
         SharedTrackRowAction.PlayNext -> handlers.onPlayNext(track)
+        SharedTrackRowAction.PlayNextTrack -> handlers.onPlayNext(track)
         SharedTrackRowAction.StartRadio -> handlers.onStartRadio(index, track)
         SharedTrackRowAction.PlayTrackRadioNext -> handlers.onPlayTrackRadioNext(track)
         SharedTrackRowAction.AddTrackRadioToQueue -> handlers.onAddTrackRadioToQueue(track)

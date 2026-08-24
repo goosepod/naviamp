@@ -128,3 +128,6 @@ internal fun List<PlaybackQueueGroup>.afterReordering(
 internal fun List<PlaybackQueueGroup>.normalized(trackCount: Int): List<PlaybackQueueGroup> =
     mapNotNull { it.normalized(trackCount) }
         .sortedBy(PlaybackQueueGroup::startIndex)
+
+internal fun String.isGeneratedContinuationOf(groupId: String): Boolean =
+    startsWith("$groupId:after:") || startsWith("$groupId:reordered:")

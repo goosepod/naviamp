@@ -1677,7 +1677,7 @@ private fun TrackSwipeAction.label(): String = when (this) {
 private fun TrackSwipeAction.subtitle(): String = when (this) {
     TrackSwipeAction.None -> "Disable this swipe direction"
     TrackSwipeAction.Play -> "Play this downloaded track"
-    TrackSwipeAction.PlayNext -> "Insert or move the track directly after the current track"
+    TrackSwipeAction.PlayNext -> "Insert or move the track after the current queue group, or after the current track when ungrouped"
     TrackSwipeAction.AddToQueue -> "Append the track to the end of Up Next"
     TrackSwipeAction.AddToPlaylist -> "Open the playlist picker"
     TrackSwipeAction.Download -> "Save the track for offline playback"

@@ -641,6 +641,7 @@ enum class NowPlayingItemAction {
     PlayTrackRadioNext,
     AddTrackRadioToQueue,
     PlayNext,
+    PlayNextTrack,
     AddToQueue,
     AddToPlaylist,
     CreatePlaylistAndAdd,
