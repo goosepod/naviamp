@@ -121,10 +121,15 @@ fun bassPlaybackFeatureSupport(supportsMixer: Boolean): BassPlaybackFeatureSuppo
 fun planBassMixerCreation(
     sourceInfo: BassStreamInfo?,
     crossfadeDurationSeconds: Int,
+    stereoDownmixEnabled: Boolean,
 ): BassMixerCreationPlan =
     BassMixerCreationPlan(
         frequency = sourceInfo?.frequency?.takeIf { it > 0 } ?: DefaultBassMixerFrequency,
-        channels = sourceInfo?.channels?.takeIf { it > 0 } ?: DefaultBassMixerChannels,
+        channels = if (stereoDownmixEnabled) {
+            StereoOutputChannels
+        } else {
+            sourceInfo?.channels?.takeIf { it > 0 } ?: DefaultBassMixerChannels
+        },
         queueSources = shouldQueueMixerSources(crossfadeDurationSeconds),
     )
 
@@ -435,7 +440,7 @@ fun shouldContinueBassPlaybackPolling(activeState: Int): Boolean =
 
 const val MaxCrossfadeDurationSeconds = 12
 const val DefaultBassMixerFrequency = 44_100
-const val DefaultBassMixerChannels = 2
+const val DefaultBassMixerChannels = StereoOutputChannels
 const val MaxPlaybackVolumeFactor = 4f
 const val FinishedPositionToleranceSeconds = 0.75
 const val FinishedPositionOverrunToleranceSeconds = 0.5

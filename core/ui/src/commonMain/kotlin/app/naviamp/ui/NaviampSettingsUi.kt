@@ -2428,6 +2428,7 @@ private val DefaultNaviampChangelog = listOf(
             "Give an album or saved playlist its own gapless, crossfade, pause, and ReplayGain preferences.",
             "Carry saved playback profiles through queue groups, direct track selection, and restored sessions.",
             "See the active profile, resolved ReplayGain mode, and next transition source in Stats for Nerds.",
+            "Optionally downmix multichannel audio to a peak-safe stereo output with channel details in Stats for Nerds.",
         ),
     ),
     NaviampChangelogSectionUi(
@@ -3492,6 +3493,14 @@ private fun AudioOutputSettings(
                 colors = colors,
                 value = playbackSettings.sampleRateConverter.label,
             ) { selectedPage = AudioOutputSettingsPage.SampleRateConverter }
+            SettingsCheckboxRow(
+                colors = colors,
+                checked = playbackSettings.stereoDownmixEnabled,
+                label = stringResource(Res.string.settings_stereo_downmix_title),
+                subtitle = stringResource(Res.string.settings_stereo_downmix_subtitle),
+            ) { enabled ->
+                onPlaybackSettingsChanged(playbackSettings.copy(stereoDownmixEnabled = enabled))
+            }
         }
     }
     if (pendingStrictCrossfadeConfirmation) {

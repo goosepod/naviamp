@@ -10,6 +10,7 @@ import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.playback.BassPlaybackEngineRuntime
+import app.naviamp.domain.playback.AudioMixingMatrix
 import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.ios.bass.native.BASS_ATTRIB_VOL
 import app.naviamp.ios.bass.native.BASS_CHANNELINFO
@@ -39,9 +40,11 @@ import app.naviamp.ios.bass.native.BASS_Init
 import app.naviamp.ios.bass.native.BASS_LEVEL_MONO
 import app.naviamp.ios.bass.native.BASS_LEVEL_RMS
 import app.naviamp.ios.bass.native.BASS_MIXER_CHAN_NORAMPIN
+import app.naviamp.ios.bass.native.BASS_MIXER_CHAN_MATRIX
 import app.naviamp.ios.bass.native.BASS_MIXER_QUEUE
 import app.naviamp.ios.bass.native.BASS_MIXER_POSEX
 import app.naviamp.ios.bass.native.BASS_Mixer_ChannelRemove
+import app.naviamp.ios.bass.native.BASS_Mixer_ChannelSetMatrix
 import app.naviamp.ios.bass.native.BASS_Mixer_ChannelGetPosition
 import app.naviamp.ios.bass.native.BASS_Mixer_ChannelSetPosition
 import app.naviamp.ios.bass.native.BASS_Mixer_GetVersion
@@ -278,6 +281,24 @@ class IosBassAudioBackend : BassAudioBackend {
         bassResult("BASS_Mixer_StreamAddChannel failed") {
             BASS_Mixer_StreamAddChannel(mixer.uint, stream.uint, BASS_MIXER_CHAN_NORAMPIN.toUInt()) != 0
         }
+
+    override fun addMixerChannelWithMatrix(
+        mixer: BassStreamHandle,
+        stream: BassStreamHandle,
+        matrix: AudioMixingMatrix,
+    ): Result<Unit> = runCatching {
+        val flags = (BASS_MIXER_CHAN_NORAMPIN or BASS_MIXER_CHAN_MATRIX).toUInt()
+        check(BASS_Mixer_StreamAddChannel(mixer.uint, stream.uint, flags) != 0) {
+            bassFailureMessage("BASS_Mixer_StreamAddChannel matrix failed")
+        }
+        val applied = matrix.coefficients.toFloatArray().usePinned { coefficients ->
+            BASS_Mixer_ChannelSetMatrix(stream.uint, coefficients.addressOf(0)) != 0
+        }
+        if (!applied) {
+            BASS_Mixer_ChannelRemove(stream.uint)
+            error(bassFailureMessage("BASS stereo downmix matrix failed"))
+        }
+    }
 
     override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
         bassResult("BASS_Mixer_ChannelRemove failed") { BASS_Mixer_ChannelRemove(stream.uint) != 0 }

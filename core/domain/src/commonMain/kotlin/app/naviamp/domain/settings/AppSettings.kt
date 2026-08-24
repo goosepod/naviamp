@@ -404,6 +404,7 @@ data class PlaybackSettings(
     val outputDevice: AudioOutputDevicePreference = AudioOutputDevicePreference(),
     val sampleRateMatching: SampleRateMatching = SampleRateMatching.Disabled,
     val sampleRateConverter: SampleRateConverter = SampleRateConverter.Sinc16,
+    val stereoDownmixEnabled: Boolean = false,
     val gaplessEnabled: Boolean = true,
     val crossfadeDurationSeconds: Int = 0,
     val equalizer: EqualizerSettings = EqualizerSettings(),
@@ -653,6 +654,8 @@ class PlaybackSettingsMaintenanceController(
             ?.setSampleRateConverter(effectiveSettings.sampleRateConverter)
         (playbackEngine as? app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine)
             ?.setSampleRateMatching(effectiveSettings.sampleRateMatching)
+        (playbackEngine as? app.naviamp.domain.playback.StereoDownmixPlaybackEngine)
+            ?.setStereoDownmixEnabled(effectiveSettings.stereoDownmixEnabled)
         return effectiveSettings
     }
 

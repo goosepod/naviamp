@@ -70,6 +70,9 @@ object AndroidBassJni {
 
     fun addMixerChannel(mixer: Int, stream: Int): Boolean = nativeAddMixerChannel(mixer, stream)
 
+    fun addMixerChannelWithMatrix(mixer: Int, stream: Int, matrix: FloatArray): Boolean =
+        nativeAddMixerChannelWithMatrix(mixer, stream, matrix)
+
     fun removeMixerChannel(stream: Int): Boolean = nativeRemoveMixerChannel(stream)
 
     fun play(stream: Int): Boolean = nativePlay(stream)
@@ -151,6 +154,7 @@ object AndroidBassJni {
     private external fun nativeChannelInfoFrequency(stream: Int): Int
     private external fun nativeChannelInfoChannels(stream: Int): Int
     private external fun nativeAddMixerChannel(mixer: Int, stream: Int): Boolean
+    private external fun nativeAddMixerChannelWithMatrix(mixer: Int, stream: Int, matrix: FloatArray): Boolean
     private external fun nativeRemoveMixerChannel(stream: Int): Boolean
     private external fun nativePlay(stream: Int): Boolean
     private external fun nativePause(stream: Int): Boolean

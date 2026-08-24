@@ -73,6 +73,10 @@ interface SampleRateMatchingPlaybackEngine : PlaybackEngine {
     fun setSampleRateMatching(mode: app.naviamp.domain.settings.SampleRateMatching)
 }
 
+interface StereoDownmixPlaybackEngine : PlaybackEngine {
+    fun setStereoDownmixEnabled(enabled: Boolean)
+}
+
 /** Optional native-network effect controlled by Core for the stream about to be opened. */
 interface NetworkCertificateVerificationPlaybackEngine : PlaybackEngine {
     fun setNetworkCertificateVerification(enabled: Boolean)
@@ -98,6 +102,7 @@ interface BassPlaybackEngine :
     ReplayGainPlaybackEngine,
     SampleRateConverterPlaybackEngine,
     SampleRateMatchingPlaybackEngine,
+    StereoDownmixPlaybackEngine,
     NetworkCertificateVerificationPlaybackEngine,
     ReleasablePlaybackEngine
 

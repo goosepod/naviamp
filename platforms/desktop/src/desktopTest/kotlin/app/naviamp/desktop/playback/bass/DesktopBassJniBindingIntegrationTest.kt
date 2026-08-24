@@ -1,6 +1,7 @@
 package app.naviamp.desktop.playback.bass
 
 import app.naviamp.domain.bass.BassActiveState
+import app.naviamp.domain.playback.planStereoDownmix
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -85,6 +86,31 @@ class DesktopBassJniBindingIntegrationTest {
     }
 
     @Test
+    fun appliesCoreStereoDownmixMatrixThroughJni() {
+        val binding = requireBinding()
+        val wav = createSilentWavFile(channels = 6)
+        assertTrue(binding.initForIntegrationTest(), "BASS should initialize: ${binding.lastErrorCode}")
+        try {
+            val source = binding.createFileDecodeStream(wav.absolutePath)
+            assertTrue(source != 0, "BASS should create a 5.1 decode stream: ${binding.lastErrorCode}")
+            assertEquals(6, binding.channelInfoChannels(source))
+            val mixer = binding.createMixer(frequency = 44_100, channels = 2, queueSources = false)
+            assertTrue(mixer != 0, "BASS should create a stereo mixer: ${binding.lastErrorCode}")
+            val matrix = requireNotNull(planStereoDownmix(6).matrix)
+            assertTrue(
+                binding.addMixerChannelWithMatrix(mixer, source, matrix.coefficients.toFloatArray()),
+                "BASS should accept Core's 5.1 stereo matrix: ${binding.lastErrorCode}",
+            )
+            assertEquals(2, binding.channelInfoChannels(mixer))
+            assertTrue(binding.freeStream(mixer))
+            assertTrue(binding.freeStream(source))
+        } finally {
+            binding.free()
+            wav.delete()
+        }
+    }
+
+    @Test
     fun receivesEndSyncCallbackThroughJni() {
         val binding = requireBinding()
         val wav = createSilentWavFile(seconds = 1)
@@ -138,9 +164,9 @@ class DesktopBassJniBindingIntegrationTest {
     private fun usesNoSoundIntegrationDevice(): Boolean =
         System.getProperty(TestOutputDeviceProperty) == NoSoundDeviceId
 
-    private fun createSilentWavFile(seconds: Int = 1): File =
+    private fun createSilentWavFile(seconds: Int = 1, channels: Int = 2): File =
         File.createTempFile("naviamp-jni-test", ".wav").also { file ->
-            file.writeBytes(silentWavBytes(seconds = seconds))
+            file.writeBytes(silentWavBytes(seconds = seconds, channels = channels))
         }
 
     private fun silentWavBytes(

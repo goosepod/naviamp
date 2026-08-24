@@ -43,6 +43,7 @@ struct BassApi {
     StreamCreateFileProc BASS_StreamCreateFile = nullptr;
     decltype(&::BASS_ChannelGetInfo) BASS_ChannelGetInfo = nullptr;
     decltype(&::BASS_Mixer_StreamAddChannel) BASS_Mixer_StreamAddChannel = nullptr;
+    decltype(&::BASS_Mixer_ChannelSetMatrix) BASS_Mixer_ChannelSetMatrix = nullptr;
     decltype(&::BASS_Mixer_StreamCreate) BASS_Mixer_StreamCreate = nullptr;
     decltype(&::BASS_ChannelSlideAttribute) BASS_ChannelSlideAttribute = nullptr;
     decltype(&::BASS_ChannelSeconds2Bytes) BASS_ChannelSeconds2Bytes = nullptr;
@@ -101,6 +102,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateFile", bassApi.BASS_StreamCreateFile) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetInfo", bassApi.BASS_ChannelGetInfo) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_StreamAddChannel", bassApi.BASS_Mixer_StreamAddChannel) && ok;
+    ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelSetMatrix", bassApi.BASS_Mixer_ChannelSetMatrix) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_StreamCreate", bassApi.BASS_Mixer_StreamCreate) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSlideAttribute", bassApi.BASS_ChannelSlideAttribute) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSeconds2Bytes", bassApi.BASS_ChannelSeconds2Bytes) && ok;
@@ -183,6 +185,7 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_StreamCreateFile bassApi.BASS_StreamCreateFile
 #define BASS_ChannelGetInfo bassApi.BASS_ChannelGetInfo
 #define BASS_Mixer_StreamAddChannel bassApi.BASS_Mixer_StreamAddChannel
+#define BASS_Mixer_ChannelSetMatrix bassApi.BASS_Mixer_ChannelSetMatrix
 #define BASS_Mixer_StreamCreate bassApi.BASS_Mixer_StreamCreate
 #define BASS_ChannelSlideAttribute bassApi.BASS_ChannelSlideAttribute
 #define BASS_ChannelSeconds2Bytes bassApi.BASS_ChannelSeconds2Bytes
@@ -431,6 +434,37 @@ jboolean add_mixer_channel(jint mixer, jint stream) {
         static_cast<DWORD>(stream),
         BASS_MIXER_CHAN_NORAMPIN
     ) ? JNI_TRUE : JNI_FALSE;
+}
+
+jboolean add_mixer_channel_with_matrix(JNIEnv* env, jint mixer, jint stream, jfloatArray matrix) {
+    if (matrix == nullptr) return JNI_FALSE;
+
+    BASS_CHANNELINFO sourceInfo{};
+    BASS_CHANNELINFO mixerInfo{};
+    if (!BASS_ChannelGetInfo(static_cast<DWORD>(stream), &sourceInfo) ||
+        !BASS_ChannelGetInfo(static_cast<DWORD>(mixer), &mixerInfo)) {
+        return JNI_FALSE;
+    }
+    const jsize expected = static_cast<jsize>(sourceInfo.chans * mixerInfo.chans);
+    if (env->GetArrayLength(matrix) != expected) return JNI_FALSE;
+
+    if (!BASS_Mixer_StreamAddChannel(
+            static_cast<DWORD>(mixer),
+            static_cast<DWORD>(stream),
+            BASS_MIXER_CHAN_NORAMPIN | BASS_MIXER_CHAN_MATRIX
+        )) {
+        return JNI_FALSE;
+    }
+
+    jfloat* coefficients = env->GetFloatArrayElements(matrix, nullptr);
+    if (coefficients == nullptr) {
+        BASS_Mixer_ChannelRemove(static_cast<DWORD>(stream));
+        return JNI_FALSE;
+    }
+    const BOOL applied = BASS_Mixer_ChannelSetMatrix(static_cast<DWORD>(stream), coefficients);
+    env->ReleaseFloatArrayElements(matrix, coefficients, JNI_ABORT);
+    if (!applied) BASS_Mixer_ChannelRemove(static_cast<DWORD>(stream));
+    return applied ? JNI_TRUE : JNI_FALSE;
 }
 
 jint create_mixer(jint frequency, jint channels, jboolean queueSources) {
@@ -789,6 +823,18 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeAddMixerChannel(JNIEnv* e
         static_cast<DWORD>(stream),
         BASS_MIXER_CHAN_NORAMPIN
     ) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeAddMixerChannelWithMatrix(
+    JNIEnv* env,
+    jobject thiz,
+    jint mixer,
+    jint stream,
+    jfloatArray matrix
+) {
+    (void)thiz;
+    return add_mixer_channel_with_matrix(env, mixer, stream, matrix);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -1157,6 +1203,18 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAddMixerChann
     (void)env;
     (void)thiz;
     return add_mixer_channel(mixer, stream);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAddMixerChannelWithMatrix(
+    JNIEnv* env,
+    jobject thiz,
+    jint mixer,
+    jint stream,
+    jfloatArray matrix
+) {
+    (void)thiz;
+    return add_mixer_channel_with_matrix(env, mixer, stream, matrix);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

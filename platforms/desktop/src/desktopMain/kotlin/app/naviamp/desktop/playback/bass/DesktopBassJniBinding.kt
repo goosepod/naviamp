@@ -63,6 +63,9 @@ class DesktopBassJniBinding private constructor(
 
     fun addMixerChannel(mixer: Int, stream: Int): Boolean = nativeAddMixerChannel(mixer, stream)
 
+    fun addMixerChannelWithMatrix(mixer: Int, stream: Int, matrix: FloatArray): Boolean =
+        nativeAddMixerChannelWithMatrix(mixer, stream, matrix)
+
     fun removeMixerChannel(stream: Int): Boolean = nativeRemoveMixerChannel(stream)
 
     fun setEndSync(stream: Int, callback: (Int) -> Unit): Int {
@@ -157,6 +160,7 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeChannelInfoFrequency(stream: Int): Int
     private external fun nativeChannelInfoChannels(stream: Int): Int
     private external fun nativeAddMixerChannel(mixer: Int, stream: Int): Boolean
+    private external fun nativeAddMixerChannelWithMatrix(mixer: Int, stream: Int, matrix: FloatArray): Boolean
     private external fun nativeRemoveMixerChannel(stream: Int): Boolean
     private external fun nativeSetEndSync(stream: Int): Int
     private external fun nativePlay(stream: Int): Boolean

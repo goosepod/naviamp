@@ -3,6 +3,7 @@ package app.naviamp.android
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.naviamp.android.playback.AndroidBassJni
 import app.naviamp.android.security.AndroidKeystoreCredentialProtector
+import app.naviamp.domain.playback.planStereoDownmix
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -63,30 +64,56 @@ class AndroidNativeBoundaryInstrumentedTest {
             bass.free()
         }
     }
+
+    @Test
+    fun packagedBassMixerAppliesCoreFivePointOneStereoMatrix() {
+        val bass = AndroidBassJni.load().getOrThrow()
+        assertTrue(bass.init(), "BASS initialization failed: error=${bass.lastErrorCode}")
+        val wav = File.createTempFile("naviamp-bass-surround-", ".wav")
+        try {
+            wav.writeBytes(testWav(channels = 6))
+            val source = bass.createFileDecodeStream(wav.absolutePath)
+            assertTrue(source != 0, "BASS failed to open 5.1 WAV: error=${bass.lastErrorCode}")
+            assertEquals(6, bass.channelInfoChannels(source))
+            val mixer = bass.createMixer(SampleRate, 2, queueSources = false)
+            assertTrue(mixer != 0, "BASS failed to create stereo mixer: error=${bass.lastErrorCode}")
+            val matrix = requireNotNull(planStereoDownmix(6).matrix)
+            assertTrue(
+                bass.addMixerChannelWithMatrix(mixer, source, matrix.coefficients.toFloatArray()),
+                "BASS rejected Core stereo matrix: error=${bass.lastErrorCode}",
+            )
+            assertEquals(2, bass.channelInfoChannels(mixer))
+            assertTrue(bass.freeStream(mixer))
+            assertTrue(bass.freeStream(source))
+        } finally {
+            wav.delete()
+            bass.free()
+        }
+    }
 }
 
 private const val SampleRate = 44_100
 private const val Channels = 2
 
-private fun testWav(): ByteArray {
+private fun testWav(channels: Int = Channels): ByteArray {
     val frames = SampleRate
-    val dataBytes = frames * Channels * 2
+    val dataBytes = frames * channels * 2
     return ByteBuffer.allocate(44 + dataBytes).order(ByteOrder.LITTLE_ENDIAN).apply {
         put("RIFF".encodeToByteArray())
         putInt(36 + dataBytes)
         put("WAVEfmt ".encodeToByteArray())
         putInt(16)
         putShort(1.toShort())
-        putShort(Channels.toShort())
+        putShort(channels.toShort())
         putInt(SampleRate)
-        putInt(SampleRate * Channels * 2)
-        putShort((Channels * 2).toShort())
+        putInt(SampleRate * channels * 2)
+        putShort((channels * 2).toShort())
         putShort(16.toShort())
         put("data".encodeToByteArray())
         putInt(dataBytes)
         repeat(frames) { frame ->
             val sample = (sin(2.0 * PI * 440.0 * frame / SampleRate) * Short.MAX_VALUE * 0.25).toInt().toShort()
-            repeat(Channels) { putShort(sample) }
+            repeat(channels) { putShort(sample) }
         }
     }.array()
 }

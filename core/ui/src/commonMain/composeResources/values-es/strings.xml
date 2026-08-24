@@ -243,6 +243,8 @@
     <string name="settings_sample_rate_converter_subtitle">Calidad de remuestreo cuando las frecuencias difieren</string>
     <string name="settings_sample_rate_matching_title">Coincidencia de frecuencia de muestreo</string>
     <string name="settings_sample_rate_matching_subtitle">Ajustar la frecuencia de salida a la música</string>
+    <string name="settings_stereo_downmix_title">Mezcla estéreo</string>
+    <string name="settings_stereo_downmix_subtitle">Convertir audio multicanal a una salida estéreo con protección de picos</string>
     <string name="settings_sample_rate_matching_strict_crossfade_title">¿Desactivar fundido?</string>
     <string name="settings_sample_rate_matching_strict_crossfade_message">La coincidencia estricta de frecuencia necesita reiniciar el dispositivo de salida cuando cambian las frecuencias de las pistas, por eso se desactivará el fundido.</string>
     <string name="settings_sample_rate_matching_strict_crossfade_confirm">Desactivar fundido</string>

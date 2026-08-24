@@ -243,6 +243,8 @@
     <string name="settings_sample_rate_converter_subtitle">Resampling quality when rates differ</string>
     <string name="settings_sample_rate_matching_title">Sample Rate Matching</string>
     <string name="settings_sample_rate_matching_subtitle">Match the output device rate to the music</string>
+    <string name="settings_stereo_downmix_title">Stereo Downmix</string>
+    <string name="settings_stereo_downmix_subtitle">Convert multichannel audio to a peak-safe stereo output</string>
     <string name="settings_sample_rate_matching_strict_crossfade_title">Disable Crossfade?</string>
     <string name="settings_sample_rate_matching_strict_crossfade_message">Strict sample rate matching needs to restart the output device when track rates change, so Crossfade will be disabled.</string>
     <string name="settings_sample_rate_matching_strict_crossfade_confirm">Disable Crossfade</string>

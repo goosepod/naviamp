@@ -32,6 +32,7 @@ import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
 import app.naviamp.domain.playback.PlaybackStreamStateReset
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
+import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyEqualizer
@@ -94,6 +95,7 @@ open class CoreBassPlaybackEngine(
     private val startPolicy: BassPlaybackStartPolicy = BassPlaybackStartPolicy.CoreEngine
     private var sampleRateConverter = SampleRateConverter.Sinc16
     private var sampleRateMatching = SampleRateMatching.Disabled
+    private var stereoDownmixEnabled = false
 
     override val name: String = "BASS"
     override val supportsPause: Boolean = true
@@ -112,6 +114,12 @@ open class CoreBassPlaybackEngine(
 
     override fun setSampleRateMatching(mode: SampleRateMatching) {
         sampleRateMatching = mode
+    }
+
+    override fun setStereoDownmixEnabled(enabled: Boolean) {
+        if (stereoDownmixEnabled == enabled) return
+        stereoDownmixEnabled = enabled
+        freePreparedStream()
     }
 
     override val supportsAudioOutputDeviceSelection: Boolean = backend?.supportsOutputDeviceSelection == true
@@ -461,6 +469,7 @@ open class CoreBassPlaybackEngine(
                         currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
                         crossfadeDurationSeconds = crossfadeDurationSeconds,
                         replayGainFactor = plan.replayGainFactor,
+                        stereoDownmixEnabled = stereoDownmixEnabled,
                         playbackDecode = true,
                     ).getOrThrow()
                     crossfadeActive = prepared.crossfadeActive
@@ -537,8 +546,26 @@ open class CoreBassPlaybackEngine(
             .also { currentVisualizerFrame = it }
     }
 
-    override fun statsRows(): List<Pair<String, String>> =
-        listOf(
+    override fun statsRows(): List<Pair<String, String>> {
+        val sourceChannelCount = backend
+            ?.takeIf { currentSourceStream != 0 }
+            ?.channelInfo(BassStreamHandle(currentSourceStream))
+            ?.getOrNull()
+            ?.channels
+        val outputChannelCount = backend
+            ?.takeIf { stream != 0 }
+            ?.channelInfo(BassStreamHandle(stream))
+            ?.getOrNull()
+            ?.channels
+        val channelPlan = sourceChannelCount?.let(::planStereoDownmix)
+        val channelProcessing = when {
+            sourceChannelCount == null || outputChannelCount == null -> "Unavailable"
+            sourceChannelCount > StereoOutputChannels && outputChannelCount == StereoOutputChannels ->
+                channelPlan?.diagnosticLabel ?: "Stereo downmix"
+            sourceChannelCount == outputChannelCount -> "Native ${stereoSourceLayoutLabel(sourceChannelCount)} output"
+            else -> "${stereoSourceLayoutLabel(sourceChannelCount)} → ${stereoSourceLayoutLabel(outputChannelCount)}"
+        }
+        return listOf(
             "BASS load state" to if (backend != null) "Loaded" else "Unavailable",
             "BASS version" to (backend?.version?.let(::bassVersionLabel) ?: "Unknown"),
             "BASSmix version" to (backend?.mixerVersion?.let(::bassVersionLabel) ?: "Unavailable"),
@@ -560,6 +587,14 @@ open class CoreBassPlaybackEngine(
             "Track source sample rate" to lastRequestedSampleRateHz.sampleRateDiagnosticLabel("Unknown"),
             "Requested output sample rate" to lastTargetOutputSampleRateHz.sampleRateDiagnosticLabel("Device default"),
             "Active output sample rate" to activeOutputSampleRateHz.sampleRateDiagnosticLabel("Device default/fallback"),
+            "Track source channels" to sourceChannelCount?.let { channels ->
+                "$channels (${stereoSourceLayoutLabel(channels)})"
+            }.orEmpty().ifBlank { "Unknown" },
+            "Active output channels" to outputChannelCount?.let { channels ->
+                "$channels (${stereoSourceLayoutLabel(channels)})"
+            }.orEmpty().ifBlank { "Unknown" },
+            "Stereo downmix setting" to if (stereoDownmixEnabled) "On" else "Off",
+            "Channel processing" to channelProcessing,
             "ReplayGain mode" to currentReplayGainAdjustment.mode.displayName,
             "ReplayGain source" to (currentReplayGainAdjustment.source?.displayName ?: "None"),
             "ReplayGain applied" to currentReplayGainAdjustment.label,
@@ -581,6 +616,7 @@ open class CoreBassPlaybackEngine(
             "Last request" to (lastRequestDiagnosticUrl ?: "None"),
             "Last error" to (lastError ?: "None"),
         )
+    }
 
     private fun ensureInitialized(
         bass: BassAudioBackend,
@@ -730,6 +766,7 @@ open class CoreBassPlaybackEngine(
             useMixer = plan.useMixer,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
             replayGainFactor = plan.replayGainFactor,
+            stereoDownmixEnabled = stereoDownmixEnabled,
             playbackDecode = plan.useMixer,
         ).map { playback -> bassPlaybackActivated(playback, plan.replayGainAdjustment) }
     }

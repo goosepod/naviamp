@@ -56,6 +56,9 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAddMixerChannel(JNIEnv* env, jobject thiz, jint mixer, jint stream);
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAddMixerChannelWithMatrix(JNIEnv* env, jobject thiz, jint mixer, jint stream, jfloatArray matrix);
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeRemoveMixerChannel(JNIEnv* env, jobject thiz, jint stream);
 
 extern "C" JNIEXPORT jint JNICALL

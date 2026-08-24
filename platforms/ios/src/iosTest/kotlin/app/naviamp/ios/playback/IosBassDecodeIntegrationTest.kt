@@ -2,6 +2,7 @@
 
 package app.naviamp.ios.playback
 
+import app.naviamp.domain.playback.planStereoDownmix
 import app.naviamp.ios.bass.native.BASS_Init
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -51,14 +52,41 @@ class IosBassDecodeIntegrationTest {
             NSFileManager.defaultManager.removeItemAtPath(path, null)
         }
     }
+
+    @Test
+    fun bundledBassMixerAppliesCoreFivePointOneStereoMatrix() {
+        val path = "${NSTemporaryDirectory().trimEnd('/')}/naviamp-bass-surround-${NSUUID.UUID().UUIDString}.wav"
+        val bytes = testWav(channels = 6)
+        bytes.usePinned { pinned ->
+            assertTrue(
+                NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
+                    .writeToFile(path, atomically = true),
+            )
+        }
+        val backend = IosBassAudioBackend()
+        try {
+            assertTrue(BASS_Init(0, SampleRate.toUInt(), 0u, null, null) != 0)
+            val source = backend.createFileDecodeStream(path).getOrThrow()
+            assertEquals(6, backend.channelInfo(source).getOrThrow().channels)
+            val mixer = backend.createMixer(SampleRate, 2, queueSources = false).getOrThrow()
+            val matrix = requireNotNull(planStereoDownmix(6).matrix)
+            backend.addMixerChannelWithMatrix(mixer, source, matrix).getOrThrow()
+            assertEquals(2, backend.channelInfo(mixer).getOrThrow().channels)
+            backend.freeStream(mixer).getOrThrow()
+            backend.freeStream(source).getOrThrow()
+        } finally {
+            backend.free()
+            NSFileManager.defaultManager.removeItemAtPath(path, null)
+        }
+    }
 }
 
 private const val SampleRate = 44_100
 private const val Channels = 2
 
-private fun testWav(): ByteArray {
+private fun testWav(channels: Int = Channels): ByteArray {
     val frames = SampleRate
-    val dataBytes = frames * Channels * 2
+    val dataBytes = frames * channels * 2
     val bytes = ByteArray(44 + dataBytes)
     var offset = 0
     fun ascii(value: String) = value.encodeToByteArray().forEach { bytes[offset++] = it }
@@ -74,16 +102,16 @@ private fun testWav(): ByteArray {
     ascii("WAVEfmt ")
     le32(16)
     le16(1)
-    le16(Channels)
+    le16(channels)
     le32(SampleRate)
-    le32(SampleRate * Channels * 2)
-    le16(Channels * 2)
+    le32(SampleRate * channels * 2)
+    le16(channels * 2)
     le16(16)
     ascii("data")
     le32(dataBytes)
     repeat(frames) { frame ->
         val sample = (sin(2.0 * PI * 440.0 * frame / SampleRate) * Short.MAX_VALUE * 0.25).toInt()
-        repeat(Channels) { le16(sample) }
+        repeat(channels) { le16(sample) }
     }
     return bytes
 }

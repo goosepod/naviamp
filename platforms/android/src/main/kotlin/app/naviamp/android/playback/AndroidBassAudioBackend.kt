@@ -7,6 +7,7 @@ import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.bassStreamProperties
 import app.naviamp.domain.bass.bassFailureMessage
+import app.naviamp.domain.playback.AudioMixingMatrix
 
 class AndroidBassAudioBackend(
     private val bass: AndroidBassJni,
@@ -118,6 +119,17 @@ class AndroidBassAudioBackend(
             Result.success(Unit)
         } else {
             Result.failure(IllegalStateException(errorMessage("BASS_Mixer_StreamAddChannel failed")))
+        }
+
+    override fun addMixerChannelWithMatrix(
+        mixer: BassStreamHandle,
+        stream: BassStreamHandle,
+        matrix: AudioMixingMatrix,
+    ): Result<Unit> =
+        if (bass.addMixerChannelWithMatrix(mixer.value, stream.value, matrix.coefficients.toFloatArray())) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS stereo downmix matrix failed")))
         }
 
     override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =

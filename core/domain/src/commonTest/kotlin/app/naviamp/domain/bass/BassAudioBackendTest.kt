@@ -521,6 +521,58 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun createsMultichannelPlaybackWithTheCoreStereoDownmixMatrix() {
+        val backend = RecordingBassAudioBackend(sourceChannels = 6)
+
+        val result = backend.createMixerBassPlayback(
+            localPath = "/tmp/surround.flac",
+            url = "file:///tmp/surround.flac",
+            crossfadeDurationSeconds = 0,
+            replayGainFactor = 1f,
+            stereoDownmixEnabled = true,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/surround.flac",
+                "info:13",
+                "mixer:48000:2:true",
+                "volume:13:1.0",
+                "matrix:30:13:2x6",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun keepsNativeMultichannelOutputWhenStereoDownmixIsDisabled() {
+        val backend = RecordingBassAudioBackend(sourceChannels = 6)
+
+        val result = backend.createMixerBassPlayback(
+            localPath = "/tmp/surround.flac",
+            url = "file:///tmp/surround.flac",
+            crossfadeDurationSeconds = 0,
+            replayGainFactor = 1f,
+            stereoDownmixEnabled = false,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/surround.flac",
+                "info:13",
+                "mixer:48000:6:true",
+                "volume:13:1.0",
+                "add:30:13",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
     fun mixerBassPlaybackPropagatesSourceCreationFailuresWithoutRelease() {
         val backend = RecordingBassAudioBackend(createPlaybackDecodeSucceeds = false)
 
@@ -651,12 +703,41 @@ class BassAudioBackendTest {
         assertEquals(
             listOf(
                 "filePlaybackDecode:/tmp/next.flac",
+                "info:13",
                 "volume:13:0.0",
                 "add:1:13",
                 "volume:13:0.0",
                 "slide:13:0.7:5000",
                 "volume:2:0.8",
                 "slide:2:0.0:5000",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun preparedMultichannelSourceUsesTheSameCoreStereoMatrix() {
+        val backend = RecordingBassAudioBackend(sourceChannels = 8)
+
+        val result = backend.prepareNextBassMixerSource(
+            localPath = "/tmp/next-surround.flac",
+            url = "file:///tmp/next-surround.flac",
+            mixer = 1,
+            currentSource = 2,
+            currentSourceVolumeFactor = 1f,
+            crossfadeDurationSeconds = 0,
+            replayGainFactor = 1f,
+            stereoDownmixEnabled = true,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/next-surround.flac",
+                "info:13",
+                "volume:13:1.0",
+                "matrix:1:13:2x8",
             ),
             backend.calls,
         )
@@ -700,6 +781,7 @@ class BassAudioBackendTest {
         assertEquals(
             listOf(
                 "filePlaybackDecode:/tmp/next.flac",
+                "info:13",
                 "volume:13:0.0",
                 "add:1:13",
                 "volume:13:0.0",
@@ -793,6 +875,7 @@ private class RecordingBassAudioBackend(
     private val createPlaybackDecodeSucceeds: Boolean = true,
     private val createMixerSucceeds: Boolean = true,
     private val addSucceeds: Boolean = true,
+    private val sourceChannels: Int = 2,
     override val lastErrorCode: Int? = null,
     private val activeStateValue: Int = BassActiveState.Playing,
 ) : BassAudioBackend {
@@ -833,7 +916,7 @@ private class RecordingBassAudioBackend(
 
     override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> {
         calls += "info:${stream.value}"
-        return Result.success(BassStreamInfo(frequency = 48_000, channels = 2))
+        return Result.success(BassStreamInfo(frequency = 48_000, channels = sourceChannels))
     }
 
     override fun createMixer(
@@ -884,6 +967,16 @@ private class RecordingBassAudioBackend(
         } else {
             Result.failure(IllegalStateException("add failed"))
         }
+    }
+
+    override fun addMixerChannelWithMatrix(
+        mixer: BassStreamHandle,
+        stream: BassStreamHandle,
+        matrix: app.naviamp.domain.playback.AudioMixingMatrix,
+    ): Result<Unit> {
+        calls += "matrix:${mixer.value}:${stream.value}:${matrix.outputChannels}x${matrix.inputChannels}"
+        return if (addSucceeds) Result.success(Unit)
+        else Result.failure(IllegalStateException("matrix add failed"))
     }
 
     override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> {

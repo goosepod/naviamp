@@ -10,6 +10,7 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.StereoDownmixPlaybackEngine
 import app.naviamp.domain.playback.targetOutputSampleRate
 import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
@@ -91,6 +92,7 @@ class PlaybackSettingsTest {
         assertEquals(listOf(0, 1, 2, 3, 4), SampleRateConverter.entries.map { it.bassQuality })
         assertEquals(SampleRateConverter.Sinc16, PlaybackSettings().sampleRateConverter)
         assertEquals(SampleRateMatching.Disabled, PlaybackSettings().sampleRateMatching)
+        assertFalse(PlaybackSettings().stereoDownmixEnabled)
     }
 
     @Test
@@ -211,9 +213,10 @@ class PlaybackSettingsTest {
         var current = PlaybackSettings(lrclibLyricsEnabled = false)
         var saved: PlaybackSettings? = null
         var reloadCount = 0
+        val engine = FakePlaybackEngine(supportsSoftwareVolume = false)
 
         PlaybackSettingsMaintenanceController(
-            playbackEngine = FakePlaybackEngine(supportsSoftwareVolume = false),
+            playbackEngine = engine,
             playbackSettings = { current },
             setPlaybackSettings = { settings -> current = settings },
             savePlaybackSettings = { settings -> saved = settings },
@@ -222,12 +225,14 @@ class PlaybackSettingsTest {
             PlaybackSettings(
                 lrclibLyricsEnabled = true,
                 volumePercent = 25,
+                stereoDownmixEnabled = true,
             ),
         )
 
         assertEquals(100, current.volumePercent)
         assertEquals(current, saved)
         assertEquals(1, reloadCount)
+        assertEquals(true, engine.stereoDownmixEnabled)
     }
 
     @Test
@@ -262,7 +267,9 @@ class PlaybackSettingsTest {
         override val supportsCrossfade: Boolean = true,
         override val supportsReplayGain: Boolean = true,
         override val supportsSoftwareVolume: Boolean = true,
-    ) : PlaybackEngine {
+    ) : PlaybackEngine, StereoDownmixPlaybackEngine {
+        var stereoDownmixEnabled: Boolean = false
+            private set
         override val name: String = "Fake"
         override val supportsPause: Boolean = true
         override val supportsSeek: Boolean = true
@@ -281,6 +288,10 @@ class PlaybackSettingsTest {
         override fun seek(positionSeconds: Double) = Unit
         override fun setVolume(percent: Int) = Unit
         override fun stop() = Unit
+
+        override fun setStereoDownmixEnabled(enabled: Boolean) {
+            stereoDownmixEnabled = enabled
+        }
     }
 
     private fun track(id: String): Track =

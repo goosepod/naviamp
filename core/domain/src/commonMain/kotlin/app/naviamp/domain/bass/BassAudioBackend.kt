@@ -1,11 +1,13 @@
 package app.naviamp.domain.bass
 
 import app.naviamp.domain.playback.PreparedMixerTransitionPlan
+import app.naviamp.domain.playback.AudioMixingMatrix
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.planBassMixerCreation
+import app.naviamp.domain.playback.planStereoDownmix
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
@@ -237,6 +239,12 @@ interface BassAudioBackend {
         stream: BassStreamHandle,
     ): Result<Unit> = unsupportedBassOperation("BASS mixer channel add")
 
+    fun addMixerChannelWithMatrix(
+        mixer: BassStreamHandle,
+        stream: BassStreamHandle,
+        matrix: AudioMixingMatrix,
+    ): Result<Unit> = unsupportedBassOperation("BASS matrix mixer channel add")
+
     fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
         unsupportedBassOperation("BASS mixer channel remove")
 
@@ -364,6 +372,20 @@ fun BassAudioBackend.activeState(stream: Int): Int =
 fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Result<Unit> =
     addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream))
 
+fun BassAudioBackend.addMixerChannelWithOptionalStereoDownmix(
+    mixer: BassStreamHandle,
+    stream: BassStreamHandle,
+    sourceChannels: Int,
+    stereoDownmixEnabled: Boolean,
+): Result<Unit> {
+    val matrix = planStereoDownmix(sourceChannels).matrix.takeIf { stereoDownmixEnabled }
+    return if (matrix != null) {
+        addMixerChannelWithMatrix(mixer, stream, matrix)
+    } else {
+        addMixerChannel(mixer, stream)
+    }
+}
+
 fun BassAudioBackend.setEndSync(
     stream: Int,
     callback: (BassStreamHandle) -> Unit,
@@ -447,6 +469,7 @@ fun BassAudioBackend.createMixerBassPlayback(
     url: String,
     crossfadeDurationSeconds: Int,
     replayGainFactor: Float,
+    stereoDownmixEnabled: Boolean = false,
     playbackDecode: Boolean = false,
 ): Result<BassCreatedPlayback> {
     var source: BassStreamHandle? = null
@@ -458,9 +481,11 @@ fun BassAudioBackend.createMixerBassPlayback(
             decode = true,
             playbackDecode = playbackDecode,
         ).getOrThrow().also { source = it }
+        val sourceInfo = channelInfo(createdSource).getOrThrow()
         val mixerPlan = planBassMixerCreation(
-            sourceInfo = channelInfo(createdSource).getOrNull(),
+            sourceInfo = sourceInfo,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
+            stereoDownmixEnabled = stereoDownmixEnabled,
         )
         val createdMixer = createMixer(
             frequency = mixerPlan.frequency,
@@ -468,7 +493,12 @@ fun BassAudioBackend.createMixerBassPlayback(
             queueSources = mixerPlan.queueSources,
         ).getOrThrow().also { mixer = it }
         setVolume(createdSource, replayGainFactor)
-        addMixerChannel(createdMixer, createdSource).getOrThrow()
+        addMixerChannelWithOptionalStereoDownmix(
+            mixer = createdMixer,
+            stream = createdSource,
+            sourceChannels = sourceInfo.channels,
+            stereoDownmixEnabled = stereoDownmixEnabled,
+        ).getOrThrow()
         BassCreatedPlayback(
             playbackHandle = createdMixer.value,
             sourceHandle = createdSource.value,
@@ -486,6 +516,7 @@ fun BassAudioBackend.createBassPlayback(
     useMixer: Boolean,
     crossfadeDurationSeconds: Int,
     replayGainFactor: Float,
+    stereoDownmixEnabled: Boolean = false,
     playbackDecode: Boolean = false,
 ): Result<BassCreatedPlayback> =
     if (useMixer) {
@@ -494,6 +525,7 @@ fun BassAudioBackend.createBassPlayback(
             url = url,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
             replayGainFactor = replayGainFactor,
+            stereoDownmixEnabled = stereoDownmixEnabled,
             playbackDecode = playbackDecode,
         )
     } else {
@@ -512,6 +544,7 @@ fun BassAudioBackend.prepareNextBassMixerSource(
     currentSourceVolumeFactor: Float,
     crossfadeDurationSeconds: Int,
     replayGainFactor: Float,
+    stereoDownmixEnabled: Boolean = false,
     playbackDecode: Boolean = false,
 ): Result<BassPreparedSource> {
     var source: Int = 0
@@ -521,6 +554,7 @@ fun BassAudioBackend.prepareNextBassMixerSource(
             url = url,
             playbackDecode = playbackDecode,
         ).getOrThrow().also { source = it }
+        val sourceChannels = channelInfo(createdSource).getOrThrow().channels
         val transition = planPreparedMixerTransition(crossfadeDurationSeconds, replayGainFactor)
         applyPreparedBassMixerTransition(
             mixer = mixer,
@@ -528,6 +562,8 @@ fun BassAudioBackend.prepareNextBassMixerSource(
             currentSource = currentSource,
             currentSourceVolumeFactor = currentSourceVolumeFactor,
             transition = transition,
+            nextSourceChannels = sourceChannels,
+            stereoDownmixEnabled = stereoDownmixEnabled,
         ).getOrThrow()
         BassPreparedSource(
             sourceHandle = createdSource,
@@ -637,10 +673,21 @@ fun BassAudioBackend.applyPreparedBassMixerTransition(
     currentSource: BassStreamHandle?,
     currentSourceVolumeFactor: Float,
     transition: PreparedMixerTransitionPlan,
+    nextSourceChannels: Int? = null,
+    stereoDownmixEnabled: Boolean = false,
 ): Result<Unit> =
     runCatching {
         setVolume(nextSource, transition.initialNextSourceVolume).getOrThrow()
-        addMixerChannel(mixer, nextSource).getOrThrow()
+        if (nextSourceChannels != null) {
+            addMixerChannelWithOptionalStereoDownmix(
+                mixer = mixer,
+                stream = nextSource,
+                sourceChannels = nextSourceChannels,
+                stereoDownmixEnabled = stereoDownmixEnabled,
+            ).getOrThrow()
+        } else {
+            addMixerChannel(mixer, nextSource).getOrThrow()
+        }
         if (!transition.shouldCrossfade) {
             return@runCatching
         }
@@ -657,6 +704,8 @@ fun BassAudioBackend.applyPreparedBassMixerTransition(
     currentSource: Int,
     currentSourceVolumeFactor: Float,
     transition: PreparedMixerTransitionPlan,
+    nextSourceChannels: Int? = null,
+    stereoDownmixEnabled: Boolean = false,
 ): Result<Unit> =
     applyPreparedBassMixerTransition(
         mixer = BassStreamHandle(mixer),
@@ -664,6 +713,8 @@ fun BassAudioBackend.applyPreparedBassMixerTransition(
         currentSource = currentSource.takeIf { it != 0 }?.let(::BassStreamHandle),
         currentSourceVolumeFactor = currentSourceVolumeFactor,
         transition = transition,
+        nextSourceChannels = nextSourceChannels,
+        stereoDownmixEnabled = stereoDownmixEnabled,
     )
 
 private fun BassAudioBackend.applyPreparedBassFadeIn(

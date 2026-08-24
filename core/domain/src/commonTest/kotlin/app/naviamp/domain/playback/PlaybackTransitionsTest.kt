@@ -66,19 +66,27 @@ class PlaybackTransitionsTest {
     }
 
     @Test
-    fun plansBassMixerCreationFromSourceInfoWithFallbacks() {
-        val sourcePlan = planBassMixerCreation(
+    fun plansBassMixerCreationFromSourceInfoWithOptionalStereoDownmix() {
+        val nativePlan = planBassMixerCreation(
             sourceInfo = BassStreamInfo(frequency = 48_000, channels = 6),
             crossfadeDurationSeconds = 0,
+            stereoDownmixEnabled = false,
+        )
+        val downmixPlan = planBassMixerCreation(
+            sourceInfo = BassStreamInfo(frequency = 48_000, channels = 6),
+            crossfadeDurationSeconds = 0,
+            stereoDownmixEnabled = true,
         )
         val fallbackPlan = planBassMixerCreation(
             sourceInfo = BassStreamInfo(frequency = 0, channels = -1),
             crossfadeDurationSeconds = 4,
+            stereoDownmixEnabled = false,
         )
 
-        assertEquals(48_000, sourcePlan.frequency)
-        assertEquals(6, sourcePlan.channels)
-        assertTrue(sourcePlan.queueSources)
+        assertEquals(48_000, nativePlan.frequency)
+        assertEquals(6, nativePlan.channels)
+        assertTrue(nativePlan.queueSources)
+        assertEquals(StereoOutputChannels, downmixPlan.channels)
         assertEquals(DefaultBassMixerFrequency, fallbackPlan.frequency)
         assertEquals(DefaultBassMixerChannels, fallbackPlan.channels)
         assertFalse(fallbackPlan.queueSources)
