@@ -22,6 +22,8 @@ states as if they were shipped behavior.
 - When the TV owns playback, only the TV reports its playback lifecycle to the provider.
 - Lyrics are the primary living-room presentation enhancement. A visualizer is not in the initial
   scope.
+- 1920x1080 and 3840x2160 are required display targets. Layout uses logical density-aware sizing so
+  ten-foot typography and controls remain consistent while artwork renders at native sharpness.
 - Product policy, state, navigation, setup behavior, remote-session semantics, and TV UI live in
   shared Kotlin. Android code is limited to unavoidable TV, media-session, secure-storage, network
   discovery, and lifecycle boundaries.
@@ -196,6 +198,7 @@ or independent navigation graph may be introduced in the Android host.
 | Area | Emulator | Physical Google TV |
 | --- | --- | --- |
 | Layout, focus, D-pad, system keyboard | Required | Required |
+| 1080p and 4K layout/rendering | Required | Required |
 | Provider connection and browsing | Required | Required |
 | BASS decoding and ordinary stereo output | Required | Required |
 | Queue, restoration, lyrics, reporting | Required | Required |
@@ -255,3 +258,11 @@ or independent navigation graph may be introduced in the Android host.
   and Desktop but are hidden on TV, where there is no supported file-import workflow.
 - Removed fallback URL configuration from TV setup because a stationary playback target does not
   need the phone/Desktop roaming-endpoint workflow.
+- Connected successfully to Navidrome on the 1080p emulator. The first connected-screen capture
+  exposed a wrapping Settings destination, so the TV navigation now uses equal adaptive slots and
+  single-line labels designed for the shared 960dp ten-foot viewport used by both 1080p and 4K.
+- Verified the corrected connected layout at the emulator's native 1920x1080/320 dpi: all six
+  destinations fit on one line with readable focus treatment. This AVD is physically fixed at
+  1920x1080: a 3840x2160 `wm` override is ignored and secondary displays are unsupported, so its
+  density-only result is not valid 4K evidence. A true 4K AVD or physical device remains required
+  before marking 4K acceptance complete.

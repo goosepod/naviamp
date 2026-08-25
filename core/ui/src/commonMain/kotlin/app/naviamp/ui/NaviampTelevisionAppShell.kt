@@ -6,6 +6,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.playback.PlaybackProgress
@@ -145,26 +147,32 @@ private fun TelevisionNavigationBar(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Black.copy(alpha = 0.34f))
-            .padding(horizontal = 42.dp, vertical = 18.dp),
+            .padding(horizontal = 28.dp, vertical = 14.dp),
     ) {
         Text(
             text = "Naviamp",
             color = colors.primaryText,
-            fontSize = 28.sp,
+            fontSize = 25.sp,
             fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(end = 18.dp),
+            maxLines = 1,
+            modifier = Modifier.padding(end = 14.dp),
         )
-        destinations.forEach { destination ->
-            TelevisionNavigationButton(
-                destination = destination,
-                selected = destination == selected,
-                colors = colors,
-                onClick = { onSelected(destination) },
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            destinations.forEach { destination ->
+                TelevisionNavigationButton(
+                    destination = destination,
+                    selected = destination == selected,
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelected(destination) },
+                )
+            }
         }
     }
 }
@@ -174,6 +182,7 @@ private fun TelevisionNavigationButton(
     destination: NaviampTelevisionDestination,
     selected: Boolean,
     colors: NaviampColors,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -184,8 +193,9 @@ private fun TelevisionNavigationButton(
             containerColor = if (selected) colors.primaryText else Color.Transparent,
             contentColor = if (selected) colors.background else colors.secondaryText,
         ),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
         shape = shape,
-        modifier = Modifier
+        modifier = modifier
             .onFocusChanged { focused = it.isFocused }
             .then(
                 if (focused) {
@@ -196,7 +206,13 @@ private fun TelevisionNavigationButton(
             )
             .focusable(),
     ) {
-        Text(destination.label, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = destination.label,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
