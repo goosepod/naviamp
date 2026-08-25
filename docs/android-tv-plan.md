@@ -2,10 +2,12 @@
 
 ## Purpose
 
-Build a complete, standalone Naviamp client for Android TV and Google TV. The TV client connects,
-browses, searches, plays, restores its queue, manages essential settings, and reports playback
-without requiring a phone or computer. Paired Naviamp clients add convenient remote control but are
-never required to finish setup or operate the TV app.
+Build a complete, standalone Naviamp Television experience shared by Android TV, Google TV, and a
+future Apple TV/tvOS host. Android TV is the first implementation and acceptance target, not the
+owner of the product interface. The TV client connects, browses, searches, plays, restores its
+queue, manages essential settings, and reports playback without requiring a phone or computer.
+Paired Naviamp clients add convenient remote control but are never required to finish setup or
+operate the TV app.
 
 This plan is the active record for product decisions, architecture, milestones, test evidence, and
 open questions. Update it as implementation changes; do not preserve obsolete branch-development
@@ -16,7 +18,7 @@ states as if they were shipped behavior.
 - The TV is a complete playback owner, not a display attached to another Naviamp process.
 - The TV experience is intentionally quieter than phone and Desktop, not artificially incapable.
 - Connection creation, editing, deletion, source switching, playback, queue control, recovery, and
-  diagnostics remain available with only the TV remote and the Android TV system keyboard.
+  diagnostics remain available with only the TV remote and platform text-entry UI.
 - Phone and Desktop controllers browse with their normal full UI while targeting the TV for
   playback. Closing a controller does not stop TV playback.
 - When the TV owns playback, only the TV reports its playback lifecycle to the provider.
@@ -25,8 +27,11 @@ states as if they were shipped behavior.
 - 1920x1080 and 3840x2160 are required display targets. Layout uses logical density-aware sizing so
   ten-foot typography and controls remain consistent while artwork renders at native sharpness.
 - Product policy, state, navigation, setup behavior, remote-session semantics, and TV UI live in
-  shared Kotlin. Android code is limited to unavoidable TV, media-session, secure-storage, network
-  discovery, and lifecycle boundaries.
+  shared Kotlin. The Television surface is both provider-neutral and platform-neutral: it consumes
+  shared models and capability flags and never branches on Navidrome, Jellyfin, Android TV, Google
+  TV, or tvOS identity to define product behavior.
+- Android TV/Google TV and tvOS hosts are thin adapters limited to unavoidable launcher, remote
+  input, media-session, secure-storage, network-discovery, audio, and lifecycle boundaries.
 
 ## Initial TV Surface
 
@@ -134,6 +139,7 @@ The exact protocol and threat model require a dedicated design review before net
 ### Shared Core/UI
 
 - Application-surface model and TV surface policy
+- Provider-neutral Television presentation driven by shared capability contracts
 - TV navigation destinations and back behavior
 - TV Home composition and item limits
 - TV connection/setup presentation and validation
@@ -155,6 +161,16 @@ The exact protocol and threat model require a dedicated design review before net
 
 No Android TV controller, provider mapping, queue owner, retry scheduler, product settings policy,
 or independent navigation graph may be introduced in the Android host.
+
+### tvOS-only boundaries
+
+- Apple TV application lifecycle, launcher metadata, and Top Shelf integration
+- Siri Remote events that cannot be represented by shared focus and action contracts
+- tvOS Now Playing/media-command, audio-session, Keychain, and network-discovery APIs
+- Native audio ABI loading and tvOS output-route observations
+
+No tvOS controller, provider mapping, queue owner, retry scheduler, product settings policy, or
+independent navigation graph may be introduced in the Apple TV host.
 
 ## Delivery Milestones
 
@@ -285,3 +301,6 @@ or independent navigation graph may be introduced in the Android host.
 - Chose a dedicated shared-Core TV presentation instead of continuing to adapt the standard
   landscape UI. Every TV Home section will use the same horizontal-carousel interaction model;
   phone/Desktop Grid and List preferences will not alter the TV layout.
+- Defined Television as a provider- and platform-neutral shared product surface for Android
+  TV/Google TV and a future Apple TV/tvOS host. Roku, Samsung Tizen, LG webOS, and other proprietary
+  television runtimes are outside the supported platform scope.
