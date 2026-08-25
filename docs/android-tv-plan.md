@@ -250,3 +250,8 @@ or independent navigation graph may be introduced in the Android host.
 - Replaced spatial focus guessing between the closed form's Advanced and Connect actions with an
   explicit two-way D-pad path after emulator testing showed that Up from Connect preferred the
   geometrically closer Username field.
+- Removed local-file actions from TV connection setup. Provider-settings import, trusted CA file,
+  PKCS12 client-certificate file, and client-certificate password inputs remain available on phone
+  and Desktop but are hidden on TV, where there is no supported file-import workflow.
+- Removed fallback URL configuration from TV setup because a stationary playback target does not
+  need the phone/Desktop roaming-endpoint workflow.

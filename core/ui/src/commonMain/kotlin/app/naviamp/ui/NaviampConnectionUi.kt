@@ -112,6 +112,8 @@ fun NaviampConnectionForm(
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
     capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
+    allowLocalFileInputs: Boolean = true,
+    allowFallbackUrls: Boolean = true,
     modifier: Modifier = Modifier,
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
@@ -148,7 +150,7 @@ fun NaviampConnectionForm(
                 fontSize = 11.sp,
             )
         }
-        onImportSettingsSyncFile?.let { importSettings ->
+        onImportSettingsSyncFile?.takeIf { allowLocalFileInputs }?.let { importSettings ->
             ConnectionFormTextAction(
                 label = "Import provider settings",
                 colors = colors,
@@ -229,7 +231,9 @@ fun NaviampConnectionForm(
                     onFormChanged(form.copy(selectedMusicFolderIds = ids))
                 },
             )
-            if (capabilities.insecureServerVerification || capabilities.customServerCertificates) {
+            val customServerCertificatesVisible = allowLocalFileInputs && capabilities.customServerCertificates
+            val clientCertificatesVisible = allowLocalFileInputs && capabilities.clientCertificates
+            if (capabilities.insecureServerVerification || customServerCertificatesVisible) {
                 SettingsSectionTitle("TLS", colors)
             }
             if (capabilities.insecureServerVerification) {
@@ -245,7 +249,7 @@ fun NaviampConnectionForm(
                     Text("Skip TLS certificate verification", color = colors.secondaryText, fontSize = 13.sp)
                 }
             }
-            if (capabilities.customServerCertificates) {
+            if (customServerCertificatesVisible) {
                 NaviampTextField(
                     value = form.customCertificatePath,
                     onValueChange = { onFormChanged(form.copy(customCertificatePath = it)) },
@@ -254,7 +258,7 @@ fun NaviampConnectionForm(
                     enabled = !form.skipTlsVerification,
                 )
             }
-            if (capabilities.clientCertificates) {
+            if (clientCertificatesVisible) {
                 SettingsSectionTitle("mTLS", colors)
                 NaviampTextField(
                     value = form.clientCertificatePath,
@@ -270,47 +274,49 @@ fun NaviampConnectionForm(
                     isPassword = true,
                 )
             }
-            SettingsSectionTitle("Fallback URLs", colors)
-            form.secondaryUrls.forEachIndexed { index, entry ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    NaviampTextField(
-                        value = entry.url,
-                        onValueChange = { value ->
-                            onFormChanged(form.copy(
-                                secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(url = value)),
-                            ))
-                        },
-                        label = "URL",
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                    )
-                    NaviampTextField(
-                        value = entry.label,
-                        onValueChange = { value ->
-                            onFormChanged(form.copy(
-                                secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(label = value)),
-                            ))
-                        },
-                        label = "Label",
-                        colors = colors,
-                        modifier = Modifier.weight(0.65f),
-                    )
-                    TextButton(
-                        onClick = {
-                            onFormChanged(form.copy(secondaryUrls = form.secondaryUrls.removeAt(index)))
-                        },
-                    ) {
-                        Text("Remove", color = colors.secondaryText)
+            if (allowFallbackUrls) {
+                SettingsSectionTitle("Fallback URLs", colors)
+                form.secondaryUrls.forEachIndexed { index, entry ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        NaviampTextField(
+                            value = entry.url,
+                            onValueChange = { value ->
+                                onFormChanged(form.copy(
+                                    secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(url = value)),
+                                ))
+                            },
+                            label = "URL",
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                        )
+                        NaviampTextField(
+                            value = entry.label,
+                            onValueChange = { value ->
+                                onFormChanged(form.copy(
+                                    secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(label = value)),
+                                ))
+                            },
+                            label = "Label",
+                            colors = colors,
+                            modifier = Modifier.weight(0.65f),
+                        )
+                        TextButton(
+                            onClick = {
+                                onFormChanged(form.copy(secondaryUrls = form.secondaryUrls.removeAt(index)))
+                            },
+                        ) {
+                            Text("Remove", color = colors.secondaryText)
+                        }
                     }
                 }
+                ConnectionFormTextAction(
+                    label = "Add fallback URL",
+                    colors = colors,
+                    onClick = {
+                        onFormChanged(form.copy(secondaryUrls = form.secondaryUrls + ConnectionFormSecondaryUrl()))
+                    },
+                )
             }
-            ConnectionFormTextAction(
-                label = "Add fallback URL",
-                colors = colors,
-                onClick = {
-                    onFormChanged(form.copy(secondaryUrls = form.secondaryUrls + ConnectionFormSecondaryUrl()))
-                },
-            )
             SettingsSectionTitle("Headers", colors)
             form.customHeaders.forEachIndexed { index, header ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

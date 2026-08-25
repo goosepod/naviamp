@@ -244,10 +244,12 @@ private fun TelevisionConnectionScreen(
                 availableMusicFolders = connection.availableMusicFolders,
                 musicFoldersStatus = connection.musicFoldersStatus,
                 capabilities = connectionSettings.capabilities,
+                allowLocalFileInputs = false,
+                allowFallbackUrls = false,
                 settingsSyncStatus = settingsSync.status,
                 onFormChanged = actions.connectionActions.onFormChanged,
                 onConnect = actions.connectionActions.onConnect,
-                onImportSettingsSyncFile = syncActions.onImportFile,
+                onImportSettingsSyncFile = null,
                 onCancel = actions.connectionActions.onCancelConnectionForm.takeIf { connection.connected },
             )
         }
