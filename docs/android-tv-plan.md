@@ -36,17 +36,21 @@ Keep the always-visible destinations small:
 
 1. Home
 2. Library
-3. Playlists
-4. Search
-5. Now Playing, when a queue exists
-6. Settings
+3. Search
 
-Radio, mixes, details, and collection pages remain reachable from Home and Library content without
-becoming permanent top-level chrome. Downloads are not an initial TV destination.
+Now Playing opens from the persistent player bar, Playlists lives within Library, and Settings uses
+a compact gear entry rather than another full-width destination. Radio, mixes, details, and
+collection pages remain reachable from Home and Library content without becoming permanent
+top-level chrome. Downloads are not an initial TV destination.
 
 ### Home
 
-The TV Home screen should prioritize a bounded set of large, remote-friendly rails:
+TV Home is a dedicated shared-Core presentation rather than the standard phone/Desktop Home placed
+in a landscape shell. Every visible Home section is a horizontal carousel with large,
+remote-friendly cards; TV does not reproduce the standard surface's Grid or List section layouts.
+This is the consistent ten-foot interaction model used across the entire Home screen.
+
+The TV Home screen should prioritize a bounded set of rails:
 
 - Continue listening or recent radio sessions
 - Recently added
@@ -54,8 +58,9 @@ The TV Home screen should prioritize a bounded set of large, remote-friendly rai
 - Mixes or Start Radio
 - Recently used playlists when useful
 
-Core owns the TV section policy and item limits. Existing per-user Home configuration must remain
-intact for other surfaces.
+Core owns the TV section policy, focus order, and item limits. Shared section visibility and ordering
+may inform TV Home, but the standard surface's saved layout choice remains untouched and continues
+to apply to phone and Desktop only.
 
 ### Now Playing and lyrics
 
@@ -277,3 +282,6 @@ or independent navigation graph may be introduced in the Android host.
   fractional scrolling that clipped the leading artwork. TV cards now use a strong accent border
   and tint without changing their measured size, while focus-driven scrolling snaps to whole-card
   boundaries. Verified traversal from the middle through the final Mixes for You item at native 4K.
+- Chose a dedicated shared-Core TV presentation instead of continuing to adapt the standard
+  landscape UI. Every TV Home section will use the same horizontal-carousel interaction model;
+  phone/Desktop Grid and List preferences will not alter the TV layout.
