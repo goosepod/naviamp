@@ -186,15 +186,15 @@ independent navigation graph may be introduced in the Apple TV host.
 
 ### M1: Standalone TV shell
 
-- [ ] Provide remote-friendly top navigation and focus states.
-- [ ] Complete local connection setup using the system keyboard.
+- [x] Provide remote-friendly top navigation and focus states.
+- [x] Complete local connection setup using the system keyboard.
 - [ ] Provide Home, Library, Playlists, Search, details, and essential Settings.
 - [ ] Verify server connection, library browsing, and source switching on the emulator.
 
 ### M2: TV playback experience
 
 - [ ] Verify BASS playback, audio focus, background service behavior, and `MediaSession` controls.
-- [ ] Implement TV Now Playing and lyrics-first presentation in shared UI.
+- [x] Implement TV Now Playing and lyrics-first presentation in shared UI.
 - [ ] Verify queue editing, profiles, gapless/crossfade, ReplayGain, and provider reporting.
 - [ ] Add remote/process/network recovery tests.
 
@@ -304,3 +304,17 @@ independent navigation graph may be introduced in the Apple TV host.
 - Defined Television as a provider- and platform-neutral shared product surface for Android
   TV/Google TV and a future Apple TV/tvOS host. Roku, Samsung Tizen, LG webOS, and other proprietary
   television runtimes are outside the supported platform scope.
+- Added the first dedicated shared Television composition: a three-destination top bar, carousel-only
+  Home, large Library and Search grids, a reduced mini player, and a full-screen Now Playing layout
+  with large artwork, track metadata, lyrics, waveform/scrubber, transport, favorite, repeat,
+  shuffle, and Search actions.
+- Added shared Back policy that returns stable secondary Television destinations to Home while
+  preserving transient detail and Now Playing handling. Removed a duplicate focus target from the
+  top navigation after native-4K D-pad testing showed it required two Down presses to enter Home.
+- Verified the dedicated Home, Now Playing, and lyrics layouts at native 3840x2160. Playback,
+  artwork, timed lyrics, transport, and clear focus borders all render and respond on the connected
+  Navidrome emulator.
+- Fixed TV Search submission so it closes the system keyboard and switches from query entry to a
+  results-only grid with an explicit New search action. This removes the text field from the D-pad
+  focus graph after submission; emulator testing confirmed that Down reaches a clearly highlighted
+  result without reopening the keyboard.

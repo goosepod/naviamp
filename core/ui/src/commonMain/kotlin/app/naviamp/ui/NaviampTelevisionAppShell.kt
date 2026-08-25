@@ -2,12 +2,12 @@ package app.naviamp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -93,44 +93,73 @@ fun NaviampTelevisionAppShell(
                     syncActions = syncActions,
                     colors = colors,
                 )
-                else -> Column(modifier = Modifier.fillMaxSize()) {
-                    TelevisionNavigationBar(
-                        destinations = naviampTelevisionDestinations(hasNowPlaying = nowPlaying != null),
-                        selected = selectedDestination,
-                        colors = colors,
-                        onSelected = { destination ->
-                            if (destination == NaviampTelevisionDestination.NowPlaying) {
-                                actions.navigationActions.onOpenNowPlaying()
-                            } else {
-                                actions.navigationActions.onCloseNowPlaying()
-                                destination.route?.let(actions.navigationActions.onRouteSelected)
-                            }
-                        },
+                else -> {
+                    val transientContentOpen = uiState.shellChrome.nowPlayingOpen ||
+                        uiState.home.collectionPage != null ||
+                        uiState.albumDetail.selectedAlbum != null ||
+                        uiState.artistDetail.selectedArtist != null ||
+                        uiState.playlistDetail.selectedPlaylist != null
+                    val backRoute = naviampTelevisionBackRoute(
+                        selectedRoute = uiState.shellChrome.selectedRoute,
+                        transientContentOpen = transientContentOpen,
                     )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = 42.dp, vertical = 20.dp),
-                    ) {
-                        ConnectedContent(
-                            colors = colors,
-                            uiState = uiState,
-                            playbackProgress = playbackProgress,
-                            visualizerBandsProvider = visualizerBandsProvider,
-                            settingsSync = settingsSync,
-                            actions = actions,
-                            syncActions = syncActions,
-                        )
+                    NaviampSystemBackHandler(enabled = backRoute != null) {
+                        backRoute?.let(actions.navigationActions.onRouteSelected)
                     }
-                    if (!uiState.shellChrome.nowPlayingOpen && nowPlaying != null) {
-                        NaviampMiniNowPlaying(
+                    if (uiState.shellChrome.nowPlayingOpen && nowPlaying != null) {
+                        TelevisionNowPlaying(
                             nowPlaying = nowPlaying,
+                            playbackProgress = playbackProgress,
                             colors = colors,
-                            onOpen = actions.navigationActions.onOpenNowPlaying,
                             actions = actions.nowPlayingActions,
-                            modifier = Modifier.padding(horizontal = 42.dp, vertical = 8.dp),
+                            onClose = actions.navigationActions.onCloseNowPlaying,
+                            onSearch = {
+                                actions.navigationActions.onCloseNowPlaying()
+                                actions.navigationActions.onRouteSelected(SharedRoute.Search)
+                            },
                         )
+                    } else {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            TelevisionNavigationBar(
+                                destinations = naviampTelevisionDestinations(),
+                                selected = selectedDestination,
+                                settingsSelected = uiState.shellChrome.selectedRoute == SharedRoute.Settings,
+                                colors = colors,
+                                onSelected = { destination ->
+                                    actions.navigationActions.onCloseNowPlaying()
+                                    destination.route?.let(actions.navigationActions.onRouteSelected)
+                                },
+                                onSettingsSelected = {
+                                    actions.navigationActions.onCloseNowPlaying()
+                                    actions.navigationActions.onRouteSelected(SharedRoute.Settings)
+                                },
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 36.dp, vertical = 18.dp),
+                            ) {
+                                TelevisionConnectedContent(
+                                    colors = colors,
+                                    uiState = uiState,
+                                    playbackProgress = playbackProgress,
+                                    visualizerBandsProvider = visualizerBandsProvider,
+                                    settingsSync = settingsSync,
+                                    actions = actions,
+                                    syncActions = syncActions,
+                                )
+                            }
+                            if (nowPlaying != null) {
+                                TelevisionMiniPlayer(
+                                    nowPlaying = nowPlaying,
+                                    colors = colors,
+                                    onOpen = actions.navigationActions.onOpenNowPlaying,
+                                    actions = actions.nowPlayingActions,
+                                    modifier = Modifier.padding(horizontal = 36.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -142,8 +171,10 @@ fun NaviampTelevisionAppShell(
 private fun TelevisionNavigationBar(
     destinations: List<NaviampTelevisionDestination>,
     selected: NaviampTelevisionDestination?,
+    settingsSelected: Boolean,
     colors: NaviampColors,
     onSelected: (NaviampTelevisionDestination) -> Unit,
+    onSettingsSelected: () -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -162,18 +193,81 @@ private fun TelevisionNavigationBar(
         )
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.weight(1f),
         ) {
             destinations.forEach { destination ->
                 TelevisionNavigationButton(
                     destination = destination,
                     selected = destination == selected,
                     colors = colors,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.widthIn(min = 128.dp),
                     onClick = { onSelected(destination) },
                 )
             }
         }
+        Spacer(Modifier.weight(1f))
+        TelevisionIconButton(
+            enabled = true,
+            icon = NaviampIcons.Settings,
+            description = "Settings",
+            colors = colors,
+            selected = settingsSelected,
+            onClick = onSettingsSelected,
+        )
+    }
+}
+
+@Composable
+private fun TelevisionConnectedContent(
+    colors: NaviampColors,
+    uiState: NaviampAppShellUiState,
+    playbackProgress: StateFlow<PlaybackProgress>?,
+    visualizerBandsProvider: () -> List<Float>,
+    settingsSync: NaviampSettingsSyncUi,
+    actions: NaviampAppShellActions,
+    syncActions: NaviampSettingsSyncActions,
+) {
+    val hasStandardDetail = uiState.home.collectionPage != null ||
+        uiState.albumDetail.selectedAlbum != null ||
+        uiState.artistDetail.selectedArtist != null ||
+        uiState.playlistDetail.selectedPlaylist != null
+    when {
+        hasStandardDetail -> ConnectedContent(
+            colors = colors,
+            uiState = uiState,
+            playbackProgress = playbackProgress,
+            visualizerBandsProvider = visualizerBandsProvider,
+            settingsSync = settingsSync,
+            actions = actions,
+            syncActions = syncActions,
+        )
+        uiState.shellChrome.selectedRoute == SharedRoute.Home -> TelevisionHome(
+            home = uiState.home,
+            colors = colors,
+            actions = actions.homeActions,
+            mediaActions = actions.mediaActions,
+        )
+        uiState.shellChrome.selectedRoute == SharedRoute.Library -> TelevisionLibrary(
+            screen = uiState.library,
+            colors = colors,
+            actions = actions.libraryActions,
+            mediaActions = actions.mediaActions,
+            onOpenPlaylists = { actions.navigationActions.onRouteSelected(SharedRoute.Playlists) },
+        )
+        uiState.shellChrome.selectedRoute == SharedRoute.Search -> TelevisionSearch(
+            screen = uiState.search,
+            colors = colors,
+            actions = actions.searchActions,
+            mediaActions = actions.mediaActions,
+        )
+        else -> ConnectedContent(
+            colors = colors,
+            uiState = uiState,
+            playbackProgress = playbackProgress,
+            visualizerBandsProvider = visualizerBandsProvider,
+            settingsSync = settingsSync,
+            actions = actions,
+            syncActions = syncActions,
+        )
     }
 }
 
@@ -203,8 +297,7 @@ private fun TelevisionNavigationButton(
                 } else {
                     Modifier
                 },
-            )
-            .focusable(),
+            ),
     ) {
         Text(
             text = destination.label,

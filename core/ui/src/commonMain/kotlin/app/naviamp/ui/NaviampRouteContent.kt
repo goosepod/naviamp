@@ -397,7 +397,7 @@ private fun HomeCollectionGridCard(
 }
 
 @Composable
-private fun HomeCollectionArtwork(
+internal fun HomeCollectionArtwork(
     item: SharedHomeCollectionItemUi,
     colors: NaviampColors,
     size: androidx.compose.ui.unit.Dp,
@@ -472,7 +472,7 @@ private fun stationArtwork(id: String): NavibeatMixArtwork = when {
     else -> NavibeatMixArtwork(NaviampTransportIcons.Radio, listOf(Color(0xFF20BFA9), Color(0xFF2374C6)))
 }
 
-private fun dispatchHomeCollectionItem(
+internal fun dispatchHomeCollectionItem(
     item: SharedHomeCollectionItemUi,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,

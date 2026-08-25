@@ -23,10 +23,11 @@ enum class NaviampTelevisionDestination(
     Settings("Settings", SharedRoute.Settings),
 }
 
-fun naviampTelevisionDestinations(hasNowPlaying: Boolean): List<NaviampTelevisionDestination> =
-    NaviampTelevisionDestination.entries.filter { destination ->
-        hasNowPlaying || destination != NaviampTelevisionDestination.NowPlaying
-    }
+fun naviampTelevisionDestinations(): List<NaviampTelevisionDestination> = listOf(
+    NaviampTelevisionDestination.Home,
+    NaviampTelevisionDestination.Library,
+    NaviampTelevisionDestination.Search,
+)
 
 fun naviampSelectedTelevisionDestination(
     selectedRoute: SharedRoute,
@@ -34,4 +35,11 @@ fun naviampSelectedTelevisionDestination(
 ): NaviampTelevisionDestination? {
     if (nowPlayingOpen) return NaviampTelevisionDestination.NowPlaying
     return NaviampTelevisionDestination.entries.firstOrNull { it.route == selectedRoute }
+}
+
+fun naviampTelevisionBackRoute(
+    selectedRoute: SharedRoute,
+    transientContentOpen: Boolean,
+): SharedRoute? = SharedRoute.Home.takeIf {
+    !transientContentOpen && selectedRoute != SharedRoute.Home
 }
