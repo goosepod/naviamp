@@ -166,7 +166,13 @@ internal fun NaviampTextField(
 private const val FloatingLabelSentinel = "\u200B"
 
 @Composable
-internal fun PrimaryButton(label: String, colors: NaviampColors, onClick: () -> Unit, enabled: Boolean = true) {
+internal fun PrimaryButton(
+    label: String,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
     Button(
         onClick = onClick,
         enabled = enabled,
@@ -176,7 +182,7 @@ internal fun PrimaryButton(label: String, colors: NaviampColors, onClick: () -> 
             disabledContainerColor = colors.controlSurface,
             disabledContentColor = colors.mutedText,
         ),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Text(label)
     }

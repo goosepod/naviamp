@@ -243,3 +243,7 @@ or independent navigation graph may be introduced in the Android host.
   and password now expose an explicit Next/Done sequence; Done closes the keyboard, and the TV setup
   screen explains how to return to the form. Added a shared UI regression test for the complete
   focus sequence.
+- Made Password Done focus Connect explicitly after emulator testing showed that clearing focus
+  restarted traversal at the top of the form. Confirmed that the intermittent gray lower screen is
+  Google's TV input-method window; emulator logs show slow keyboard frames and keyboard-view helper
+  warnings rather than a Naviamp crash.

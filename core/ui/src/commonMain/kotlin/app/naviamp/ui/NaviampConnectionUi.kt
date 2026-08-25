@@ -44,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
@@ -114,6 +116,7 @@ fun NaviampConnectionForm(
     var advancedVisible by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
+    val connectFocusRequester = remember { FocusRequester() }
     val focusNext: () -> Unit = { focusManager.moveFocus(FocusDirection.Next) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -189,13 +192,14 @@ fun NaviampConnectionForm(
                 imeAction = ImeAction.Done,
                 onImeAction = {
                     softwareKeyboardController?.hide()
-                    focusManager.clearFocus()
+                    connectFocusRequester.requestFocus()
                 },
             )
         }
         ConnectionFormTextAction(
             label = if (advancedVisible) "Hide Advanced" else "Show Advanced",
             colors = colors,
+            modifier = Modifier.testTag(ConnectionAdvancedActionTestTag),
             onClick = { advancedVisible = !advancedVisible },
         )
         if (advancedVisible) {
@@ -361,6 +365,9 @@ fun NaviampConnectionForm(
                 label = if (isConnecting) "Connecting" else if (isReconnect) "Save and connect" else "Connect",
                 colors = colors,
                 enabled = !isConnecting,
+                modifier = Modifier
+                    .focusRequester(connectFocusRequester)
+                    .testTag(ConnectionConnectButtonTestTag),
                 onClick = onConnect,
             )
             onCancel?.let {
@@ -376,6 +383,8 @@ internal const val ConnectionNameFieldTestTag = "connection-name"
 internal const val ConnectionServerUrlFieldTestTag = "connection-server-url"
 internal const val ConnectionUsernameFieldTestTag = "connection-username"
 internal const val ConnectionPasswordFieldTestTag = "connection-password"
+internal const val ConnectionAdvancedActionTestTag = "connection-advanced-action"
+internal const val ConnectionConnectButtonTestTag = "connection-connect"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -494,6 +503,7 @@ private fun ConnectionFormTextAction(
     label: String,
     colors: NaviampColors,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     TextButton(
@@ -505,6 +515,7 @@ private fun ConnectionFormTextAction(
             disabledContentColor = colors.secondaryText.copy(alpha = 0.78f),
             disabledContainerColor = colors.controlSurface.copy(alpha = 0.18f),
         ),
+        modifier = modifier,
     ) {
         Text(label, fontWeight = FontWeight.SemiBold)
     }

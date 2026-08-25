@@ -2,7 +2,6 @@ package app.naviamp.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
-import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
@@ -35,6 +34,6 @@ class NaviampConnectionFormFocusTest {
         onNodeWithTag(ConnectionPasswordFieldTestTag).assertIsFocused()
 
         onNodeWithTag(ConnectionPasswordFieldTestTag).performImeAction()
-        onNodeWithTag(ConnectionPasswordFieldTestTag).assertIsNotFocused()
+        onNodeWithTag(ConnectionConnectButtonTestTag).assertIsFocused()
     }
 }
