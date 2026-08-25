@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -150,7 +152,25 @@ private fun HomeCollectionCarousel(
 ) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val itemStride = with(LocalDensity.current) { HomeCollectionCarouselItemStride.roundToPx() }
+    val density = LocalDensity.current
+    val itemStride = with(density) { HomeCollectionCarouselItemStride.roundToPx() }
+    val itemWidth = with(density) { HomeCollectionCarouselCardWidth.roundToPx() }
+    val television = LocalNaviampApplicationSurface.current == NaviampApplicationSurface.Television
+    var focusedItemIndex by remember(section.id) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(television, focusedItemIndex) {
+        val index = focusedItemIndex ?: return@LaunchedEffect
+        if (!television) return@LaunchedEffect
+        scrollState.animateScrollTo(
+            homeCarouselFocusedItemScrollTarget(
+                current = scrollState.value,
+                viewport = scrollState.viewportSize,
+                itemIndex = index,
+                itemWidth = itemWidth,
+                itemStride = itemStride,
+                maximum = scrollState.maxValue,
+            ),
+        )
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -206,11 +226,13 @@ private fun HomeCollectionCarousel(
                 .horizontalScroll(scrollState)
                 .padding(end = trailingSpace),
         ) {
-            section.items.forEach { item ->
+            section.items.forEachIndexed { index, item ->
                 HomeCollectionGridCard(
                     item = item,
                     colors = colors,
                     width = HomeCollectionCarouselCardWidth,
+                    televisionFocus = television,
+                    onFocused = { focusedItemIndex = index },
                     onClick = { onItemSelected(item) },
                     menuItems = homeCollectionMenuItems(item, actions, mediaActions, includeFavorite = true),
                 )
@@ -239,6 +261,29 @@ internal fun homeCarouselScrollTarget(
             val previousItem = (previousViewportStart + itemStride - 1) / itemStride
             previousItem * itemStride
         }
+    }
+    return target.coerceIn(0, maximum)
+}
+
+internal fun homeCarouselFocusedItemScrollTarget(
+    current: Int,
+    viewport: Int,
+    itemIndex: Int,
+    itemWidth: Int,
+    itemStride: Int,
+    maximum: Int,
+): Int {
+    if (itemWidth <= 0 || itemStride <= 0 || viewport <= 0 || maximum <= 0) return 0
+    val alignedCurrent = ((current + itemStride / 2) / itemStride) * itemStride
+    val itemStart = itemIndex.coerceAtLeast(0) * itemStride
+    val itemEnd = itemStart + itemWidth
+    val target = when {
+        itemStart < alignedCurrent -> itemStart
+        itemEnd > alignedCurrent + viewport -> {
+            val minimum = itemEnd - viewport
+            ((minimum + itemStride - 1) / itemStride) * itemStride
+        }
+        else -> alignedCurrent
     }
     return target.coerceIn(0, maximum)
 }
@@ -297,12 +342,29 @@ private fun HomeCollectionGridCard(
     width: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
+    televisionFocus: Boolean = false,
+    onFocused: () -> Unit = {},
 ) {
+    var focused by remember(item.mediaItem.id) { mutableStateOf(false) }
+    val shape = RoundedCornerShape(7.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier
             .width(width)
-            .clip(RoundedCornerShape(7.dp))
+            .onFocusChanged { focusState ->
+                focused = focusState.isFocused
+                if (focusState.isFocused) onFocused()
+            }
+            .clip(shape)
+            .then(
+                if (televisionFocus && focused) {
+                    Modifier
+                        .background(colors.accent.copy(alpha = 0.18f))
+                        .border(3.dp, colors.accent, shape)
+                } else {
+                    Modifier
+                },
+            )
             .clickable(onClick = onClick)
             .padding(bottom = 4.dp),
     ) {

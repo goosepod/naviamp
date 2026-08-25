@@ -1,10 +1,14 @@
 package app.naviamp.ui
 
+import androidx.compose.runtime.compositionLocalOf
+
 /** Host-reported display surface; all resulting product composition remains shared. */
 enum class NaviampApplicationSurface {
     Standard,
     Television,
 }
+
+val LocalNaviampApplicationSurface = compositionLocalOf { NaviampApplicationSurface.Standard }
 
 /** Small, stable set of destinations intended for ten-foot navigation. */
 enum class NaviampTelevisionDestination(

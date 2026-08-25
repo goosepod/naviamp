@@ -273,3 +273,7 @@ or independent navigation graph may be introduced in the Android host.
   Settings, and the focused destination remains clearly visible without clipping. Emulator layout
   acceptance is therefore complete at both 1080p and 4K. Physical hardware remains necessary for
   HDMI/CEC, suspend/resume, and sustained playback-performance testing.
+- Fixed the populated Home carousel after remote testing exposed ambiguous card focus and
+  fractional scrolling that clipped the leading artwork. TV cards now use a strong accent border
+  and tint without changing their measured size, while focus-driven scrolling snaps to whole-card
+  boundaries. Verified traversal from the middle through the final Mixes for You item at native 4K.

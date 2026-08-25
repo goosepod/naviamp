@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
@@ -11,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampApplicationSurface
+import app.naviamp.ui.LocalNaviampApplicationSurface
 import app.naviamp.ui.NaviampBusyDialog
 import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
@@ -91,41 +93,43 @@ fun NaviampCoreApp(
             core.maintainProviderSession()
         }
     }
-    when (applicationSurface) {
-        NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
-            modifier = modifier,
-            uiState = state.shell,
-            settingsSync = state.settingsSync,
-            playbackProgress = core.playbackProgress,
-            visualizerBandsProvider = visualizerBandsProvider,
-            actions = core.actions.shell,
-            syncActions = core.actions.settingsSync,
-            applicationUpdateChecker = applicationUpdateChecker,
-        )
-        NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
-            modifier = modifier,
-            uiState = state.shell,
-            settingsSync = state.settingsSync,
-            playbackProgress = core.playbackProgress,
-            visualizerBandsProvider = visualizerBandsProvider,
-            actions = core.actions.shell,
-            syncActions = core.actions.settingsSync,
-        )
-    }
-    state.overlays.busyMessage?.let { message ->
-        NaviampBusyDialog(message)
-    }
-    if (state.overlays.statsForNerdsVisible) {
-        LaunchedEffect(core) {
-            while (true) {
-                delay(1_000)
-                diagnosticsRefreshTick += 1
-            }
+    CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+        when (applicationSurface) {
+            NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
+                modifier = modifier,
+                uiState = state.shell,
+                settingsSync = state.settingsSync,
+                playbackProgress = core.playbackProgress,
+                visualizerBandsProvider = visualizerBandsProvider,
+                actions = core.actions.shell,
+                syncActions = core.actions.settingsSync,
+                applicationUpdateChecker = applicationUpdateChecker,
+            )
+            NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
+                modifier = modifier,
+                uiState = state.shell,
+                settingsSync = state.settingsSync,
+                playbackProgress = core.playbackProgress,
+                visualizerBandsProvider = visualizerBandsProvider,
+                actions = core.actions.shell,
+                syncActions = core.actions.settingsSync,
+            )
         }
-        statsForNerdsPresenter(
-            diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
-            { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
-        )
+        state.overlays.busyMessage?.let { message ->
+            NaviampBusyDialog(message)
+        }
+        if (state.overlays.statsForNerdsVisible) {
+            LaunchedEffect(core) {
+                while (true) {
+                    delay(1_000)
+                    diagnosticsRefreshTick += 1
+                }
+            }
+            statsForNerdsPresenter(
+                diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
+                { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
+            )
+        }
     }
 }
 
