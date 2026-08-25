@@ -123,6 +123,8 @@ internal fun NaviampTextField(
     isPassword: Boolean = false,
     forceFloatingLabel: Boolean = false,
     onSubmit: (() -> Unit)? = null,
+    imeAction: ImeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default,
+    onImeAction: (() -> Unit)? = null,
 ) {
     val displayValue = if (forceFloatingLabel && value.isEmpty()) FloatingLabelSentinel else value
     OutlinedTextField(
@@ -138,8 +140,12 @@ internal fun NaviampTextField(
         } else {
             VisualTransformation.None
         },
-        keyboardOptions = KeyboardOptions(imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default),
-        keyboardActions = KeyboardActions(onSearch = { onSubmit?.invoke() }),
+        keyboardOptions = KeyboardOptions(imeAction = imeAction),
+        keyboardActions = KeyboardActions(
+            onNext = { onImeAction?.invoke() },
+            onDone = { onImeAction?.invoke() },
+            onSearch = { onSubmit?.invoke() ?: onImeAction?.invoke() },
+        ),
         modifier = modifier.naviampTextInputFocus().then(
             if (onSubmit != null) {
                 Modifier.onPreviewKeyEvent { event ->

@@ -43,12 +43,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,6 +112,9 @@ fun NaviampConnectionForm(
     onCancel: (() -> Unit)?,
 ) {
     var advancedVisible by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val softwareKeyboardController = LocalSoftwareKeyboardController.current
+    val focusNext: () -> Unit = { focusManager.moveFocus(FocusDirection.Next) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
@@ -147,12 +155,18 @@ fun NaviampConnectionForm(
             onValueChange = { onFormChanged(form.copy(displayName = it)) },
             label = "Connection name (optional)",
             colors = colors,
+            imeAction = ImeAction.Next,
+            onImeAction = focusNext,
+            modifier = Modifier.testTag(ConnectionNameFieldTestTag),
         )
         NaviampTextField(
             value = form.serverUrl,
             onValueChange = { onFormChanged(form.copy(serverUrl = it)) },
             label = "Server URL",
             colors = colors,
+            imeAction = ImeAction.Next,
+            onImeAction = focusNext,
+            modifier = Modifier.testTag(ConnectionServerUrlFieldTestTag),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             NaviampTextField(
@@ -160,7 +174,9 @@ fun NaviampConnectionForm(
                 onValueChange = { onFormChanged(form.copy(username = it)) },
                 label = "Username",
                 colors = colors,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag(ConnectionUsernameFieldTestTag),
+                imeAction = ImeAction.Next,
+                onImeAction = focusNext,
             )
             NaviampTextField(
                 value = form.password,
@@ -169,7 +185,12 @@ fun NaviampConnectionForm(
                 colors = colors,
                 isPassword = true,
                 forceFloatingLabel = isReconnect,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag(ConnectionPasswordFieldTestTag),
+                imeAction = ImeAction.Done,
+                onImeAction = {
+                    softwareKeyboardController?.hide()
+                    focusManager.clearFocus()
+                },
             )
         }
         ConnectionFormTextAction(
@@ -350,6 +371,11 @@ fun NaviampConnectionForm(
         }
     }
 }
+
+internal const val ConnectionNameFieldTestTag = "connection-name"
+internal const val ConnectionServerUrlFieldTestTag = "connection-server-url"
+internal const val ConnectionUsernameFieldTestTag = "connection-username"
+internal const val ConnectionPasswordFieldTestTag = "connection-password"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

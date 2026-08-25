@@ -239,3 +239,7 @@ or independent navigation graph may be introduced in the Android host.
 - Passed shared UI JVM tests, Core presentation JVM tests, Android host unit tests, Android debug
   compilation, and iOS Simulator ARM64 compilation for both shared UI and the Core presentation
   entry.
+- Fixed the TV connection-form keyboard trap found during emulator use. Name, server URL, username,
+  and password now expose an explicit Next/Done sequence; Done closes the keyboard, and the TV setup
+  screen explains how to return to the form. Added a shared UI regression test for the complete
+  focus sequence.

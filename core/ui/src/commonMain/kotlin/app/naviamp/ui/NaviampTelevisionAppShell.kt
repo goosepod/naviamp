@@ -229,6 +229,11 @@ private fun TelevisionConnectionScreen(
                 color = colors.secondaryText,
                 fontSize = 18.sp,
             )
+            Text(
+                "While typing, choose Next on the TV keyboard to advance. Use Back or Esc to close the keyboard.",
+                color = colors.mutedText,
+                fontSize = 14.sp,
+            )
             NaviampConnectionForm(
                 form = connection.form,
                 colors = colors,
