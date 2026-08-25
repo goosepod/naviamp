@@ -268,6 +268,8 @@ or independent navigation graph may be introduced in the Android host.
   1920x1080/320 dpi `wm` override, producing a 1920x1080 framebuffer, so it is now the primary
   dual-resolution acceptance device. Restore native 4K with `wm size reset` and
   `wm density reset`.
-- Connected-screen acceptance at native 4K remains open until a server connection is configured
-  on the 4K AVD. Physical hardware remains necessary for HDMI/CEC, suspend/resume, and sustained
-  playback-performance testing.
+- Connected the native 4K AVD to Navidrome and verified the populated Home surface at a true
+  3840x2160/640 dpi. All six destinations remain on one line, the D-pad traverses from Home through
+  Settings, and the focused destination remains clearly visible without clipping. Emulator layout
+  acceptance is therefore complete at both 1080p and 4K. Physical hardware remains necessary for
+  HDMI/CEC, suspend/resume, and sustained playback-performance testing.
