@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -26,6 +27,7 @@ import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.systemBackCommand
 import app.naviamp.ui.LocalNaviampSystemBackDispatcher
+import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.NaviampSystemBackDispatcher
 
 /** Thin Android window and intent/permission boundary for the process-owned Core app. */
@@ -66,6 +68,7 @@ class MainActivity : ComponentActivity() {
                 NaviampCoreApp(
                     core = runtime.core,
                     modifier = Modifier.safeDrawingPadding().imePadding(),
+                    applicationSurface = naviampApplicationSurface(),
                     applicationUpdateChecker = runtime.applicationUpdateChecker,
                 )
             }
@@ -96,6 +99,14 @@ class MainActivity : ComponentActivity() {
         else -> null
     }
 }
+
+/** Android's UI-mode configuration is the concrete OS boundary selecting the shared TV surface. */
+private fun ComponentActivity.naviampApplicationSurface(): NaviampApplicationSurface =
+    if (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION) {
+        NaviampApplicationSurface.Television
+    } else {
+        NaviampApplicationSurface.Standard
+    }
 
 @Composable
 private fun rememberAndroidNaviampRuntime(): AndroidNaviampApplicationRuntime {

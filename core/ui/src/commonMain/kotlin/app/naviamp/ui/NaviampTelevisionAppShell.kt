@@ -1,0 +1,268 @@
+package app.naviamp.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import app.naviamp.domain.playback.PlaybackProgress
+import kotlinx.coroutines.flow.StateFlow
+
+/** Shared ten-foot shell. Android reports a TV display; it does not assemble this product UI. */
+@Composable
+fun NaviampTelevisionAppShell(
+    modifier: Modifier = Modifier,
+    uiState: NaviampAppShellUiState,
+    settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
+    visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
+    actions: NaviampAppShellActions,
+    syncActions: NaviampSettingsSyncActions,
+) {
+    val colors = NaviampColors.Dark
+    val connection = uiState.connectionSettings.connection
+    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(uiState.general.interfaceSettings.nowPlaying)
+    val selectedDestination = naviampSelectedTelevisionDestination(
+        selectedRoute = uiState.shellChrome.selectedRoute,
+        nowPlayingOpen = uiState.shellChrome.nowPlayingOpen,
+    )
+
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            background = colors.background,
+            surface = colors.controlSurface,
+            primary = colors.accent,
+            onPrimary = colors.onAccent,
+            onBackground = colors.primaryText,
+            onSurface = colors.primaryText,
+        ),
+        typography = rememberNaviampTypography(),
+    ) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            colors.background,
+                            colors.controlSurface.copy(alpha = 0.82f),
+                            colors.background,
+                        ),
+                    ),
+                ),
+        ) {
+            when {
+                connection.restoringConnection && !connection.editingConnection -> TelevisionStatusScreen(
+                    title = "Restoring Naviamp TV",
+                    message = connection.status.orEmpty(),
+                    colors = colors,
+                )
+                !connection.connected || connection.editingConnection -> TelevisionConnectionScreen(
+                    uiState = uiState,
+                    settingsSync = settingsSync,
+                    actions = actions,
+                    syncActions = syncActions,
+                    colors = colors,
+                )
+                else -> Column(modifier = Modifier.fillMaxSize()) {
+                    TelevisionNavigationBar(
+                        destinations = naviampTelevisionDestinations(hasNowPlaying = nowPlaying != null),
+                        selected = selectedDestination,
+                        colors = colors,
+                        onSelected = { destination ->
+                            if (destination == NaviampTelevisionDestination.NowPlaying) {
+                                actions.navigationActions.onOpenNowPlaying()
+                            } else {
+                                actions.navigationActions.onCloseNowPlaying()
+                                destination.route?.let(actions.navigationActions.onRouteSelected)
+                            }
+                        },
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 42.dp, vertical = 20.dp),
+                    ) {
+                        ConnectedContent(
+                            colors = colors,
+                            uiState = uiState,
+                            playbackProgress = playbackProgress,
+                            visualizerBandsProvider = visualizerBandsProvider,
+                            settingsSync = settingsSync,
+                            actions = actions,
+                            syncActions = syncActions,
+                        )
+                    }
+                    if (!uiState.shellChrome.nowPlayingOpen && nowPlaying != null) {
+                        NaviampMiniNowPlaying(
+                            nowPlaying = nowPlaying,
+                            colors = colors,
+                            onOpen = actions.navigationActions.onOpenNowPlaying,
+                            actions = actions.nowPlayingActions,
+                            modifier = Modifier.padding(horizontal = 42.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TelevisionNavigationBar(
+    destinations: List<NaviampTelevisionDestination>,
+    selected: NaviampTelevisionDestination?,
+    colors: NaviampColors,
+    onSelected: (NaviampTelevisionDestination) -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.34f))
+            .padding(horizontal = 42.dp, vertical = 18.dp),
+    ) {
+        Text(
+            text = "Naviamp",
+            color = colors.primaryText,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(end = 18.dp),
+        )
+        destinations.forEach { destination ->
+            TelevisionNavigationButton(
+                destination = destination,
+                selected = destination == selected,
+                colors = colors,
+                onClick = { onSelected(destination) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TelevisionNavigationButton(
+    destination: NaviampTelevisionDestination,
+    selected: Boolean,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(10.dp)
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (selected) colors.primaryText else Color.Transparent,
+            contentColor = if (selected) colors.background else colors.secondaryText,
+        ),
+        shape = shape,
+        modifier = Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .then(
+                if (focused) {
+                    Modifier.border(3.dp, colors.accent, shape)
+                } else {
+                    Modifier
+                },
+            )
+            .focusable(),
+    ) {
+        Text(destination.label, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun TelevisionConnectionScreen(
+    uiState: NaviampAppShellUiState,
+    settingsSync: NaviampSettingsSyncUi,
+    actions: NaviampAppShellActions,
+    syncActions: NaviampSettingsSyncActions,
+    colors: NaviampColors,
+) {
+    val connectionSettings = uiState.connectionSettings
+    val connection = connectionSettings.connection
+    Column(
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 72.dp, vertical = 40.dp),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .widthIn(max = 820.dp)
+                .align(Alignment.CenterHorizontally),
+        ) {
+            Text("Set up Naviamp TV", color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
+            Text(
+                "Connect directly from this TV. Pairing a phone or computer will remain optional.",
+                color = colors.secondaryText,
+                fontSize = 18.sp,
+            )
+            NaviampConnectionForm(
+                form = connection.form,
+                colors = colors,
+                isReconnect = connection.editingSavedConnection,
+                isConnecting = connection.isConnecting,
+                connectionStatus = connection.status,
+                connectionStatusIsError = connection.statusIsError,
+                availableMusicFolders = connection.availableMusicFolders,
+                musicFoldersStatus = connection.musicFoldersStatus,
+                capabilities = connectionSettings.capabilities,
+                settingsSyncStatus = settingsSync.status,
+                onFormChanged = actions.connectionActions.onFormChanged,
+                onConnect = actions.connectionActions.onConnect,
+                onImportSettingsSyncFile = syncActions.onImportFile,
+                onCancel = actions.connectionActions.onCancelConnectionForm.takeIf { connection.connected },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TelevisionStatusScreen(
+    title: String,
+    message: String,
+    colors: NaviampColors,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize().padding(48.dp),
+    ) {
+        Text(title, color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
+        if (message.isNotBlank()) {
+            Text(message, color = colors.secondaryText, fontSize = 18.sp, modifier = Modifier.padding(top = 12.dp))
+        }
+    }
+}

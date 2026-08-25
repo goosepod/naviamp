@@ -10,11 +10,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.naviamp.ui.NaviampApplicationUpdateChecker
+import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.NaviampBusyDialog
 import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
+import app.naviamp.ui.NaviampTelevisionAppShell
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 
@@ -73,6 +75,7 @@ fun rememberNaviampCore(
 fun NaviampCoreApp(
     core: NaviampCore,
     modifier: Modifier = Modifier,
+    applicationSurface: NaviampApplicationSurface = NaviampApplicationSurface.Standard,
     visualizerBandsProvider: () -> List<Float> = {
         core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
     },
@@ -88,16 +91,27 @@ fun NaviampCoreApp(
             core.maintainProviderSession()
         }
     }
-    NaviampSharedAppShell(
-        modifier = modifier,
-        uiState = state.shell,
-        settingsSync = state.settingsSync,
-        playbackProgress = core.playbackProgress,
-        visualizerBandsProvider = visualizerBandsProvider,
-        actions = core.actions.shell,
-        syncActions = core.actions.settingsSync,
-        applicationUpdateChecker = applicationUpdateChecker,
-    )
+    when (applicationSurface) {
+        NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
+            modifier = modifier,
+            uiState = state.shell,
+            settingsSync = state.settingsSync,
+            playbackProgress = core.playbackProgress,
+            visualizerBandsProvider = visualizerBandsProvider,
+            actions = core.actions.shell,
+            syncActions = core.actions.settingsSync,
+            applicationUpdateChecker = applicationUpdateChecker,
+        )
+        NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
+            modifier = modifier,
+            uiState = state.shell,
+            settingsSync = state.settingsSync,
+            playbackProgress = core.playbackProgress,
+            visualizerBandsProvider = visualizerBandsProvider,
+            actions = core.actions.shell,
+            syncActions = core.actions.settingsSync,
+        )
+    }
     state.overlays.busyMessage?.let { message ->
         NaviampBusyDialog(message)
     }

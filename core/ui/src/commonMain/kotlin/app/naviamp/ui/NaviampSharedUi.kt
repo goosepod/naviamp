@@ -341,7 +341,7 @@ internal fun sharedRouteCanUseOwnScroll(
     selectedRoute: SharedRoute,
 ): Boolean = !editingConnection || selectedRoute == SharedRoute.Settings
 @Composable
-private fun ConnectedContent(
+internal fun ConnectedContent(
     colors: NaviampColors,
     uiState: NaviampAppShellUiState,
     playbackProgress: StateFlow<PlaybackProgress>?,

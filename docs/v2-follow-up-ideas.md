@@ -45,6 +45,11 @@ Before moving an idea into the active v2 plan or a release branch:
 ### Google Cast and Apple AirPlay
 
 - **Status:** Idea
+- **Android TV direction (2026-08-25):** Native Android TV/Google TV work has been promoted into
+  [`android-tv-plan.md`](android-tv-plan.md). The planned TV client is a complete standalone Naviamp
+  playback owner with optional phone/Desktop control; it is not a Cast-only receiver. Reassess
+  Cast Connect after the native TV client and Naviamp Connect target protocol are stable. AirPlay
+  remains a separate future route-selection investigation.
 - **Concept:** Add cross-platform playback routing to Google Cast receivers and Apple's equivalent, AirPlay, so Naviamp can hand music to televisions, speakers, and whole-home audio targets.
 - **Product distinction to define:** AirPlay can act as an operating-system audio route while Naviamp continues owning playback locally, whereas Google Cast normally creates a remote playback session whose receiver owns the media timeline. Investigate both route selection and true remote-session handoff explicitly rather than presenting them as identical implementations.
 - **Shared-architecture requirement:** Core must own target/session state, queue handoff policy, playback commands, progress reconciliation, reconnect and recovery behavior, provider reporting, errors, and user-facing capability decisions. Android and Apple adapters may only wrap target discovery, platform session lifecycle, route selection, and Cast/AirPlay transport APIs.
