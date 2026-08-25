@@ -261,8 +261,13 @@ or independent navigation graph may be introduced in the Android host.
 - Connected successfully to Navidrome on the 1080p emulator. The first connected-screen capture
   exposed a wrapping Settings destination, so the TV navigation now uses equal adaptive slots and
   single-line labels designed for the shared 960dp ten-foot viewport used by both 1080p and 4K.
-- Verified the corrected connected layout at the emulator's native 1920x1080/320 dpi: all six
-  destinations fit on one line with readable focus treatment. This AVD is physically fixed at
-  1920x1080: a 3840x2160 `wm` override is ignored and secondary displays are unsupported, so its
-  density-only result is not valid 4K evidence. A true 4K AVD or physical device remains required
-  before marking 4K acceptance complete.
+- Verified the corrected connected layout on the 1080p AVD at its native 1920x1080/320 dpi: all
+  six destinations fit on one line with readable focus treatment.
+- Added a native 3840x2160/640 dpi `Television_4K` AVD and verified that the standalone setup
+  surface renders correctly at its physical 4K resolution. The same AVD also accepts a real
+  1920x1080/320 dpi `wm` override, producing a 1920x1080 framebuffer, so it is now the primary
+  dual-resolution acceptance device. Restore native 4K with `wm size reset` and
+  `wm density reset`.
+- Connected-screen acceptance at native 4K remains open until a server connection is configured
+  on the 4K AVD. Physical hardware remains necessary for HDMI/CEC, suspend/resume, and sustained
+  playback-performance testing.
