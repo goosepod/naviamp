@@ -93,6 +93,14 @@ class NaviampNowPlayingPresentationTest {
     }
 
     @Test
+    fun emptyQueueInvitesPlaybackWithoutClaimingTheSourceIsDisconnected() {
+        val presentation = input(track = null).toPresentationUi()
+
+        assertEquals("Choose something to play", presentation.nowPlaying.title)
+        assertEquals("Nothing Playing", presentation.nowPlaying.subtitle)
+    }
+
+    @Test
     fun radioPresentationUsesStreamMetadataAndDisablesSeek() {
         val station = InternetRadioStation("radio", "Station", "https://example.test/radio")
 

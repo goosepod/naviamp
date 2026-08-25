@@ -222,7 +222,7 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
         radioDjs = radioDjs,
         activeRadioDjId = activeRadioDjId,
     ) ?: NowPlayingUi(
-        title = "Queue will appear here after connection",
+        title = "Choose something to play",
         subtitle = if (isLiveStream) "Internet radio" else "Nothing Playing",
         stateLabel = stateLabel,
         coverArtUrl = coverArtUrl,
