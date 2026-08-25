@@ -37,6 +37,7 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
         directoryPicker = AndroidCoreUriPickerRegistry.pickers.directory,
         documentPicker = AndroidCoreUriPickerRegistry.pickers.document,
         isMobileData = ::isMobileData,
+        prepareWaveformAnalysis = { bass.init().getOrThrow() },
         waveformWorkContext = Dispatchers.IO,
     )
 

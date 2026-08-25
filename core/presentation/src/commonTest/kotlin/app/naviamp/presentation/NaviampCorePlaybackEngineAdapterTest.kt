@@ -10,6 +10,7 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.NetworkCertificateVerificationPlaybackEngine
+import app.naviamp.domain.playback.StereoDownmixPlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.TrackId
@@ -802,10 +803,14 @@ class NaviampCorePlaybackEngineAdapterTest {
         val engine = RecordingPlaybackEngine()
         val settings = NaviampCorePlaybackEngineSettings(engine)
 
-        val effective = settings.apply(PlaybackSettings(volumePercent = 140), redownload = false)
+        val effective = settings.apply(
+            PlaybackSettings(volumePercent = 140, stereoDownmixEnabled = true),
+            redownload = false,
+        )
 
         assertEquals(100, effective.volumePercent)
         assertEquals(100, engine.appliedVolume)
+        assertTrue(engine.appliedStereoDownmixEnabled)
     }
 
     @Test
@@ -965,6 +970,7 @@ private class RecordingPlaybackEngine :
     app.naviamp.domain.playback.RestartOnSeekPlaybackEngine,
     QueueAwarePlaybackEngine,
     VisualizerPlaybackEngine,
+    StereoDownmixPlaybackEngine,
     NetworkCertificateVerificationPlaybackEngine,
     DownloadFallbackAwarePlaybackEngine {
     override val name = "Recording"
@@ -981,6 +987,7 @@ private class RecordingPlaybackEngine :
     var appliedVolume = -1
     var emittedProgress = PlaybackProgress(12.0, 180.0)
     var crossfadeSeconds = -1
+    var appliedStereoDownmixEnabled = false
     val seeks = mutableListOf<Double>()
     var pauseCalls = 0
     private var stateCallback: ((PlaybackState) -> Unit)? = null
@@ -1027,6 +1034,9 @@ private class RecordingPlaybackEngine :
     }
     override fun setCrossfadeDuration(seconds: Int) {
         crossfadeSeconds = seconds
+    }
+    override fun setStereoDownmixEnabled(enabled: Boolean) {
+        appliedStereoDownmixEnabled = enabled
     }
     override fun prepareNext(request: PlaybackRequest) {
         preparedRequest = request

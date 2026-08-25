@@ -112,6 +112,7 @@ internal class DesktopComposition private constructor(
                 downloadRepository = storage.audioStore,
                 audioCacheRepository = storage.audioStore,
             )
+            val waveformAnalyzer = DesktopAudioWaveformAnalyzer()
             val playback = naviampCorePlaybackServiceCatalog(
                 scope = scope,
                 engine = engine,
@@ -128,7 +129,7 @@ internal class DesktopComposition private constructor(
                         .toPlaybackLocalAudio()
                 },
                 waveformRepository = storage.audioWaveforms,
-                waveformAnalyzer = DesktopAudioWaveformAnalyzer(),
+                waveformAnalyzer = waveformAnalyzer,
                 audioTagReader = DesktopAudioTagReader(),
                 lyricsRepository = CachedLyricsSidecarRepository(
                     cache = LyricsSidecarCacheService(storage.lyricsSidecars, nowEpochMillis),
@@ -139,6 +140,7 @@ internal class DesktopComposition private constructor(
                 playbackSessionRepository = storage.playbackSessions,
                 playbackProfileRepository = storage.playbackProfiles,
                 saveVisualizerSettings = settingsCatalog.storedSettings.saveVisualizer,
+                prepareWaveformAnalysis = waveformAnalyzer::prepare,
                 waveformWorkContext = Dispatchers.IO,
             )
             val downloads = repositoryNaviampCoreDownloadServices(

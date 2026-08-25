@@ -19,6 +19,10 @@ class DesktopAudioWaveformAnalyzer(
         )
     }
 
+    suspend fun prepare() {
+        backendResult.getOrThrow().init().getOrThrow()
+    }
+
     override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? =
         delegate?.analyze(source)
 }

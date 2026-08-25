@@ -21,7 +21,9 @@ downmix for multichannel audio, and prevents waveform work from stalling on long
 ### Bug Fixes
 
 - Stream long remote audio incrementally during waveform analysis instead of allowing the HTTP client or native decoder to retain the complete file in memory.
-- Resume restored-track waveform, lyrics, and tag loading in cancellable background work so long tracks do not delay playback restoration.
+- Resume restored-track waveform, lyrics, and tag loading in cancellable background work so long tracks do not delay playback restoration, including when native waveform analysis starts before playback after a cold launch.
+- Apply the saved Stereo Downmix preference to the active playback engine instead of only displaying and persisting the selection.
+- Keep the connection editor visible and usable when it is opened from Settings.
 
 ### System Settings
 

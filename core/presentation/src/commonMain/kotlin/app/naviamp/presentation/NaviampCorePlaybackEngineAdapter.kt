@@ -23,6 +23,7 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.RestartOnSeekPlaybackEngine
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
 import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
+import app.naviamp.domain.playback.StereoDownmixPlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
@@ -659,6 +660,7 @@ class NaviampCorePlaybackEngineSettings(
         )
         (engine as? SampleRateConverterPlaybackEngine)?.setSampleRateConverter(settings.sampleRateConverter)
         (engine as? SampleRateMatchingPlaybackEngine)?.setSampleRateMatching(settings.sampleRateMatching)
+        (engine as? StereoDownmixPlaybackEngine)?.setStereoDownmixEnabled(settings.stereoDownmixEnabled)
         (engine as? AudioOutputDevicePlaybackEngine)?.let { output ->
             val deviceId = settings.outputDevice.deviceId
                 .takeIf { settings.outputDevice.mode == AudioOutputDeviceMode.Pinned }

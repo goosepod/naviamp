@@ -114,6 +114,30 @@ class AudioWaveformServiceTest {
     }
 
     @Test
+    fun preparesNativeAnalysisBeforeOpeningTheDecodeStream() = runTest {
+        val events = mutableListOf<String>()
+        val analyzer = RecordingWaveformAnalyzer(AudioWaveform(listOf(0.4f))) {
+            events += "analyze"
+        }
+        val service = service(
+            repository = RecordingWaveformRepository(),
+            analyzer = analyzer,
+            audioAssets = RecordingAudioAssets(cached = "cache/song.flac"),
+            prepareAnalysis = { events += "prepare" },
+        )
+
+        service.loadOrCreateWaveform(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+        )
+
+        assertEquals(listOf("prepare", "analyze"), events)
+    }
+
+    @Test
     fun cachesAudioBeforeAnalyzingWhenLocalAudioIsMissing() = runTest {
         val repository = RecordingWaveformRepository()
         val analyzer = RecordingWaveformAnalyzer(AudioWaveform(listOf(1f)))
@@ -348,6 +372,7 @@ class AudioWaveformServiceTest {
             track: Track,
             quality: StreamQuality,
         ) -> PlaybackLocalAudio? = { _, _, _, _ -> null },
+        prepareAnalysis: suspend () -> Unit = {},
     ): AudioWaveformService =
         AudioWaveformService(
             waveformRepository = repository,
@@ -357,6 +382,7 @@ class AudioWaveformServiceTest {
             waveformBucketCount = waveformBucketCount,
             cacheAudioBeforeAnalysis = cacheAudioBeforeAnalysis,
             cacheAudioForWaveform = cacheAudioForWaveform,
+            prepareAnalysis = prepareAnalysis,
         )
 
     private fun track(): Track =
