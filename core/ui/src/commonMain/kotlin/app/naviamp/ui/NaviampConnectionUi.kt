@@ -46,6 +46,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
@@ -116,6 +121,7 @@ fun NaviampConnectionForm(
     var advancedVisible by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
+    val advancedFocusRequester = remember { FocusRequester() }
     val connectFocusRequester = remember { FocusRequester() }
     val focusNext: () -> Unit = { focusManager.moveFocus(FocusDirection.Next) }
 
@@ -199,7 +205,17 @@ fun NaviampConnectionForm(
         ConnectionFormTextAction(
             label = if (advancedVisible) "Hide Advanced" else "Show Advanced",
             colors = colors,
-            modifier = Modifier.testTag(ConnectionAdvancedActionTestTag),
+            modifier = Modifier
+                .focusRequester(advancedFocusRequester)
+                .onPreviewKeyEvent { event ->
+                    if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                        connectFocusRequester.requestFocus()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                .testTag(ConnectionAdvancedActionTestTag),
             onClick = { advancedVisible = !advancedVisible },
         )
         if (advancedVisible) {
@@ -367,6 +383,14 @@ fun NaviampConnectionForm(
                 enabled = !isConnecting,
                 modifier = Modifier
                     .focusRequester(connectFocusRequester)
+                    .onPreviewKeyEvent { event ->
+                        if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                            advancedFocusRequester.requestFocus()
+                            true
+                        } else {
+                            false
+                        }
+                    }
                     .testTag(ConnectionConnectButtonTestTag),
                 onClick = onConnect,
             )

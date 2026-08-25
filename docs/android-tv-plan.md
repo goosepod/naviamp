@@ -247,3 +247,6 @@ or independent navigation graph may be introduced in the Android host.
   restarted traversal at the top of the form. Confirmed that the intermittent gray lower screen is
   Google's TV input-method window; emulator logs show slow keyboard frames and keyboard-view helper
   warnings rather than a Naviamp crash.
+- Replaced spatial focus guessing between the closed form's Advanced and Connect actions with an
+  explicit two-way D-pad path after emulator testing showed that Up from Connect preferred the
+  geometrically closer Username field.
