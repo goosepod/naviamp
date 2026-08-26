@@ -340,6 +340,7 @@ private fun TelevisionMediaGrid(
     val focusRequesters = remember(itemKeys) { List(items.size) { FocusRequester() } }
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
+    var focusedRowStart by remember { mutableStateOf<Int?>(null) }
 
     suspend fun focusItem(index: Int) {
         gridState.scrollToItem(index)
@@ -351,6 +352,9 @@ private fun TelevisionMediaGrid(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val columnCount = televisionGridColumnCount(maxWidth)
+        LaunchedEffect(focusedRowStart) {
+            focusedRowStart?.let { gridState.animateScrollToItem(it) }
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(columnCount),
             state = gridState,
@@ -370,7 +374,7 @@ private fun TelevisionMediaGrid(
                     coverArtUrl = item.coverArtUrl,
                     colors = colors,
                     onFocused = {
-                        coroutineScope.launch { gridState.animateScrollToItem(index) }
+                        focusedRowStart = televisionGridRowStart(index, columnCount)
                     },
                     onClick = item.action,
                     modifier = Modifier
@@ -398,6 +402,9 @@ private fun TelevisionMediaGrid(
 
 internal fun televisionGridRightTarget(currentIndex: Int, itemCount: Int): Int? =
     (currentIndex + 1).takeIf { currentIndex >= 0 && it < itemCount }
+
+internal fun televisionGridRowStart(itemIndex: Int, columnCount: Int): Int? =
+    if (itemIndex >= 0 && columnCount > 0) itemIndex - (itemIndex % columnCount) else null
 
 internal fun televisionGridColumnCount(availableWidth: Dp): Int =
     ((availableWidth + TelevisionGridSpacing) / (TelevisionGridCardWidth + TelevisionGridSpacing))

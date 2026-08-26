@@ -25,4 +25,14 @@ class NaviampTelevisionGridPolicyTest {
         assertEquals(5, televisionGridColumnCount(888.dp))
         assertEquals(1, televisionGridColumnCount(100.dp))
     }
+
+    @Test
+    fun horizontalItemsShareOneVerticalScrollAnchor() {
+        assertEquals(0, televisionGridRowStart(itemIndex = 0, columnCount = 5))
+        assertEquals(0, televisionGridRowStart(itemIndex = 4, columnCount = 5))
+        assertEquals(5, televisionGridRowStart(itemIndex = 5, columnCount = 5))
+        assertEquals(5, televisionGridRowStart(itemIndex = 9, columnCount = 5))
+        assertNull(televisionGridRowStart(itemIndex = -1, columnCount = 5))
+        assertNull(televisionGridRowStart(itemIndex = 0, columnCount = 0))
+    }
 }
