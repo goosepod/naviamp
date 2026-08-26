@@ -106,6 +106,13 @@ internal fun TelevisionHome(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val contextInsetPx = with(density) { TelevisionHomeFocusedSectionTopInset.roundToPx() }
+    val sectionItemKeys = sections.map { section ->
+        section.items.map { item -> "${item.mediaKind}:${item.mediaItem.id}" }
+    }
+    val itemFocusRequesters = remember(sectionItemKeys) {
+        sectionItemKeys.map { itemKeys -> List(itemKeys.size) { FocusRequester() } }
+    }
+    var rememberedItemIndices by remember(sectionItemKeys) { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var focusedSectionIndex by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(focusedSectionIndex) {
         focusedSectionIndex?.let { sectionIndex ->
@@ -132,10 +139,40 @@ internal fun TelevisionHome(
                 }
             }
             itemsIndexed(sections, key = { _, section -> section.id }) { sectionIndex, section ->
+                val nextSectionIndex = televisionHomeVerticalSectionTarget(
+                    currentSectionIndex = sectionIndex,
+                    sectionCount = sections.size,
+                    key = Key.DirectionDown,
+                )
+                val previousSectionIndex = televisionHomeVerticalSectionTarget(
+                    currentSectionIndex = sectionIndex,
+                    sectionCount = sections.size,
+                    key = Key.DirectionUp,
+                )
                 TelevisionHomeCarousel(
                     section = section,
                     colors = colors,
+                    itemFocusRequesters = itemFocusRequesters[sectionIndex],
+                    previousSectionFocusRequester = previousSectionIndex?.let { targetSectionIndex ->
+                        itemFocusRequesters[targetSectionIndex].getOrNull(
+                            televisionHomeRememberedItemIndex(
+                                rememberedIndex = rememberedItemIndices[sections[targetSectionIndex].id],
+                                itemCount = sections[targetSectionIndex].items.size,
+                            ),
+                        )
+                    },
+                    nextSectionFocusRequester = nextSectionIndex?.let { targetSectionIndex ->
+                        itemFocusRequesters[targetSectionIndex].getOrNull(
+                            televisionHomeRememberedItemIndex(
+                                rememberedIndex = rememberedItemIndices[sections[targetSectionIndex].id],
+                                itemCount = sections[targetSectionIndex].items.size,
+                            ),
+                        )
+                    },
                     onSectionFocused = { focusedSectionIndex = sectionIndex },
+                    onItemFocused = { itemIndex ->
+                        rememberedItemIndices = rememberedItemIndices + (section.id to itemIndex)
+                    },
                     onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
                 )
             }
@@ -151,7 +188,11 @@ private object TelevisionHomeBringIntoViewSpec : BringIntoViewSpec {
 private fun TelevisionHomeCarousel(
     section: SharedHomeCollectionSectionUi,
     colors: NaviampColors,
+    itemFocusRequesters: List<FocusRequester>,
+    previousSectionFocusRequester: FocusRequester?,
+    nextSectionFocusRequester: FocusRequester?,
     onSectionFocused: () -> Unit,
+    onItemFocused: (Int) -> Unit,
     onSelected: (SharedHomeCollectionItemUi) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -188,6 +229,21 @@ private fun TelevisionHomeCarousel(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(TelevisionHomeCardSpacing),
                 modifier = Modifier
+                    .onPreviewKeyEvent { event ->
+                        val target = when (event.key) {
+                            Key.DirectionUp -> previousSectionFocusRequester
+                            Key.DirectionDown -> nextSectionFocusRequester
+                            else -> null
+                        }
+                        if (target == null) {
+                            false
+                        } else {
+                            if (event.type == KeyEventType.KeyDown) {
+                                target.requestFocus()
+                            }
+                            true
+                        }
+                    }
                     .horizontalScroll(scrollState)
                     .padding(
                         start = TelevisionFocusedItemOverflow,
@@ -201,6 +257,7 @@ private fun TelevisionHomeCarousel(
                         item = item,
                         colors = colors,
                         modifier = Modifier
+                            .focusRequester(itemFocusRequesters[index])
                             .then(
                                 if (index == section.items.lastIndex) {
                                     Modifier.onPreviewKeyEvent { event ->
@@ -212,6 +269,7 @@ private fun TelevisionHomeCarousel(
                             ),
                         onFocused = {
                             focusedIndex = index
+                            onItemFocused(index)
                             onSectionFocused()
                         },
                         onClick = { onSelected(item) },
@@ -613,6 +671,21 @@ internal fun televisionHomeSectionScrollOffset(sectionIndex: Int, contextInsetPx
 
 internal fun televisionHomeConsumesEndOfRailKey(key: Key): Boolean = key == Key.DirectionRight
 
+internal fun televisionHomeVerticalSectionTarget(
+    currentSectionIndex: Int,
+    sectionCount: Int,
+    key: Key,
+): Int? = if (
+    currentSectionIndex < 0 || currentSectionIndex >= sectionCount
+) null else when (key) {
+    Key.DirectionUp -> (currentSectionIndex - 1).takeIf { it >= 0 }
+    Key.DirectionDown -> (currentSectionIndex + 1).takeIf { it < sectionCount }
+    else -> null
+}
+
+internal fun televisionHomeRememberedItemIndex(rememberedIndex: Int?, itemCount: Int): Int =
+    if (itemCount <= 0) 0 else (rememberedIndex ?: 0).coerceIn(0, itemCount - 1)
+
 @Composable
 internal fun TelevisionNowPlaying(
     nowPlaying: NowPlayingUi,
@@ -620,7 +693,6 @@ internal fun TelevisionNowPlaying(
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
     onClose: () -> Unit,
-    onFocusNavigation: () -> Unit = {},
     onSearch: () -> Unit,
 ) {
     NaviampSystemBackHandler(enabled = true, onBack = onClose)
@@ -656,10 +728,6 @@ internal fun TelevisionNowPlaying(
                         true
                     }
                     event.type != KeyEventType.KeyDown -> false
-                    event.key == Key.DirectionUp -> {
-                        onFocusNavigation()
-                        true
-                    }
                     !controlsVisible && televisionWakesNowPlayingControls(event.key) -> {
                         controlsVisible = true
                         interactionSequence += 1
@@ -820,18 +888,18 @@ internal fun TelevisionMiniPlayer(
     val shape = RoundedCornerShape(12.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = modifier
             .fillMaxWidth()
             .background(Color.Black.copy(alpha = 0.34f), shape)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
+            .padding(horizontal = 12.dp, vertical = 5.dp),
     ) {
-        NaviampCoverArt(nowPlaying.coverArtUrl, colors, 48.dp, 7.dp)
+        NaviampCoverArt(nowPlaying.coverArtUrl, colors, 36.dp, 6.dp)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 nowPlaying.title,
                 color = colors.primaryText,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -839,7 +907,7 @@ internal fun TelevisionMiniPlayer(
             Text(
                 nowPlaying.subtitle,
                 color = colors.secondaryText,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1062,8 +1130,8 @@ private val TelevisionFocusedMiddleBorderWidth = 4.dp
 private val TelevisionFocusedCoreBorderWidth = 1.5.dp
 private val TelevisionFocusedCoreColor = Color(0xFFBDEBFF)
 private val TelevisionFocusedItemOverflow = 10.dp
-private val TelevisionHomeRailSpacing = 14.dp
-private val TelevisionHomeFocusedSectionTopInset = 64.dp
+private val TelevisionHomeRailSpacing = 8.dp
+private val TelevisionHomeFocusedSectionTopInset = 40.dp
 private val TelevisionHomeBottomFocusClearance = 360.dp
 internal const val TelevisionNowPlayingControlsTimeoutMillis = 5_000L
 internal const val TelevisionNowPlayingScrubberTestTag = "television-now-playing-scrubber"

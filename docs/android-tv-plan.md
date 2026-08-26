@@ -514,3 +514,12 @@ independent navigation graph may be introduced in the Apple TV host.
   commands remain the appropriate future path for dedicated rewind and fast-forward buttons.
 - Tightened Home rail spacing and the vertical context inset so a following section heading remains
   visible below the focused rail whenever another Home section exists.
+- Made Home rail changes deterministic while preserving a cursor per rail. An unvisited rail starts
+  at its first card; after a user moves within it, Up or Down returns to that rail's last-focused
+  card instead of copying the current rail's column. Reduced the rail gap and focus context inset
+  again so the following heading and artwork edge remain visible above the mini player.
+- Made top-bar restoration destination-stable. While focus is in page content, only that page's
+  navigation item is eligible as an Up target; Back requests that item's dedicated focus requester.
+  Once the bar has focus, every destination becomes eligible for ordinary horizontal navigation.
+- Restored Now Playing as a true full-screen Television surface with no top bar. Back exits it to
+  the underlying page; its playback controls no longer try to transfer Up focus to hidden chrome.

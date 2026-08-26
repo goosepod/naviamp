@@ -40,6 +40,35 @@ class NaviampApplicationSurfaceTest {
     }
 
     @Test
+    fun televisionNavigationRestoresTheVisibleOwnerOfTheCurrentPage() {
+        val destinations = naviampTelevisionDestinations(nowPlayingAvailable = true)
+        assertEquals(
+            NaviampTelevisionDestination.Library,
+            naviampTelevisionNavigationFocusDestination(
+                selected = NaviampTelevisionDestination.Library,
+                settingsSelected = false,
+                destinations = destinations,
+            ),
+        )
+        assertEquals(
+            NaviampTelevisionDestination.Library,
+            naviampTelevisionNavigationFocusDestination(
+                selected = NaviampTelevisionDestination.Playlists,
+                settingsSelected = false,
+                destinations = destinations,
+            ),
+        )
+        assertEquals(
+            NaviampTelevisionDestination.Settings,
+            naviampTelevisionNavigationFocusDestination(
+                selected = NaviampTelevisionDestination.Home,
+                settingsSelected = true,
+                destinations = destinations,
+            ),
+        )
+    }
+
+    @Test
     fun televisionBackReturnsSecondaryRoutesHomeWithoutStealingTransientBack() {
         assertEquals(SharedRoute.Home, naviampTelevisionBackRoute(SharedRoute.Library, transientContentOpen = false))
         assertEquals(SharedRoute.Home, naviampTelevisionBackRoute(SharedRoute.Settings, transientContentOpen = false))

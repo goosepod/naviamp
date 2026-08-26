@@ -51,10 +51,9 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
-    fun upFromPlaybackControlsReturnsToNavigationWithoutSelectingTheScrubber() = runComposeUiTest {
+    fun scrubberCannotReceiveFocusOrSeekFromTheRemote() = runComposeUiTest {
         mainClock.autoAdvance = false
         val playbackActions = mutableListOf<NowPlayingPlaybackActionRequest>()
-        var navigationFocusRequests = 0
         setContent {
             TelevisionNowPlaying(
                 nowPlaying = NowPlayingUi(
@@ -80,7 +79,6 @@ class NaviampTelevisionNowPlayingFocusTest {
                     onQueueItemAction = { _ -> },
                 ),
                 onClose = {},
-                onFocusNavigation = { navigationFocusRequests += 1 },
                 onSearch = {},
             )
         }
@@ -92,7 +90,6 @@ class NaviampTelevisionNowPlayingFocusTest {
         )
 
         runOnIdle {
-            assertEquals(1, navigationFocusRequests)
             assertEquals(emptyList(), playbackActions)
         }
     }

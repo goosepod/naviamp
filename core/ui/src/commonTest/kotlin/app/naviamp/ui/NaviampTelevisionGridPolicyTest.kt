@@ -53,4 +53,24 @@ class NaviampTelevisionGridPolicyTest {
         assertFalse(televisionHomeConsumesEndOfRailKey(Key.DirectionLeft))
         assertFalse(televisionHomeConsumesEndOfRailKey(Key.DirectionDown))
     }
+
+    @Test
+    fun verticalHomeNavigationTargetsTheAdjacentRail() {
+        assertEquals(1, televisionHomeVerticalSectionTarget(0, 3, Key.DirectionDown))
+        assertEquals(2, televisionHomeVerticalSectionTarget(1, 3, Key.DirectionDown))
+        assertNull(televisionHomeVerticalSectionTarget(2, 3, Key.DirectionDown))
+        assertEquals(1, televisionHomeVerticalSectionTarget(2, 3, Key.DirectionUp))
+        assertEquals(0, televisionHomeVerticalSectionTarget(1, 3, Key.DirectionUp))
+        assertNull(televisionHomeVerticalSectionTarget(0, 3, Key.DirectionUp))
+        assertNull(televisionHomeVerticalSectionTarget(0, 3, Key.DirectionRight))
+        assertNull(televisionHomeVerticalSectionTarget(-1, 3, Key.DirectionDown))
+    }
+
+    @Test
+    fun homeRailsDefaultToFirstAndRememberTheirOwnValidItem() {
+        assertEquals(0, televisionHomeRememberedItemIndex(null, itemCount = 6))
+        assertEquals(2, televisionHomeRememberedItemIndex(2, itemCount = 6))
+        assertEquals(5, televisionHomeRememberedItemIndex(8, itemCount = 6))
+        assertEquals(0, televisionHomeRememberedItemIndex(2, itemCount = 0))
+    }
 }

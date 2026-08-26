@@ -39,6 +39,17 @@ fun naviampSelectedTelevisionDestination(
     return NaviampTelevisionDestination.entries.firstOrNull { it.route == selectedRoute }
 }
 
+fun naviampTelevisionNavigationFocusDestination(
+    selected: NaviampTelevisionDestination?,
+    settingsSelected: Boolean,
+    destinations: List<NaviampTelevisionDestination>,
+): NaviampTelevisionDestination = when {
+    settingsSelected -> NaviampTelevisionDestination.Settings
+    selected == NaviampTelevisionDestination.Playlists -> NaviampTelevisionDestination.Library
+    selected != null && selected in destinations -> selected
+    else -> destinations.firstOrNull() ?: NaviampTelevisionDestination.Home
+}
+
 fun naviampTelevisionBackRoute(
     selectedRoute: SharedRoute,
     transientContentOpen: Boolean,
