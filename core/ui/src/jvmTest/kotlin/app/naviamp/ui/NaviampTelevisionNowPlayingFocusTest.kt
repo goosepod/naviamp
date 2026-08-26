@@ -16,6 +16,7 @@ import kotlin.test.assertEquals
 class NaviampTelevisionNowPlayingFocusTest {
     @Test
     fun playPauseReceivesFocusWhenNowPlayingOpens() = runComposeUiTest {
+        mainClock.autoAdvance = false
         setContent {
             TelevisionNowPlaying(
                 nowPlaying = NowPlayingUi(
@@ -41,12 +42,14 @@ class NaviampTelevisionNowPlayingFocusTest {
                 onSearch = {},
             )
         }
+        mainClock.advanceTimeBy(200)
 
         onNodeWithContentDescription("Pause").assertIsFocused()
     }
 
     @Test
     fun upSelectsScrubberAndRightSeeksTenSeconds() = runComposeUiTest {
+        mainClock.autoAdvance = false
         val playbackActions = mutableListOf<NowPlayingPlaybackActionRequest>()
         setContent {
             TelevisionNowPlaying(
@@ -76,6 +79,7 @@ class NaviampTelevisionNowPlayingFocusTest {
                 onSearch = {},
             )
         }
+        mainClock.advanceTimeBy(200)
 
         onNodeWithContentDescription("Play").performKeyInput { pressKey(Key.DirectionUp) }
         onNodeWithTag(TelevisionNowPlayingScrubberTestTag).assertIsFocused()
@@ -89,9 +93,62 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
+    fun inactivityHidesControlsAndFirstDirectionPressOnlyRestoresThem() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val playbackActions = mutableListOf<NowPlayingPlaybackActionRequest>()
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "track",
+                    title = "Track",
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    hasPrevious = true,
+                    canPlayPause = true,
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = playbackActions::add,
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = { _ -> },
+                    onQueueItemAction = { _ -> },
+                ),
+                onClose = {},
+                onSearch = {},
+            )
+        }
+        mainClock.advanceTimeBy(200)
+
+        onNodeWithContentDescription("Pause").assertIsFocused()
+        mainClock.advanceTimeBy(TelevisionNowPlayingControlsTimeoutMillis + 400)
+        onNodeWithContentDescription("Pause").assertDoesNotExist()
+        onNodeWithTag(TelevisionNowPlayingListeningModeTestTag).assertIsFocused()
+
+        onNodeWithTag(TelevisionNowPlayingListeningModeTestTag).performKeyInput {
+            pressKey(Key.DirectionLeft)
+        }
+        mainClock.advanceTimeBy(200)
+
+        onNodeWithContentDescription("Pause").assertIsFocused()
+        runOnIdle { assertEquals(emptyList(), playbackActions) }
+    }
+
+    @Test
     fun remoteSeekTargetsClampToTrackBounds() {
         assertEquals(0.0, televisionSeekTargetSeconds(3.0, 120.0, -1))
         assertEquals(120.0, televisionSeekTargetSeconds(117.0, 120.0, 1))
         assertEquals(null, televisionSeekTargetSeconds(30.0, 0.0, 1))
+    }
+
+    @Test
+    fun onlyOrdinaryNavigationKeysWakeListeningMode() {
+        assertEquals(true, televisionWakesNowPlayingControls(Key.DirectionCenter))
+        assertEquals(true, televisionWakesNowPlayingControls(Key.DirectionDown))
+        assertEquals(false, televisionWakesNowPlayingControls(Key.Back))
     }
 }

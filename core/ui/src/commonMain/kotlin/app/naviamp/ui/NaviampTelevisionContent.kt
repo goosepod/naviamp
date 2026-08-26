@@ -1,5 +1,10 @@
 package app.naviamp.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +56,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -71,6 +78,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import app.naviamp.domain.playback.PlaybackProgress
@@ -471,6 +479,7 @@ internal fun TelevisionFocusableCard(
             .focusable()
             .pointerInput(onClick) { detectTapGestures { onClick() } }
             .semantics { semanticsOnClick { onClick(); true } }
+            .televisionFocusEffect(focused, colors, shape)
             .clip(shape)
             .background(if (focused) colors.accent.copy(alpha = 0.2f) else Color.Transparent)
             .border(if (focused) 4.dp else 0.dp, colors.accent, shape)
@@ -520,166 +529,229 @@ internal fun TelevisionNowPlaying(
     val progressFraction = playbackFraction(progress.positionSeconds, duration).toFloat()
     var scrubberFocused by remember(nowPlaying.id) { mutableStateOf(false) }
     val scrubberFocusRequester = remember(nowPlaying.id) { FocusRequester() }
+    val listeningModeFocusRequester = remember(nowPlaying.id) { FocusRequester() }
+    var controlsVisible by remember(nowPlaying.id) { mutableStateOf(true) }
+    var interactionSequence by remember(nowPlaying.id) { mutableIntStateOf(0) }
+    var consumedWakeKey by remember(nowPlaying.id) { mutableStateOf<Key?>(null) }
+    LaunchedEffect(nowPlaying.id, controlsVisible, interactionSequence) {
+        if (controlsVisible) {
+            delay(TelevisionNowPlayingControlsTimeoutMillis)
+            controlsVisible = false
+        }
+    }
+    LaunchedEffect(controlsVisible) {
+        if (!controlsVisible) {
+            repeat(TelevisionFocusRequestAttempts) {
+                withFrameNanos { }
+                if (listeningModeFocusRequester.requestFocus()) return@LaunchedEffect
+            }
+        }
+    }
     LaunchedEffect(scrubberOverride) {
         if (scrubberOverride >= 0f) {
             delay(TelevisionScrubberOverrideMillis)
             scrubberOverride = -1f
         }
     }
-    Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 24.dp),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(34.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-        ) {
-            NaviampCoverArt(nowPlaying.coverArtUrl, colors, 270.dp, 18.dp)
-            if (nowPlaying.lyricsVisible) {
-                TelevisionLyrics(nowPlaying, progress.positionSeconds, colors, Modifier.weight(1f))
-            } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        nowPlaying.title,
-                        color = colors.primaryText,
-                        fontSize = 38.sp,
-                        lineHeight = 43.sp,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        nowPlaying.subtitle,
-                        color = colors.secondaryText,
-                        fontSize = 25.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    val album = nowPlaying.albumTitle.ifBlank { nowPlaying.albumLine }
-                    if (album.isNotBlank()) {
-                        Text(album, color = colors.mutedText, fontSize = 18.sp, maxLines = 1)
-                    }
-                    if (nowPlaying.audioInfo.isNotBlank()) {
-                        Text(nowPlaying.audioInfo, color = colors.mutedText, fontSize = 15.sp)
-                    }
-                }
-            }
-        }
-        val scrubberShape = RoundedCornerShape(10.dp)
-        val displayedScrubberFraction = if (scrubberOverride >= 0f) scrubberOverride else progressFraction
-        val displayedPositionSeconds = if (scrubberOverride >= 0f && duration != null) {
-            duration * scrubberOverride
-        } else {
-            progress.positionSeconds
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(TelevisionNowPlayingScrubberTestTag)
-                .focusRequester(scrubberFocusRequester)
-                .onPreviewKeyEvent { event ->
-                    val direction = when (event.key) {
-                        Key.DirectionLeft -> -1
-                        Key.DirectionRight -> 1
-                        else -> 0
-                    }
-                    if (!nowPlaying.canSeek || duration == null || direction == 0) {
-                        false
-                    } else {
-                        if (event.type == KeyEventType.KeyDown) {
-                            val currentSeconds = if (scrubberOverride >= 0f) {
-                                duration * scrubberOverride
-                            } else {
-                                progress.positionSeconds ?: nowPlaying.positionSeconds ?: 0.0
-                            }
-                            televisionSeekTargetSeconds(currentSeconds, duration, direction)?.let { target ->
-                                scrubberOverride = (target / duration).toFloat()
-                                actions.seek(target)
-                            }
-                        }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { event ->
+                when {
+                    consumedWakeKey == event.key && event.type == KeyEventType.KeyUp -> {
+                        consumedWakeKey = null
                         true
                     }
+                    event.type != KeyEventType.KeyDown -> false
+                    !controlsVisible && televisionWakesNowPlayingControls(event.key) -> {
+                        controlsVisible = true
+                        interactionSequence += 1
+                        consumedWakeKey = event.key
+                        true
+                    }
+                    controlsVisible -> {
+                        interactionSequence += 1
+                        false
+                    }
+                    else -> false
                 }
-                .onFocusChanged { scrubberFocused = it.isFocused }
-                .focusable(enabled = nowPlaying.canSeek && duration != null)
-                .background(
-                    if (scrubberFocused) colors.controlSurface.copy(alpha = 0.68f) else Color.Transparent,
-                    scrubberShape,
-                )
-                .border(if (scrubberFocused) 4.dp else 0.dp, colors.accent, scrubberShape)
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+            },
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 24.dp),
         ) {
-            Text(televisionSecondsLabel(displayedPositionSeconds), color = colors.secondaryText, fontSize = 15.sp)
-            WaveformScrubber(
-                amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
-                value = displayedScrubberFraction.coerceIn(0f, 1f),
-                enabled = nowPlaying.canSeek && duration != null,
-                colors = colors,
-                onValueChange = { scrubberOverride = it },
-                onValueChangeFinished = { fraction ->
-                    seekSecondsForFraction(fraction, duration)?.let(actions::seek)
-                    scrubberOverride = -1f
-                },
-                modifier = Modifier.weight(1f).height(46.dp),
-            )
-            Text(televisionSecondsLabel(duration), color = colors.secondaryText, fontSize = 15.sp)
-        }
-        Box(modifier = Modifier.fillMaxWidth().height(70.dp)) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(34.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
-                TelevisionIconButton(nowPlaying.hasPrevious, NaviampTransportIcons.Previous, "Previous", colors) {
-                    actions.playback(NowPlayingPlaybackAction.Previous)
+                NaviampCoverArt(nowPlaying.coverArtUrl, colors, 270.dp, 18.dp)
+                if (nowPlaying.lyricsVisible) {
+                    TelevisionLyrics(nowPlaying, progress.positionSeconds, colors, Modifier.weight(1f))
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            nowPlaying.title,
+                            color = colors.primaryText,
+                            fontSize = 38.sp,
+                            lineHeight = 43.sp,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            nowPlaying.subtitle,
+                            color = colors.secondaryText,
+                            fontSize = 25.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        val album = nowPlaying.albumTitle.ifBlank { nowPlaying.albumLine }
+                        if (album.isNotBlank()) {
+                            Text(album, color = colors.mutedText, fontSize = 18.sp, maxLines = 1)
+                        }
+                        if (nowPlaying.audioInfo.isNotBlank()) {
+                            Text(nowPlaying.audioInfo, color = colors.mutedText, fontSize = 15.sp)
+                        }
+                    }
                 }
-                TelevisionIconButton(
-                    enabled = nowPlaying.canPlayPause,
-                    icon = if (nowPlaying.isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
-                    description = if (nowPlaying.isPlaying) "Pause" else "Play",
-                    colors = colors,
-                    size = 64.dp,
-                    prominent = true,
-                    initiallyFocused = true,
-                    upFocusRequester = scrubberFocusRequester,
-                ) {
-                    actions.playback(
-                        when {
-                            nowPlaying.isPlaying -> NowPlayingPlaybackAction.Pause
-                            nowPlaying.isPaused -> NowPlayingPlaybackAction.Resume
-                            else -> NowPlayingPlaybackAction.PlayCurrent
-                        },
+            }
+            val scrubberShape = RoundedCornerShape(10.dp)
+            val displayedScrubberFraction = if (scrubberOverride >= 0f) scrubberOverride else progressFraction
+            val displayedPositionSeconds = if (scrubberOverride >= 0f && duration != null) {
+                duration * scrubberOverride
+            } else {
+                progress.positionSeconds
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(TelevisionNowPlayingScrubberTestTag)
+                    .focusRequester(scrubberFocusRequester)
+                    .onPreviewKeyEvent { event ->
+                        val direction = when (event.key) {
+                            Key.DirectionLeft -> -1
+                            Key.DirectionRight -> 1
+                            else -> 0
+                        }
+                        if (!nowPlaying.canSeek || duration == null || direction == 0) {
+                            false
+                        } else {
+                            if (event.type == KeyEventType.KeyDown) {
+                                val currentSeconds = if (scrubberOverride >= 0f) {
+                                    duration * scrubberOverride
+                                } else {
+                                    progress.positionSeconds ?: nowPlaying.positionSeconds ?: 0.0
+                                }
+                                televisionSeekTargetSeconds(currentSeconds, duration, direction)?.let { target ->
+                                    scrubberOverride = (target / duration).toFloat()
+                                    actions.seek(target)
+                                }
+                            }
+                            true
+                        }
+                    }
+                    .onFocusChanged { scrubberFocused = it.isFocused }
+                    .focusable(enabled = nowPlaying.canSeek && duration != null)
+                    .background(
+                        if (scrubberFocused) colors.controlSurface.copy(alpha = 0.68f) else Color.Transparent,
+                        scrubberShape,
                     )
-                }
-                TelevisionIconButton(nowPlaying.hasNext, NaviampTransportIcons.Next, "Next", colors) {
-                    actions.playback(NowPlayingPlaybackAction.Next)
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.align(Alignment.CenterEnd),
+                    .border(if (scrubberFocused) 4.dp else 0.dp, colors.accent, scrubberShape)
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
             ) {
-                TelevisionIconButton(nowPlaying.lyricsAvailable, NaviampTransportIcons.Lyrics, "Lyrics", colors, selected = nowPlaying.lyricsVisible) {
-                    actions.display(NowPlayingDisplayAction.ToggleLyrics)
-                }
-                TelevisionIconButton(nowPlaying.canFavorite, if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart, "Favorite", colors, selected = nowPlaying.favoriteActive) {
-                    actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
-                }
-                TelevisionIconButton(nowPlaying.canRepeat, NaviampTransportIcons.Repeat, "Repeat", colors, selected = nowPlaying.repeatMode != NaviampRepeatMode.Off) {
-                    actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
-                }
-                TelevisionIconButton(nowPlaying.shuffleEnabled, NaviampTransportIcons.Shuffle, "Shuffle", colors, selected = nowPlaying.shuffleActive) {
-                    actions.playback(NowPlayingPlaybackAction.ToggleShuffle)
-                }
-                TelevisionIconButton(true, NaviampIcons.Search, "Search", colors, onClick = onSearch)
+                Text(
+                    televisionSecondsLabel(displayedPositionSeconds),
+                    color = colors.secondaryText,
+                    fontSize = 15.sp,
+                )
+                WaveformScrubber(
+                    amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
+                    value = displayedScrubberFraction.coerceIn(0f, 1f),
+                    enabled = nowPlaying.canSeek && duration != null,
+                    colors = colors,
+                    onValueChange = { scrubberOverride = it },
+                    onValueChangeFinished = { fraction ->
+                        seekSecondsForFraction(fraction, duration)?.let(actions::seek)
+                        scrubberOverride = -1f
+                    },
+                    modifier = Modifier.weight(1f).height(46.dp),
+                )
+                Text(televisionSecondsLabel(duration), color = colors.secondaryText, fontSize = 15.sp)
             }
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(tween(TelevisionFocusAnimationMillis)),
+                exit = fadeOut(tween(TelevisionFocusAnimationMillis)),
+            ) {
+                Box(modifier = Modifier.fillMaxWidth().height(70.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.align(Alignment.Center),
+                    ) {
+                        TelevisionIconButton(nowPlaying.hasPrevious, NaviampTransportIcons.Previous, "Previous", colors) {
+                            actions.playback(NowPlayingPlaybackAction.Previous)
+                        }
+                        TelevisionIconButton(
+                            enabled = nowPlaying.canPlayPause,
+                            icon = if (nowPlaying.isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
+                            description = if (nowPlaying.isPlaying) "Pause" else "Play",
+                            colors = colors,
+                            size = 64.dp,
+                            prominent = true,
+                            initiallyFocused = true,
+                            upFocusRequester = scrubberFocusRequester,
+                        ) {
+                            actions.playback(
+                                when {
+                                    nowPlaying.isPlaying -> NowPlayingPlaybackAction.Pause
+                                    nowPlaying.isPaused -> NowPlayingPlaybackAction.Resume
+                                    else -> NowPlayingPlaybackAction.PlayCurrent
+                                },
+                            )
+                        }
+                        TelevisionIconButton(nowPlaying.hasNext, NaviampTransportIcons.Next, "Next", colors) {
+                            actions.playback(NowPlayingPlaybackAction.Next)
+                        }
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    ) {
+                        TelevisionIconButton(nowPlaying.lyricsAvailable, NaviampTransportIcons.Lyrics, "Lyrics", colors, selected = nowPlaying.lyricsVisible) {
+                            actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                        }
+                        TelevisionIconButton(nowPlaying.canFavorite, if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart, "Favorite", colors, selected = nowPlaying.favoriteActive) {
+                            actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
+                        }
+                        TelevisionIconButton(nowPlaying.canRepeat, NaviampTransportIcons.Repeat, "Repeat", colors, selected = nowPlaying.repeatMode != NaviampRepeatMode.Off) {
+                            actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
+                        }
+                        TelevisionIconButton(nowPlaying.shuffleEnabled, NaviampTransportIcons.Shuffle, "Shuffle", colors, selected = nowPlaying.shuffleActive) {
+                            actions.playback(NowPlayingPlaybackAction.ToggleShuffle)
+                        }
+                        TelevisionIconButton(true, NaviampIcons.Search, "Search", colors, onClick = onSearch)
+                    }
+                }
+            }
+        }
+        if (!controlsVisible) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .size(1.dp)
+                    .testTag(TelevisionNowPlayingListeningModeTestTag)
+                    .focusRequester(listeningModeFocusRequester)
+                    .focusable(),
+            )
         }
     }
 }
@@ -708,6 +780,7 @@ internal fun TelevisionMiniPlayer(
             modifier = Modifier
                 .weight(1f)
                 .onFocusChanged { identityFocused = it.isFocused }
+                .televisionFocusEffect(identityFocused, colors, shape)
                 .clip(shape)
                 .background(if (identityFocused) colors.accent.copy(alpha = 0.18f) else Color.Transparent)
                 .border(if (identityFocused) 4.dp else 0.dp, colors.accent, shape)
@@ -837,6 +910,7 @@ internal fun TelevisionIconButton(
                 }
             }
             .onFocusChanged { focused = it.isFocused }
+            .televisionFocusEffect(focused, colors, shape)
             .clip(shape)
             .background(
                 when {
@@ -871,11 +945,41 @@ internal fun TelevisionTextButton(
         enabled = enabled,
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
+            .televisionFocusEffect(focused, colors, shape)
             .border(if (focused) 4.dp else 0.dp, colors.accent, shape),
         shape = shape,
     ) {
         Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+@Composable
+internal fun Modifier.televisionFocusEffect(
+    focused: Boolean,
+    colors: NaviampColors,
+    shape: RoundedCornerShape,
+): Modifier {
+    val scale by animateFloatAsState(
+        targetValue = if (focused) TelevisionFocusedScale else 1f,
+        animationSpec = tween(TelevisionFocusAnimationMillis),
+        label = "Television focus scale",
+    )
+    val elevation by animateFloatAsState(
+        targetValue = if (focused) TelevisionFocusedElevation.value else 0f,
+        animationSpec = tween(TelevisionFocusAnimationMillis),
+        label = "Television focus elevation",
+    )
+    return this
+        .zIndex(if (focused) 1f else 0f)
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+            shadowElevation = elevation.dp.toPx()
+            this.shape = shape
+            clip = false
+            ambientShadowColor = colors.accent.copy(alpha = 0.34f)
+            spotShadowColor = colors.accent.copy(alpha = 0.52f)
+        }
 }
 
 private fun televisionSecondsLabel(seconds: Double?): String {
@@ -895,6 +999,15 @@ internal fun televisionSeekTargetSeconds(
         .coerceIn(0.0, durationSeconds)
 }
 
+internal fun televisionWakesNowPlayingControls(key: Key): Boolean =
+    key == Key.DirectionLeft ||
+        key == Key.DirectionRight ||
+        key == Key.DirectionUp ||
+        key == Key.DirectionDown ||
+        key == Key.DirectionCenter ||
+        key == Key.Enter ||
+        key == Key.Spacebar
+
 private val TelevisionHomeCardWidth = 168.dp
 private val TelevisionHomeCardSpacing = 16.dp
 private val TelevisionHomeCardStride = TelevisionHomeCardWidth + TelevisionHomeCardSpacing
@@ -902,7 +1015,12 @@ private val TelevisionGridCardWidth = 150.dp
 private val TelevisionGridSpacing = 16.dp
 private val TelevisionGridArtworkSize = 150.dp
 private const val TelevisionFocusRequestAttempts = 5
+private const val TelevisionFocusAnimationMillis = 140
+private const val TelevisionFocusedScale = 1.06f
+private val TelevisionFocusedElevation = 18.dp
 private const val TelevisionSearchImeDismissDelayMillis = 300L
 private const val TelevisionSeekStepSeconds = 10.0
 private const val TelevisionScrubberOverrideMillis = 2_000L
+internal const val TelevisionNowPlayingControlsTimeoutMillis = 5_000L
 internal const val TelevisionNowPlayingScrubberTestTag = "television-now-playing-scrubber"
+internal const val TelevisionNowPlayingListeningModeTestTag = "television-now-playing-listening-mode"

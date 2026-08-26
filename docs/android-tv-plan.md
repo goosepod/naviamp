@@ -22,8 +22,8 @@ states as if they were shipped behavior.
 - Phone and Desktop controllers browse with their normal full UI while targeting the TV for
   playback. Closing a controller does not stop TV playback.
 - When the TV owns playback, only the TV reports its playback lifecycle to the provider.
-- Lyrics are the primary living-room presentation enhancement. A visualizer is not in the initial
-  scope.
+- Lyrics are the primary living-room presentation enhancement. A high-performance visualizer is a
+  later TV playback milestone rather than a prerequisite for the usable browsing and playback UI.
 - 1920x1080 and 3840x2160 are required display targets. Layout uses logical density-aware sizing so
   ten-foot typography and controls remain consistent while artwork renders at native sharpness.
 - Product policy, state, navigation, setup behavior, remote-session semantics, and TV UI live in
@@ -76,8 +76,75 @@ remains untouched and continues to apply to phone and Desktop only. Each TV rail
   word-level highlighting from the existing shared lyric model.
 - When lyrics are unavailable, use the space for queue context or artwork without placeholder
   noise.
-- Fade nonessential controls after remote inactivity and account for OLED burn-in before release.
-- Do not add a TV visualizer in the initial implementation.
+- Use two explicit presentation states. Interactive mode shows transport and secondary actions;
+  after about five seconds without remote interaction, listening mode leaves only artwork, track
+  context, lyrics when selected, and the waveform/progress presentation.
+- The first ordinary D-pad press in listening mode restores the controls without also invoking a
+  command. Restore the last sensible focus target when possible, with Play/Pause as the safe
+  fallback. Hardware media commands remain immediate.
+- Reset the inactivity timer for remote interaction and suspend it while an interaction that needs
+  sustained focus is active, including scrubbing and open menus.
+- Account for OLED burn-in before release.
+
+### Focus and selection language
+
+All Television surfaces use one shared focus treatment rather than screen-specific borders:
+
+- Focused cards and controls scale approximately 5–7 percent over 120–160 milliseconds.
+- A thin bright outline and soft glow provide contrast on artwork and every background style.
+- Focused content is raised above neighboring content and carousel/grid containers reserve enough
+  space that the enlarged item is never clipped.
+- Transient remote focus and persistent state are distinct. Focus uses the animated outline/glow;
+  selected values such as Lyrics, Repeat, Shuffle, and settings choices retain a quieter persistent
+  mark when focus moves away.
+- Disabled actions remain visually legible but cannot receive focus.
+
+### Search interaction
+
+- Opening Search places focus in the query field and leaves the platform keyboard visible while the
+  user enters or refines a query.
+- Search results update without forcing the keyboard closed. The IME Search action submits the
+  current query but does not move focus away from the text field.
+- Back dismisses the keyboard while retaining the query; Down then enters the first result. Back
+  from results returns to the query field so it can be edited again.
+- Results use the shared Television grid and deterministic row-major D-pad navigation.
+
+### Television settings presentation
+
+- Settings opens as a right-side sheet over a dimmed version of the current destination, occupying
+  roughly 40 percent of the screen instead of navigating to the dense standard settings page.
+- The first level contains only TV-relevant groups: Connection, Appearance, Playback, Audio, and
+  About. Each row has an icon, title, current value, and disclosure indicator.
+- Selecting a group replaces the sheet contents with that group's rows. Back returns one level and
+  then dismisses the sheet, restoring focus to the Settings entry.
+- Choice pages use a persistent checkmark for the selected value and the common Television focus
+  treatment for the currently focused row.
+- File import, pointer/gesture options, Desktop shortcuts, and other controls without a meaningful
+  ten-foot workflow remain absent.
+
+### Visualizer direction
+
+A Television visualizer may be added after the browsing, focus, settings, and listening-mode work
+is stable. It must not make the shared Compose UI responsible for drawing a full-resolution effect
+frame by frame.
+
+- Core owns visualizer selection, audio-analysis data, lifecycle policy, fallback state, settings,
+  and the relationship between the visualization and Now Playing overlays.
+- Each host supplies only a narrow native rendering surface and graphics implementation: Vulkan
+  with an OpenGL ES fallback on Android TV, and Metal on tvOS.
+- The renderer consumes the existing shared waveform/FFT data contracts where suitable. Reuse the
+  existing Naviamp shader and visualizer definitions instead of creating a TV-only signal path.
+- Render resolution is adaptive. Capable devices may render at native 4K; constrained devices can
+  render internally at 1080p and upscale while UI text and artwork remain native-resolution.
+- Failure to initialize the preferred graphics backend falls back cleanly to the alternate backend
+  or the normal artwork presentation. Renderer diagnostics must never interrupt playback.
+
+### Navigation refinements
+
+- Top-level destinations remain provider-neutral. Any route-on-focus behavior must be deliberate,
+  tested, and avoid reloading content while merely crossing the navigation bar.
+- Back always closes the most local transient layer first: contextual menu, child settings page,
+  settings sheet, result-to-query transition, detail page, then primary-destination policy.
 
 ### Standalone setup
 
@@ -374,3 +441,18 @@ independent navigation graph may be introduced in the Apple TV host.
   seek backward or forward in 10-second steps, repeated presses build from the pending seek, and
   bounds clamp to the track duration. Native-4K emulator testing confirmed the full-width focus
   treatment and remote seek while focus remains on the scrubber.
+- Recorded the next Television interaction direction: a consistent animated focus language,
+  listening-mode Now Playing, keyboard-preserving Search, a nested right-side Settings sheet, and a
+  future adaptive native-renderer visualizer whose product policy remains in Core.
+- Added the first shared focus system across Home/Library/Search artwork, top navigation, detail
+  actions and tracks, the mini player, and Television buttons. Focus now animates to 106 percent in
+  140 milliseconds with raised z-order, a bright outline, and an accent-colored shadow while
+  persistent selections retain their separate state treatment.
+- Added interactive and listening states to Television Now Playing. After five seconds without
+  remote input the transport and secondary actions fade away; the first ordinary D-pad press is
+  consumed to restore the controls and deterministic Play/Pause focus without firing an action.
+- Added shared Compose regression coverage for the inactivity transition, wake-event consumption,
+  focus restoration, and wake-key policy. Shared UI tests passed alongside Android, Desktop, and
+  iOS Simulator compilation.
+- Installed and launched the build on the native 3840x2160 Television emulator. Captures confirmed
+  the uncluttered listening presentation and the restored, clearly enlarged Play/Pause focus state.

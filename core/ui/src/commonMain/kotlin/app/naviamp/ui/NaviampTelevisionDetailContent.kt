@@ -302,6 +302,7 @@ private fun TelevisionDetailActionButton(action: TelevisionHeroAction, colors: N
         ),
         modifier = Modifier
             .onFocusChanged { focused = it.isFocused }
+            .televisionFocusEffect(focused, colors, shape)
             .border(if (focused) 4.dp else 0.dp, colors.accent, shape),
     ) {
         Icon(action.icon, contentDescription = null, modifier = Modifier.size(23.dp))
@@ -354,6 +355,7 @@ private fun TelevisionTrackRow(
                 }
             }
             .onFocusChanged { focused = it.isFocused }
+            .televisionFocusEffect(focused, colors, shape)
             .border(if (focused) 4.dp else 0.dp, colors.accent, shape),
     ) {
         Text(

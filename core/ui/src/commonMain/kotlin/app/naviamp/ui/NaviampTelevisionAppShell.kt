@@ -302,6 +302,7 @@ private fun TelevisionNavigationButton(
         shape = shape,
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
+            .televisionFocusEffect(focused, colors, shape)
             .then(
                 if (focused) {
                     Modifier.border(3.dp, colors.accent, shape)
