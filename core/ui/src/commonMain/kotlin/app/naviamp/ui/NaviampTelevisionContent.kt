@@ -100,9 +100,19 @@ internal fun TelevisionHome(
 ) {
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
+    val sectionIds = sections.map { it.id }
+    val sectionEntryFocusRequesters = remember(sectionIds) { List(sections.size) { FocusRequester() } }
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val contextInsetPx = with(density) { TelevisionHomeFocusedSectionTopInset.roundToPx() }
     var focusedSectionIndex by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(focusedSectionIndex) {
-        focusedSectionIndex?.let { listState.animateScrollToItem(it) }
+        focusedSectionIndex?.let { sectionIndex ->
+            listState.animateScrollToItem(
+                sectionIndex,
+                televisionHomeSectionScrollOffset(sectionIndex, contextInsetPx),
+            )
+        }
     }
     LazyColumn(
         state = listState,
@@ -123,7 +133,22 @@ internal fun TelevisionHome(
             TelevisionHomeCarousel(
                 section = section,
                 colors = colors,
+                entryFocusRequester = sectionEntryFocusRequesters[sectionIndex],
                 onSectionFocused = { focusedSectionIndex = sectionIndex },
+                onRightAtEnd = {
+                    televisionHomeRightEdgeTarget(sectionIndex, sections.size)?.let { nextSectionIndex ->
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(
+                                nextSectionIndex,
+                                televisionHomeSectionScrollOffset(nextSectionIndex, contextInsetPx),
+                            )
+                            repeat(TelevisionFocusRequestAttempts) {
+                                withFrameNanos { }
+                                if (sectionEntryFocusRequesters[nextSectionIndex].requestFocus()) return@launch
+                            }
+                        }
+                    }
+                },
                 onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
             )
         }
@@ -134,7 +159,9 @@ internal fun TelevisionHome(
 private fun TelevisionHomeCarousel(
     section: SharedHomeCollectionSectionUi,
     colors: NaviampColors,
+    entryFocusRequester: FocusRequester,
     onSectionFocused: () -> Unit,
+    onRightAtEnd: () -> Unit,
     onSelected: (SharedHomeCollectionItemUi) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -183,6 +210,24 @@ private fun TelevisionHomeCarousel(
                     TelevisionHomeCard(
                         item = item,
                         colors = colors,
+                        modifier = Modifier
+                            .then(
+                                if (index == 0) Modifier.focusRequester(entryFocusRequester) else Modifier,
+                            )
+                            .then(
+                                if (index == section.items.lastIndex) {
+                                    Modifier.onPreviewKeyEvent { event ->
+                                        if (event.key != Key.DirectionRight) {
+                                            false
+                                        } else {
+                                            if (event.type == KeyEventType.KeyDown) onRightAtEnd()
+                                            true
+                                        }
+                                    }
+                                } else {
+                                    Modifier
+                                },
+                            ),
                         onFocused = {
                             focusedIndex = index
                             onSectionFocused()
@@ -201,12 +246,14 @@ private fun TelevisionHomeCard(
     colors: NaviampColors,
     onFocused: () -> Unit,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     TelevisionFocusableCard(
         colors = colors,
         width = TelevisionHomeCardWidth,
         onFocused = onFocused,
         onClick = onClick,
+        modifier = modifier,
     ) { focused ->
         HomeCollectionArtwork(
             item,
@@ -556,26 +603,34 @@ internal fun TelevisionFocusableCard(
 
 @Composable
 internal fun TelevisionCardLabels(title: String, subtitle: String, colors: NaviampColors) {
-    Text(
-        title,
-        color = colors.primaryText,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Bold,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(horizontal = 8.dp),
-    )
-    if (subtitle.isNotBlank()) {
+    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(
-            subtitle,
-            color = colors.secondaryText,
-            fontSize = 12.sp,
+            title,
+            color = colors.primaryText,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 8.dp),
         )
+        if (subtitle.isNotBlank()) {
+            Text(
+                subtitle,
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+        }
     }
 }
+
+internal fun televisionHomeRightEdgeTarget(sectionIndex: Int, sectionCount: Int): Int? =
+    (sectionIndex + 1).takeIf { sectionIndex >= 0 && it < sectionCount }
+
+internal fun televisionHomeSectionScrollOffset(sectionIndex: Int, contextInsetPx: Int): Int =
+    if (sectionIndex > 0) -contextInsetPx.coerceAtLeast(0) else 0
 
 @Composable
 internal fun TelevisionNowPlaying(
@@ -1054,6 +1109,7 @@ private const val TelevisionFocusedScale = 1.06f
 private val TelevisionFocusedElevation = 18.dp
 private val TelevisionFocusedBorderWidth = 3.dp
 private val TelevisionFocusedItemOverflow = 10.dp
+private val TelevisionHomeFocusedSectionTopInset = 72.dp
 private val TelevisionHomeBottomFocusClearance = 360.dp
 private const val TelevisionSeekStepSeconds = 10.0
 private const val TelevisionScrubberOverrideMillis = 2_000L

@@ -491,3 +491,10 @@ independent navigation graph may be introduced in the Apple TV host.
   eliminating horizontal-navigation scroll restarts.
 - Simplified top-navigation focus to a white background with no glow or zoom, and moved the
   conditional Now Playing destination directly after Home.
+- Tightened the shared Television card metadata stack so artwork, title, and artist read as one
+  unit across every Home rail, while Library and Search continue to reuse the same base focusable
+  card and label components.
+- Made Right on the final card advance to the first card of the next Home rail when one exists and
+  stop at the final rail instead of escaping to top navigation. Focused rails now use one stable
+  vertical context inset: a portion of the preceding rail remains visible above and the following
+  heading remains visible below whenever those neighboring sections exist.
