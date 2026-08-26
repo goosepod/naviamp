@@ -28,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,7 +49,16 @@ fun NaviampTelevisionAppShell(
 ) {
     val colors = NaviampColors.Dark
     val connection = uiState.connectionSettings.connection
-    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(uiState.general.interfaceSettings.nowPlaying)
+    val interfaceSettings = uiState.general.interfaceSettings
+    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(interfaceSettings.nowPlaying)
+    val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
+    val appBackground = naviampAppBackgroundUi(
+        interfaceSettings = interfaceSettings,
+        coverArtUrl = nowPlaying?.coverArtUrl,
+        albumPlayerColors = albumPlayerColors,
+        colors = colors,
+    )
+    val backgroundPlayerColors = animatedNaviampPlayerColors(appBackground.targetPlayerColors)
     val selectedDestination = naviampSelectedTelevisionDestination(
         selectedRoute = uiState.shellChrome.selectedRoute,
         nowPlayingOpen = uiState.shellChrome.nowPlayingOpen,
@@ -68,18 +76,13 @@ fun NaviampTelevisionAppShell(
         typography = rememberNaviampTypography(),
     ) {
         Box(
-            modifier = modifier
-                .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colors.background,
-                            colors.controlSurface.copy(alpha = 0.82f),
-                            colors.background,
-                        ),
-                    ),
-                ),
+            modifier = modifier.fillMaxSize(),
         ) {
+            NaviampAppBackground(
+                background = appBackground,
+                colors = colors,
+                playerColors = backgroundPlayerColors,
+            )
             when {
                 connection.restoringConnection && !connection.editingConnection -> TelevisionStatusScreen(
                     title = "Restoring Naviamp TV",

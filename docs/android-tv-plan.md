@@ -363,3 +363,7 @@ independent navigation graph may be introduced in the Apple TV host.
 - Verified both detail layouts at native 3840x2160 on the connected Google TV emulator. Confirmed
   deterministic entry focus, hero-action traversal, track scrolling, contextual-action focus, and
   focus restoration after dismissing the action panel.
+- Replaced the Television shell's fixed dark gradient with the shared app-background renderer.
+  Native-4K emulator testing confirmed that Aurora follows current-artwork colors and tone, Album
+  Blur uses the current cover and configured blur radius, and Single Color renders the configured
+  hex color immediately. Restored Aurora/Dark after exercising all three modes.

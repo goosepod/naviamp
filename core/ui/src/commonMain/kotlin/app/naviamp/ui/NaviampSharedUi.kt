@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -57,8 +56,6 @@ import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
-import app.naviamp.domain.settings.AppBackgroundStyle
-import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.ui.generated.resources.Res
@@ -207,14 +204,13 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.Settings
             )
     val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
-    val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
-        ?: naviampColorFromHex(DefaultSingleColorHex)!!
-    val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
-        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
-        AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
-        AppBackgroundStyle.AlbumBlur -> albumPlayerColors
-    }
-    val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
+    val appBackground = naviampAppBackgroundUi(
+        interfaceSettings = interfaceSettings,
+        coverArtUrl = nowPlaying?.coverArtUrl,
+        albumPlayerColors = albumPlayerColors,
+        colors = colors,
+    )
+    val nowPlayingPlayerColors = animatedNaviampPlayerColors(appBackground.targetPlayerColors)
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = colors.background,
@@ -229,24 +225,11 @@ fun NaviampSharedAppShell(
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-            when (interfaceSettings.appBackgroundStyle) {
-                AppBackgroundStyle.Aurora -> Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Brush.linearGradient(nowPlayingPlayerColors.gradientColors)),
-                )
-                AppBackgroundStyle.AlbumBlur -> NaviampAlbumBlurBackground(
-                    url = nowPlaying?.coverArtUrl,
-                    colors = colors,
-                    playerColors = nowPlayingPlayerColors,
-                    blurRadiusDp = interfaceSettings.albumBlurRadiusDp,
-                )
-                AppBackgroundStyle.SingleColor -> Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(singleBackgroundColor),
-                )
-            }
+            NaviampAppBackground(
+                background = appBackground,
+                colors = colors,
+                playerColors = nowPlayingPlayerColors,
+            )
             Column(
                 modifier
                     .fillMaxSize(),
@@ -426,14 +409,13 @@ internal fun ConnectedContent(
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val routeStateHolder = rememberSaveableStateHolder()
     val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
-    val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
-        ?: naviampColorFromHex(DefaultSingleColorHex)!!
-    val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
-        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
-        AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
-        AppBackgroundStyle.AlbumBlur -> albumPlayerColors
-    }
-    val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
+    val appBackground = naviampAppBackgroundUi(
+        interfaceSettings = interfaceSettings,
+        coverArtUrl = nowPlaying?.coverArtUrl,
+        albumPlayerColors = albumPlayerColors,
+        colors = colors,
+    )
+    val nowPlayingPlayerColors = animatedNaviampPlayerColors(appBackground.targetPlayerColors)
     val homeScrollState = rememberScrollState()
     val libraryListState = rememberLazyListState()
     val artistDetailScrollState = rememberScrollState()
