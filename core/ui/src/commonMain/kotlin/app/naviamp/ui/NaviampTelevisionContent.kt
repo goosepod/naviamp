@@ -50,7 +50,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,7 +89,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.waveform.playbackFraction
-import app.naviamp.domain.waveform.seekSecondsForFraction
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -120,7 +118,7 @@ internal fun TelevisionHome(
     CompositionLocalProvider(LocalBringIntoViewSpec provides TelevisionHomeBringIntoViewSpec) {
         LazyColumn(
             state = listState,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(TelevisionHomeRailSpacing),
             contentPadding = PaddingValues(bottom = TelevisionHomeBottomFocusClearance),
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -622,16 +620,14 @@ internal fun TelevisionNowPlaying(
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
     onClose: () -> Unit,
+    onFocusNavigation: () -> Unit = {},
     onSearch: () -> Unit,
 ) {
     NaviampSystemBackHandler(enabled = true, onBack = onClose)
     val progress = playbackProgress?.collectAsState()?.value
         ?: PlaybackProgress(nowPlaying.positionSeconds, nowPlaying.durationSeconds)
     val duration = progress.durationSeconds ?: nowPlaying.durationSeconds
-    var scrubberOverride by remember(nowPlaying.id) { mutableFloatStateOf(-1f) }
     val progressFraction = playbackFraction(progress.positionSeconds, duration).toFloat()
-    var scrubberFocused by remember(nowPlaying.id) { mutableStateOf(false) }
-    val scrubberFocusRequester = remember(nowPlaying.id) { FocusRequester() }
     val listeningModeFocusRequester = remember(nowPlaying.id) { FocusRequester() }
     var controlsVisible by remember(nowPlaying.id) { mutableStateOf(true) }
     var interactionSequence by remember(nowPlaying.id) { mutableIntStateOf(0) }
@@ -650,12 +646,6 @@ internal fun TelevisionNowPlaying(
             }
         }
     }
-    LaunchedEffect(scrubberOverride) {
-        if (scrubberOverride >= 0f) {
-            delay(TelevisionScrubberOverrideMillis)
-            scrubberOverride = -1f
-        }
-    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -666,6 +656,10 @@ internal fun TelevisionNowPlaying(
                         true
                     }
                     event.type != KeyEventType.KeyDown -> false
+                    event.key == Key.DirectionUp -> {
+                        onFocusNavigation()
+                        true
+                    }
                     !controlsVisible && televisionWakesNowPlayingControls(event.key) -> {
                         controlsVisible = true
                         interactionSequence += 1
@@ -723,67 +717,26 @@ internal fun TelevisionNowPlaying(
                     }
                 }
             }
-            val scrubberShape = RoundedCornerShape(10.dp)
-            val displayedScrubberFraction = if (scrubberOverride >= 0f) scrubberOverride else progressFraction
-            val displayedPositionSeconds = if (scrubberOverride >= 0f && duration != null) {
-                duration * scrubberOverride
-            } else {
-                progress.positionSeconds
-            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(TelevisionNowPlayingScrubberTestTag)
-                    .focusRequester(scrubberFocusRequester)
-                    .onPreviewKeyEvent { event ->
-                        val direction = when (event.key) {
-                            Key.DirectionLeft -> -1
-                            Key.DirectionRight -> 1
-                            else -> 0
-                        }
-                        if (!nowPlaying.canSeek || duration == null || direction == 0) {
-                            false
-                        } else {
-                            if (event.type == KeyEventType.KeyDown) {
-                                val currentSeconds = if (scrubberOverride >= 0f) {
-                                    duration * scrubberOverride
-                                } else {
-                                    progress.positionSeconds ?: nowPlaying.positionSeconds ?: 0.0
-                                }
-                                televisionSeekTargetSeconds(currentSeconds, duration, direction)?.let { target ->
-                                    scrubberOverride = (target / duration).toFloat()
-                                    actions.seek(target)
-                                }
-                            }
-                            true
-                        }
-                    }
-                .onFocusChanged { scrubberFocused = it.isFocused }
-                .focusable(enabled = nowPlaying.canSeek && duration != null)
-                .televisionFocusEffect(scrubberFocused, colors, scrubberShape)
-                .background(
-                        if (scrubberFocused) colors.controlSurface.copy(alpha = 0.68f) else Color.Transparent,
-                        scrubberShape,
-                    )
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
             ) {
                 Text(
-                    televisionSecondsLabel(displayedPositionSeconds),
+                    televisionSecondsLabel(progress.positionSeconds),
                     color = colors.secondaryText,
                     fontSize = 15.sp,
                 )
                 WaveformScrubber(
                     amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
-                    value = displayedScrubberFraction.coerceIn(0f, 1f),
-                    enabled = nowPlaying.canSeek && duration != null,
+                    value = progressFraction.coerceIn(0f, 1f),
+                    enabled = false,
                     colors = colors,
-                    onValueChange = { scrubberOverride = it },
-                    onValueChangeFinished = { fraction ->
-                        seekSecondsForFraction(fraction, duration)?.let(actions::seek)
-                        scrubberOverride = -1f
-                    },
+                    onValueChange = {},
+                    onValueChangeFinished = {},
                     modifier = Modifier.weight(1f).height(46.dp),
                 )
                 Text(televisionSecondsLabel(duration), color = colors.secondaryText, fontSize = 15.sp)
@@ -810,7 +763,6 @@ internal fun TelevisionNowPlaying(
                             size = 64.dp,
                             prominent = true,
                             initiallyFocused = true,
-                            upFocusRequester = scrubberFocusRequester,
                         ) {
                             actions.playback(
                                 when {
@@ -1084,18 +1036,6 @@ private fun televisionSecondsLabel(seconds: Double?): String {
     return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
 }
 
-internal fun televisionSeekTargetSeconds(
-    currentSeconds: Double,
-    durationSeconds: Double,
-    direction: Int,
-): Double? {
-    if (!currentSeconds.isFinite() || !durationSeconds.isFinite() || durationSeconds <= 0.0 || direction == 0) {
-        return null
-    }
-    return (currentSeconds + direction.coerceIn(-1, 1) * TelevisionSeekStepSeconds)
-        .coerceIn(0.0, durationSeconds)
-}
-
 internal fun televisionWakesNowPlayingControls(key: Key): Boolean =
     key == Key.DirectionLeft ||
         key == Key.DirectionRight ||
@@ -1122,10 +1062,9 @@ private val TelevisionFocusedMiddleBorderWidth = 4.dp
 private val TelevisionFocusedCoreBorderWidth = 1.5.dp
 private val TelevisionFocusedCoreColor = Color(0xFFBDEBFF)
 private val TelevisionFocusedItemOverflow = 10.dp
-private val TelevisionHomeFocusedSectionTopInset = 72.dp
+private val TelevisionHomeRailSpacing = 14.dp
+private val TelevisionHomeFocusedSectionTopInset = 64.dp
 private val TelevisionHomeBottomFocusClearance = 360.dp
-private const val TelevisionSeekStepSeconds = 10.0
-private const val TelevisionScrubberOverrideMillis = 2_000L
 internal const val TelevisionNowPlayingControlsTimeoutMillis = 5_000L
 internal const val TelevisionNowPlayingScrubberTestTag = "television-now-playing-scrubber"
 internal const val TelevisionNowPlayingListeningModeTestTag = "television-now-playing-listening-mode"

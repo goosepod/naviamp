@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -9,6 +10,8 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -48,9 +51,10 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
-    fun upSelectsScrubberAndRightSeeksTenSeconds() = runComposeUiTest {
+    fun upFromPlaybackControlsReturnsToNavigationWithoutSelectingTheScrubber() = runComposeUiTest {
         mainClock.autoAdvance = false
         val playbackActions = mutableListOf<NowPlayingPlaybackActionRequest>()
+        var navigationFocusRequests = 0
         setContent {
             TelevisionNowPlaying(
                 nowPlaying = NowPlayingUi(
@@ -76,19 +80,20 @@ class NaviampTelevisionNowPlayingFocusTest {
                     onQueueItemAction = { _ -> },
                 ),
                 onClose = {},
+                onFocusNavigation = { navigationFocusRequests += 1 },
                 onSearch = {},
             )
         }
         mainClock.advanceTimeBy(200)
 
         onNodeWithContentDescription("Play").performKeyInput { pressKey(Key.DirectionUp) }
-        onNodeWithTag(TelevisionNowPlayingScrubberTestTag).assertIsFocused()
-        onNodeWithTag(TelevisionNowPlayingScrubberTestTag).performKeyInput { pressKey(Key.DirectionRight) }
-        onNodeWithText("0:40").assertExists()
+        onNodeWithTag(TelevisionNowPlayingScrubberTestTag).assert(
+            SemanticsMatcher.keyNotDefined(SemanticsProperties.Focused),
+        )
 
         runOnIdle {
-            assertEquals(NowPlayingPlaybackAction.Seek, playbackActions.single().action)
-            assertEquals(40.0, playbackActions.single().seekSeconds)
+            assertEquals(1, navigationFocusRequests)
+            assertEquals(emptyList(), playbackActions)
         }
     }
 
@@ -136,13 +141,6 @@ class NaviampTelevisionNowPlayingFocusTest {
 
         onNodeWithContentDescription("Pause").assertIsFocused()
         runOnIdle { assertEquals(emptyList(), playbackActions) }
-    }
-
-    @Test
-    fun remoteSeekTargetsClampToTrackBounds() {
-        assertEquals(0.0, televisionSeekTargetSeconds(3.0, 120.0, -1))
-        assertEquals(120.0, televisionSeekTargetSeconds(117.0, 120.0, 1))
-        assertEquals(null, televisionSeekTargetSeconds(30.0, 0.0, 1))
     }
 
     @Test

@@ -505,3 +505,12 @@ independent navigation graph may be introduced in the Apple TV host.
   translucent blue edge layers, and a substantially brighter blue halo. A focus-only shimmer gives
   the halo a slow pulse and the core edge two brief glints without animating unfocused cards.
   Artwork-derived focus colors remain a possible later refinement rather than part of this slice.
+- Changed primary Television navigation to activate destinations as soon as they receive focus;
+  Center remains harmlessly idempotent. The white navigation background now indicates focus only,
+  so the current page does not retain a misleading highlight after focus moves into its content.
+- Kept the top bar present above the full Now Playing presentation and routed Up from that surface
+  directly back to its navigation item. The waveform is now display-only on Television: it cannot
+  receive focus, show a focus glow, or seek through D-pad Left/Right input. Native media transport
+  commands remain the appropriate future path for dedicated rewind and fast-forward buttons.
+- Tightened Home rail spacing and the vertical context inset so a following section heading remains
+  visible below the focused rail whenever another Home section exists.
