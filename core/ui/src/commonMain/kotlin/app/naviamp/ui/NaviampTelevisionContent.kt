@@ -69,7 +69,7 @@ internal fun TelevisionHome(
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
 ) {
-    val sections = home.content.collectionSections.filter { it.visible && it.items.isNotEmpty() }
+    val sections = televisionHomeSections(home.content.collectionSections)
     Column(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier
@@ -87,7 +87,7 @@ internal fun TelevisionHome(
         }
         sections.forEach { section ->
             TelevisionHomeCarousel(
-                section = section.copy(items = section.items.take(section.homeItemLimit ?: TelevisionHomeItemLimit)),
+                section = section,
                 colors = colors,
                 onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
             )
@@ -693,7 +693,6 @@ private fun televisionSecondsLabel(seconds: Double?): String {
     return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
 }
 
-private const val TelevisionHomeItemLimit = 30
 private val TelevisionHomeCardWidth = 168.dp
 private val TelevisionHomeCardSpacing = 16.dp
 private val TelevisionHomeCardStride = TelevisionHomeCardWidth + TelevisionHomeCardSpacing

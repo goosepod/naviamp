@@ -55,17 +55,18 @@ in a landscape shell. Every visible Home section is a horizontal carousel with l
 remote-friendly cards; TV does not reproduce the standard surface's Grid or List section layouts.
 This is the consistent ten-foot interaction model used across the entire Home screen.
 
-The TV Home screen should prioritize a bounded set of rails:
+The TV Home screen uses at most five rails, in this stable category order:
 
-- Continue listening or recent radio sessions
-- Recently added
-- Favorites
-- Mixes or Start Radio
-- Recently used playlists when useful
+- The first visible recent-playback or recent-radio rail
+- The first visible recently-added or recent-albums rail
+- Similar to Starred Tracks, when available; a literal Favorites rail requires a shared Home source
+- The first visible mixes, NaviBeat mixes, Mix Builders, or More Like Recent Plays rail
+- Recent playlists
 
 Core owns the TV section policy, focus order, and item limits. Shared section visibility and ordering
-may inform TV Home, but the standard surface's saved layout choice remains untouched and continues
-to apply to phone and Desktop only.
+select between equivalent rails in a category, but the standard surface's saved layout choice
+remains untouched and continues to apply to phone and Desktop only. Each TV rail contains at most
+30 items and honors a smaller shared per-section limit.
 
 ### Now Playing and lyrics
 
@@ -180,9 +181,6 @@ independent navigation graph may be introduced in the Apple TV host.
   still delegate to the standard shared content composition. Replace those fallbacks with
   remote-friendly Television presentations before completing M1, especially the reduced Settings
   information architecture defined above.
-- Television Home currently renders every visible standard Home section as a carousel and caps
-  individual rails. Core still needs to select and order the bounded TV-specific rail set rather
-  than treating the standard Home section list as the complete Television policy.
 - The initial full-screen Now Playing layout is functional, but it does not yet satisfy the complete
   lyrics direction. Preserve title and artist context, add the default two- or three-line lyric
   presentation, use the existing word-synced cue model for karaoke highlighting, and show queue or
@@ -253,7 +251,7 @@ independent navigation graph may be introduced in the Apple TV host.
 - Whether the TV ships as the existing Android application with a TV activity/surface or as a
   separately packaged thin host under the same product listing. Begin with maximum shared runtime
   reuse; decide packaging only after emulator evidence.
-- The exact bounded TV Home section defaults and whether users may reorder them on TV.
+- Whether users may reorder the bounded TV Home categories directly on TV.
 - Whether lyrics-first mode is automatic, manually selected, or one simple persisted TV display
   preference.
 - How TV volume control divides responsibility between Naviamp software volume and the TV/AVR
@@ -343,3 +341,8 @@ independent navigation graph may be introduced in the Apple TV host.
   TV-specific Settings/detail work, bounded Home rail policy, complete lyrics and queue behavior,
   direct Compose coverage, and launcher asset requirements above rather than treating the initial
   layouts as finished milestones.
+- Added and tested the shared Television Home policy. Home now renders at most one rail from each of
+  five stable ten-foot categories, uses shared visibility and ordering to choose between equivalent
+  rails, excludes unrelated standard Home sections, caps each rail at 30 items, and preserves any
+  smaller shared item limit without changing phone or Desktop Home settings. Installed the change
+  on the native 4K emulator and verified that the populated Home rail and D-pad focus render cleanly.
