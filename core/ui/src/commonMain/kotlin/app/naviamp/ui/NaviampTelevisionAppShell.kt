@@ -1,7 +1,6 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +10,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -27,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +68,9 @@ fun NaviampTelevisionAppShell(
         selectedRoute = uiState.shellChrome.selectedRoute,
         nowPlayingOpen = uiState.shellChrome.nowPlayingOpen,
     )
+    val navigationFocusRequester = remember { FocusRequester() }
+    var navigationFocused by remember { mutableStateOf(false) }
+    val focusNavigation = { navigationFocusRequester.requestFocus() }
 
     MaterialTheme(
         colorScheme = darkColorScheme(
@@ -102,12 +110,16 @@ fun NaviampTelevisionAppShell(
                         uiState.albumDetail.selectedAlbum != null ||
                         uiState.artistDetail.selectedArtist != null ||
                         uiState.playlistDetail.selectedPlaylist != null
-                    val backRoute = naviampTelevisionBackRoute(
-                        selectedRoute = uiState.shellChrome.selectedRoute,
-                        transientContentOpen = transientContentOpen,
-                    )
-                    NaviampSystemBackHandler(enabled = backRoute != null) {
-                        backRoute?.let(actions.navigationActions.onRouteSelected)
+                    val albumDetailOpen = uiState.albumDetail.selectedAlbum != null
+                    val artistDetailOpen = uiState.artistDetail.selectedArtist != null
+                    NaviampSystemBackHandler(
+                        enabled = albumDetailOpen || artistDetailOpen || (!transientContentOpen && !navigationFocused),
+                    ) {
+                        when {
+                            albumDetailOpen -> actions.albumDetailActions.onBack()
+                            artistDetailOpen -> actions.artistDetailActions.onBack()
+                        }
+                        focusNavigation()
                     }
                     if (uiState.shellChrome.nowPlayingOpen && nowPlaying != null) {
                         TelevisionNowPlaying(
@@ -124,13 +136,19 @@ fun NaviampTelevisionAppShell(
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
                             TelevisionNavigationBar(
-                                destinations = naviampTelevisionDestinations(),
+                                destinations = naviampTelevisionDestinations(nowPlayingAvailable = nowPlaying != null),
                                 selected = selectedDestination,
                                 settingsSelected = uiState.shellChrome.selectedRoute == SharedRoute.Settings,
                                 colors = colors,
+                                focusRequester = navigationFocusRequester,
+                                onFocusChanged = { navigationFocused = it },
                                 onSelected = { destination ->
                                     actions.navigationActions.onCloseNowPlaying()
-                                    destination.route?.let(actions.navigationActions.onRouteSelected)
+                                    if (destination == NaviampTelevisionDestination.NowPlaying) {
+                                        actions.navigationActions.onOpenNowPlaying()
+                                    } else {
+                                        destination.route?.let(actions.navigationActions.onRouteSelected)
+                                    }
                                 },
                                 onSettingsSelected = {
                                     actions.navigationActions.onCloseNowPlaying()
@@ -157,8 +175,6 @@ fun NaviampTelevisionAppShell(
                                 TelevisionMiniPlayer(
                                     nowPlaying = nowPlaying,
                                     colors = colors,
-                                    onOpen = actions.navigationActions.onOpenNowPlaying,
-                                    actions = actions.nowPlayingActions,
                                     modifier = Modifier.padding(horizontal = 36.dp, vertical = 8.dp),
                                 )
                             }
@@ -176,6 +192,8 @@ private fun TelevisionNavigationBar(
     selected: NaviampTelevisionDestination?,
     settingsSelected: Boolean,
     colors: NaviampColors,
+    focusRequester: FocusRequester,
+    onFocusChanged: (Boolean) -> Unit,
     onSelected: (NaviampTelevisionDestination) -> Unit,
     onSettingsSelected: () -> Unit,
 ) {
@@ -183,6 +201,7 @@ private fun TelevisionNavigationBar(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .onFocusChanged { onFocusChanged(it.hasFocus) }
             .background(Color.Black.copy(alpha = 0.34f))
             .padding(horizontal = 28.dp, vertical = 14.dp),
     ) {
@@ -197,24 +216,63 @@ private fun TelevisionNavigationBar(
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            val focusDestination = selected.takeIf(destinations::contains) ?: destinations.firstOrNull()
             destinations.forEach { destination ->
                 TelevisionNavigationButton(
                     destination = destination,
                     selected = destination == selected,
                     colors = colors,
-                    modifier = Modifier.widthIn(min = 128.dp),
+                    modifier = Modifier
+                        .widthIn(min = 128.dp)
+                        .then(
+                            if (destination == focusDestination && !settingsSelected) {
+                                Modifier.focusRequester(focusRequester)
+                            } else {
+                                Modifier
+                            },
+                        ),
                     onClick = { onSelected(destination) },
                 )
             }
         }
         Spacer(Modifier.weight(1f))
-        TelevisionIconButton(
-            enabled = true,
+        TelevisionNavigationIconButton(
             icon = NaviampIcons.Settings,
             description = "Settings",
             colors = colors,
             selected = settingsSelected,
+            focusRequester = focusRequester.takeIf { settingsSelected },
             onClick = onSettingsSelected,
+        )
+    }
+}
+
+@Composable
+private fun TelevisionNavigationIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    colors: NaviampColors,
+    selected: Boolean,
+    focusRequester: FocusRequester?,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val localFocusRequester = remember { FocusRequester() }
+    val effectiveFocusRequester = focusRequester ?: localFocusRequester
+    val active = selected || focused
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .requiredSize(48.dp)
+            .focusRequester(effectiveFocusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .background(if (active) colors.primaryText else colors.controlSurface, RoundedCornerShape(999.dp)),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (active) colors.background else colors.primaryText,
+            modifier = Modifier.size(25.dp),
         )
     }
 }
@@ -295,21 +353,13 @@ private fun TelevisionNavigationButton(
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) colors.primaryText else Color.Transparent,
-            contentColor = if (selected) colors.background else colors.secondaryText,
+            containerColor = if (selected || focused) colors.primaryText else Color.Transparent,
+            contentColor = if (selected || focused) colors.background else colors.secondaryText,
         ),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
         shape = shape,
         modifier = modifier
-            .onFocusChanged { focused = it.isFocused }
-            .televisionFocusEffect(focused, colors, shape)
-            .then(
-                if (focused) {
-                    Modifier.border(3.dp, colors.accent, shape)
-                } else {
-                    Modifier
-                },
-            ),
+            .onFocusChanged { focused = it.isFocused },
     ) {
         Text(
             text = destination.label,

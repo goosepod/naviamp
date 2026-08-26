@@ -1,7 +1,6 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -203,12 +202,13 @@ internal fun TelevisionArtistDetail(
                                     NaviampArtistAlbumActionRequest(album, NaviampArtistAlbumCommand.Select),
                                 )
                             },
-                        ) {
+                        ) { focused ->
                             NaviampCoverArt(
                                 album.coverArtUrl,
                                 colors,
                                 TelevisionDetailAlbumCardWidth,
                                 12.dp,
+                                Modifier.televisionFocusEffect(focused, colors, RoundedCornerShape(12.dp)),
                             )
                             TelevisionCardLabels(album.title, album.subtitle, colors)
                         }
@@ -302,8 +302,7 @@ private fun TelevisionDetailActionButton(action: TelevisionHeroAction, colors: N
         ),
         modifier = Modifier
             .onFocusChanged { focused = it.isFocused }
-            .televisionFocusEffect(focused, colors, shape)
-            .border(if (focused) 4.dp else 0.dp, colors.accent, shape),
+            .televisionFocusEffect(focused, colors, shape),
     ) {
         Icon(action.icon, contentDescription = null, modifier = Modifier.size(23.dp))
         Spacer(Modifier.width(8.dp))
@@ -355,8 +354,7 @@ private fun TelevisionTrackRow(
                 }
             }
             .onFocusChanged { focused = it.isFocused }
-            .televisionFocusEffect(focused, colors, shape)
-            .border(if (focused) 4.dp else 0.dp, colors.accent, shape),
+            .televisionFocusEffect(focused, colors, shape),
     ) {
         Text(
             leadingText,

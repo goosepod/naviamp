@@ -15,6 +15,15 @@ class NaviampApplicationSurfaceTest {
             ),
             naviampTelevisionDestinations(),
         )
+        assertEquals(
+            listOf(
+                NaviampTelevisionDestination.Home,
+                NaviampTelevisionDestination.NowPlaying,
+                NaviampTelevisionDestination.Library,
+                NaviampTelevisionDestination.Search,
+            ),
+            naviampTelevisionDestinations(nowPlayingAvailable = true),
+        )
     }
 
     @Test

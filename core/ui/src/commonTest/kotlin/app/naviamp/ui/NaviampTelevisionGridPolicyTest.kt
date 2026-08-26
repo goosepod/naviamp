@@ -22,7 +22,7 @@ class NaviampTelevisionGridPolicyTest {
 
     @Test
     fun columnCountMatchesTheCardsThatFitInTheTelevisionViewport() {
-        assertEquals(5, televisionGridColumnCount(888.dp))
+        assertEquals(6, televisionGridColumnCount(888.dp))
         assertEquals(1, televisionGridColumnCount(100.dp))
     }
 

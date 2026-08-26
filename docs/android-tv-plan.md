@@ -26,6 +26,11 @@ states as if they were shipped behavior.
   later TV playback milestone rather than a prerequisite for the usable browsing and playback UI.
 - 1920x1080 and 3840x2160 are required display targets. Layout uses logical density-aware sizing so
   ten-foot typography and controls remain consistent while artwork renders at native sharpness.
+- Treat 1280x720, 1920x1080, and 3840x2160 as explicit 16:9 Television acceptance classes. Core
+  owns named layout metrics and breakpoint selection; hosts report the unavoidable window/display
+  facts. Android density may map 1080p and 4K to the same logical Compose viewport, so placement
+  remains consistent while density-aware artwork decoding and native rendering preserve physical
+  sharpness.
 - Product policy, state, navigation, setup behavior, remote-session semantics, and TV UI live in
   shared Kotlin. The Television surface is both provider-neutral and platform-neutral: it consumes
   shared models and capability flags and never branches on Navidrome, Jellyfin, Android TV, Google
@@ -90,10 +95,12 @@ remains untouched and continues to apply to phone and Desktop only. Each TV rail
 
 All Television surfaces use one shared focus treatment rather than screen-specific borders:
 
-- Focused cards and controls scale approximately 5–7 percent over 120–160 milliseconds.
-- A thin bright outline and soft glow provide contrast on artwork and every background style.
-- Focused content is raised above neighboring content and carousel/grid containers reserve enough
-  space that the enlarged item is never clipped.
+- Only the artwork or artist image on focused media cards scales approximately 5–7 percent over
+  120–160 milliseconds. Labels and card layout remain stationary. Carousels and grids reserve
+  overflow space so edge artwork can enlarge without clipping.
+- A translucent blue border, soft animated blue shadow, and restrained surface tint provide
+  contrast on artwork and every background style without the hard edge of a solid line.
+- Focused content is raised above neighboring content so its glow remains unambiguous.
 - Transient remote focus and persistent state are distinct. Focus uses the animated outline/glow;
   selected values such as Lyrics, Repeat, Shuffle, and settings choices retain a quieter persistent
   mark when focus moves away.
@@ -456,3 +463,31 @@ independent navigation graph may be introduced in the Apple TV host.
   iOS Simulator compilation.
 - Installed and launched the build on the native 3840x2160 Television emulator. Captures confirmed
   the uncluttered listening presentation and the restored, clearly enlarged Play/Pause focus state.
+- Removed focus scaling after native-4K carousel testing showed that enlarged first-column items
+  could be clipped on their left and lower edges. The shared focus treatment retains its bright
+  border, animated glow, tint, and raised ordering without changing layout geometry.
+- Converted the Television mini player into a non-focusable status strip containing only current
+  artwork, title, and artist. Removed its transport and open actions, and added a conditional Now
+  Playing destination to the top bar whenever a current track exists.
+- Changed primary-surface Back behavior to return focus to the selected top-navigation item. Album
+  and artist detail Back first closes the detail and then returns focus to the bar; transient menus
+  and other locally owned layers continue to close before global navigation.
+- Replaced the solid blue focus line with the shared animated blue glow and subtle focused-surface
+  tint. This preserves a clear ten-foot focus target without creating a hard inset around artwork.
+- Defined Search Back as a layered unwind: results return to the query field, an open keyboard is
+  dismissed next, and the following Back returns focus to the selected top-navigation item. The IME
+  Search action keeps the keyboard and query focus in place; after dismissing the keyboard, Down
+  enters the first result.
+- Restored the requested focus zoom with explicit overflow space around carousel and grid content.
+  Home now aligns the focused rail beneath the header, preventing enlargement from clipping at the
+  left or bottom edge and preventing the prior rail from remaining partially visible.
+- Refined the focus edge to a translucent blue border backed by an animated blue shadow, preserving
+  a border-shaped highlight while making it read as a glow rather than a solid line.
+- Restricted media-card zoom and glow to album artwork or artist imagery; card labels and bodies no
+  longer enlarge or glow. Reduced artwork and label sizing to expose more items in the ten-foot view.
+- Replaced edge-following Home scrolling with a stable third-slot anchor. The first two items advance
+  into place normally; from the third item onward, focus remains at the third visible position while
+  the rail scrolls beneath it. Vertical rail alignment now changes only when focus changes sections,
+  eliminating horizontal-navigation scroll restarts.
+- Simplified top-navigation focus to a white background with no glow or zoom, and moved the
+  conditional Now Playing destination directly after Home.

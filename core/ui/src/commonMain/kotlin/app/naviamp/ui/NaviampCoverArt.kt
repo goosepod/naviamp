@@ -51,6 +51,7 @@ fun NaviampCoverArt(
     colors: NaviampColors,
     size: Dp,
     cornerRadius: Dp,
+    modifier: Modifier = Modifier,
 ) {
     val targetSidePx = with(LocalDensity.current) {
         ceil(size.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
@@ -60,7 +61,7 @@ fun NaviampCoverArt(
         image = url?.let { NaviampCoverArtCache.image(it, targetSidePx) }
     }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(cornerRadius))
             .background(colors.albumArtPlaceholder),

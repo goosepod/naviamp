@@ -151,4 +151,45 @@ class NaviampTelevisionNowPlayingFocusTest {
         assertEquals(true, televisionWakesNowPlayingControls(Key.DirectionDown))
         assertEquals(false, televisionWakesNowPlayingControls(Key.Back))
     }
+
+    @Test
+    fun miniPlayerIsStatusOnlyWithoutPlaybackOrOpenActions() = runComposeUiTest {
+        setContent {
+            TelevisionMiniPlayer(
+                nowPlaying = NowPlayingUi(
+                    id = "track",
+                    title = "Status Track",
+                    subtitle = "Status Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    hasPrevious = true,
+                    hasNext = true,
+                    canPlayPause = true,
+                ),
+                colors = NaviampColors.Dark,
+            )
+        }
+
+        onNodeWithText("Status Track").assertExists()
+        onNodeWithText("Status Artist").assertExists()
+        onNodeWithContentDescription("Previous").assertDoesNotExist()
+        onNodeWithContentDescription("Pause").assertDoesNotExist()
+        onNodeWithContentDescription("Next").assertDoesNotExist()
+    }
+
+    @Test
+    fun searchBackUnwindsResultsThenKeyboardThenNavigation() {
+        assertEquals(
+            TelevisionSearchBackTarget.Query,
+            televisionSearchBackTarget(resultsActive = true, searchFieldFocused = false, keyboardActive = false),
+        )
+        assertEquals(
+            TelevisionSearchBackTarget.HideKeyboard,
+            televisionSearchBackTarget(resultsActive = false, searchFieldFocused = true, keyboardActive = true),
+        )
+        assertEquals(
+            TelevisionSearchBackTarget.Navigation,
+            televisionSearchBackTarget(resultsActive = false, searchFieldFocused = true, keyboardActive = false),
+        )
+    }
 }

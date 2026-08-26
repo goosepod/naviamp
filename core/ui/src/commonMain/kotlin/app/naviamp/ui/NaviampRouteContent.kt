@@ -274,19 +274,12 @@ internal fun homeCarouselFocusedItemScrollTarget(
     maximum: Int,
 ): Int {
     if (itemWidth <= 0 || itemStride <= 0 || viewport <= 0 || maximum <= 0) return 0
-    val alignedCurrent = ((current + itemStride / 2) / itemStride) * itemStride
-    val itemStart = itemIndex.coerceAtLeast(0) * itemStride
-    val itemEnd = itemStart + itemWidth
-    val target = when {
-        itemStart < alignedCurrent -> itemStart
-        itemEnd > alignedCurrent + viewport -> {
-            val minimum = itemEnd - viewport
-            ((minimum + itemStride - 1) / itemStride) * itemStride
-        }
-        else -> alignedCurrent
-    }
+    val target = (itemIndex.coerceAtLeast(0) - TelevisionCarouselFocusAnchorIndex)
+        .coerceAtLeast(0) * itemStride
     return target.coerceIn(0, maximum)
 }
+
+private const val TelevisionCarouselFocusAnchorIndex = 2
 
 @Composable
 private fun HomeCollectionSectionTitle(
@@ -401,10 +394,11 @@ internal fun HomeCollectionArtwork(
     item: SharedHomeCollectionItemUi,
     colors: NaviampColors,
     size: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
 ) {
     val artwork = when (item.artwork) {
         SharedHomeCollectionArtwork.CoverArt -> {
-            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, 7.dp)
+            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, 7.dp, modifier)
             return
         }
         SharedHomeCollectionArtwork.NavibeatGenerated -> navibeatMixArtwork(item.artworkKey.orEmpty())
@@ -412,7 +406,7 @@ internal fun HomeCollectionArtwork(
     }
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(7.dp))
             .background(Brush.linearGradient(artwork.colors)),

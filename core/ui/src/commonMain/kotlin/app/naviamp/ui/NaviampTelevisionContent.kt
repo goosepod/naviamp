@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +30,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -59,7 +62,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.input.key.Key
@@ -97,24 +99,31 @@ internal fun TelevisionHome(
     mediaActions: NaviampMediaActions,
 ) {
     val sections = televisionHomeSections(home.content.collectionSections)
-    Column(
+    val listState = rememberLazyListState()
+    var focusedSectionIndex by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(focusedSectionIndex) {
+        focusedSectionIndex?.let { listState.animateScrollToItem(it) }
+    }
+    LazyColumn(
+        state = listState,
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = TelevisionHomeBottomFocusClearance),
+        modifier = Modifier.fillMaxSize(),
     ) {
         if (sections.isEmpty()) {
-            Text(
-                if (home.refreshing) "Loading your music…" else "Your Home sections are empty.",
-                color = colors.secondaryText,
-                fontSize = 20.sp,
-            )
+            item(key = "television-home-empty") {
+                Text(
+                    if (home.refreshing) "Loading your music…" else "Your Home sections are empty.",
+                    color = colors.secondaryText,
+                    fontSize = 20.sp,
+                )
+            }
         }
-        sections.forEach { section ->
+        itemsIndexed(sections, key = { _, section -> section.id }) { sectionIndex, section ->
             TelevisionHomeCarousel(
                 section = section,
                 colors = colors,
+                onSectionFocused = { focusedSectionIndex = sectionIndex },
                 onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
             )
         }
@@ -125,6 +134,7 @@ internal fun TelevisionHome(
 private fun TelevisionHomeCarousel(
     section: SharedHomeCollectionSectionUi,
     colors: NaviampColors,
+    onSectionFocused: () -> Unit,
     onSelected: (SharedHomeCollectionItemUi) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -154,18 +164,29 @@ private fun TelevisionHomeCarousel(
             maxLines = 1,
         )
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val trailingSpace = (maxWidth - TelevisionHomeCardWidth).coerceAtLeast(0.dp)
+            val anchoredRailWidth =
+                TelevisionHomeCardWidth * TelevisionHomeVisibleAnchorItems +
+                    TelevisionHomeCardSpacing * (TelevisionHomeVisibleAnchorItems - 1)
+            val trailingSpace = (maxWidth - anchoredRailWidth).coerceAtLeast(0.dp)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(TelevisionHomeCardSpacing),
                 modifier = Modifier
                     .horizontalScroll(scrollState)
-                    .padding(end = trailingSpace),
+                    .padding(
+                        start = TelevisionFocusedItemOverflow,
+                        top = TelevisionFocusedItemOverflow,
+                        end = trailingSpace + TelevisionFocusedItemOverflow,
+                        bottom = TelevisionFocusedItemOverflow,
+                    ),
             ) {
                 section.items.forEachIndexed { index, item ->
                     TelevisionHomeCard(
                         item = item,
                         colors = colors,
-                        onFocused = { focusedIndex = index },
+                        onFocused = {
+                            focusedIndex = index
+                            onSectionFocused()
+                        },
                         onClick = { onSelected(item) },
                     )
                 }
@@ -186,8 +207,13 @@ private fun TelevisionHomeCard(
         width = TelevisionHomeCardWidth,
         onFocused = onFocused,
         onClick = onClick,
-    ) {
-        HomeCollectionArtwork(item, colors, TelevisionHomeCardWidth)
+    ) { focused ->
+        HomeCollectionArtwork(
+            item,
+            colors,
+            TelevisionHomeCardWidth,
+            Modifier.televisionFocusEffect(focused, colors, RoundedCornerShape(7.dp)),
+        )
         TelevisionCardLabels(item.title, item.subtitle, colors)
     }
 }
@@ -247,39 +273,41 @@ internal fun TelevisionSearch(
     actions: NaviampSearchActions,
     mediaActions: NaviampMediaActions,
 ) {
-    val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFieldFocusRequester = remember { FocusRequester() }
-    var searchSubmitted by remember { mutableStateOf(false) }
+    var searchFieldFocused by remember { mutableStateOf(false) }
+    var keyboardActive by remember { mutableStateOf(false) }
+    var resultsActive by remember { mutableStateOf(false) }
     var searchHeaderVisible by remember { mutableStateOf(true) }
     var returnFocusToSearch by remember { mutableStateOf(false) }
-    var resultsFocusReady by remember { mutableStateOf(false) }
     val submitSearch = {
-        searchSubmitted = true
-        searchHeaderVisible = false
-        resultsFocusReady = false
         actions.onSearch()
-    }
-    LaunchedEffect(searchSubmitted) {
-        if (searchSubmitted) {
-            withFrameNanos { }
-            focusManager.clearFocus(force = true)
-            keyboardController?.hide()
-            delay(TelevisionSearchImeDismissDelayMillis)
-            resultsFocusReady = true
-        } else {
-            resultsFocusReady = false
+        if (searchFieldFocused) {
+            keyboardActive = true
+            keyboardController?.show()
         }
     }
-    NaviampSystemBackHandler(enabled = searchSubmitted) {
-        searchSubmitted = false
-        searchHeaderVisible = true
-        returnFocusToSearch = true
+    val backTarget = televisionSearchBackTarget(resultsActive, searchFieldFocused, keyboardActive)
+    NaviampSystemBackHandler(enabled = backTarget != TelevisionSearchBackTarget.Navigation) {
+        when (backTarget) {
+            TelevisionSearchBackTarget.Query -> {
+                resultsActive = false
+                searchHeaderVisible = true
+                returnFocusToSearch = true
+            }
+            TelevisionSearchBackTarget.HideKeyboard -> {
+                keyboardController?.hide()
+                keyboardActive = false
+            }
+            TelevisionSearchBackTarget.Navigation -> Unit
+        }
     }
     LaunchedEffect(returnFocusToSearch) {
         if (returnFocusToSearch) {
             withFrameNanos { }
             searchFieldFocusRequester.requestFocus()
+            keyboardController?.hide()
+            keyboardActive = false
             returnFocusToSearch = false
         }
     }
@@ -319,7 +347,25 @@ internal fun TelevisionSearch(
                     keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
                     modifier = Modifier
                         .weight(1f)
-                        .focusRequester(searchFieldFocusRequester),
+                        .focusRequester(searchFieldFocusRequester)
+                        .onFocusChanged {
+                            searchFieldFocused = it.isFocused
+                            if (it.isFocused && !returnFocusToSearch) keyboardActive = true
+                        }
+                        .onPreviewKeyEvent { event ->
+                            if (
+                                event.type == KeyEventType.KeyDown &&
+                                event.key == Key.DirectionDown &&
+                                !keyboardActive &&
+                                items.isNotEmpty()
+                            ) {
+                                resultsActive = true
+                                searchHeaderVisible = false
+                                true
+                            } else {
+                                false
+                            }
+                        },
                 )
                 TelevisionTextButton(
                     label = if (screen.searching) "Searching…" else "Search",
@@ -333,10 +379,26 @@ internal fun TelevisionSearch(
             TelevisionMediaGrid(
                 items = items,
                 colors = colors,
-                focusFirstItem = searchSubmitted && resultsFocusReady && !screen.searching,
+                focusFirstItem = resultsActive && !screen.searching,
             )
         }
     }
+}
+
+internal enum class TelevisionSearchBackTarget {
+    Query,
+    HideKeyboard,
+    Navigation,
+}
+
+internal fun televisionSearchBackTarget(
+    resultsActive: Boolean,
+    searchFieldFocused: Boolean,
+    keyboardActive: Boolean,
+): TelevisionSearchBackTarget = when {
+    resultsActive -> TelevisionSearchBackTarget.Query
+    searchFieldFocused && keyboardActive -> TelevisionSearchBackTarget.HideKeyboard
+    else -> TelevisionSearchBackTarget.Navigation
 }
 
 @Composable
@@ -369,6 +431,7 @@ private fun TelevisionMediaGrid(
             state = gridState,
             horizontalArrangement = Arrangement.spacedBy(TelevisionGridSpacing),
             verticalArrangement = Arrangement.spacedBy(22.dp),
+            contentPadding = PaddingValues(TelevisionFocusedItemOverflow),
             modifier = Modifier.fillMaxSize(),
         ) {
             gridItemsIndexed(items, key = { _, item -> item.key }) { index, item ->
@@ -436,8 +499,14 @@ private fun TelevisionMediaGridCard(
         onFocused = onFocused,
         onClick = onClick,
         modifier = modifier,
-    ) {
-        NaviampCoverArt(coverArtUrl, colors, TelevisionGridArtworkSize, 12.dp)
+    ) { focused ->
+        NaviampCoverArt(
+            coverArtUrl,
+            colors,
+            TelevisionGridArtworkSize,
+            12.dp,
+            Modifier.televisionFocusEffect(focused, colors, RoundedCornerShape(12.dp)),
+        )
         TelevisionCardLabels(title, subtitle, colors)
     }
 }
@@ -449,7 +518,7 @@ internal fun TelevisionFocusableCard(
     onFocused: () -> Unit = {},
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    content: @Composable (focused: Boolean) -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
@@ -479,13 +548,9 @@ internal fun TelevisionFocusableCard(
             .focusable()
             .pointerInput(onClick) { detectTapGestures { onClick() } }
             .semantics { semanticsOnClick { onClick(); true } }
-            .televisionFocusEffect(focused, colors, shape)
-            .clip(shape)
-            .background(if (focused) colors.accent.copy(alpha = 0.2f) else Color.Transparent)
-            .border(if (focused) 4.dp else 0.dp, colors.accent, shape)
             .padding(bottom = 8.dp),
     ) {
-        content()
+        content(focused)
     }
 }
 
@@ -494,7 +559,7 @@ internal fun TelevisionCardLabels(title: String, subtitle: String, colors: Navia
     Text(
         title,
         color = colors.primaryText,
-        fontSize = 16.sp,
+        fontSize = 14.sp,
         fontWeight = FontWeight.Bold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
@@ -504,7 +569,7 @@ internal fun TelevisionCardLabels(title: String, subtitle: String, colors: Navia
         Text(
             subtitle,
             color = colors.secondaryText,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 8.dp),
@@ -657,14 +722,14 @@ internal fun TelevisionNowPlaying(
                             true
                         }
                     }
-                    .onFocusChanged { scrubberFocused = it.isFocused }
-                    .focusable(enabled = nowPlaying.canSeek && duration != null)
-                    .background(
+                .onFocusChanged { scrubberFocused = it.isFocused }
+                .focusable(enabled = nowPlaying.canSeek && duration != null)
+                .televisionFocusEffect(scrubberFocused, colors, scrubberShape)
+                .background(
                         if (scrubberFocused) colors.controlSurface.copy(alpha = 0.68f) else Color.Transparent,
                         scrubberShape,
                     )
-                    .border(if (scrubberFocused) 4.dp else 0.dp, colors.accent, scrubberShape)
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                .padding(horizontal = 12.dp, vertical = 5.dp),
             ) {
                 Text(
                     televisionSecondsLabel(displayedPositionSeconds),
@@ -760,11 +825,8 @@ internal fun TelevisionNowPlaying(
 internal fun TelevisionMiniPlayer(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
-    onOpen: () -> Unit,
-    actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
 ) {
-    var identityFocused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -772,59 +834,25 @@ internal fun TelevisionMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .background(Color.Black.copy(alpha = 0.34f), shape)
-            .padding(8.dp),
+            .padding(horizontal = 14.dp, vertical = 9.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .weight(1f)
-                .onFocusChanged { identityFocused = it.isFocused }
-                .televisionFocusEffect(identityFocused, colors, shape)
-                .clip(shape)
-                .background(if (identityFocused) colors.accent.copy(alpha = 0.18f) else Color.Transparent)
-                .border(if (identityFocused) 4.dp else 0.dp, colors.accent, shape)
-                .clickable(onClick = onOpen)
-                .padding(6.dp),
-        ) {
-            NaviampCoverArt(nowPlaying.coverArtUrl, colors, 48.dp, 7.dp)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    nowPlaying.title,
-                    color = colors.primaryText,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    nowPlaying.subtitle,
-                    color = colors.secondaryText,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        TelevisionIconButton(nowPlaying.hasPrevious, NaviampTransportIcons.Previous, "Previous", colors) {
-            actions.playback(NowPlayingPlaybackAction.Previous)
-        }
-        TelevisionIconButton(
-            enabled = nowPlaying.canPlayPause,
-            icon = if (nowPlaying.isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
-            description = if (nowPlaying.isPlaying) "Pause" else "Play",
-            colors = colors,
-        ) {
-            actions.playback(
-                when {
-                    nowPlaying.isPlaying -> NowPlayingPlaybackAction.Pause
-                    nowPlaying.isPaused -> NowPlayingPlaybackAction.Resume
-                    else -> NowPlayingPlaybackAction.PlayCurrent
-                },
+        NaviampCoverArt(nowPlaying.coverArtUrl, colors, 48.dp, 7.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                nowPlaying.title,
+                color = colors.primaryText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-        }
-        TelevisionIconButton(nowPlaying.hasNext, NaviampTransportIcons.Next, "Next", colors) {
-            actions.playback(NowPlayingPlaybackAction.Next)
+            Text(
+                nowPlaying.subtitle,
+                color = colors.secondaryText,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -879,28 +907,30 @@ internal fun TelevisionIconButton(
     prominent: Boolean = false,
     initiallyFocused: Boolean = false,
     upFocusRequester: FocusRequester? = null,
+    focusRequester: FocusRequester? = null,
     onClick: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
+    val localFocusRequester = remember { FocusRequester() }
+    val effectiveFocusRequester = focusRequester ?: localFocusRequester
     val shape = RoundedCornerShape(999.dp)
     LaunchedEffect(Unit) {
         if (initiallyFocused && enabled) {
             repeat(TelevisionFocusRequestAttempts) {
                 withFrameNanos { }
-                if (focusRequester.requestFocus()) return@LaunchedEffect
+                if (effectiveFocusRequester.requestFocus()) return@LaunchedEffect
             }
         }
     }
     IconButton(
         onClick = {
             onClick()
-            focusRequester.requestFocus()
+            effectiveFocusRequester.requestFocus()
         },
         enabled = enabled,
         modifier = Modifier
             .requiredSize(size)
-            .focusRequester(focusRequester)
+            .focusRequester(effectiveFocusRequester)
             .onPreviewKeyEvent { event ->
                 if (upFocusRequester == null || event.key != Key.DirectionUp) {
                     false
@@ -918,8 +948,7 @@ internal fun TelevisionIconButton(
                     selected -> colors.accent.copy(alpha = 0.32f)
                     else -> colors.controlSurface.copy(alpha = 0.9f)
                 },
-            )
-            .border(if (focused) 4.dp else 0.dp, colors.accent, shape),
+            ),
     ) {
         Icon(
             icon,
@@ -945,8 +974,7 @@ internal fun TelevisionTextButton(
         enabled = enabled,
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
-            .televisionFocusEffect(focused, colors, shape)
-            .border(if (focused) 4.dp else 0.dp, colors.accent, shape),
+            .televisionFocusEffect(focused, colors, shape),
         shape = shape,
     ) {
         Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -980,6 +1008,11 @@ internal fun Modifier.televisionFocusEffect(
             ambientShadowColor = colors.accent.copy(alpha = 0.34f)
             spotShadowColor = colors.accent.copy(alpha = 0.52f)
         }
+        .border(
+            width = if (focused) TelevisionFocusedBorderWidth else 0.dp,
+            color = colors.accent.copy(alpha = 0.34f),
+            shape = shape,
+        )
 }
 
 private fun televisionSecondsLabel(seconds: Double?): String {
@@ -1008,17 +1041,20 @@ internal fun televisionWakesNowPlayingControls(key: Key): Boolean =
         key == Key.Enter ||
         key == Key.Spacebar
 
-private val TelevisionHomeCardWidth = 168.dp
-private val TelevisionHomeCardSpacing = 16.dp
+private val TelevisionHomeCardWidth = 150.dp
+private val TelevisionHomeCardSpacing = 14.dp
 private val TelevisionHomeCardStride = TelevisionHomeCardWidth + TelevisionHomeCardSpacing
-private val TelevisionGridCardWidth = 150.dp
-private val TelevisionGridSpacing = 16.dp
-private val TelevisionGridArtworkSize = 150.dp
+private const val TelevisionHomeVisibleAnchorItems = 3
+private val TelevisionGridCardWidth = 136.dp
+private val TelevisionGridSpacing = 14.dp
+private val TelevisionGridArtworkSize = 136.dp
 private const val TelevisionFocusRequestAttempts = 5
 private const val TelevisionFocusAnimationMillis = 140
 private const val TelevisionFocusedScale = 1.06f
 private val TelevisionFocusedElevation = 18.dp
-private const val TelevisionSearchImeDismissDelayMillis = 300L
+private val TelevisionFocusedBorderWidth = 3.dp
+private val TelevisionFocusedItemOverflow = 10.dp
+private val TelevisionHomeBottomFocusClearance = 360.dp
 private const val TelevisionSeekStepSeconds = 10.0
 private const val TelevisionScrubberOverrideMillis = 2_000L
 internal const val TelevisionNowPlayingControlsTimeoutMillis = 5_000L

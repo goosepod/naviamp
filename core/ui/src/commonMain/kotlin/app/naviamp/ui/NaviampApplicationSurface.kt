@@ -23,11 +23,13 @@ enum class NaviampTelevisionDestination(
     Settings("Settings", SharedRoute.Settings),
 }
 
-fun naviampTelevisionDestinations(): List<NaviampTelevisionDestination> = listOf(
-    NaviampTelevisionDestination.Home,
-    NaviampTelevisionDestination.Library,
-    NaviampTelevisionDestination.Search,
-)
+fun naviampTelevisionDestinations(nowPlayingAvailable: Boolean = false): List<NaviampTelevisionDestination> =
+    buildList {
+        add(NaviampTelevisionDestination.Home)
+        if (nowPlayingAvailable) add(NaviampTelevisionDestination.NowPlaying)
+        add(NaviampTelevisionDestination.Library)
+        add(NaviampTelevisionDestination.Search)
+    }
 
 fun naviampSelectedTelevisionDestination(
     selectedRoute: SharedRoute,

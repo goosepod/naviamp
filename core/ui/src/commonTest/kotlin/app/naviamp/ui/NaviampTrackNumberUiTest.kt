@@ -54,7 +54,7 @@ class NaviampTrackNumberUiTest {
     @Test
     fun televisionCarouselFocusSnapsPartialRowsAndKeepsTheFocusedCardVisible() {
         assertEquals(
-            276,
+            138,
             homeCarouselFocusedItemScrollTarget(
                 current = 310,
                 viewport = 306,
@@ -64,8 +64,10 @@ class NaviampTrackNumberUiTest {
                 maximum = 690,
             ),
         )
+        assertEquals(0, homeCarouselFocusedItemScrollTarget(0, 306, 0, 128, 138, 690))
+        assertEquals(0, homeCarouselFocusedItemScrollTarget(0, 306, 1, 128, 138, 690))
         assertEquals(
-            414,
+            276,
             homeCarouselFocusedItemScrollTarget(
                 current = 276,
                 viewport = 306,
