@@ -333,10 +333,9 @@ independent navigation graph may be introduced in the Apple TV host.
 - Verified the dedicated Home, Now Playing, and lyrics layouts at native 3840x2160. Playback,
   artwork, timed lyrics, transport, and clear focus borders all render and respond on the connected
   Navidrome emulator.
-- Fixed TV Search submission so it closes the system keyboard and switches from query entry to a
-  results-only grid with an explicit New search action. This removes the text field from the D-pad
-  focus graph after submission; emulator testing confirmed that Down reaches a clearly highlighted
-  result without reopening the keyboard.
+- Fixed TV Search submission so the IME Search action closes the system keyboard, moves the query
+  field out of the results view, and focuses the first result. Back restores and focuses the query
+  field with the existing text so the user can refine the search without leaving the destination.
 - Reviewed the dedicated Television composition against this plan. Recorded the remaining
   TV-specific Settings/detail work, bounded Home rail policy, complete lyrics and queue behavior,
   direct Compose coverage, and launcher asset requirements above rather than treating the initial
@@ -346,3 +345,8 @@ independent navigation graph may be introduced in the Apple TV host.
   rails, excludes unrelated standard Home sections, caps each rail at 30 items, and preserves any
   smaller shared item limit without changing phone or Desktop Home settings. Installed the change
   on the native 4K emulator and verified that the populated Home rail and D-pad focus render cleanly.
+- Consolidated Library and Search onto a shared fixed-column Television grid with explicit TV focus
+  targets and row-major Right navigation. Native-4K emulator testing confirmed that Right from the
+  fifth card lands on the first card in the next row and scrolls that row into full-artwork view.
+- Removed redundant Home, Library, and Search content headings because the persistent top bar
+  already identifies the active primary destination.

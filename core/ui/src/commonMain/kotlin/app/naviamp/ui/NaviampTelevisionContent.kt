@@ -3,6 +3,8 @@ package app.naviamp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,7 +39,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +52,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.onClick as semanticsOnClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -59,7 +74,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.waveform.playbackFraction
 import app.naviamp.domain.waveform.seekSecondsForFraction
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -77,7 +94,6 @@ internal fun TelevisionHome(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 24.dp),
     ) {
-        Text("Home", color = colors.primaryText, fontSize = 30.sp, fontWeight = FontWeight.Black)
         if (sections.isEmpty()) {
             Text(
                 if (home.refreshing) "Loading your music…" else "Your Home sections are empty.",
@@ -176,7 +192,6 @@ internal fun TelevisionLibrary(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("Library", color = colors.primaryText, fontSize = 30.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.weight(1f))
             TelevisionTextButton("Playlists", colors, onClick = onOpenPlaylists)
             Box(modifier = Modifier.padding(start = 10.dp)) {
@@ -189,27 +204,25 @@ internal fun TelevisionLibrary(
         if (screen.artists.isEmpty()) {
             Text("No artists are available.", color = colors.secondaryText, fontSize = 20.sp)
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(TelevisionGridMinimumWidth),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                gridItems(screen.artists, key = { it.id }) { artist ->
-                    TelevisionMediaGridCard(
-                        item = artist,
-                        colors = colors,
-                        onClick = {
+            TelevisionMediaGrid(
+                items = screen.artists.map { artist ->
+                    TelevisionMediaGridItem(
+                        key = "artist:${artist.id}",
+                        title = artist.title,
+                        subtitle = artist.subtitle,
+                        coverArtUrl = artist.coverArtUrl,
+                        action = {
                             mediaActions.onMediaItemAction(artist.artistActionRequest(NaviampArtistMediaCommand.Select))
                         },
                     )
-                }
-            }
+                },
+                colors = colors,
+            )
         }
     }
 }
 
-private data class TelevisionSearchGridItem(
+private data class TelevisionMediaGridItem(
     val key: String,
     val title: String,
     val subtitle: String,
@@ -225,39 +238,67 @@ internal fun TelevisionSearch(
     mediaActions: NaviampMediaActions,
 ) {
     val focusManager = LocalFocusManager.current
-    var editingQuery by remember { mutableStateOf(true) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val searchFieldFocusRequester = remember { FocusRequester() }
+    var searchSubmitted by remember { mutableStateOf(false) }
+    var searchHeaderVisible by remember { mutableStateOf(true) }
+    var returnFocusToSearch by remember { mutableStateOf(false) }
+    var resultsFocusReady by remember { mutableStateOf(false) }
     val submitSearch = {
-        focusManager.clearFocus(force = true)
-        editingQuery = false
+        searchSubmitted = true
+        searchHeaderVisible = false
+        resultsFocusReady = false
         actions.onSearch()
+    }
+    LaunchedEffect(searchSubmitted) {
+        if (searchSubmitted) {
+            withFrameNanos { }
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+            delay(TelevisionSearchImeDismissDelayMillis)
+            resultsFocusReady = true
+        } else {
+            resultsFocusReady = false
+        }
+    }
+    NaviampSystemBackHandler(enabled = searchSubmitted) {
+        searchSubmitted = false
+        searchHeaderVisible = true
+        returnFocusToSearch = true
+    }
+    LaunchedEffect(returnFocusToSearch) {
+        if (returnFocusToSearch) {
+            withFrameNanos { }
+            searchFieldFocusRequester.requestFocus()
+            returnFocusToSearch = false
+        }
     }
     val results = screen.results
     val items = buildList {
         results.artists.forEach { artist ->
             add(
-                TelevisionSearchGridItem("artist:${artist.id}", artist.title, artist.subtitle, artist.coverArtUrl) {
+                TelevisionMediaGridItem("artist:${artist.id}", artist.title, artist.subtitle, artist.coverArtUrl) {
                     mediaActions.onMediaItemAction(artist.artistActionRequest(NaviampArtistMediaCommand.Select))
                 },
             )
         }
         results.albums.forEach { album ->
             add(
-                TelevisionSearchGridItem("album:${album.id}", album.title, album.subtitle, album.coverArtUrl) {
+                TelevisionMediaGridItem("album:${album.id}", album.title, album.subtitle, album.coverArtUrl) {
                     mediaActions.onMediaItemAction(album.albumActionRequest(NaviampArtistAlbumCommand.Select))
                 },
             )
         }
         results.tracks.forEach { track ->
             add(
-                TelevisionSearchGridItem("track:${track.id}", track.title, track.subtitle, track.coverArtUrl) {
+                TelevisionMediaGridItem("track:${track.id}", track.title, track.subtitle, track.coverArtUrl) {
                     mediaActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
                 },
             )
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
-        Text("Search", color = colors.primaryText, fontSize = 30.sp, fontWeight = FontWeight.Black)
-        if (editingQuery) {
+        if (searchHeaderVisible) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = screen.query,
@@ -266,7 +307,9 @@ internal fun TelevisionSearch(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(searchFieldFocusRequester),
                 )
                 TelevisionTextButton(
                     label = if (screen.searching) "Searching…" else "Search",
@@ -274,45 +317,91 @@ internal fun TelevisionSearch(
                     onClick = submitSearch,
                 )
             }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = if (screen.query.isBlank()) "Search results" else "Results for “${screen.query}”",
-                    color = colors.secondaryText,
-                    fontSize = 20.sp,
-                )
-                Spacer(Modifier.weight(1f))
-                TelevisionTextButton("New search", colors, onClick = { editingQuery = true })
-            }
         }
         screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 15.sp) }
         if (items.isNotEmpty()) {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(TelevisionGridMinimumWidth),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                gridItems(items, key = { it.key }) { item ->
-                    TelevisionMediaGridCard(
-                        title = item.title,
-                        subtitle = item.subtitle,
-                        coverArtUrl = item.coverArtUrl,
-                        colors = colors,
-                        onClick = item.action,
-                    )
-                }
-            }
+            TelevisionMediaGrid(
+                items = items,
+                colors = colors,
+                focusFirstItem = searchSubmitted && resultsFocusReady && !screen.searching,
+            )
         }
     }
 }
 
 @Composable
-private fun TelevisionMediaGridCard(
-    item: SharedMediaItemUi,
+private fun TelevisionMediaGrid(
+    items: List<TelevisionMediaGridItem>,
     colors: NaviampColors,
-    onClick: () -> Unit,
-) = TelevisionMediaGridCard(item.title, item.subtitle, item.coverArtUrl, colors, onClick)
+    focusFirstItem: Boolean = false,
+) {
+    val itemKeys = items.map { it.key }
+    val focusRequesters = remember(itemKeys) { List(items.size) { FocusRequester() } }
+    val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
+
+    suspend fun focusItem(index: Int) {
+        gridState.scrollToItem(index)
+        repeat(TelevisionFocusRequestAttempts) {
+            withFrameNanos { }
+            if (focusRequesters[index].requestFocus()) return
+        }
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val columnCount = televisionGridColumnCount(maxWidth)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columnCount),
+            state = gridState,
+            horizontalArrangement = Arrangement.spacedBy(TelevisionGridSpacing),
+            verticalArrangement = Arrangement.spacedBy(22.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            gridItemsIndexed(items, key = { _, item -> item.key }) { index, item ->
+                if (index == 0) {
+                    LaunchedEffect(focusFirstItem, item.key) {
+                        if (focusFirstItem) focusItem(0)
+                    }
+                }
+                TelevisionMediaGridCard(
+                    title = item.title,
+                    subtitle = item.subtitle,
+                    coverArtUrl = item.coverArtUrl,
+                    colors = colors,
+                    onFocused = {
+                        coroutineScope.launch { gridState.animateScrollToItem(index) }
+                    },
+                    onClick = item.action,
+                    modifier = Modifier
+                        .focusRequester(focusRequesters[index])
+                        .onPreviewKeyEvent { event ->
+                            val nextIndex = televisionGridRightTarget(index, items.size)
+                            if (
+                                event.type == KeyEventType.KeyDown &&
+                                event.key == Key.DirectionRight &&
+                                nextIndex != null
+                            ) {
+                                if (!focusRequesters[nextIndex].requestFocus()) {
+                                    coroutineScope.launch { focusItem(nextIndex) }
+                                }
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                )
+            }
+        }
+    }
+}
+
+internal fun televisionGridRightTarget(currentIndex: Int, itemCount: Int): Int? =
+    (currentIndex + 1).takeIf { currentIndex >= 0 && it < itemCount }
+
+internal fun televisionGridColumnCount(availableWidth: Dp): Int =
+    ((availableWidth + TelevisionGridSpacing) / (TelevisionGridCardWidth + TelevisionGridSpacing))
+        .toInt()
+        .coerceAtLeast(1)
 
 @Composable
 private fun TelevisionMediaGridCard(
@@ -322,10 +411,12 @@ private fun TelevisionMediaGridCard(
     colors: NaviampColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onFocused: () -> Unit = {},
 ) {
     TelevisionFocusableCard(
         colors = colors,
         width = TelevisionGridCardWidth,
+        onFocused = onFocused,
         onClick = onClick,
         modifier = modifier,
     ) {
@@ -353,10 +444,27 @@ private fun TelevisionFocusableCard(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
+            .onKeyEvent { event ->
+                if (
+                    event.type == KeyEventType.KeyUp &&
+                    (
+                        event.key == Key.DirectionCenter ||
+                            event.key == Key.Enter ||
+                            event.key == Key.Spacebar
+                    )
+                ) {
+                    onClick()
+                    true
+                } else {
+                    false
+                }
+            }
+            .focusable()
+            .pointerInput(onClick) { detectTapGestures { onClick() } }
+            .semantics { semanticsOnClick { onClick(); true } }
             .clip(shape)
             .background(if (focused) colors.accent.copy(alpha = 0.2f) else Color.Transparent)
             .border(if (focused) 4.dp else 0.dp, colors.accent, shape)
-            .clickable(onClick = onClick)
             .padding(bottom = 8.dp),
     ) {
         content()
@@ -696,6 +804,8 @@ private fun televisionSecondsLabel(seconds: Double?): String {
 private val TelevisionHomeCardWidth = 168.dp
 private val TelevisionHomeCardSpacing = 16.dp
 private val TelevisionHomeCardStride = TelevisionHomeCardWidth + TelevisionHomeCardSpacing
-private val TelevisionGridMinimumWidth = 158.dp
 private val TelevisionGridCardWidth = 150.dp
+private val TelevisionGridSpacing = 16.dp
 private val TelevisionGridArtworkSize = 150.dp
+private const val TelevisionFocusRequestAttempts = 5
+private const val TelevisionSearchImeDismissDelayMillis = 300L
