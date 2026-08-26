@@ -498,3 +498,10 @@ independent navigation graph may be introduced in the Apple TV host.
   stop at the final rail instead of escaping to top navigation. Focused rails now use one stable
   vertical context inset: a portion of the preceding rail remains visible above and the following
   heading remains visible below whenever those neighboring sections exist.
+- Revised the Home edge policy after remote testing: Right on the final card is now consumed and
+  leaves focus in place on every rail. Rail positioning now snaps immediately when vertical focus
+  changes instead of continuing an animation after the first horizontal input.
+- Strengthened the shared artwork focus treatment with a crisp blue-white core edge, two broader
+  translucent blue edge layers, and a substantially brighter blue halo. A focus-only shimmer gives
+  the halo a slow pulse and the core edge two brief glints without animating unfocused cards.
+  Artwork-derived focus colors remain a possible later refinement rather than part of this slice.

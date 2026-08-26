@@ -1,9 +1,12 @@
 package app.naviamp.ui
 
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.input.key.Key
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class NaviampTelevisionGridPolicyTest {
     @Test
@@ -37,18 +40,17 @@ class NaviampTelevisionGridPolicyTest {
     }
 
     @Test
-    fun homeRightEdgeAdvancesToTheNextRailAndStopsAtTheLastRail() {
-        assertEquals(1, televisionHomeRightEdgeTarget(sectionIndex = 0, sectionCount = 3))
-        assertEquals(2, televisionHomeRightEdgeTarget(sectionIndex = 1, sectionCount = 3))
-        assertNull(televisionHomeRightEdgeTarget(sectionIndex = 2, sectionCount = 3))
-        assertNull(televisionHomeRightEdgeTarget(sectionIndex = -1, sectionCount = 3))
-    }
-
-    @Test
     fun focusedHomeRailsKeepVerticalContextExceptAtTheTop() {
         assertEquals(0, televisionHomeSectionScrollOffset(sectionIndex = 0, contextInsetPx = 72))
         assertEquals(-72, televisionHomeSectionScrollOffset(sectionIndex = 1, contextInsetPx = 72))
         assertEquals(-72, televisionHomeSectionScrollOffset(sectionIndex = 4, contextInsetPx = 72))
         assertEquals(0, televisionHomeSectionScrollOffset(sectionIndex = 1, contextInsetPx = -10))
+    }
+
+    @Test
+    fun homeConsumesOnlyRightAtTheEndOfARail() {
+        assertTrue(televisionHomeConsumesEndOfRailKey(Key.DirectionRight))
+        assertFalse(televisionHomeConsumesEndOfRailKey(Key.DirectionLeft))
+        assertFalse(televisionHomeConsumesEndOfRailKey(Key.DirectionDown))
     }
 }
