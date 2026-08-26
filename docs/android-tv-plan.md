@@ -174,6 +174,26 @@ independent navigation graph may be introduced in the Apple TV host.
 
 ## Delivery Milestones
 
+### Current implementation gaps
+
+- The dedicated Television shell is in place, but Playlists, collection/detail pages, and Settings
+  still delegate to the standard shared content composition. Replace those fallbacks with
+  remote-friendly Television presentations before completing M1, especially the reduced Settings
+  information architecture defined above.
+- Television Home currently renders every visible standard Home section as a carousel and caps
+  individual rails. Core still needs to select and order the bounded TV-specific rail set rather
+  than treating the standard Home section list as the complete Television policy.
+- The initial full-screen Now Playing layout is functional, but it does not yet satisfy the complete
+  lyrics direction. Preserve title and artist context, add the default two- or three-line lyric
+  presentation, use the existing word-synced cue model for karaoke highlighting, and show queue or
+  artwork context when lyrics are unavailable.
+- Queue presentation and editing are not yet part of the dedicated Television Now Playing surface.
+- Add shared Compose coverage for Television Home, Library, Search submission and re-entry, the mini
+  player, Now Playing actions, lyrics rendering, and route/detail Back behavior. Existing tests cover
+  navigation policy, carousel arithmetic, and setup focus, but not the dedicated screen composition.
+- Android TV launcher banner/icon assets remain an M4 distribution requirement; the current
+  manifest work is sufficient for emulator launch but is not the final Google Play TV package.
+
 ### M0: Emulator foundation
 
 - [x] Create `feature/android-tv` from `main`.
@@ -194,7 +214,8 @@ independent navigation graph may be introduced in the Apple TV host.
 ### M2: TV playback experience
 
 - [ ] Verify BASS playback, audio focus, background service behavior, and `MediaSession` controls.
-- [x] Implement TV Now Playing and lyrics-first presentation in shared UI.
+- [ ] Complete TV Now Playing, queue context, and lyrics-first presentation in shared UI. An initial
+  playback and line-synced lyrics layout is implemented and validated on the emulator.
 - [ ] Verify queue editing, profiles, gapless/crossfade, ReplayGain, and provider reporting.
 - [ ] Add remote/process/network recovery tests.
 
@@ -279,19 +300,19 @@ independent navigation graph may be introduced in the Apple TV host.
   and Desktop but are hidden on TV, where there is no supported file-import workflow.
 - Removed fallback URL configuration from TV setup because a stationary playback target does not
   need the phone/Desktop roaming-endpoint workflow.
-- Connected successfully to Navidrome on the 1080p emulator. The first connected-screen capture
-  exposed a wrapping Settings destination, so the TV navigation now uses equal adaptive slots and
-  single-line labels designed for the shared 960dp ten-foot viewport used by both 1080p and 4K.
-- Verified the corrected connected layout on the 1080p AVD at its native 1920x1080/320 dpi: all
-  six destinations fit on one line with readable focus treatment.
+- Connected successfully to Navidrome on the 1080p emulator. The initial connected-screen capture
+  exposed navigation wrapping and motivated the later dedicated three-destination Television bar
+  with a compact Settings entry.
+- Verified the current dedicated navigation layout on the 1080p AVD at its native
+  1920x1080/320 dpi with readable focus treatment.
 - Added a native 3840x2160/640 dpi `Television_4K` AVD and verified that the standalone setup
   surface renders correctly at its physical 4K resolution. The same AVD also accepts a real
   1920x1080/320 dpi `wm` override, producing a 1920x1080 framebuffer, so it is now the primary
   dual-resolution acceptance device. Restore native 4K with `wm size reset` and
   `wm density reset`.
 - Connected the native 4K AVD to Navidrome and verified the populated Home surface at a true
-  3840x2160/640 dpi. All six destinations remain on one line, the D-pad traverses from Home through
-  Settings, and the focused destination remains clearly visible without clipping. Emulator layout
+  3840x2160/640 dpi. The dedicated Home, Library, and Search destinations plus the compact Settings
+  entry remain clearly visible without clipping and support D-pad traversal. Emulator layout
   acceptance is therefore complete at both 1080p and 4K. Physical hardware remains necessary for
   HDMI/CEC, suspend/resume, and sustained playback-performance testing.
 - Fixed the populated Home carousel after remote testing exposed ambiguous card focus and
@@ -318,3 +339,7 @@ independent navigation graph may be introduced in the Apple TV host.
   results-only grid with an explicit New search action. This removes the text field from the D-pad
   focus graph after submission; emulator testing confirmed that Down reaches a clearly highlighted
   result without reopening the keyboard.
+- Reviewed the dedicated Television composition against this plan. Recorded the remaining
+  TV-specific Settings/detail work, bounded Home rail policy, complete lyrics and queue behavior,
+  direct Compose coverage, and launcher asset requirements above rather than treating the initial
+  layouts as finished milestones.
