@@ -370,3 +370,7 @@ independent navigation graph may be introduced in the Apple TV host.
 - Made Play/Pause the deterministic initial focus target whenever Television Now Playing opens.
   Verified a D-pad-only path from a focused Home rail through the mini player into Now Playing at
   native 4K; the primary transport control displayed its focus ring immediately on entry.
+- Made the Television waveform a selectable scrubber: Up from Play/Pause selects it, Left and Right
+  seek backward or forward in 10-second steps, repeated presses build from the pending seek, and
+  bounds clamp to the track duration. Native-4K emulator testing confirmed the full-width focus
+  treatment and remote seek while focus remains on the scrubber.
