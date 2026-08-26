@@ -227,10 +227,18 @@ private fun TelevisionConnectedContent(
     syncActions: NaviampSettingsSyncActions,
 ) {
     val hasStandardDetail = uiState.home.collectionPage != null ||
-        uiState.albumDetail.selectedAlbum != null ||
-        uiState.artistDetail.selectedArtist != null ||
         uiState.playlistDetail.selectedPlaylist != null
     when {
+        uiState.albumDetail.selectedAlbum != null -> TelevisionAlbumDetail(
+            screen = uiState.albumDetail,
+            colors = colors,
+            actions = actions.albumDetailActions,
+        )
+        uiState.artistDetail.selectedArtist != null -> TelevisionArtistDetail(
+            screen = uiState.artistDetail,
+            colors = colors,
+            actions = actions.artistDetailActions,
+        )
         hasStandardDetail -> ConnectedContent(
             colors = colors,
             uiState = uiState,

@@ -350,3 +350,16 @@ independent navigation graph may be introduced in the Apple TV host.
   fifth card lands on the first card in the next row and scrolls that row into full-artwork view.
 - Removed redundant Home, Library, and Search content headings because the persistent top bar
   already identifies the active primary destination.
+
+### 2026-08-26
+
+- Added dedicated shared Television artist and album detail pages with large hero artwork and
+  typography, a reduced action set of Play, Start Radio, and Add to Queue, spacious track rows,
+  and an artist-album carousel. Playlist-management controls and the standard dense detail layout
+  are intentionally excluded from these Television pages.
+- Established a low-click track interaction: Center plays immediately; Right opens a compact panel
+  containing Play Next, Add to Queue, and Start Radio; Back closes the panel and restores focus to
+  the originating track.
+- Verified both detail layouts at native 3840x2160 on the connected Google TV emulator. Confirmed
+  deterministic entry focus, hero-action traversal, track scrolling, contextual-action focus, and
+  focus restoration after dismissing the action panel.

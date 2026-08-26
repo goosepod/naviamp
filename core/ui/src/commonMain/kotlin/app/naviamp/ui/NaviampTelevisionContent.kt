@@ -434,7 +434,7 @@ private fun TelevisionMediaGridCard(
 }
 
 @Composable
-private fun TelevisionFocusableCard(
+internal fun TelevisionFocusableCard(
     colors: NaviampColors,
     width: Dp,
     onFocused: () -> Unit = {},
@@ -480,7 +480,7 @@ private fun TelevisionFocusableCard(
 }
 
 @Composable
-private fun TelevisionCardLabels(title: String, subtitle: String, colors: NaviampColors) {
+internal fun TelevisionCardLabels(title: String, subtitle: String, colors: NaviampColors) {
     Text(
         title,
         color = colors.primaryText,
@@ -783,7 +783,7 @@ internal fun TelevisionIconButton(
 }
 
 @Composable
-private fun TelevisionTextButton(
+internal fun TelevisionTextButton(
     label: String,
     colors: NaviampColors,
     enabled: Boolean = true,
