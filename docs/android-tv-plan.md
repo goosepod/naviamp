@@ -367,3 +367,6 @@ independent navigation graph may be introduced in the Apple TV host.
   Native-4K emulator testing confirmed that Aurora follows current-artwork colors and tone, Album
   Blur uses the current cover and configured blur radius, and Single Color renders the configured
   hex color immediately. Restored Aurora/Dark after exercising all three modes.
+- Made Play/Pause the deterministic initial focus target whenever Television Now Playing opens.
+  Verified a D-pad-only path from a focused Home rail through the mini player into Now Playing at
+  native 4K; the primary transport control displayed its focus ring immediately on entry.

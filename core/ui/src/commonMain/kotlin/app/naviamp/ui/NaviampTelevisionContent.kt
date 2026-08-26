@@ -592,6 +592,7 @@ internal fun TelevisionNowPlaying(
                     colors = colors,
                     size = 64.dp,
                     prominent = true,
+                    initiallyFocused = true,
                 ) {
                     actions.playback(
                         when {
@@ -748,11 +749,20 @@ internal fun TelevisionIconButton(
     selected: Boolean = false,
     size: Dp = 48.dp,
     prominent: Boolean = false,
+    initiallyFocused: Boolean = false,
     onClick: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val shape = RoundedCornerShape(999.dp)
+    LaunchedEffect(Unit) {
+        if (initiallyFocused && enabled) {
+            repeat(TelevisionFocusRequestAttempts) {
+                withFrameNanos { }
+                if (focusRequester.requestFocus()) return@LaunchedEffect
+            }
+        }
+    }
     IconButton(
         onClick = {
             onClick()
