@@ -120,6 +120,20 @@ All Television surfaces use one shared focus treatment rather than screen-specif
   from results returns to the query field so it can be edited again.
 - Results use the shared Television grid and deterministic row-major D-pad navigation.
 
+### Internet Radio Stations
+
+- Add a dedicated remote-friendly Internet Radio Stations page reachable from Library without
+  adding another permanent top-navigation destination. The recent Internet Radio Home rail remains
+  a shortcut and is not a substitute for the complete station collection.
+- Reuse the shared provider-neutral station model and actions. TV users must be able to browse and
+  play every saved station, refresh the collection, start station radio where supported, and open
+  the existing contextual actions.
+- Adding and editing a station must remain possible with the TV system keyboard, including name,
+  stream URL, homepage, and artwork fields supported by the shared station editor. Deletion requires
+  confirmation and predictable Back/focus restoration.
+- Phone/Desktop controllers may browse Internet Radio locally and direct station playback to a
+  paired TV through Naviamp Connect. The TV remains the stream and reporting owner.
+
 ### Television settings presentation
 
 - Settings opens as a right-side sheet over a dimmed version of the current destination, occupying
@@ -162,19 +176,27 @@ frame by frame.
 
 ### Standalone setup
 
-The first-run screen offers **Set up on this TV** as the primary path. It must support provider,
-server URL, username, password, connection testing, provider-specific fields, library selection,
-connection naming, and clear recovery from validation or network errors through the Android TV
-system keyboard.
+The first-run screen offers two equal, complete paths:
 
-An optional later **Import from another Naviamp device** path may transfer a source after an
-authenticated pairing confirmation. It must not replace local setup.
+1. **Set up on this TV** supports provider, server URL, username, password, connection testing,
+   provider-specific fields, library selection, connection naming, and clear recovery from
+   validation or network errors through the TV system keyboard.
+2. **Set up with another Naviamp device** places the TV in an explicitly time-bounded pairing mode,
+   advertises it on the local network, and displays a short code. A phone or Desktop Naviamp client
+   discovers the TV, asks the user to enter the displayed code, establishes an authenticated
+   encrypted session, and can transfer one selected provider connection plus compatible settings.
+
+The TV validates transferred connection information before accepting setup, stores it locally using
+the same secure credential facilities as manual setup, and remains a complete standalone player
+after the controller disconnects. Assisted setup never turns the TV into a credential proxy and
+never makes the phone or Desktop app necessary for later startup or playback.
 
 ### Reduced settings
 
 The TV settings information architecture is:
 
 - Sources
+- Home
 - Playback
 - Lyrics
 - Controllers
@@ -192,6 +214,31 @@ Naviamp Connect is the provider-neutral local playback-target system for phone, 
 TV/headless clients. It is more important than Google Cast because it can preserve Naviamp queue
 groups, playback profiles, errors, lyrics, and reporting behavior on every Naviamp controller.
 
+### Local-network boundary and interoperability
+
+- Naviamp Connect is local-network only. A controller and target must be reachable on the same LAN;
+  either device may use Wi-Fi or Ethernet. No Naviamp cloud relay is required or planned for the
+  initial protocol.
+- Discovery uses one DNS-SD/mDNS service type, provisionally `_naviamp-connect._tcp`. Ordinary
+  local-link discovery does not cross routers. Guest-network isolation, VLAN policy, or blocked
+  multicast may prevent discovery even when devices appear to use the same Wi-Fi name; the UI must
+  distinguish permission denial, no targets found, and a discovered target that cannot be reached.
+- The wire protocol is platform-neutral and versioned. Android phone can control Android TV or
+  tvOS; iPhone can control Android TV or tvOS; and macOS, Windows, or Linux Desktop can control
+  either TV family.
+- Shared Core owns discovery results, capabilities, pairing state, trust state, commands, snapshots,
+  reconciliation, disconnect behavior, and user-facing status. Android NSD, Apple Bonjour/Network
+  framework, and Desktop DNS-SD implementations are narrow discovery and socket effects only.
+- Apple hosts declare the Naviamp Bonjour service and explain local-network access. Android hosts
+  handle the applicable local-network permission or system NSD picker as target-SDK requirements
+  evolve. Permission denial must leave manual TV setup and local playback functional.
+
+Reference constraints:
+
+- Android local-network protection: https://developer.android.com/privacy-and-security/local-network-permission
+- Apple local-network privacy: https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy
+- Apple Bonjour: https://developer.apple.com/bonjour/index.html
+
 ### Ownership
 
 - The selected target owns the authoritative queue, playback clock, provider session, playback
@@ -203,18 +250,86 @@ groups, playback profiles, errors, lyrics, and reporting behavior on every Navia
   does not silently begin duplicate local playback.
 - Handoff transfers queue occurrences, group/priority state, current occurrence, position, repeat,
   shuffle, and resolved playback-profile intent before changing authority.
+- Phone and Desktop browse through their normal full Naviamp interface while a selected TV is the
+  playback target. Browse state can remain local, but playback and queue intents are executed by the
+  TV and reconciled from its authoritative snapshots.
+- Remote control includes play/pause, previous/next, seeking, favorite, repeat, shuffle, queue
+  selection and editing, radio/album/playlist playback, and compatible playback preferences. TV
+  display selection may also expose explicit commands such as showing Now Playing, Lyrics, or Queue.
+- Physical-device settings remain target-local: audio output, storage paths and sizes, OS
+  permissions, display calibration, and other settings that cannot safely transfer between devices.
 
-### Pairing and transport investigation
+### Discovery, pairing, and trust
 
-- Discover targets on the local network through a narrow platform discovery contract.
-- Pair with an explicit short code and ephemeral authenticated key agreement.
-- Persist trusted device identity in platform secure storage.
-- Encrypt commands, snapshots, and any source-transfer material; never expose provider credentials
-  or authenticated stream URLs in discovery metadata or logs.
-- Prefer the TV maintaining its own saved provider connection. Source transfer is optional setup
-  assistance, not ongoing credential proxying.
+1. A TV advertises a minimal unpaired service only while its pairing screen is active. Discovery
+   metadata contains a random instance identifier, display label, protocol range, capability flags,
+   port, and public-key or certificate fingerprint—never provider credentials, usernames, library
+   names, or authenticated stream URLs.
+2. The controller shows discovered TVs. Selecting one causes the TV to display a fresh short code;
+   the user enters that code on the controller.
+3. The code bootstraps a reviewed password-authenticated key exchange rather than being transmitted
+   or hashed as an ordinary network password. SPAKE2 is a candidate pending dependency and platform
+   crypto review; Naviamp must not implement new cryptographic primitives itself.
+4. Successful pairing creates long-lived device identities and trust records. Private key material
+   and session credentials are stored through platform Keystore, Keychain, or Desktop secure-value
+   adapters. The TV Controllers page lists, renames, and revokes trusted devices.
+5. Pairing codes expire, attempts are rate-limited, every new controller requires visible TV
+   approval, messages are encrypted and authenticated, and sessions use message sequence numbers or
+   equivalent replay protection.
 
-The exact protocol and threat model require a dedicated design review before network code is added.
+Reference candidate:
+
+- SPAKE2: https://www.rfc-editor.org/rfc/rfc9382
+
+### Assisted connection provisioning
+
+- After pairing, a controller may send an encrypted provisioning envelope containing the provider
+  type, canonical server URL, account identity, selected libraries/music folders, required TLS
+  options, authentication secret, connection name, and explicitly portable settings.
+- The target validates the provider connection and chosen libraries before committing it. Failure
+  leaves the TV pairing screen active with a recoverable error and does not create a partial source.
+- The transferred credential is persisted locally under the TV's credential protection. It is not
+  retained in logs, discovery metadata, crash diagnostics, or ordinary settings sync.
+- Only portable settings transfer. Interface presentation and compatible playback preferences may
+  transfer; storage locations, cache budgets, output-device selection, permissions, Desktop
+  shortcuts, and gesture settings do not.
+
+### Connection identity and queue transfer
+
+- Queue transfer is allowed only when controller and target share a compatible source identity.
+  Core defines that identity from provider type, canonical server origin, account identity, and
+  selected library identifiers. Connection display names, local database IDs, and credential
+  rotation do not by themselves make two otherwise identical sources different.
+- If identities match, the controller sends provider media identifiers plus Naviamp queue state,
+  never authenticated stream URLs. The target resolves and validates those identifiers through its
+  own provider session before taking authority.
+- A handoff preserves duplicate occurrences, queue-group and Play Next priority, current occurrence,
+  playback position, repeat, shuffle, and resolved playback-profile intent. Authority changes only
+  after the target acknowledges a valid complete handoff; failure leaves source playback unchanged.
+- If identities differ, the controller does not silently push the queue. It may offer to provision
+  the required connection on the TV after explicit user confirmation, then retry the handoff after
+  the target verifies the new source.
+- A future source-transfer path may support a provider other than Navidrome, but the first acceptance
+  path is a shared Navidrome connection on Android phone and Android TV.
+
+### Protocol and transport shape
+
+- Do not serialize `NaviampCoreCommand` or the complete application state. Define a small,
+  serializable, versioned Naviamp Connect envelope with stable protocol commands, target snapshots,
+  request IDs, capability negotiation, error codes, acknowledgements, and compatibility rules.
+- The existing shared external-playback projection is a useful source for Now Playing and basic
+  transport behavior, but Connect owns a dedicated snapshot that preserves Naviamp occurrence IDs,
+  queue groups, target identity, capabilities, and revision numbers.
+- A persistent encrypted full-duplex session such as WebSocket is appropriate for commands and
+  authoritative snapshot updates. The shared protocol and session state machine do not depend on a
+  particular WebSocket/server library; each host provides only the unavoidable listener, socket,
+  discovery, and secure-key effects.
+- Every target state mutation advances a revision. Controllers apply authoritative snapshots in
+  revision order, retry only idempotent requests, and reconcile after reconnect instead of assuming
+  that a command succeeded.
+
+The protocol envelope, cryptographic dependency, key lifecycle, threat model, and compatibility
+policy still require an explicit design review before production network code is added.
 
 ## Architecture Placement
 
@@ -261,14 +376,15 @@ independent navigation graph may be introduced in the Apple TV host.
 - The dedicated Television shell, Home, Library, Search, Playlists, Settings, and artist, album, and
   playlist detail pages are in place. Home collection pages are the remaining standard-content
   fallback to replace before completing M1.
-- The initial full-screen Now Playing layout is functional, but it does not yet satisfy the complete
-  lyrics direction. Preserve title and artist context, add the default two- or three-line lyric
-  presentation, use the existing word-synced cue model for karaoke highlighting, and show queue or
-  artwork context when lyrics are unavailable.
-- Queue presentation and editing are not yet part of the dedicated Television Now Playing surface.
+- A dedicated Internet Radio Stations collection and editor has not yet been implemented for TV.
+  Recent stations can appear on Home, but the complete saved-station workflow must be available
+  from Library.
+- The dedicated full-screen Now Playing, listening-mode transition, queue panel, and smoothly
+  scrolling line-synced lyrics are implemented. Word-level karaoke highlighting and final OLED
+  burn-in behavior remain outstanding parts of the complete lyrics direction.
 - Add shared Compose coverage for Television Home, Library, Search submission and re-entry, the mini
-  player, Now Playing actions, lyrics rendering, and route/detail Back behavior. Existing tests cover
-  navigation policy, carousel arithmetic, and setup focus, but not the dedicated screen composition.
+  player, Internet Radio, Now Playing actions, lyrics rendering, settings movement, and route/detail
+  Back behavior. Existing policy and JVM tests do not replace direct screen-composition coverage.
 - Android TV launcher banner/icon assets remain an M4 distribution requirement; the current
   manifest work is sufficient for emulator launch but is not the final Google Play TV package.
 
@@ -287,23 +403,42 @@ independent navigation graph may be introduced in the Apple TV host.
 - [x] Provide remote-friendly top navigation and focus states.
 - [x] Complete local connection setup using the system keyboard.
 - [x] Provide Home, Library, Playlists, Search, details, and essential Settings.
-- [ ] Verify server connection, library browsing, and source switching on the emulator.
+- [x] Verify Navidrome connection plus populated Home, Library, and Search browsing on both 1080p
+  and native-4K emulator configurations.
+- [ ] Add the dedicated TV Internet Radio Stations browse, play, add/edit, and delete workflow.
+- [ ] Replace the remaining standard Home collection-page fallback with a dedicated TV page.
+- [ ] Verify switching between multiple saved sources on the emulator.
 
 ### M2: TV playback experience
 
-- [ ] Verify BASS playback, audio focus, background service behavior, and `MediaSession` controls.
-- [ ] Complete TV Now Playing, queue context, and lyrics-first presentation in shared UI. An initial
-  playback and line-synced lyrics layout is implemented and validated on the emulator.
-- [ ] Verify queue editing, profiles, gapless/crossfade, ReplayGain, and provider reporting.
+- [x] Verify BASS playback, transport controls, queue playback, artwork, waveform progress, and
+  line-synced lyrics on the Android TV emulator.
+- [x] Complete the dedicated shared TV Now Playing, listening-mode transition, Queue panel, and
+  line-synced Lyrics presentation.
+- [x] Implement and exercise TV queue selection/reordering, repeat/shuffle/favorite, gapless and
+  crossfade exclusivity, ReplayGain choices, and sample-rate matching controls.
+- [ ] Add word-level karaoke highlighting and final OLED burn-in behavior.
+- [ ] Verify audio focus, background-service retention, process restoration, and `MediaSession`
+  behavior on physical Google TV hardware.
+- [ ] Verify playback profiles, gapless/crossfade transitions, ReplayGain output, and provider
+  reporting through sustained real playback rather than settings/UI inspection alone.
 - [ ] Add remote/process/network recovery tests.
 
 ### M3: Naviamp Connect
 
-- [ ] Approve protocol, pairing, security, discovery, and authority design.
+- [ ] Approve the versioned envelope, capability negotiation, connection identity, pairing threat
+  model, cryptographic dependency, key lifecycle, replay protection, and authority design.
 - [ ] Implement shared target/controller state machines and fake-transport tests.
-- [ ] Add narrow Android TV, Android phone, and Desktop transports.
-- [ ] Add target selection, remote queue control, and controller reconciliation.
-- [ ] Add local-to-TV and TV-to-local handoff.
+- [ ] Implement the TV pairing-mode and phone/Desktop discovery flow with expiring short codes,
+  trusted-device persistence, rename/revoke actions, and permission/error recovery.
+- [ ] Add narrow Android TV, Android phone, Desktop, iOS, and tvOS discovery, socket, and secure-key
+  adapters while keeping protocol behavior in Core.
+- [ ] Add the first-run assisted connection-provisioning transaction and portable-settings filter.
+- [ ] Add phone/Desktop playback-target selection and authoritative remote Now Playing snapshots.
+- [ ] Add remote transport, seeking, favorite, repeat, shuffle, Internet Radio, and queue control.
+- [ ] Add same-source validation plus atomic local-to-TV and TV-to-local queue handoff.
+- [ ] Verify Android phone to Android TV first, then Android to tvOS, iPhone to Android TV/tvOS, and
+  macOS/Windows/Linux Desktop to both TV families.
 
 ### M4: Physical-device acceptance
 
@@ -320,9 +455,11 @@ independent navigation graph may be introduced in the Apple TV host.
 | Layout, focus, D-pad, system keyboard | Required | Required |
 | 1080p and 4K layout/rendering | Required | Required |
 | Provider connection and browsing | Required | Required |
+| Internet Radio browse, edit, and playback | Required | Required |
 | BASS decoding and ordinary stereo output | Required | Required |
 | Queue, restoration, lyrics, reporting | Required | Required |
 | `MediaSession` commands | Required | Required |
+| Naviamp Connect discovery, pairing, provisioning, and remote control | Functional fake/AVD coverage | Required |
 | HDMI/CEC, surround routes, power behavior | Not authoritative | Required |
 | Cast Connect discovery and registration | Not authoritative | Required |
 
@@ -331,14 +468,18 @@ independent navigation graph may be introduced in the Apple TV host.
 - Whether the TV ships as the existing Android application with a TV activity/surface or as a
   separately packaged thin host under the same product listing. Begin with maximum shared runtime
   reuse; decide packaging only after emulator evidence.
-- Whether users may reorder the bounded TV Home categories directly on TV.
 - Whether lyrics-first mode is automatic, manually selected, or one simple persisted TV display
   preference.
 - How TV volume control divides responsibility between Naviamp software volume and the TV/AVR
   system volume.
 - Whether a stationary TV needs user-visible offline downloads or only an internal bounded playback
   cache. Downloads are excluded until a concrete disconnected-TV use case is demonstrated.
-- The local authenticated transport and compatibility/versioning policy for Naviamp Connect.
+- Which reviewed PAKE and platform crypto implementation satisfies short-code pairing on every
+  supported host without placing cryptographic primitives in product code.
+- Whether pairing offers a manual address or QR fallback when LAN policy blocks mDNS while still
+  preserving the same authenticated local-only transport.
+- The exact canonical-source identity rules for aliases, reverse proxies, changed usernames,
+  multi-library selection, and rotated credentials.
 
 ## Progress Log
 
@@ -406,7 +547,7 @@ independent navigation graph may be introduced in the Apple TV host.
 - Added the first dedicated shared Television composition: a three-destination top bar, carousel-only
   Home, large Library and Search grids, a reduced mini player, and a full-screen Now Playing layout
   with large artwork, track metadata, lyrics, waveform/scrubber, transport, favorite, repeat,
-  shuffle, and Search actions.
+  shuffle, and secondary actions.
 - Added shared Back policy that returns stable secondary Television destinations to Home while
   preserving transient detail and Now Playing handling. Removed a duplicate focus target from the
   top navigation after native-4K D-pad testing showed it required two Down presses to enter Home.
@@ -417,7 +558,7 @@ independent navigation graph may be introduced in the Apple TV host.
   field out of the results view, and focuses the first result. Back restores and focuses the query
   field with the existing text so the user can refine the search without leaving the destination.
 - Reviewed the dedicated Television composition against this plan. Recorded the remaining
-  TV-specific Settings/detail work, bounded Home rail policy, complete lyrics and queue behavior,
+  TV-specific Settings/detail work, bounded Home rail policy, lyrics and queue behavior,
   direct Compose coverage, and launcher asset requirements above rather than treating the initial
   layouts as finished milestones.
 - Added and tested the initial bounded Television Home policy. Its former five-category limit was
@@ -543,10 +684,10 @@ independent navigation graph may be introduced in the Apple TV host.
 - Added a shared right-side Television Settings sheet modeled on the compact category-first pattern
   used by established TV music clients. It preserves the underlying destination, dims it, exposes
   current values, uses nested choice pages, unwinds Back locally, and restores focus to the gear.
-- Added TV-relevant Sources, Playback, Lyrics, Display, Diagnostics, and About controls. Controllers
-  is capability-gated until Naviamp Connect supplies real pairing state and actions; downloads,
-  file pickers, touch gestures, Desktop shortcuts, update channels, and mobile-only controls remain
-  excluded.
+- Added TV-relevant Sources, Home, Playback, Lyrics, Display, Diagnostics, and About controls.
+  Controllers is capability-gated until Naviamp Connect supplies real pairing state and actions;
+  downloads, file pickers, touch gestures, Desktop shortcuts, update channels, and mobile-only
+  controls remain excluded.
 - Reserved overflow around every settings list after native-4K review found the first focused row's
   edge clipped by the viewport. Settings now use a calm static blue-white focus edge with no zoom,
   pulse, or glow, and Close/Back uses a plain filled focus treatment without an outline.
@@ -686,3 +827,14 @@ independent navigation graph may be introduced in the Apple TV host.
   every host while existing per-section layout settings remain available.
 - Deliberately excluded Mix Builders from both TV Home and TV Home settings. The normal apps retain
   the builders and their saved position; reordering from TV preserves that hidden standard-app slot.
+- Recorded the missing dedicated TV Internet Radio Stations workflow as the next standalone-surface
+  gap. Recent Internet Radio on Home remains available, but full station browsing, playback,
+  refresh, add/edit, contextual actions, and confirmed deletion still need a remote-friendly page.
+- Approved the product direction for local-only, cross-platform Naviamp Connect: Android, iPhone,
+  and Desktop controllers can target Android TV or tvOS through one shared versioned protocol. The
+  TV remains playback authority and can be discovered during explicit pairing mode, provisioned
+  with an encrypted provider connection and portable settings, then operated independently.
+- Defined the intended assisted-setup and handoff semantics. Short-code pairing establishes durable
+  device trust; a target validates and securely persists transferred connection information; queue
+  transfer requires a matching canonical source identity and preserves occurrences, groups,
+  priority, position, repeat, shuffle, and playback-profile intent without transferring stream URLs.
