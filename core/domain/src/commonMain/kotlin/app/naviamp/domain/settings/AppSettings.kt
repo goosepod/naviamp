@@ -294,8 +294,10 @@ enum class AppBackgroundStyle(val label: String) {
 
 @Serializable
 enum class AuroraTone(val label: String) {
-    Dark("Dark"),
     Light("Light"),
+    // Keep the serialized name "Dark" so existing installations retain the original Aurora look.
+    Dark("Balanced"),
+    DeepDark("Dark"),
 }
 
 const val DefaultSingleColorHex = "#32253F"

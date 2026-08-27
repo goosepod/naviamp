@@ -10,6 +10,22 @@ import kotlin.test.assertTrue
 
 class NaviampTelevisionGridPolicyTest {
     @Test
+    fun activeLyricsKeepTwoLinesOfContextAboveThem() {
+        assertEquals(0, lyricsActiveLineScrollTarget(-1))
+        assertEquals(0, lyricsActiveLineScrollTarget(0))
+        assertEquals(0, lyricsActiveLineScrollTarget(2))
+        assertEquals(1, lyricsActiveLineScrollTarget(3))
+        assertEquals(7, lyricsActiveLineScrollTarget(9))
+    }
+
+    @Test
+    fun waveformProgressUsesAContinuousClippingBoundary() {
+        assertEquals(0f, waveformPlayedClipWidth(width = 800f, value = -1f))
+        assertEquals(200f, waveformPlayedClipWidth(width = 800f, value = 0.25f))
+        assertEquals(800f, waveformPlayedClipWidth(width = 800f, value = 2f))
+    }
+
+    @Test
     fun rightAdvancesInRowMajorOrder() {
         assertEquals(1, televisionGridRightTarget(currentIndex = 0, itemCount = 12))
         assertEquals(5, televisionGridRightTarget(currentIndex = 4, itemCount = 12))
@@ -37,6 +53,27 @@ class NaviampTelevisionGridPolicyTest {
         assertEquals(5, televisionGridRowStart(itemIndex = 9, columnCount = 5))
         assertNull(televisionGridRowStart(itemIndex = -1, columnCount = 5))
         assertNull(televisionGridRowStart(itemIndex = 0, columnCount = 0))
+    }
+
+    @Test
+    fun televisionLibraryGroupsNumbersUnderOneShortcut() {
+        val shortcuts = televisionLibraryShortcuts()
+
+        assertEquals('#', shortcuts.first())
+        assertEquals(('A'..'Z').toList(), shortcuts.drop(1))
+    }
+
+    @Test
+    fun libraryShortcutTargetsTheRequestedOrNextAvailableSection() {
+        val titles = listOf("2Pac", "Air", "Can", "Massive Attack")
+
+        assertEquals(0, televisionLibraryShortcutTarget(titles, '#'))
+        assertEquals(1, televisionLibraryShortcutTarget(titles, 'A'))
+        assertEquals(2, televisionLibraryShortcutTarget(titles, 'B'))
+        assertNull(televisionLibraryShortcutTarget(titles, 'Z'))
+        assertEquals('M', televisionLibrarySection("  massive attack"))
+        assertEquals('#', televisionLibrarySection("2Pac"))
+        assertEquals('#', televisionLibrarySection("!!!"))
     }
 
     @Test

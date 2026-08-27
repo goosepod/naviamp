@@ -398,7 +398,8 @@ internal fun HomeCollectionArtwork(
 ) {
     val artwork = when (item.artwork) {
         SharedHomeCollectionArtwork.CoverArt -> {
-            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, 7.dp, modifier)
+            val cornerRadius = if (item.mediaKind == SharedMediaItemKind.Artist) size / 2 else 7.dp
+            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, cornerRadius, modifier)
             return
         }
         SharedHomeCollectionArtwork.NavibeatGenerated -> navibeatMixArtwork(item.artworkKey.orEmpty())

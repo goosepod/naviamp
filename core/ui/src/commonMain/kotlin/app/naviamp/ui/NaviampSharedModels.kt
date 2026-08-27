@@ -1051,6 +1051,7 @@ data class NowPlayingUi(
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
+    val queueCurrentIndex: Int? = null,
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),

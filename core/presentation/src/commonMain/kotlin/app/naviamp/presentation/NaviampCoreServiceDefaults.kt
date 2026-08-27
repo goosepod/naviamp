@@ -45,6 +45,7 @@ fun naviampCoreServiceDefaults(
         },
         artistDiscovery = NaviampCoreArtistDiscoveryServices(),
         sonicHomeDiscovery = libraryIndex?.let(::naviampCoreSonicHomeDiscoverySource),
+        libraryIndex = libraryIndex,
         externalUri = externalUri,
     ),
     connection = connection,

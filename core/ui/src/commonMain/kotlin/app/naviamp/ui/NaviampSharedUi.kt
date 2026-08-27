@@ -123,6 +123,7 @@ fun NaviampSharedAppShell(
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
     val nowPlaying = uiState.nowPlaying?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
     val selectedRoute = shellChrome.selectedRoute

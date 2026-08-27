@@ -1,6 +1,8 @@
 package app.naviamp.ui
 
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 
 /** Host-reported display surface; all resulting product composition remains shared. */
 enum class NaviampApplicationSurface {
@@ -34,10 +36,16 @@ fun naviampTelevisionDestinations(nowPlayingAvailable: Boolean = false): List<Na
 fun naviampSelectedTelevisionDestination(
     selectedRoute: SharedRoute,
     nowPlayingOpen: Boolean,
+    nowPlayingPreview: Boolean = false,
 ): NaviampTelevisionDestination? {
-    if (nowPlayingOpen) return NaviampTelevisionDestination.NowPlaying
+    if (nowPlayingOpen || nowPlayingPreview) return NaviampTelevisionDestination.NowPlaying
     return NaviampTelevisionDestination.entries.firstOrNull { it.route == selectedRoute }
 }
+
+fun naviampTelevisionNavigationEntersContent(
+    key: Key,
+    type: KeyEventType,
+): Boolean = key == Key.DirectionDown && type == KeyEventType.KeyDown
 
 fun naviampTelevisionNavigationFocusDestination(
     selected: NaviampTelevisionDestination?,

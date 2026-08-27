@@ -275,6 +275,22 @@ class PlaybackQueueGroupsTest {
         assertTrue(queue.moveToNext(2).groups.isEmpty())
         assertTrue(queue.shuffleUpcoming()!!.first.groups.isEmpty())
     }
+
+    @Test
+    fun arbitraryUpcomingMoveCarriesProfiledOccurrencesToTheirNewPositions() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("current"), track("unprofiled"), track("album-one"), track("album-two")),
+            currentIndex = 0,
+            groups = listOf(albumGroup(start = 2, end = 4)),
+        )
+
+        val moved = queue.moveUpcoming(fromIndex = 3, toIndex = 1)
+
+        assertEquals(listOf("current", "album-two", "unprofiled", "album-one"), moved.tracks.map { it.id.value })
+        assertEquals("album", moved.groupAt(1)?.id)
+        assertNull(moved.groupAt(2))
+        assertEquals(PlaybackTransitionMode.Gapless, moved.groupAt(3)?.profile?.transitionMode)
+    }
 }
 
 private fun albumGroup(

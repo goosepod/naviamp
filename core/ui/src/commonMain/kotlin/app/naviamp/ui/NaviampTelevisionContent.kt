@@ -1,7 +1,10 @@
 package app.naviamp.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -22,8 +25,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.requiredWidth
@@ -35,12 +40,14 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -84,6 +91,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -101,6 +110,8 @@ internal fun TelevisionHome(
     colors: NaviampColors,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
+    entryFocusGeneration: Int? = null,
+    onEntryFocusHandled: (Int) -> Unit = {},
 ) {
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
@@ -114,6 +125,16 @@ internal fun TelevisionHome(
     }
     var rememberedItemIndices by remember(sectionItemKeys) { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var focusedSectionIndex by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(entryFocusGeneration, sectionItemKeys) {
+        entryFocusGeneration?.let { generation ->
+            if (itemFocusRequesters.firstOrNull()?.isNotEmpty() == true) {
+                listState.scrollToItem(0)
+                withFrameNanos { }
+                itemFocusRequesters.first().first().requestFocus()
+            }
+            onEntryFocusHandled(generation)
+        }
+    }
     LaunchedEffect(focusedSectionIndex) {
         focusedSectionIndex?.let { sectionIndex ->
             listState.scrollToItem(
@@ -295,11 +316,16 @@ private fun TelevisionHomeCard(
         onClick = onClick,
         modifier = modifier,
     ) { focused ->
+        val artworkShape = if (item.mediaKind == SharedMediaItemKind.Artist) {
+            RoundedCornerShape(TelevisionHomeCardWidth / 2)
+        } else {
+            RoundedCornerShape(7.dp)
+        }
         HomeCollectionArtwork(
             item,
             colors,
             TelevisionHomeCardWidth,
-            Modifier.televisionFocusEffect(focused, colors, RoundedCornerShape(7.dp)),
+            Modifier.televisionMediaArtworkFocusEffect(focused, colors, artworkShape),
         )
         TelevisionCardLabels(item.title, item.subtitle, colors)
     }
@@ -311,35 +337,319 @@ internal fun TelevisionLibrary(
     colors: NaviampColors,
     actions: NaviampLibraryActions,
     mediaActions: NaviampMediaActions,
+    initialFocusedArtistIndex: Int = 0,
+    restoreArtistFocus: Boolean = false,
+    onArtistFocused: (Int) -> Unit = {},
+    onOpenArtist: () -> Unit = {},
     onOpenPlaylists: () -> Unit,
+    topNavigationFocusRequester: FocusRequester,
+    entryFocusGeneration: Int? = null,
+    onEntryFocusHandled: (Int) -> Unit = {},
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Spacer(Modifier.weight(1f))
-            TelevisionTextButton("Playlists", colors, onClick = onOpenPlaylists)
-            Box(modifier = Modifier.padding(start = 10.dp)) {
-                TelevisionTextButton("Refresh", colors, onClick = actions.onRefresh)
+    val shortcuts = televisionLibraryShortcuts()
+    val shortcutFocusRequesters = remember { shortcuts.associateWith { FocusRequester() } }
+    val playlistsFocusRequester = remember { FocusRequester() }
+    val refreshFocusRequester = remember { FocusRequester() }
+    var focusedArtistIndex by remember { mutableIntStateOf(initialFocusedArtistIndex) }
+    var pendingShortcut by remember { mutableStateOf<Char?>(null) }
+    var gridFocusRequest by remember { mutableStateOf<TelevisionGridFocusRequest?>(null) }
+    var gridFocusGeneration by remember { mutableIntStateOf(0) }
+    val focusArtist = { index: Int ->
+        gridFocusRequest = TelevisionGridFocusRequest(
+            index.coerceIn(screen.artists.indices),
+            ++gridFocusGeneration,
+        )
+    }
+    LaunchedEffect(entryFocusGeneration, screen.artists) {
+        entryFocusGeneration?.let { generation ->
+            if (screen.artists.isNotEmpty()) focusArtist(0)
+            onEntryFocusHandled(generation)
+        }
+    }
+    LaunchedEffect(screen.artists, pendingShortcut) {
+        val shortcut = pendingShortcut ?: return@LaunchedEffect
+        val target = televisionLibraryShortcutTarget(screen.artists.map { it.title }, shortcut) ?: return@LaunchedEffect
+        gridFocusRequest = TelevisionGridFocusRequest(target, ++gridFocusGeneration)
+        pendingShortcut = null
+    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = TelevisionLibraryContentStartInset),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Spacer(Modifier.weight(1f))
+                TelevisionTextButton(
+                    "Playlists",
+                    colors,
+                    onClick = onOpenPlaylists,
+                    modifier = Modifier
+                        .focusRequester(playlistsFocusRequester)
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            when (event.key) {
+                                Key.DirectionUp -> {
+                                    topNavigationFocusRequester.requestFocus()
+                                    true
+                                }
+                                Key.DirectionRight -> {
+                                    refreshFocusRequester.requestFocus()
+                                    true
+                                }
+                                Key.DirectionDown -> if (screen.artists.isNotEmpty()) {
+                                    focusArtist(0)
+                                    true
+                                } else {
+                                    false
+                                }
+                                else -> false
+                            }
+                        },
+                )
+                Box(modifier = Modifier.padding(start = 10.dp)) {
+                    TelevisionTextButton(
+                        "Refresh",
+                        colors,
+                        onClick = actions.onRefresh,
+                        modifier = Modifier
+                            .focusRequester(refreshFocusRequester)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                when (event.key) {
+                                    Key.DirectionUp -> {
+                                        topNavigationFocusRequester.requestFocus()
+                                        true
+                                    }
+                                    Key.DirectionLeft -> {
+                                        playlistsFocusRequester.requestFocus()
+                                        true
+                                    }
+                                    Key.DirectionDown -> if (screen.artists.isNotEmpty()) {
+                                        focusArtist(0)
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                    else -> false
+                                }
+                            },
+                    )
+                }
+            }
+            screen.syncStatus.message?.let {
+                Text(it, color = colors.secondaryText, fontSize = 15.sp)
+            }
+            if (screen.artists.isEmpty()) {
+                Text("No artists are available.", color = colors.secondaryText, fontSize = 20.sp)
+            } else {
+                TelevisionMediaGrid(
+                    items = screen.artists.map { artist ->
+                        TelevisionMediaGridItem(
+                            key = "artist:${artist.id}",
+                            title = artist.title,
+                            subtitle = artist.subtitle,
+                            coverArtUrl = artist.coverArtUrl,
+                            artworkShape = TelevisionArtworkShape.Circle,
+                            action = {
+                                onOpenArtist()
+                                mediaActions.onMediaItemAction(
+                                    artist.artistActionRequest(NaviampArtistMediaCommand.Select),
+                                )
+                            },
+                        )
+                    },
+                    colors = colors,
+                    focusRequest = gridFocusRequest ?: if (
+                        restoreArtistFocus && initialFocusedArtistIndex in screen.artists.indices
+                    ) {
+                        TelevisionGridFocusRequest(initialFocusedArtistIndex, -1)
+                    } else {
+                        null
+                    },
+                    onItemFocused = {
+                        focusedArtistIndex = it
+                        onArtistFocused(it)
+                    },
+                    onLeftFromFirstColumn = {
+                        val section = televisionLibrarySection(screen.artists[focusedArtistIndex].title)
+                        shortcutFocusRequesters[section]?.requestFocus()
+                        Unit
+                    },
+                    onUpFromFirstRow = {
+                        playlistsFocusRequester.requestFocus()
+                        Unit
+                    },
+                )
             }
         }
-        screen.syncStatus.message?.let {
-            Text(it, color = colors.secondaryText, fontSize = 15.sp)
+        if (screen.artists.isNotEmpty()) {
+            LazyColumn(
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .requiredWidth(TelevisionLibraryShortcutRailWidth)
+                    .fillMaxHeight(),
+            ) {
+                itemsIndexed(shortcuts, key = { _, shortcut -> shortcut }) { _, shortcut ->
+                    TelevisionLibraryShortcut(
+                        shortcut = shortcut,
+                        colors = colors,
+                        focusRequester = shortcutFocusRequesters.getValue(shortcut),
+                        onClick = {
+                            pendingShortcut = shortcut
+                            actions.onJumpToLetter(shortcut)
+                        },
+                        onRight = { focusArtist(0) },
+                    )
+                }
+            }
         }
-        if (screen.artists.isEmpty()) {
-            Text("No artists are available.", color = colors.secondaryText, fontSize = 20.sp)
+    }
+}
+
+@Composable
+private fun TelevisionLibraryShortcut(
+    shortcut: Char,
+    colors: NaviampColors,
+    focusRequester: FocusRequester,
+    onClick: () -> Unit,
+    onRight: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(999.dp)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .requiredSize(TelevisionLibraryShortcutSize)
+            .focusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                    onRight()
+                    true
+                } else if (
+                    event.type == KeyEventType.KeyUp &&
+                    (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.Spacebar)
+                ) {
+                    onClick()
+                    true
+                } else {
+                    false
+                }
+            }
+            .focusable()
+            .televisionFocusEffect(focused, colors, shape)
+            .clip(shape)
+            .background(if (focused) colors.accent else colors.controlSurface.copy(alpha = 0.88f)),
+    ) {
+        Text(
+            text = shortcut.toString(),
+            color = colors.primaryText,
+            fontSize = 8.sp,
+            lineHeight = 8.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier.offset(y = (-0.5).dp),
+        )
+    }
+}
+
+internal fun televisionLibraryShortcuts(): List<Char> = listOf('#') + ('A'..'Z')
+
+internal fun televisionLibrarySection(title: String): Char =
+    title.trim().firstOrNull()?.uppercaseChar()?.takeIf { it.isLetter() } ?: '#'
+
+internal fun televisionLibraryShortcutTarget(titles: List<String>, shortcut: Char): Int? {
+    val normalized = shortcut.uppercaseChar()
+    return titles.indexOfFirst { title ->
+        val section = televisionLibrarySection(title)
+        if (normalized == '#') section == '#' else section != '#' && section >= normalized
+    }.takeIf { it >= 0 }
+}
+
+private data class TelevisionGridFocusRequest(val index: Int, val generation: Int)
+
+@Composable
+internal fun TelevisionPlaylists(
+    screen: NaviampPlaylistsScreenUi,
+    colors: NaviampColors,
+    actions: NaviampPlaylistsActions,
+    mediaActions: NaviampMediaActions,
+    topNavigationFocusRequester: FocusRequester,
+    entryFocusGeneration: Int? = null,
+    onEntryFocusHandled: (Int) -> Unit = {},
+) {
+    val playlists = screen.playlists.sortedForPlaylistScreen(screen.sortMode, screen.recentPlaylistIds)
+    var gridFocusGeneration by remember { mutableIntStateOf(0) }
+    var gridFocusRequest by remember { mutableStateOf<TelevisionGridFocusRequest?>(null) }
+    val enterGrid: () -> Unit = {
+        if (playlists.isNotEmpty()) {
+            gridFocusRequest = TelevisionGridFocusRequest(0, ++gridFocusGeneration)
+        }
+    }
+    LaunchedEffect(entryFocusGeneration, playlists) {
+        entryFocusGeneration?.let { generation ->
+            enterGrid()
+            onEntryFocusHandled(generation)
+        }
+    }
+    val headerModifier = Modifier.onPreviewKeyEvent { event ->
+        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown && playlists.isNotEmpty()) {
+            enterGrid()
+            true
+        } else {
+            false
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Playlists", color = colors.primaryText, fontSize = 28.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.weight(1f))
+            SharedPlaylistSortMode.entries.forEach { mode ->
+                TelevisionTextButton(
+                    label = mode.label,
+                    colors = colors,
+                    selected = screen.sortMode == mode,
+                    onClick = { actions.onSortModeChanged(mode) },
+                    modifier = headerModifier,
+                )
+            }
+            TelevisionTextButton(
+                label = if (screen.refreshing) "Refreshing…" else "Refresh",
+                colors = colors,
+                onClick = actions.onRefresh,
+                modifier = headerModifier,
+            )
+        }
+        screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 15.sp) }
+        if (playlists.isEmpty()) {
+            Text("No playlists are available.", color = colors.secondaryText, fontSize = 20.sp)
         } else {
             TelevisionMediaGrid(
-                items = screen.artists.map { artist ->
+                items = playlists.map { playlist ->
                     TelevisionMediaGridItem(
-                        key = "artist:${artist.id}",
-                        title = artist.title,
-                        subtitle = artist.subtitle,
-                        coverArtUrl = artist.coverArtUrl,
+                        key = "playlist:${playlist.id}",
+                        title = playlist.title,
+                        subtitle = playlist.subtitle,
+                        coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
                         action = {
-                            mediaActions.onMediaItemAction(artist.artistActionRequest(NaviampArtistMediaCommand.Select))
+                            mediaActions.onMediaItemAction(
+                                playlist.playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+                            )
                         },
                     )
                 },
                 colors = colors,
+                focusRequest = gridFocusRequest,
+                onUpFromFirstRow = {
+                    topNavigationFocusRequester.requestFocus()
+                    Unit
+                },
             )
         }
     }
@@ -350,8 +660,14 @@ private data class TelevisionMediaGridItem(
     val title: String,
     val subtitle: String,
     val coverArtUrl: String?,
+    val artworkShape: TelevisionArtworkShape = TelevisionArtworkShape.RoundedSquare,
     val action: () -> Unit,
 )
+
+private enum class TelevisionArtworkShape {
+    RoundedSquare,
+    Circle,
+}
 
 @Composable
 internal fun TelevisionSearch(
@@ -359,6 +675,8 @@ internal fun TelevisionSearch(
     colors: NaviampColors,
     actions: NaviampSearchActions,
     mediaActions: NaviampMediaActions,
+    entryFocusGeneration: Int? = null,
+    onEntryFocusHandled: (Int) -> Unit = {},
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFieldFocusRequester = remember { FocusRequester() }
@@ -367,6 +685,16 @@ internal fun TelevisionSearch(
     var resultsActive by remember { mutableStateOf(false) }
     var searchHeaderVisible by remember { mutableStateOf(true) }
     var returnFocusToSearch by remember { mutableStateOf(false) }
+    LaunchedEffect(entryFocusGeneration) {
+        entryFocusGeneration?.let { generation ->
+            searchHeaderVisible = true
+            withFrameNanos { }
+            searchFieldFocusRequester.requestFocus()
+            keyboardController?.show()
+            keyboardActive = true
+            onEntryFocusHandled(generation)
+        }
+    }
     val submitSearch = {
         actions.onSearch()
         if (searchFieldFocused) {
@@ -402,9 +730,16 @@ internal fun TelevisionSearch(
     val items = buildList {
         results.artists.forEach { artist ->
             add(
-                TelevisionMediaGridItem("artist:${artist.id}", artist.title, artist.subtitle, artist.coverArtUrl) {
-                    mediaActions.onMediaItemAction(artist.artistActionRequest(NaviampArtistMediaCommand.Select))
-                },
+                TelevisionMediaGridItem(
+                    key = "artist:${artist.id}",
+                    title = artist.title,
+                    subtitle = artist.subtitle,
+                    coverArtUrl = artist.coverArtUrl,
+                    artworkShape = TelevisionArtworkShape.Circle,
+                    action = {
+                        mediaActions.onMediaItemAction(artist.artistActionRequest(NaviampArtistMediaCommand.Select))
+                    },
+                ),
             )
         }
         results.albums.forEach { album ->
@@ -443,9 +778,10 @@ internal fun TelevisionSearch(
                             if (
                                 event.type == KeyEventType.KeyDown &&
                                 event.key == Key.DirectionDown &&
-                                !keyboardActive &&
                                 items.isNotEmpty()
                             ) {
+                                keyboardController?.hide()
+                                keyboardActive = false
                                 resultsActive = true
                                 searchHeaderVisible = false
                                 true
@@ -457,7 +793,19 @@ internal fun TelevisionSearch(
                 TelevisionTextButton(
                     label = if (screen.searching) "Searching…" else "Search",
                     colors = colors,
+                    calmFocus = true,
                     onClick = submitSearch,
+                    modifier = Modifier.onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown && items.isNotEmpty()) {
+                            keyboardController?.hide()
+                            keyboardActive = false
+                            resultsActive = true
+                            searchHeaderVisible = false
+                            true
+                        } else {
+                            false
+                        }
+                    },
                 )
             }
         }
@@ -489,15 +837,22 @@ internal fun televisionSearchBackTarget(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun TelevisionMediaGrid(
     items: List<TelevisionMediaGridItem>,
     colors: NaviampColors,
     focusFirstItem: Boolean = false,
+    focusRequest: TelevisionGridFocusRequest? = null,
+    onItemFocused: (Int) -> Unit = {},
+    onLeftFromFirstColumn: (() -> Unit)? = null,
+    onUpFromFirstRow: (() -> Unit)? = null,
 ) {
     val itemKeys = items.map { it.key }
     val focusRequesters = remember(itemKeys) { List(items.size) { FocusRequester() } }
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val focusedRowInsetPx = with(density) { TelevisionGridFocusedRowTopInset.roundToPx() }
     var focusedRowStart by remember { mutableStateOf<Int?>(null) }
 
     suspend fun focusItem(index: Int) {
@@ -510,35 +865,59 @@ private fun TelevisionMediaGrid(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val columnCount = televisionGridColumnCount(maxWidth)
-        LaunchedEffect(focusedRowStart) {
-            focusedRowStart?.let { gridState.animateScrollToItem(it) }
+        LaunchedEffect(focusRequest?.generation, itemKeys) {
+            focusRequest?.index?.takeIf { it in items.indices }?.let { focusItem(it) }
         }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columnCount),
-            state = gridState,
-            horizontalArrangement = Arrangement.spacedBy(TelevisionGridSpacing),
-            verticalArrangement = Arrangement.spacedBy(22.dp),
-            contentPadding = PaddingValues(TelevisionFocusedItemOverflow),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            gridItemsIndexed(items, key = { _, item -> item.key }) { index, item ->
+        LaunchedEffect(focusedRowStart) {
+            focusedRowStart?.let { gridState.scrollToItem(it, -focusedRowInsetPx) }
+        }
+        CompositionLocalProvider(LocalBringIntoViewSpec provides TelevisionGridBringIntoViewSpec) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columnCount),
+                state = gridState,
+                horizontalArrangement = Arrangement.spacedBy(TelevisionGridSpacing),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
+                contentPadding = PaddingValues(TelevisionFocusedItemOverflow),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                gridItemsIndexed(items, key = { _, item -> item.key }) { index, item ->
                 if (index == 0) {
                     LaunchedEffect(focusFirstItem, item.key) {
                         if (focusFirstItem) focusItem(0)
                     }
                 }
-                TelevisionMediaGridCard(
+                    TelevisionMediaGridCard(
                     title = item.title,
                     subtitle = item.subtitle,
                     coverArtUrl = item.coverArtUrl,
+                    artworkShape = item.artworkShape,
                     colors = colors,
                     onFocused = {
                         focusedRowStart = televisionGridRowStart(index, columnCount)
+                        onItemFocused(index)
                     },
                     onClick = item.action,
                     modifier = Modifier
                         .focusRequester(focusRequesters[index])
                         .onPreviewKeyEvent { event ->
+                            if (
+                                event.type == KeyEventType.KeyDown &&
+                                event.key == Key.DirectionUp &&
+                                index < columnCount &&
+                                onUpFromFirstRow != null
+                            ) {
+                                onUpFromFirstRow()
+                                return@onPreviewKeyEvent true
+                            }
+                            if (
+                                event.type == KeyEventType.KeyDown &&
+                                event.key == Key.DirectionLeft &&
+                                index % columnCount == 0 &&
+                                onLeftFromFirstColumn != null
+                            ) {
+                                onLeftFromFirstColumn()
+                                return@onPreviewKeyEvent true
+                            }
                             val nextIndex = televisionGridRightTarget(index, items.size)
                             if (
                                 event.type == KeyEventType.KeyDown &&
@@ -553,10 +932,16 @@ private fun TelevisionMediaGrid(
                                 false
                             }
                         },
-                )
+                    )
+                }
             }
         }
     }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+private object TelevisionGridBringIntoViewSpec : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
 
 internal fun televisionGridRightTarget(currentIndex: Int, itemCount: Int): Int? =
@@ -575,11 +960,17 @@ private fun TelevisionMediaGridCard(
     title: String,
     subtitle: String,
     coverArtUrl: String?,
+    artworkShape: TelevisionArtworkShape,
     colors: NaviampColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onFocused: () -> Unit = {},
 ) {
+    val cornerRadius = when (artworkShape) {
+        TelevisionArtworkShape.RoundedSquare -> 12.dp
+        TelevisionArtworkShape.Circle -> TelevisionGridArtworkSize / 2
+    }
+    val shape = RoundedCornerShape(cornerRadius)
     TelevisionFocusableCard(
         colors = colors,
         width = TelevisionGridCardWidth,
@@ -591,8 +982,8 @@ private fun TelevisionMediaGridCard(
             coverArtUrl,
             colors,
             TelevisionGridArtworkSize,
-            12.dp,
-            Modifier.televisionFocusEffect(focused, colors, RoundedCornerShape(12.dp)),
+            cornerRadius,
+            Modifier.televisionMediaArtworkFocusEffect(focused, colors, shape),
         )
         TelevisionCardLabels(title, subtitle, colors)
     }
@@ -686,42 +1077,130 @@ internal fun televisionHomeVerticalSectionTarget(
 internal fun televisionHomeRememberedItemIndex(rememberedIndex: Int?, itemCount: Int): Int =
     if (itemCount <= 0) 0 else (rememberedIndex ?: 0).coerceIn(0, itemCount - 1)
 
+internal data class TelevisionQueueReorderState(
+    val sourceQueueIndex: Int,
+    val destinationQueueIndex: Int,
+    val firstUpcomingQueueIndex: Int,
+    val items: List<NaviampNowPlayingItemUi>,
+)
+
+internal fun televisionQueueBeginReorder(
+    items: List<NaviampNowPlayingItemUi>,
+    itemIndex: Int,
+): TelevisionQueueReorderState? {
+    val item = items.getOrNull(itemIndex) ?: return null
+    val sourceQueueIndex = nowPlayingQueueIndex(item) ?: return null
+    val firstUpcomingQueueIndex = items.firstOrNull()?.let(::nowPlayingQueueIndex) ?: return null
+    return TelevisionQueueReorderState(
+        sourceQueueIndex = sourceQueueIndex,
+        destinationQueueIndex = sourceQueueIndex,
+        firstUpcomingQueueIndex = firstUpcomingQueueIndex,
+        items = items,
+    )
+}
+
+internal fun televisionQueueMoveReorder(
+    state: TelevisionQueueReorderState,
+    direction: Int,
+): TelevisionQueueReorderState {
+    val currentIndex = state.destinationQueueIndex - state.firstUpcomingQueueIndex
+    val destinationIndex = (currentIndex + direction).coerceIn(state.items.indices)
+    if (destinationIndex == currentIndex) return state
+    val reordered = state.items.toMutableList().apply {
+        add(destinationIndex, removeAt(currentIndex))
+    }
+    return state.copy(
+        destinationQueueIndex = state.firstUpcomingQueueIndex + destinationIndex,
+        items = reordered,
+    )
+}
+
 @Composable
 internal fun TelevisionNowPlaying(
     nowPlaying: NowPlayingUi,
     playbackProgress: StateFlow<PlaybackProgress>?,
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
+    interactive: Boolean = true,
     onClose: () -> Unit,
-    onSearch: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
-    NaviampSystemBackHandler(enabled = true, onBack = onClose)
+    val queueButtonFocusRequester = remember { FocusRequester() }
+    var queueOpen by remember { mutableStateOf(false) }
+    var queueActionItem by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
+    var queueReorder by remember { mutableStateOf<TelevisionQueueReorderState?>(null) }
+    var restoreQueueButtonFocus by remember { mutableStateOf(false) }
+    NaviampSystemBackHandler(enabled = interactive) {
+        when {
+            queueReorder != null -> queueReorder = null
+            queueOpen -> {
+                queueOpen = false
+                queueActionItem = null
+                restoreQueueButtonFocus = true
+            }
+            else -> onClose()
+        }
+    }
+    LaunchedEffect(nowPlaying.id) {
+        queueReorder = null
+        queueActionItem = null
+    }
+    LaunchedEffect(queueOpen, restoreQueueButtonFocus) {
+        if (!queueOpen && restoreQueueButtonFocus) {
+            withFrameNanos { }
+            queueButtonFocusRequester.requestFocus()
+            restoreQueueButtonFocus = false
+        }
+    }
     val progress = playbackProgress?.collectAsState()?.value
         ?: PlaybackProgress(nowPlaying.positionSeconds, nowPlaying.durationSeconds)
     val duration = progress.durationSeconds ?: nowPlaying.durationSeconds
     val progressFraction = playbackFraction(progress.positionSeconds, duration).toFloat()
-    val listeningModeFocusRequester = remember(nowPlaying.id) { FocusRequester() }
-    var controlsVisible by remember(nowPlaying.id) { mutableStateOf(true) }
-    var interactionSequence by remember(nowPlaying.id) { mutableIntStateOf(0) }
-    var consumedWakeKey by remember(nowPlaying.id) { mutableStateOf<Key?>(null) }
-    LaunchedEffect(nowPlaying.id, controlsVisible, interactionSequence) {
-        if (controlsVisible) {
+    val listeningModeFocusRequester = remember { FocusRequester() }
+    var controlsVisible by remember(interactive) { mutableStateOf(interactive) }
+    var interactionSequence by remember { mutableIntStateOf(0) }
+    var consumedWakeKey by remember { mutableStateOf<Key?>(null) }
+    LaunchedEffect(controlsVisible, interactionSequence, interactive, queueOpen) {
+        if (interactive && controlsVisible && !queueOpen) {
             delay(TelevisionNowPlayingControlsTimeoutMillis)
             controlsVisible = false
         }
     }
-    LaunchedEffect(controlsVisible) {
-        if (!controlsVisible) {
+    LaunchedEffect(controlsVisible, interactive) {
+        if (interactive && !controlsVisible) {
+            delay(TelevisionListeningModeTransitionMillis.toLong())
             repeat(TelevisionFocusRequestAttempts) {
                 withFrameNanos { }
                 if (listeningModeFocusRequester.requestFocus()) return@LaunchedEffect
             }
         }
     }
+    val listeningMode = !controlsVisible
+    val listeningCoverArtSize by animateDpAsState(
+        targetValue = if (listeningMode) 310.dp else 270.dp,
+        animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
+        label = "TV listening-mode cover art size",
+    )
+    val listeningCoverArtRadius by animateDpAsState(
+        targetValue = if (listeningMode) 22.dp else 18.dp,
+        animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
+        label = "TV listening-mode cover art radius",
+    )
+    val listeningScrubberHeight by animateDpAsState(
+        targetValue = if (listeningMode) 60.dp else 46.dp,
+        animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
+        label = "TV listening-mode scrubber height",
+    )
+    val listeningScrubberPadding by animateDpAsState(
+        targetValue = if (listeningMode) 9.dp else 5.dp,
+        animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
+        label = "TV listening-mode scrubber padding",
+    )
     Box(
         modifier = Modifier
             .fillMaxSize()
             .onPreviewKeyEvent { event ->
+                if (!interactive) return@onPreviewKeyEvent false
                 when {
                     consumedWakeKey == event.key && event.type == KeyEventType.KeyUp -> {
                         consumedWakeKey = null
@@ -743,7 +1222,6 @@ internal fun TelevisionNowPlaying(
             },
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 24.dp),
         ) {
             Row(
@@ -751,8 +1229,37 @@ internal fun TelevisionNowPlaying(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
-                NaviampCoverArt(nowPlaying.coverArtUrl, colors, 270.dp, 18.dp)
-                if (nowPlaying.lyricsVisible) {
+                NaviampCoverArt(
+                    nowPlaying.coverArtUrl,
+                    colors,
+                    listeningCoverArtSize,
+                    listeningCoverArtRadius,
+                    decodeSize = 310.dp,
+                )
+                if (queueOpen) {
+                    TelevisionNowPlayingQueue(
+                        nowPlaying = nowPlaying,
+                        colors = colors,
+                        reorder = queueReorder,
+                        onReorderChanged = { queueReorder = it },
+                        onPlay = { item ->
+                            if (
+                                nowPlaying.isPaused &&
+                                nowPlayingQueueIndex(item) == nowPlaying.queueCurrentIndex
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.Resume)
+                            } else {
+                                actions.selectItem(item, NowPlayingSelectionAction.SelectQueueItem)
+                            }
+                        },
+                        onOpenActions = { queueActionItem = it },
+                        onCommitReorder = { state ->
+                            actions.moveQueueItem(state.sourceQueueIndex, state.destinationQueueIndex)
+                            queueReorder = null
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                } else if (nowPlaying.lyricsVisible) {
                     TelevisionLyrics(nowPlaying, progress.positionSeconds, colors, Modifier.weight(1f))
                 } else {
                     Column(
@@ -775,7 +1282,7 @@ internal fun TelevisionNowPlaying(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        val album = nowPlaying.albumTitle.ifBlank { nowPlaying.albumLine }
+                        val album = nowPlaying.albumLine.ifBlank { nowPlaying.albumTitle }
                         if (album.isNotBlank()) {
                             Text(album, color = colors.mutedText, fontSize = 18.sp, maxLines = 1)
                         }
@@ -785,13 +1292,14 @@ internal fun TelevisionNowPlaying(
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(TelevisionNowPlayingScrubberTestTag)
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                    .padding(horizontal = 12.dp, vertical = listeningScrubberPadding),
             ) {
                 Text(
                     televisionSecondsLabel(progress.positionSeconds),
@@ -802,25 +1310,54 @@ internal fun TelevisionNowPlaying(
                     amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
                     value = progressFraction.coerceIn(0f, 1f),
                     enabled = false,
+                    smoothProgress = nowPlaying.isPlaying,
+                    durationSeconds = duration,
                     colors = colors,
                     onValueChange = {},
                     onValueChangeFinished = {},
-                    modifier = Modifier.weight(1f).height(46.dp),
+                    modifier = Modifier.weight(1f).height(listeningScrubberHeight),
                 )
                 Text(televisionSecondsLabel(duration), color = colors.secondaryText, fontSize = 15.sp)
             }
             AnimatedVisibility(
                 visible = controlsVisible,
-                enter = fadeIn(tween(TelevisionFocusAnimationMillis)),
-                exit = fadeOut(tween(TelevisionFocusAnimationMillis)),
+                enter = fadeIn(
+                    tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
+                ) + expandVertically(
+                    animationSpec = tween(
+                        TelevisionListeningModeTransitionMillis,
+                        easing = FastOutSlowInEasing,
+                    ),
+                    expandFrom = Alignment.CenterVertically,
+                ),
+                exit = fadeOut(
+                    tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
+                ) + shrinkVertically(
+                    animationSpec = tween(
+                        TelevisionListeningModeTransitionMillis,
+                        easing = FastOutSlowInEasing,
+                    ),
+                    shrinkTowards = Alignment.CenterVertically,
+                ),
             ) {
-                Box(modifier = Modifier.fillMaxWidth().height(70.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(86.dp)
+                        .padding(top = 16.dp),
+                ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.align(Alignment.Center),
                     ) {
-                        TelevisionIconButton(nowPlaying.hasPrevious, NaviampTransportIcons.Previous, "Previous", colors) {
+                        TelevisionIconButton(
+                            nowPlaying.hasPrevious,
+                            NaviampTransportIcons.Previous,
+                            "Previous",
+                            colors,
+                            whiteHighlight = true,
+                        ) {
                             actions.playback(NowPlayingPlaybackAction.Previous)
                         }
                         TelevisionIconButton(
@@ -830,7 +1367,8 @@ internal fun TelevisionNowPlaying(
                             colors = colors,
                             size = 64.dp,
                             prominent = true,
-                            initiallyFocused = true,
+                            whiteHighlight = true,
+                            initiallyFocused = interactive,
                         ) {
                             actions.playback(
                                 when {
@@ -840,33 +1378,111 @@ internal fun TelevisionNowPlaying(
                                 },
                             )
                         }
-                        TelevisionIconButton(nowPlaying.hasNext, NaviampTransportIcons.Next, "Next", colors) {
+                        TelevisionIconButton(
+                            nowPlaying.hasNext,
+                            NaviampTransportIcons.Next,
+                            "Next",
+                            colors,
+                            whiteHighlight = true,
+                        ) {
                             actions.playback(NowPlayingPlaybackAction.Next)
                         }
                     }
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.align(Alignment.CenterEnd),
                     ) {
-                        TelevisionIconButton(nowPlaying.lyricsAvailable, NaviampTransportIcons.Lyrics, "Lyrics", colors, selected = nowPlaying.lyricsVisible) {
-                            actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                        TelevisionIconButton(
+                            nowPlaying.lyricsAvailable,
+                            NaviampTransportIcons.Lyrics,
+                            "Lyrics",
+                            colors,
+                            size = TelevisionNowPlayingSecondaryButtonSize,
+                            iconSize = TelevisionNowPlayingSecondaryIconSize,
+                            selected = nowPlaying.lyricsVisible && !queueOpen,
+                            whiteHighlight = true,
+                        ) {
+                            if (queueOpen) {
+                                queueOpen = false
+                                if (!nowPlaying.lyricsVisible) actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                            } else {
+                                actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                            }
                         }
-                        TelevisionIconButton(nowPlaying.canFavorite, if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart, "Favorite", colors, selected = nowPlaying.favoriteActive) {
+                        TelevisionIconButton(
+                            enabled = nowPlaying.queueCurrentIndex != null,
+                            icon = NaviampIcons.Queue,
+                            description = "Queue",
+                            colors = colors,
+                            size = TelevisionNowPlayingSecondaryButtonSize,
+                            iconSize = TelevisionNowPlayingSecondaryIconSize,
+                            selected = queueOpen,
+                            whiteHighlight = true,
+                            focusRequester = queueButtonFocusRequester,
+                        ) {
+                            queueOpen = !queueOpen
+                            queueActionItem = null
+                            queueReorder = null
+                        }
+                        TelevisionIconButton(
+                            nowPlaying.canFavorite,
+                            if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
+                            "Favorite",
+                            colors,
+                            size = TelevisionNowPlayingSecondaryButtonSize,
+                            iconSize = TelevisionNowPlayingSecondaryIconSize,
+                            selected = nowPlaying.favoriteActive,
+                            whiteHighlight = true,
+                            selectedKeepsDarkBackground = true,
+                            iconTint = Color(0xFFFF4D5A).takeIf { nowPlaying.favoriteActive },
+                        ) {
                             actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
                         }
-                        TelevisionIconButton(nowPlaying.canRepeat, NaviampTransportIcons.Repeat, "Repeat", colors, selected = nowPlaying.repeatMode != NaviampRepeatMode.Off) {
+                        TelevisionIconButton(
+                            enabled = nowPlaying.canRepeat,
+                            icon = NaviampTransportIcons.Repeat,
+                            description = televisionRepeatModeDescription(nowPlaying.repeatMode),
+                            colors = colors,
+                            size = TelevisionNowPlayingSecondaryButtonSize,
+                            iconSize = TelevisionNowPlayingSecondaryIconSize,
+                            selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
+                            centerText = when (nowPlaying.repeatMode) {
+                                NaviampRepeatMode.Off -> null
+                                NaviampRepeatMode.Queue -> "ALL"
+                                NaviampRepeatMode.Track -> "1"
+                            },
+                            whiteHighlight = true,
+                        ) {
                             actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
                         }
-                        TelevisionIconButton(nowPlaying.shuffleEnabled, NaviampTransportIcons.Shuffle, "Shuffle", colors, selected = nowPlaying.shuffleActive) {
+                        TelevisionIconButton(
+                            nowPlaying.shuffleEnabled,
+                            NaviampTransportIcons.Shuffle,
+                            "Shuffle",
+                            colors,
+                            size = TelevisionNowPlayingSecondaryButtonSize,
+                            iconSize = TelevisionNowPlayingSecondaryIconSize,
+                            selected = nowPlaying.shuffleActive,
+                            whiteHighlight = true,
+                        ) {
                             actions.playback(NowPlayingPlaybackAction.ToggleShuffle)
                         }
-                        TelevisionIconButton(true, NaviampIcons.Search, "Search", colors, onClick = onSearch)
+                        TelevisionIconButton(
+                            true,
+                            NaviampIcons.Settings,
+                            "Settings",
+                            colors,
+                            size = TelevisionNowPlayingSecondaryButtonSize,
+                            iconSize = TelevisionNowPlayingSecondaryIconSize,
+                            whiteHighlight = true,
+                            onClick = onOpenSettings,
+                        )
                     }
                 }
             }
         }
-        if (!controlsVisible) {
+        if (interactive && !controlsVisible) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -876,6 +1492,270 @@ internal fun TelevisionNowPlaying(
                     .focusable(),
             )
         }
+    }
+    queueActionItem?.let { item ->
+        TelevisionQueueActionsDialog(
+            item = item,
+            colors = colors,
+            onDismiss = { queueActionItem = null },
+            onAction = { action ->
+                actions.onQueueItemAction(nowPlayingItemActionRequest(item, action))
+                queueActionItem = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun TelevisionNowPlayingQueue(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    reorder: TelevisionQueueReorderState?,
+    onReorderChanged: (TelevisionQueueReorderState?) -> Unit,
+    onPlay: (NaviampNowPlayingItemUi) -> Unit,
+    onOpenActions: (NaviampNowPlayingItemUi) -> Unit,
+    onCommitReorder: (TelevisionQueueReorderState) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val upcoming = reorder?.items ?: nowPlaying.upNext
+    val listState = rememberLazyListState()
+    val currentFocusRequester = remember { FocusRequester() }
+    val upcomingFocusRequesters = remember(upcoming.size) { List(upcoming.size) { FocusRequester() } }
+    val currentItem = remember(nowPlaying.id, nowPlaying.queueCurrentIndex) {
+        NaviampNowPlayingItemUi(
+            id = nowPlaying.queueCurrentIndex?.let(::nowPlayingQueueItemId) ?: "current:${nowPlaying.id}",
+            title = nowPlaying.title,
+            subtitle = nowPlaying.subtitle,
+            meta = nowPlaying.albumLine.ifBlank { nowPlaying.albumTitle },
+            coverArtUrl = nowPlaying.coverArtUrl,
+            artistCredits = nowPlaying.artistCredits,
+        )
+    }
+    LaunchedEffect(Unit) {
+        repeat(TelevisionFocusRequestAttempts) {
+            withFrameNanos { }
+            val requester = upcomingFocusRequesters.firstOrNull() ?: currentFocusRequester
+            if (requester.requestFocus()) return@LaunchedEffect
+        }
+    }
+    LaunchedEffect(reorder?.destinationQueueIndex) {
+        val state = reorder ?: return@LaunchedEffect
+        val index = state.destinationQueueIndex - state.firstUpcomingQueueIndex
+        if (index in upcomingFocusRequesters.indices) {
+            withFrameNanos { }
+            upcomingFocusRequesters[index].requestFocus()
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier.fillMaxHeight()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text("QUEUE", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.weight(1f))
+            Text(
+                if (reorder == null) "Left: move  •  Right: actions" else "Up/Down: move  •  Select/Right: place  •  Back: cancel",
+                color = colors.mutedText,
+                fontSize = 13.sp,
+            )
+        }
+        TelevisionQueueRow(
+            item = currentItem,
+            colors = colors,
+            label = "NOW PLAYING",
+            focusRequester = currentFocusRequester,
+            onClick = { onPlay(currentItem) },
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .testTag(TelevisionNowPlayingQueueCurrentTestTag)
+                .onPreviewKeyEvent { event ->
+                    if (
+                        event.type == KeyEventType.KeyDown &&
+                        event.key == Key.DirectionDown &&
+                        upcomingFocusRequesters.isNotEmpty()
+                    ) {
+                        upcomingFocusRequesters.first().requestFocus()
+                        true
+                    } else false
+                },
+        )
+        LazyColumn(
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .testTag(TelevisionNowPlayingQueueTestTag),
+        ) {
+            if (upcoming.isEmpty()) item(key = "empty") {
+                Text(
+                    "Nothing else is queued.",
+                    color = colors.secondaryText,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
+                )
+            }
+            itemsIndexed(
+                items = upcoming,
+                key = { index, _ -> "upcoming-position:$index" },
+            ) { index, item ->
+                val moving = reorder != null &&
+                    reorder.destinationQueueIndex == reorder.firstUpcomingQueueIndex + index
+                TelevisionQueueRow(
+                    item = item,
+                    colors = colors,
+                    label = when {
+                        moving -> "MOVING"
+                        item.playNextPriority -> "PLAY NEXT"
+                        else -> null
+                    },
+                    moving = moving,
+                    focusRequester = upcomingFocusRequesters[index],
+                    onClick = { onPlay(item) },
+                    modifier = Modifier
+                        .testTag("$TelevisionNowPlayingQueueUpcomingTestTagPrefix$index")
+                        .onPreviewKeyEvent { event ->
+                        when {
+                            reorder != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp -> {
+                                onReorderChanged(televisionQueueMoveReorder(reorder, -1))
+                                true
+                            }
+                            reorder != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown -> {
+                                onReorderChanged(televisionQueueMoveReorder(reorder, 1))
+                                true
+                            }
+                            reorder != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight -> {
+                                onCommitReorder(reorder)
+                                true
+                            }
+                            reorder != null && event.type == KeyEventType.KeyUp &&
+                                (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.Spacebar) -> {
+                                onCommitReorder(reorder)
+                                true
+                            }
+                            reorder == null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft -> {
+                                onReorderChanged(televisionQueueBeginReorder(nowPlaying.upNext, index))
+                                true
+                            }
+                            reorder == null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight -> {
+                                onOpenActions(item)
+                                true
+                            }
+                            index == 0 && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp -> {
+                                currentFocusRequester.requestFocus()
+                                true
+                            }
+                            else -> false
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TelevisionQueueRow(
+    item: NaviampNowPlayingItemUi,
+    colors: NaviampColors,
+    label: String?,
+    focusRequester: FocusRequester,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    moving: Boolean = false,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .onKeyEvent { event ->
+                if (
+                    event.type == KeyEventType.KeyUp &&
+                    (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.Spacebar)
+                ) {
+                    onClick()
+                    true
+                } else false
+            }
+            .focusable()
+            .televisionFocusEffect(focused, colors, shape)
+            .clip(shape)
+            .background(
+                when {
+                    moving -> colors.accent.copy(alpha = 0.52f)
+                    focused -> colors.accent.copy(alpha = 0.34f)
+                    label == "NOW PLAYING" -> colors.controlSurface.copy(alpha = 0.82f)
+                    else -> Color.Black.copy(alpha = 0.22f)
+                },
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        NaviampCoverArt(item.coverArtUrl, colors, 48.dp, 7.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+            Text(
+                item.title,
+                color = colors.primaryText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(item.subtitle, color = colors.secondaryText, fontSize = 13.sp, maxLines = 1)
+        }
+        if (item.meta.isNotBlank()) Text(item.meta, color = colors.mutedText, fontSize = 12.sp)
+        label?.let {
+            Text(it, color = colors.primaryText, fontSize = 11.sp, fontWeight = FontWeight.Black)
+        }
+    }
+}
+
+@Composable
+private fun TelevisionQueueActionsDialog(
+    item: NaviampNowPlayingItemUi,
+    colors: NaviampColors,
+    onDismiss: () -> Unit,
+    onAction: (NowPlayingItemAction) -> Unit,
+) {
+    val firstActionFocusRequester = remember { FocusRequester() }
+    val actions = listOf(
+        NowPlayingItemAction.PlayNext to "Play Next",
+        NowPlayingItemAction.RemoveFromQueue to "Remove",
+        NowPlayingItemAction.StartRadio to "Start Radio",
+    )
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.68f))) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .background(colors.controlSurface, RoundedCornerShape(18.dp))
+                    .padding(28.dp),
+            ) {
+                Text("Queue actions", color = colors.primaryText, fontSize = 27.sp, fontWeight = FontWeight.Black)
+                Text(item.title, color = colors.primaryText, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text(item.subtitle, color = colors.secondaryText, fontSize = 16.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
+                    actions.forEachIndexed { index, (action, label) ->
+                        TelevisionTextButton(
+                            label = label,
+                            colors = colors,
+                            onClick = { onAction(action) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .then(if (index == 0) Modifier.focusRequester(firstActionFocusRequester) else Modifier),
+                        )
+                    }
+                }
+                Text("Back closes this panel", color = colors.mutedText, fontSize = 14.sp)
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        firstActionFocusRequester.requestFocus()
     }
 }
 
@@ -922,30 +1802,54 @@ private fun TelevisionLyrics(
     colors: NaviampColors,
     modifier: Modifier = Modifier,
 ) {
+    val listState = remember(nowPlaying.id) { LazyListState() }
     val positionMillis = positionSeconds?.times(1000)?.toLong()
     val activeIndex = nowPlaying.lyricsLines.indexOfLast { line ->
         line.startMillis?.plus(nowPlaying.lyricsOffsetMillis)?.let { start ->
             positionMillis != null && start <= positionMillis
         } == true
     }
-    val first = if (activeIndex < 0) 0 else (activeIndex - 2).coerceAtLeast(0)
-    val visible = nowPlaying.lyricsLines.drop(first).take(6)
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = modifier,
-    ) {
-        when {
-            nowPlaying.lyricsStatus != null -> Text(nowPlaying.lyricsStatus, color = colors.secondaryText, fontSize = 22.sp)
-            visible.isEmpty() -> Text("Lyrics are not available.", color = colors.secondaryText, fontSize = 22.sp)
-            else -> visible.forEachIndexed { offset, line ->
-                val index = first + offset
+    LaunchedEffect(activeIndex, nowPlaying.lyricsLines.size) {
+        if (activeIndex >= 0) listState.animateToActiveLyricLine(activeIndex)
+    }
+    when {
+        nowPlaying.lyricsStatus != null -> Text(
+            nowPlaying.lyricsStatus,
+            color = colors.secondaryText,
+            fontSize = 22.sp,
+            modifier = modifier,
+        )
+        nowPlaying.lyricsLines.isEmpty() -> Text(
+            "Lyrics are not available.",
+            color = colors.secondaryText,
+            fontSize = 22.sp,
+            modifier = modifier,
+        )
+        else -> LazyColumn(
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = modifier,
+        ) {
+            itemsIndexed(
+                nowPlaying.lyricsLines,
+                key = { index, line -> "lyric:$index:${line.startMillis}:${line.text}" },
+            ) { index, line ->
                 val active = index == activeIndex || (activeIndex < 0 && index == 0)
+                val emphasis by animateFloatAsState(
+                    targetValue = if (active) 1f else 0f,
+                    animationSpec = tween(
+                        durationMillis = LyricsLineTransitionMillis,
+                        easing = FastOutSlowInEasing,
+                    ),
+                    label = "TV lyric line emphasis",
+                )
+                val inactiveColor = colors.secondaryText.copy(alpha = 0.58f)
                 Text(
                     line.text,
-                    color = if (active) colors.primaryText else colors.secondaryText.copy(alpha = 0.58f),
-                    fontSize = if (active) 29.sp else 21.sp,
-                    lineHeight = if (active) 34.sp else 26.sp,
-                    fontWeight = if (active) FontWeight.Black else FontWeight.Medium,
+                    color = androidx.compose.ui.graphics.lerp(inactiveColor, colors.primaryText, emphasis),
+                    fontSize = (21f + 8f * emphasis).sp,
+                    lineHeight = (26f + 8f * emphasis).sp,
+                    fontWeight = if (emphasis >= 0.5f) FontWeight.Black else FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -963,6 +1867,11 @@ internal fun TelevisionIconButton(
     selected: Boolean = false,
     size: Dp = 48.dp,
     prominent: Boolean = false,
+    iconSize: Dp = if (prominent) 34.dp else 25.dp,
+    centerText: String? = null,
+    whiteHighlight: Boolean = false,
+    selectedKeepsDarkBackground: Boolean = false,
+    iconTint: Color? = null,
     initiallyFocused: Boolean = false,
     upFocusRequester: FocusRequester? = null,
     focusRequester: FocusRequester? = null,
@@ -1002,19 +1911,44 @@ internal fun TelevisionIconButton(
             .clip(shape)
             .background(
                 when {
+                    whiteHighlight && (focused || (selected && !selectedKeepsDarkBackground) || prominent) ->
+                        colors.primaryText
+                    selected && selectedKeepsDarkBackground -> colors.controlSurface.copy(alpha = 0.9f)
+                    focused -> colors.accent.copy(alpha = if (prominent) 0.96f else 0.82f)
                     prominent -> colors.primaryText
                     selected -> colors.accent.copy(alpha = 0.32f)
                     else -> colors.controlSurface.copy(alpha = 0.9f)
                 },
             ),
     ) {
-        Icon(
-            icon,
-            contentDescription = description,
-            tint = if (prominent) colors.background else if (enabled) colors.primaryText else colors.mutedText,
-            modifier = Modifier.size(if (prominent) 34.dp else 25.dp),
-        )
+        val useDarkIcon = prominent || (whiteHighlight && (focused || selected))
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                contentDescription = description,
+                tint = iconTint
+                    ?: if (useDarkIcon) colors.background
+                    else if (enabled) colors.primaryText
+                    else colors.mutedText,
+                modifier = Modifier.size(iconSize),
+            )
+            centerText?.let {
+                Text(
+                    it,
+                    color = if (useDarkIcon) colors.background else colors.primaryText,
+                    fontSize = if (it.length > 1) 7.sp else 10.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
     }
+}
+
+internal fun televisionRepeatModeDescription(mode: NaviampRepeatMode): String = when (mode) {
+    NaviampRepeatMode.Off -> "Repeat off"
+    NaviampRepeatMode.Queue -> "Repeat all"
+    NaviampRepeatMode.Track -> "Repeat one"
 }
 
 @Composable
@@ -1022,6 +1956,8 @@ internal fun TelevisionTextButton(
     label: String,
     colors: NaviampColors,
     enabled: Boolean = true,
+    selected: Boolean = false,
+    calmFocus: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1030,9 +1966,22 @@ internal fun TelevisionTextButton(
     Button(
         onClick = onClick,
         enabled = enabled,
+        colors = when {
+            calmFocus -> ButtonDefaults.buttonColors(
+                containerColor = if (focused) colors.primaryText else colors.controlSurface,
+                contentColor = if (focused) colors.background else colors.primaryText,
+            )
+            selected -> ButtonDefaults.buttonColors(
+                containerColor = colors.accent.copy(alpha = 0.72f),
+                contentColor = colors.primaryText,
+            )
+            else -> ButtonDefaults.buttonColors()
+        },
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
-            .televisionFocusEffect(focused, colors, shape),
+            .then(
+                if (calmFocus) Modifier else Modifier.televisionFocusEffect(focused, colors, shape),
+            ),
         shape = shape,
     ) {
         Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -1045,59 +1994,34 @@ internal fun Modifier.televisionFocusEffect(
     colors: NaviampColors,
     shape: RoundedCornerShape,
 ): Modifier {
-    val sparkle = remember { Animatable(0f) }
-    LaunchedEffect(focused) {
-        if (!focused) {
-            sparkle.snapTo(0f)
-            return@LaunchedEffect
-        }
-        sparkle.snapTo(0.32f)
-        while (true) {
-            sparkle.animateTo(1f, tween(220))
-            sparkle.animateTo(0.38f, tween(520))
-            sparkle.animateTo(0.76f, tween(180))
-            sparkle.animateTo(0.32f, tween(680))
-        }
-    }
     val scale by animateFloatAsState(
         targetValue = if (focused) TelevisionFocusedScale else 1f,
         animationSpec = tween(TelevisionFocusAnimationMillis),
         label = "Television focus scale",
     )
-    val elevation by animateFloatAsState(
-        targetValue = if (focused) TelevisionFocusedElevation.value else 0f,
-        animationSpec = tween(TelevisionFocusAnimationMillis),
-        label = "Television focus elevation",
-    )
-    val sparkleValue = if (focused) sparkle.value else 0f
     return this
         .zIndex(if (focused) 1f else 0f)
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
-            shadowElevation =
-                (elevation + sparkleValue * TelevisionFocusedSparkleElevation.value).dp.toPx()
             this.shape = shape
             clip = false
-            ambientShadowColor = colors.accent.copy(alpha = 0.70f + sparkleValue * 0.20f)
-            spotShadowColor = colors.accent.copy(alpha = 0.78f + sparkleValue * 0.22f)
         }
-        .border(
-            width = if (focused) TelevisionFocusedOuterBorderWidth else 0.dp,
-            color = colors.accent.copy(alpha = 0.18f),
-            shape = shape,
-        )
-        .border(
-            width = if (focused) TelevisionFocusedMiddleBorderWidth else 0.dp,
-            color = colors.accent.copy(alpha = 0.58f),
-            shape = shape,
-        )
-        .border(
-            width = if (focused) TelevisionFocusedCoreBorderWidth else 0.dp,
-            color = TelevisionFocusedCoreColor.copy(alpha = 0.72f + sparkleValue * 0.28f),
-            shape = shape,
-        )
 }
+
+@Composable
+internal fun Modifier.televisionMediaArtworkFocusEffect(
+    focused: Boolean,
+    colors: NaviampColors,
+    shape: RoundedCornerShape,
+): Modifier = televisionFocusEffect(focused, colors, shape)
+    .then(
+        if (focused) {
+            Modifier.border(3.dp, colors.accent.copy(alpha = 0.95f), shape)
+        } else {
+            Modifier
+        },
+    )
 
 private fun televisionSecondsLabel(seconds: Double?): String {
     val total = seconds?.takeIf { it.isFinite() && it >= 0.0 }?.roundToInt() ?: return "--:--"
@@ -1120,19 +2044,23 @@ private const val TelevisionHomeVisibleAnchorItems = 3
 private val TelevisionGridCardWidth = 136.dp
 private val TelevisionGridSpacing = 14.dp
 private val TelevisionGridArtworkSize = 136.dp
+private val TelevisionGridFocusedRowTopInset = 26.dp
+private val TelevisionLibraryShortcutRailWidth = 20.dp
+private val TelevisionLibraryShortcutSize = 12.dp
+private val TelevisionLibraryContentStartInset = 30.dp
 private const val TelevisionFocusRequestAttempts = 5
 private const val TelevisionFocusAnimationMillis = 140
 private const val TelevisionFocusedScale = 1.06f
-private val TelevisionFocusedElevation = 32.dp
-private val TelevisionFocusedSparkleElevation = 10.dp
-private val TelevisionFocusedOuterBorderWidth = 7.dp
-private val TelevisionFocusedMiddleBorderWidth = 4.dp
-private val TelevisionFocusedCoreBorderWidth = 1.5.dp
-private val TelevisionFocusedCoreColor = Color(0xFFBDEBFF)
 private val TelevisionFocusedItemOverflow = 10.dp
 private val TelevisionHomeRailSpacing = 8.dp
 private val TelevisionHomeFocusedSectionTopInset = 40.dp
 private val TelevisionHomeBottomFocusClearance = 360.dp
 internal const val TelevisionNowPlayingControlsTimeoutMillis = 5_000L
+internal const val TelevisionListeningModeTransitionMillis = 800
+internal val TelevisionNowPlayingSecondaryButtonSize = 38.dp
+internal val TelevisionNowPlayingSecondaryIconSize = 20.dp
 internal const val TelevisionNowPlayingScrubberTestTag = "television-now-playing-scrubber"
 internal const val TelevisionNowPlayingListeningModeTestTag = "television-now-playing-listening-mode"
+internal const val TelevisionNowPlayingQueueTestTag = "television-now-playing-queue"
+internal const val TelevisionNowPlayingQueueCurrentTestTag = "television-now-playing-queue-current"
+internal const val TelevisionNowPlayingQueueUpcomingTestTagPrefix = "television-now-playing-queue-upcoming-"

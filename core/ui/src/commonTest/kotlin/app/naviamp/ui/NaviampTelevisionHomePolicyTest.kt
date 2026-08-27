@@ -1,12 +1,13 @@
 package app.naviamp.ui
 
 import app.naviamp.domain.settings.HomeSectionIds
+import app.naviamp.domain.settings.InterfaceSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class NaviampTelevisionHomePolicyTest {
     @Test
-    fun selectsOneRailPerTelevisionPriorityGroupInStableOrder() {
+    fun preservesEveryVisibleSharedSectionInItsConfiguredOrder() {
         val sections = listOf(
             section(HomeSectionIds.RandomAlbums),
             section(HomeSectionIds.NavibeatMixes),
@@ -20,29 +21,58 @@ class NaviampTelevisionHomePolicyTest {
 
         assertEquals(
             listOf(
-                HomeSectionIds.RecentlyPlayed,
-                HomeSectionIds.RecentAlbums,
-                HomeSectionIds.SimilarToStarredTracks,
+                HomeSectionIds.RandomAlbums,
                 HomeSectionIds.NavibeatMixes,
+                HomeSectionIds.RecentAlbums,
                 HomeSectionIds.RecentPlaylists,
+                HomeSectionIds.RecentlyPlayed,
+                HomeSectionIds.SimilarToStarredTracks,
+                HomeSectionIds.MixesForYou,
+                HomeSectionIds.RecentlyAdded,
             ),
             televisionHomeSections(sections).map { it.id },
         )
     }
 
     @Test
-    fun ignoresHiddenEmptyAndNonTelevisionSections() {
+    fun ignoresHiddenAndEmptySectionsButIncludesEveryAvailableKind() {
         val sections = listOf(
             section(HomeSectionIds.RecentRadio, visible = false),
             section(HomeSectionIds.RecentlyPlayed, itemCount = 0),
+            section(HomeSectionIds.MixBuilders),
             section(HomeSectionIds.Stations),
             section(HomeSectionIds.RecentlyAdded),
         )
 
         assertEquals(
-            listOf(HomeSectionIds.RecentlyAdded),
+            listOf(HomeSectionIds.Stations, HomeSectionIds.RecentlyAdded),
             televisionHomeSections(sections).map { it.id },
         )
+    }
+
+    @Test
+    fun televisionSettingsOmitMixBuildersWithoutRemovingTheirStandardAppOrder() {
+        val settings = InterfaceSettings(
+            homeSectionOrder = listOf(
+                HomeSectionIds.RecentlyPlayed,
+                HomeSectionIds.MixBuilders,
+                HomeSectionIds.RecentAlbums,
+            ),
+        )
+        val televisionSections = settings.televisionHomeSectionOptions()
+
+        assertEquals(false, televisionSections.any { it.id == HomeSectionIds.MixBuilders })
+
+        val reordered = televisionSections.moveHomeSectionItem(0, 1)
+        val updated = settings.withOrderedTelevisionHomeSections(reordered)
+        assertEquals(HomeSectionIds.MixBuilders, updated.homeSectionOrder[1])
+    }
+
+    @Test
+    fun movingSectionScrollsOnlyWhenItLeavesTheVisibleSettingsWindow() {
+        assertEquals(null, televisionHomeMoveScrollAnchor(5, listOf(3, 4, 5, 6)))
+        assertEquals(2, televisionHomeMoveScrollAnchor(2, listOf(3, 4, 5, 6)))
+        assertEquals(4, televisionHomeMoveScrollAnchor(7, listOf(3, 4, 5, 6)))
     }
 
     @Test

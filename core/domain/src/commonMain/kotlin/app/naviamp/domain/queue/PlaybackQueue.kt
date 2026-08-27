@@ -360,6 +360,25 @@ data class PlaybackQueue(
         )
     }
 
+    /** Reorders one upcoming queue occurrence to an absolute upcoming queue position. */
+    fun moveUpcoming(
+        fromIndex: Int,
+        toIndex: Int,
+    ): PlaybackQueue {
+        val upcomingRange = (currentIndex + 1)..tracks.lastIndex
+        if (currentIndex !in tracks.indices || fromIndex !in upcomingRange || toIndex !in upcomingRange) return this
+        if (fromIndex == toIndex) return this
+
+        val originalIndexes = tracks.indices.toMutableList()
+        val movedIndex = originalIndexes.removeAt(fromIndex)
+        originalIndexes.add(toIndex, movedIndex)
+        return copy(
+            tracks = originalIndexes.map(tracks::get),
+            playNextCount = effectivePlayNextCount,
+            groups = normalizedGroups().afterReordering(originalIndexes, tracks.size),
+        )
+    }
+
     /** Moves an existing occurrence after the active group and every earlier Play Next request. */
     fun moveToPlayNext(index: Int): PlaybackQueue {
         if (index !in tracks.indices || currentIndex !in tracks.indices || index == currentIndex) return this

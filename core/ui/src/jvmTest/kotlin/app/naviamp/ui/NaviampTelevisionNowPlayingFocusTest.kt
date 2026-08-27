@@ -4,14 +4,18 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -42,12 +46,14 @@ class NaviampTelevisionNowPlayingFocusTest {
                     onQueueItemAction = { _ -> },
                 ),
                 onClose = {},
-                onSearch = {},
+                onOpenSettings = {},
             )
         }
         mainClock.advanceTimeBy(200)
 
         onNodeWithContentDescription("Pause").assertIsFocused()
+        onNodeWithContentDescription("Settings").assertExists()
+        onNodeWithContentDescription("Search").assertDoesNotExist()
     }
 
     @Test
@@ -79,7 +85,7 @@ class NaviampTelevisionNowPlayingFocusTest {
                     onQueueItemAction = { _ -> },
                 ),
                 onClose = {},
-                onSearch = {},
+                onOpenSettings = {},
             )
         }
         mainClock.advanceTimeBy(200)
@@ -121,23 +127,211 @@ class NaviampTelevisionNowPlayingFocusTest {
                     onQueueItemAction = { _ -> },
                 ),
                 onClose = {},
-                onSearch = {},
+                onOpenSettings = {},
             )
         }
         mainClock.advanceTimeBy(200)
 
         onNodeWithContentDescription("Pause").assertIsFocused()
-        mainClock.advanceTimeBy(TelevisionNowPlayingControlsTimeoutMillis + 400)
+        mainClock.advanceTimeBy(
+            TelevisionNowPlayingControlsTimeoutMillis + TelevisionListeningModeTransitionMillis + 400,
+        )
         onNodeWithContentDescription("Pause").assertDoesNotExist()
         onNodeWithTag(TelevisionNowPlayingListeningModeTestTag).assertIsFocused()
 
         onNodeWithTag(TelevisionNowPlayingListeningModeTestTag).performKeyInput {
             pressKey(Key.DirectionLeft)
         }
-        mainClock.advanceTimeBy(200)
+        mainClock.advanceTimeBy(TelevisionListeningModeTransitionMillis + 200L)
 
         onNodeWithContentDescription("Pause").assertIsFocused()
         runOnIdle { assertEquals(emptyList(), playbackActions) }
+    }
+
+    @Test
+    fun trackChangeKeepsListeningModeWhenControlsWereAlreadyHidden() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val trackId = mutableStateOf("track-one")
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = trackId.value,
+                    title = trackId.value,
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    canPlayPause = true,
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { _ -> },
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = { _ -> },
+                    onQueueItemAction = { _ -> },
+                ),
+                onClose = {},
+                onOpenSettings = {},
+            )
+        }
+        mainClock.advanceTimeBy(
+            TelevisionNowPlayingControlsTimeoutMillis + TelevisionListeningModeTransitionMillis + 400,
+        )
+        onNodeWithContentDescription("Pause").assertDoesNotExist()
+
+        trackId.value = "track-two"
+        mainClock.advanceTimeBy(400)
+
+        onNodeWithContentDescription("Pause").assertDoesNotExist()
+        onNodeWithTag(TelevisionNowPlayingListeningModeTestTag).assertIsFocused()
+    }
+
+    @Test
+    fun nonInteractiveLyricsPreviewDoesNotShowTransportControls() = runComposeUiTest {
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "track",
+                    title = "Track",
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    canPlayPause = true,
+                    lyricsAvailable = true,
+                    lyricsVisible = true,
+                    lyricsLines = listOf(NaviampLyricLineUi(startMillis = 0L, text = "Visible lyric")),
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { _ -> },
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = { _ -> },
+                    onQueueItemAction = { _ -> },
+                ),
+                interactive = false,
+                onClose = {},
+                onOpenSettings = {},
+            )
+        }
+
+        onNodeWithText("Visible lyric").assertExists()
+        onNodeWithContentDescription("Pause").assertDoesNotExist()
+        onNodeWithContentDescription("Lyrics").assertDoesNotExist()
+    }
+
+    @Test
+    fun repeatAllHasAnExplicitVisualModeMarker() = runComposeUiTest {
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "track",
+                    title = "Track",
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    canPlayPause = true,
+                    canRepeat = true,
+                    repeatMode = NaviampRepeatMode.Queue,
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { _ -> },
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = { _ -> },
+                    onQueueItemAction = { _ -> },
+                ),
+                onClose = {},
+                onOpenSettings = {},
+            )
+        }
+
+        onNodeWithContentDescription("Repeat all").assertExists()
+        onNodeWithText("ALL").assertExists()
+    }
+
+    @Test
+    fun queueOpensWithPinnedCurrentSupportsReorderAndBackRestoresItsButton() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val dispatcher = NaviampSystemBackDispatcher()
+        val queueActions = mutableListOf<NowPlayingQueueActionRequest>()
+        setContent {
+            CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides dispatcher) {
+                TelevisionNowPlaying(
+                    nowPlaying = NowPlayingUi(
+                        id = "current",
+                        title = "Current track",
+                        subtitle = "Artist",
+                        stateLabel = "Playing",
+                        isPlaying = true,
+                        canPlayPause = true,
+                        queueCurrentIndex = 0,
+                        upNext = listOf(
+                            NaviampNowPlayingItemUi("queue:1", "First upcoming", "Artist"),
+                            NaviampNowPlayingItemUi("queue:2", "Second upcoming", "Artist"),
+                        ),
+                    ),
+                    playbackProgress = null,
+                    colors = NaviampColors.Dark,
+                    actions = NaviampNowPlayingActions(
+                        onPlaybackAction = { _ -> },
+                        onDisplayAction = { _ -> },
+                        onCurrentTrackAction = { _ -> },
+                        onQueueAction = queueActions::add,
+                        onSleepTimerAction = { _ -> },
+                        onSelectionAction = { _ -> },
+                        onQueueItemAction = { _ -> },
+                    ),
+                    onClose = {},
+                    onOpenSettings = {},
+                )
+            }
+        }
+        mainClock.advanceTimeBy(200)
+        onNodeWithContentDescription("Queue").performClick()
+        mainClock.advanceTimeBy(400)
+
+        onNodeWithTag(TelevisionNowPlayingQueueCurrentTestTag).assertExists()
+        assertEquals(0, onAllNodesWithText("MOVING").fetchSemanticsNodes().size)
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}0").assertIsFocused()
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}0").performKeyInput {
+            pressKey(Key.DirectionLeft)
+        }
+        mainClock.advanceTimeBy(100)
+        assertEquals(1, onAllNodesWithText("MOVING").fetchSemanticsNodes().size)
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}0").performKeyInput {
+            pressKey(Key.DirectionDown)
+        }
+        mainClock.advanceTimeBy(200)
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}1").assertIsFocused()
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}1").performKeyInput {
+            pressKey(Key.DirectionRight)
+        }
+        runOnIdle {
+            assertEquals(
+                NowPlayingQueueActionRequest(
+                    action = NowPlayingQueueAction.MoveQueueItem,
+                    queueIndex = 1,
+                    destinationQueueIndex = 2,
+                ),
+                queueActions.single(),
+            )
+            dispatcher.currentHandler?.invoke()
+        }
+        mainClock.advanceTimeBy(200)
+
+        onNodeWithTag(TelevisionNowPlayingQueueTestTag).assertDoesNotExist()
+        onNodeWithContentDescription("Queue").assertIsFocused()
     }
 
     @Test

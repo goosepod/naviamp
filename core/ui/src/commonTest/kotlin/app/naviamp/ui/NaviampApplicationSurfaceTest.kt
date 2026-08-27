@@ -1,8 +1,12 @@
 package app.naviamp.ui
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class NaviampApplicationSurfaceTest {
     @Test
@@ -36,7 +40,28 @@ class NaviampApplicationSurfaceTest {
             NaviampTelevisionDestination.Library,
             naviampSelectedTelevisionDestination(SharedRoute.Library, nowPlayingOpen = false),
         )
+        assertEquals(
+            NaviampTelevisionDestination.NowPlaying,
+            naviampSelectedTelevisionDestination(
+                SharedRoute.Library,
+                nowPlayingOpen = false,
+                nowPlayingPreview = true,
+            ),
+        )
         assertNull(naviampSelectedTelevisionDestination(SharedRoute.Radio, nowPlayingOpen = false))
+    }
+
+    @Test
+    fun televisionNowPlayingNavigationRequiresDownToEnterFullScreen() {
+        assertTrue(
+            naviampTelevisionNavigationEntersContent(Key.DirectionDown, KeyEventType.KeyDown),
+        )
+        assertFalse(
+            naviampTelevisionNavigationEntersContent(Key.DirectionRight, KeyEventType.KeyDown),
+        )
+        assertFalse(
+            naviampTelevisionNavigationEntersContent(Key.DirectionDown, KeyEventType.KeyUp),
+        )
     }
 
     @Test
@@ -65,6 +90,18 @@ class NaviampApplicationSurfaceTest {
                 settingsSelected = true,
                 destinations = destinations,
             ),
+        )
+    }
+
+    @Test
+    fun televisionSettingsKeepsTheLastVisibleRouteBehindItsSheet() {
+        assertEquals(
+            SharedRoute.Library,
+            televisionSettingsBackgroundRoute(SharedRoute.Settings, SharedRoute.Library),
+        )
+        assertEquals(
+            SharedRoute.Search,
+            televisionSettingsBackgroundRoute(SharedRoute.Search, SharedRoute.Library),
         )
     }
 

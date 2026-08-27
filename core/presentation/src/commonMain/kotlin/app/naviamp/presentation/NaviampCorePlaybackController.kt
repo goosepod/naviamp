@@ -437,6 +437,12 @@ class NaviampCorePlaybackController(
             NowPlayingQueueAction.SaveQueueAsPlaylist -> saveQueue(request.playlistName)
             NowPlayingQueueAction.MoveToNext -> request.queueIndex?.let(mutations::moveToNext)
                 ?: publishStatus("Queue position is missing.")
+            NowPlayingQueueAction.MoveQueueItem -> {
+                val fromIndex = request.queueIndex
+                val toIndex = request.destinationQueueIndex
+                if (fromIndex == null || toIndex == null) publishStatus("Queue positions are missing.")
+                else mutations.moveUpcoming(fromIndex, toIndex)
+            }
             NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(mutations::removeAt)
                 ?: publishStatus("Queue position is missing.")
             NowPlayingQueueAction.EmptyQueue -> {

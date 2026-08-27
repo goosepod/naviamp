@@ -358,6 +358,28 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun arbitraryUpcomingMoveIsAppliedAsOneCoreQueueTransaction() = runTest {
+        val fixture = playbackFixture(this)
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.Queue(
+                NowPlayingQueueActionRequest(
+                    action = NowPlayingQueueAction.MoveQueueItem,
+                    queueIndex = 4,
+                    destinationQueueIndex = 2,
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf("one", "two", "five", "three", "four"),
+            fixture.live.state.value.queue.tracks.map { it.id.value },
+        )
+        assertEquals("two", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(listOf("one", "two", "five", "three", "four"), fixture.effects.queues.single().tracks.map { it.id.value })
+    }
+
+    @Test
     fun sleepTimerStateAndPresentationAreOwnedByCore() = runTest {
         val fixture = playbackFixture(this)
 

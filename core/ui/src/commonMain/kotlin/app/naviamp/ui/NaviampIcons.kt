@@ -25,6 +25,48 @@ object NaviampIcons {
         lineTo(17.5f, 20f)
         lineTo(17.5f, 10f)
     }
+    val VisibilityOn = icon("VisibilityOn") {
+        moveTo(2.5f, 12f)
+        curveTo(4.8f, 7.8f, 8f, 5.7f, 12f, 5.7f)
+        curveTo(16f, 5.7f, 19.2f, 7.8f, 21.5f, 12f)
+        curveTo(19.2f, 16.2f, 16f, 18.3f, 12f, 18.3f)
+        curveTo(8f, 18.3f, 4.8f, 16.2f, 2.5f, 12f)
+        close()
+        moveTo(12f, 8.8f)
+        curveTo(10.2f, 8.8f, 8.8f, 10.2f, 8.8f, 12f)
+        curveTo(8.8f, 13.8f, 10.2f, 15.2f, 12f, 15.2f)
+        curveTo(13.8f, 15.2f, 15.2f, 13.8f, 15.2f, 12f)
+        curveTo(15.2f, 10.2f, 13.8f, 8.8f, 12f, 8.8f)
+        close()
+    }
+    val VisibilityOff = icon("VisibilityOff") {
+        moveTo(3f, 4f)
+        lineTo(20f, 21f)
+        moveTo(9.2f, 6.2f)
+        curveTo(10.1f, 5.9f, 11f, 5.7f, 12f, 5.7f)
+        curveTo(16f, 5.7f, 19.2f, 7.8f, 21.5f, 12f)
+        curveTo(20.8f, 13.3f, 20f, 14.4f, 19.1f, 15.3f)
+        moveTo(15.8f, 17.5f)
+        curveTo(14.6f, 18f, 13.4f, 18.3f, 12f, 18.3f)
+        curveTo(8f, 18.3f, 4.8f, 16.2f, 2.5f, 12f)
+        curveTo(3.3f, 10.5f, 4.2f, 9.3f, 5.2f, 8.3f)
+        moveTo(9.7f, 9.7f)
+        curveTo(9.1f, 10.3f, 8.8f, 11.1f, 8.8f, 12f)
+        curveTo(8.8f, 13.8f, 10.2f, 15.2f, 12f, 15.2f)
+        curveTo(12.9f, 15.2f, 13.7f, 14.9f, 14.3f, 14.3f)
+    }
+    val MoveVertical = icon("MoveVertical") {
+        moveTo(12f, 3.5f)
+        lineTo(8.5f, 7f)
+        moveTo(12f, 3.5f)
+        lineTo(15.5f, 7f)
+        moveTo(12f, 3.5f)
+        lineTo(12f, 20.5f)
+        moveTo(12f, 20.5f)
+        lineTo(8.5f, 17f)
+        moveTo(12f, 20.5f)
+        lineTo(15.5f, 17f)
+    }
     val Player = filledIcon("Player") {
         moveTo(9f, 7f)
         lineTo(18f, 12f)

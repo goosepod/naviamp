@@ -48,10 +48,11 @@ Keep the always-visible destinations small:
 2. Library
 3. Search
 
-Now Playing opens from the persistent player bar, Playlists lives within Library, and Settings uses
-a compact gear entry rather than another full-width destination. Radio, mixes, details, and
-collection pages remain reachable from Home and Library content without becoming permanent
-top-level chrome. Downloads are not an initial TV destination.
+When playback exists, Now Playing appears as a conditional top-navigation destination while the
+persistent mini player remains a non-focusable status strip. Playlists lives within Library, and
+Settings uses a compact gear entry rather than another full-width destination. Radio, mixes,
+details, and collection pages remain reachable from Home and Library content without becoming
+permanent top-level chrome. Downloads are not an initial TV destination.
 
 ### Home
 
@@ -60,18 +61,16 @@ in a landscape shell. Every visible Home section is a horizontal carousel with l
 remote-friendly cards; TV does not reproduce the standard surface's Grid or List section layouts.
 This is the consistent ten-foot interaction model used across the entire Home screen.
 
-The TV Home screen uses at most five rails, in this stable category order:
+The TV Home screen includes every available section exposed by the standard Home experience except
+Mix Builders, which is intentionally not implemented for TV. Sections follow the user's shared
+saved order and can be shown, hidden, and reordered from a dedicated Home settings page. TV uses an
+eye control for visibility and a remote-friendly move mode; phone and Desktop expose the same
+settings through drag interactions.
 
-- The first visible recent-playback or recent-radio rail
-- The first visible recently-added or recent-albums rail
-- Similar to Starred Tracks, when available; a literal Favorites rail requires a shared Home source
-- The first visible mixes, NaviBeat mixes, Mix Builders, or More Like Recent Plays rail
-- Recent playlists
-
-Core owns the TV section policy, focus order, and item limits. Shared section visibility and ordering
-select between equivalent rails in a category, but the standard surface's saved layout choice
-remains untouched and continues to apply to phone and Desktop only. Each TV rail contains at most
-30 items and honors a smaller shared per-section limit.
+Core owns the section catalog, visibility, ordering, TV focus behavior, and item limits. The
+standard surface's saved layout choice remains untouched and continues to apply to phone and
+Desktop only. Each visible TV section is rendered as a carousel, contains at most 30 items, and
+honors a smaller shared per-section limit.
 
 ### Now Playing and lyrics
 
@@ -84,6 +83,8 @@ remains untouched and continues to apply to phone and Desktop only. Each TV rail
 - Use two explicit presentation states. Interactive mode shows transport and secondary actions;
   after about five seconds without remote interaction, listening mode leaves only artwork, track
   context, lyrics when selected, and the waveform/progress presentation.
+- The top-bar Now Playing preview is always non-interactive listening mode. Returning to it from
+  full screen must not leave a transport row visible without an inactivity timer.
 - The first ordinary D-pad press in listening mode restores the controls without also invoking a
   command. Restore the last sensible focus target when possible, with Play/Pause as the safe
   fallback. Hardware media commands remain immediate.
@@ -98,18 +99,21 @@ All Television surfaces use one shared focus treatment rather than screen-specif
 - Only the artwork or artist image on focused media cards scales approximately 5–7 percent over
   120–160 milliseconds. Labels and card layout remain stationary. Carousels and grids reserve
   overflow space so edge artwork can enlarge without clipping.
-- A translucent blue border, soft animated blue shadow, and restrained surface tint provide
-  contrast on artwork and every background style without the hard edge of a solid line.
-- Focused content is raised above neighboring content so its glow remains unambiguous.
-- Transient remote focus and persistent state are distinct. Focus uses the animated outline/glow;
+- Focused media artwork uses a single shape-matched blue halo plus scale: circular for
+  artists and rounded-square for albums. Buttons use filled or neutral raised focus without a blue
+  outline or displaced shadow, preventing the nested-border artifact on blue controls.
+- Focused content is raised above neighboring content so its position remains unambiguous.
+- Transient remote focus and persistent state are distinct. Focus uses scale, elevation, or the
+  control's filled focus state;
   selected values such as Lyrics, Repeat, Shuffle, and settings choices retain a quieter persistent
   mark when focus moves away.
 - Disabled actions remain visually legible but cannot receive focus.
 
 ### Search interaction
 
-- Opening Search places focus in the query field and leaves the platform keyboard visible while the
-  user enters or refines a query.
+- Focusing Search in the top navigation activates the destination without stealing focus or opening
+  the keyboard, so the user can continue across the navigation bar. Down enters the query field and
+  opens the platform keyboard; returning from results restores the query for refinement.
 - Search results update without forcing the keyboard closed. The IME Search action submits the
   current query but does not move focus away from the text field.
 - Back dismisses the keyboard while retaining the query; Down then enters the first result. Back
@@ -120,8 +124,11 @@ All Television surfaces use one shared focus treatment rather than screen-specif
 
 - Settings opens as a right-side sheet over a dimmed version of the current destination, occupying
   roughly 40 percent of the screen instead of navigating to the dense standard settings page.
-- The first level contains only TV-relevant groups: Connection, Appearance, Playback, Audio, and
-  About. Each row has an icon, title, current value, and disclosure indicator.
+- The first level contains only TV-relevant groups: Sources, Home, Playback, Lyrics, Controllers,
+  Display, Diagnostics, and About. Each row has an icon, title, current value, and disclosure
+  indicator. Home exposes the shared section order and visibility controls.
+  Capability-dependent groups such as Controllers remain hidden until their shared feature has real
+  state and actions; do not ship dead settings pages.
 - Selecting a group replaces the sheet contents with that group's rows. Back returns one level and
   then dismisses the sheet, restoring focus to the Settings entry.
 - Choice pages use a persistent checkmark for the selected value and the common Television focus
@@ -251,10 +258,9 @@ independent navigation graph may be introduced in the Apple TV host.
 
 ### Current implementation gaps
 
-- The dedicated Television shell is in place, but Playlists, collection/detail pages, and Settings
-  still delegate to the standard shared content composition. Replace those fallbacks with
-  remote-friendly Television presentations before completing M1, especially the reduced Settings
-  information architecture defined above.
+- The dedicated Television shell, Home, Library, Search, Playlists, Settings, and artist, album, and
+  playlist detail pages are in place. Home collection pages are the remaining standard-content
+  fallback to replace before completing M1.
 - The initial full-screen Now Playing layout is functional, but it does not yet satisfy the complete
   lyrics direction. Preserve title and artist context, add the default two- or three-line lyric
   presentation, use the existing word-synced cue model for karaoke highlighting, and show queue or
@@ -280,7 +286,7 @@ independent navigation graph may be introduced in the Apple TV host.
 
 - [x] Provide remote-friendly top navigation and focus states.
 - [x] Complete local connection setup using the system keyboard.
-- [ ] Provide Home, Library, Playlists, Search, details, and essential Settings.
+- [x] Provide Home, Library, Playlists, Search, details, and essential Settings.
 - [ ] Verify server connection, library browsing, and source switching on the emulator.
 
 ### M2: TV playback experience
@@ -414,11 +420,9 @@ independent navigation graph may be introduced in the Apple TV host.
   TV-specific Settings/detail work, bounded Home rail policy, complete lyrics and queue behavior,
   direct Compose coverage, and launcher asset requirements above rather than treating the initial
   layouts as finished milestones.
-- Added and tested the shared Television Home policy. Home now renders at most one rail from each of
-  five stable ten-foot categories, uses shared visibility and ordering to choose between equivalent
-  rails, excludes unrelated standard Home sections, caps each rail at 30 items, and preserves any
-  smaller shared item limit without changing phone or Desktop Home settings. Installed the change
-  on the native 4K emulator and verified that the populated Home rail and D-pad focus render cleanly.
+- Added and tested the initial bounded Television Home policy. Its former five-category limit was
+  later superseded by the shared all-section ordering and visibility policy documented above. TV
+  still caps each rail at 30 items and preserves smaller shared item limits.
 - Consolidated Library and Search onto a shared fixed-column Television grid with explicit TV focus
   targets and row-major Right navigation. Native-4K emulator testing confirmed that Right from the
   fifth card lands on the first card in the next row and scrolls that row into full-artwork view.
@@ -521,5 +525,164 @@ independent navigation graph may be introduced in the Apple TV host.
 - Made top-bar restoration destination-stable. While focus is in page content, only that page's
   navigation item is eligible as an Up target; Back requests that item's dedicated focus requester.
   Once the bar has focus, every destination becomes eligible for ordinary horizontal navigation.
-- Restored Now Playing as a true full-screen Television surface with no top bar. Back exits it to
-  the underlying page; its playback controls no longer try to transfer Up focus to hidden chrome.
+- Kept a dedicated full-screen Now Playing mode behind an explicit Down action from its top-bar
+  item. Merely focusing Now Playing previews the page beneath the still-visible bar, allowing
+  uninterrupted Left/Right navigation; Back exits full-screen mode to the Now Playing preview,
+  and a second Back returns to the underlying page.
+
+### 2026-08-27
+
+- Replaced the standard Playlists list and detail fallbacks with dedicated shared Television
+  presentations. The list supports A-Z and recently played ordering, refresh, and grid navigation;
+  playlist details expose Play, Shuffle, Add to Queue, spacious track rows, and the same compact
+  track-action panel used by album and artist details.
+- Added common policy coverage for single-track shuffle availability and passed shared UI tests plus
+  Android, Desktop, and iOS Simulator compilation.
+- Reconciled stale plan text with the implemented album, artist, playlist, mini-player, and Search
+  behavior. Standard composition now remains only for Home collection pages on the M1 path.
+- Added a shared right-side Television Settings sheet modeled on the compact category-first pattern
+  used by established TV music clients. It preserves the underlying destination, dims it, exposes
+  current values, uses nested choice pages, unwinds Back locally, and restores focus to the gear.
+- Added TV-relevant Sources, Playback, Lyrics, Display, Diagnostics, and About controls. Controllers
+  is capability-gated until Naviamp Connect supplies real pairing state and actions; downloads,
+  file pickers, touch gestures, Desktop shortcuts, update channels, and mobile-only controls remain
+  excluded.
+- Reserved overflow around every settings list after native-4K review found the first focused row's
+  edge clipped by the viewport. Settings now use a calm static blue-white focus edge with no zoom,
+  pulse, or glow, and Close/Back uses a plain filled focus treatment without an outline.
+- Matched the shared app's gapless/crossfade exclusivity, restored focus to the originating row
+  after nested Settings Back navigation, and routed Back from a connected source editor through
+  the shared cancellation action instead of allowing the host to exit. Display settings now also
+  expose the shared waveform-density choices.
+- Removed the shared animated multi-layer outline from focused TV controls. Media artwork retains a
+  single restrained, shape-matched blue halo plus scale/elevation; artist imagery is circular across
+  shared collection artwork and dedicated TV Library, Search, and artist-detail surfaces, while
+  album artwork remains rounded-square.
+- Added a left-side, D-pad-selectable #/A–Z artist shortcut rail to TV Library. `#` groups numeric
+  and other non-letter names. The compact rail distributes the complete shortcut set from top to
+  bottom without scrolling. Left from the
+  first grid column enters the matching shortcut, while Center performs the jump. Library grid
+  positioning now uses deterministic row anchors so moving horizontally cannot shift the page.
+- Connected the shared Library controller to the existing persistent artist index. Every host now
+  paints the full cached artist list immediately, checks the provider scan signature on reconnect,
+  and refreshes and replaces the cache when the server reports a completed library change.
+- Eased transitions into and out of full-screen Now Playing, made Back reveal the Now Playing
+  preview before the underlying destination, preserved that preview through Settings navigation,
+  and increased played-versus-unplayed waveform contrast in display-only mode.
+- Stabilized route-on-focus handoff when Library opens Playlists, an artist, or an artist album so a
+  stale top-bar focus event cannot flash and then restore Library or corrupt the detail Back route.
+  Album Back now restores artist detail, and artist Back restores the remembered Library artist and
+  row instead of resetting the grid.
+- Made artist-detail entry focus Play. Down from Play explicitly targets the first popular track, or
+  the first album when no popular tracks exist. The album rail reserves focus overflow on every edge
+  so a scaled first album is not clipped.
+- Made Library entry deterministic: Down from Playlists targets the first artist, and Right from the
+  shortcut rail returns to the first artist rather than the header controls.
+- Applied the album-year display preference to TV Now Playing and artist-detail album captions, and
+  lengthened the full-screen Now Playing easing so the transition remains perceptible at TV scale.
+- Reworked the top-bar focus guard so repeated recovery callbacks cannot reopen Library over artist
+  detail. System Back now restores the selected top-navigation item from primary pages, while
+  first-row Up and header Down edges explicitly target the top bar or first content item instead of
+  relying on spatial focus guesses.
+- Removed dedicated Television Back and Close buttons from detail and Settings screens; Google TV
+  remote Back now owns those unwind actions. Play remains the deterministic first detail action.
+- Removed displaced focus shadows from TV controls and track rows. Transport focus uses the shared
+  white-on-dark treatment, while tracks use only their focused fill and scale without a second edge.
+- Kept the Now Playing preview visible until the full-screen route is published, eliminating the
+  intermediate-page flash, and strengthened the scale/slide easing. Playlist detail explicitly
+  resets its list to the top after initial Play focus.
+- Expanded the track action panel with labeled Artist, Album, and Track context when available.
+- Slowed the five-second inactivity change into listening mode to an 800 ms eased fade-and-collapse.
+  The album cover grows from 270 to 310 dp and the display-only scrubber grows from 46 to 60 dp as
+  the controls leave, while track typography remains unchanged. Cover-art decoding stays pinned to
+  the final size during animation so resizing does not repeatedly reload or crossfade the image.
+  The control-to-scrubber gap lives inside the collapsing region so its final removal cannot cause a
+  one-frame layout snap after the visible animation completes.
+- Made Center on a top-bar destination a deterministic content-entry action: Home selects its first
+  card, Library its first artist, Playlists its first playlist, Search its query field, and Now
+  Playing enters full screen. Directional focus continues to preview destinations without trapping
+  users who are moving across the bar. Settings is deliberately click-only and no longer opens when
+  the gear merely receives focus.
+- Preserved an explicit return edge when Search is opened from Now Playing so immediate remote Back
+  returns to full-screen Now Playing instead of escaping to the Android TV launcher.
+- Pinned artist detail to its top viewport after initial Play focus settles. Down from the final
+  popular track now explicitly selects album zero, avoiding geometry-based jumps into a later album
+  when an artist has multiple releases.
+- Made top-bar content-entry requests one-shot so leaving a full-screen Now Playing session cannot
+  replay an earlier Center action and steal focus into Home or Library content. Connected startup
+  now explicitly focuses the selected top-bar destination, including Home on a normal launch.
+- Kept the Now Playing preview mounted behind the fullscreen entrance transition, preventing its
+  outgoing layer from briefly repainting Home. Search launched from Now Playing now waits for the
+  Search route and fullscreen close to settle, then explicitly transfers top-bar focus to Search.
+- Routed Down on every primary top-bar tab through the same deterministic content-entry contract as
+  Center. Home therefore always targets its first card instead of allowing geometric focus search
+  to choose a later card; Library, Playlists, Search, and Now Playing use their explicit entry
+  targets as well.
+- Replaced the TV lyric window swap with the shared eased active-line scroll used by every host.
+  Active and inactive lyric size, line height, weight, and color now transition over 420 ms while
+  line advancement scrolls over 520 ms, preserving two lines of context without an abrupt jump.
+- Added explicit Library focus edges: Up from the first artist row enters Playlists, Right reaches
+  Refresh, Left returns to Playlists, and Up from either control returns to the Library tab.
+- Changed the shared waveform progress treatment from per-bar color switching to a continuously
+  clipped played-color layer over one stable waveform. Playback now advances that reveal linearly
+  between progress reports on every host, while seeking still updates immediately.
+- Preserved TV listening mode across track changes: changing the current song no longer recreates
+  the inactivity state or reveals the control bar when it was already hidden.
+- Added shared current-media visual transitions. The next two queued covers and palettes are
+  preloaded, outgoing artwork remains visible until its replacement is decoded, album art
+  crossfades over 280 ms, and Aurora/player colors interpolate over 360 ms instead of briefly
+  resetting to fallback colors.
+- Corrected the Album Blur transition after real-cover testing exposed a grey midpoint. The
+  outgoing bitmap now remains fully opaque while the decoded incoming cover fades over it, and
+  short between-track gaps without an artwork URL retain both the cover and its tint rather than
+  animating through the placeholder palette.
+- Added a TV-only Queue presentation in the same Now Playing panel used by Lyrics. The current
+  track remains pinned above the scrolling upcoming list; Center plays a row, Right exposes Play
+  Next, Remove, and Start Radio, and Left enters a local reorder mode that commits one shared queue
+  mutation with Center or Right. Back cancels a pending move first, then closes Queue and restores
+  focus to its control.
+- Added arbitrary upcoming-queue movement to the shared domain and command path, preserving the
+  current item, duplicate occurrences, Play Next prefix, and queue playback-profile groups.
+- Matched the TV repeat control to the standard player's Off, Repeat All, and Repeat One cycle,
+  including explicit centered `ALL` and `1` markers and mode-specific accessibility labels.
+- Corrected Queue move-mode rendering so ordinary rows never inherit a `MOVING` label from two
+  absent nullable indexes. Reorder now swaps the selected row first and transfers focus to its new
+  position, allowing the list's focus-following scroll to happen with the move instead of visibly
+  scrolling ahead of it.
+- Replaced blue focus/selection fills on Now Playing controls with the requested dark inactive and
+  white focused-or-active treatment. Repeat All and Repeat One use explicit centered mode markers,
+  so focus cannot make Off and All appear identical. Secondary actions are smaller than Previous,
+  Play/Pause, and Next. Favorite is the deliberate exception to the selected white fill: a hearted
+  track uses a filled red heart and returns to its dark control background after focus leaves;
+  while focused, it retains the same white background as every other highlighted control. The
+  secondary row uses 38 dp buttons, 20 dp glyphs, and 12 dp spacing so the controls as a whole are
+  visibly smaller without appearing compressed together.
+- Corrected the lyrics-to-top-bar Back path: non-interactive Now Playing previews now initialize
+  without transport controls, eliminating the overlapping secondary/Next buttons and the control
+  row that previously had no timer capable of hiding it.
+- Added the missing style-specific Display controls to shared Television Settings. Album Blur now
+  exposes its persisted 8–48 dp blur radius through a D-pad slider. Single Color opens a live color
+  preview with the shared hex value and remote-adjustable Hue, Saturation, and Brightness sliders.
+  Left/Right adjusts a focused slider, Center advances one step, and Back restores focus to the
+  originating Display row.
+- Made the Settings sheet a true overlay over the last visible TV page. Opening the gear no longer
+  clears a Now Playing preview or closes its route, and a route-driven Settings request restores the
+  last non-Settings destination instead of forcing Home underneath. The sheet now uses a focusable
+  shared popup instead of a platform dialog, eliminating Android's additional window dim. The only
+  remaining backdrop tint is 3 percent, so Album Blur and Single Color changes remain visible
+  across the exposed page while they are adjusted.
+- Replaced Search in the TV Now Playing secondary controls with Settings. Search remains available
+  from the persistent top navigation, while the new control opens the Settings sheet directly over
+  full-screen Now Playing for a useful live Display preview.
+- Expanded the shared Aurora tone policy from Light/Dark to Light/Balanced/Dark on every host. The
+  former Dark appearance is now labeled Balanced and remains the default; its legacy serialized
+  `Dark` value is deliberately retained so existing installations and synced settings do not
+  change appearance. The new Dark option applies a substantially deeper artwork-derived gradient.
+- Expanded TV Home from the former five-category subset to every available standard Home section,
+  preserving the shared saved order and visibility while retaining TV carousel presentation and
+  per-rail limits. Added a shared 17-section settings catalog, a TV Home settings category with
+  open/closed eye controls and D-pad move mode, and a combined phone/Desktop editor supporting
+  pointer drag plus touch-and-hold drag. Visibility changes now live alongside order controls on
+  every host while existing per-section layout settings remain available.
+- Deliberately excluded Mix Builders from both TV Home and TV Home settings. The normal apps retain
+  the builders and their saved position; reordering from TV preserves that hidden standard-app slot.

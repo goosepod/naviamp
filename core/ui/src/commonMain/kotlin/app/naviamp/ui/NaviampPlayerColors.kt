@@ -43,6 +43,12 @@ data class NaviampPlayerColors(
                 backgroundEnd = backgroundEnd.mix(Color.White, 0.26f),
                 accent = accent.mix(Color.White, 0.10f),
             )
+            AuroraTone.DeepDark -> copy(
+                backgroundStart = backgroundStart.mix(Color.Black, 0.24f),
+                backgroundMid = backgroundMid.mix(Color.Black, 0.30f),
+                backgroundEnd = backgroundEnd.mix(Color.Black, 0.36f),
+                accent = accent.mix(Color.Black, 0.10f),
+            )
         }
 
     companion object {
@@ -119,7 +125,7 @@ data class NaviampPlayerColors(
 @Composable
 fun animatedNaviampPlayerColors(
     target: NaviampPlayerColors,
-    durationMillis: Int = 180,
+    durationMillis: Int = 360,
 ): NaviampPlayerColors {
     val animationSpec = tween<Color>(durationMillis = durationMillis, easing = LinearEasing)
     val backgroundStart by animateColorAsState(target.backgroundStart, animationSpec, label = "playerBackgroundStart")

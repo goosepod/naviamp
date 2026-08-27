@@ -1,7 +1,9 @@
 package app.naviamp.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
@@ -11,6 +13,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -61,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -105,6 +109,7 @@ import app.naviamp.ui.generated.resources.lyrics_display_text
 import app.naviamp.ui.generated.resources.lyrics_display_lines
 import app.naviamp.ui.generated.resources.lyrics_display_words
 import kotlin.math.roundToInt
+import kotlin.math.abs
 
 enum class NaviampRepeatMode {
     Off,
@@ -222,6 +227,16 @@ data class NaviampNowPlayingActions(
 
     fun removeFromQueue(index: Int) {
         onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.RemoveFromQueue, queueIndex = index))
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        onQueueAction(
+            NowPlayingQueueActionRequest(
+                action = NowPlayingQueueAction.MoveQueueItem,
+                queueIndex = fromIndex,
+                destinationQueueIndex = toIndex,
+            ),
+        )
     }
 
     fun emptyQueue() {
@@ -1469,6 +1484,8 @@ private fun NowPlayingProgressRow(
                     ).toFloat()
                 },
                 enabled = canSeek && durationSeconds != null,
+                smoothProgress = nowPlaying.isPlaying && scrubberOverride == null,
+                durationSeconds = durationSeconds,
                 colors = controlColors,
                 onValueChange = {
                     scrubberOverride = it
@@ -1528,6 +1545,8 @@ internal fun WaveformScrubber(
     value: Float,
     drawValue: () -> Float = { value },
     enabled: Boolean,
+    smoothProgress: Boolean = false,
+    durationSeconds: Double? = null,
     colors: NaviampColors,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: (Float) -> Unit,
@@ -1536,6 +1555,26 @@ internal fun WaveformScrubber(
     val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
     val readableAccent = colors.accent.mix(colors.primaryText, 0.48f)
     val density = LocalDensity.current
+    val targetDrawValue = drawValue().coerceIn(0f, 1f)
+    val animatedDrawValue = remember { Animatable(targetDrawValue) }
+    LaunchedEffect(targetDrawValue, smoothProgress, durationSeconds) {
+        val duration = durationSeconds?.takeIf { it > 0.0 }
+        if (!smoothProgress || duration == null) {
+            animatedDrawValue.snapTo(targetDrawValue)
+            return@LaunchedEffect
+        }
+        if (abs(animatedDrawValue.value - targetDrawValue) > WaveformProgressResyncThreshold) {
+            animatedDrawValue.snapTo(targetDrawValue)
+        }
+        val remainingMillis = ((1f - animatedDrawValue.value) * duration * 1000.0)
+            .toLong()
+            .coerceIn(1L, Int.MAX_VALUE.toLong())
+            .toInt()
+        animatedDrawValue.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = remainingMillis, easing = LinearEasing),
+        )
+    }
 
     Box(
         modifier = modifier
@@ -1586,7 +1625,7 @@ internal fun WaveformScrubber(
         Canvas(
             modifier = Modifier.fillMaxSize(),
         ) {
-            val currentDrawValue = drawValue().coerceIn(0f, 1f)
+            val currentDrawValue = animatedDrawValue.value.coerceIn(0f, 1f)
             if (displayAmplitudes.isEmpty()) {
                 drawFallbackScrubLine(currentDrawValue, enabled, colors)
                 return@Canvas
@@ -1599,29 +1638,29 @@ internal fun WaveformScrubber(
             val minBarHeight = 2.5f
             val maxBarHeight = size.height * 0.92f
 
-            repeat(visibleBars) { index ->
-                val sourceIndex = if (visibleBars == 1) {
-                    0
-                } else {
-                    ((index / (visibleBars - 1f)) * (displayAmplitudes.size - 1)).toInt()
+            val drawBars: DrawScope.(Color) -> Unit = { color ->
+                repeat(visibleBars) { index ->
+                    val sourceIndex = if (visibleBars == 1) {
+                        0
+                    } else {
+                        ((index / (visibleBars - 1f)) * (displayAmplitudes.size - 1)).toInt()
+                    }
+                    val amplitude = displayAmplitudes[sourceIndex].coerceIn(0f, 1f)
+                    val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
+                        .coerceAtMost(size.height)
+                    val x = index * step + step / 2f
+                    drawLine(
+                        color = color,
+                        start = Offset(x, centerY - barHeight / 2f),
+                        end = Offset(x, centerY + barHeight / 2f),
+                        strokeWidth = strokeWidth,
+                        cap = StrokeCap.Round,
+                    )
                 }
-                val amplitude = displayAmplitudes[sourceIndex].coerceIn(0f, 1f)
-                val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
-                    .coerceAtMost(size.height)
-                val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
-                val color = when {
-                    !enabled -> colors.mutedText.copy(alpha = 0.28f)
-                    ratio <= currentDrawValue -> readableAccent.copy(alpha = 0.98f)
-                    else -> colors.primaryText.copy(alpha = 0.42f)
-                }
-                val x = index * step + step / 2f
-                drawLine(
-                    color = color,
-                    start = Offset(x, centerY - barHeight / 2f),
-                    end = Offset(x, centerY + barHeight / 2f),
-                    strokeWidth = strokeWidth,
-                    cap = StrokeCap.Round,
-                )
+            }
+            drawBars(colors.primaryText.copy(alpha = if (enabled) 0.34f else 0.16f))
+            clipRect(right = waveformPlayedClipWidth(size.width, currentDrawValue)) {
+                drawBars(readableAccent.copy(alpha = if (enabled) 0.98f else 0.92f))
             }
         }
 
@@ -1634,6 +1673,11 @@ internal fun waveformSeekFraction(x: Float, width: Int): Float =
 internal fun waveformSeekFraction(x: Float, width: Float): Float =
     (x / width.coerceAtLeast(1f)).coerceIn(0f, 1f)
 
+internal fun waveformPlayedClipWidth(width: Float, value: Float): Float =
+    width.coerceAtLeast(0f) * value.coerceIn(0f, 1f)
+
+private const val WaveformProgressResyncThreshold = 0.025f
+
 private fun DrawScope.drawFallbackScrubLine(
     value: Float,
     enabled: Boolean,
@@ -1641,16 +1685,15 @@ private fun DrawScope.drawFallbackScrubLine(
 ) {
     val centerY = size.height / 2f
     val endX = size.width * value.coerceIn(0f, 1f)
-    val disabledAlpha = if (enabled) 1f else 0.42f
     drawLine(
-        color = colors.primaryText.copy(alpha = 0.42f * disabledAlpha),
+        color = colors.primaryText.copy(alpha = if (enabled) 0.34f else 0.16f),
         start = Offset.Zero.copy(y = centerY),
         end = Offset(size.width, centerY),
         strokeWidth = 5f,
         cap = StrokeCap.Round,
     )
     drawLine(
-        color = colors.accent.mix(colors.primaryText, 0.48f).copy(alpha = 0.98f * disabledAlpha),
+        color = colors.accent.mix(colors.primaryText, 0.48f).copy(alpha = if (enabled) 0.98f else 0.92f),
         start = Offset.Zero.copy(y = centerY),
         end = Offset(endX, centerY),
         strokeWidth = 5f,
@@ -1997,7 +2040,7 @@ private fun LyricsPanel(
 
     LaunchedEffect(activeLineIndex, nowPlaying.lyricsLines.size) {
         if (activeLineIndex < 0) return@LaunchedEffect
-        listState.animateScrollToItem((activeLineIndex - LyricsActiveLineTargetIndex).coerceAtLeast(0))
+        listState.animateToActiveLyricLine(activeLineIndex)
     }
 
     Column(
@@ -2042,6 +2085,14 @@ private fun LyricsPanel(
                     val line = nowPlaying.lyricsLines[index]
                     val active = index == activeLineIndex
                     val inactiveColor = colors.secondaryText.copy(alpha = 0.72f)
+                    val emphasis by animateFloatAsState(
+                        targetValue = if (active) 1f else 0f,
+                        animationSpec = tween(
+                            durationMillis = LyricsLineTransitionMillis,
+                            easing = FastOutSlowInEasing,
+                        ),
+                        label = "Lyric line emphasis",
+                    )
                     val karaokeRevision = if (active && line.cues.isNotEmpty()) {
                         line.karaokeHighlightRevision(
                             positionMillis = positionMillis,
@@ -2064,10 +2115,10 @@ private fun LyricsPanel(
                     }
                     Text(
                         text = text,
-                        color = if (active) colors.primaryText else inactiveColor,
-                        fontSize = if (active) 15.sp else 13.sp,
-                        lineHeight = if (active) 18.sp else 16.sp,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                        color = lerp(inactiveColor, colors.primaryText, emphasis),
+                        fontSize = (13f + 2f * emphasis).sp,
+                        lineHeight = (16f + 2f * emphasis).sp,
+                        fontWeight = if (emphasis >= 0.5f) FontWeight.Bold else FontWeight.Normal,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(enabled = line.startMillis != null) {
@@ -2208,6 +2259,28 @@ private fun Int.offsetSecondsLabel(): String {
 private const val LyricsAutoScrollLeadMillis = 100L
 private const val LyricsPositionTickMillis = 100L
 private const val LyricsOffsetStepMillis = 100
+internal const val LyricsLineTransitionMillis = 420
+private const val LyricsScrollTransitionMillis = 520
+
+internal fun lyricsActiveLineScrollTarget(activeLineIndex: Int): Int =
+    (activeLineIndex - LyricsActiveLineTargetIndex).coerceAtLeast(0)
+
+internal suspend fun LazyListState.animateToActiveLyricLine(activeLineIndex: Int) {
+    if (activeLineIndex < 0) return
+    val targetIndex = lyricsActiveLineScrollTarget(activeLineIndex)
+    val visibleTarget = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+    if (visibleTarget == null) {
+        animateScrollToItem(targetIndex)
+    } else if (visibleTarget.offset != 0) {
+        animateScrollBy(
+            value = visibleTarget.offset.toFloat(),
+            animationSpec = tween(
+                durationMillis = LyricsScrollTransitionMillis,
+                easing = FastOutSlowInEasing,
+            ),
+        )
+    }
+}
 
 private data class LyricPositionAnchor(
     val positionMillis: Long,

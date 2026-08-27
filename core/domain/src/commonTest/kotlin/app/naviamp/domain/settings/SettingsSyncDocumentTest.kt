@@ -190,6 +190,7 @@ class SettingsSyncDocumentTest {
     fun interfaceBackgroundDefaultsAndNormalizesHexColor() {
         assertEquals(AppBackgroundStyle.Aurora, InterfaceSettings().appBackgroundStyle)
         assertEquals(AuroraTone.Dark, InterfaceSettings().auroraTone)
+        assertEquals("Balanced", InterfaceSettings().auroraTone.label)
         assertEquals(DefaultAlbumBlurRadiusDp, InterfaceSettings().albumBlurRadiusDp)
         assertEquals(MaxAlbumBlurRadiusDp, InterfaceSettings(albumBlurRadiusDp = 999).normalized().albumBlurRadiusDp)
         assertEquals(MinAlbumBlurRadiusDp, InterfaceSettings(albumBlurRadiusDp = -1).normalized().albumBlurRadiusDp)
@@ -197,6 +198,28 @@ class SettingsSyncDocumentTest {
         assertEquals(DefaultSingleColorHex, InterfaceSettings(singleColorHex = "not-a-color").normalized().singleColorHex)
         assertEquals(NowPlayingAlbumYearPreference.Original, NowPlayingDisplaySettings().albumYearPreference)
         assertEquals(false, NowPlayingDisplaySettings().showTrackCover)
+    }
+
+    @Test
+    fun auroraToneKeepsOldDarkValueBalancedAndRoundTripsNewDark() {
+        val existing = SettingsSyncDocument(
+            preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(auroraTone = AuroraTone.Dark),
+            ),
+        )
+        val existingJson = SettingsSyncJson.encode(existing)
+        assertTrue(existingJson.contains("\"auroraTone\": \"Dark\""))
+        assertEquals("Balanced", SettingsSyncJson.decode(existingJson).preferences.interfaceSettings.auroraTone.label)
+
+        val newDark = existing.copy(
+            preferences = existing.preferences.copy(
+                interfaceSettings = existing.preferences.interfaceSettings.copy(auroraTone = AuroraTone.DeepDark),
+            ),
+        )
+        assertEquals(
+            AuroraTone.DeepDark,
+            SettingsSyncJson.decode(SettingsSyncJson.encode(newDark)).preferences.interfaceSettings.auroraTone,
+        )
     }
 
     @Test

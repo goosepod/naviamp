@@ -728,6 +728,7 @@ data class NowPlayingDisplayActionRequest(
 enum class NowPlayingQueueAction {
     SaveQueueAsPlaylist,
     MoveToNext,
+    MoveQueueItem,
     RemoveFromQueue,
     EmptyQueue,
 }
@@ -736,6 +737,7 @@ data class NowPlayingQueueActionRequest(
     val action: NowPlayingQueueAction,
     val playlistName: String? = null,
     val queueIndex: Int? = null,
+    val destinationQueueIndex: Int? = null,
 )
 
 enum class NowPlayingSleepTimerAction {
@@ -1305,7 +1307,7 @@ fun NowPlayingUi.withDisplaySettings(
         coverArtUrl = art,
         albumYear = year,
         albumLine = albumTitle.takeIf(String::isNotBlank)?.let { title ->
-            year?.let { "$title ($it)" } ?: title
+            if (settings.showAlbumYear) year?.let { "$title ($it)" } ?: title else title
         }.orEmpty(),
     )
 }

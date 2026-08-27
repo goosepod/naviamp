@@ -371,8 +371,8 @@ class NaviampCoreMediaDetailController(
         val generation = ++artistGeneration
         mediaRegistry.updateArtist(null)
         val artist = Artist(ArtistId(item.id), item.title)
-        navigationController.openArtistDetail(artist, pushCurrentArtist = pushCurrentArtist)
         publishArtistLoading(item)
+        navigationController.openArtistDetail(artist, pushCurrentArtist = pushCurrentArtist)
         val provider = providerSource.current()
         if (provider == null) {
             publishArtistFailure(item, "Connect to Navidrome to load an artist.")

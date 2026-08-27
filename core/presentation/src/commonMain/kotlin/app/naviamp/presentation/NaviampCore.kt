@@ -220,6 +220,7 @@ class NaviampCore private constructor(
                 stateStore,
                 providerSource,
                 libraryGenreRefresh = services.content.libraryGenreRefresh,
+                libraryIndex = services.content.libraryIndex,
                 mediaRegistry = mediaRegistry,
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
