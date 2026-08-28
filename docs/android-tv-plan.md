@@ -114,10 +114,12 @@ All Television surfaces use one shared focus treatment rather than screen-specif
 - Focusing Search in the top navigation activates the destination without stealing focus or opening
   the keyboard, so the user can continue across the navigation bar. Down enters the query field and
   opens the platform keyboard; returning from results restores the query for refinement.
-- Search results update without forcing the keyboard closed. The IME Search action submits the
-  current query but does not move focus away from the text field.
-- Back dismisses the keyboard while retaining the query; Down then enters the first result. Back
-  from results returns to the query field so it can be edited again.
+- Search results may update while the user types. The IME Search action submits the current query,
+  dismisses the platform keyboard, and retains logical focus on the query field so the results are
+  immediately available to the remote.
+- Back dismisses an open keyboard while retaining the query; after submission, Down enters the
+  first result. Back from results returns to the query field, and a subsequent Back returns to the
+  Search top-navigation entry.
 - Results use the shared Television grid and deterministic row-major D-pad navigation.
 
 ### Internet Radio Stations
@@ -384,7 +386,9 @@ independent navigation graph may be introduced in the Apple TV host.
   burn-in behavior remain outstanding parts of the complete lyrics direction.
 - Add shared Compose coverage for Television Home, Library, Search submission and re-entry, the mini
   player, Internet Radio, Now Playing actions, lyrics rendering, settings movement, and route/detail
-  Back behavior. Existing policy and JVM tests do not replace direct screen-composition coverage.
+  Back behavior. The 2026-08-28 emulator acceptance sweep covers these implemented paths manually,
+  but existing policy/JVM tests and manual evidence do not replace direct screen-composition
+  coverage.
 - Android TV launcher banner/icon assets remain an M4 distribution requirement; the current
   manifest work is sufficient for emulator launch but is not the final Google Play TV package.
 
@@ -838,3 +842,35 @@ independent navigation graph may be introduced in the Apple TV host.
   device trust; a target validates and securely persists transferred connection information; queue
   transfer requires a matching canonical source identity and preserves occurrences, groups,
   priority, position, repeat, shuffle, and playback-profile intent without transferring stream URLs.
+
+### 2026-08-28
+
+- Ran the Android TV acceptance sweep on the API 36 ARM64 emulators at native 1920x1080 and
+  3840x2160. Home, Now Playing preview/full screen, Library, Playlists, Search, artist/album/playlist
+  details, Settings, synchronized lyrics, artwork, waveform progress, and saved-session restoration
+  rendered without a runtime crash.
+- Passed the shared domain/UI, Navidrome provider, Android unit, and Android APK build suite. After
+  the emulator fixes, shared UI JVM tests and Android assembly passed again, and the same shared UI
+  compiled for Desktop and iOS Simulator ARM64.
+- Fixed the hidden-Playlists navigation-owner mismatch found by the emulator sweep. Playlists now
+  opens with focus on its first row, Up can return to the Library tab, playlist details return to
+  the playlist list instead of Library, and the originating playlist focus is restored. The shared
+  navigation policy now canonicalizes internal Playlists content to its visible Library owner.
+- Fixed TV Search submission so the IME action dismisses the platform keyboard. The submitted query
+  and results remain visible, and one Down press now focuses the first result. Verified the full
+  path with a 34-result `2Pac` query; Back returns from results to the query and then to the Search
+  top-navigation entry without exiting the app.
+- Rechecked focus restoration through artist, album, and playlist details. Artist detail begins on
+  Play, Down selects the first album after any popular-track rows, album Back returns to the artist,
+  and artist Back returns to the originating Library artist rather than the top of the collection.
+- Rechecked TV Playback and Display settings. Gapless and Crossfade remain mutually exclusive in
+  both directions, Back retains the originating setting row, Aurora exposes Light/Balanced/Dark,
+  Waveform Density is available, and Album Blur and Single Color expose their live-preview controls.
+- Exercised Home section move mode by moving the first section six positions down. The settings
+  sheet scrolled with the moving row; the item was then returned to its original position and the
+  saved order/visibility were left unchanged.
+- Verified native-4K Now Playing and Library layout/focus independently of the 1080p pass. The
+  remaining emulator gaps are multiple-source switching (only one source is configured), the
+  unimplemented dedicated Internet Radio and Home collection pages, sustained audio-policy/provider
+  reporting validation, and automated recovery/direct Compose coverage. HDMI/CEC, audio focus,
+  sleep/wake, and authoritative `MediaSession` acceptance remain physical-hardware work.

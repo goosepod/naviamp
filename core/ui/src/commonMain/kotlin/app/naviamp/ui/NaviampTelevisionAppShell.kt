@@ -108,12 +108,11 @@ fun NaviampTelevisionAppShell(
         if (nowPlaying == null) nowPlayingPreview = false
     }
     val televisionDestinations = naviampTelevisionDestinations(nowPlayingAvailable = nowPlaying != null)
-    val navigationFocusDestination = suppressedFocusActivation
-        ?: naviampTelevisionNavigationFocusDestination(
-            selected = selectedDestination,
-            settingsSelected = settingsOpen || uiState.shellChrome.selectedRoute == SharedRoute.Settings,
-            destinations = televisionDestinations,
-        )
+    val navigationFocusDestination = naviampTelevisionNavigationFocusDestination(
+        selected = suppressedFocusActivation ?: selectedDestination,
+        settingsSelected = settingsOpen || uiState.shellChrome.selectedRoute == SharedRoute.Settings,
+        destinations = televisionDestinations,
+    )
     val focusNavigation: () -> Unit = {
         navigationFocusRequesters.getValue(navigationFocusDestination).requestFocus()
         Unit
@@ -512,7 +511,7 @@ private fun TelevisionConnectedContent(
     ) ?: NaviampTelevisionDestination.Home
     val televisionMediaActions = actions.mediaActions.copy(
         onMediaItemAction = { request ->
-            onNavigationActivationSuppressed(selectedContentDestination)
+            onNavigationActivationSuppressed(naviampTelevisionVisibleOwner(selectedContentDestination))
             actions.mediaActions.onMediaItemAction(request)
         },
     )
@@ -574,7 +573,9 @@ private fun TelevisionConnectedContent(
             },
             onOpenPlaylists = {
                 onLibraryRouteLeaving()
-                onNavigationActivationSuppressed(NaviampTelevisionDestination.Playlists)
+                onNavigationActivationSuppressed(
+                    naviampTelevisionVisibleOwner(NaviampTelevisionDestination.Playlists),
+                )
                 actions.navigationActions.onRouteSelected(SharedRoute.Playlists)
             },
             topNavigationFocusRequester = topNavigationFocusRequester,

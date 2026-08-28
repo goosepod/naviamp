@@ -69,6 +69,10 @@ class NaviampApplicationSurfaceTest {
         val destinations = naviampTelevisionDestinations(nowPlayingAvailable = true)
         assertEquals(
             NaviampTelevisionDestination.Library,
+            naviampTelevisionVisibleOwner(NaviampTelevisionDestination.Playlists),
+        )
+        assertEquals(
+            NaviampTelevisionDestination.Library,
             naviampTelevisionNavigationFocusDestination(
                 selected = NaviampTelevisionDestination.Library,
                 settingsSelected = false,

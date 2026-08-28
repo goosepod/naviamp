@@ -645,6 +645,7 @@ internal fun TelevisionPlaylists(
                     )
                 },
                 colors = colors,
+                focusFirstItem = true,
                 focusRequest = gridFocusRequest,
                 onUpFromFirstRow = {
                     topNavigationFocusRequester.requestFocus()
@@ -697,10 +698,8 @@ internal fun TelevisionSearch(
     }
     val submitSearch = {
         actions.onSearch()
-        if (searchFieldFocused) {
-            keyboardActive = true
-            keyboardController?.show()
-        }
+        keyboardController?.hide()
+        keyboardActive = false
     }
     val backTarget = televisionSearchBackTarget(resultsActive, searchFieldFocused, keyboardActive)
     NaviampSystemBackHandler(enabled = backTarget != TelevisionSearchBackTarget.Navigation) {

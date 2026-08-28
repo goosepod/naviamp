@@ -53,9 +53,16 @@ fun naviampTelevisionNavigationFocusDestination(
     destinations: List<NaviampTelevisionDestination>,
 ): NaviampTelevisionDestination = when {
     settingsSelected -> NaviampTelevisionDestination.Settings
-    selected == NaviampTelevisionDestination.Playlists -> NaviampTelevisionDestination.Library
-    selected != null && selected in destinations -> selected
+    selected != null && naviampTelevisionVisibleOwner(selected) in destinations ->
+        naviampTelevisionVisibleOwner(selected)
     else -> destinations.firstOrNull() ?: NaviampTelevisionDestination.Home
+}
+
+fun naviampTelevisionVisibleOwner(
+    destination: NaviampTelevisionDestination,
+): NaviampTelevisionDestination = when (destination) {
+    NaviampTelevisionDestination.Playlists -> NaviampTelevisionDestination.Library
+    else -> destination
 }
 
 fun naviampTelevisionBackRoute(
