@@ -75,6 +75,21 @@ class NaviampCoreNowPlayingMediaController(
         presenter.publish(playbackController.currentDisplay())
     }
 
+    /** Applies an absolute favorite value requested by a trusted Connect controller. */
+    internal suspend fun setConnectFavorite(mediaId: String, favorite: Boolean): Boolean {
+        val track = playback.state.value.queue.tracks.firstOrNull { it.id.value == mediaId }
+            ?: currentTrack()?.takeIf { it.id.value == mediaId }
+            ?: return false
+        if ((track.favoritedAtIso8601 != null) == favorite) return true
+        val provider = providerSource.current() ?: return false
+        val updated = runCatching {
+            favoriteTrackUpdate(provider, track, favoritedAtIso8601())
+        }.getOrNull() ?: return false
+        mediaRegistry.updateTrack(updated)
+        replaceTrack(updated)
+        return (updated.favoritedAtIso8601 != null) == favorite
+    }
+
     private suspend fun display(request: NowPlayingDisplayActionRequest) {
         when (request.action) {
             NowPlayingDisplayAction.ToggleLyrics -> {

@@ -48,7 +48,10 @@ class NaviampApplicationSurfaceTest {
                 nowPlayingPreview = true,
             ),
         )
-        assertNull(naviampSelectedTelevisionDestination(SharedRoute.Radio, nowPlayingOpen = false))
+        assertEquals(
+            NaviampTelevisionDestination.Library,
+            naviampSelectedTelevisionDestination(SharedRoute.Radio, nowPlayingOpen = false),
+        )
     }
 
     @Test

@@ -49,6 +49,8 @@ interface MediaProvider {
     suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
+    suspend fun track(trackId: TrackId): Track? =
+        tracks(limit = 5_000).firstOrNull { it.id == trackId }
     suspend fun favoriteTracks(limit: Int = 5000): List<Track> =
         tracks(limit).filter { it.favoritedAtIso8601 != null }
     suspend fun tracksPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Track> =

@@ -1937,8 +1937,16 @@ private fun NowPlayingSidePanel(
         }
         val rowActions = when (selectedTab) {
             NaviampNowPlayingTab.Related -> relatedTrackRowActions()
-            NaviampNowPlayingTab.UpNext -> upNextQueueRowActions()
-            else -> queueRowActions()
+            NaviampNowPlayingTab.UpNext -> if (nowPlaying.queueManagementActionsOnly) {
+                listOf(
+                    NaviampAction.RemoveFromQueue.toSpec(),
+                    NaviampAction.PlayNext.toSpec(),
+                    NaviampAction.PlayNextTrack.toSpec(),
+                )
+            } else {
+                upNextQueueRowActions()
+            }
+            else -> if (nowPlaying.queueManagementActionsOnly) emptyList() else queueRowActions()
         }
         val listState = when (selectedTab) {
             NaviampNowPlayingTab.BackTo -> backToListState

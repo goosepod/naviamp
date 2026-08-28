@@ -91,6 +91,7 @@ class NaviampCore private constructor(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val diagnostics: NaviampCoreDiagnosticsPort,
+    private val connectController: NaviampCoreConnectController?,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
 
@@ -160,6 +161,10 @@ class NaviampCore private constructor(
 
     fun expireSleepTimer() {
         playbackController.expireSleepTimer()
+    }
+
+    fun close() {
+        connectController?.close()
     }
 
     /** Runs the shared sliding-session heartbeat until the mounted Core application is disposed. */
@@ -401,6 +406,11 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 mediaRegistry,
             )
+            val connectCatalog = NaviampCoreConnectCatalogController(
+                providerSource = providerSource,
+                media = mediaTransactions,
+                radio = radio,
+            )
             val recentRadio = NaviampCoreRecentRadioController(
                 recents = generatedRadioRecents,
                 media = mediaTransactions,
@@ -564,13 +574,32 @@ class NaviampCore private constructor(
                 ),
                 onAsyncFailure = onAsyncFailure,
             )
+            val connect = services.connect?.let { connectServices ->
+                NaviampCoreConnectController(
+                    scope = scope,
+                    stateStore = stateStore,
+                    services = connectServices,
+                    targetPlayback = playback.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
+                    targetNowPlaying = nowPlaying.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
+                    targetCatalog = connectCatalog.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
+                    localPlayback = playback,
+                    sourceIdentity = {
+                        naviampCoreConnectSourceIdentity(stateStore, providerSource)
+                    },
+                    providerSessions = services.connection,
+                    targetConnection = connection.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
+                    targetSettings = settings.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
+                )
+            }
+            val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
+            livePlayback.observe { connect?.onTargetPlaybackChanged() }
             nowPlayingPresenter.publish()
             scope.launch { connection.restoreInitialConnection() }
             return NaviampCore(
                 stateStore = stateStore,
                 playbackProgress = livePlayback.progress,
-                actions = createNaviampCoreActions(router, actionAvailability),
-                commands = router,
+                actions = createNaviampCoreActions(commandHandler, actionAvailability, connect?.actions),
+                commands = commandHandler,
                 playbackController = playback,
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
@@ -578,6 +607,7 @@ class NaviampCore private constructor(
                 providerSource = providerSource,
                 sidecars = services.playback.sidecars,
                 diagnostics = services.diagnostics,
+                connectController = connect,
             )
         }
     }

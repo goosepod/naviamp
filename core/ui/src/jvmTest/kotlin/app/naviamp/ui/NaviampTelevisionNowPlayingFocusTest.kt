@@ -335,6 +335,58 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
+    fun liveRadioQueueShowsSavedStationsAndSelectsThemAsStations() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val selections = mutableListOf<NowPlayingSelectionActionRequest>()
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "current-station",
+                    title = "Current stream title",
+                    subtitle = "Current station",
+                    stateLabel = "Playing",
+                    isLive = true,
+                    isPlaying = true,
+                    canPlayPause = true,
+                    radioStations = listOf(
+                        NaviampNowPlayingItemUi("current-station", "Current station", "Internet radio"),
+                        NaviampNowPlayingItemUi("other-station", "Other station", "Internet radio"),
+                    ),
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { _ -> },
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = selections::add,
+                    onQueueItemAction = { _ -> },
+                ),
+                onClose = {},
+                onOpenSettings = {},
+            )
+        }
+        mainClock.advanceTimeBy(200)
+
+        onNodeWithContentDescription("Queue").performClick()
+        mainClock.advanceTimeBy(400)
+
+        onNodeWithText("INTERNET RADIO").assertExists()
+        onNodeWithTag(TelevisionNowPlayingQueueCurrentTestTag).assertExists()
+        onNodeWithText("Other station").assertExists()
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}0")
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        mainClock.advanceTimeBy(100)
+
+        assertEquals(1, selections.size)
+        assertEquals(NowPlayingSelectionAction.SelectRadioStation, selections.single().action)
+        assertEquals("other-station", selections.single().item.id)
+    }
+
+    @Test
     fun onlyOrdinaryNavigationKeysWakeListeningMode() {
         assertEquals(true, televisionWakesNowPlayingControls(Key.DirectionCenter))
         assertEquals(true, televisionWakesNowPlayingControls(Key.DirectionDown))

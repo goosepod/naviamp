@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableIntStateOf
@@ -88,6 +89,9 @@ fun NaviampCoreApp(
 ) {
     val state by core.state.collectAsState()
     var diagnosticsRefreshTick by remember { mutableIntStateOf(0) }
+    DisposableEffect(core) {
+        onDispose(core::close)
+    }
     LaunchedEffect(core, state.shell.connectionSettings.currentSourceId) {
         if (state.shell.connectionSettings.currentSourceId != null) {
             core.maintainProviderSession()

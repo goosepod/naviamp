@@ -2088,7 +2088,7 @@ fun InternetRadioContent(
 }
 
 @Composable
-private fun InternetRadioStationDialog(
+internal fun InternetRadioStationDialog(
     initialStation: NaviampInternetRadioStationUi?,
     onDismiss: () -> Unit,
     onConfirm: (NaviampInternetRadioStationEditUi) -> Unit,

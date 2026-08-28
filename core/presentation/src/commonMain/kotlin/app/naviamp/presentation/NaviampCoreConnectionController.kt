@@ -86,6 +86,10 @@ class NaviampCoreConnectionController(
         connect(NaviampCoreConnectionRequest.Saved(saved.id))
     }
 
+    /** Validates and commits an encrypted Connect offer through the normal provider-session owner. */
+    internal suspend fun provisionConnect(form: ConnectionFormState): Boolean =
+        connect(NaviampCoreConnectionRequest.Form(form))
+
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
         val connectionCommand = command as? NaviampCoreCommand.Connection
             ?: return NaviampCoreImmediateCommandResult.Unhandled
@@ -124,7 +128,7 @@ class NaviampCoreConnectionController(
         return NaviampCoreCommandResult.Completed
     }
 
-    private suspend fun connect(request: NaviampCoreConnectionRequest) {
+    private suspend fun connect(request: NaviampCoreConnectionRequest): Boolean {
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
                 form = request.form,
@@ -132,13 +136,14 @@ class NaviampCoreConnectionController(
             )?.let { error ->
                 connection.failed(error)
                 publishConnection()
-                return
+                return false
             }
         }
         val plan = connection.begin(restoreSavedSession = request is NaviampCoreConnectionRequest.Saved)
-            ?: return
+            ?: return false
         val previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         publishConnection()
+        var connected = false
         runCatching { sessionPort.connect(request, plan) }
             .onSuccess { session ->
                 if (previousSourceId != session.sourceId || plan.clearExistingPlayback) {
@@ -163,6 +168,7 @@ class NaviampCoreConnectionController(
                 }
                 publishConnection()
                 onConnected(session.sourceId)
+                connected = true
             }
             .onFailure { cause ->
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
@@ -178,6 +184,7 @@ class NaviampCoreConnectionController(
                     publishConnection()
                 }
             }
+        return connected
     }
 
     private suspend fun edit(id: String) {

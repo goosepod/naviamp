@@ -211,9 +211,10 @@ fun NaviampTelevisionAppShell(
                     val albumDetailOpen = uiState.albumDetail.selectedAlbum != null
                     val artistDetailOpen = uiState.artistDetail.selectedArtist != null
                     val playlistDetailOpen = uiState.playlistDetail.selectedPlaylist != null
+                    val internetRadioOpen = uiState.shellChrome.selectedRoute == SharedRoute.Radio
                     NaviampSystemBackHandler(
                         enabled = returnToNowPlayingFromSearch || nowPlayingPreview ||
-                            albumDetailOpen || artistDetailOpen || playlistDetailOpen ||
+                            albumDetailOpen || artistDetailOpen || playlistDetailOpen || internetRadioOpen ||
                             (!transientContentOpen && !navigationFocused),
                     ) {
                         if (
@@ -235,6 +236,7 @@ fun NaviampTelevisionAppShell(
                                 albumDetailOpen -> actions.albumDetailActions.onBack()
                                 artistDetailOpen -> actions.artistDetailActions.onBack()
                                 playlistDetailOpen -> actions.playlistDetailActions.onBack()
+                                internetRadioOpen -> actions.navigationActions.onRouteSelected(SharedRoute.Library)
                                 else -> focusNavigation()
                             }
                         }
@@ -578,6 +580,11 @@ private fun TelevisionConnectedContent(
                 )
                 actions.navigationActions.onRouteSelected(SharedRoute.Playlists)
             },
+            onOpenInternetRadio = {
+                onLibraryRouteLeaving()
+                onNavigationActivationSuppressed(NaviampTelevisionDestination.Library)
+                actions.navigationActions.onRouteSelected(SharedRoute.Radio)
+            },
             topNavigationFocusRequester = topNavigationFocusRequester,
             entryFocusGeneration = contentEntryGeneration.takeIf {
                 contentEntryDestination == NaviampTelevisionDestination.Library
@@ -604,6 +611,12 @@ private fun TelevisionConnectedContent(
                 contentEntryDestination == NaviampTelevisionDestination.Playlists
             },
             onEntryFocusHandled = onContentEntryHandled,
+        )
+        uiState.shellChrome.selectedRoute == SharedRoute.Radio -> TelevisionInternetRadio(
+            screen = uiState.radio,
+            colors = colors,
+            actions = actions.radioActions,
+            topNavigationFocusRequester = topNavigationFocusRequester,
         )
         else -> ConnectedContent(
             colors = colors,
@@ -698,6 +711,11 @@ private fun TelevisionConnectionScreen(
                 color = colors.mutedText,
                 fontSize = 14.sp,
             )
+            TelevisionFirstRunConnectSetup(
+                connect = uiState.connect,
+                actions = actions.connectActions,
+                colors = colors,
+            )
             NaviampConnectionForm(
                 form = connection.form,
                 colors = colors,
@@ -716,6 +734,70 @@ private fun TelevisionConnectionScreen(
                 onImportSettingsSyncFile = null,
                 onCancel = actions.connectionActions.onCancelConnectionForm.takeIf { connection.connected },
             )
+        }
+    }
+}
+
+@Composable
+private fun TelevisionFirstRunConnectSetup(
+    connect: NaviampConnectSettingsUi,
+    actions: NaviampConnectSettingsActions?,
+    colors: NaviampColors,
+) {
+    if (!connect.available || !connect.canAdvertise || actions == null) return
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.controlSurface.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
+            .padding(16.dp),
+    ) {
+        Text("Set up from a phone or computer", color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Put this TV in pairing mode, find it from Naviamp on the same network, and enter the code shown here.",
+            color = colors.secondaryText,
+            fontSize = 15.sp,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            TelevisionTextButton(
+                label = if (connect.pairingActive) "Stop pairing" else "Show pairing code",
+                colors = colors,
+                calmFocus = true,
+                onClick = if (connect.pairingActive) actions.onStopPairingMode else actions.onStartPairingMode,
+            )
+            connect.pairingCode?.let { code ->
+                Text(
+                    formatNaviampConnectPairingCode(code),
+                    color = colors.primaryText,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+        }
+        connect.status?.let { Text(it, color = colors.secondaryText, fontSize = 14.sp) }
+        if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
+            Text(
+                "${connect.pendingControllerName ?: "A controller"} is asking to pair.",
+                color = colors.primaryText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TelevisionTextButton("Approve controller", colors, calmFocus = true, onClick = actions.onApproveController)
+                TelevisionTextButton("Reject", colors, calmFocus = true, onClick = actions.onRejectController)
+            }
+        }
+        connect.pendingProvisioningConnectionName?.let { connectionName ->
+            Text(
+                "${connect.pendingProvisioningControllerName ?: "A paired controller"} can set up $connectionName. " +
+                    "The TV will validate it before saving.",
+                color = colors.primaryText,
+                fontSize = 16.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TelevisionTextButton("Set up server", colors, calmFocus = true, onClick = actions.onApproveProvisioning)
+                TelevisionTextButton("Reject", colors, calmFocus = true, onClick = actions.onRejectProvisioning)
+            }
         }
     }
 }

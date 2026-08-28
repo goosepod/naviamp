@@ -101,7 +101,7 @@ fun NaviampSharedAppShell(
     val playlistDetailActions = actions.playlistDetailActions
     val homeActions = actions.homeActions
     val mediaActions = actions.mediaActions
-    val nowPlayingActions = actions.nowPlayingActions
+    val connectActions = actions.connectActions
     val connectionSettings = uiState.connectionSettings
     val general = uiState.general
     val playback = uiState.playback
@@ -122,7 +122,15 @@ fun NaviampSharedAppShell(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val remoteNowPlaying = uiState.connect.remoteNowPlaying
+    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)
+        ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val nowPlayingActions = if (remoteNowPlaying != null) {
+        connectActions?.remoteNowPlayingActions ?: actions.nowPlayingActions
+    } else {
+        actions.nowPlayingActions
+    }
+    val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
@@ -285,7 +293,7 @@ fun NaviampSharedAppShell(
                         ConnectedContent(
                             colors = colors,
                             uiState = uiState,
-                            playbackProgress = playbackProgress,
+                            playbackProgress = effectivePlaybackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
                             actions = actions,
@@ -352,7 +360,7 @@ internal fun ConnectedContent(
     val playlistDetailActions = actions.playlistDetailActions
     val homeActions = actions.homeActions
     val mediaActions = actions.mediaActions
-    val nowPlayingActions = actions.nowPlayingActions
+    val connectActions = actions.connectActions
     val connectionSettings = uiState.connectionSettings
     val general = uiState.general
     val playback = uiState.playback
@@ -373,7 +381,15 @@ internal fun ConnectedContent(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val remoteNowPlaying = uiState.connect.remoteNowPlaying
+    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)
+        ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val nowPlayingActions = if (remoteNowPlaying != null) {
+        connectActions?.remoteNowPlayingActions ?: actions.nowPlayingActions
+    } else {
+        actions.nowPlayingActions
+    }
+    val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
     val selectedVisualizer = shellChrome.selectedVisualizer
@@ -431,7 +447,7 @@ internal fun ConnectedContent(
     when {
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
             nowPlaying = nowPlaying,
-            playbackProgress = playbackProgress,
+            playbackProgress = effectivePlaybackProgress,
             colors = colors,
             playerColors = nowPlayingPlayerColors,
             visualizerBandsProvider = visualizerBandsProvider,
@@ -478,6 +494,8 @@ internal fun ConnectedContent(
                 syncActions = syncActions,
                 valueActions = valueActions,
                 maintenanceActions = maintenanceActions,
+                connect = uiState.connect,
+                connectActions = actions.connectActions,
             )
         }
         else -> when (selectedRoute) {
@@ -766,6 +784,8 @@ fun NaviampSettingsContent(
     syncActions: NaviampSettingsSyncActions,
     valueActions: NaviampSettingsValueActions,
     maintenanceActions: NaviampSettingsMaintenanceActions,
+    connect: NaviampConnectSettingsUi = NaviampConnectSettingsUi(),
+    connectActions: NaviampConnectSettingsActions? = null,
 ) {
     val connection = connectionSettings.connection
     NaviampSharedSettingsContent(
@@ -832,6 +852,8 @@ fun NaviampSettingsContent(
         showTooltipPreference = playback.hoverTooltipsAvailable,
         desktopShortcutPlatform = desktopShortcutPlatform,
         globalShortcutStatuses = general.globalShortcutStatuses,
+        connect = connect,
+        connectActions = connectActions,
     )
 }
 

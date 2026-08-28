@@ -896,6 +896,7 @@ data class NaviampAppShellUiState(
     val artistDetail: NaviampArtistDetailScreenUi = NaviampArtistDetailScreenUi(),
     val playlistDetail: NaviampPlaylistDetailScreenUi = NaviampPlaylistDetailScreenUi(),
     val nowPlaying: NowPlayingUi? = null,
+    val connect: NaviampConnectSettingsUi = NaviampConnectSettingsUi(),
 )
 
 data class NaviampAppShellActions(
@@ -919,6 +920,7 @@ data class NaviampAppShellActions(
     val homeActions: NaviampHomeActions,
     val mediaActions: NaviampMediaActions,
     val nowPlayingActions: NaviampNowPlayingActions,
+    val connectActions: NaviampConnectSettingsActions? = null,
 )
 
 data class SharedSonicPathBuilderActions(
@@ -1052,6 +1054,7 @@ data class NowPlayingUi(
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
     val queueCurrentIndex: Int? = null,
+    val queueManagementActionsOnly: Boolean = false,
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),

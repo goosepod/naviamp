@@ -39,6 +39,46 @@ class NaviampTelevisionQueuePolicyTest {
         assertEquals("Repeat one", televisionRepeatModeDescription(NaviampRepeatMode.Track))
     }
 
+    @Test
+    fun liveQueueShowsTheOtherSavedInternetRadioStations() {
+        val stations = listOf(
+            NaviampNowPlayingItemUi("one", "One", "Internet radio"),
+            NaviampNowPlayingItemUi("two", "Two", "Internet radio"),
+            NaviampNowPlayingItemUi("three", "Three", "Internet radio"),
+        )
+        val nowPlaying = NowPlayingUi(
+            id = "two",
+            title = "Current stream title",
+            subtitle = "Two",
+            stateLabel = "Playing",
+            isLive = true,
+            radioStations = stations,
+            upNext = listOf(queueItem(4, "Stale music queue item")),
+        )
+
+        assertEquals(
+            listOf("one", "three"),
+            televisionNowPlayingQueueItems(nowPlaying).map { it.id },
+        )
+        assertEquals(true, televisionNowPlayingQueueAvailable(nowPlaying))
+    }
+
+    @Test
+    fun trackQueueContinuesToShowUpcomingTracks() {
+        val upcoming = listOf(queueItem(2, "Two"), queueItem(3, "Three"))
+        val nowPlaying = NowPlayingUi(
+            id = "track",
+            title = "Track",
+            subtitle = "Artist",
+            stateLabel = "Playing",
+            radioStations = listOf(NaviampNowPlayingItemUi("radio", "Radio", "Internet radio")),
+            upNext = upcoming,
+        )
+
+        assertEquals(upcoming, televisionNowPlayingQueueItems(nowPlaying))
+        assertEquals(false, televisionNowPlayingQueueAvailable(nowPlaying))
+    }
+
     private fun queueItem(index: Int, title: String): NaviampNowPlayingItemUi =
         NaviampNowPlayingItemUi(id = nowPlayingQueueItemId(index), title = title, subtitle = "Artist")
 }

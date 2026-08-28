@@ -48,10 +48,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -342,6 +344,7 @@ internal fun TelevisionLibrary(
     onArtistFocused: (Int) -> Unit = {},
     onOpenArtist: () -> Unit = {},
     onOpenPlaylists: () -> Unit,
+    onOpenInternetRadio: () -> Unit,
     topNavigationFocusRequester: FocusRequester,
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
@@ -349,6 +352,7 @@ internal fun TelevisionLibrary(
     val shortcuts = televisionLibraryShortcuts()
     val shortcutFocusRequesters = remember { shortcuts.associateWith { FocusRequester() } }
     val playlistsFocusRequester = remember { FocusRequester() }
+    val radioFocusRequester = remember { FocusRequester() }
     val refreshFocusRequester = remember { FocusRequester() }
     var focusedArtistIndex by remember { mutableIntStateOf(initialFocusedArtistIndex) }
     var pendingShortcut by remember { mutableStateOf<Char?>(null) }
@@ -382,6 +386,32 @@ internal fun TelevisionLibrary(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Spacer(Modifier.weight(1f))
                 TelevisionTextButton(
+                    "Internet Radio",
+                    colors,
+                    onClick = onOpenInternetRadio,
+                    modifier = Modifier
+                        .focusRequester(radioFocusRequester)
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            when (event.key) {
+                                Key.DirectionUp -> {
+                                    topNavigationFocusRequester.requestFocus()
+                                    true
+                                }
+                                Key.DirectionRight -> {
+                                    playlistsFocusRequester.requestFocus()
+                                    true
+                                }
+                                Key.DirectionDown -> if (screen.artists.isNotEmpty()) {
+                                    focusArtist(0)
+                                    true
+                                } else false
+                                else -> false
+                            }
+                        },
+                )
+                Box(modifier = Modifier.padding(start = 10.dp)) {
+                    TelevisionTextButton(
                     "Playlists",
                     colors,
                     onClick = onOpenPlaylists,
@@ -398,6 +428,10 @@ internal fun TelevisionLibrary(
                                     refreshFocusRequester.requestFocus()
                                     true
                                 }
+                                Key.DirectionLeft -> {
+                                    radioFocusRequester.requestFocus()
+                                    true
+                                }
                                 Key.DirectionDown -> if (screen.artists.isNotEmpty()) {
                                     focusArtist(0)
                                     true
@@ -407,7 +441,8 @@ internal fun TelevisionLibrary(
                                 else -> false
                             }
                         },
-                )
+                    )
+                }
                 Box(modifier = Modifier.padding(start = 10.dp)) {
                     TelevisionTextButton(
                         "Refresh",
@@ -566,6 +601,261 @@ internal fun televisionLibraryShortcutTarget(titles: List<String>, shortcut: Cha
         val section = televisionLibrarySection(title)
         if (normalized == '#') section == '#' else section != '#' && section >= normalized
     }.takeIf { it >= 0 }
+}
+
+@Composable
+internal fun TelevisionInternetRadio(
+    screen: NaviampInternetRadioScreenUi,
+    colors: NaviampColors,
+    actions: NaviampInternetRadioActions,
+    topNavigationFocusRequester: FocusRequester,
+) {
+    val stations = screen.stations.sortedBy { it.item.title.lowercase() }
+    val newFocusRequester = remember { FocusRequester() }
+    val refreshFocusRequester = remember { FocusRequester() }
+    val editActionFocusRequester = remember { FocusRequester() }
+    val cancelDeleteFocusRequester = remember { FocusRequester() }
+    val stationFocusRequesters = remember(stations.map { it.item.id }) {
+        List(stations.size) { FocusRequester() }
+    }
+    var initialFocusAssigned by remember { mutableStateOf(false) }
+    var actionStation by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
+    var editingStation by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
+    var deletingStation by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
+    var creatingStation by remember { mutableStateOf(false) }
+
+    LaunchedEffect(stations, initialFocusAssigned) {
+        if (!initialFocusAssigned) {
+            withFrameNanos { }
+            (stationFocusRequesters.firstOrNull() ?: newFocusRequester).requestFocus()
+            initialFocusAssigned = true
+        }
+    }
+    LaunchedEffect(actionStation) {
+        if (actionStation != null) {
+            withFrameNanos { }
+            editActionFocusRequester.requestFocus()
+        }
+    }
+    LaunchedEffect(deletingStation) {
+        if (deletingStation != null) {
+            withFrameNanos { }
+            cancelDeleteFocusRequester.requestFocus()
+        }
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 30.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text("Internet Radio", color = colors.primaryText, fontSize = 30.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.weight(1f))
+            TelevisionTextButton(
+                "New station",
+                colors,
+                calmFocus = true,
+                onClick = { creatingStation = true },
+                modifier = Modifier
+                    .focusRequester(newFocusRequester)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (event.key) {
+                            Key.DirectionUp -> {
+                                topNavigationFocusRequester.requestFocus()
+                                true
+                            }
+                            Key.DirectionRight -> {
+                                refreshFocusRequester.requestFocus()
+                                true
+                            }
+                            Key.DirectionDown -> stationFocusRequesters.firstOrNull()?.requestFocus() == true
+                            else -> false
+                        }
+                    },
+            )
+            Box(Modifier.padding(start = 10.dp)) {
+                TelevisionTextButton(
+                    "Refresh",
+                    colors,
+                    enabled = !screen.refreshing,
+                    calmFocus = true,
+                    onClick = actions.onRefresh,
+                    modifier = Modifier
+                        .focusRequester(refreshFocusRequester)
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            when (event.key) {
+                                Key.DirectionUp -> {
+                                    topNavigationFocusRequester.requestFocus()
+                                    true
+                                }
+                                Key.DirectionLeft -> {
+                                    newFocusRequester.requestFocus()
+                                    true
+                                }
+                                Key.DirectionDown -> stationFocusRequesters.firstOrNull()?.requestFocus() == true
+                                else -> false
+                            }
+                        },
+                )
+            }
+        }
+        screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 15.sp) }
+        if (stations.isEmpty()) {
+            Text(
+                if (screen.refreshing) "Loading internet radio…" else "No internet radio stations are saved.",
+                color = colors.secondaryText,
+                fontSize = 20.sp,
+            )
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            ) {
+                itemsIndexed(stations, key = { _, station -> station.item.id }) { index, station ->
+                    TelevisionInternetRadioRow(
+                        station = station,
+                        colors = colors,
+                        focusRequester = stationFocusRequesters[index],
+                        onClick = {
+                            actions.onStationAction(
+                                StationRowActionRequest(station.item, StationRowAction.Select),
+                            )
+                        },
+                        onOpenActions = { actionStation = station },
+                        modifier = Modifier.onPreviewKeyEvent { event ->
+                            if (index == 0 && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                                newFocusRequester.requestFocus()
+                                true
+                            } else false
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    actionStation?.let { station ->
+        AlertDialog(
+            onDismissRequest = { actionStation = null },
+            title = { Text(station.item.title) },
+            text = { Text(station.streamUrl) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        actionStation = null
+                        editingStation = station
+                    },
+                    modifier = Modifier.focusRequester(editActionFocusRequester),
+                ) { Text("Edit") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        actionStation = null
+                        deletingStation = station
+                    }) { Text("Delete") }
+                    TextButton(onClick = { actionStation = null }) { Text("Cancel") }
+                }
+            },
+        )
+    }
+    if (creatingStation) {
+        InternetRadioStationDialog(
+            initialStation = null,
+            onDismiss = { creatingStation = false },
+            onConfirm = { station ->
+                creatingStation = false
+                actions.onSaveStation(station)
+            },
+        )
+    }
+    editingStation?.let { station ->
+        InternetRadioStationDialog(
+            initialStation = station,
+            onDismiss = { editingStation = null },
+            onConfirm = { edit ->
+                editingStation = null
+                actions.onSaveStation(edit)
+            },
+        )
+    }
+    deletingStation?.let { station ->
+        AlertDialog(
+            onDismissRequest = { deletingStation = null },
+            title = { Text("Delete station") },
+            text = { Text("Delete ${station.item.title}? This removes it from the server.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deletingStation = null
+                    actions.onStationAction(StationRowActionRequest(station.item, StationRowAction.Delete))
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { deletingStation = null },
+                    modifier = Modifier.focusRequester(cancelDeleteFocusRequester),
+                ) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun TelevisionInternetRadioRow(
+    station: NaviampInternetRadioStationUi,
+    colors: NaviampColors,
+    focusRequester: FocusRequester,
+    onClick: () -> Unit,
+    onOpenActions: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                    onOpenActions()
+                    true
+                } else false
+            }
+            .onKeyEvent { event ->
+                if (
+                    event.type == KeyEventType.KeyUp &&
+                    (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.Spacebar)
+                ) {
+                    onClick()
+                    true
+                } else false
+            }
+            .focusable()
+            .televisionFocusEffect(focused, colors, shape)
+            .clip(shape)
+            .background(if (focused) colors.accent.copy(alpha = 0.34f) else Color.Black.copy(alpha = 0.22f))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        NaviampCoverArt(station.item.coverArtUrl, colors, 58.dp, 10.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
+            Text(
+                station.item.title,
+                color = colors.primaryText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(station.streamUrl, color = colors.secondaryText, fontSize = 13.sp, maxLines = 1)
+        }
+        Text("Right: actions", color = colors.mutedText, fontSize = 12.sp)
+    }
 }
 
 private data class TelevisionGridFocusRequest(val index: Int, val generation: Int)
@@ -1114,6 +1404,16 @@ internal fun televisionQueueMoveReorder(
     )
 }
 
+internal fun televisionNowPlayingQueueItems(nowPlaying: NowPlayingUi): List<NaviampNowPlayingItemUi> =
+    if (nowPlaying.isLive) {
+        nowPlaying.radioStations.filterNot { it.id == nowPlaying.id }
+    } else {
+        nowPlaying.upNext
+    }
+
+internal fun televisionNowPlayingQueueAvailable(nowPlaying: NowPlayingUi): Boolean =
+    if (nowPlaying.isLive) nowPlaying.radioStations.isNotEmpty() else nowPlaying.queueCurrentIndex != null
+
 @Composable
 internal fun TelevisionNowPlaying(
     nowPlaying: NowPlayingUi,
@@ -1242,7 +1542,9 @@ internal fun TelevisionNowPlaying(
                         reorder = queueReorder,
                         onReorderChanged = { queueReorder = it },
                         onPlay = { item ->
-                            if (
+                            if (nowPlaying.isLive) {
+                                actions.selectItem(item, NowPlayingSelectionAction.SelectRadioStation)
+                            } else if (
                                 nowPlaying.isPaused &&
                                 nowPlayingQueueIndex(item) == nowPlaying.queueCurrentIndex
                             ) {
@@ -1410,7 +1712,7 @@ internal fun TelevisionNowPlaying(
                             }
                         }
                         TelevisionIconButton(
-                            enabled = nowPlaying.queueCurrentIndex != null,
+                            enabled = televisionNowPlayingQueueAvailable(nowPlaying),
                             icon = NaviampIcons.Queue,
                             description = "Queue",
                             colors = colors,
@@ -1516,13 +1818,18 @@ private fun TelevisionNowPlayingQueue(
     onCommitReorder: (TelevisionQueueReorderState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val upcoming = reorder?.items ?: nowPlaying.upNext
+    val stationMode = nowPlaying.isLive
+    val upcoming = reorder?.items ?: televisionNowPlayingQueueItems(nowPlaying)
     val listState = rememberLazyListState()
     val currentFocusRequester = remember { FocusRequester() }
     val upcomingFocusRequesters = remember(upcoming.size) { List(upcoming.size) { FocusRequester() } }
-    val currentItem = remember(nowPlaying.id, nowPlaying.queueCurrentIndex) {
+    val currentItem = remember(nowPlaying.id, nowPlaying.isLive, nowPlaying.queueCurrentIndex) {
         NaviampNowPlayingItemUi(
-            id = nowPlaying.queueCurrentIndex?.let(::nowPlayingQueueItemId) ?: "current:${nowPlaying.id}",
+            id = if (nowPlaying.isLive) {
+                nowPlaying.id
+            } else {
+                nowPlaying.queueCurrentIndex?.let(::nowPlayingQueueItemId) ?: "current:${nowPlaying.id}"
+            },
             title = nowPlaying.title,
             subtitle = nowPlaying.subtitle,
             meta = nowPlaying.albumLine.ifBlank { nowPlaying.albumTitle },
@@ -1547,10 +1854,19 @@ private fun TelevisionNowPlayingQueue(
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier.fillMaxHeight()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("QUEUE", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Black)
+            Text(
+                if (stationMode) "INTERNET RADIO" else "QUEUE",
+                color = colors.primaryText,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black,
+            )
             Spacer(Modifier.weight(1f))
             Text(
-                if (reorder == null) "Left: move  •  Right: actions" else "Up/Down: move  •  Select/Right: place  •  Back: cancel",
+                when {
+                    stationMode -> "Select: play station"
+                    reorder == null -> "Left: move  •  Right: actions"
+                    else -> "Up/Down: move  •  Select/Right: place  •  Back: cancel"
+                },
                 color = colors.mutedText,
                 fontSize = 13.sp,
             )
@@ -1586,7 +1902,7 @@ private fun TelevisionNowPlayingQueue(
         ) {
             if (upcoming.isEmpty()) item(key = "empty") {
                 Text(
-                    "Nothing else is queued.",
+                    if (stationMode) "No other Internet Radio stations are saved." else "Nothing else is queued.",
                     color = colors.secondaryText,
                     fontSize = 15.sp,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
@@ -1613,28 +1929,33 @@ private fun TelevisionNowPlayingQueue(
                         .testTag("$TelevisionNowPlayingQueueUpcomingTestTagPrefix$index")
                         .onPreviewKeyEvent { event ->
                         when {
-                            reorder != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp -> {
+                            !stationMode && reorder != null &&
+                                event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp -> {
                                 onReorderChanged(televisionQueueMoveReorder(reorder, -1))
                                 true
                             }
-                            reorder != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown -> {
+                            !stationMode && reorder != null &&
+                                event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown -> {
                                 onReorderChanged(televisionQueueMoveReorder(reorder, 1))
                                 true
                             }
-                            reorder != null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight -> {
+                            !stationMode && reorder != null &&
+                                event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight -> {
                                 onCommitReorder(reorder)
                                 true
                             }
-                            reorder != null && event.type == KeyEventType.KeyUp &&
+                            !stationMode && reorder != null && event.type == KeyEventType.KeyUp &&
                                 (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.Spacebar) -> {
                                 onCommitReorder(reorder)
                                 true
                             }
-                            reorder == null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft -> {
+                            !stationMode && reorder == null &&
+                                event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft -> {
                                 onReorderChanged(televisionQueueBeginReorder(nowPlaying.upNext, index))
                                 true
                             }
-                            reorder == null && event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight -> {
+                            !stationMode && reorder == null &&
+                                event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight -> {
                                 onOpenActions(item)
                                 true
                             }

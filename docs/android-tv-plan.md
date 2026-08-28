@@ -130,8 +130,8 @@ All Television surfaces use one shared focus treatment rather than screen-specif
 - Reuse the shared provider-neutral station model and actions. TV users must be able to browse and
   play every saved station, refresh the collection, start station radio where supported, and open
   the existing contextual actions.
-- Adding and editing a station must remain possible with the TV system keyboard, including name,
-  stream URL, homepage, and artwork fields supported by the shared station editor. Deletion requires
+- Adding and editing a station must remain possible with the TV system keyboard, including the name,
+  stream URL, and homepage fields supported by the shared station editor. Deletion requires
   confirmation and predictable Back/focus restoration.
 - Phone/Desktop controllers may browse Internet Radio locally and direct station playback to a
   paired TV through Naviamp Connect. The TV remains the stream and reporting owner.
@@ -270,8 +270,10 @@ Reference constraints:
 2. The controller shows discovered TVs. Selecting one causes the TV to display a fresh short code;
    the user enters that code on the controller.
 3. The code bootstraps a reviewed password-authenticated key exchange rather than being transmitted
-   or hashed as an ordinary network password. SPAKE2 is a candidate pending dependency and platform
-   crypto review; Naviamp must not implement new cryptographic primitives itself.
+   or hashed as an ordinary network password. Android and Desktop share the Bouncy Castle J-PAKE
+   adapter with explicit mutual key confirmation and transcript-bound HKDF derivation. Apple still
+   needs an interoperable reviewed Kotlin/Native implementation; Naviamp does not implement the
+   cryptographic primitive itself.
 4. Successful pairing creates long-lived device identities and trust records. Private key material
    and session credentials are stored through platform Keystore, Keychain, or Desktop secure-value
    adapters. The TV Controllers page lists, renames, and revokes trusted devices.
@@ -279,9 +281,9 @@ Reference constraints:
    approval, messages are encrypted and authenticated, and sessions use message sequence numbers or
    equivalent replay protection.
 
-Reference candidate:
+Reference:
 
-- SPAKE2: https://www.rfc-editor.org/rfc/rfc9382
+- J-PAKE: https://www.rfc-editor.org/rfc/rfc8236
 
 ### Assisted connection provisioning
 
@@ -330,8 +332,11 @@ Reference candidate:
   revision order, retry only idempotent requests, and reconcile after reconnect instead of assuming
   that a command succeeded.
 
-The protocol envelope, cryptographic dependency, key lifecycle, threat model, and compatibility
-policy still require an explicit design review before production network code is added.
+The version 1 protocol envelope, capability negotiation, connection identity, authority model, and
+initial pairing/session state machines are now drafted and covered by common fake-transport tests.
+The cryptographic dependency, production key lifecycle, channel binding, and complete threat model
+still require explicit approval before production network code is enabled. The current decisions and
+delivery gate are recorded in `docs/naviamp-connect-protocol.md`.
 
 ## Architecture Placement
 
@@ -378,9 +383,8 @@ independent navigation graph may be introduced in the Apple TV host.
 - The dedicated Television shell, Home, Library, Search, Playlists, Settings, and artist, album, and
   playlist detail pages are in place. Home collection pages are the remaining standard-content
   fallback to replace before completing M1.
-- A dedicated Internet Radio Stations collection and editor has not yet been implemented for TV.
-  Recent stations can appear on Home, but the complete saved-station workflow must be available
-  from Library.
+- The dedicated Internet Radio Stations collection and shared editor are available from Library,
+  including remote-friendly play, refresh, create, edit, delete, focus, and Back behavior.
 - The dedicated full-screen Now Playing, listening-mode transition, queue panel, and smoothly
   scrolling line-synced lyrics are implemented. Word-level karaoke highlighting and final OLED
   burn-in behavior remain outstanding parts of the complete lyrics direction.
@@ -409,7 +413,7 @@ independent navigation graph may be introduced in the Apple TV host.
 - [x] Provide Home, Library, Playlists, Search, details, and essential Settings.
 - [x] Verify Navidrome connection plus populated Home, Library, and Search browsing on both 1080p
   and native-4K emulator configurations.
-- [ ] Add the dedicated TV Internet Radio Stations browse, play, add/edit, and delete workflow.
+- [x] Add the dedicated TV Internet Radio Stations browse, play, add/edit, and delete workflow.
 - [ ] Replace the remaining standard Home collection-page fallback with a dedicated TV page.
 - [ ] Verify switching between multiple saved sources on the emulator.
 
@@ -432,17 +436,48 @@ independent navigation graph may be introduced in the Apple TV host.
 
 - [ ] Approve the versioned envelope, capability negotiation, connection identity, pairing threat
   model, cryptographic dependency, key lifecycle, replay protection, and authority design.
-- [ ] Implement shared target/controller state machines and fake-transport tests.
-- [ ] Implement the TV pairing-mode and phone/Desktop discovery flow with expiring short codes,
-  trusted-device persistence, rename/revoke actions, and permission/error recovery.
+- [x] Implement initial shared target/controller state machines and fake-transport tests.
+- [x] Implement the shared Android/Desktop J-PAKE adapter, explicit mutual key confirmation,
+  transcript-bound session-key derivation, and failure/destruction tests.
+- [ ] Complete the pairing-management flow. Android TV pairing mode, explicit approval, Android
+  phone discovery/code entry, expiring short codes, authenticated pairing, and durable Android
+  trust persistence are implemented; rename/revoke, fuller permission/error recovery, Desktop, and
+  Apple host wiring remain.
 - [ ] Add narrow Android TV, Android phone, Desktop, iOS, and tvOS discovery, socket, and secure-key
   adapters while keeping protocol behavior in Core.
-- [ ] Add the first-run assisted connection-provisioning transaction and portable-settings filter.
+- [x] Add the first-run assisted connection-provisioning transaction and portable-settings filter.
 - [ ] Add phone/Desktop playback-target selection and authoritative remote Now Playing snapshots.
-- [ ] Add remote transport, seeking, favorite, repeat, shuffle, Internet Radio, and queue control.
-- [ ] Add same-source validation plus atomic local-to-TV and TV-to-local queue handoff.
+  The Core projection from canonical playback/queue state into revisioned Connect snapshots is
+  implemented, the post-pair session is retained, and a connected target is projected into the
+  existing shared phone/Desktop Now Playing surface. Explicit target switching remains.
+- [x] Add remote transport, seeking, favorite, repeat, shuffle, Internet Radio, and queue control.
+  Transport, seeking, repeat, shuffle, queue selection, upcoming reordering, and upcoming removal
+  now execute through Core. Absolute favorite changes and the capability-limited shared controller
+  surface are also implemented. Catalog and Internet Radio playback selections made while browsing
+  on the controller now resolve and play through the target's own provider session.
+- [x] Add same-source validation plus atomic local-to-TV and TV-to-local queue handoff. Canonical
+  provider/server/account/library validation applies in both directions, preserving duplicate
+  order, current position, Play Next priority, repeat, shuffle, groups, and playback profiles.
 - [ ] Verify Android phone to Android TV first, then Android to tvOS, iPhone to Android TV/tvOS, and
   macOS/Windows/Linux Desktop to both TV families.
+
+#### Next Naviamp Connect slice
+
+1. Add a debug-only emulator endpoint bridge so the normal Pixel phone UI can pair with and control
+   the Android TV AVD through the development Mac. Keep the production discovery and LAN transport
+   unchanged; the bridge only compensates for the AVD advertising its unreachable `10.0.2.15` NAT
+   address. Re-run pairing, transport, queue handoff, catalog playback, Internet Radio, and assisted
+   provisioning through the actual shared settings and Now Playing surfaces.
+2. Finish Android pairing management: explicit active-target selection, trusted-device rename and
+   revoke, clearer permission/unavailable states, and recovery when either app, socket, Wi-Fi, or
+   target process restarts. Add retained-session, reconnect, stale-target, and interrupted-command
+   acceptance coverage in shared Core before extending host wiring.
+3. Repeat the unmodified Android phone-to-TV flow on physical Google TV hardware when available.
+   That is the authoritative validation for direct LAN addressing, HDMI/audio behavior, CEC input,
+   sleep/wake, process recovery, and Android `MediaSession`; emulator evidence is not a substitute.
+4. After Android-to-Android is stable, add the narrow Desktop discovery/socket/secure-identity
+   adapters, then iOS/tvOS adapters, while retaining the same Core protocol, controller, UI, and
+   source-validation behavior. Run the cross-platform matrix in that order before considering Cast.
 
 ### M4: Physical-device acceptance
 
@@ -845,6 +880,125 @@ independent navigation graph may be introduced in the Apple TV host.
 
 ### 2026-08-28
 
+- Began Naviamp Connect in shared Core with a versioned, capability-gated protocol, canonical source
+  identity, authoritative revisioned snapshots, duplicate-safe queue occurrences and groups, pairing
+  states, request deduplication, conflict reconciliation, and conservative reconnect retry rules.
+- Added deterministic domain and application fake-transport coverage for negotiation, serialization,
+  explicit TV approval, code expiry and rate limiting, command capability checks, request replay,
+  stale snapshots, target-local updates, revision conflicts, and same-source handoff enforcement.
+  The new shared code passes its JVM tests and compiles for Android and iOS Simulator ARM64.
+- Added the shared controller-side discovery lifecycle: it owns compatibility filtering, stable
+  ordering, expiry, removal, duplicate refreshes, permission/unavailable states, and rejection of a
+  fingerprint change for an existing service instance. Native DNS-SD adapters remain unwired and
+  cannot enable commands.
+- Added the narrow Android DNS-SD browsing adapter backed only by `android.net.nsd.NsdManager`.
+  Discovery TXT decoding and policy remain shared, resolved endpoints stay outside advertised
+  metadata, and no command socket is opened. Its native service translation and real DNS-SD
+  start/stop path both passed focused instrumentation on the connected Pixel 10a.
+- Added the matching shared target-advertising lifecycle and narrow Android DNS-SD registration
+  adapter. A coordinated device test advertised from the 4K Android TV emulator and was discovered,
+  resolved, and metadata-validated by the physical Pixel 10a in 3.6 seconds; both sides then stopped
+  cleanly. This proves the intended first LAN topology before a command channel is enabled.
+- Replaced the Controllers placeholder with a shared Connect settings presentation supporting
+  target pairing-mode status/code, controller discovery results, and trusted-device rows. The page
+  remains hidden until a secure runtime supplies real actions, so incomplete pairing cannot appear
+  functional. Added a durable Android Keystore P-256 identity with SHA-256 fingerprinting and ECDSA
+  signing; repeated-load and signature verification passed on the Pixel 10a.
+- Recorded the Connect version 1 contract and security gate in `docs/naviamp-connect-protocol.md`.
+  Android and Desktop now share the Kotlin adapter over Bouncy Castle J-PAKE; no Rust library is
+  integrated. The NIST 3072-bit exchange uses Bouncy Castle's explicit confirmation round, followed
+  by transcript- and pairing-session-bound HKDF-SHA-256 derivation. Matching-code, wrong-code,
+  tamper, malformed, reordered, cross-session, and destruction tests pass on JVM. Production
+  discovery-to-command and credential transfer stay disabled until authenticated transport and an
+  interoperable reviewed Apple implementation exist. The first end-to-end acceptance path uses the
+  connected Pixel 10a as controller and the Android TV 4K emulator as target.
+- Verified the packaged J-PAKE adapter on the physical Pixel 10a. A complete NIST-3072 exchange
+  performed mutual confirmation and produced identical 32-byte session roots for controller and
+  target roles in 0.158 seconds. Android app/test packaging, shared JVM tests, and Android plus iOS
+  Simulator compilation all pass with the new dependency.
+- Added the shared authenticated-channel owner and one Kotlin/JCA Android/Desktop implementation.
+  Independent directional AES-256-GCM keys, transcript-derived nonce prefixes, authenticated
+  session headers, contiguous sequence enforcement, tamper/replay rejection, and secret
+  destruction pass focused JVM tests. Added a narrow bounded framed-TCP socket effect shared by
+  Android and Desktop; bidirectional framed I/O passed on the physical Pixel 10a in 0.061 seconds.
+- Completed the Core pairing orchestrator. It negotiates protocol versions, validates ordered
+  plaintext handshake frames, runs J-PAKE, switches immediately to the authenticated channel,
+  verifies that advertised fingerprints match the supplied public keys, exchanges session-bound
+  ECDSA proofs, and requires a final encrypted mutual confirmation before creating either trust
+  record. The display code is removed from retained target state as handshaking begins. Matching
+  code and post-pair encrypted traffic pass end to end; wrong codes and corrupted identity proofs
+  fail before trust is created.
+- Passed the first complete physical Pixel 10a controller to Android TV emulator target pairing.
+  Both devices used their own Android Keystore identity, the Pixel discovered the TV through
+  DNS-SD, pairing and encrypted ping/pong completed in 4.897 seconds on the controller, and the TV
+  test completed in 16.781 seconds including advertising startup. Because the emulator advertises
+  its private `10.0.2.15` NAT address, this acceptance used a temporary host TCP relay for only that
+  unreachable hop; it was removed after the test and is not product code.
+- Wired the secure pairing runtime into the production shared settings flow. Android TV now binds
+  the real listener, advertises only during explicit pairing mode, shows its six-digit code, and
+  requires approval of the named controller. Standard Android settings can start discovery, select
+  a target, enter the code, and invoke the same Core pairing runtime. Successful identity-confirmed
+  pairing persists the non-secret trust record through a Core-owned schema and Android
+  SharedPreferences string effect. Production smoke checks passed on the TV emulator and physical
+  Pixel 10a; emulator NAT still requires the existing test-only relay for the encrypted cross-device
+  hop.
+- Added the Core-owned authoritative target snapshot projection. Canonical playback state, clock,
+  repeat/shuffle state, volume, duplicate-safe queue occurrences, Play Next count, and queue groups
+  now map deterministically into the revisioned Connect wire model. Session transport and command
+  execution contracts are suspendable so secure socket I/O and Core playback effects can complete
+  without blocking or Android-only coroutine policy. Focused tests plus Android, Desktop, and iOS
+  Simulator compilation pass.
+- Retained the authenticated connection after pairing and continued the encrypted sequence space
+  consumed by the handshake and welcome snapshot. The TV now executes capability-gated play,
+  pause, toggle, previous, next, stop, seek, repeat, shuffle, queue selection, upcoming reorder, and
+  upcoming removal against the same Core playback owners as local UI. Local/native playback changes
+  publish debounced authoritative revisions back to the controller. Android phone settings expose
+  the connected target's current track with Previous, Play/Pause, and Next controls. A physical
+  Pixel 10a to Android TV emulator acceptance test completed pairing, retained the secure channel,
+  sent encrypted Play, received acknowledgement plus the updated snapshot, and passed on both
+  devices; the temporary emulator-NAT relay and forwarding rule were removed afterward.
+- Projected the connected target into the existing shared Now Playing surface used by Android,
+  Desktop, and iOS. The controller now renders the TV's authoritative track, clock, repeat/shuffle,
+  favorite, and queue state and translates the shared UI actions into encrypted transport, seek,
+  absolute favorite, queue selection, Play Next, reorder, and removal commands. Unsupported local
+  media actions are omitted from the remote queue menus. The physical Pixel 10a and Android TV
+  emulator again completed the retained encrypted Play/ack/snapshot test; both temporary relay
+  resources were removed. Shared JVM tests and Android, Desktop, and iOS Simulator builds pass.
+- Added canonical non-secret source identity projection from the active provider connection and
+  required it for both queue handoff and catalog playback. A controller can now hand its current
+  queue to the TV atomically; the target re-resolves every occurrence with its own credentials and
+  restores the selected item, position, playing state, repeat, shuffle, Play Next prefix, queue
+  groups, and playback profiles without transferring a stream URL.
+- Routed shared controller playback intents for tracks, albums, artists, playlists, and Internet
+  Radio through the retained encrypted session while leaving browsing and editing local. Album,
+  artist, and playlist shuffle intent is retained, and direct Navidrome/Jellyfin track lookup avoids
+  an expensive catalog scan. Source mismatches fail before target execution. Focused shared tests
+  and the domain/app/presentation/provider JVM suites plus Android compilation pass.
+- Extended the physical Pixel 10a-to-Android-TV-emulator encrypted acceptance from transport-only to
+  three retained-session mutations: Play, a same-source queue handoff, and a same-source album start.
+  Both device-side instrumentation runs passed, including acknowledgements and authoritative
+  snapshots; the temporary emulator-NAT relay and ADB forward were removed afterward.
+- Added shared assisted provisioning and reverse queue handoff. A controller can offer its current
+  protected provider connection and portable settings over the encrypted session; the TV shows the
+  named pending offer and must explicitly approve it before Core validates and saves anything.
+  Local certificate paths and device-only settings are excluded, failed validation preserves the
+  existing TV source, and the target request cache does not retain or replay a completed credential.
+  Same-source TV-to-controller transfer pauses the TV only after validation and restores TV playback
+  if local queue activation fails. The unconfigured TV screen exposes pairing mode, its short code,
+  controller approval, and provisioning approval alongside manual setup, so assisted setup is
+  available on actual first launch rather than requiring an existing server connection.
+- Added the dedicated TV Internet Radio page under Library. It uses the shared station model and
+  controller for the complete saved collection, Select-to-play, Refresh/New controls, Right-side
+  edit/delete actions, the shared keyboard editor, deletion confirmation, deterministic entry focus,
+  and Back-to-Library behavior without adding another permanent top-navigation tab.
+- Extended the physical Pixel 10a-to-Android-TV-emulator retained-session acceptance to five
+  commands: Play, queue handoff, album start, Internet Radio station start, and an encrypted
+  provisioning offer. Both device runs passed and all temporary relay resources were removed.
+- Audited the dependency catalog and moved the compatible stable line to AGP 8.13.2, Gradle 8.14.5,
+  Compose Multiplatform 1.11.0, Ktor 3.5.2, AndroidX Media 1.8.0, and Kover 0.9.9. Compose
+  Multiplatform 1.12 requires compile SDK 37 and AGP 9, so it is intentionally grouped with the
+  separate AGP 9/KMP migration. Compose UI test v2 and Android Media3 migrations are also recorded
+  as follow-up API migrations rather than hidden inside version bumps.
 - Ran the Android TV acceptance sweep on the API 36 ARM64 emulators at native 1920x1080 and
   3840x2160. Home, Now Playing preview/full screen, Library, Playlists, Search, artist/album/playlist
   details, Settings, synchronized lyrics, artwork, waveform progress, and saved-session restoration
@@ -871,6 +1025,16 @@ independent navigation graph may be introduced in the Apple TV host.
   saved order/visibility were left unchanged.
 - Verified native-4K Now Playing and Library layout/focus independently of the 1080p pass. The
   remaining emulator gaps are multiple-source switching (only one source is configured), the
-  unimplemented dedicated Internet Radio and Home collection pages, sustained audio-policy/provider
-  reporting validation, and automated recovery/direct Compose coverage. HDMI/CEC, audio focus,
+  standard-fallback Home collection page, sustained audio-policy/provider reporting validation, and
+  automated recovery/direct Compose coverage. HDMI/CEC, audio focus,
   sleep/wake, and authoritative `MediaSession` acceptance remain physical-hardware work.
+- Completed the dedicated Internet Radio acceptance on the native-4K TV emulator. The saved station
+  collection, deterministic entry focus, live station playback, streamed track metadata/artwork,
+  Refresh, New/Edit keyboard forms, and Back-to-Library behavior passed. The run exposed a risky
+  Delete-first action-dialog focus; station actions now default to Edit and deletion confirmation
+  defaults to Cancel. The rebuilt APK and shared UI JVM tests pass, and the corrected Edit focus was
+  visually rechecked without mutating any saved station.
+- Matched the normal phone/Desktop live-radio queue behavior on TV. While an Internet Radio station
+  is playing, the Queue control remains available without a music-queue index, pins the current
+  station, lists every other saved station, and uses Select to switch stations without exposing
+  track-only move or row-action controls. Display now follows Home in the TV settings category list.

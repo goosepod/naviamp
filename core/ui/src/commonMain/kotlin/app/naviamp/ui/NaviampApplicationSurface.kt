@@ -39,6 +39,7 @@ fun naviampSelectedTelevisionDestination(
     nowPlayingPreview: Boolean = false,
 ): NaviampTelevisionDestination? {
     if (nowPlayingOpen || nowPlayingPreview) return NaviampTelevisionDestination.NowPlaying
+    if (selectedRoute == SharedRoute.Radio) return NaviampTelevisionDestination.Library
     return NaviampTelevisionDestination.entries.firstOrNull { it.route == selectedRoute }
 }
 

@@ -17,9 +17,9 @@ class NaviampTelevisionSettingsPolicyTest {
             listOf(
                 TelevisionSettingsCategory.Sources,
                 TelevisionSettingsCategory.Home,
+                TelevisionSettingsCategory.Display,
                 TelevisionSettingsCategory.Playback,
                 TelevisionSettingsCategory.Lyrics,
-                TelevisionSettingsCategory.Display,
                 TelevisionSettingsCategory.Diagnostics,
                 TelevisionSettingsCategory.About,
             ),
@@ -74,5 +74,25 @@ class NaviampTelevisionSettingsPolicyTest {
     @Test
     fun televisionSettingsBackdropKeepsLiveDisplayChangesVisible() {
         assertEquals(0.03f, TelevisionSettingsBackdropDimAlpha)
+    }
+
+    @Test
+    fun connectPairingCodeUsesReadableTelevisionGrouping() {
+        assertEquals("123 456", formatNaviampConnectPairingCode("123456"))
+        assertEquals("123 456", formatNaviampConnectPairingCode("123-456"))
+    }
+
+    @Test
+    fun connectRoleControlsWhichSettingsFlowsAreAvailable() {
+        val target = NaviampConnectSettingsUi(role = NaviampConnectUiRole.Target)
+        val controller = NaviampConnectSettingsUi(role = NaviampConnectUiRole.Controller)
+        val both = NaviampConnectSettingsUi(role = NaviampConnectUiRole.ControllerAndTarget)
+
+        assertTrue(target.canAdvertise)
+        assertFalse(target.canDiscover)
+        assertFalse(controller.canAdvertise)
+        assertTrue(controller.canDiscover)
+        assertTrue(both.canAdvertise)
+        assertTrue(both.canDiscover)
     }
 }

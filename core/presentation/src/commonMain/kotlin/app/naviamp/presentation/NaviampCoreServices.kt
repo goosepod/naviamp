@@ -104,4 +104,5 @@ data class NaviampCoreServices(
     val clockEpochMillis: () -> Long,
     val favoritedAtIso8601: () -> String,
     val diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
+    val connect: NaviampCoreConnectServices? = null,
 )

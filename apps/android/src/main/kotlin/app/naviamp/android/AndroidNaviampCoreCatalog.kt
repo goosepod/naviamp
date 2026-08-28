@@ -1,12 +1,21 @@
 package app.naviamp.android
 
 import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
 import app.naviamp.android.playback.AndroidAudioTagReader
 import app.naviamp.app.NaviampClock
+import app.naviamp.app.BouncyCastleNaviampConnectPakeFactory
+import app.naviamp.app.JvmNaviampConnectAuthenticatedCipherFactory
+import app.naviamp.app.JvmNaviampConnectIdentityVerifier
+import app.naviamp.app.JvmNaviampConnectTcpTransportFactory
+import app.naviamp.app.NaviampConnectTrustRepository
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.presentation.NaviampCoreEnvironment
+import app.naviamp.presentation.NaviampCoreConnectRole
+import app.naviamp.presentation.NaviampCoreConnectServices
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreHomeDateSource
@@ -23,6 +32,8 @@ import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import java.io.File
 import java.time.Instant
 import java.time.LocalDateTime
+import java.security.SecureRandom
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -182,9 +193,28 @@ class AndroidNaviampCoreCatalog private constructor(
                 favoritedAtIso8601 = { Instant.now().toString() },
                 diagnostics = AndroidCoreDiagnosticsPort(storage::stats),
             )
+            val isTelevision = appContext.resources.configuration.uiMode and
+                Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
+            val connectRole = if (isTelevision) NaviampCoreConnectRole.Target else NaviampCoreConnectRole.Controller
+            val secureRandom = SecureRandom()
+            val connectServices = NaviampCoreConnectServices(
+                role = connectRole,
+                displayName = Build.MODEL?.takeIf(String::isNotBlank) ?: "Android Naviamp",
+                identity = AndroidNaviampConnectDeviceIdentityEffect(),
+                identityVerifier = JvmNaviampConnectIdentityVerifier,
+                transport = JvmNaviampConnectTcpTransportFactory(),
+                pake = BouncyCastleNaviampConnectPakeFactory,
+                cipher = JvmNaviampConnectAuthenticatedCipherFactory,
+                trust = NaviampConnectTrustRepository(AndroidNaviampConnectTrustStorageEffect(appContext)),
+                discovery = AndroidNaviampConnectDiscoveryEffect(appContext).takeUnless { isTelevision },
+                advertising = AndroidNaviampConnectAdvertisingEffect(appContext).takeIf { isTelevision },
+                newOpaqueId = { UUID.randomUUID().toString() },
+                newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
+                nowEpochMillis = clock::nowEpochMillis,
+            )
             return AndroidNaviampCoreCatalog(
                 environment = NaviampCoreEnvironment(
-                    services = storedCatalog.services,
+                    services = storedCatalog.services.copy(connect = connectServices),
                     initialState = storedCatalog.initialState,
                     actionAvailability = AndroidCapabilityPresentation.toCoreActionAvailability(),
                     onAsyncFailure = { command, failure ->

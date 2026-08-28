@@ -4,6 +4,7 @@ import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
+import app.naviamp.ui.NaviampConnectSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampInternetRadioActions
@@ -41,6 +42,7 @@ data class NaviampCoreActionAvailability(
 fun createNaviampCoreActions(
     handler: NaviampCoreCommandHandler,
     availability: NaviampCoreActionAvailability = NaviampCoreActionAvailability(),
+    connectActions: NaviampConnectSettingsActions? = null,
 ): NaviampCoreActions {
     fun send(command: NaviampCoreCommand) = handler.dispatch(command)
 
@@ -254,6 +256,7 @@ fun createNaviampCoreActions(
             onSelectionAction = { send(NaviampCoreCommand.NowPlaying.Selection(it)) },
             onQueueItemAction = { send(NaviampCoreCommand.NowPlaying.QueueItem(it)) },
         ),
+        connectActions = connectActions,
     )
 
     val settingsSync = NaviampSettingsSyncActions(

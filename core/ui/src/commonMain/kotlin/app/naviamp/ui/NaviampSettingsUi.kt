@@ -189,6 +189,7 @@ enum class NaviampSettingsCategory(
     Playback("Playback", "Make your ears happy", NaviampTransportIcons.Play),
     Downloads("Downloads", "Media on the go", NaviampIcons.Downloads),
     AudioCache("Audio Cache", "Prefetch and playback cache", NaviampIcons.Cache),
+    Controllers("Controllers", "Control TVs on this network", NaviampIcons.Player),
     Debugging("Debugging", "Diagnostics and local data", NaviampIcons.Bug),
     About("About", "Version, libraries, changelog", NaviampIcons.AppMark),
 }
@@ -260,6 +261,8 @@ fun NaviampSharedSettingsContent(
     selectedAudioCacheLocationId: String? = null,
     onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
     onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
+    connect: NaviampConnectSettingsUi = NaviampConnectSettingsUi(),
+    connectActions: NaviampConnectSettingsActions? = null,
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf<NaviampSettingsCategory?>(null) }
     val contentScrollState = rememberScrollState()
@@ -389,6 +392,11 @@ fun NaviampSharedSettingsContent(
                     selectedLocationId = selectedAudioCacheLocationId,
                     onLocationChanged = onAudioCacheLocationChanged,
                 )
+                NaviampSettingsCategory.Controllers -> NaviampConnectSettingsSection(
+                    colors = colors,
+                    connect = connect,
+                    actions = connectActions,
+                )
                 NaviampSettingsCategory.Debugging -> {
                     if (showDebugLogging) {
                         NaviampDebugPlaybackSettingsSection(
@@ -421,7 +429,10 @@ fun NaviampSharedSettingsContent(
             }
         } ?: run {
             val currentConnection = savedConnections.firstOrNull { it.current }
-            NaviampSettingsCategory.entries.forEach { category ->
+            NaviampSettingsCategory.entries.filter { category ->
+                category != NaviampSettingsCategory.Controllers ||
+                    (connect.available && connectActions != null)
+            }.forEach { category ->
                 SettingsCategoryRow(
                     category = category,
                     languagePack = languagePack,
@@ -436,6 +447,124 @@ fun NaviampSharedSettingsContent(
                 )
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun NaviampConnectSettingsSection(
+    colors: NaviampColors,
+    connect: NaviampConnectSettingsUi,
+    actions: NaviampConnectSettingsActions?,
+) {
+    if (!connect.available || actions == null) {
+        SettingsPlaceholderSection(colors, "Naviamp Connect", "Connect is unavailable on this device.")
+        return
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
+        connect.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+        connect.connectedTargetName?.let { targetName ->
+            SettingsSectionTitle("Controlling $targetName", colors)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    connect.remoteTrackTitle ?: "Nothing playing",
+                    color = colors.primaryText,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                connect.remoteArtistName?.let { artist ->
+                    Text(artist, color = colors.secondaryText, fontSize = 12.sp)
+                }
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                PrimaryButton(
+                    "Previous",
+                    colors,
+                    enabled = connect.remoteHasPrevious,
+                    onClick = actions.onRemotePrevious,
+                    modifier = Modifier.weight(1f),
+                )
+                PrimaryButton(
+                    if (connect.remotePlaying) "Pause" else "Play",
+                    colors,
+                    enabled = connect.remoteTrackTitle != null,
+                    onClick = actions.onRemotePlayPause,
+                    modifier = Modifier.weight(1f),
+                )
+                PrimaryButton(
+                    "Next",
+                    colors,
+                    enabled = connect.remoteHasNext,
+                    onClick = actions.onRemoteNext,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            PrimaryButton(
+                "Send this queue to $targetName",
+                colors,
+                enabled = connect.canHandoffLocalQueue,
+                onClick = actions.onRemoteHandoffQueue,
+            )
+            PrimaryButton(
+                "Bring $targetName queue to this device",
+                colors,
+                enabled = connect.canReceiveRemoteQueue,
+                onClick = actions.onReceiveRemoteQueue,
+            )
+            PrimaryButton(
+                "Set up $targetName with this connection",
+                colors,
+                enabled = connect.canProvisionTarget,
+                onClick = actions.onProvisionTarget,
+            )
+        }
+        if (connect.canDiscover) {
+            PrimaryButton("Find Naviamp TVs", colors, enabled = true, onClick = actions.onRefreshTargets)
+            connect.discoveredTargets.forEach { target ->
+                PrimaryButton(
+                    label = if (target.instanceId == connect.selectedTargetId) {
+                        "Selected: ${target.displayName}"
+                    } else {
+                        "Pair with ${target.displayName}"
+                    },
+                    colors = colors,
+                    enabled = target.compatible,
+                    onClick = { actions.onTargetSelected(target) },
+                )
+            }
+            if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingCode ||
+                connect.selectedTargetId != null
+            ) {
+                OutlinedTextField(
+                    value = connect.enteredPairingCode,
+                    onValueChange = actions.onPairingCodeChanged,
+                    singleLine = true,
+                    label = { Text("Six-digit TV code") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PrimaryButton(
+                    "Pair securely",
+                    colors,
+                    enabled = connect.enteredPairingCode.length == 6 &&
+                        connect.pairingPhase != NaviampConnectPairingUiPhase.Handshaking,
+                    onClick = actions.onSubmitPairingCode,
+                )
+            }
+        }
+        if (connect.trustedDevices.isNotEmpty()) {
+            SettingsSectionTitle("Trusted devices", colors)
+            connect.trustedDevices.forEach { device ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(device.displayName, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(device.detail, color = colors.secondaryText, fontSize = 12.sp)
+                }
+            }
         }
     }
 }

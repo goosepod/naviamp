@@ -71,6 +71,23 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun failedConnectProvisioningLeavesTheExistingSourceUntouched() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(connectFailure = IllegalStateException("invalid credential"))
+
+        val connected = fixture.controller.provisionConnect(
+            ConnectionFormState(
+                serverUrl = "https://other.example",
+                username = "listener",
+                password = "wrong",
+            ),
+        )
+
+        assertFalse(connected)
+        assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+        assertEquals(listOf("source-1"), fixture.port.inventory.connections.map { it.id })
+    }
+
+    @Test
     fun savedConnectionUsesRestorationPolicy() = kotlinx.coroutines.test.runTest {
         val fixture = fixture()
 

@@ -73,10 +73,10 @@ internal enum class TelevisionSettingsCategory(
 ) {
     Sources("Sources", "Servers and music libraries", NaviampIcons.Library),
     Home("Home", "Sections, visibility, and order", NaviampIcons.Home),
+    Display("Display", "Background and Now Playing", NaviampIcons.Experience),
     Playback("Playback", "Audio and queue behavior", NaviampTransportIcons.Play),
     Lyrics("Lyrics", "Sources and synchronization", NaviampTransportIcons.Lyrics),
     Controllers("Controllers", "Trusted Naviamp remotes", NaviampIcons.Player),
-    Display("Display", "Background and Now Playing", NaviampIcons.Experience),
     Diagnostics("Diagnostics", "Connection and local health", NaviampIcons.Bug),
     About("About", "Version and build information", NaviampIcons.AppMark),
 }
@@ -275,7 +275,9 @@ private fun TelevisionSettingsRoot(
     returnCategory: TelevisionSettingsCategory?,
     onCategorySelected: (TelevisionSettingsCategory) -> Unit,
 ) {
-    val categories = televisionSettingsCategories(controllersAvailable = false)
+    val categories = televisionSettingsCategories(
+        controllersAvailable = uiState.connect.available,
+    )
     TelevisionSettingsList {
         items(categories, key = { it.name }) { category ->
             TelevisionSettingsRow(
@@ -364,13 +366,140 @@ private fun TelevisionSettingsCategoryPage(
             firstFocusRequester,
         )
         TelevisionSettingsCategory.About -> TelevisionAboutSettings(uiState, colors, firstFocusRequester)
-        TelevisionSettingsCategory.Controllers -> TelevisionSettingsMessage(
-            "Naviamp Connect controllers will appear here after the shared pairing protocol is available.",
-            colors,
-            firstFocusRequester,
+        TelevisionSettingsCategory.Controllers -> TelevisionControllersSettings(
+            connect = uiState.connect,
+            actions = actions.connectActions,
+            colors = colors,
+            firstFocusRequester = firstFocusRequester,
         )
     }
 }
+
+@Composable
+private fun TelevisionControllersSettings(
+    connect: NaviampConnectSettingsUi,
+    actions: NaviampConnectSettingsActions?,
+    colors: NaviampColors,
+    firstFocusRequester: FocusRequester,
+) {
+    if (!connect.available || actions == null) {
+        TelevisionSettingsMessage("Naviamp Connect is unavailable on this device.", colors, firstFocusRequester)
+        return
+    }
+    TelevisionSettingsList {
+        if (connect.canAdvertise) {
+            item(key = "pairing-mode") {
+                TelevisionSettingsRow(
+                    title = if (connect.pairingActive) "Stop pairing" else "Pair a controller",
+                    subtitle = connect.status ?: if (connect.pairingActive) {
+                        "This TV is visible to Naviamp controllers on your local network."
+                    } else {
+                        "Make this TV visible temporarily to a phone or Desktop on the same network."
+                    },
+                    value = connect.pairingCode?.let(::formatNaviampConnectPairingCode),
+                    icon = NaviampIcons.Player,
+                    selected = connect.pairingActive,
+                    colors = colors,
+                    onClick = if (connect.pairingActive) actions.onStopPairingMode else actions.onStartPairingMode,
+                    modifier = Modifier.focusRequester(firstFocusRequester),
+                )
+            }
+            if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
+                item(key = "approve-controller") {
+                    TelevisionSettingsRow(
+                        title = "Approve ${connect.pendingControllerName ?: "controller"}",
+                        subtitle = "Only approve if you started pairing on this device.",
+                        value = "Approve",
+                        icon = NaviampIcons.Player,
+                        disclosure = true,
+                        colors = colors,
+                        onClick = actions.onApproveController,
+                    )
+                }
+                item(key = "reject-controller") {
+                    TelevisionSettingsRow(
+                        title = "Reject request",
+                        subtitle = "Close this connection without creating trust.",
+                        value = "Reject",
+                        icon = NaviampIcons.Close,
+                        colors = colors,
+                        onClick = actions.onRejectController,
+                    )
+                }
+            }
+        }
+        if (connect.canDiscover) {
+            item(key = "refresh-targets") {
+                TelevisionSettingsRow(
+                    title = "Find Naviamp targets",
+                    subtitle = connect.status ?: "Search this local network for TVs ready to pair.",
+                    value = connect.discoveredTargets.size.takeIf { it > 0 }?.toString(),
+                    icon = NaviampIcons.Refresh,
+                    colors = colors,
+                    onClick = actions.onRefreshTargets,
+                    modifier = if (!connect.canAdvertise) Modifier.focusRequester(firstFocusRequester) else Modifier,
+                )
+            }
+            items(connect.discoveredTargets, key = { "target-${it.instanceId}" }) { target ->
+                TelevisionSettingsRow(
+                    title = target.displayName,
+                    subtitle = target.detail,
+                    value = if (target.compatible) "Pair" else "Update required",
+                    icon = NaviampIcons.Player,
+                    disclosure = target.compatible,
+                    enabled = target.compatible,
+                    colors = colors,
+                    onClick = { actions.onTargetSelected(target) },
+                )
+            }
+        }
+        if (connect.pendingProvisioningConnectionName != null) {
+            item(key = "approve-provisioning") {
+                TelevisionSettingsRow(
+                    title = "Set up ${connect.pendingProvisioningConnectionName}",
+                    subtitle = "Requested by ${connect.pendingProvisioningControllerName ?: "a paired controller"}. The TV will validate the server before saving it.",
+                    value = "Approve",
+                    icon = NaviampIcons.Library,
+                    disclosure = true,
+                    colors = colors,
+                    onClick = actions.onApproveProvisioning,
+                )
+            }
+            item(key = "reject-provisioning") {
+                TelevisionSettingsRow(
+                    title = "Reject server setup",
+                    subtitle = "Discard the transferred credential without saving a connection.",
+                    value = "Reject",
+                    icon = NaviampIcons.Close,
+                    colors = colors,
+                    onClick = actions.onRejectProvisioning,
+                )
+            }
+        }
+        items(connect.trustedDevices, key = { "trusted-${it.deviceId}" }) { device ->
+            TelevisionSettingsRow(
+                title = device.displayName,
+                subtitle = device.detail,
+                value = "Trusted",
+                icon = NaviampIcons.Player,
+                disclosure = true,
+                colors = colors,
+                onClick = { actions.onTrustedDeviceSelected(device) },
+                modifier = if (!connect.canAdvertise &&
+                    !connect.canDiscover &&
+                    device == connect.trustedDevices.firstOrNull()
+                ) {
+                    Modifier.focusRequester(firstFocusRequester)
+                } else {
+                    Modifier
+                },
+            )
+        }
+    }
+}
+
+internal fun formatNaviampConnectPairingCode(code: String): String =
+    code.filter(Char::isDigit).chunked(3).joinToString(" ")
 
 @Composable
 private fun TelevisionHomeSettings(
@@ -1396,7 +1525,11 @@ private fun televisionSettingsCategoryValue(
     }
     TelevisionSettingsCategory.Playback -> if (uiState.playback.settings.gaplessEnabled) "Gapless" else null
     TelevisionSettingsCategory.Lyrics -> if (uiState.playback.settings.lrclibLyricsEnabled) "Online on" else "Server + tags"
-    TelevisionSettingsCategory.Controllers -> null
+    TelevisionSettingsCategory.Controllers -> when {
+        uiState.connect.pairingCode != null -> formatNaviampConnectPairingCode(uiState.connect.pairingCode)
+        uiState.connect.trustedDevices.isNotEmpty() -> "${uiState.connect.trustedDevices.size} trusted"
+        else -> null
+    }
     TelevisionSettingsCategory.Display -> uiState.general.interfaceSettings.appBackgroundStyle.label
     TelevisionSettingsCategory.Diagnostics -> uiState.connectionSettings.connection.serverVersion
     TelevisionSettingsCategory.About -> uiState.general.about.version

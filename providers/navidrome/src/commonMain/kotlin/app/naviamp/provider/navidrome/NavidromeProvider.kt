@@ -410,6 +410,8 @@ class NavidromeProvider(
     override suspend fun tracks(limit: Int): List<Track> =
         tracksPage(MediaPageRequest(limit = limit.coerceAtMost(app.naviamp.domain.provider.MaximumMediaPageSize))).items
 
+    override suspend fun track(trackId: TrackId): Track? = song(trackId)
+
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
         pageAcrossSelectedMusicFolders(
             request = request,

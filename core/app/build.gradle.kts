@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -6,6 +7,7 @@ plugins {
     alias(libs.plugins.kover)
 }
 
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
 kotlin {
     androidTarget {
         compilerOptions {
@@ -16,10 +18,29 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+    applyHierarchyTemplate {
+        common {
+            group("jvmAndAndroid") {
+                withJvm()
+                withAndroidTarget()
+            }
+            group("ios") {
+                withIos()
+            }
+        }
+    }
+
     sourceSets {
+        val jvmAndAndroidMain by getting {
+            dependencies {
+                implementation(libs.bouncycastle.provider)
+            }
+        }
+
         commonMain.dependencies {
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
