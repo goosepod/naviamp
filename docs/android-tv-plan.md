@@ -461,6 +461,26 @@ independent navigation graph may be introduced in the Apple TV host.
 - [ ] Verify Android phone to Android TV first, then Android to tvOS, iPhone to Android TV/tvOS, and
   macOS/Windows/Linux Desktop to both TV families.
 
+#### Branch review issues before merge
+
+- [ ] Preserve complete Jellyfin artist libraries in the repository-backed refresh path. The Core
+  catalog currently requests an effectively unbounded artist list and then disables paging, while
+  Jellyfin clamps `artists(limit)` to 200; refresh must page to completion or retain a truthful
+  continuation instead of truncating larger libraries.
+- [ ] Bound and cancel accepted Connect sockets during pairing. A client that connects without
+  sending its hello currently holds the only target accept flow in a blocking read, and stopping
+  pairing closes the listener but not that accepted connection. Add shared timeout/lifecycle policy
+  plus coverage for stalled, cancelled, and maliciously incomplete clients.
+- [ ] Schedule the existing Connect advertisement and discovery expiry policies from Core. Pairing
+  codes and stale discoveries must stop at their declared lifetime without waiting for another
+  connection attempt, with deterministic state/UI transitions and expiry tests.
+- [ ] Clear or replace stale cover art when a new artwork URL fails to load. The transition grace
+  period may preserve artwork across a brief empty state, but a failed new URL must not leave the
+  previous track's image displayed indefinitely.
+- [ ] Make trusted-device rows truthful and actionable. Remove the TV disclosure affordance until
+  selection has behavior, or complete shared active-target selection, reconnect, rename, and revoke
+  actions with corresponding Core tests.
+
 #### Next Naviamp Connect slice
 
 1. Add a debug-only emulator endpoint bridge so the normal Pixel phone UI can pair with and control
