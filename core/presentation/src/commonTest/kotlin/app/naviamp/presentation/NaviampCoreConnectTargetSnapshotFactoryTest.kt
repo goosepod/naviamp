@@ -9,6 +9,7 @@ import app.naviamp.domain.connect.NaviampConnectDevice
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
 import app.naviamp.domain.connect.NaviampConnectPlaybackState
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
+import app.naviamp.domain.connect.NaviampConnectSourceIdentity
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
@@ -74,6 +75,37 @@ class NaviampCoreConnectTargetSnapshotFactoryTest {
         assertEquals(0, snapshot.playback.volumePercent)
         assertEquals(-1, snapshot.queue.currentIndex)
         assertEquals(emptyList(), snapshot.queue.occurrences)
+    }
+
+    @Test
+    fun projectsControllerLocalQueueDirectlyIntoHandoffCommand() {
+        val first = track("first", "First")
+        val second = track("second", "Second")
+        val identity = NaviampConnectSourceIdentity(
+            providerId = "navidrome",
+            canonicalServerOrigin = "https://music.example.test",
+            accountIdentity = "listener",
+        )
+
+        val handoff = naviampCoreConnectQueueHandoff(
+            live = NaviampLivePlaybackState(
+                currentTrack = second,
+                queue = PlaybackQueue(listOf(first, second), currentIndex = 1),
+                progress = PlaybackProgress(12.345, 61.0),
+                playbackState = PlaybackState.Playing,
+                repeatMode = RepeatMode.Queue,
+                shuffledUpNextSnapshot = emptyList(),
+            ),
+            sourceIdentity = identity,
+        )
+
+        assertEquals(identity, handoff.sourceIdentity)
+        assertEquals(listOf("first", "second"), handoff.queue.occurrences.map { it.mediaId })
+        assertEquals(1, handoff.queue.currentIndex)
+        assertEquals(12_345, handoff.positionMillis)
+        assertEquals(NaviampConnectRepeatMode.All, handoff.repeatMode)
+        assertEquals(true, handoff.shuffled)
+        assertEquals(true, handoff.playing)
     }
 
     private fun track(id: String, title: String, favorite: Boolean = false) = Track(

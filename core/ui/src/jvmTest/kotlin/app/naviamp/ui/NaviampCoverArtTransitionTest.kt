@@ -2,13 +2,50 @@ package app.naviamp.ui
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampCoverArtTransitionTest {
+    @Test
+    fun failedReplacementArtworkDoesNotLeaveThePreviousImageVisible() = runComposeUiTest {
+        val artworkUrl = mutableStateOf<String?>("test://working")
+        val bytes = requireNotNull(
+            jvmGeneratedCoverArtBytes(
+                "naviamp-radio-tile://cover?label=B&from=0044CC&to=001133",
+            ),
+        )
+        resetNaviampCoverArtCache()
+        setJvmPlatformCoverArtByteLoader { url ->
+            if (url == "test://working") bytes else error("missing artwork")
+        }
+
+        try {
+            setContent {
+                NaviampCoverArt(artworkUrl.value, NaviampColors.Dark, 128.dp, 8.dp)
+            }
+            waitUntil(timeoutMillis = 5_000) {
+                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 1
+            }
+            onNodeWithContentDescription("Album art").assertExists()
+
+            runOnIdle { artworkUrl.value = "test://missing" }
+
+            waitUntil(timeoutMillis = 5_000) {
+                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().isEmpty()
+            }
+            onNodeWithContentDescription("Album art").assertDoesNotExist()
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+            resetNaviampCoverArtCache()
+        }
+    }
+
     @Test
     fun transientMissingArtworkDoesNotResetPlayerColorsToFallback() = runComposeUiTest {
         val artworkUrl = mutableStateOf<String?>("test://blue-current-media")

@@ -15,6 +15,7 @@ sqldelight = "2.3.2"
 jna = "5.19.1"
 kover = "0.9.9"
 bouncycastle = "1.85.2"
+jmdns = "3.6.3"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
@@ -37,6 +38,7 @@ sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", versi
 sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqldelight" }
 jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 bouncycastle-provider = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+jmdns = { module = "org.jmdns:jmdns", version.ref = "jmdns" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

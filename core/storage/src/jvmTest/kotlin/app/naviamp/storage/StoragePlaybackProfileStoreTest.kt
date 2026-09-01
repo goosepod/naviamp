@@ -26,6 +26,7 @@ class StoragePlaybackProfileStoreTest {
                 display_name = "Server",
                 base_url = "https://example.test",
                 username = "user",
+                password = null,
                 token = "token",
                 salt = "salt",
                 native_token = null,

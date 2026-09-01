@@ -87,8 +87,23 @@ class NaviampCoreConnectionController(
     }
 
     /** Validates and commits an encrypted Connect offer through the normal provider-session owner. */
-    internal suspend fun provisionConnect(form: ConnectionFormState): Boolean =
-        connect(NaviampCoreConnectionRequest.Form(form))
+    internal suspend fun provisionConnect(form: ConnectionFormState): Boolean {
+        val active = inventory.currentSourceId
+            ?.let { currentId -> inventory.connections.firstOrNull { it.id == currentId } }
+        if (
+            connection.state.value.connected &&
+            active != null &&
+            active.providerId == form.providerId &&
+            active.serverUrl.trim().trimEnd('/').equals(
+                form.serverUrl.trim().trimEnd('/'),
+                ignoreCase = true,
+            ) &&
+            active.username == form.username.trim()
+        ) {
+            return true
+        }
+        return connect(NaviampCoreConnectionRequest.Form(form))
+    }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
         val connectionCommand = command as? NaviampCoreCommand.Connection

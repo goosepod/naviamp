@@ -10,11 +10,24 @@ data class NaviampConnectTrustRecord(
     val publicKeyBase64: String,
     val pairedAtEpochMillis: Long,
     val displayName: String = peerDevice.displayName,
+    val lastKnownEndpoint: NaviampConnectTrustedEndpoint? = null,
 ) {
     init {
         require(trustedDeviceId.isNotBlank()) { "A trusted device ID is required." }
         require(identityFingerprint.isNotBlank()) { "A trusted identity fingerprint is required." }
         require(publicKeyBase64.isNotBlank()) { "A trusted public key is required." }
+    }
+}
+
+/** Last authenticated network route for a trusted peer; it contains no secret material. */
+@Serializable
+data class NaviampConnectTrustedEndpoint(
+    val addresses: List<String>,
+    val advertisement: NaviampConnectAdvertisement,
+) {
+    init {
+        require(addresses.isNotEmpty()) { "A trusted endpoint requires at least one address." }
+        require(addresses.none(String::isBlank)) { "Trusted endpoint addresses must not be blank." }
     }
 }
 

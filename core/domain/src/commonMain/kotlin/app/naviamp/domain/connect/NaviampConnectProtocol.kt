@@ -158,6 +158,37 @@ data class NaviampConnectHello(
     }
 }
 
+/** Requests a fresh encrypted session using credentials established by an earlier approved pairing. */
+@Serializable
+@SerialName("resume_hello")
+data class NaviampConnectResumeHello(
+    val device: NaviampConnectDevice,
+    val identity: NaviampConnectPublicIdentity,
+    val protocolRange: NaviampConnectProtocolRange,
+) : NaviampConnectMessage {
+    init {
+        require(identity.deviceId == device.deviceId) { "The resume identity must belong to the device." }
+        require(device.role == NaviampConnectDeviceRole.Controller) { "Only a controller may resume a target session." }
+    }
+}
+
+/** Fresh target-selected session binding for a trusted reconnect. */
+@Serializable
+@SerialName("resume_offer")
+data class NaviampConnectResumeOffer(
+    val sessionId: String,
+    val protocolVersion: Int,
+    val target: NaviampConnectDevice,
+    val identity: NaviampConnectPublicIdentity,
+) : NaviampConnectMessage {
+    init {
+        require(sessionId.isNotBlank()) { "A resume offer requires a session ID." }
+        require(protocolVersion > 0) { "A resume offer requires a protocol version." }
+        require(target.role == NaviampConnectDeviceRole.Target) { "A resume offer must identify a target." }
+        require(identity.deviceId == target.deviceId) { "The resume identity must belong to the target." }
+    }
+}
+
 @Serializable
 @SerialName("pairing_offer")
 data class NaviampConnectPairingOffer(
@@ -239,6 +270,11 @@ data class NaviampConnectAcknowledgement(
 data class NaviampConnectSnapshotMessage(
     val snapshot: NaviampConnectTargetSnapshot,
 ) : NaviampConnectMessage
+
+/** Sent by a target immediately before a newly authenticated controller takes ownership. */
+@Serializable
+@SerialName("session_replaced")
+data object NaviampConnectSessionReplaced : NaviampConnectMessage
 
 @Serializable
 @SerialName("error")
@@ -409,6 +445,13 @@ data class NaviampConnectOfferConnectionProvisioning(
     val profile: NaviampConnectProvisioningProfile,
     val portableSettings: NaviampConnectPortableSettings? = null,
 ) : NaviampConnectCommand
+
+@Serializable
+@SerialName("connection_provisioning_result")
+data class NaviampConnectConnectionProvisioningResult(
+    val succeeded: Boolean,
+    val message: String,
+) : NaviampConnectMessage
 
 @Serializable
 @SerialName("handoff_queue")

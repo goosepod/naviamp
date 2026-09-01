@@ -592,7 +592,7 @@ class NaviampCore private constructor(
                 )
             }
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
-            livePlayback.observe { connect?.onTargetPlaybackChanged() }
+            livePlayback.observe { connect?.onLocalPlaybackChanged() }
             nowPlayingPresenter.publish()
             scope.launch { connection.restoreInitialConnection() }
             return NaviampCore(

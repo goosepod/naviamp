@@ -16,13 +16,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class NaviampConnectPairingRuntimeTest {
     @Test
-    fun completesIdentityBoundPairingAndRetainsAuthenticatedSession() = runBlocking {
+    fun completesIdentityBoundPairingAndRetainsAuthenticatedSession(): Unit = runBlocking {
         val controllerIdentity = TestIdentityEffect()
         val targetIdentity = TestIdentityEffect()
         val controllerDevice = controllerIdentity.device("Pixel", NaviampConnectDeviceRole.Controller)
@@ -60,10 +61,101 @@ class NaviampConnectPairingRuntimeTest {
             assertEquals(controllerDevice, targetPaired.trust.peerDevice)
             assertEquals(targetIdentity.identity.publicKeyBase64, controllerPaired.trust.publicKeyBase64)
             assertEquals(controllerIdentity.identity.publicKeyBase64, targetPaired.trust.publicKeyBase64)
+            assertContentEquals(controllerPaired.resumptionCredential, targetPaired.resumptionCredential)
 
             controllerPaired.session.send(NaviampConnectPing(42))
             assertEquals(NaviampConnectPing(42), targetPaired.session.receive().message)
+
+            controllerPaired.session.close()
+            targetPaired.session.close()
+            listener.close()
+            val resumeListener = factory.listen()
+            val resumeAdvertisement = advertisement(resumeListener.port, targetIdentity.identity.identityFingerprint)
+            val resumedTarget = async(Dispatchers.Default) {
+                val connection = resumeListener.accept()
+                NaviampConnectTargetResumptionRuntime(
+                    targetDevice,
+                    targetIdentity,
+                    JvmNaviampConnectIdentityVerifier,
+                    JvmNaviampConnectAuthenticatedCipherFactory,
+                ).reconnect(
+                    connection = connection,
+                    helloEnvelope = connection.receivePlaintext(),
+                    advertisement = resumeAdvertisement,
+                    trust = targetPaired.trust,
+                    credential = targetPaired.resumptionCredential.copyOf(),
+                    sessionId = "resumed-session",
+                )
+            }
+            val resumedController = async(Dispatchers.Default) {
+                NaviampConnectControllerResumptionRuntime(
+                    controllerDevice,
+                    controllerIdentity,
+                    JvmNaviampConnectIdentityVerifier,
+                    factory,
+                    JvmNaviampConnectAuthenticatedCipherFactory,
+                ).reconnect(
+                    host = "127.0.0.1",
+                    advertisement = resumeAdvertisement,
+                    trust = controllerPaired.trust,
+                    credential = controllerPaired.resumptionCredential.copyOf(),
+                )
+            }
+            val controllerResumed = assertIs<NaviampConnectResumptionResult.Connected>(resumedController.await())
+            val targetResumed = assertIs<NaviampConnectResumptionResult.Connected>(resumedTarget.await())
+            try {
+                controllerResumed.session.send(NaviampConnectPing(84))
+                assertEquals(NaviampConnectPing(84), targetResumed.session.receive().message)
+            } finally {
+                controllerResumed.session.close()
+                targetResumed.session.close()
+                resumeListener.close()
+            }
+
+            val rejectedListener = factory.listen()
+            val rejectedAdvertisement = advertisement(
+                rejectedListener.port,
+                targetIdentity.identity.identityFingerprint,
+            )
+            val rejectedTarget = async(Dispatchers.Default) {
+                val connection = rejectedListener.accept()
+                NaviampConnectTargetResumptionRuntime(
+                    targetDevice,
+                    targetIdentity,
+                    JvmNaviampConnectIdentityVerifier,
+                    JvmNaviampConnectAuthenticatedCipherFactory,
+                ).reconnect(
+                    connection = connection,
+                    helloEnvelope = connection.receivePlaintext(),
+                    advertisement = rejectedAdvertisement,
+                    trust = targetPaired.trust,
+                    credential = targetPaired.resumptionCredential.copyOf(),
+                    sessionId = "rejected-session",
+                )
+            }
+            val rejectedController = async(Dispatchers.Default) {
+                NaviampConnectControllerResumptionRuntime(
+                    controllerDevice,
+                    controllerIdentity,
+                    JvmNaviampConnectIdentityVerifier,
+                    factory,
+                    JvmNaviampConnectAuthenticatedCipherFactory,
+                ).reconnect(
+                    host = "127.0.0.1",
+                    advertisement = rejectedAdvertisement,
+                    trust = controllerPaired.trust,
+                    credential = ByteArray(controllerPaired.resumptionCredential.size) { 0x5a },
+                )
+            }
+            try {
+                assertIs<NaviampConnectResumptionResult.Failed>(rejectedController.await())
+                assertIs<NaviampConnectResumptionResult.Failed>(rejectedTarget.await())
+            } finally {
+                rejectedListener.close()
+            }
         } finally {
+            controllerPaired.resumptionCredential.fill(0)
+            targetPaired.resumptionCredential.fill(0)
             controllerPaired.session.close()
             targetPaired.session.close()
             listener.close()

@@ -250,6 +250,9 @@ Reference constraints:
   controller's command.
 - Controller loss does not stop playback. Target loss produces a visible disconnected state; it
   does not silently begin duplicate local playback.
+- A controller exposes a prominent **Stop controlling** action. It closes only the live control
+  session, preserves durable trust for later reconnect, and leaves the target queue, playback,
+  reporting, and standalone operation unchanged.
 - Handoff transfers queue occurrences, group/priority state, current occurrence, position, repeat,
   shuffle, and resolved playback-profile intent before changing authority.
 - Phone and Desktop browse through their normal full Naviamp interface while a selected TV is the
@@ -276,7 +279,9 @@ Reference constraints:
    cryptographic primitive itself.
 4. Successful pairing creates long-lived device identities and trust records. Private key material
    and session credentials are stored through platform Keystore, Keychain, or Desktop secure-value
-   adapters. The TV Controllers page lists, renames, and revokes trusted devices.
+   adapters. The TV Controllers page lists, renames, and revokes trusted devices. A remembered
+   target provides a direct authenticated reconnect action that reuses its existing trust record;
+   reconnecting never creates another trusted-device row or repeats initial connection setup.
 5. Pairing codes expire, attempts are rate-limited, every new controller requires visible TV
    approval, messages are encrypted and authenticated, and sessions use message sequence numbers or
    equivalent replay protection.
@@ -463,23 +468,26 @@ independent navigation graph may be introduced in the Apple TV host.
 
 #### Branch review issues before merge
 
-- [ ] Preserve complete Jellyfin artist libraries in the repository-backed refresh path. The Core
-  catalog currently requests an effectively unbounded artist list and then disables paging, while
-  Jellyfin clamps `artists(limit)` to 200; refresh must page to completion or retain a truthful
-  continuation instead of truncating larger libraries.
-- [ ] Bound and cancel accepted Connect sockets during pairing. A client that connects without
-  sending its hello currently holds the only target accept flow in a blocking read, and stopping
-  pairing closes the listener but not that accepted connection. Add shared timeout/lifecycle policy
-  plus coverage for stalled, cancelled, and maliciously incomplete clients.
-- [ ] Schedule the existing Connect advertisement and discovery expiry policies from Core. Pairing
-  codes and stale discoveries must stop at their declared lifetime without waiting for another
-  connection attempt, with deterministic state/UI transitions and expiry tests.
-- [ ] Clear or replace stale cover art when a new artwork URL fails to load. The transition grace
-  period may preserve artwork across a brief empty state, but a failed new URL must not leave the
-  previous track's image displayed indefinitely.
-- [ ] Make trusted-device rows truthful and actionable. Remove the TV disclosure affordance until
-  selection has behavior, or complete shared active-target selection, reconnect, rename, and revoke
-  actions with corresponding Core tests.
+- [x] Preserve complete Jellyfin artist libraries in the repository-backed refresh path. Core now
+  consumes validated provider pages to completion before replacing the repository index.
+- [x] Bound and cancel accepted Connect sockets during pairing. Core owns deadlines and closure for
+  both the initial hello and approved authentication handshake, resumes accepting after incomplete
+  requests, and has coverage for stalled, cancelled, and non-cooperative clients.
+- [x] Schedule Connect advertisement, pairing-code, and discovery expiry from Core with
+  deterministic state/UI transitions and virtual-time tests.
+- [x] Clear stale cover art when a replacement URL fails while preserving the intentional grace
+  period for a brief empty transition state.
+- [x] Keep trusted-device rows truthful. Remembered targets with a secure resumption credential are
+  actionable and reconnect through the shared authenticated session flow without creating another
+  trust record; records that predate that credential remain non-interactive.
+- [x] Add a prominent shared **Stop controlling** action that closes only the live controller
+  session, preserves remembered trust, and leaves TV playback and queue state untouched.
+- [x] Resolve the apparent Android-to-Android pairing authentication regression on the physical
+  Pixel 10a and Android TV emulator. The protocol was not diverging: the temporary ADB forward was
+  loopback-only and the target test's 30-second accept window expired during physical-device and
+  DNS-SD startup. A LAN-bound test relay plus a 120-second test-only accept window now lets the
+  complete identity-bound pairing and encrypted command sequence pass on both devices. Pairing
+  failures also retain a non-secret shared handshake stage for actionable diagnostics.
 
 #### Next Naviamp Connect slice
 
@@ -489,9 +497,11 @@ independent navigation graph may be introduced in the Apple TV host.
    address. Re-run pairing, transport, queue handoff, catalog playback, Internet Radio, and assisted
    provisioning through the actual shared settings and Now Playing surfaces.
 2. Finish Android pairing management: explicit active-target selection, trusted-device rename and
-   revoke, clearer permission/unavailable states, and recovery when either app, socket, Wi-Fi, or
-   target process restarts. Add retained-session, reconnect, stale-target, and interrupted-command
-   acceptance coverage in shared Core before extending host wiring.
+   revoke, one-tap authenticated reconnect that reuses durable trust, a controller-side Stop
+   controlling action that leaves target playback untouched, clearer permission/unavailable states,
+   and recovery when either app, socket, Wi-Fi, or target process restarts. Add retained-session,
+   reconnect, stale-target, controller-detach, and interrupted-command acceptance coverage in shared
+   Core before extending host wiring.
 3. Repeat the unmodified Android phone-to-TV flow on physical Google TV hardware when available.
    That is the authoritative validation for direct LAN addressing, HDMI/audio behavior, CEC input,
    sleep/wake, process recovery, and Android `MediaSession`; emulator evidence is not a substitute.
@@ -1058,3 +1068,38 @@ independent navigation graph may be introduced in the Apple TV host.
   is playing, the Queue control remains available without a music-queue index, pins the current
   station, lists every other saved station, and uses Select to switch stations without exposing
   track-only move or row-action controls. Display now follows Home in the TV settings category list.
+
+### 2026-08-31
+
+- Closed the five recorded branch-review findings in shared code. Repository-backed artist refresh
+  now consumes validated provider pages to completion before atomically replacing the index, so
+  Jellyfin libraries larger than 200 artists are not silently marked complete.
+- Made the complete target pairing socket lifecycle bounded in Core. Initial hello and approved
+  PAKE/identity handshakes have separate deadlines; stopping or expiring pairing closes the accepted
+  connection as well as the listener; incomplete and malformed clients cannot monopolize the sole
+  accept flow; and the target resumes accepting after a rejected request. Added deterministic tests
+  for silent clients, cancellation, reacceptance, and non-cooperative native reads.
+- Scheduled pairing-code/advertisement expiry and stale discovery removal from the shared Connect
+  owner. Both now transition state at their declared lifetime without another socket or DNS-SD
+  callback. Added virtual-time tests for the target and controller paths.
+- Failed replacement artwork now clears the previous media image instead of displaying stale cover
+  art indefinitely. The existing short grace period for a transient null URL remains unchanged.
+  Trusted-device records no longer advertise a disclosure action and are non-interactive until the
+  shared rename/revoke workflow exists.
+- Passed the Core app, presentation, and UI JVM suites plus Android and iOS Simulator ARM64
+  compilation. The rebuilt debug app launched successfully with populated state on the 1080p TV AVD
+  and physical Pixel 10a; framed TCP, J-PAKE, and Keystore identity instrumentation passed on both.
+- Re-ran Android-to-Android pairing. The physical Pixel discovers the TV AVD; direct connection still
+  fails on the advertised `10.0.2.15` NAT address as expected. A temporary ADB/LAN bridge reaches the
+  target but the identity-bound handshake now reproducibly returns `AuthenticationRequired`, while
+  the isolated TCP, J-PAKE, and identity tests pass. The already-running Pixel 8 emulator does not
+  improve this path because its mDNS discovery cannot see the separate TV AVD. Recorded the
+  authentication divergence as a new pre-merge issue rather than misclassifying it as networking.
+- Resolved that apparent authentication divergence in the acceptance harness. `adb forward` had
+  exposed the emulator only on Mac loopback, and the target's 30-second accept deadline elapsed
+  during device instrumentation and DNS-SD startup, so the controller saw a generic closed-socket
+  authentication result. With a LAN-bound relay and a 120-second test-only accept window, the
+  physical Pixel 10a and 1080p TV AVD both pass the full identity-bound pairing plus encrypted play,
+  queue handoff, connection provisioning, Internet Radio, and album command sequence. Production
+  deadlines and transport behavior are unchanged. Added non-secret shared pairing failure stages
+  so future device failures identify the last completed handshake phase.

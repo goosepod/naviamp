@@ -62,11 +62,14 @@ class StorageMediaSourceStoreTest {
 
             assertTrue(stored.token.startsWith("protected:"))
             assertFalse(stored.token.contains(connection.token))
+            assertTrue(stored.password?.startsWith("protected:") == true)
+            assertFalse(stored.password.orEmpty().contains(connection.password.orEmpty()))
             assertTrue(stored.client_certificate_keystore_password?.startsWith("protected:") == true)
             assertFalse(stored.custom_headers_json.orEmpty().contains("secret-value"))
             assertEquals(connection.token, restored?.token)
             assertEquals(connection.salt, restored?.salt)
             assertEquals(connection.nativeToken, restored?.nativeToken)
+            assertEquals(connection.password, restored?.password)
             assertEquals(connection.tlsSettings, restored?.tlsSettings)
             assertEquals(connection.secondaryUrls, restored?.secondaryUrls)
             assertEquals(connection.customHeaders, restored?.customHeaders)
@@ -91,7 +94,29 @@ class StorageMediaSourceStoreTest {
             assertTrue(migrated.token.startsWith("protected:"))
             assertTrue(migrated.salt.startsWith("protected:"))
             assertTrue(migrated.native_token?.startsWith("protected:") == true)
+            assertTrue(migrated.password?.startsWith("protected:") == true)
             assertFalse(migrated.custom_headers_json.orEmpty().contains("secret-value"))
+        }
+    }
+
+    @Test
+    fun tokenRefreshPreservesAnExistingProtectedSourcePassword() {
+        withDatabase { database ->
+            val store = StorageMediaSourceStore(
+                queries = database.naviampStorageQueries,
+                nowMillis = { 42L },
+                credentialProtector = ReversingCredentialProtector,
+            )
+            val original = store.upsertProviderMediaSource(providerConnection(), "cache", "navidrome")
+
+            store.upsertProviderMediaSource(
+                providerConnection().copy(password = null, nativeToken = "refreshed-token"),
+                "cache",
+                "navidrome",
+                preferredSourceId = original.id,
+            )
+
+            assertEquals("source-password", store.mediaSource(original.id)?.password)
         }
     }
 
@@ -108,7 +133,7 @@ class StorageMediaSourceStoreTest {
                 store.upsertProviderMediaSource(providerConnection(), "cache", "navidrome")
             }
 
-            assertEquals("Could not securely store provider token.", failure.message)
+            assertEquals("Could not securely store source password.", failure.message)
             assertTrue(database.naviampStorageQueries.selectMediaSources().executeAsList().isEmpty())
         }
     }
@@ -190,6 +215,7 @@ private fun providerConnection() = ProviderMediaSourceConnection(
     displayName = "Server",
     baseUrl = "https://music.example.test",
     username = "listener",
+    password = "source-password",
     token = "token-value",
     salt = "salt-value",
     nativeToken = "native-token",

@@ -12,6 +12,7 @@ val androidReleaseKeyPassword = providers.environmentVariable("NAVIAMP_ANDROID_K
 val signDebugWithReleaseKey = providers.gradleProperty("naviamp.android.signDebugWithReleaseKey")
     .map(String::toBoolean)
     .orElse(false)
+val connectDebugHost = providers.gradleProperty("naviamp.connect.debugHost").orElse("")
 val hasAndroidReleaseSigning = listOf(
     androidReleaseKeystore,
     androidReleaseKeystorePassword,
@@ -38,6 +39,7 @@ android {
         versionName = naviampVersionName
         resValue("string", "app_name", "Naviamp")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "NAVIAMP_CONNECT_DEBUG_HOST", "\"\"")
         externalNativeBuild {
             cmake { arguments += "-DANDROID_STL=c++_shared" }
         }
@@ -59,6 +61,10 @@ android {
             applicationIdSuffix = ".v2test"
             versionNameSuffix = "-v2test"
             resValue("string", "app_name", "Naviamp v2 Test")
+            val escapedConnectDebugHost = connectDebugHost.get()
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+            buildConfigField("String", "NAVIAMP_CONNECT_DEBUG_HOST", "\"$escapedConnectDebugHost\"")
             if (hasAndroidReleaseSigning && signDebugWithReleaseKey.get()) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -92,6 +98,8 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    buildFeatures { buildConfig = true }
 
     sourceSets.getByName("main").jniLibs.srcDir(
         project.layout.projectDirectory.dir("../../native/bass-jni/vendor/android"),

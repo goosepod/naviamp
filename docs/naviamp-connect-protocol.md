@@ -79,7 +79,9 @@ policy. Connection provisioning is capability-gated, encrypted inside that retai
 requires explicit target approval. Core excludes local certificate paths and device-only settings,
 validates the offered connection through the normal provider owner before saving or applying
 portable settings, and preserves the existing source if validation fails. Completed provisioning
-requests deliberately cannot be replayed or retained in the request-deduplication cache.
+requests deliberately cannot be replayed or retained in the request-deduplication cache. The target
+returns an encrypted provisioning result so the controller reports validation success, failure, or
+rejection instead of remaining on the approval prompt.
 
 After J-PAKE confirmation, Android and Desktop derive independent controller-to-target and
 target-to-controller AES-256-GCM keys and nonce prefixes from the session root. Core binds protocol
@@ -87,6 +89,14 @@ version, pairing-session ID, sequence, and direction as authenticated data, requ
 directional sequence numbers, and closes the channel on authentication, replay, gap, session, or
 payload failure. The JVM/Android socket effect uses a bounded four-byte big-endian frame length and
 contains no pairing or command policy.
+
+Successful initial pairing also retains the confirmed PAKE root behind Core's secure-value
+boundary, separate from the non-secret trust record. While the TV explicitly advertises pairing
+mode, a remembered controller may use that credential to open a fresh session without another code
+or another trust record. The resume exchange binds both durable identities, the advertised target
+fingerprint, a fresh target-generated session ID, and encrypted mutual confirmations; a missing or
+mismatched credential fails closed. Android encrypts this credential with an AES-GCM key held in
+Android Keystore before persisting it.
 
 Each peer then signs one canonical proof binding the negotiated protocol, pairing-session ID,
 ordered controller and target device IDs, fingerprints, and public keys. Core verifies that each

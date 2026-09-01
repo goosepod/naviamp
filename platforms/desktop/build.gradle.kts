@@ -229,6 +229,7 @@ kotlin {
                 implementation(libs.ktor.client.core)
                 implementation(libs.sqldelight.sqlite.driver)
                 implementation(libs.jna.platform)
+                implementation(libs.jmdns)
             }
         }
         val desktopTest by getting {

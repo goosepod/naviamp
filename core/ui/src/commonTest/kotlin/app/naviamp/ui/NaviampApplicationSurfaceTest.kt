@@ -113,6 +113,50 @@ class NaviampApplicationSurfaceTest {
     }
 
     @Test
+    fun televisionSettingsDismissForControllerTakeoverPlaybackOrCompletedSetup() {
+        assertTrue(
+            televisionSettingsShouldDismissForControllerActivity(
+                previousControllerDeviceId = null,
+                controllerDeviceId = "phone",
+                previousNowPlayingId = null,
+                nowPlayingId = null,
+                previousProvisioningController = null,
+                provisioningController = null,
+            ),
+        )
+        assertTrue(
+            televisionSettingsShouldDismissForControllerActivity(
+                previousControllerDeviceId = "phone",
+                controllerDeviceId = "phone",
+                previousNowPlayingId = null,
+                nowPlayingId = "track-1",
+                previousProvisioningController = null,
+                provisioningController = null,
+            ),
+        )
+        assertTrue(
+            televisionSettingsShouldDismissForControllerActivity(
+                previousControllerDeviceId = "phone",
+                controllerDeviceId = "phone",
+                previousNowPlayingId = null,
+                nowPlayingId = null,
+                previousProvisioningController = "Pixel",
+                provisioningController = null,
+            ),
+        )
+        assertFalse(
+            televisionSettingsShouldDismissForControllerActivity(
+                previousControllerDeviceId = "phone",
+                controllerDeviceId = "phone",
+                previousNowPlayingId = "track-1",
+                nowPlayingId = "track-1",
+                previousProvisioningController = null,
+                provisioningController = null,
+            ),
+        )
+    }
+
+    @Test
     fun televisionBackReturnsSecondaryRoutesHomeWithoutStealingTransientBack() {
         assertEquals(SharedRoute.Home, naviampTelevisionBackRoute(SharedRoute.Library, transientContentOpen = false))
         assertEquals(SharedRoute.Home, naviampTelevisionBackRoute(SharedRoute.Settings, transientContentOpen = false))

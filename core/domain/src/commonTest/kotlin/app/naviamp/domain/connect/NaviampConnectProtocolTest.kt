@@ -93,6 +93,8 @@ class NaviampConnectProtocolTest {
             NaviampConnectPairingOffer("pairing", targetDevice(), identity),
             NaviampConnectPairingIdentityProof(identity, "signature"),
             NaviampConnectPairingConfirmation("fingerprint"),
+            NaviampConnectSessionReplaced,
+            NaviampConnectConnectionProvisioningResult(true, "TV setup completed securely."),
         )
 
         messages.forEachIndexed { index, message ->

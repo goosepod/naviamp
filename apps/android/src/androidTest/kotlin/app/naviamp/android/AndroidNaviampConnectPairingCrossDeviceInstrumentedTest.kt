@@ -48,6 +48,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -102,12 +104,22 @@ class AndroidNaviampConnectPairingCrossDeviceInstrumentedTest {
         )
         try {
             runBlocking {
-                val connection = withTimeout(30_000) { listener.accept() }
+                val connection = withTimeout(120_000) { listener.accept() }
                 val awaiting = assertIs<NaviampConnectTargetPairingRequestResult.AwaitingApproval>(
                     runtime.receiveRequest(connection, System.currentTimeMillis()),
                 )
+                val approval = async(Dispatchers.Default) {
+                    awaiting.request.approve(System.currentTimeMillis(), "pixel-controller")
+                }
+                val pairingResult = try {
+                    withTimeout(30_000) { approval.await() }
+                } finally {
+                    if (!approval.isCompleted) awaiting.request.cancel(System.currentTimeMillis())
+                    approval.cancel()
+                }
                 val paired = assertIs<NaviampConnectPairingRuntimeResult.Paired>(
-                    awaiting.request.approve(System.currentTimeMillis(), "pixel-controller"),
+                    pairingResult,
+                    "Target pairing failed with ${(pairingResult as? NaviampConnectPairingRuntimeResult.Failed)?.let { "${it.code} at ${it.stage}" }}.",
                 )
                 try {
                     val initial = snapshot(runtimeTargetDevice(identity.deviceId), revision = 0)
@@ -219,14 +231,16 @@ class AndroidNaviampConnectPairingCrossDeviceInstrumentedTest {
             ?.takeIf(String::isNotBlank)
             ?: service.addresses.first()
         runBlocking {
+            val pairingResult = runtime.pair(
+                host = connectHost,
+                advertisement = advertisement,
+                pairingCode = PairingCode.toCharArray(),
+                pairedAtEpochMillis = System.currentTimeMillis(),
+                trustedDeviceId = "android-tv-target",
+            )
             val paired = assertIs<NaviampConnectPairingRuntimeResult.Paired>(
-                runtime.pair(
-                    host = connectHost,
-                    advertisement = advertisement,
-                    pairingCode = PairingCode.toCharArray(),
-                    pairedAtEpochMillis = System.currentTimeMillis(),
-                    trustedDeviceId = "android-tv-target",
-                ),
+                pairingResult,
+                "Pairing failed with ${(pairingResult as? NaviampConnectPairingRuntimeResult.Failed)?.let { "${it.code} at ${it.stage}" }}.",
             )
             try {
                 val welcomeEnvelope = paired.session.receive()
@@ -312,7 +326,7 @@ class AndroidNaviampConnectPairingCrossDeviceInstrumentedTest {
         capabilities = acceptanceCapabilities(),
         port = port,
         identityFingerprint = fingerprint,
-        expiresAtEpochMillis = System.currentTimeMillis() + 60_000,
+            expiresAtEpochMillis = System.currentTimeMillis() + 180_000,
     )
 
     private fun snapshot(target: NaviampConnectDevice, revision: Long) = NaviampConnectTargetSnapshot(

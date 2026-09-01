@@ -22,6 +22,7 @@ import app.naviamp.ui.NowPlayingSelectionAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCoreConnectRemoteNowPlayingTest {
@@ -39,6 +40,13 @@ class NaviampCoreConnectRemoteNowPlayingTest {
         assertTrue(ui.hasNext)
         assertEquals(listOf("queue:1", "queue:2"), ui.upNext.map { it.id })
         assertTrue(ui.upNext.first().playNextPriority)
+    }
+
+    @Test
+    fun emptyRemoteQueueDoesNotHideTheControllersLocalQueue() {
+        val empty = snapshot().copy(queue = NaviampConnectQueueSnapshot())
+
+        assertNull(empty.toRemoteNowPlayingUiOrNull("Living Room TV"))
     }
 
     @Test

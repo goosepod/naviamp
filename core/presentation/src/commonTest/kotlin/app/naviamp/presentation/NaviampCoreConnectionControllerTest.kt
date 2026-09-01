@@ -88,6 +88,27 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun provisioningTheAlreadyConnectedSourceIsIdempotent() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(
+            NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()),
+        )
+        fixture.port.connectRequests.clear()
+
+        val connected = fixture.controller.provisionConnect(
+            ConnectionFormState(
+                serverUrl = "https://MUSIC.example/",
+                username = "demo",
+                password = "newly-transferred-secret",
+            ),
+        )
+
+        assertTrue(connected)
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+    }
+
+    @Test
     fun savedConnectionUsesRestorationPolicy() = kotlinx.coroutines.test.runTest {
         val fixture = fixture()
 

@@ -12,6 +12,18 @@ import kotlin.test.assertIs
 
 class NaviampCoreConnectProvisioningTest {
     @Test
+    fun missingCredentialRequestsCredentialRepair() {
+        val unsupported = assertIs<NaviampCoreConnectProvisioningExport.Unsupported>(
+            ConnectionFormState(
+                serverUrl = "https://music.example.test",
+                username = "listener",
+            ).toConnectProvisioningExport(),
+        )
+
+        assertEquals(true, unsupported.credentialUnavailable)
+    }
+
+    @Test
     fun exportsCredentialAndLibrariesWithoutMachineLocalCertificatePaths() {
         val ready = assertIs<NaviampCoreConnectProvisioningExport.Ready>(
             ConnectionFormState(

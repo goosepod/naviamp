@@ -18,6 +18,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
 import app.naviamp.domain.connect.NaviampConnectHandoffQueue
+import app.naviamp.domain.connect.NaviampConnectPlay
 import app.naviamp.domain.connect.NaviampConnectQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectQueueGroup
 import app.naviamp.domain.connect.NaviampConnectQueueSnapshot
@@ -125,7 +126,39 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(PlaybackState.Paused, fixture.live.state.value.playbackState)
         assertEquals("new-album", fixture.live.state.value.queue.groups.single().target.id)
         assertEquals(31.5, fixture.effects.restoredStartPositionSeconds)
-        assertEquals(1, fixture.effects.pauses)
+        assertEquals(1, fixture.effects.stops)
+        assertEquals(0, fixture.effects.pauses)
+
+        assertTrue(fixture.controller.executeConnectPlayback(NaviampConnectPlay))
+        assertEquals(1, fixture.effects.starts)
+        assertEquals(0, fixture.effects.resumes)
+    }
+
+    @Test
+    fun playingConnectQueueHandoffStartsTheRestoredStreamImmediately() = runTest {
+        val fixture = playbackFixture(this)
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:new-one", "new-one", "New One", "Artist"),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 12_500,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = true,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals(12.5, fixture.effects.restoredStartPositionSeconds)
+        assertEquals(1, fixture.effects.stops)
+        assertEquals(1, fixture.effects.starts)
+        assertEquals(0, fixture.effects.pauses)
     }
 
     @Test

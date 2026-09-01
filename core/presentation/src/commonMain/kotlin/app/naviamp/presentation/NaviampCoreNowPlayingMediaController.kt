@@ -44,7 +44,13 @@ class NaviampCoreNowPlayingMediaController(
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
-        is NaviampCoreCommand.NowPlaying.Display,
+        is NaviampCoreCommand.NowPlaying.Display ->
+            if (command.request.action == NowPlayingDisplayAction.Collapse) {
+                navigation.dispatch(NaviampCoreCommand.Navigation.CloseNowPlaying)
+                NaviampCoreImmediateCommandResult.Handled()
+            } else {
+                NaviampCoreImmediateCommandResult.Deferred
+            }
         is NaviampCoreCommand.NowPlaying.CurrentTrack,
         is NaviampCoreCommand.NowPlaying.Selection,
         is NaviampCoreCommand.NowPlaying.QueueItem,

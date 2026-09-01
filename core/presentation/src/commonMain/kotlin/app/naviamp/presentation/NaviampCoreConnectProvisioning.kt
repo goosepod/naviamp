@@ -13,7 +13,10 @@ import app.naviamp.domain.settings.normalized
 
 internal sealed interface NaviampCoreConnectProvisioningExport {
     data class Ready(val profile: NaviampConnectProvisioningProfile) : NaviampCoreConnectProvisioningExport
-    data class Unsupported(val message: String) : NaviampCoreConnectProvisioningExport
+    data class Unsupported(
+        val message: String,
+        val credentialUnavailable: Boolean = false,
+    ) : NaviampCoreConnectProvisioningExport
 }
 
 /** Removes machine-local certificate paths before any connection data enters the wire contract. */
@@ -26,6 +29,7 @@ internal fun ConnectionFormState.toConnectProvisioningExport(): NaviampCoreConne
     if (password.isBlank()) {
         return NaviampCoreConnectProvisioningExport.Unsupported(
             "The current connection credential is unavailable for secure transfer.",
+            credentialUnavailable = true,
         )
     }
     return NaviampCoreConnectProvisioningExport.Ready(

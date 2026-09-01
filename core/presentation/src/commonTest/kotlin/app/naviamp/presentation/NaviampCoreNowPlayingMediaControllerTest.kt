@@ -46,7 +46,10 @@ import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingSelectionActionRequest
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -56,6 +59,19 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreNowPlayingMediaControllerTest {
+    @Test
+    fun collapseClosesNowPlayingSynchronously() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.store.updateShell { shell ->
+            shell.copy(shellChrome = shell.shellChrome.copy(nowPlayingOpen = true))
+        }
+
+        val result = fixture.controller.dispatch(displayCommand(NowPlayingDisplayAction.Collapse))
+
+        assertTrue(result is NaviampCoreImmediateCommandResult.Handled)
+        assertFalse(fixture.store.state.value.shell.shellChrome.nowPlayingOpen)
+    }
+
     @Test
     fun presenterPublishesCompleteQueueRelatedAndCapabilityState() = runTest {
         val fixture = mediaFixture(this)
@@ -149,8 +165,8 @@ class NaviampCoreNowPlayingMediaControllerTest {
         fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
         assertEquals("current", fixture.live.state.value.queue.current?.id?.value)
         assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
-        assertTrue(fixture.effects.selections.isEmpty())
-        assertEquals("Playing track radio.", fixture.store.state.value.overlays.status)
+        assertEquals(listOf("current:0"), fixture.effects.selections)
+        assertEquals("Playing current radio.", fixture.store.state.value.overlays.status)
         val recentSection = fixture.store.state.value.shell.home.content.collectionSections
             .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentRadio }
         assertTrue(recentSection.items.single().mediaItem.id.startsWith("track:current:session:"))
@@ -174,7 +190,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
             ),
         )
         assertEquals("related", fixture.live.state.value.currentTrack?.id?.value)
-        assertEquals(listOf("related:0"), fixture.effects.selections)
+        assertEquals(listOf("current:0", "related:0"), fixture.effects.selections)
 
         fixture.controller.execute(
             NaviampCoreCommand.NowPlaying.QueueItem(
@@ -187,6 +203,23 @@ class NaviampCoreNowPlayingMediaControllerTest {
         )
         assertTrue(fixture.live.state.value.queue.upNext().any { it.id.value == "related" })
 
+    }
+
+    @Test
+    fun trackRadioPlaysItsSeedBeforeTheProviderFinishesBuildingTheQueue() = runTest {
+        val fixture = mediaFixture(this)
+        val buildGate = CompletableDeferred<Unit>()
+        fixture.provider.trackRadioGate = buildGate
+
+        val request = async { fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio)) }
+        runCurrent()
+
+        assertEquals(listOf("current"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals("Playing current radio while the queue builds.", fixture.store.state.value.overlays.status)
+
+        buildGate.complete(Unit)
+        request.await()
+        assertEquals(listOf("current", "radio"), fixture.live.state.value.queue.tracks.map { it.id.value })
     }
 
     @Test
@@ -484,7 +517,11 @@ private class NowPlayingTestProvider : MediaProvider {
         )
         else -> MediaSearchResults()
     }
-    override suspend fun trackRadio(trackId: TrackId, count: Int) = listOf(nowPlayingTrack("radio"))
+    var trackRadioGate: CompletableDeferred<Unit>? = null
+    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+        trackRadioGate?.await()
+        return listOf(nowPlayingTrack("radio"))
+    }
     override suspend fun internetRadioStations() = listOf(InternetRadioStation("station", "Station", "https://radio"))
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         added += "$playlistId:${trackIds.joinToString(",") { it.value }}"

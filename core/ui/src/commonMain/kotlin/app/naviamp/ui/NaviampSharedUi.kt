@@ -126,7 +126,8 @@ fun NaviampSharedAppShell(
     val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)
         ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
     val nowPlayingActions = if (remoteNowPlaying != null) {
-        connectActions?.remoteNowPlayingActions ?: actions.nowPlayingActions
+        connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
+            ?: actions.nowPlayingActions
     } else {
         actions.nowPlayingActions
     }
@@ -385,7 +386,8 @@ internal fun ConnectedContent(
     val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)
         ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
     val nowPlayingActions = if (remoteNowPlaying != null) {
-        connectActions?.remoteNowPlayingActions ?: actions.nowPlayingActions
+        connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
+            ?: actions.nowPlayingActions
     } else {
         actions.nowPlayingActions
     }
@@ -713,6 +715,10 @@ internal fun ConnectedContent(
         )
     }
 }
+
+internal fun NaviampNowPlayingActions.withLocalDisplayActions(
+    local: NaviampNowPlayingActions,
+): NaviampNowPlayingActions = copy(onDisplayAction = local.onDisplayAction)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -66,6 +66,7 @@ data class SavedMediaSource(
     val token: String,
     val salt: String,
     val nativeToken: String? = null,
+    val password: String? = null,
     val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),

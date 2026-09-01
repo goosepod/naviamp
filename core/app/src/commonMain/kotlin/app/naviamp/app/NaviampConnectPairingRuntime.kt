@@ -26,9 +26,25 @@ sealed interface NaviampConnectPairingRuntimeResult {
     data class Paired(
         val trust: NaviampConnectTrustRecord,
         val session: NaviampConnectAuthenticatedSession,
+        val resumptionCredential: ByteArray,
     ) : NaviampConnectPairingRuntimeResult
 
-    data class Failed(val code: NaviampConnectErrorCode) : NaviampConnectPairingRuntimeResult
+    data class Failed(
+        val code: NaviampConnectErrorCode,
+        val stage: NaviampConnectPairingFailureStage = NaviampConnectPairingFailureStage.Unknown,
+    ) : NaviampConnectPairingRuntimeResult
+}
+
+/** Non-secret progress marker retained when a pairing attempt fails. */
+enum class NaviampConnectPairingFailureStage {
+    Unknown,
+    LocalIdentity,
+    TransportConnect,
+    PairingOffer,
+    Pake,
+    IdentityProof,
+    Confirmation,
+    Trust,
 }
 
 /** Authenticated connection retained after pairing for snapshots and commands. */
@@ -129,6 +145,8 @@ class NaviampConnectControllerPairingRuntime(
         var connection: NaviampConnectTransportConnection? = null
         var pake: NaviampConnectPakeSession? = null
         var secureSession: NaviampConnectAuthenticatedSession? = null
+        var retainedResumptionCredential: ByteArray? = null
+        var failureStage = NaviampConnectPairingFailureStage.LocalIdentity
         return try {
             val localIdentity = identityEffect.loadOrCreate().asPublicIdentity()
             requireIdentity(localIdentity, localDevice, identityVerifier)
@@ -139,7 +157,9 @@ class NaviampConnectControllerPairingRuntime(
                 pairingCode.fill('\u0000')
                 return NaviampConnectPairingRuntimeResult.Failed(NaviampConnectErrorCode.IncompatibleProtocol)
             }
+            failureStage = NaviampConnectPairingFailureStage.TransportConnect
             connection = transportFactory.connect(host, advertisement.port)
+            failureStage = NaviampConnectPairingFailureStage.PairingOffer
             var outboundSequence = 0L
             connection.sendPlaintext(
                 NaviampConnectEnvelope(
@@ -164,9 +184,15 @@ class NaviampConnectControllerPairingRuntime(
                 offer.identity.identityFingerprint != advertisement.identityFingerprint ||
                 identityVerifier.fingerprint(offer.identity.publicKeyBase64) != offer.identity.identityFingerprint
             ) {
-                return failure(connection, pairingCode, NaviampConnectErrorCode.AuthenticationRequired)
+                return failure(
+                    connection,
+                    pairingCode,
+                    NaviampConnectErrorCode.AuthenticationRequired,
+                    NaviampConnectPairingFailureStage.PairingOffer,
+                )
             }
             val protocolVersion = expectedProtocolVersion
+            failureStage = NaviampConnectPairingFailureStage.Pake
             pake = pakeFactory.create(
                 pairingSessionId = offer.pairingSessionId,
                 protocolVersion = protocolVersion,
@@ -184,6 +210,7 @@ class NaviampConnectControllerPairingRuntime(
                 firstInboundSequence = 1,
             )
             pake = null
+            retainedResumptionCredential = secret.copyBytes()
             val cipher = cipherFactory.create(
                 secret,
                 NaviampConnectPakeRole.Controller,
@@ -203,6 +230,7 @@ class NaviampConnectControllerPairingRuntime(
                 protocolVersion,
                 offer.pairingSessionId,
             )
+            failureStage = NaviampConnectPairingFailureStage.IdentityProof
             val proofPayload = naviampConnectIdentityProofPayload(
                 protocolVersion,
                 offer.pairingSessionId,
@@ -217,23 +245,41 @@ class NaviampConnectControllerPairingRuntime(
                     ),
                 )
                 val remoteProof = secureSession.receive().message as? NaviampConnectPairingIdentityProof
-                    ?: return failure(secureSession, NaviampConnectErrorCode.AuthenticationRequired)
+                    ?: return failure(
+                        secureSession,
+                        NaviampConnectErrorCode.AuthenticationRequired,
+                        NaviampConnectPairingFailureStage.IdentityProof,
+                    )
                 if (remoteProof.identity != offer.identity ||
                     !identityVerifier.verifyProof(remoteProof, proofPayload)
                 ) {
-                    return failure(secureSession, NaviampConnectErrorCode.AuthenticationRequired)
+                    return failure(
+                        secureSession,
+                        NaviampConnectErrorCode.AuthenticationRequired,
+                        NaviampConnectPairingFailureStage.IdentityProof,
+                    )
                 }
+                failureStage = NaviampConnectPairingFailureStage.Confirmation
                 secureSession.send(
                     NaviampConnectPairingConfirmation(offer.identity.identityFingerprint),
                 )
                 val confirmation = secureSession.receive().message as? NaviampConnectPairingConfirmation
-                    ?: return failure(secureSession, NaviampConnectErrorCode.AuthenticationRequired)
+                    ?: return failure(
+                        secureSession,
+                        NaviampConnectErrorCode.AuthenticationRequired,
+                        NaviampConnectPairingFailureStage.Confirmation,
+                    )
                 if (confirmation.verifiedIdentityFingerprint != localIdentity.identityFingerprint) {
-                    return failure(secureSession, NaviampConnectErrorCode.AuthenticationRequired)
+                    return failure(
+                        secureSession,
+                        NaviampConnectErrorCode.AuthenticationRequired,
+                        NaviampConnectPairingFailureStage.Confirmation,
+                    )
                 }
             } finally {
                 proofPayload.fill(0)
             }
+            failureStage = NaviampConnectPairingFailureStage.Trust
             val trust = NaviampConnectTrustRecord(
                 trustedDeviceId = trustedDeviceId,
                 peerDevice = offer.target,
@@ -244,16 +290,24 @@ class NaviampConnectControllerPairingRuntime(
             val authenticated = secureSession.attachTrust(trust)
             secureSession = null
             connection = null
-            NaviampConnectPairingRuntimeResult.Paired(trust, authenticated)
+            NaviampConnectPairingRuntimeResult.Paired(
+                trust,
+                authenticated,
+                checkNotNull(retainedResumptionCredential).also { retainedResumptionCredential = null },
+            )
         } catch (_: Exception) {
             pairingCode.fill('\u0000')
             connection?.close()
-            NaviampConnectPairingRuntimeResult.Failed(NaviampConnectErrorCode.AuthenticationRequired)
+            NaviampConnectPairingRuntimeResult.Failed(
+                NaviampConnectErrorCode.AuthenticationRequired,
+                failureStage,
+            )
         } finally {
             pake?.destroy()
             secureSession?.close()
             connection?.close()
             pairingCode.fill('\u0000')
+            retainedResumptionCredential?.fill(0)
         }
     }
 }
@@ -279,8 +333,9 @@ class NaviampConnectTargetPairingRuntime(
     suspend fun receiveRequest(
         connection: NaviampConnectTransportConnection,
         nowEpochMillis: Long,
+        initialEnvelope: NaviampConnectEnvelope? = null,
     ): NaviampConnectTargetPairingRequestResult = try {
-        val envelope = connection.receivePlaintext()
+        val envelope = initialEnvelope ?: connection.receivePlaintext()
         val hello = envelope.message as? NaviampConnectHello
             ?: return reject(connection, NaviampConnectErrorCode.InvalidRequest)
         val advertising = activeAdvertising()
@@ -357,12 +412,15 @@ class NaviampConnectPendingTargetPairing internal constructor(
         consumed = true
         var pake: NaviampConnectPakeSession? = null
         var secureSession: NaviampConnectAuthenticatedSession? = null
+        var retainedResumptionCredential: ByteArray? = null
+        var failureStage = NaviampConnectPairingFailureStage.LocalIdentity
         return try {
             requireIdentity(localIdentity, localDevice, identityVerifier)
             val handshakeStart = pairingController.approve(nowEpochMillis)
                 ?: return failure(connection, CharArray(0), NaviampConnectErrorCode.PairingExpired)
             val handshaking = handshakeStart.state
             val advertising = handshaking.advertising
+            failureStage = NaviampConnectPairingFailureStage.PairingOffer
             connection.sendPlaintext(
                 NaviampConnectEnvelope(
                     protocolVersion = protocolVersion,
@@ -375,6 +433,7 @@ class NaviampConnectPendingTargetPairing internal constructor(
                     ),
                 ),
             )
+            failureStage = NaviampConnectPairingFailureStage.Pake
             pake = pakeFactory.create(
                 pairingSessionId = advertising.pairingSessionId,
                 protocolVersion = protocolVersion,
@@ -392,6 +451,7 @@ class NaviampConnectPendingTargetPairing internal constructor(
                 firstInboundSequence = 1,
             )
             pake = null
+            retainedResumptionCredential = secret.copyBytes()
             val cipher = cipherFactory.create(
                 secret,
                 NaviampConnectPakeRole.Target,
@@ -411,6 +471,7 @@ class NaviampConnectPendingTargetPairing internal constructor(
                 protocolVersion,
                 advertising.pairingSessionId,
             )
+            failureStage = NaviampConnectPairingFailureStage.IdentityProof
             val proofPayload = naviampConnectIdentityProofPayload(
                 protocolVersion,
                 advertising.pairingSessionId,
@@ -425,16 +486,33 @@ class NaviampConnectPendingTargetPairing internal constructor(
                     ),
                 )
                 val remoteProof = secureSession.receive().message as? NaviampConnectPairingIdentityProof
-                    ?: return failHandshake(secureSession, nowEpochMillis)
+                    ?: return failHandshake(
+                        secureSession,
+                        nowEpochMillis,
+                        NaviampConnectPairingFailureStage.IdentityProof,
+                    )
                 if (remoteProof.identity != hello.identity ||
                     !identityVerifier.verifyProof(remoteProof, proofPayload)
                 ) {
-                    return failHandshake(secureSession, nowEpochMillis)
+                    return failHandshake(
+                        secureSession,
+                        nowEpochMillis,
+                        NaviampConnectPairingFailureStage.IdentityProof,
+                    )
                 }
+                failureStage = NaviampConnectPairingFailureStage.Confirmation
                 val confirmation = secureSession.receive().message as? NaviampConnectPairingConfirmation
-                    ?: return failHandshake(secureSession, nowEpochMillis)
+                    ?: return failHandshake(
+                        secureSession,
+                        nowEpochMillis,
+                        NaviampConnectPairingFailureStage.Confirmation,
+                    )
                 if (confirmation.verifiedIdentityFingerprint != localIdentity.identityFingerprint) {
-                    return failHandshake(secureSession, nowEpochMillis)
+                    return failHandshake(
+                        secureSession,
+                        nowEpochMillis,
+                        NaviampConnectPairingFailureStage.Confirmation,
+                    )
                 }
                 secureSession.send(
                     NaviampConnectPairingConfirmation(hello.identity.identityFingerprint),
@@ -442,6 +520,7 @@ class NaviampConnectPendingTargetPairing internal constructor(
             } finally {
                 proofPayload.fill(0)
             }
+            failureStage = NaviampConnectPairingFailureStage.Trust
             val trust = NaviampConnectTrustRecord(
                 trustedDeviceId = trustedDeviceId,
                 peerDevice = hello.device,
@@ -452,14 +531,22 @@ class NaviampConnectPendingTargetPairing internal constructor(
             pairingController.complete(trust, nowEpochMillis)
             val authenticated = secureSession.attachTrust(trust)
             secureSession = null
-            NaviampConnectPairingRuntimeResult.Paired(trust, authenticated)
+            NaviampConnectPairingRuntimeResult.Paired(
+                trust,
+                authenticated,
+                checkNotNull(retainedResumptionCredential).also { retainedResumptionCredential = null },
+            )
         } catch (_: Exception) {
             pairingController.handshakeFailed(nowEpochMillis)
             connection.close()
-            NaviampConnectPairingRuntimeResult.Failed(NaviampConnectErrorCode.AuthenticationRequired)
+            NaviampConnectPairingRuntimeResult.Failed(
+                NaviampConnectErrorCode.AuthenticationRequired,
+                failureStage,
+            )
         } finally {
             pake?.destroy()
             secureSession?.close()
+            retainedResumptionCredential?.fill(0)
         }
     }
 
@@ -470,13 +557,24 @@ class NaviampConnectPendingTargetPairing internal constructor(
         connection.close()
     }
 
+    /** Aborts an approved handshake whose peer stopped making progress. */
+    fun cancel(nowEpochMillis: Long) {
+        consumed = true
+        pairingController.handshakeFailed(nowEpochMillis)
+        connection.close()
+    }
+
     private fun failHandshake(
         session: NaviampConnectAuthenticatedSession,
         nowEpochMillis: Long,
+        stage: NaviampConnectPairingFailureStage,
     ): NaviampConnectPairingRuntimeResult.Failed {
         session.close()
         pairingController.handshakeFailed(nowEpochMillis)
-        return NaviampConnectPairingRuntimeResult.Failed(NaviampConnectErrorCode.AuthenticationRequired)
+        return NaviampConnectPairingRuntimeResult.Failed(
+            NaviampConnectErrorCode.AuthenticationRequired,
+            stage,
+        )
     }
 }
 
@@ -522,11 +620,11 @@ private suspend fun exchangePake(
     }
 }
 
-private suspend fun NaviampConnectTransportConnection.sendPlaintext(envelope: NaviampConnectEnvelope) {
+suspend fun NaviampConnectTransportConnection.sendPlaintext(envelope: NaviampConnectEnvelope) {
     send(NaviampConnectTransportPacketCodec.encode(NaviampConnectTransportPacket.Plaintext(envelope)))
 }
 
-private suspend fun NaviampConnectTransportConnection.receivePlaintext(): NaviampConnectEnvelope {
+suspend fun NaviampConnectTransportConnection.receivePlaintext(): NaviampConnectEnvelope {
     val bytes = receive() ?: throw NaviampConnectTransportException(NaviampConnectTransportFailure.Closed)
     val packet = NaviampConnectTransportPacketCodec.decode(bytes)
     return (packet as? NaviampConnectTransportPacket.Plaintext)?.envelope
@@ -537,18 +635,20 @@ private fun failure(
     connection: NaviampConnectTransportConnection,
     pairingCode: CharArray,
     code: NaviampConnectErrorCode,
+    stage: NaviampConnectPairingFailureStage = NaviampConnectPairingFailureStage.Unknown,
 ): NaviampConnectPairingRuntimeResult.Failed {
     pairingCode.fill('\u0000')
     connection.close()
-    return NaviampConnectPairingRuntimeResult.Failed(code)
+    return NaviampConnectPairingRuntimeResult.Failed(code, stage)
 }
 
 private fun failure(
     session: NaviampConnectAuthenticatedSession,
     code: NaviampConnectErrorCode,
+    stage: NaviampConnectPairingFailureStage = NaviampConnectPairingFailureStage.Unknown,
 ): NaviampConnectPairingRuntimeResult.Failed {
     session.close()
-    return NaviampConnectPairingRuntimeResult.Failed(code)
+    return NaviampConnectPairingRuntimeResult.Failed(code, stage)
 }
 
 private fun reject(

@@ -23,9 +23,32 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreCatalogControllerTest {
+    @Test
+    fun completeArtistLibraryConsumesEveryProviderPage() = runTest {
+        val provider = CatalogTestProvider()
+
+        val artists = provider.loadCompleteArtistLibrary(maximumArtists = 3, pageSize = 2)
+
+        assertEquals(listOf("artist-1", "artist-2", "artist-3"), artists.map { it.id.value })
+        assertEquals(listOf(0, 2), provider.artistPageOffsets)
+    }
+
+    @Test
+    fun completeArtistLibraryRejectsAFalseContinuingPage() = runTest {
+        val provider = CatalogTestProvider(emptyContinuingPage = true)
+
+        val failure = assertFailsWith<IllegalStateException> {
+            provider.loadCompleteArtistLibrary(maximumArtists = 3, pageSize = 2)
+        }
+
+        assertTrue(failure.message.orEmpty().contains("empty continuing page"))
+    }
+
     @Test
     fun changingTheSharedSearchFieldExecutesAProviderSearch() = runTest {
         val provider = CatalogTestProvider()
@@ -173,6 +196,7 @@ class NaviampCoreCatalogControllerTest {
 
 private class CatalogTestProvider(
     private val firstSearchGate: CompletableDeferred<Unit>? = null,
+    private val emptyContinuingPage: Boolean = false,
 ) : MediaProvider {
     override val id = ProviderId("test")
     override val displayName = "Test"
@@ -199,6 +223,9 @@ private class CatalogTestProvider(
     override suspend fun artists(limit: Int) = libraryArtists.take(limit)
     override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> {
         artistPageOffsets += request.offset
+        if (emptyContinuingPage) {
+            return MediaPage(emptyList(), request.offset, request.limit, hasMore = true)
+        }
         val items = libraryArtists.drop(request.offset).take(request.limit)
         return MediaPage(items, request.offset, request.limit, request.offset + items.size < libraryArtists.size)
     }

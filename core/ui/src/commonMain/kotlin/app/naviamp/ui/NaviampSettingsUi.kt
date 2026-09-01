@@ -396,6 +396,10 @@ fun NaviampSharedSettingsContent(
                     colors = colors,
                     connect = connect,
                     actions = connectActions,
+                    onRepairProvisioningCredential = {
+                        onEditConnection()
+                        selectedCategory = NaviampSettingsCategory.Source
+                    },
                 )
                 NaviampSettingsCategory.Debugging -> {
                     if (showDebugLogging) {
@@ -456,6 +460,7 @@ private fun NaviampConnectSettingsSection(
     colors: NaviampColors,
     connect: NaviampConnectSettingsUi,
     actions: NaviampConnectSettingsActions?,
+    onRepairProvisioningCredential: () -> Unit,
 ) {
     if (!connect.available || actions == null) {
         SettingsPlaceholderSection(colors, "Naviamp Connect", "Connect is unavailable on this device.")
@@ -466,6 +471,14 @@ private fun NaviampConnectSettingsSection(
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
     ) {
         connect.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+        if (connect.needsProvisioningCredential) {
+            PrimaryButton(
+                "Re-enter source password for TV setup",
+                colors,
+                enabled = true,
+                onClick = onRepairProvisioningCredential,
+            )
+        }
         connect.connectedTargetName?.let { targetName ->
             SettingsSectionTitle("Controlling $targetName", colors)
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -523,6 +536,12 @@ private fun NaviampConnectSettingsSection(
                 enabled = connect.canProvisionTarget,
                 onClick = actions.onProvisionTarget,
             )
+            PrimaryButton(
+                "Stop controlling $targetName",
+                colors,
+                enabled = true,
+                onClick = actions.onStopControlling,
+            )
         }
         if (connect.canDiscover) {
             PrimaryButton("Find Naviamp TVs", colors, enabled = true, onClick = actions.onRefreshTargets)
@@ -560,10 +579,12 @@ private fun NaviampConnectSettingsSection(
         if (connect.trustedDevices.isNotEmpty()) {
             SettingsSectionTitle("Trusted devices", colors)
             connect.trustedDevices.forEach { device ->
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(device.displayName, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text(device.detail, color = colors.secondaryText, fontSize = 12.sp)
-                }
+                PrimaryButton(
+                    label = if (device.reconnectAvailable) "Reconnect to ${device.displayName}" else device.displayName,
+                    colors = colors,
+                    enabled = device.reconnectAvailable,
+                    onClick = { actions.onTrustedDeviceSelected(device) },
+                )
             }
         }
     }

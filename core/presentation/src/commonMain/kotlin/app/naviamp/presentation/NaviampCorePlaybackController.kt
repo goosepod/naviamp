@@ -77,6 +77,7 @@ class NaviampCorePlaybackController(
     private var persistedQueue = PlaybackQueue()
     private var persistedStationId: String? = null
     private var sourceTransitionTargetId: String? = null
+    private var connectHandoffAwaitingStart = false
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Playback,
@@ -115,21 +116,28 @@ class NaviampCorePlaybackController(
     /** Executes the remote-control subset against the same shared owners used by local UI. */
     internal fun executeConnectPlayback(command: app.naviamp.domain.connect.NaviampConnectCommand): Boolean =
         when (command) {
-            app.naviamp.domain.connect.NaviampConnectPlay -> when (playback.state.value.playbackState) {
+            app.naviamp.domain.connect.NaviampConnectPlay -> when {
+                connectHandoffAwaitingStart -> startConnectHandoff()
+                else -> when (playback.state.value.playbackState) {
                 PlaybackState.Playing -> true
                 PlaybackState.Paused -> commands.executePlayPause(
                     app.naviamp.domain.playback.PlaybackPlayPauseCommand.Resume,
                 )
                 else -> commands.playPause()
+                }
             }
-            app.naviamp.domain.connect.NaviampConnectPause -> when (playback.state.value.playbackState) {
+            app.naviamp.domain.connect.NaviampConnectPause -> when {
+                connectHandoffAwaitingStart -> true
+                else -> when (playback.state.value.playbackState) {
                 PlaybackState.Paused -> true
                 PlaybackState.Playing -> commands.executePlayPause(
                     app.naviamp.domain.playback.PlaybackPlayPauseCommand.Pause,
                 )
                 else -> false
+                }
             }
-            app.naviamp.domain.connect.NaviampConnectTogglePlayPause -> commands.playPause()
+            app.naviamp.domain.connect.NaviampConnectTogglePlayPause ->
+                if (connectHandoffAwaitingStart) startConnectHandoff() else commands.playPause()
             app.naviamp.domain.connect.NaviampConnectPrevious ->
                 navigate(queue.previousCommand(stateStore.state.value.shell.playback.settings.previousButtonBehavior)) !=
                     PlaybackQueueNavigationCommand.None
@@ -235,6 +243,10 @@ class NaviampCorePlaybackController(
             app.naviamp.domain.connect.NaviampConnectRepeatMode.One -> RepeatMode.Track
         }
         val positionSeconds = command.positionMillis / 1_000.0
+        // A handoff replaces the native playback session as well as Core's queue. Pausing the
+        // previous stream leaves that stream alive, and some native engines then report the new
+        // handoff as logically playing without ever activating its audio output.
+        effects.stop()
         playback.replace(
             playback.state.value.copy(
                 currentTrack = handedOffQueue.current,
@@ -251,9 +263,19 @@ class NaviampCorePlaybackController(
         )
         effects.restoreQueue(handedOffQueue, positionSeconds)
         effects.applyRepeatMode(repeatMode)
-        if (!command.playing) effects.pause()
+        connectHandoffAwaitingStart = true
+        if (command.playing) {
+            if (!startConnectHandoff()) return false
+        }
         presenter.publish(display)
         return true
+    }
+
+    private fun startConnectHandoff(): Boolean {
+        if (!connectHandoffAwaitingStart) return false
+        val started = effects.startOrRestore()
+        if (started) connectHandoffAwaitingStart = false
+        return started
     }
 
     internal fun connectLiveState(): app.naviamp.app.NaviampLivePlaybackState = playback.state.value
@@ -272,6 +294,7 @@ class NaviampCorePlaybackController(
         playback.observe { persistSession(force = false) }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
+                if (state == PlaybackState.Playing) connectHandoffAwaitingStart = false
                 val repeatedFinished = state == PlaybackState.Finished &&
                     playback.state.value.playbackState == PlaybackState.Finished
                 if (state != PlaybackState.Finished) {

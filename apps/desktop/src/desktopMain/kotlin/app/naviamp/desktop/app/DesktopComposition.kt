@@ -1,5 +1,14 @@
 package app.naviamp.desktop
 
+import app.naviamp.app.BouncyCastleNaviampConnectPakeFactory
+import app.naviamp.app.JvmNaviampConnectAuthenticatedCipherFactory
+import app.naviamp.app.JvmNaviampConnectIdentityVerifier
+import app.naviamp.app.JvmNaviampConnectTcpTransportFactory
+import app.naviamp.app.NaviampConnectEndpointOverrideTransportFactory
+import app.naviamp.app.NaviampConnectSessionCredentialRepository
+import app.naviamp.app.NaviampConnectTrustRepository
+import app.naviamp.desktop.connect.DesktopNaviampConnectDiscoveryEffect
+import app.naviamp.desktop.connect.DesktopNaviampConnectStorageEffects
 import app.naviamp.desktop.platform.desktopCoreDiagnosticsPort
 import app.naviamp.desktop.playback.bass.DesktopBassPlaybackEngineRuntime
 import app.naviamp.desktop.playback.bass.loadDesktopBassAudioBackend
@@ -18,6 +27,8 @@ import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreHomeDateSource
+import app.naviamp.presentation.NaviampCoreConnectRole
+import app.naviamp.presentation.NaviampCoreConnectServices
 import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.migrateLegacyNaviampPlaybackSession
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
@@ -34,8 +45,11 @@ import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import app.naviamp.storage.StorageImageCacheRepository
 import java.nio.file.Files
 import java.nio.file.Path
+import java.net.InetAddress
+import java.security.SecureRandom
 import java.time.Instant
 import java.time.LocalDateTime
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -58,6 +72,37 @@ internal class DesktopComposition private constructor(
             Files.createDirectories(dataDirectory)
             val settingsValues = DesktopCoreSettingsValueStore()
             val settingsCatalog = naviampCoreSettingsValueCatalog(settingsValues)
+            val connectStorage = DesktopNaviampConnectStorageEffects(settingsValues)
+            val connectDebugHost = System.getProperty("naviamp.connect.debugHost")
+                ?.takeIf(String::isNotBlank)
+                ?: System.getenv("NAVIAMP_CONNECT_DEBUG_HOST")?.takeIf(String::isNotBlank)
+            val connectTransport = JvmNaviampConnectTcpTransportFactory().let { transport ->
+                connectDebugHost?.let { debugHost ->
+                    NaviampConnectEndpointOverrideTransportFactory(
+                        delegate = transport,
+                        overriddenHosts = setOf(AndroidEmulatorPrivateAddress),
+                        replacementHost = debugHost,
+                    )
+                } ?: transport
+            }
+            val secureRandom = SecureRandom()
+            val connectServices = NaviampCoreConnectServices(
+                role = NaviampCoreConnectRole.Controller,
+                displayName = runCatching { InetAddress.getLocalHost().hostName }.getOrNull()
+                    ?.takeIf(String::isNotBlank)
+                    ?: "Naviamp Desktop",
+                identity = connectStorage,
+                identityVerifier = JvmNaviampConnectIdentityVerifier,
+                transport = connectTransport,
+                pake = BouncyCastleNaviampConnectPakeFactory,
+                cipher = JvmNaviampConnectAuthenticatedCipherFactory,
+                trust = NaviampConnectTrustRepository(connectStorage),
+                credentials = NaviampConnectSessionCredentialRepository(connectStorage),
+                discovery = DesktopNaviampConnectDiscoveryEffect(),
+                newOpaqueId = { UUID.randomUUID().toString() },
+                newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
+                nowEpochMillis = nowEpochMillis,
+            )
             var cacheSettings = settingsCatalog.storedSettings.loadCache()
             val audioCacheDirectory = cacheSettings.customAudioCacheDirectory
                 ?.let { path -> runCatching { Path.of(path) }.getOrNull() }
@@ -223,7 +268,7 @@ internal class DesktopComposition private constructor(
             )
             return DesktopComposition(
                 environment = desktopNaviampCoreEnvironment(
-                    services = catalog.services,
+                    services = catalog.services.copy(connect = connectServices),
                     providerSessions = sessions,
                     initialState = catalog.initialState,
                     shellCapabilities = shellCapabilities,
@@ -245,3 +290,4 @@ internal class DesktopComposition private constructor(
 }
 
 private const val DesktopSettingsSyncDeviceId = "desktop"
+private const val AndroidEmulatorPrivateAddress = "10.0.2.15"

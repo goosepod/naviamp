@@ -46,20 +46,7 @@ class NaviampCoreConnectTargetSnapshotFactory(
         volumePercent: Int,
         visibleSurface: NaviampConnectTargetSurface = NaviampConnectTargetSurface.NowPlaying,
     ): NaviampConnectTargetSnapshot {
-        val queue = live.queue
-        val occurrences = queue.tracks.mapIndexed { index, track ->
-            NaviampConnectQueueOccurrence(
-                occurrenceId = occurrenceId(index, track.id.value),
-                mediaId = track.id.value,
-                title = track.title,
-                artistName = track.artistName,
-                albumTitle = track.albumTitle,
-                durationMillis = track.durationSeconds?.toLong()?.times(1_000L),
-                artworkId = track.coverArtId,
-                favorite = track.favoritedAtIso8601 != null,
-            )
-        }
-        val currentIndex = queue.currentIndex.takeIf { it in occurrences.indices } ?: -1
+        val queue = live.toNaviampConnectQueueSnapshot()
         return NaviampConnectTargetSnapshot(
             revision = revision,
             target = target,
@@ -67,43 +54,74 @@ class NaviampCoreConnectTargetSnapshotFactory(
             sourceIdentity = sourceIdentity(),
             playback = NaviampConnectPlaybackSnapshot(
                 state = live.playbackState.toConnectPlaybackState(),
-                currentOccurrenceId = occurrences.getOrNull(currentIndex)?.occurrenceId,
+                currentOccurrenceId = queue.occurrences.getOrNull(queue.currentIndex)?.occurrenceId,
                 positionMillis = live.progress.positionSeconds.toNonNegativeMillis(),
                 durationMillis = (
                     live.progress.durationSeconds
                         ?: live.currentTrack?.durationSeconds?.toDouble()
-                        ?: queue.current?.durationSeconds?.toDouble()
+                        ?: live.queue.current?.durationSeconds?.toDouble()
                     ).toNonNegativeMillisOrNull(),
                 repeatMode = live.repeatMode.toConnectRepeatMode(),
                 shuffled = live.shuffledUpNextSnapshot != null,
                 volumePercent = volumePercent.coerceIn(0, 100),
                 visibleSurface = visibleSurface,
             ),
-            queue = NaviampConnectQueueSnapshot(
-                occurrences = occurrences,
-                currentIndex = currentIndex,
-                playNextCount = queue.playNextCount.coerceIn(
-                    0,
-                    (occurrences.size - currentIndex - 1).coerceAtLeast(0),
-                ),
-                groups = queue.normalizedGroups().map { group ->
-                    NaviampConnectQueueGroup(
-                        groupId = group.id,
-                        label = group.label.takeIf(String::isNotBlank),
-                        startIndex = group.startIndex,
-                        endIndexExclusive = group.endIndexExclusive,
-                        targetType = group.target.type,
-                        targetId = group.target.id,
-                        playbackProfile = group.profile,
-                    )
-                },
-            ),
+            queue = queue,
         )
     }
 
     companion object {
         fun occurrenceId(index: Int, mediaId: String): String = "$index:$mediaId"
     }
+}
+
+/** Projects controller-local playback into a handoff command without inventing a target device. */
+fun naviampCoreConnectQueueHandoff(
+    live: NaviampLivePlaybackState,
+    sourceIdentity: NaviampConnectSourceIdentity,
+): NaviampConnectHandoffQueue = NaviampConnectHandoffQueue(
+    sourceIdentity = sourceIdentity,
+    queue = live.toNaviampConnectQueueSnapshot(),
+    positionMillis = live.progress.positionSeconds.toNonNegativeMillis(),
+    repeatMode = live.repeatMode.toConnectRepeatMode(),
+    shuffled = live.shuffledUpNextSnapshot != null,
+    playing = live.playbackState == PlaybackState.Playing,
+)
+
+private fun NaviampLivePlaybackState.toNaviampConnectQueueSnapshot(): NaviampConnectQueueSnapshot {
+    val playbackQueue = queue
+    val occurrences = playbackQueue.tracks.mapIndexed { index, track ->
+        NaviampConnectQueueOccurrence(
+            occurrenceId = NaviampCoreConnectTargetSnapshotFactory.occurrenceId(index, track.id.value),
+            mediaId = track.id.value,
+            title = track.title,
+            artistName = track.artistName,
+            albumTitle = track.albumTitle,
+            durationMillis = track.durationSeconds?.toLong()?.times(1_000L),
+            artworkId = track.coverArtId,
+            favorite = track.favoritedAtIso8601 != null,
+        )
+    }
+    val currentIndex = playbackQueue.currentIndex.takeIf { it in occurrences.indices } ?: -1
+    return NaviampConnectQueueSnapshot(
+        occurrences = occurrences,
+        currentIndex = currentIndex,
+        playNextCount = playbackQueue.playNextCount.coerceIn(
+            0,
+            (occurrences.size - currentIndex - 1).coerceAtLeast(0),
+        ),
+        groups = playbackQueue.normalizedGroups().map { group ->
+            NaviampConnectQueueGroup(
+                groupId = group.id,
+                label = group.label.takeIf(String::isNotBlank),
+                startIndex = group.startIndex,
+                endIndexExclusive = group.endIndexExclusive,
+                targetType = group.target.type,
+                targetId = group.target.id,
+                playbackProfile = group.profile,
+            )
+        },
+    )
 }
 
 val NaviampCoreSupportedConnectTargetCapabilities: Set<NaviampConnectCapability> = setOf(

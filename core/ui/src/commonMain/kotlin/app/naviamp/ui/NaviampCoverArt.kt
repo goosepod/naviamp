@@ -71,7 +71,13 @@ fun NaviampCoverArt(
             incomingAlpha.snapTo(1f)
             return@LaunchedEffect
         }
-        val loadedImage = NaviampCoverArtCache.image(url, targetSidePx) ?: return@LaunchedEffect
+        val loadedImage = NaviampCoverArtCache.image(url, targetSidePx)
+        if (loadedImage == null) {
+            image = null
+            outgoingImage = null
+            incomingAlpha.snapTo(1f)
+            return@LaunchedEffect
+        }
         if (loadedImage == image) return@LaunchedEffect
         outgoingImage = image
         image = loadedImage

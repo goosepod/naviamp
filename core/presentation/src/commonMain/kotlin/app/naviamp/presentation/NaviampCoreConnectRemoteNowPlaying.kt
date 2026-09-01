@@ -82,6 +82,10 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(targetName: Strin
     )
 }
 
+internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUiOrNull(targetName: String): NowPlayingUi? =
+    takeIf { it.queue.currentIndex in it.queue.occurrences.indices }
+        ?.toRemoteNowPlayingUi(targetName)
+
 internal fun createNaviampCoreConnectRemoteNowPlayingActions(
     snapshot: () -> NaviampConnectTargetSnapshot?,
     send: (NaviampConnectCommand) -> Unit,

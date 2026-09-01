@@ -104,6 +104,13 @@ fun NaviampTelevisionAppShell(
     var contentEntryGeneration by remember { mutableStateOf(0) }
     var returnToNowPlayingFromSearch by rememberSaveable { mutableStateOf(false) }
     var restoreSearchNavigationFocus by remember { mutableStateOf(false) }
+    var observedControllerDeviceId by remember {
+        mutableStateOf(uiState.connect.connectedControllerDeviceId)
+    }
+    var observedNowPlayingId by remember { mutableStateOf(nowPlaying?.id) }
+    var observedProvisioningController by remember {
+        mutableStateOf(uiState.connect.pendingProvisioningControllerName)
+    }
     LaunchedEffect(nowPlaying?.id) {
         if (nowPlaying == null) nowPlayingPreview = false
     }
@@ -159,6 +166,30 @@ fun NaviampTelevisionAppShell(
             actions.navigationActions.onRouteSelected(settingsBackgroundRoute)
         } else {
             settingsBackgroundRoute = uiState.shellChrome.selectedRoute
+        }
+    }
+    LaunchedEffect(
+        uiState.connect.connectedControllerDeviceId,
+        nowPlaying?.id,
+        uiState.connect.pendingProvisioningControllerName,
+    ) {
+        val connectedControllerDeviceId = uiState.connect.connectedControllerDeviceId
+        val nowPlayingId = nowPlaying?.id
+        val provisioningController = uiState.connect.pendingProvisioningControllerName
+        val dismiss = televisionSettingsShouldDismissForControllerActivity(
+            previousControllerDeviceId = observedControllerDeviceId,
+            controllerDeviceId = connectedControllerDeviceId,
+            previousNowPlayingId = observedNowPlayingId,
+            nowPlayingId = nowPlayingId,
+            previousProvisioningController = observedProvisioningController,
+            provisioningController = provisioningController,
+        )
+        observedControllerDeviceId = connectedControllerDeviceId
+        observedNowPlayingId = nowPlayingId
+        observedProvisioningController = provisioningController
+        if (settingsOpen && dismiss) {
+            settingsOpen = false
+            restoreSettingsFocus = false
         }
     }
     LaunchedEffect(settingsOpen, restoreSettingsFocus) {
@@ -389,6 +420,18 @@ internal fun televisionSettingsBackgroundRoute(
     selectedRoute: SharedRoute,
     lastVisibleRoute: SharedRoute,
 ): SharedRoute = if (selectedRoute == SharedRoute.Settings) lastVisibleRoute else selectedRoute
+
+internal fun televisionSettingsShouldDismissForControllerActivity(
+    previousControllerDeviceId: String?,
+    controllerDeviceId: String?,
+    previousNowPlayingId: String?,
+    nowPlayingId: String?,
+    previousProvisioningController: String?,
+    provisioningController: String?,
+): Boolean =
+    (controllerDeviceId != null && controllerDeviceId != previousControllerDeviceId) ||
+        (nowPlayingId != null && nowPlayingId != previousNowPlayingId) ||
+        (previousProvisioningController != null && provisioningController == null)
 
 @Composable
 private fun TelevisionNavigationBar(

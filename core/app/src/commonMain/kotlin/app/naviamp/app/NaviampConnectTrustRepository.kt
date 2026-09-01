@@ -19,11 +19,14 @@ class NaviampConnectTrustRepository(
         ?.takeIf(String::isNotBlank)
         ?.let { value -> runCatching { json.decodeFromString<List<NaviampConnectTrustRecord>>(value) }.getOrNull() }
         .orEmpty()
-        .distinctBy(NaviampConnectTrustRecord::trustedDeviceId)
+        .distinctBy { it.peerDevice.deviceId }
         .sortedByDescending(NaviampConnectTrustRecord::pairedAtEpochMillis)
 
     fun upsert(record: NaviampConnectTrustRecord): List<NaviampConnectTrustRecord> {
-        val updated = (load().filterNot { it.trustedDeviceId == record.trustedDeviceId } + record)
+        val updated = (load().filterNot {
+            it.trustedDeviceId == record.trustedDeviceId ||
+                it.peerDevice.deviceId == record.peerDevice.deviceId
+        } + record)
             .sortedByDescending(NaviampConnectTrustRecord::pairedAtEpochMillis)
         storage.write(json.encodeToString(updated))
         return updated

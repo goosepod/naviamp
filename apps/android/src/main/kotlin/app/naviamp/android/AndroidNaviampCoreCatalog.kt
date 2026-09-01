@@ -6,6 +6,7 @@ import android.os.Build
 import app.naviamp.android.playback.AndroidAudioTagReader
 import app.naviamp.app.NaviampClock
 import app.naviamp.app.BouncyCastleNaviampConnectPakeFactory
+import app.naviamp.app.NaviampConnectEndpointOverrideTransportFactory
 import app.naviamp.app.JvmNaviampConnectAuthenticatedCipherFactory
 import app.naviamp.app.JvmNaviampConnectIdentityVerifier
 import app.naviamp.app.JvmNaviampConnectTcpTransportFactory
@@ -197,20 +198,34 @@ class AndroidNaviampCoreCatalog private constructor(
                 Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
             val connectRole = if (isTelevision) NaviampCoreConnectRole.Target else NaviampCoreConnectRole.Controller
             val secureRandom = SecureRandom()
+            val connectDebugHost = BuildConfig.NAVIAMP_CONNECT_DEBUG_HOST.takeIf(String::isNotBlank)
+            val connectTransport = JvmNaviampConnectTcpTransportFactory().let { transport ->
+                connectDebugHost?.let { debugHost ->
+                    NaviampConnectEndpointOverrideTransportFactory(
+                        delegate = transport,
+                        overriddenHosts = setOf(AndroidEmulatorPrivateAddress),
+                        replacementHost = debugHost,
+                    )
+                } ?: transport
+            }
             val connectServices = NaviampCoreConnectServices(
                 role = connectRole,
                 displayName = Build.MODEL?.takeIf(String::isNotBlank) ?: "Android Naviamp",
                 identity = AndroidNaviampConnectDeviceIdentityEffect(),
                 identityVerifier = JvmNaviampConnectIdentityVerifier,
-                transport = JvmNaviampConnectTcpTransportFactory(),
+                transport = connectTransport,
                 pake = BouncyCastleNaviampConnectPakeFactory,
                 cipher = JvmNaviampConnectAuthenticatedCipherFactory,
                 trust = NaviampConnectTrustRepository(AndroidNaviampConnectTrustStorageEffect(appContext)),
+                credentials = app.naviamp.app.NaviampConnectSessionCredentialRepository(
+                    AndroidNaviampConnectSessionCredentialStorageEffect(appContext),
+                ),
                 discovery = AndroidNaviampConnectDiscoveryEffect(appContext).takeUnless { isTelevision },
                 advertising = AndroidNaviampConnectAdvertisingEffect(appContext).takeIf { isTelevision },
                 newOpaqueId = { UUID.randomUUID().toString() },
                 newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
                 nowEpochMillis = clock::nowEpochMillis,
+                pairingListenPort = if (connectDebugHost == null) 0 else AndroidEmulatorPairingPort,
             )
             return AndroidNaviampCoreCatalog(
                 environment = NaviampCoreEnvironment(
@@ -239,3 +254,5 @@ private fun List<AndroidStorageLocation>.idFor(directory: File): String? {
 }
 
 private const val AndroidSettingsSyncDeviceId = "android"
+private const val AndroidEmulatorPrivateAddress = "10.0.2.15"
+private const val AndroidEmulatorPairingPort = 42_425

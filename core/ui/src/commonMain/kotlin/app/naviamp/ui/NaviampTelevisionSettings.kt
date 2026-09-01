@@ -429,6 +429,18 @@ private fun TelevisionControllersSettings(
             }
         }
         if (connect.canDiscover) {
+            connect.connectedTargetName?.let { targetName ->
+                item(key = "stop-controlling") {
+                    TelevisionSettingsRow(
+                        title = "Stop controlling $targetName",
+                        subtitle = "Disconnect this controller while playback continues on the target.",
+                        value = "Disconnect",
+                        icon = NaviampIcons.Close,
+                        colors = colors,
+                        onClick = actions.onStopControlling,
+                    )
+                }
+            }
             item(key = "refresh-targets") {
                 TelevisionSettingsRow(
                     title = "Find Naviamp targets",
@@ -480,9 +492,10 @@ private fun TelevisionControllersSettings(
             TelevisionSettingsRow(
                 title = device.displayName,
                 subtitle = device.detail,
-                value = "Trusted",
+                value = if (device.reconnectAvailable) "Reconnect" else "Trusted",
                 icon = NaviampIcons.Player,
-                disclosure = true,
+                enabled = device.reconnectAvailable,
+                disclosure = device.reconnectAvailable,
                 colors = colors,
                 onClick = { actions.onTrustedDeviceSelected(device) },
                 modifier = if (!connect.canAdvertise &&

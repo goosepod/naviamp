@@ -20,6 +20,7 @@ data class ProviderConnectionLifecycleRequest<InputConnection, Connection, Prepa
     val preparedConnection: (PreparedConnection) -> Connection,
     val provider: (Connection) -> Provider,
     val mediaSourceConnection: (Connection) -> ProviderMediaSourceConnection,
+    val sourcePassword: (InputConnection) -> String? = { null },
     val applyTlsDefaults: (Connection) -> Unit = {},
     val smartPlaylistAuthWarning: (PreparedConnection) -> String? = { null },
     val preferredSourceId: String? = null,
@@ -41,7 +42,9 @@ suspend fun <InputConnection, Connection, PreparedConnection, Provider : MediaPr
         cacheMaintenanceRepository?.clearProviderData()
     }
     val source = providerMediaSourceRepository.upsertProviderMediaSource(
-        connection = request.mediaSourceConnection(connection),
+        connection = request.mediaSourceConnection(connection).copy(
+            password = request.sourcePassword(request.connection)?.takeIf(String::isNotBlank),
+        ),
         cacheNamespace = provider.cacheNamespace,
         providerId = provider.id.value,
         preferredSourceId = request.preferredSourceId,

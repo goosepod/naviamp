@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.MaximumMediaPageSize
 import app.naviamp.domain.provider.SearchDisconnectedStatus
 import app.naviamp.domain.provider.normalizedSearchQuery
 import app.naviamp.domain.provider.searchResultsUpdate
@@ -87,7 +88,7 @@ class NaviampCoreCatalogController(
             val generation = ++libraryGeneration
             publishLibraryStatus("Refreshing library…", loading = true)
             runCatching {
-                provider.artists(MaximumCachedLibraryArtists).also { artists ->
+                provider.loadCompleteArtistLibrary().also { artists ->
                     repository.replaceLibraryArtists(sourceId, artists)
                     provider.libraryScanStatus()?.signature?.let { signature ->
                         repository.markLibraryScanChecked(sourceId, signature)
@@ -298,6 +299,43 @@ class NaviampCoreCatalogController(
         action()
         return NaviampCoreImmediateCommandResult.Handled()
     }
+}
+
+internal suspend fun MediaProvider.loadCompleteArtistLibrary(
+    maximumArtists: Int = MaximumCachedLibraryArtists,
+    pageSize: Int = MaximumMediaPageSize,
+): List<Artist> {
+    require(maximumArtists > 0) { "The maximum artist count must be positive." }
+    require(pageSize in 1..MaximumMediaPageSize) { "The artist page size is invalid." }
+    val artists = mutableListOf<Artist>()
+    val seenRequests = mutableSetOf<MediaPageRequest>()
+    var request: MediaPageRequest? = MediaPageRequest(
+        limit = minOf(pageSize, maximumArtists),
+    )
+    while (request != null) {
+        check(seenRequests.add(request)) { "Provider artist paging did not advance." }
+        val page = artistsPage(request)
+        require(page.offset == request.offset && page.limit == request.limit) {
+            "Provider artist page metadata must match the requested offset and limit."
+        }
+        require(page.items.size <= request.limit) {
+            "Provider artist page returned more items than requested."
+        }
+        check(artists.size + page.items.size <= maximumArtists) {
+            "The artist library exceeds the supported refresh limit of $maximumArtists."
+        }
+        artists += page.items
+        request = page.nextRequest
+        if (request != null) {
+            check(page.items.isNotEmpty()) { "Provider artist paging returned an empty continuing page." }
+            val remaining = maximumArtists - artists.size
+            check(remaining > 0) {
+                "The artist library exceeds the supported refresh limit of $maximumArtists."
+            }
+            request = request.copy(limit = minOf(request.limit, remaining))
+        }
+    }
+    return artists.distinctBy { it.id }
 }
 
 private const val MaximumCachedLibraryArtists = 100_000

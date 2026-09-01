@@ -23,6 +23,7 @@ CREATE TABLE media_source (
   display_name TEXT NOT NULL,
   base_url TEXT NOT NULL,
   username TEXT NOT NULL,
+  password TEXT,
   token TEXT NOT NULL,
   salt TEXT NOT NULL,
   insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0,
@@ -649,6 +650,7 @@ INSERT OR IGNORE INTO media_source(
   display_name,
   base_url,
   username,
+  password,
   token,
   salt,
   native_token,
@@ -665,7 +667,7 @@ INSERT OR IGNORE INTO media_source(
   last_sync_completed_at_epoch_millis,
   last_library_scan_signature,
   last_library_scan_checked_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateMediaSource:
 UPDATE media_source
@@ -676,6 +678,7 @@ SET provider_id = ?,
     display_name = ?,
     base_url = ?,
     username = ?,
+    password = ?,
     token = ?,
     salt = ?,
     native_token = ?,
