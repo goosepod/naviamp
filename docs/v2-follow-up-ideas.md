@@ -22,6 +22,20 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Seamless Offline Library and Durable Downloads
+
+- **Status:** Idea
+- **Concept:** Make downloaded music behave like the normal Naviamp library across Home, Albums,
+  Artists, Playlists, Search, Now Playing, and vehicle surfaces, while persisting and repairing
+  download jobs across process death and connectivity changes.
+- **Audit:** See [`plexamp-4.50.3-opportunity-audit.md`](plexamp-4.50.3-opportunity-audit.md) for the
+  Plexamp 4.50.3 comparison, Naviamp baseline, prioritized opportunities, non-goals, proposed
+  implementation sequence, and acceptance shape.
+- **Shared-architecture requirement:** Keep offline availability, local catalog projections,
+  download policy, job persistence, reconciliation, navigation, and user-facing status in Core and
+  shared storage. Hosts may supply only connectivity, native storage, background-lifecycle, and
+  vehicle-framework effects that cannot live in common Kotlin.
+
 ### Weblate Translation Management
 
 - **Status:** Investigating
