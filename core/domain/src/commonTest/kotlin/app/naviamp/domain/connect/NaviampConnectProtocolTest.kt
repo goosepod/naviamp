@@ -10,6 +10,33 @@ import kotlin.test.assertTrue
 
 class NaviampConnectProtocolTest {
     @Test
+    fun deviceCapabilitiesAreIndependentFromTheActiveSessionRole() {
+        val capabilities = setOf(
+            NaviampConnectDeviceCapability.ControlPlayback,
+            NaviampConnectDeviceCapability.PlaybackTarget,
+        )
+        val controllingPhone = NaviampConnectDevice(
+            deviceId = "phone",
+            displayName = "Pixel",
+            role = NaviampConnectDeviceRole.Controller,
+            deviceCapabilities = capabilities,
+        )
+        val playingPhone = controllingPhone.copy(role = NaviampConnectDeviceRole.Target)
+
+        assertTrue(controllingPhone.canActAs(NaviampConnectDeviceRole.Controller))
+        assertTrue(controllingPhone.canActAs(NaviampConnectDeviceRole.Target))
+        assertEquals(capabilities, playingPhone.deviceCapabilities)
+        assertFailsWith<IllegalArgumentException> {
+            NaviampConnectDevice(
+                deviceId = "tv",
+                displayName = "Television",
+                role = NaviampConnectDeviceRole.Controller,
+                deviceCapabilities = setOf(NaviampConnectDeviceCapability.PlaybackTarget),
+            )
+        }
+    }
+
+    @Test
     fun negotiationSelectsTheHighestMutuallySupportedVersion() {
         assertEquals(
             3,
@@ -101,6 +128,61 @@ class NaviampConnectProtocolTest {
             val original = NaviampConnectEnvelope(1, "session", index.toLong(), message = message)
             assertEquals(original, NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(original)))
         }
+    }
+
+    @Test
+    fun wireRoundTripPreservesADeviceThatCanControlAndPlay() {
+        val device = NaviampConnectDevice(
+            deviceId = "desktop",
+            displayName = "Office Mac",
+            role = NaviampConnectDeviceRole.Controller,
+            deviceCapabilities = setOf(
+                NaviampConnectDeviceCapability.ControlPlayback,
+                NaviampConnectDeviceCapability.PlaybackTarget,
+            ),
+        )
+        val identity = NaviampConnectPublicIdentity("desktop", "fingerprint", "public-key")
+        val envelope = NaviampConnectEnvelope(
+            protocolVersion = 1,
+            sequence = 0,
+            message = NaviampConnectHello(
+                device = device,
+                identity = identity,
+                protocolRange = NaviampConnectProtocolRange(),
+                capabilities = emptySet(),
+            ),
+        )
+
+        val decoded = NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(envelope))
+
+        assertEquals(device, assertIs<NaviampConnectHello>(decoded.message).device)
+    }
+
+    @Test
+    fun protocolV1DeviceWithoutCapabilitiesUsesItsSessionRoleAsTheFallback() {
+        val decoded = NaviampConnectWireCodec.decode(
+            """{
+                "protocolVersion":1,
+                "sequence":0,
+                "message":{
+                    "type":"hello",
+                    "device":{"deviceId":"legacy","displayName":"Legacy Phone","role":"Controller"},
+                    "identity":{
+                        "deviceId":"legacy",
+                        "identityFingerprint":"fingerprint",
+                        "publicKeyBase64":"public-key"
+                    },
+                    "protocolRange":{"minimum":1,"maximum":1},
+                    "capabilities":[]
+                }
+            }""".trimIndent(),
+        )
+
+        val device = assertIs<NaviampConnectHello>(decoded.message).device
+        assertEquals(
+            setOf(NaviampConnectDeviceCapability.ControlPlayback),
+            device.deviceCapabilities,
+        )
     }
 
     @Test

@@ -40,6 +40,24 @@ enum class NaviampConnectDeviceRole {
     Target,
 }
 
+/**
+ * Stable capabilities of a Naviamp installation, independent of the role it takes in one session.
+ *
+ * [NaviampConnectDeviceRole] remains part of the session transcript because command direction and
+ * key derivation require an unambiguous controller and target. It must not be used as a permanent
+ * classification of a phone or Desktop installation.
+ */
+@Serializable
+enum class NaviampConnectDeviceCapability {
+    ControlPlayback,
+    PlaybackTarget,
+}
+
+fun NaviampConnectDeviceRole.requiredDeviceCapability(): NaviampConnectDeviceCapability = when (this) {
+    NaviampConnectDeviceRole.Controller -> NaviampConnectDeviceCapability.ControlPlayback
+    NaviampConnectDeviceRole.Target -> NaviampConnectDeviceCapability.PlaybackTarget
+}
+
 @Serializable
 enum class NaviampConnectCapability {
     TransportControls,
@@ -62,12 +80,20 @@ enum class NaviampConnectCapability {
 data class NaviampConnectDevice(
     val deviceId: String,
     val displayName: String,
+    /** The role this device has in the current pairing or authenticated session. */
     val role: NaviampConnectDeviceRole,
+    val deviceCapabilities: Set<NaviampConnectDeviceCapability> = setOf(role.requiredDeviceCapability()),
 ) {
     init {
         require(deviceId.isNotBlank()) { "A Connect device ID is required." }
         require(displayName.isNotBlank()) { "A Connect display name is required." }
+        require(role.requiredDeviceCapability() in deviceCapabilities) {
+            "A Connect device must support its active session role."
+        }
     }
+
+    fun canActAs(role: NaviampConnectDeviceRole): Boolean =
+        role.requiredDeviceCapability() in deviceCapabilities
 }
 
 /** Public, non-secret half of a durable Connect device identity. */
@@ -95,6 +121,8 @@ data class NaviampConnectAdvertisement(
     val instanceId: String,
     val displayName: String,
     val protocolRange: NaviampConnectProtocolRange,
+    val deviceCapabilities: Set<NaviampConnectDeviceCapability> =
+        setOf(NaviampConnectDeviceCapability.PlaybackTarget),
     val capabilities: Set<NaviampConnectCapability>,
     val port: Int,
     val identityFingerprint: String,
@@ -105,6 +133,9 @@ data class NaviampConnectAdvertisement(
         require(displayName.isNotBlank()) { "A discovery display name is required." }
         require(port in 1..65_535) { "A discovery port must be valid." }
         require(identityFingerprint.isNotBlank()) { "An identity fingerprint is required." }
+        require(NaviampConnectDeviceCapability.PlaybackTarget in deviceCapabilities) {
+            "A Connect target advertisement requires playback-target capability."
+        }
     }
 }
 

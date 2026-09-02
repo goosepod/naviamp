@@ -33,6 +33,7 @@ import app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning
 import app.naviamp.domain.connect.NaviampConnectPause
 import app.naviamp.domain.connect.NaviampConnectPlay
 import app.naviamp.domain.connect.NaviampConnectDevice
+import app.naviamp.domain.connect.NaviampConnectDeviceCapability
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
 import app.naviamp.domain.connect.NaviampConnectErrorCode
 import app.naviamp.domain.connect.NaviampConnectProtocolRange
@@ -44,6 +45,7 @@ import app.naviamp.domain.connect.NaviampConnectWelcome
 import app.naviamp.domain.connect.NaviampConnectNext
 import app.naviamp.domain.connect.NaviampConnectPrevious
 import app.naviamp.domain.connect.NaviampConnectTogglePlayPause
+import app.naviamp.domain.connect.requiredDeviceCapability
 import app.naviamp.ui.NaviampConnectDiscoveredTargetUi
 import app.naviamp.ui.NaviampConnectPairingUiPhase
 import app.naviamp.ui.NaviampConnectSettingsActions
@@ -69,6 +71,12 @@ enum class NaviampCoreConnectRole { Controller, Target }
 /** Native effects and host facts required by the shared Connect product controller. */
 data class NaviampCoreConnectServices(
     val role: NaviampCoreConnectRole,
+    val deviceCapabilities: Set<NaviampConnectDeviceCapability> = setOf(
+        when (role) {
+            NaviampCoreConnectRole.Controller -> NaviampConnectDeviceRole.Controller
+            NaviampCoreConnectRole.Target -> NaviampConnectDeviceRole.Target
+        }.requiredDeviceCapability(),
+    ),
     val displayName: String,
     val identity: NaviampConnectDeviceIdentityEffect,
     val identityVerifier: NaviampConnectIdentityVerifier,
@@ -93,6 +101,13 @@ data class NaviampCoreConnectServices(
         require(pairingHelloTimeoutMillis > 0) { "The pairing hello timeout must be positive." }
         require(pairingHandshakeTimeoutMillis > 0) { "The pairing handshake timeout must be positive." }
         require(pairingListenPort in 0..65_535) { "The pairing listener port is invalid." }
+        val requiredCapability = when (role) {
+            NaviampCoreConnectRole.Controller -> NaviampConnectDeviceCapability.ControlPlayback
+            NaviampCoreConnectRole.Target -> NaviampConnectDeviceCapability.PlaybackTarget
+        }
+        require(requiredCapability in deviceCapabilities) {
+            "Connect services must support their active session role."
+        }
     }
 }
 
@@ -121,6 +136,7 @@ class NaviampCoreConnectController(
             NaviampCoreConnectRole.Controller -> NaviampConnectDeviceRole.Controller
             NaviampCoreConnectRole.Target -> NaviampConnectDeviceRole.Target
         },
+        deviceCapabilities = services.deviceCapabilities,
     )
     private val discovery = services.discovery?.let {
         NaviampConnectDiscoveryController(it, nowEpochMillis = services.nowEpochMillis)
@@ -305,6 +321,7 @@ class NaviampCoreConnectController(
                 instanceId = services.newOpaqueId(),
                 displayName = localDevice.displayName,
                 protocolRange = NaviampConnectProtocolRange(),
+                deviceCapabilities = localDevice.deviceCapabilities,
                 capabilities = if (targetPlayback != null) {
                     supportedTargetCapabilities
                 } else {

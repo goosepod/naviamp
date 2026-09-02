@@ -37,8 +37,13 @@ controller or a playback device. Television is a playback device only.
 
 ### Capabilities and connection lifecycle
 
-- [ ] Replace fixed phone/Desktop-controller and TV-target assumptions with negotiated capabilities:
-  `canControl` and `canPlayRemotely`. Advertise TV as `canPlayRemotely` only.
+- [x] Separate stable device capabilities from the controller/target role used by one authenticated
+  session, preserving unambiguous command direction and cryptographic transcript binding.
+- [x] Carry controller and playback-target device modes in the version-1 wire model and DNS-SD
+  metadata, with a playback-target fallback for advertisements from older version-1 builds.
+- [ ] Replace the shared runtime's fixed phone/Desktop-controller and TV-target lifecycle with
+  capability-based operation: phone and Desktop support control plus remote playback, while TV
+  supports remote playback only.
 - [ ] Add one shared selected-playback-device owner used by Android, Desktop, and iOS.
 - [ ] Make trusted devices automatically reconnect when reachable, with bounded retry and clear
   connected, reconnecting, unavailable, and incompatible states.

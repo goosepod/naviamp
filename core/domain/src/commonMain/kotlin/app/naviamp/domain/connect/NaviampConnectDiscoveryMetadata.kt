@@ -4,6 +4,7 @@ private const val InstanceIdKey = "id"
 private const val DisplayNameKey = "name"
 private const val MinimumProtocolKey = "pmin"
 private const val MaximumProtocolKey = "pmax"
+private const val DeviceCapabilitiesKey = "modes"
 private const val CapabilitiesKey = "caps"
 private const val FingerprintKey = "fp"
 
@@ -14,6 +15,10 @@ object NaviampConnectDiscoveryMetadata {
         DisplayNameKey to advertisement.displayName,
         MinimumProtocolKey to advertisement.protocolRange.minimum.toString(),
         MaximumProtocolKey to advertisement.protocolRange.maximum.toString(),
+        DeviceCapabilitiesKey to advertisement.deviceCapabilities
+            .map(NaviampConnectDeviceCapability::discoveryToken)
+            .sorted()
+            .joinToString(","),
         CapabilitiesKey to advertisement.capabilities
             .map(NaviampConnectCapability::discoveryToken)
             .sorted()
@@ -33,6 +38,13 @@ object NaviampConnectDiscoveryMetadata {
                 minimum = attributes.getValue(MinimumProtocolKey).toInt(),
                 maximum = attributes.getValue(MaximumProtocolKey).toInt(),
             ),
+            deviceCapabilities = attributes[DeviceCapabilitiesKey]
+                ?.split(',')
+                ?.filter(String::isNotBlank)
+                ?.mapNotNull(::naviampConnectDeviceCapabilityForDiscoveryToken)
+                ?.toSet()
+                ?.takeIf(Set<NaviampConnectDeviceCapability>::isNotEmpty)
+                ?: setOf(NaviampConnectDeviceCapability.PlaybackTarget),
             capabilities = attributes[CapabilitiesKey]
                 .orEmpty()
                 .split(',')
@@ -44,6 +56,19 @@ object NaviampConnectDiscoveryMetadata {
             expiresAtEpochMillis = expiresAtEpochMillis,
         )
     }.getOrNull()
+}
+
+private fun NaviampConnectDeviceCapability.discoveryToken(): String = when (this) {
+    NaviampConnectDeviceCapability.ControlPlayback -> "control"
+    NaviampConnectDeviceCapability.PlaybackTarget -> "playback"
+}
+
+private fun naviampConnectDeviceCapabilityForDiscoveryToken(
+    token: String,
+): NaviampConnectDeviceCapability? = when (token) {
+    "control" -> NaviampConnectDeviceCapability.ControlPlayback
+    "playback" -> NaviampConnectDeviceCapability.PlaybackTarget
+    else -> null
 }
 
 private fun NaviampConnectCapability.discoveryToken(): String = when (this) {

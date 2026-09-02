@@ -11,6 +11,10 @@ class NaviampConnectDiscoveryMetadataTest {
             instanceId = "random-instance",
             displayName = "Living Room",
             protocolRange = NaviampConnectProtocolRange(1, 2),
+            deviceCapabilities = setOf(
+                NaviampConnectDeviceCapability.ControlPlayback,
+                NaviampConnectDeviceCapability.PlaybackTarget,
+            ),
             capabilities = setOf(
                 NaviampConnectCapability.QueueRead,
                 NaviampConnectCapability.TransportControls,
@@ -24,7 +28,7 @@ class NaviampConnectDiscoveryMetadataTest {
         val decoded = NaviampConnectDiscoveryMetadata.decode(attributes, port = 43_434, expiresAtEpochMillis = 9_000)
 
         assertEquals(advertisement.copy(port = 43_434, expiresAtEpochMillis = 9_000), decoded)
-        assertEquals(setOf("id", "name", "pmin", "pmax", "caps", "fp"), attributes.keys)
+        assertEquals(setOf("id", "name", "pmin", "pmax", "modes", "caps", "fp"), attributes.keys)
     }
 
     @Test
@@ -36,6 +40,36 @@ class NaviampConnectDiscoveryMetadataTest {
         val decoded = NaviampConnectDiscoveryMetadata.decode(attributes, port = 42_424, expiresAtEpochMillis = 5_000)
 
         assertEquals(setOf(NaviampConnectCapability.TransportControls), decoded?.capabilities)
+    }
+
+    @Test
+    fun missingDeviceModesDecodeAsAProtocolV1PlaybackTarget() {
+        val decoded = NaviampConnectDiscoveryMetadata.decode(
+            validAttributes(),
+            port = 42_424,
+            expiresAtEpochMillis = 5_000,
+        )
+
+        assertEquals(
+            setOf(NaviampConnectDeviceCapability.PlaybackTarget),
+            decoded?.deviceCapabilities,
+        )
+    }
+
+    @Test
+    fun unknownFutureDeviceModesAreIgnored() {
+        val attributes = validAttributes() + ("modes" to "playback,future_mode")
+
+        val decoded = NaviampConnectDiscoveryMetadata.decode(
+            attributes,
+            port = 42_424,
+            expiresAtEpochMillis = 5_000,
+        )
+
+        assertEquals(
+            setOf(NaviampConnectDeviceCapability.PlaybackTarget),
+            decoded?.deviceCapabilities,
+        )
     }
 
     @Test
