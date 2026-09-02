@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.connect.NaviampConnectMediaType
+import app.naviamp.domain.connect.NaviampConnectQueuePlacement
 import app.naviamp.ui.NaviampAlbumDetailActionRequest
 import app.naviamp.ui.NaviampAlbumDetailCommand
 import app.naviamp.ui.NaviampArtistMediaCommand
@@ -51,6 +52,62 @@ class NaviampCoreConnectCommandRoutingTest {
 
         assertEquals(NaviampConnectMediaType.InternetRadioStation, selection?.type)
         assertEquals("station", selection?.id)
+    }
+
+    @Test
+    fun trackQueueActionsPreserveTheirRemotePlacement() {
+        val commands = listOf(
+            SharedTrackRowAction.AddToQueue to NaviampConnectQueuePlacement.AddToQueue,
+            SharedTrackRowAction.PlayNext to NaviampConnectQueuePlacement.PlayNext,
+            SharedTrackRowAction.PlayNextTrack to NaviampConnectQueuePlacement.PlayNextTrack,
+        )
+
+        commands.forEach { (action, expectedPlacement) ->
+            val selection = NaviampCoreCommand.Media.TrackAction(
+                SharedTrackRowActionRequest(track, action),
+            ).connectQueueSelectionOrNull()
+            assertEquals(NaviampConnectMediaType.Track, selection?.type)
+            assertEquals("track", selection?.id)
+            assertEquals(expectedPlacement, selection?.placement)
+        }
+    }
+
+    @Test
+    fun playbackAndNonQueueTrackActionsDoNotBecomeQueueEdits() {
+        assertNull(
+            NaviampCoreCommand.Media.TrackAction(
+                SharedTrackRowActionRequest(track, SharedTrackRowAction.Select),
+            ).connectQueueSelectionOrNull(),
+        )
+        assertNull(
+            NaviampCoreCommand.Media.TrackAction(
+                SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio),
+            ).connectQueueSelectionOrNull(),
+        )
+    }
+
+    @Test
+    fun collectionAddToQueueActionsTargetTheRemoteCatalog() {
+        val selections = listOf(
+            NaviampCoreCommand.Detail.Album(
+                NaviampAlbumDetailActionRequest(album, NaviampAlbumDetailCommand.AddToQueue),
+            ).connectQueueSelectionOrNull(),
+            NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(
+                    artist,
+                    NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.AddToQueue),
+                ),
+            ).connectQueueSelectionOrNull(),
+        )
+
+        assertEquals(NaviampConnectMediaType.Album, selections[0]?.type)
+        assertEquals("album", selections[0]?.id)
+        assertEquals(NaviampConnectMediaType.Artist, selections[1]?.type)
+        assertEquals("artist", selections[1]?.id)
+        assertEquals(
+            listOf(NaviampConnectQueuePlacement.AddToQueue, NaviampConnectQueuePlacement.AddToQueue),
+            selections.map { it?.placement },
+        )
     }
 
     private val album = SharedMediaItemUi("album", "Album", "Artist")

@@ -10,6 +10,7 @@ import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.connect.NaviampConnectDeviceCapability
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.playback.PlaybackProfileTarget
 import app.naviamp.domain.playback.PlaybackProfileTargetType
@@ -410,6 +411,7 @@ class NaviampCore private constructor(
                 providerSource = providerSource,
                 media = mediaTransactions,
                 radio = radio,
+                registry = mediaRegistry,
             )
             val recentRadio = NaviampCoreRecentRadioController(
                 recents = generatedRadioRecents,
@@ -575,20 +577,22 @@ class NaviampCore private constructor(
                 onAsyncFailure = onAsyncFailure,
             )
             val connect = services.connect?.let { connectServices ->
+                val supportsRemotePlayback = NaviampConnectDeviceCapability.PlaybackTarget in
+                    connectServices.deviceCapabilities
                 NaviampCoreConnectController(
                     scope = scope,
                     stateStore = stateStore,
                     services = connectServices,
-                    targetPlayback = playback.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
-                    targetNowPlaying = nowPlaying.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
-                    targetCatalog = connectCatalog.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
+                    targetPlayback = playback.takeIf { supportsRemotePlayback },
+                    targetNowPlaying = nowPlaying.takeIf { supportsRemotePlayback },
+                    targetCatalog = connectCatalog.takeIf { supportsRemotePlayback },
                     localPlayback = playback,
                     sourceIdentity = {
                         naviampCoreConnectSourceIdentity(stateStore, providerSource)
                     },
                     providerSessions = services.connection,
-                    targetConnection = connection.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
-                    targetSettings = settings.takeIf { connectServices.role == NaviampCoreConnectRole.Target },
+                    targetConnection = connection.takeIf { supportsRemotePlayback },
+                    targetSettings = settings.takeIf { supportsRemotePlayback },
                 )
             }
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect)

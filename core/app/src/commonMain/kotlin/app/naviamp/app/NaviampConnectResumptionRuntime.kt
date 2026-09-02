@@ -10,6 +10,7 @@ import app.naviamp.domain.connect.NaviampConnectProtocolRange
 import app.naviamp.domain.connect.NaviampConnectResumeHello
 import app.naviamp.domain.connect.NaviampConnectResumeOffer
 import app.naviamp.domain.connect.NaviampConnectTrustRecord
+import app.naviamp.domain.connect.forPeerSessionRole
 import app.naviamp.domain.connect.negotiateNaviampConnectProtocol
 
 sealed interface NaviampConnectResumptionResult {
@@ -41,7 +42,7 @@ class NaviampConnectControllerResumptionRuntime(
         var session: NaviampConnectAuthenticatedSession? = null
         return try {
             require(localDevice.role == NaviampConnectDeviceRole.Controller)
-            require(trust.peerDevice.role == NaviampConnectDeviceRole.Target)
+            val sessionTrust = trust.forPeerSessionRole(NaviampConnectDeviceRole.Target)
             val localIdentity = identityEffect.loadOrCreate().asPublicIdentity()
             requireIdentityForResume(localIdentity, localDevice, identityVerifier)
             val protocolVersion = negotiateNaviampConnectProtocol(localProtocolRange, advertisement.protocolRange)
@@ -62,8 +63,8 @@ class NaviampConnectControllerResumptionRuntime(
                 offerEnvelope.sessionId != offer.sessionId ||
                 offerEnvelope.protocolVersion != protocolVersion ||
                 offer.protocolVersion != protocolVersion ||
-                offer.target != trust.peerDevice ||
-                offer.identity.deviceId != trust.peerDevice.deviceId ||
+                !offer.target.matchesTrustedPeerForResume(sessionTrust.peerDevice) ||
+                offer.identity.deviceId != sessionTrust.peerDevice.deviceId ||
                 offer.identity.identityFingerprint != trust.identityFingerprint ||
                 offer.identity.publicKeyBase64 != trust.publicKeyBase64 ||
                 identityVerifier.fingerprint(offer.identity.publicKeyBase64) != offer.identity.identityFingerprint ||
@@ -78,8 +79,12 @@ class NaviampConnectControllerResumptionRuntime(
                 sessionId = offer.sessionId,
                 cipherFactory = cipherFactory,
             )
+            val refreshedTrust = sessionTrust.copy(
+                peerDevice = offer.target,
+                displayName = offer.target.displayName,
+            )
             session = NaviampConnectAuthenticatedSession(
-                trust,
+                refreshedTrust,
                 connection,
                 channel,
                 protocolVersion,
@@ -92,7 +97,7 @@ class NaviampConnectControllerResumptionRuntime(
                 return failed(session, NaviampConnectErrorCode.AuthenticationRequired)
             }
             session.send(NaviampConnectPairingConfirmation(trust.identityFingerprint))
-            NaviampConnectResumptionResult.Connected(trust, session).also { session = null }
+            NaviampConnectResumptionResult.Connected(refreshedTrust, session).also { session = null }
         } catch (_: Exception) {
             NaviampConnectResumptionResult.Failed(NaviampConnectErrorCode.AuthenticationRequired)
         } finally {
@@ -123,15 +128,15 @@ class NaviampConnectTargetResumptionRuntime(
         var retainedConnection: NaviampConnectTransportConnection? = connection
         return try {
             require(localDevice.role == NaviampConnectDeviceRole.Target)
-            require(trust.peerDevice.role == NaviampConnectDeviceRole.Controller)
+            val sessionTrust = trust.forPeerSessionRole(NaviampConnectDeviceRole.Controller)
             val hello = helloEnvelope.message as? NaviampConnectResumeHello
                 ?: return failed(connection, NaviampConnectErrorCode.InvalidRequest)
             val protocolVersion = negotiateNaviampConnectProtocol(localProtocolRange, hello.protocolRange)
                 ?: return failed(connection, NaviampConnectErrorCode.IncompatibleProtocol)
             if (helloEnvelope.sequence != 0L || helloEnvelope.sessionId != null ||
                 helloEnvelope.protocolVersion != protocolVersion ||
-                hello.device != trust.peerDevice ||
-                hello.identity.deviceId != trust.peerDevice.deviceId ||
+                !hello.device.matchesTrustedPeerForResume(sessionTrust.peerDevice) ||
+                hello.identity.deviceId != sessionTrust.peerDevice.deviceId ||
                 hello.identity.identityFingerprint != trust.identityFingerprint ||
                 hello.identity.publicKeyBase64 != trust.publicKeyBase64 ||
                 identityVerifier.fingerprint(hello.identity.publicKeyBase64) != hello.identity.identityFingerprint
@@ -160,8 +165,12 @@ class NaviampConnectTargetResumptionRuntime(
                 sessionId = sessionId,
                 cipherFactory = cipherFactory,
             )
+            val refreshedTrust = sessionTrust.copy(
+                peerDevice = hello.device,
+                displayName = hello.device.displayName,
+            )
             session = NaviampConnectAuthenticatedSession(
-                trust,
+                refreshedTrust,
                 connection,
                 channel,
                 protocolVersion,
@@ -174,7 +183,7 @@ class NaviampConnectTargetResumptionRuntime(
             if (controllerConfirmation.verifiedIdentityFingerprint != localIdentity.identityFingerprint) {
                 return failed(session, NaviampConnectErrorCode.AuthenticationRequired)
             }
-            NaviampConnectResumptionResult.Connected(trust, session).also { session = null }
+            NaviampConnectResumptionResult.Connected(refreshedTrust, session).also { session = null }
         } catch (_: Exception) {
             NaviampConnectResumptionResult.Failed(NaviampConnectErrorCode.AuthenticationRequired)
         } finally {
@@ -205,6 +214,15 @@ private fun requireIdentityForResume(
     require(identity.deviceId == device.deviceId)
     require(verifier.fingerprint(identity.publicKeyBase64) == identity.identityFingerprint)
 }
+
+/**
+ * Trust is pinned to the peer's cryptographic identity, stable device ID, and session role.
+ * Display names and advertised capabilities are mutable device metadata and may evolve between
+ * app versions without forcing the user to pair the same identity again.
+ */
+private fun NaviampConnectDevice.matchesTrustedPeerForResume(
+    trustedPeer: NaviampConnectDevice,
+): Boolean = deviceId == trustedPeer.deviceId && role == trustedPeer.role
 
 private fun failed(
     connection: NaviampConnectTransportConnection,

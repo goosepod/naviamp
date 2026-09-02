@@ -23,8 +23,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -386,7 +389,45 @@ private fun TelevisionControllersSettings(
         TelevisionSettingsMessage("Naviamp Connect is unavailable on this device.", colors, firstFocusRequester)
         return
     }
+    var renameOpen by remember { mutableStateOf(false) }
+    var deviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
+    if (renameOpen) {
+        AlertDialog(
+            onDismissRequest = { renameOpen = false },
+            title = { Text("Name this device") },
+            text = {
+                OutlinedTextField(
+                    value = deviceName,
+                    onValueChange = { if (it.length <= 64) deviceName = it },
+                    singleLine = true,
+                    label = { Text("Friendly name") },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = deviceName.trim().isNotEmpty(),
+                    onClick = {
+                        actions.onLocalDeviceNameChanged(deviceName)
+                        renameOpen = false
+                    },
+                ) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } },
+        )
+    }
     TelevisionSettingsList {
+        item(key = "device-name") {
+            TelevisionSettingsRow(
+                title = "Device name",
+                subtitle = "The name other Naviamp devices see when connecting.",
+                value = connect.localDeviceName,
+                icon = NaviampIcons.Player,
+                disclosure = true,
+                colors = colors,
+                onClick = { renameOpen = true },
+                modifier = Modifier.focusRequester(firstFocusRequester),
+            )
+        }
         if (connect.canAdvertise) {
             item(key = "pairing-mode") {
                 TelevisionSettingsRow(
@@ -401,7 +442,6 @@ private fun TelevisionControllersSettings(
                     selected = connect.pairingActive,
                     colors = colors,
                     onClick = if (connect.pairingActive) actions.onStopPairingMode else actions.onStartPairingMode,
-                    modifier = Modifier.focusRequester(firstFocusRequester),
                 )
             }
             if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
@@ -444,12 +484,11 @@ private fun TelevisionControllersSettings(
             item(key = "refresh-targets") {
                 TelevisionSettingsRow(
                     title = "Find Naviamp targets",
-                    subtitle = connect.status ?: "Search this local network for TVs ready to pair.",
+                    subtitle = connect.status ?: "Search this local network for Naviamp devices ready to pair.",
                     value = connect.discoveredTargets.size.takeIf { it > 0 }?.toString(),
                     icon = NaviampIcons.Refresh,
                     colors = colors,
                     onClick = actions.onRefreshTargets,
-                    modifier = if (!connect.canAdvertise) Modifier.focusRequester(firstFocusRequester) else Modifier,
                 )
             }
             items(connect.discoveredTargets, key = { "target-${it.instanceId}" }) { target ->
@@ -498,14 +537,6 @@ private fun TelevisionControllersSettings(
                 disclosure = device.reconnectAvailable,
                 colors = colors,
                 onClick = { actions.onTrustedDeviceSelected(device) },
-                modifier = if (!connect.canAdvertise &&
-                    !connect.canDiscover &&
-                    device == connect.trustedDevices.firstOrNull()
-                ) {
-                    Modifier.focusRequester(firstFocusRequester)
-                } else {
-                    Modifier
-                },
             )
         }
     }

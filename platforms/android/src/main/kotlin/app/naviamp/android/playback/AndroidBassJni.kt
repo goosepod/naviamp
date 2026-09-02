@@ -53,6 +53,8 @@ object AndroidBassJni {
 
     fun configureInternetStreams(): Boolean = nativeConfigureInternetStreams()
 
+    fun setNetworkProxy(proxy: String): Boolean = nativeSetNetworkProxy(proxy)
+
     fun createUrlStream(url: String): Int = nativeCreateUrlStream(url)
 
     fun createFileStream(path: String): Int = nativeCreateFileStream(path)
@@ -147,6 +149,7 @@ object AndroidBassJni {
     private external fun nativeFree()
     private external fun nativeSetVerifyNet(verify: Boolean): Boolean
     private external fun nativeConfigureInternetStreams(): Boolean
+    private external fun nativeSetNetworkProxy(proxy: String): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateFileStream(path: String): Int
     private external fun nativeCreateUrlDecodeStream(url: String, bounded: Boolean): Int

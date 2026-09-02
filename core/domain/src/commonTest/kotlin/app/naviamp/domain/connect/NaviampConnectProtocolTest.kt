@@ -91,6 +91,19 @@ class NaviampConnectProtocolTest {
     }
 
     @Test
+    fun clearUpNextCommandRoundTripsOnTheAuthenticatedWire() {
+        val original = NaviampConnectEnvelope(
+            protocolVersion = 1,
+            sessionId = "session",
+            sequence = 8,
+            requestId = "clear",
+            message = NaviampConnectCommandRequest(NaviampConnectClearUpNext, expectedRevision = 4),
+        )
+
+        assertEquals(original, NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(original)))
+    }
+
+    @Test
     fun pairingWireMessageContainsOnlyAnOpaqueHandshakePayload() {
         val encoded = NaviampConnectWireCodec.encode(
             NaviampConnectEnvelope(
@@ -196,11 +209,18 @@ class NaviampConnectProtocolTest {
             NaviampConnectSelectQueueOccurrence("occurrence"),
             NaviampConnectMoveQueueOccurrence("occurrence"),
             NaviampConnectRemoveQueueOccurrence("occurrence"),
+            NaviampConnectClearUpNext,
             NaviampConnectRequestSnapshot,
             NaviampConnectShowSurface(NaviampConnectTargetSurface.Queue),
             NaviampConnectStartMedia(
                 mediaType = NaviampConnectMediaType.Album,
                 mediaId = "album",
+                sourceIdentity = sourceIdentity(),
+            ),
+            NaviampConnectQueueMedia(
+                mediaType = NaviampConnectMediaType.Track,
+                mediaId = "track",
+                placement = NaviampConnectQueuePlacement.PlayNext,
                 sourceIdentity = sourceIdentity(),
             ),
             NaviampConnectOfferConnectionProvisioning(

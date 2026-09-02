@@ -2,10 +2,14 @@ package app.naviamp.desktop.connect
 
 import app.naviamp.app.NaviampConnectDeviceIdentity
 import app.naviamp.app.NaviampConnectDeviceIdentityEffect
+import app.naviamp.app.NaviampConnectAdvertisingEffect
+import app.naviamp.app.NaviampConnectAdvertisingListener
+import app.naviamp.app.NaviampConnectAdvertisingStartResult
 import app.naviamp.app.NaviampConnectDiscoveryEffect
 import app.naviamp.app.NaviampConnectDiscoveryListener
 import app.naviamp.app.NaviampConnectDiscoveryStartResult
 import app.naviamp.app.NaviampConnectResolvedService
+import app.naviamp.app.NaviampConnectRegistrationService
 import app.naviamp.app.NaviampConnectSessionCredentialStorageEffect
 import app.naviamp.app.NaviampConnectTrustStorageEffect
 import app.naviamp.desktop.security.DesktopCredentialProtector
@@ -23,6 +27,7 @@ import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import javax.jmdns.JmmDNS
 import javax.jmdns.ServiceEvent
+import javax.jmdns.ServiceInfo
 import javax.jmdns.ServiceListener
 
 /** Desktop filesystem plus native secure-store adapters; Core owns all Connect behavior and schemas. */
@@ -127,13 +132,15 @@ class DesktopNaviampConnectStorageEffects(
     }
 }
 
-/** Cross-platform JVM DNS-SD adapter backed by multicast DNS. */
-class DesktopNaviampConnectDiscoveryEffect(
+/** Shared lifetime for Desktop DNS-SD browsing and registration on JmDNS's singleton instance. */
+class DesktopNaviampConnectNetwork(
     private val createJmDns: () -> JmmDNS = { JmmDNS.Factory.getInstance() },
-) : NaviampConnectDiscoveryEffect {
-    @Volatile
-    private var listener: NaviampConnectDiscoveryListener? = null
+    private val closeJmDns: (JmmDNS) -> Unit = { JmmDNS.Factory.close() },
+) {
     private var jmDns: JmmDNS? = null
+    private var discoveryListener: NaviampConnectDiscoveryListener? = null
+    private var discoveryActive = false
+    private var registeredService: ServiceInfo? = null
 
     private val serviceListener = object : ServiceListener {
         override fun serviceAdded(event: ServiceEvent) {
@@ -141,7 +148,7 @@ class DesktopNaviampConnectDiscoveryEffect(
         }
 
         override fun serviceRemoved(event: ServiceEvent) {
-            listener?.onServiceLost(event.name)
+            discoveryListener?.onServiceLost(event.name)
         }
 
         override fun serviceResolved(event: ServiceEvent) {
@@ -164,23 +171,21 @@ class DesktopNaviampConnectDiscoveryEffect(
                     port = info.port,
                     textAttributes = attributes,
                 )
-            }.getOrNull()?.let { listener?.onServiceResolved(it) }
+            }.getOrNull()?.let { discoveryListener?.onServiceResolved(it) }
         }
     }
 
     @Synchronized
-    override fun start(listener: NaviampConnectDiscoveryListener): NaviampConnectDiscoveryStartResult {
-        if (jmDns != null) return NaviampConnectDiscoveryStartResult.Started
-        this.listener = listener
+    fun startDiscovery(listener: NaviampConnectDiscoveryListener): NaviampConnectDiscoveryStartResult {
+        discoveryListener = listener
+        if (discoveryActive) return NaviampConnectDiscoveryStartResult.Started
         return runCatching {
-            createJmDns().also { created ->
-                jmDns = created
-                created.addServiceListener(DesktopServiceType, serviceListener)
-            }
+            dns().addServiceListener(DesktopServiceType, serviceListener)
+            discoveryActive = true
             NaviampConnectDiscoveryStartResult.Started
         }.getOrElse { error ->
-            this.listener = null
-            jmDns = null
+            discoveryListener = null
+            closeIfIdle()
             NaviampConnectDiscoveryStartResult.Unavailable(
                 error.message ?: "Desktop network service discovery is unavailable.",
             )
@@ -188,20 +193,89 @@ class DesktopNaviampConnectDiscoveryEffect(
     }
 
     @Synchronized
-    override fun stop() {
+    fun stopDiscovery() {
+        discoveryListener = null
+        if (discoveryActive) runCatching { jmDns?.removeServiceListener(DesktopServiceType, serviceListener) }
+        discoveryActive = false
+        closeIfIdle()
+    }
+
+    @Synchronized
+    fun startAdvertising(
+        service: NaviampConnectRegistrationService,
+        listener: NaviampConnectAdvertisingListener,
+    ): NaviampConnectAdvertisingStartResult {
+        if (registeredService != null) return NaviampConnectAdvertisingStartResult.Started
+        return runCatching {
+            service.toDesktopJmDnsServiceInfo().also { info ->
+                dns().registerService(info)
+                registeredService = info
+                listener.onServiceRegistered(info.name)
+            }
+            NaviampConnectAdvertisingStartResult.Started
+        }.getOrElse { error ->
+            registeredService = null
+            closeIfIdle()
+            NaviampConnectAdvertisingStartResult.Unavailable(
+                error.message ?: "Desktop network service registration is unavailable.",
+            )
+        }
+    }
+
+    @Synchronized
+    fun stopAdvertising() {
+        val service = registeredService
+        registeredService = null
+        if (service != null) runCatching { jmDns?.unregisterService(service) }
+        closeIfIdle()
+    }
+
+    private fun dns(): JmmDNS = jmDns ?: createJmDns().also { jmDns = it }
+
+    private fun closeIfIdle() {
+        if (discoveryActive || registeredService != null) return
         val active = jmDns
         jmDns = null
-        listener = null
-        if (active != null) {
-            runCatching { active.removeServiceListener(DesktopServiceType, serviceListener) }
-            runCatching { active.close() }
-        }
+        if (active != null) runCatching { closeJmDns(active) }
     }
 
     private companion object {
         val DesktopServiceType = "$NaviampConnectServiceType.local."
     }
 }
+
+/** Desktop DNS-SD browse adapter backed by the shared JmDNS lifetime. */
+class DesktopNaviampConnectDiscoveryEffect(
+    private val network: DesktopNaviampConnectNetwork = DesktopNaviampConnectNetwork(),
+) : NaviampConnectDiscoveryEffect {
+    override fun start(listener: NaviampConnectDiscoveryListener): NaviampConnectDiscoveryStartResult {
+        return network.startDiscovery(listener)
+    }
+
+    override fun stop() = network.stopDiscovery()
+}
+
+/** Desktop DNS-SD registration adapter backed by the shared JmDNS lifetime. */
+class DesktopNaviampConnectAdvertisingEffect(
+    private val network: DesktopNaviampConnectNetwork = DesktopNaviampConnectNetwork(),
+) : NaviampConnectAdvertisingEffect {
+    override fun start(
+        service: NaviampConnectRegistrationService,
+        listener: NaviampConnectAdvertisingListener,
+    ): NaviampConnectAdvertisingStartResult = network.startAdvertising(service, listener)
+
+    override fun stop() = network.stopAdvertising()
+}
+
+internal fun NaviampConnectRegistrationService.toDesktopJmDnsServiceInfo(): ServiceInfo =
+    ServiceInfo.create(
+        "$NaviampConnectServiceType.local.",
+        serviceName,
+        port,
+        0,
+        0,
+        textAttributes,
+    )
 
 private fun ByteArray.toHexString(): String = buildString(size * 2) {
     this@toHexString.forEach { byte ->

@@ -41,47 +41,54 @@ controller or a playback device. Television is a playback device only.
   session, preserving unambiguous command direction and cryptographic transcript binding.
 - [x] Carry controller and playback-target device modes in the version-1 wire model and DNS-SD
   metadata, with a playback-target fallback for advertisements from older version-1 builds.
-- [ ] Replace the shared runtime's fixed phone/Desktop-controller and TV-target lifecycle with
+- [x] Replace the shared runtime's fixed phone/Desktop-controller and TV-target lifecycle with
   capability-based operation: phone and Desktop support control plus remote playback, while TV
   supports remote playback only.
-- [ ] Add one shared selected-playback-device owner used by Android, Desktop, and iOS.
-- [ ] Make trusted devices automatically reconnect when reachable, with bounded retry and clear
+- [x] Reuse one durable trust and resumption credential when two dual-capability devices reverse
+  controller/playback roles; do not create a second trusted-device record.
+- [x] Add one shared selected-playback-device owner used by Android, Desktop, and iOS.
+- [x] Make trusted devices automatically reconnect when reachable, with bounded retry and clear
   connected, reconnecting, unavailable, and incompatible states.
 - [ ] Enforce newest-controller-wins in the shared session owner and notify the displaced controller
   that it returned to local playback mode.
 - [ ] Keep target playback and queue intact when a controller disconnects, stops controlling, exits,
   changes network, or is displaced.
-- [ ] Complete shared rename, local-alias, revoke, reconnect, and diagnostics actions.
+- [x] Complete shared self-name, local-alias, revoke, and reconnect actions.
+- [ ] Add a dedicated shared Connect diagnostics surface beyond the current actionable status text.
 
 ### Starting remote playback
 
-- [ ] Selecting a trusted playback device arms remote-output mode without immediately replacing
+- [x] Selecting a trusted playback device arms remote-output mode without immediately replacing
   either device's queue.
-- [ ] On the controller's first Play or new playback selection, atomically transfer the controller's
+- [x] On the controller's first Play or new playback selection, atomically transfer the controller's
   current queue, selected occurrence, position, Play Next prefix, groups, repeat/shuffle state, and
   portable playback profile, then start playback on the target.
-- [ ] Use compatible transferred media metadata immediately after source-identity validation so the
+- [x] Use compatible transferred media metadata immediately after source-identity validation so the
   first track can start promptly. The target must create its own stream request and may enrich or
   validate metadata asynchronously; it must never receive a controller-authenticated stream URL.
-- [ ] If provisioning or source validation is required, complete it before changing playback
+- [x] If provisioning or source validation is required, complete it before changing playback
   authority and preserve the controller's local queue on failure.
-- [ ] Dismiss TV pairing/setup overlays once another device has completed setup and taken control,
+- [x] Dismiss TV pairing/setup overlays once another device has completed setup and taken control,
   especially once playback begins.
 
 ### Ordinary controller experience
 
-- [ ] Show a persistent, accessible **Playing on _Device Name_** indicator on the controller's Now
-  Playing surface, with a direct output-device/stop-controlling action.
-- [ ] Keep the controller's normal Now Playing navigation and dismissal behavior available while it
+- [x] Show a persistent, accessible **Playing back on _Device Name_** indicator on the controller's
+  Now Playing surface.
+- [x] Put **Stop controlling _Device Name_** first in the Now Playing three-dot menu without
+  revoking trust; retain the matching action in Settings.
+- [x] Expand the indicator into an output selector once multiple remembered playback targets can be
+  selected from Now Playing.
+- [x] Keep the controller's normal Now Playing navigation and dismissal behavior available while it
   is in remote-output mode.
-- [ ] Route Play/Pause, Previous/Next, seek, favorite, repeat, shuffle, queue selection, Play Next,
+- [x] Route Play/Pause, Previous/Next, seek, favorite, repeat, shuffle, queue selection, Play Next,
   add-to-queue, reorder, remove, clear, and radio/catalog starts to the selected playback device.
-- [ ] Let the controller view and edit the authoritative target queue through the ordinary queue UI,
+- [x] Let the controller view and edit the authoritative target queue through the ordinary queue UI,
   including swipe/pointer/keyboard removal appropriate to that controller's host.
-- [ ] Reconcile every target snapshot into the controller without requiring the user to revisit the
+- [x] Reconcile every target snapshot into the controller without requiring the user to revisit the
   Controllers settings page.
 - [ ] Preserve the controller's local browse/navigation state when entering or leaving remote mode.
-- [ ] Remove **Share connection**, **Send queue**, and **Bring queue here** from the normal workflow.
+- [x] Remove **Share connection**, **Send queue**, and **Bring queue here** from the normal workflow.
   Keep Settings > Controllers focused on discovery, trust, naming, reconnect, revoke, and diagnostics.
 
 ### Playback-device experience
@@ -98,7 +105,25 @@ controller or a playback device. Television is a playback device only.
 
 ### Cross-device acceptance
 
-- [ ] Android phone -> Android TV emulator, through the unmodified product UI.
+Validated on 2026-09-02 with the physical Pixel 10a and Android TV emulator through the real
+encrypted session: retained trust reconnected after both app updates without pairing again; phone
+Play and Pause changed only the TV MediaSession; TV snapshots updated the phone's mini player; and
+Play Next from a phone Search result resolved the track on the TV and inserted it into the TV's
+authoritative queue. A fresh target stream played through the TV's native BASS engine, and stopping
+control from the phone's Now Playing menu closed only the Connect socket while TV playback and the
+remembered trust continued. The ADB port bridge remains test-environment routing, so the complete
+unmodified-LAN topology stays open below.
+
+Validated the first-Play authority flow on 2026-09-02 with different queues already visible on the
+two devices: the armed phone retained its local **Flagpole Sitta** queue while the TV retained its
+older **Virgo** queue; pressing Play on the phone transferred the full 38-item phone queue, selected
+Flagpole Sitta on the TV, and started real native playback. Subsequent phone Pause and Resume actions
+changed the TV MediaSession between paused and playing. This run also exposed and fixed a shared
+authenticated outbound-sequence race between target acknowledgements and playback snapshots; the
+same handoff/transport run then completed with an empty TV crash buffer.
+
+- [x] Android phone -> Android TV emulator through the product UI, using only the test-build route
+  override required to bridge the emulator's private NAT address.
 - [ ] Android phone -> physical Google TV, including direct LAN, audio, MediaSession, sleep/wake, and
   process recovery.
 - [ ] Desktop -> Android TV and physical Google TV.
@@ -114,13 +139,13 @@ controller or a playback device. Television is a playback device only.
 
 ## Friendly Device Names
 
-- [ ] Add a shared self-name setting that is advertised during discovery and authenticated sessions.
-- [ ] Generate a stable, useful fallback without exposing sensitive account or network information.
-- [ ] Add a per-trust-record local alias that overrides only the current device's display of that
+- [x] Add a shared self-name setting that is advertised during discovery and authenticated sessions.
+- [x] Generate a stable, useful fallback without exposing sensitive account or network information.
+- [x] Add a per-trust-record local alias that overrides only the current device's display of that
   peer.
-- [ ] Propagate self-name changes on reconnect while preserving local aliases.
-- [ ] Disambiguate duplicate visible names in selection UI without changing cryptographic identity.
-- [ ] Cover blank, long, Unicode, duplicate, renamed, revoked, and legacy unnamed devices in common
+- [x] Propagate self-name changes on reconnect while preserving local aliases.
+- [x] Disambiguate duplicate visible names in selection UI without changing cryptographic identity.
+- [x] Cover blank, long, Unicode, duplicate, renamed, revoked, and legacy unnamed devices in common
   tests.
 
 ## Fresh-Device Setup Boundary
@@ -148,13 +173,13 @@ because every host must consume one shared visual/state decision.
 
 ### Television waveform and scrubber
 
-- [ ] Remove the fixed blue TV progress color and use the same shared album-art-derived accent-color
+- [x] Remove the fixed blue TV progress color and use the same shared album-art-derived accent-color
   decision used by phone and Desktop, including the same fallback and contrast rules.
-- [ ] Replace the visibly separated large-display bars with a smooth waveform/progress presentation,
+- [x] Replace the visibly separated large-display bars with a smooth waveform/progress presentation,
   such as an interpolated connected path or tightly sampled ribbon, while retaining played/unplayed
   state, seek feedback, focus, and accessibility semantics.
 - [ ] Verify the result at 720p, 1080p, and native 4K with sparse, dense, missing, and changing
-  waveform data and light/dark album artwork.
+  waveform data and light/dark album artwork. The 1080p dense-waveform pass is complete.
 - [ ] Add shared rendering/state tests where practical and visual acceptance captures for TV.
 
 ### Repeat icons on every device
@@ -169,14 +194,16 @@ because every host must consume one shared visual/state decision.
 
 ## Implementation Order
 
-- [ ] 1. Generalize protocol and shared session roles into controller/playback capabilities.
-- [ ] 2. Add the shared selected-playback-device and remote-output state owners.
-- [ ] 3. Route ordinary Now Playing, queue, and catalog actions through those owners.
-- [ ] 4. Implement the atomic first-play queue/profile transfer and fast first-track start.
-- [ ] 5. Add the Now Playing device banner, output selector, and streamlined Controllers settings.
-- [ ] 6. Add friendly self-names and controller-local aliases.
+- [x] 1. Generalize protocol and shared session roles into controller/playback capabilities.
+- [x] 2. Add the shared selected-playback-device and remote-output state owners.
+- [x] 3. Route ordinary Now Playing, queue, and catalog actions through those owners, including
+  transport, authoritative remote Now Playing, queue clear/edit/reorder, catalog and radio starts,
+  and browse-time grouped queue additions.
+- [x] 4. Implement the atomic first-play queue/profile transfer and fast first-track start.
+- [x] 5. Add the Now Playing device banner, output selector, and streamlined Controllers settings.
+- [x] 6. Add friendly self-names and controller-local aliases.
 - [ ] 7. Complete the Android phone/TV product-UI acceptance and recovery matrix.
 - [ ] 8. Add phone and Desktop target adapters, then Apple host adapters, without moving product
   policy out of Core.
-- [ ] 9. Implement the shared scrubber color/smoothing and repeat-icon polish.
+- [ ] 9. Complete remaining waveform visual acceptance and implement the shared repeat-icon polish.
 - [ ] 10. Add fresh-device setup from a trusted peer, then evaluate ongoing sync/history work.

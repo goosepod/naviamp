@@ -976,7 +976,6 @@ fun nowPlayingTrackCapabilities(
     NowPlayingTrackCapabilities(
         canPlayPause = hasPlaybackTarget &&
             playbackState != PlaybackState.Loading &&
-            playbackState !is PlaybackState.Error &&
             (supportsPause || playbackState != PlaybackState.Playing),
         canSeek = supportsSeek && !isLiveStream,
         canChangeVolume = supportsSoftwareVolume,

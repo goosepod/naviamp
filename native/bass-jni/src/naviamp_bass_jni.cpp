@@ -718,6 +718,20 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigureInternetStreams(
     return configure_internet_streams() ? JNI_TRUE : JNI_FALSE;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSetNetworkProxy(
+    JNIEnv* env,
+    jobject thiz,
+    jstring proxy
+) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(proxy, nullptr);
+    if (chars == nullptr) return JNI_FALSE;
+    const BOOL configured = BASS_SetConfigPtr(BASS_CONFIG_NET_PROXY, chars);
+    env->ReleaseStringUTFChars(proxy, chars);
+    return configured ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateUrlStream(JNIEnv* env, jobject thiz, jstring url) {
     (void)thiz;

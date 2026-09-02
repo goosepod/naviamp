@@ -182,6 +182,14 @@ class NaviampCoreMediaTransactions(
         ),
     )
 
+    fun addPlaylistToQueue(playlistId: String, playlistName: String, tracks: List<Track>) = apply(
+        queuePlayback.addToQueue(
+            tracks = tracks,
+            groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, playlistId),
+            groupLabel = playlistName,
+        ),
+    )
+
     override suspend fun startTrackRadio(seed: Track) {
         val settings = stateStore.state.value.shell.playback.settings
         startSeededMix(trackRadioRequest(seed, settings.sonicSimilarityEnabled))

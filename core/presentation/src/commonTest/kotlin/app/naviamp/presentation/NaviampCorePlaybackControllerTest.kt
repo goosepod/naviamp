@@ -162,6 +162,44 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun rejectedPlayingHandoffRestoresTheTargetsPreviousQueueAndPlayback() = runTest {
+        val fixture = playbackFixture(this)
+        val previous = fixture.live.state.value
+        fixture.effects.startSucceeds = false
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:new", "new", "New", "Artist"),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 5_000,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = true,
+            ),
+        )
+
+        assertFalse(accepted)
+        assertEquals(previous, fixture.live.state.value)
+        assertEquals(previous.queue, fixture.effects.queues.last())
+        assertEquals(2, fixture.effects.stops)
+    }
+
+    @Test
+    fun clearConnectUpNextRetainsCurrentTrackAndUpdatesNativeQueue() = runTest {
+        val fixture = playbackFixture(this)
+
+        assertTrue(fixture.controller.clearConnectUpNext())
+
+        assertEquals(listOf("two"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals(fixture.live.state.value.queue, fixture.effects.queues.single())
+    }
+
+    @Test
     fun connectQueueHandoffReusesTracksAlreadyKnownByTheTarget() = runTest {
         val fixture = playbackFixture(this)
         fixture.provider.unavailableTrackIds += listOf("one", "two")
@@ -432,6 +470,20 @@ class NaviampCorePlaybackControllerTest {
 
         assertEquals(listOf("two", "three"), sidecars.loadedTracks)
         assertEquals(listOf("two"), sidecars.cancelledTracks)
+    }
+
+    @Test
+    fun gaplessAdvanceLoadsTheNewTrackWaveformWithoutAnotherPlayingCallback() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        runCurrent()
+
+        assertEquals("three", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(listOf("two", "three"), fixture.sidecars.loadedTracks)
     }
 
     @Test
@@ -719,6 +771,7 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     var pauses = 0
     var resumes = 0
     var starts = 0
+    var startSucceeds = true
     var stops = 0
     val seeks = mutableListOf<Double>()
     val replays = mutableListOf<Double>()
@@ -734,7 +787,7 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
 
     override fun pause() { pauses += 1 }
     override fun resume() { resumes += 1 }
-    override fun startOrRestore(): Boolean { starts += 1; return true }
+    override fun startOrRestore(): Boolean { starts += 1; return startSucceeds }
     override fun seek(positionSeconds: Double) { seeks += positionSeconds }
     override fun replayCurrent(positionSeconds: Double) { replays += positionSeconds }
     override fun setVolume(percent: Int) { volumes += percent }

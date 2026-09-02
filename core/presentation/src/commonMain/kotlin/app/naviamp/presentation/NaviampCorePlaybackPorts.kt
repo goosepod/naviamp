@@ -63,6 +63,7 @@ interface NaviampCorePlaybackObserver {
 }
 
 data class NaviampCoreNowPlayingSidecars(
+    val trackId: app.naviamp.domain.TrackId? = null,
     val album: app.naviamp.domain.Album? = null,
     val waveform: AudioWaveform? = null,
     val audioTags: List<AudioTag>? = null,

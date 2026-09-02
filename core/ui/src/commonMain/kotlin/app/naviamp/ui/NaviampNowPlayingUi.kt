@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -144,6 +145,8 @@ data class NaviampNowPlayingActions(
     val onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit,
     val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
     val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
+    val onRemoteOutputAction: () -> Unit = {},
+    val onPlaybackOutputSelected: (String?) -> Unit = {},
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -783,6 +786,21 @@ private fun NowPlayingDetails(
             },
         ),
     ) {
+        nowPlaying.remoteOutputDeviceName?.let { deviceName ->
+            Text(
+                text = "Playing back on $deviceName",
+                color = colors.onAccent,
+                fontSize = if (useLargeSizing) 13.sp else 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(colors.accent)
+                    .clickable { actionMenuExpanded = true }
+                    .padding(horizontal = if (useLargeSizing) 14.dp else 11.dp, vertical = 5.dp),
+            )
+        }
         NowPlayingProgressRow(
             nowPlaying = nowPlaying,
             playbackProgress = playbackProgress,
@@ -1098,7 +1116,7 @@ private fun NowPlayingDetails(
                 )
                 Box(modifier = Modifier.requiredSize(bottomActionButtonSize), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
-                        enabled = nowPlaying.menuEnabled,
+                        enabled = nowPlayingActionMenuEnabled(nowPlaying),
                         icon = NaviampTransportIcons.MoreVertical,
                         contentDescription = "Track actions",
                         colors = colors,
@@ -1111,6 +1129,28 @@ private fun NowPlayingDetails(
                         onDismissRequest = { actionMenuExpanded = false },
                         offset = DpOffset(0.dp, 6.dp),
                     ) {
+                        nowPlaying.remoteOutputDeviceName?.let { deviceName ->
+                            NaviampDropdownMenuItem(
+                                label = "Stop controlling $deviceName",
+                                onClick = {
+                                    actionMenuExpanded = false
+                                    actions.onRemoteOutputAction()
+                                },
+                            )
+                        }
+                        nowPlaying.playbackOutputs.forEach { output ->
+                            NaviampDropdownMenuItem(
+                                label = buildString {
+                                    append(if (output.selected) "Playing on " else "Play on ")
+                                    append(output.displayName)
+                                },
+                                enabled = output.available && !output.selected,
+                                onClick = {
+                                    actionMenuExpanded = false
+                                    actions.onPlaybackOutputSelected(output.deviceId)
+                                },
+                            )
+                        }
                         nowPlayingTrackMenuActions(
                             visualizerAvailable = nowPlaying.visualizerAvailable,
                             isLive = nowPlaying.isLive,
@@ -1212,6 +1252,9 @@ private fun NowPlayingDetails(
         )
     }
 }
+
+internal fun nowPlayingActionMenuEnabled(nowPlaying: NowPlayingUi): Boolean =
+    nowPlaying.menuEnabled || nowPlaying.remoteOutputDeviceName != null || nowPlaying.playbackOutputs.isNotEmpty()
 
 @Composable
 private fun CompactMetadataRow(
@@ -1547,6 +1590,7 @@ internal fun WaveformScrubber(
     enabled: Boolean,
     smoothProgress: Boolean = false,
     durationSeconds: Double? = null,
+    continuousWaveform: Boolean = false,
     colors: NaviampColors,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: (Float) -> Unit,
@@ -1638,7 +1682,11 @@ internal fun WaveformScrubber(
             val minBarHeight = 2.5f
             val maxBarHeight = size.height * 0.92f
 
-            val drawBars: DrawScope.(Color) -> Unit = { color ->
+            val drawBars: DrawScope.(Color) -> Unit = drawWaveform@ { color ->
+                if (continuousWaveform) {
+                    drawContinuousWaveform(displayAmplitudes, color)
+                    return@drawWaveform
+                }
                 repeat(visibleBars) { index ->
                     val sourceIndex = if (visibleBars == 1) {
                         0
@@ -1665,6 +1713,31 @@ internal fun WaveformScrubber(
         }
 
     }
+}
+
+private fun DrawScope.drawContinuousWaveform(amplitudes: List<Float>, color: Color) {
+    if (amplitudes.isEmpty() || size.width <= 0f || size.height <= 0f) return
+    val centerY = size.height / 2f
+    val minHalfHeight = 1.25f
+    val maxHalfHeight = size.height * 0.46f
+    val lastIndex = amplitudes.lastIndex
+    val xFor: (Int) -> Float = { index ->
+        if (lastIndex == 0) size.width / 2f else size.width * index / lastIndex.toFloat()
+    }
+    val halfHeightFor: (Int) -> Float = { index ->
+        minHalfHeight + amplitudes[index].coerceIn(0f, 1f) * (maxHalfHeight - minHalfHeight)
+    }
+    val path = Path().apply {
+        moveTo(0f, centerY)
+        amplitudes.indices.forEach { index ->
+            lineTo(xFor(index), centerY - halfHeightFor(index))
+        }
+        amplitudes.indices.reversed().forEach { index ->
+            lineTo(xFor(index), centerY + halfHeightFor(index))
+        }
+        close()
+    }
+    drawPath(path = path, color = color)
 }
 
 internal fun waveformSeekFraction(x: Float, width: Int): Float =

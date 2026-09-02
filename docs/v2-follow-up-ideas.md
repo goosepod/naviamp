@@ -22,6 +22,44 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Track Membership in Playlists
+
+- **Status:** Idea
+- **Concept:** Add an **In Playlists…** action to the shared three-dot menu for a track. It opens
+  a secondary menu listing every playlist that contains that track; choosing a result navigates to
+  the corresponding playlist.
+- [ ] Define the shared provider/storage query, including duplicate occurrences, unavailable or
+  deleted playlists, smart-playlist membership, source scoping, and empty/loading/error states.
+- [ ] Add one Core-owned nested-menu model and navigation action so Android, Desktop, iOS, and TV
+  render the same feature anywhere the standard track action menu appears.
+- [ ] Decide whether the first version is informational/navigation-only or also offers removal from
+  an individual playlist without leaving the menu.
+- [ ] Verify keyboard, touch, and TV remote focus/back behavior for the secondary menu, including
+  returning focus to the originating track action.
+
+### Favorite Artists Home Section
+
+- **Status:** Idea
+- **Concept:** Add a shared **Favorite Artists** section to Home containing the artists the user has
+  favorited, with sort choices for name, date favorited, and date last played.
+- **Last-played definition:** Record an artist's last-played timestamp after a successful **Artist
+  Radio** launch, or after a successful track-seeded radio launch when that track's stable artist ID
+  identifies a currently favorited artist. Ordinary track, album, playlist, or queue playback does
+  not update it.
+- [ ] Confirm provider support and local fallback for artist favorite state and favorited-at time;
+  preserve source scoping and deterministic ordering when timestamps are missing or equal. If the
+  provider does not support favoriting of artists, then hide this section from the Home Screen and
+  Settings.
+- [ ] Add the source-scoped artist-radio last-played field/query to shared storage, consolidating any
+  unreleased schema change according to the repository migration rules.
+- [ ] Update the timestamp through the shared radio transaction only after an eligible radio launch
+  succeeds, and cover track-artist attribution, unfavorited artists, failed/cancelled launches, and
+  clock behavior in common tests.
+- [ ] Add Core-owned Home presentation, persisted sort selection, empty/loading/error behavior, and
+  navigation to artist detail; render the same section on Android, Desktop, iOS, and TV.
+- [ ] Verify all three sorts, source switching, favorite/unfavorite changes, restart persistence, and
+  settings-sync classification before release.
+
 ### Trusted-Device Settings Sync and Shared Listening Activity
 
 - **Status:** Idea. Fresh-device setup is active Connect work; ongoing synchronization and history

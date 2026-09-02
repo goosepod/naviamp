@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.connect.NaviampConnectCapability
+import app.naviamp.domain.connect.NaviampConnectClearUpNext
 import app.naviamp.domain.connect.NaviampConnectCommand
 import app.naviamp.domain.connect.NaviampConnectMoveQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectNext
@@ -24,6 +25,7 @@ import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingItemAction
 import app.naviamp.ui.NowPlayingItemTarget
 import app.naviamp.ui.NowPlayingPlaybackAction
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingQueueAction
 import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingUi
@@ -54,6 +56,7 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(targetName: Strin
             NaviampConnectPlaybackState.Failed -> "Playback failed on $targetName"
             NaviampConnectPlaybackState.Idle -> "Connected to $targetName"
         },
+        remoteOutputDeviceName = targetName,
         albumLine = current?.albumTitle.orEmpty(),
         albumTitle = current?.albumTitle.orEmpty(),
         positionSeconds = playback.positionMillis / 1_000.0,
@@ -89,33 +92,11 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUiOrNull(targetName:
 internal fun createNaviampCoreConnectRemoteNowPlayingActions(
     snapshot: () -> NaviampConnectTargetSnapshot?,
     send: (NaviampConnectCommand) -> Unit,
+    onStopControlling: () -> Unit = {},
 ): NaviampNowPlayingActions = NaviampNowPlayingActions(
     onPlaybackAction = { request ->
         val current = snapshot() ?: return@NaviampNowPlayingActions
-        when (request.action) {
-            NowPlayingPlaybackAction.Stop -> send(NaviampConnectStop)
-            NowPlayingPlaybackAction.Pause -> send(NaviampConnectPause)
-            NowPlayingPlaybackAction.Resume,
-            NowPlayingPlaybackAction.PlayCurrent,
-            -> send(NaviampConnectPlay)
-            NowPlayingPlaybackAction.Seek -> request.seekSeconds
-                ?.takeIf { it.isFinite() && it >= 0.0 }
-                ?.let { send(NaviampConnectSeek((it * 1_000.0).toLong())) }
-            NowPlayingPlaybackAction.Previous -> send(NaviampConnectPrevious)
-            NowPlayingPlaybackAction.Next -> send(NaviampConnectNext)
-            NowPlayingPlaybackAction.ToggleShuffle ->
-                send(NaviampConnectSetShuffle(!current.playback.shuffled))
-            NowPlayingPlaybackAction.CycleRepeatMode -> send(
-                NaviampConnectSetRepeat(
-                    when (current.playback.repeatMode) {
-                        NaviampConnectRepeatMode.Off -> NaviampConnectRepeatMode.All
-                        NaviampConnectRepeatMode.All -> NaviampConnectRepeatMode.One
-                        NaviampConnectRepeatMode.One -> NaviampConnectRepeatMode.Off
-                    },
-                ),
-            )
-            NowPlayingPlaybackAction.ChangeVolume -> Unit
-        }
+        request.toNaviampConnectPlaybackCommand(current)?.let(send)
     },
     onDisplayAction = {},
     onCurrentTrackAction = { request ->
@@ -149,9 +130,8 @@ internal fun createNaviampCoreConnectRemoteNowPlayingActions(
             NowPlayingQueueAction.RemoveFromQueue -> occurrence?.let {
                 send(NaviampConnectRemoveQueueOccurrence(it.occurrenceId))
             }
-            NowPlayingQueueAction.SaveQueueAsPlaylist,
-            NowPlayingQueueAction.EmptyQueue,
-            -> Unit
+            NowPlayingQueueAction.EmptyQueue -> send(NaviampConnectClearUpNext)
+            NowPlayingQueueAction.SaveQueueAsPlaylist -> Unit
         }
     },
     onSleepTimerAction = {},
@@ -181,7 +161,37 @@ internal fun createNaviampCoreConnectRemoteNowPlayingActions(
             else -> Unit
         }
     },
+    onRemoteOutputAction = onStopControlling,
 )
+
+internal fun NowPlayingPlaybackActionRequest.toNaviampConnectPlaybackCommand(
+    snapshot: NaviampConnectTargetSnapshot,
+): NaviampConnectCommand? = when (action) {
+    NowPlayingPlaybackAction.Stop -> NaviampConnectStop
+    NowPlayingPlaybackAction.Pause -> NaviampConnectPause
+    NowPlayingPlaybackAction.Resume -> NaviampConnectPlay
+    NowPlayingPlaybackAction.PlayCurrent -> if (
+        snapshot.playback.state == NaviampConnectPlaybackState.Playing
+    ) {
+        NaviampConnectPause
+    } else {
+        NaviampConnectPlay
+    }
+    NowPlayingPlaybackAction.Seek -> seekSeconds
+        ?.takeIf { it.isFinite() && it >= 0.0 }
+        ?.let { NaviampConnectSeek((it * 1_000.0).toLong()) }
+    NowPlayingPlaybackAction.Previous -> NaviampConnectPrevious
+    NowPlayingPlaybackAction.Next -> NaviampConnectNext
+    NowPlayingPlaybackAction.ToggleShuffle -> NaviampConnectSetShuffle(!snapshot.playback.shuffled)
+    NowPlayingPlaybackAction.CycleRepeatMode -> NaviampConnectSetRepeat(
+        when (snapshot.playback.repeatMode) {
+            NaviampConnectRepeatMode.Off -> NaviampConnectRepeatMode.All
+            NaviampConnectRepeatMode.All -> NaviampConnectRepeatMode.One
+            NaviampConnectRepeatMode.One -> NaviampConnectRepeatMode.Off
+        },
+    )
+    NowPlayingPlaybackAction.ChangeVolume -> null
+}
 
 private fun NaviampConnectRepeatMode.toUiRepeatMode(): NaviampRepeatMode = when (this) {
     NaviampConnectRepeatMode.Off -> NaviampRepeatMode.Off

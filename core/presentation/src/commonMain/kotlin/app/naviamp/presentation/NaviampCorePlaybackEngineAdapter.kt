@@ -676,7 +676,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
     override fun snapshot(): NaviampCoreNowPlayingSidecars = state
 
     override suspend fun loadForTrack(track: app.naviamp.domain.Track) {
-        state = NaviampCoreNowPlayingSidecars()
+        state = NaviampCoreNowPlayingSidecars(trackId = track.id)
     }
 
     override suspend fun loadLyrics(track: app.naviamp.domain.Track) = Unit

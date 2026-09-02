@@ -15,8 +15,9 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.presentation.NaviampCoreEnvironment
-import app.naviamp.presentation.NaviampCoreConnectRole
+import app.naviamp.presentation.NaviampCoreBidirectionalConnectCapabilities
 import app.naviamp.presentation.NaviampCoreConnectServices
+import app.naviamp.presentation.NaviampCorePlaybackTargetConnectCapabilities
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreHomeDateSource
@@ -196,7 +197,11 @@ class AndroidNaviampCoreCatalog private constructor(
             )
             val isTelevision = appContext.resources.configuration.uiMode and
                 Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
-            val connectRole = if (isTelevision) NaviampCoreConnectRole.Target else NaviampCoreConnectRole.Controller
+            val connectDeviceCapabilities = if (isTelevision) {
+                NaviampCorePlaybackTargetConnectCapabilities
+            } else {
+                NaviampCoreBidirectionalConnectCapabilities
+            }
             val secureRandom = SecureRandom()
             val connectDebugHost = BuildConfig.NAVIAMP_CONNECT_DEBUG_HOST.takeIf(String::isNotBlank)
             val connectTransport = JvmNaviampConnectTcpTransportFactory().let { transport ->
@@ -205,11 +210,12 @@ class AndroidNaviampCoreCatalog private constructor(
                         delegate = transport,
                         overriddenHosts = setOf(AndroidEmulatorPrivateAddress),
                         replacementHost = debugHost,
+                        replacementPort = AndroidEmulatorControllerBridgePort,
                     )
                 } ?: transport
             }
             val connectServices = NaviampCoreConnectServices(
-                role = connectRole,
+                deviceCapabilities = connectDeviceCapabilities,
                 displayName = Build.MODEL?.takeIf(String::isNotBlank) ?: "Android Naviamp",
                 identity = AndroidNaviampConnectDeviceIdentityEffect(),
                 identityVerifier = JvmNaviampConnectIdentityVerifier,
@@ -221,7 +227,7 @@ class AndroidNaviampCoreCatalog private constructor(
                     AndroidNaviampConnectSessionCredentialStorageEffect(appContext),
                 ),
                 discovery = AndroidNaviampConnectDiscoveryEffect(appContext).takeUnless { isTelevision },
-                advertising = AndroidNaviampConnectAdvertisingEffect(appContext).takeIf { isTelevision },
+                advertising = AndroidNaviampConnectAdvertisingEffect(appContext),
                 newOpaqueId = { UUID.randomUUID().toString() },
                 newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
                 nowEpochMillis = clock::nowEpochMillis,
@@ -255,4 +261,5 @@ private fun List<AndroidStorageLocation>.idFor(directory: File): String? {
 
 private const val AndroidSettingsSyncDeviceId = "android"
 private const val AndroidEmulatorPrivateAddress = "10.0.2.15"
+private const val AndroidEmulatorControllerBridgePort = 42_424
 private const val AndroidEmulatorPairingPort = 42_425

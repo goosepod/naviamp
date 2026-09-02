@@ -18,9 +18,31 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.CompositionLocalProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampTelevisionNowPlayingFocusTest {
+    @Test
+    fun prominentPlayButtonUsesWhiteSurfaceOnlyWhileFocused() {
+        assertFalse(
+            televisionIconButtonUsesLightSurface(
+                focused = false,
+                selected = false,
+                whiteHighlight = true,
+                selectedKeepsDarkBackground = false,
+            ),
+        )
+        assertTrue(
+            televisionIconButtonUsesLightSurface(
+                focused = true,
+                selected = false,
+                whiteHighlight = true,
+                selectedKeepsDarkBackground = false,
+            ),
+        )
+    }
+
     @Test
     fun playPauseReceivesFocusWhenNowPlayingOpens() = runComposeUiTest {
         mainClock.autoAdvance = false
@@ -332,6 +354,55 @@ class NaviampTelevisionNowPlayingFocusTest {
 
         onNodeWithTag(TelevisionNowPlayingQueueTestTag).assertDoesNotExist()
         onNodeWithContentDescription("Queue").assertIsFocused()
+    }
+
+    @Test
+    fun rightOnCurrentQueueItemOpensActionsInsteadOfLeavingTheQueue() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "current",
+                    title = "Current track",
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    canPlayPause = true,
+                    queueCurrentIndex = 0,
+                    upNext = listOf(
+                        NaviampNowPlayingItemUi("queue:1", "Upcoming track", "Artist"),
+                    ),
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { _ -> },
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = { _ -> },
+                    onQueueItemAction = { _ -> },
+                ),
+                onClose = {},
+                onOpenSettings = {},
+            )
+        }
+        mainClock.advanceTimeBy(200)
+        onNodeWithContentDescription("Queue").performClick()
+        mainClock.advanceTimeBy(400)
+
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}0").performKeyInput {
+            pressKey(Key.DirectionUp)
+        }
+        mainClock.advanceTimeBy(100)
+        onNodeWithTag(TelevisionNowPlayingQueueCurrentTestTag)
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        mainClock.advanceTimeBy(100)
+
+        onNodeWithText("Queue actions").assertExists()
+        onNodeWithText("Play Next").assertIsFocused()
     }
 
     @Test

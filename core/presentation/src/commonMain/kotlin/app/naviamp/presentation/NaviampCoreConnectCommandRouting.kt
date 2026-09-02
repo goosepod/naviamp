@@ -1,6 +1,8 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.connect.NaviampConnectMediaType
+import app.naviamp.domain.connect.NaviampConnectQueueMedia
+import app.naviamp.domain.connect.NaviampConnectQueuePlacement
 import app.naviamp.domain.connect.NaviampConnectSourceIdentity
 import app.naviamp.domain.connect.NaviampConnectStartMedia
 import app.naviamp.ui.NaviampAlbumDetailCommand
@@ -26,6 +28,42 @@ internal data class NaviampCoreConnectMediaSelection(
         shuffle = shuffle,
         sourceIdentity = sourceIdentity,
     )
+}
+
+internal data class NaviampCoreConnectQueueSelection(
+    val type: NaviampConnectMediaType,
+    val id: String,
+    val placement: NaviampConnectQueuePlacement,
+) {
+    fun toCommand(sourceIdentity: NaviampConnectSourceIdentity) = NaviampConnectQueueMedia(
+        mediaType = type,
+        mediaId = id,
+        placement = placement,
+        sourceIdentity = sourceIdentity,
+    )
+}
+
+internal fun NaviampCoreCommand.connectQueueSelectionOrNull(): NaviampCoreConnectQueueSelection? = when (this) {
+    is NaviampCoreCommand.Media.TrackAction -> request.connectQueueSelectionOrNull()
+    is NaviampCoreCommand.Detail.AlbumTrack -> request.connectQueueSelectionOrNull()
+    is NaviampCoreCommand.Detail.ArtistPopularTrack -> request.connectQueueSelectionOrNull()
+    is NaviampCoreCommand.Detail.PlaylistTrack -> request.connectQueueSelectionOrNull()
+    is NaviampCoreCommand.Home.RecentTrackAction -> request.connectQueueSelectionOrNull()
+    is NaviampCoreCommand.Home.SonicTrackAction -> connectQueueSelectionOrNull(request.track.id, request.action)
+    is NaviampCoreCommand.Media.ItemAction -> when (val itemCommand = request.command) {
+        is NaviampMediaItemCommand.Album -> itemCommand.command.albumQueueSelection(request.item.id)
+        is NaviampMediaItemCommand.Artist -> itemCommand.command.artistQueueSelection(request.item.id)
+        is NaviampMediaItemCommand.Playlist -> when (val playlist = itemCommand.command) {
+            is NaviampPlaylistMediaCommand.Detail -> playlist.command.playlistQueueSelection(request.item.id)
+            else -> null
+        }
+        NaviampMediaItemCommand.PlayAlbum -> null
+    }
+    is NaviampCoreCommand.Detail.Album -> request.command.albumQueueSelection(request.album.id)
+    is NaviampCoreCommand.Detail.Artist -> request.command.artistQueueSelection(request.artist.id)
+    is NaviampCoreCommand.Detail.ArtistAlbum -> request.command.albumQueueSelection(request.album.id)
+    is NaviampCoreCommand.Playlists.Detail -> request.command.playlistQueueSelection(request.playlist.id)
+    else -> null
 }
 
 /** Maps only playback intents; browsing, editing, downloads, and favorites remain local. */
@@ -127,6 +165,60 @@ private fun app.naviamp.ui.SharedTrackRowActionRequest.connectSelectionOrNull() 
     )
     else -> null
 }
+
+private fun app.naviamp.ui.SharedTrackRowActionRequest.connectQueueSelectionOrNull() =
+    connectQueueSelectionOrNull(track.id, action)
+
+private fun connectQueueSelectionOrNull(
+    trackId: String,
+    action: SharedTrackRowAction,
+): NaviampCoreConnectQueueSelection? = when (action) {
+        SharedTrackRowAction.AddToQueue -> NaviampConnectQueuePlacement.AddToQueue
+        SharedTrackRowAction.PlayNext -> NaviampConnectQueuePlacement.PlayNext
+        SharedTrackRowAction.PlayNextTrack -> NaviampConnectQueuePlacement.PlayNextTrack
+        else -> null
+    }?.let { placement ->
+        NaviampCoreConnectQueueSelection(
+            type = NaviampConnectMediaType.Track,
+            id = trackId,
+            placement = placement,
+        )
+    }
+
+private fun NaviampAlbumDetailCommand.albumQueueSelection(id: String) =
+    NaviampCoreConnectQueueSelection(
+        type = NaviampConnectMediaType.Album,
+        id = id,
+        placement = NaviampConnectQueuePlacement.AddToQueue,
+    ).takeIf { this == NaviampAlbumDetailCommand.AddToQueue }
+
+private fun NaviampArtistAlbumCommand.albumQueueSelection(id: String) =
+    NaviampCoreConnectQueueSelection(
+        type = NaviampConnectMediaType.Album,
+        id = id,
+        placement = NaviampConnectQueuePlacement.AddToQueue,
+    ).takeIf { this == NaviampArtistAlbumCommand.AddToQueue }
+
+private fun NaviampArtistDetailCommand.artistQueueSelection(id: String) =
+    NaviampCoreConnectQueueSelection(
+        type = NaviampConnectMediaType.Artist,
+        id = id,
+        placement = NaviampConnectQueuePlacement.AddToQueue,
+    ).takeIf { this == NaviampArtistDetailCommand.AddToQueue }
+
+private fun NaviampArtistMediaCommand.artistQueueSelection(id: String) =
+    NaviampCoreConnectQueueSelection(
+        type = NaviampConnectMediaType.Artist,
+        id = id,
+        placement = NaviampConnectQueuePlacement.AddToQueue,
+    ).takeIf { this == NaviampArtistMediaCommand.AddToQueue }
+
+private fun NaviampPlaylistDetailCommand.playlistQueueSelection(id: String) =
+    NaviampCoreConnectQueueSelection(
+        type = NaviampConnectMediaType.Playlist,
+        id = id,
+        placement = NaviampConnectQueuePlacement.AddToQueue,
+    ).takeIf { this == NaviampPlaylistDetailCommand.AddToQueue }
 
 private fun NaviampPlaylistDetailCommand.playlistSelection(id: String) = when (this) {
     is NaviampPlaylistDetailCommand.Play -> NaviampCoreConnectMediaSelection(

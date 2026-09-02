@@ -123,14 +123,14 @@ fun NaviampSharedAppShell(
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
     val remoteNowPlaying = uiState.connect.remoteNowPlaying
-    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)
+    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
         ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
-    val nowPlayingActions = if (remoteNowPlaying != null) {
+    val nowPlayingActions = (if (remoteNowPlaying != null) {
         connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
             ?: actions.nowPlayingActions
     } else {
         actions.nowPlayingActions
-    }
+    }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
@@ -383,14 +383,14 @@ internal fun ConnectedContent(
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
     val remoteNowPlaying = uiState.connect.remoteNowPlaying
-    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)
+    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
         ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
-    val nowPlayingActions = if (remoteNowPlaying != null) {
+    val nowPlayingActions = (if (remoteNowPlaying != null) {
         connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
             ?: actions.nowPlayingActions
     } else {
         actions.nowPlayingActions
-    }
+    }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
@@ -719,6 +719,42 @@ internal fun ConnectedContent(
 internal fun NaviampNowPlayingActions.withLocalDisplayActions(
     local: NaviampNowPlayingActions,
 ): NaviampNowPlayingActions = copy(onDisplayAction = local.onDisplayAction)
+
+internal fun NowPlayingUi.withSelectedRemoteOutput(connect: NaviampConnectSettingsUi): NowPlayingUi =
+    connect.trustedDevices.filter { it.playbackTarget }.let { targets -> copy(
+        remoteOutputDeviceName = connect.selectedPlaybackDeviceName.takeIf { connect.remoteOutputSelected },
+        playbackOutputs = if (targets.isEmpty()) emptyList() else buildList {
+            add(
+                NaviampPlaybackOutputUi(
+                    deviceId = null,
+                    displayName = connect.localDeviceName,
+                    selected = !connect.remoteOutputSelected,
+                ),
+            )
+            targets.forEach { device ->
+                add(
+                    NaviampPlaybackOutputUi(
+                        deviceId = device.deviceId,
+                        displayName = device.displayName,
+                        selected = device.deviceId == connect.selectedPlaybackDeviceId,
+                        available = device.reconnectAvailable,
+                    ),
+                )
+            }
+        },
+    ) }
+
+internal fun NaviampNowPlayingActions.withSelectedRemoteOutputAction(
+    connect: NaviampConnectSettingsUi,
+    connectActions: NaviampConnectSettingsActions?,
+): NaviampNowPlayingActions = if (!connect.remoteOutputSelected || connectActions == null) {
+    if (connectActions == null) this else copy(onPlaybackOutputSelected = connectActions.onPlaybackDeviceSelected)
+} else {
+    copy(
+        onRemoteOutputAction = connectActions.remoteNowPlayingActions.onRemoteOutputAction,
+        onPlaybackOutputSelected = connectActions.onPlaybackDeviceSelected,
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

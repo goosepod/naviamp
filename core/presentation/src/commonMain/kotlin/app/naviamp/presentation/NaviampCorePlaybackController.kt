@@ -209,6 +209,13 @@ class NaviampCorePlaybackController(
         return update.changed
     }
 
+    internal fun clearConnectUpNext(): Boolean {
+        val update = queue.retainCurrentOnly()
+        if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
+        presenter.publish(display)
+        return update.changed
+    }
+
     internal suspend fun handoffConnectQueue(
         command: app.naviamp.domain.connect.NaviampConnectHandoffQueue,
     ): Boolean {
@@ -254,6 +261,8 @@ class NaviampCorePlaybackController(
             app.naviamp.domain.connect.NaviampConnectRepeatMode.One -> RepeatMode.Track
         }
         val positionSeconds = command.positionMillis / 1_000.0
+        val previous = playback.state.value
+        val previousHandoffAwaitingStart = connectHandoffAwaitingStart
         // A handoff replaces the native playback session as well as Core's queue. Pausing the
         // previous stream leaves that stream alive, and some native engines then report the new
         // handoff as logically playing without ever activating its audio output.
@@ -276,10 +285,30 @@ class NaviampCorePlaybackController(
         effects.applyRepeatMode(repeatMode)
         connectHandoffAwaitingStart = true
         if (command.playing) {
-            if (!startConnectHandoff()) return false
+            if (!startConnectHandoff()) {
+                restorePlaybackAfterRejectedConnectHandoff(previous, previousHandoffAwaitingStart)
+                presenter.publish(display)
+                return false
+            }
         }
         presenter.publish(display)
         return true
+    }
+
+    private fun restorePlaybackAfterRejectedConnectHandoff(
+        previous: app.naviamp.app.NaviampLivePlaybackState,
+        previousHandoffAwaitingStart: Boolean,
+    ) {
+        effects.stop()
+        playback.replace(previous)
+        effects.restoreQueue(previous.queue, previous.progress.positionSeconds)
+        effects.applyRepeatMode(previous.repeatMode)
+        connectHandoffAwaitingStart = previousHandoffAwaitingStart
+        if (previous.playbackState == PlaybackState.Playing ||
+            previous.playbackState == PlaybackState.Loading
+        ) {
+            effects.startOrRestore()
+        }
     }
 
     private fun startConnectHandoff(): Boolean {
@@ -322,6 +351,9 @@ class NaviampCorePlaybackController(
                         PlaybackQueueFinishedCommand.ReplayCurrent -> effects.replayCurrent(0.0)
                         PlaybackQueueFinishedCommand.PlayNext -> {
                             playback.updateCurrentTrack(finished.queue.current)
+                            // A gapless engine may remain Playing without publishing another state
+                            // callback, so advance sidecars from the authoritative queue transition.
+                            loadCurrentTrackSidecars()
                             effects.applyAutomaticNavigation(PlaybackQueueNavigationCommand.Next)
                         }
                         PlaybackQueueFinishedCommand.None -> startSonicAutoplayContinuation()

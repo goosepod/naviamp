@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.domain.connect.NaviampConnectCapability
+import app.naviamp.domain.connect.NaviampConnectClearUpNext
 import app.naviamp.domain.connect.NaviampConnectCommand
 import app.naviamp.domain.connect.NaviampConnectDevice
 import app.naviamp.domain.connect.NaviampConnectErrorCode
@@ -79,13 +80,14 @@ class NaviampCoreConnectTargetSnapshotFactory(
 fun naviampCoreConnectQueueHandoff(
     live: NaviampLivePlaybackState,
     sourceIdentity: NaviampConnectSourceIdentity,
+    playing: Boolean = live.playbackState == PlaybackState.Playing,
 ): NaviampConnectHandoffQueue = NaviampConnectHandoffQueue(
     sourceIdentity = sourceIdentity,
     queue = live.toNaviampConnectQueueSnapshot(),
     positionMillis = live.progress.positionSeconds.toNonNegativeMillis(),
     repeatMode = live.repeatMode.toConnectRepeatMode(),
     shuffled = live.shuffledUpNextSnapshot != null,
-    playing = live.playbackState == PlaybackState.Playing,
+    playing = playing,
 )
 
 private fun NaviampLivePlaybackState.toNaviampConnectQueueSnapshot(): NaviampConnectQueueSnapshot {
@@ -134,6 +136,7 @@ val NaviampCoreSupportedConnectTargetCapabilities: Set<NaviampConnectCapability>
     NaviampConnectCapability.QueueSelect,
     NaviampConnectCapability.QueueEdit,
     NaviampConnectCapability.QueueReorder,
+    NaviampConnectCapability.QueueClear,
     NaviampConnectCapability.QueueHandoff,
     NaviampConnectCapability.CatalogPlayback,
     NaviampConnectCapability.InternetRadio,
@@ -155,6 +158,7 @@ class NaviampCoreConnectTargetCommandExecutor(
         val accepted = when (command) {
             is NaviampConnectOfferConnectionProvisioning -> offerProvisioning(command)
             is NaviampConnectStartMedia -> catalog.start(command)
+            is app.naviamp.domain.connect.NaviampConnectQueueMedia -> catalog.queue(command)
             is NaviampConnectHandoffQueue -> playback.handoffConnectQueue(command)
             is NaviampConnectSetFavorite -> nowPlaying.setConnectFavorite(command.mediaId, command.favorite)
             is NaviampConnectSelectQueueOccurrence -> currentSnapshot.queue.indexOf(command.occurrenceId)
@@ -169,6 +173,7 @@ class NaviampCoreConnectTargetCommandExecutor(
             is NaviampConnectRemoveQueueOccurrence -> currentSnapshot.queue.indexOf(command.occurrenceId)
                 ?.let(playback::removeConnectQueueIndex)
                 ?: false
+            NaviampConnectClearUpNext -> playback.clearConnectUpNext()
             else -> playback.executeConnectPlayback(command)
         }
         if (!accepted) {
@@ -215,6 +220,7 @@ private fun NaviampConnectCommand.requiredCoreTargetCapability(): NaviampConnect
     is NaviampConnectSelectQueueOccurrence -> NaviampConnectCapability.QueueSelect
     is NaviampConnectMoveQueueOccurrence -> NaviampConnectCapability.QueueReorder
     is NaviampConnectRemoveQueueOccurrence -> NaviampConnectCapability.QueueEdit
+    NaviampConnectClearUpNext -> NaviampConnectCapability.QueueClear
     is NaviampConnectHandoffQueue -> NaviampConnectCapability.QueueHandoff
     is NaviampConnectOfferConnectionProvisioning -> NaviampConnectCapability.ConnectionProvisioning
     is NaviampConnectStartMedia -> when (mediaType) {
@@ -222,6 +228,7 @@ private fun NaviampConnectCommand.requiredCoreTargetCapability(): NaviampConnect
             NaviampConnectCapability.InternetRadio
         else -> NaviampConnectCapability.CatalogPlayback
     }
+    is app.naviamp.domain.connect.NaviampConnectQueueMedia -> NaviampConnectCapability.QueueEdit
     else -> null
 }
 

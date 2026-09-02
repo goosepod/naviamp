@@ -6,8 +6,12 @@ import app.naviamp.domain.connect.NaviampConnectAdvertisement
 import app.naviamp.domain.connect.NaviampConnectProtocolRange
 import app.naviamp.domain.connect.NaviampConnectTrustRecord
 import app.naviamp.domain.connect.NaviampConnectTrustedEndpoint
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class NaviampConnectTrustRepositoryTest {
     @Test
@@ -71,6 +75,56 @@ class NaviampConnectTrustRepositoryTest {
         )
 
         assertEquals(endpoint, NaviampConnectTrustRepository(storage).load().single().lastKnownEndpoint)
+    }
+
+    @Test
+    fun persistsSelfNameAndReadsLegacyTrustLists() {
+        var stored: String? = null
+        val storage = object : NaviampConnectTrustStorageEffect {
+            override fun read() = stored
+            override fun write(value: String) { stored = value }
+        }
+        val repository = NaviampConnectTrustRepository(storage)
+        repository.upsert(trust("trust-a", "TV", 10))
+
+        assertEquals("Kitchen tablet", repository.setSelfName("  Kitchen tablet  "))
+        assertEquals("Kitchen tablet", NaviampConnectTrustRepository(storage).selfName())
+        assertEquals("TV", repository.load().single().displayName)
+
+        stored = Json.encodeToString(listOf(trust("legacy", "Legacy TV", 1)))
+        assertEquals("Legacy TV", repository.load().single().displayName)
+        assertNull(repository.selfName())
+    }
+
+    @Test
+    fun localAliasSurvivesPeerRenameAndCanBeCleared() {
+        var stored: String? = null
+        val repository = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = stored
+            override fun write(value: String) { stored = value }
+        })
+        val original = trust("trust-a", "TV", 10)
+        repository.upsert(original)
+        repository.setAlias("trust-a", "Living room")
+
+        repository.upsert(original.copy(peerDevice = original.peerDevice.copy(displayName = "Television")))
+        assertEquals("Living room", repository.load().single().localAlias)
+
+        repository.setAlias("trust-a", "   ")
+        assertNull(repository.load().single().localAlias)
+    }
+
+    @Test
+    fun rejectsOverlongNamesWithoutDamagingExistingName() {
+        var stored: String? = null
+        val repository = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = stored
+            override fun write(value: String) { stored = value }
+        })
+        repository.setSelfName("Phone 🎵")
+
+        assertFailsWith<IllegalArgumentException> { repository.setSelfName("x".repeat(65)) }
+        assertEquals("Phone 🎵", repository.selfName())
     }
 
     private fun trust(id: String, name: String, pairedAt: Long) = NaviampConnectTrustRecord(

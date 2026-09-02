@@ -470,6 +470,21 @@ private fun NaviampConnectSettingsSection(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
     ) {
+        var localDeviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
+        SettingsSectionTitle("This device", colors)
+        OutlinedTextField(
+            value = localDeviceName,
+            onValueChange = { if (it.length <= 64) localDeviceName = it },
+            singleLine = true,
+            label = { Text("Friendly name") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PrimaryButton(
+            "Save device name",
+            colors,
+            enabled = localDeviceName.trim().isNotEmpty() && localDeviceName.trim() != connect.localDeviceName,
+            onClick = { actions.onLocalDeviceNameChanged(localDeviceName) },
+        )
         connect.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
         if (connect.needsProvisioningCredential) {
             PrimaryButton(
@@ -481,55 +496,6 @@ private fun NaviampConnectSettingsSection(
         }
         connect.connectedTargetName?.let { targetName ->
             SettingsSectionTitle("Controlling $targetName", colors)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    connect.remoteTrackTitle ?: "Nothing playing",
-                    color = colors.primaryText,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                connect.remoteArtistName?.let { artist ->
-                    Text(artist, color = colors.secondaryText, fontSize = 12.sp)
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                PrimaryButton(
-                    "Previous",
-                    colors,
-                    enabled = connect.remoteHasPrevious,
-                    onClick = actions.onRemotePrevious,
-                    modifier = Modifier.weight(1f),
-                )
-                PrimaryButton(
-                    if (connect.remotePlaying) "Pause" else "Play",
-                    colors,
-                    enabled = connect.remoteTrackTitle != null,
-                    onClick = actions.onRemotePlayPause,
-                    modifier = Modifier.weight(1f),
-                )
-                PrimaryButton(
-                    "Next",
-                    colors,
-                    enabled = connect.remoteHasNext,
-                    onClick = actions.onRemoteNext,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            PrimaryButton(
-                "Send this queue to $targetName",
-                colors,
-                enabled = connect.canHandoffLocalQueue,
-                onClick = actions.onRemoteHandoffQueue,
-            )
-            PrimaryButton(
-                "Bring $targetName queue to this device",
-                colors,
-                enabled = connect.canReceiveRemoteQueue,
-                onClick = actions.onReceiveRemoteQueue,
-            )
             PrimaryButton(
                 "Set up $targetName with this connection",
                 colors,
@@ -544,7 +510,7 @@ private fun NaviampConnectSettingsSection(
             )
         }
         if (connect.canDiscover) {
-            PrimaryButton("Find Naviamp TVs", colors, enabled = true, onClick = actions.onRefreshTargets)
+            PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = actions.onRefreshTargets)
             connect.discoveredTargets.forEach { target ->
                 PrimaryButton(
                     label = if (target.instanceId == connect.selectedTargetId) {
@@ -579,12 +545,36 @@ private fun NaviampConnectSettingsSection(
         if (connect.trustedDevices.isNotEmpty()) {
             SettingsSectionTitle("Trusted devices", colors)
             connect.trustedDevices.forEach { device ->
+                var alias by remember(device.deviceId, device.localAlias) { mutableStateOf(device.localAlias.orEmpty()) }
                 PrimaryButton(
                     label = if (device.reconnectAvailable) "Reconnect to ${device.displayName}" else device.displayName,
                     colors = colors,
                     enabled = device.reconnectAvailable,
                     onClick = { actions.onTrustedDeviceSelected(device) },
                 )
+                OutlinedTextField(
+                    value = alias,
+                    onValueChange = { if (it.length <= 64) alias = it },
+                    singleLine = true,
+                    label = { Text("Local name (currently ${device.displayName})") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    PrimaryButton(
+                        "Save name",
+                        colors,
+                        enabled = alias.trim() != device.localAlias.orEmpty(),
+                        onClick = { actions.onTrustedDeviceAliasChanged(device.deviceId, alias) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    PrimaryButton(
+                        "Forget",
+                        colors,
+                        enabled = true,
+                        onClick = { actions.onForgetTrustedDevice(device.deviceId) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }

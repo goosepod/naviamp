@@ -306,6 +306,7 @@ fun NaviampTelevisionAppShell(
                             nowPlaying = nowPlaying,
                             playbackProgress = playbackProgress,
                             colors = colors,
+                            playerColors = backgroundPlayerColors,
                             actions = actions.nowPlayingActions,
                             onClose = {
                                 nowPlayingPreview = true

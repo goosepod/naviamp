@@ -17,6 +17,16 @@ enum class NaviampConnectPairingUiPhase {
     Failed,
 }
 
+enum class NaviampConnectPlaybackDestinationUiStatus {
+    Local,
+    Armed,
+    Connecting,
+    Connected,
+    Reconnecting,
+    Unavailable,
+    Incompatible,
+}
+
 data class NaviampConnectDiscoveredTargetUi(
     val instanceId: String,
     val displayName: String,
@@ -27,8 +37,10 @@ data class NaviampConnectDiscoveredTargetUi(
 data class NaviampConnectTrustedDeviceUi(
     val deviceId: String,
     val displayName: String,
+    val localAlias: String? = null,
     val detail: String,
     val reconnectAvailable: Boolean = false,
+    val playbackTarget: Boolean = false,
 )
 
 data class NaviampConnectSettingsUi(
@@ -40,6 +52,11 @@ data class NaviampConnectSettingsUi(
     val pendingControllerName: String? = null,
     val selectedTargetId: String? = null,
     val status: String? = null,
+    val localDeviceName: String = "This device",
+    val selectedPlaybackDeviceId: String? = null,
+    val selectedPlaybackDeviceName: String? = null,
+    val playbackDestinationStatus: NaviampConnectPlaybackDestinationUiStatus =
+        NaviampConnectPlaybackDestinationUiStatus.Local,
     val connectedTargetName: String? = null,
     val connectedControllerDeviceId: String? = null,
     val connectedControllerName: String? = null,
@@ -58,6 +75,9 @@ data class NaviampConnectSettingsUi(
     val discoveredTargets: List<NaviampConnectDiscoveredTargetUi> = emptyList(),
     val trustedDevices: List<NaviampConnectTrustedDeviceUi> = emptyList(),
 ) {
+    val remoteOutputSelected: Boolean
+        get() = playbackDestinationStatus != NaviampConnectPlaybackDestinationUiStatus.Local
+
     val canAdvertise: Boolean
         get() = role == NaviampConnectUiRole.Target || role == NaviampConnectUiRole.ControllerAndTarget
 
@@ -75,6 +95,10 @@ data class NaviampConnectSettingsActions(
     val onRefreshTargets: () -> Unit,
     val onTargetSelected: (NaviampConnectDiscoveredTargetUi) -> Unit,
     val onTrustedDeviceSelected: (NaviampConnectTrustedDeviceUi) -> Unit,
+    val onPlaybackDeviceSelected: (String?) -> Unit,
+    val onLocalDeviceNameChanged: (String) -> Unit,
+    val onTrustedDeviceAliasChanged: (String, String) -> Unit,
+    val onForgetTrustedDevice: (String) -> Unit,
     val onPairingCodeChanged: (String) -> Unit,
     val onSubmitPairingCode: () -> Unit,
     val onApproveController: () -> Unit,
@@ -90,3 +114,14 @@ data class NaviampConnectSettingsActions(
     val onRejectProvisioning: () -> Unit,
     val remoteNowPlayingActions: NaviampNowPlayingActions,
 )
+
+fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {
+    val totals = names.groupingBy { it.lowercase() }.eachCount()
+    val seen = mutableMapOf<String, Int>()
+    return names.map { name ->
+        val key = name.lowercase()
+        if (totals[key] == 1) name else "$name (${(seen[key] ?: 0) + 1})".also {
+            seen[key] = (seen[key] ?: 0) + 1
+        }
+    }
+}

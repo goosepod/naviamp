@@ -60,15 +60,17 @@ class NaviampConnectAuthenticatedSession internal constructor(
     private val sendMutex = Mutex()
 
     suspend fun send(message: NaviampConnectMessage, requestId: String? = null) {
-        sendEnvelope(
+        sendMutex.withLock {
+            sendEnvelopeLocked(
             NaviampConnectEnvelope(
-            protocolVersion = protocolVersion,
-            sessionId = sessionId,
-            sequence = nextOutboundSequence,
-            requestId = requestId,
-            message = message,
+                protocolVersion = protocolVersion,
+                sessionId = sessionId,
+                sequence = nextOutboundSequence,
+                requestId = requestId,
+                message = message,
             ),
-        )
+            )
+        }
     }
 
     suspend fun sendEnvelope(envelope: NaviampConnectEnvelope) = sendMutex.withLock {
@@ -76,6 +78,18 @@ class NaviampConnectAuthenticatedSession internal constructor(
         require(envelope.protocolVersion == protocolVersion) { "The authenticated protocol version changed." }
         require(envelope.sessionId == sessionId) { "The authenticated session ID changed." }
         require(envelope.sequence == nextOutboundSequence) { "The authenticated sequence is not contiguous." }
+        sendEnvelopeLocked(envelope)
+    }
+
+    /** Assigns the wire sequence under the session mutex so independent message producers cannot race. */
+    suspend fun sendOrderedEnvelope(envelope: NaviampConnectEnvelope) = sendMutex.withLock {
+        check(!closed) { "The authenticated Connect session is closed." }
+        require(envelope.protocolVersion == protocolVersion) { "The authenticated protocol version changed." }
+        require(envelope.sessionId == sessionId) { "The authenticated session ID changed." }
+        sendEnvelopeLocked(envelope.copy(sequence = nextOutboundSequence))
+    }
+
+    private suspend fun sendEnvelopeLocked(envelope: NaviampConnectEnvelope) {
         val packet = NaviampConnectTransportPacket.Encrypted(channel.seal(envelope))
         connection.send(NaviampConnectTransportPacketCodec.encode(packet))
         nextOutboundSequence += 1

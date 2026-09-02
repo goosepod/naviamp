@@ -1,11 +1,14 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.connect.NaviampConnectCapability
+import app.naviamp.domain.connect.NaviampConnectClearUpNext
 import app.naviamp.domain.connect.NaviampConnectCommand
 import app.naviamp.domain.connect.NaviampConnectDevice
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
 import app.naviamp.domain.connect.NaviampConnectPlaybackSnapshot
 import app.naviamp.domain.connect.NaviampConnectPlaybackState
+import app.naviamp.domain.connect.NaviampConnectPause
+import app.naviamp.domain.connect.NaviampConnectPlay
 import app.naviamp.domain.connect.NaviampConnectQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectQueueSnapshot
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
@@ -18,6 +21,7 @@ import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
 import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingPlaybackAction
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingSelectionAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,6 +36,7 @@ class NaviampCoreConnectRemoteNowPlayingTest {
 
         assertEquals("Current", ui.title)
         assertEquals("Playing on Living Room TV", ui.stateLabel)
+        assertEquals("Living Room TV", ui.remoteOutputDeviceName)
         assertEquals(12.5, ui.positionSeconds)
         assertEquals(NaviampRepeatMode.Queue, ui.repeatMode)
         assertTrue(ui.canFavorite)
@@ -60,12 +65,40 @@ class NaviampCoreConnectRemoteNowPlayingTest {
         actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
         actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
         actions.selectItem(snapshot.toRemoteNowPlayingUi("TV").upNext.last(), NowPlayingSelectionAction.SelectQueueItem)
+        actions.emptyQueue()
 
         assertEquals(NaviampConnectSeek(42_250), sent[0])
         assertEquals(NaviampConnectSetShuffle(true), sent[1])
         assertEquals(NaviampConnectSetRepeat(NaviampConnectRepeatMode.One), sent[2])
         assertEquals(NaviampConnectSetFavorite("current", false), sent[3])
         assertEquals(NaviampConnectSelectQueueOccurrence("2:third"), sent[4])
+        assertEquals(NaviampConnectClearUpNext, sent[5])
+    }
+
+    @Test
+    fun genericPlayPauseIntentFollowsTheAuthoritativeRemoteState() {
+        val playing = snapshot()
+        val paused = playing.copy(
+            playback = playing.playback.copy(state = NaviampConnectPlaybackState.Paused),
+        )
+        val request = NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.PlayCurrent)
+
+        assertEquals(NaviampConnectPause, request.toNaviampConnectPlaybackCommand(playing))
+        assertEquals(NaviampConnectPlay, request.toNaviampConnectPlaybackCommand(paused))
+    }
+
+    @Test
+    fun remoteOutputActionStopsControllingWithoutRevokingTrust() {
+        var stopped = false
+        val actions = createNaviampCoreConnectRemoteNowPlayingActions(
+            snapshot = ::snapshot,
+            send = {},
+            onStopControlling = { stopped = true },
+        )
+
+        actions.onRemoteOutputAction()
+
+        assertTrue(stopped)
     }
 
     private fun snapshot() = NaviampConnectTargetSnapshot(
@@ -81,6 +114,7 @@ class NaviampCoreConnectRemoteNowPlayingTest {
             NaviampConnectCapability.QueueSelect,
             NaviampConnectCapability.QueueEdit,
             NaviampConnectCapability.QueueReorder,
+            NaviampConnectCapability.QueueClear,
         ),
         playback = NaviampConnectPlaybackSnapshot(
             state = NaviampConnectPlaybackState.Playing,

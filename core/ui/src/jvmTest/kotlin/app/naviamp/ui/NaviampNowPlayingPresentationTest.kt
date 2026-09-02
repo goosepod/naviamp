@@ -101,6 +101,26 @@ class NaviampNowPlayingPresentationTest {
     }
 
     @Test
+    fun failedPlaybackCanBeRetriedFromNowPlaying() {
+        val capabilities = nowPlayingTrackCapabilities(
+            isLiveStream = false,
+            playbackState = PlaybackState.Error("No route to host"),
+        )
+
+        assertTrue(capabilities.canPlayPause)
+    }
+
+    @Test
+    fun remoteOutputKeepsTheNowPlayingActionMenuAvailableForDisconnect() {
+        val nowPlaying = input(track = null).toPresentationUi().nowPlaying.copy(
+            menuEnabled = false,
+            remoteOutputDeviceName = "Living Room TV",
+        )
+
+        assertTrue(nowPlayingActionMenuEnabled(nowPlaying))
+    }
+
+    @Test
     fun radioPresentationUsesStreamMetadataAndDisablesSeek() {
         val station = InternetRadioStation("radio", "Station", "https://example.test/radio")
 

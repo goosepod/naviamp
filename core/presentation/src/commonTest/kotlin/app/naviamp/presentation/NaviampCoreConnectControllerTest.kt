@@ -28,8 +28,10 @@ import app.naviamp.app.NaviampConnectTransportListener
 import app.naviamp.app.NaviampConnectTrustRepository
 import app.naviamp.app.NaviampConnectTrustStorageEffect
 import app.naviamp.ui.NaviampConnectPairingUiPhase
+import app.naviamp.ui.NaviampConnectUiRole
 import app.naviamp.domain.connect.NaviampConnectAdvertisement
 import app.naviamp.domain.connect.NaviampConnectDevice
+import app.naviamp.domain.connect.NaviampConnectDeviceCapability
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
 import app.naviamp.domain.connect.NaviampConnectDiscoveryMetadata
 import app.naviamp.domain.connect.NaviampConnectProtocolRange
@@ -49,6 +51,118 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCoreConnectControllerTest {
+    @Test
+    fun armedRemoteUsesTheLocalQueueUntilFirstPlayRegardlessOfTheTargetsOldQueue() {
+        assertEquals(
+            NaviampCoreConnectPlaybackRoute.Local,
+            naviampCoreConnectPlaybackRoute(
+                remoteAuthorityActive = false,
+                hasLocalCurrent = true,
+                action = app.naviamp.ui.NowPlayingPlaybackAction.Pause,
+            ),
+        )
+        assertEquals(
+            NaviampCoreConnectPlaybackRoute.InitialHandoff,
+            naviampCoreConnectPlaybackRoute(
+                remoteAuthorityActive = false,
+                hasLocalCurrent = true,
+                action = app.naviamp.ui.NowPlayingPlaybackAction.PlayCurrent,
+            ),
+        )
+        assertEquals(
+            NaviampCoreConnectPlaybackRoute.Remote,
+            naviampCoreConnectPlaybackRoute(
+                remoteAuthorityActive = true,
+                hasLocalCurrent = true,
+                action = app.naviamp.ui.NowPlayingPlaybackAction.PlayCurrent,
+            ),
+        )
+    }
+
+    @Test
+    fun dualCapabilityDeviceListensAndDiscoversWithPerSessionRoles() {
+        var storedTrust: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = storedTrust
+            override fun write(value: String) { storedTrust = value }
+        })
+        val deviceCapabilities = setOf(
+            NaviampConnectDeviceCapability.ControlPlayback,
+            NaviampConnectDeviceCapability.PlaybackTarget,
+        )
+        trust.upsert(
+            NaviampConnectTrustRecord(
+                trustedDeviceId = "trusted-peer",
+                peerDevice = NaviampConnectDevice(
+                    deviceId = "peer",
+                    displayName = "Other Naviamp",
+                    role = NaviampConnectDeviceRole.Target,
+                    deviceCapabilities = deviceCapabilities,
+                ),
+                identityFingerprint = "peer-fingerprint",
+                publicKeyBase64 = "peer-key",
+                pairedAtEpochMillis = 1L,
+            ),
+        )
+        val credentials = app.naviamp.app.NaviampConnectSessionCredentialRepository(
+            object : app.naviamp.app.NaviampConnectSessionCredentialStorageEffect {
+                private var credential: ByteArray? = byteArrayOf(1, 2, 3)
+                override fun read(peerDeviceId: String) = credential?.copyOf()
+                override fun write(peerDeviceId: String, value: ByteArray) { credential = value.copyOf() }
+                override fun remove(peerDeviceId: String) { credential = null }
+                override fun contains(peerDeviceId: String) = credential != null
+            },
+        )
+        val advertising = RecordingAdvertisingEffect()
+        val discovery = RecordingDiscoveryEffect()
+        val listener = WaitingListener(42_425)
+        var listenCount = 0
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(
+            scope = CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
+            stateStore = store,
+            services = NaviampCoreConnectServices(
+                deviceCapabilities = deviceCapabilities,
+                displayName = "Office Phone",
+                identity = FakeIdentity,
+                identityVerifier = FakeIdentityVerifier,
+                transport = object : NaviampConnectTransportFactory {
+                    override suspend fun connect(host: String, port: Int) = error("unused")
+                    override fun listen(port: Int): NaviampConnectTransportListener {
+                        listenCount += 1
+                        return listener
+                    }
+                },
+                pake = UnusedPakeFactory,
+                cipher = UnusedCipherFactory,
+                trust = trust,
+                credentials = credentials,
+                discovery = discovery,
+                advertising = advertising,
+                newOpaqueId = generateSequence(0) { it + 1 }
+                    .map { "opaque-$it" }
+                    .iterator()::next,
+                newPairingCode = { "123456" },
+                nowEpochMillis = { 1_000L },
+            ),
+        )
+
+        assertEquals(1, listenCount)
+        assertEquals(1, discovery.startCount)
+        assertEquals(
+            deviceCapabilities,
+            advertising.service?.let { service ->
+                NaviampConnectDiscoveryMetadata.decode(
+                    attributes = service.textAttributes,
+                    port = service.port,
+                    expiresAtEpochMillis = Long.MAX_VALUE,
+                )?.deviceCapabilities
+            },
+        )
+        assertEquals(NaviampConnectUiRole.ControllerAndTarget, store.state.value.shell.connect.role)
+        controller.close()
+    }
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
     fun trustedTargetAdvertisesAutomatically() = runTest {
@@ -74,7 +188,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
-                role = NaviampCoreConnectRole.Target,
+                deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities,
                 displayName = "Living Room TV",
                 identity = FakeIdentity,
                 identityVerifier = FakeIdentityVerifier,
@@ -136,7 +250,7 @@ class NaviampCoreConnectControllerTest {
             scope = CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
             stateStore = store,
             services = NaviampCoreConnectServices(
-                role = NaviampCoreConnectRole.Controller,
+                deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
                 identityVerifier = FakeIdentityVerifier,
@@ -186,7 +300,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = NaviampCoreStateStore(),
             services = NaviampCoreConnectServices(
-                role = NaviampCoreConnectRole.Controller,
+                deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
                 identityVerifier = FakeIdentityVerifier,
@@ -258,7 +372,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
-                role = NaviampCoreConnectRole.Controller,
+                deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
                 identityVerifier = FakeIdentityVerifier,
@@ -376,7 +490,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
-                role = NaviampCoreConnectRole.Target,
+                deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities,
                 displayName = "Living Room TV",
                 identity = FakeIdentity,
                 identityVerifier = FakeIdentityVerifier,
@@ -517,7 +631,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
-                role = NaviampCoreConnectRole.Controller,
+                deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
                 identityVerifier = FakeIdentityVerifier,
@@ -571,7 +685,7 @@ class NaviampCoreConnectControllerTest {
         scope = this,
         stateStore = store,
         services = NaviampCoreConnectServices(
-            role = NaviampCoreConnectRole.Target,
+            deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities,
             displayName = "Living Room TV",
             identity = FakeIdentity,
             identityVerifier = FakeIdentityVerifier,

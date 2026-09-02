@@ -261,9 +261,11 @@ fun NaviampConnectCommand.isNaviampConnectIdempotent(): Boolean = when (this) {
     is app.naviamp.domain.connect.NaviampConnectMoveQueueOccurrence,
     is app.naviamp.domain.connect.NaviampConnectRemoveQueueOccurrence,
     is app.naviamp.domain.connect.NaviampConnectStartMedia,
+    is app.naviamp.domain.connect.NaviampConnectQueueMedia,
     is app.naviamp.domain.connect.NaviampConnectHandoffQueue,
     is app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning,
     -> false
+    app.naviamp.domain.connect.NaviampConnectClearUpNext -> true
 }
 
 sealed interface NaviampConnectTargetCommandResult {
@@ -390,6 +392,7 @@ class NaviampConnectTargetSession(
         val requestedSourceIdentity = when (command) {
             is NaviampConnectHandoffQueue -> command.sourceIdentity
             is NaviampConnectStartMedia -> command.sourceIdentity
+            is app.naviamp.domain.connect.NaviampConnectQueueMedia -> command.sourceIdentity
             else -> null
         }
         if (requestedSourceIdentity != null &&

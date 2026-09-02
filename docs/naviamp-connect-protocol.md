@@ -1,15 +1,17 @@
 # Naviamp Connect Protocol
 
-Status: protocol version 1 draft; shared protocol, session state machines, Core pairing runtime and
-lifecycle controller, Android/Desktop J-PAKE, authenticated-channel policy, AES-256-GCM, framed TCP,
+Status: protocol version 1 implementation in active acceptance; shared protocol, session state
+machines, Core pairing runtime and lifecycle controller, Android/Desktop J-PAKE,
+authenticated-channel policy, AES-256-GCM, framed TCP,
 durable identity proof, Android trust persistence, and Android pairing UI are implemented. Playback
 state now has a Core-owned authoritative snapshot projection. Android pairing retains the encrypted
 session and supports capability-gated transport, seeking, favorites, repeat, shuffle, and queue
 commands with revisioned reconciliation. Connected targets render through the shared phone/Desktop
 Now Playing controller surface. Same-source local-to-target queue handoff and controller-side
 catalog/Internet Radio playback routing, assisted connection provisioning, and reverse
-target-to-controller handoff are implemented. Revoke/rename management, non-Android host effects,
-and Apple key lifecycle remain pending.
+target-to-controller handoff, automatic trusted reconnect, output selection, and friendly-name,
+local-alias, and revoke management are implemented. Desktop discovery/advertising and secure-value
+effects are wired; Apple networking, PAKE, and key lifecycle remain pending.
 
 ## Purpose
 
@@ -132,15 +134,18 @@ is active, and discovery alone never enables commands or connection provisioning
 1. Shared versioned protocol, pairing/session state machines, validation, and deterministic fake
    transport tests. **Implemented.**
 2. Shared discovery/advertising coordinators and narrow native DNS-SD adapters, with no command
-   socket. **Shared coordinators plus Android browsing and registration implemented and verified
-   between a physical Pixel and the Android TV emulator; other platforms pending.**
+   policy in the host. **Shared coordinators plus Android browsing/registration and Desktop JmDNS
+   browsing/registration are implemented. Android is verified between a physical Pixel and the TV
+   emulator; Desktop live interoperability and Apple remain pending.**
 3. Reviewed PAKE, identity, secure-storage, and encrypted-session adapters. **Android/Desktop
    J-PAKE, AES-256-GCM, bounded framed TCP, Core pairing orchestration, and Android Keystore identity
    implemented; Android durable trust persistence is implemented; Apple adapters remain pending.**
 4. TV pairing UI and phone/Desktop playback-target selection, permission, expiry, revoke, and
    recovery flows.
    **Android TV pairing/approval and Android phone discovery/code entry are wired to the shared Core
-   lifecycle. Rename/revoke, stronger recovery presentation, and Desktop/Apple host wiring remain.**
+   lifecycle. Shared output selection, self-name/local-alias editing, revoke, and automatic trusted
+   reconnect are implemented. Stronger diagnostics/recovery presentation, Desktop live acceptance,
+   and Apple host wiring remain.**
 5. Shared playback projection, target command executor, and shared remote Now Playing controller
    surface wired to the existing shared playback owner. **Implemented for transport, seeking,
    favorites, repeat, shuffle, queue selection, Play Next, reorder, removal, catalog playback, and
@@ -176,11 +181,20 @@ Android, Desktop/JVM, and iOS Simulator ARM64. Android now injects the real effe
 Controllers page starts a bound listener, advertises its actual port and identity, displays the
 short code, and requires explicit approval; the standard Android settings page discovers targets
 and accepts the code. A production smoke run verified both screens on the TV emulator and physical
-Pixel 10a. The emulator's NAT topology prevents the unmodified phone UI from reaching its private
-target address, so the relayed instrumentation test remains the authoritative physical-device
-encrypted-pairing acceptance for that topology.
+Pixel 10a. The emulator's NAT topology prevents a physical phone from directly reaching its private
+target address. A test-build endpoint override now bridges only that route, allowing the ordinary
+phone/TV product UI to exercise pairing, remembered reconnect, output switching, and remote
+playback while leaving production discovery, trust, protocol, and playback behavior unchanged.
 The retained-session acceptance now sends encrypted Play, a same-source queue handoff, a same-source
 album start, an Internet Radio station start, and a provisioning offer, verifying acknowledgements
 and authoritative updated snapshots on the physical Pixel 10a. Common tests cover remote
 Now Playing projection and translation of shared UI actions into absolute Connect commands; Android,
 Desktop, and iOS Simulator builds compile the same controller surface.
+
+On 2026-09-02, the physical Pixel 10a and Android TV emulator retained their existing trust across
+app updates, reconnected without pairing, switched from TV output back to the phone without stopping
+the TV, and selected the remembered TV again from Now Playing. The controller menu correctly marked
+the active output, kept **Stop controlling** first, and both crash buffers remained empty. A separate
+first-Play run began with different phone and TV queues, atomically installed the phone's 38-item
+queue on the TV, started the selected track through the TV's native BASS engine, and then accepted
+phone Pause and Resume commands.

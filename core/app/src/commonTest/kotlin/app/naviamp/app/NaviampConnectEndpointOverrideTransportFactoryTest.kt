@@ -25,6 +25,23 @@ class NaviampConnectEndpointOverrideTransportFactoryTest {
         assertEquals(42_427, delegate.lastListenPort)
     }
 
+    @Test
+    fun canReplaceThePortWithoutChangingUnmatchedEndpoints() = runTest {
+        val delegate = RecordingTransportFactory()
+        val transport = NaviampConnectEndpointOverrideTransportFactory(
+            delegate = delegate,
+            overriddenHosts = setOf("10.0.2.15"),
+            replacementHost = "127.0.0.1",
+            replacementPort = 42_424,
+        )
+
+        transport.connect("10.0.2.15", 42_425)
+        assertEquals("127.0.0.1" to 42_424, delegate.lastConnection)
+
+        transport.connect("192.168.1.80", 42_426)
+        assertEquals("192.168.1.80" to 42_426, delegate.lastConnection)
+    }
+
     private class RecordingTransportFactory : NaviampConnectTransportFactory {
         val connection = object : NaviampConnectTransportConnection {
             override val remoteAddress = "test"

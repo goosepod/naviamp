@@ -17,6 +17,7 @@ import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 class NaviampCoreConnectTargetSnapshotFactoryTest {
     private val factory = NaviampCoreConnectTargetSnapshotFactory(
@@ -106,6 +107,27 @@ class NaviampCoreConnectTargetSnapshotFactoryTest {
         assertEquals(NaviampConnectRepeatMode.All, handoff.repeatMode)
         assertEquals(true, handoff.shuffled)
         assertEquals(true, handoff.playing)
+    }
+
+    @Test
+    fun firstRemotePlayCanStartAPausedControllerQueue() {
+        val current = track("current", "Current")
+
+        val handoff = naviampCoreConnectQueueHandoff(
+            live = NaviampLivePlaybackState(
+                currentTrack = current,
+                queue = PlaybackQueue(listOf(current), currentIndex = 0),
+                playbackState = PlaybackState.Paused,
+            ),
+            sourceIdentity = NaviampConnectSourceIdentity(
+                providerId = "navidrome",
+                canonicalServerOrigin = "https://music.example.test",
+                accountIdentity = "listener",
+            ),
+            playing = true,
+        )
+
+        assertTrue(handoff.playing)
     }
 
     private fun track(id: String, title: String, favorite: Boolean = false) = Track(

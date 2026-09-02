@@ -10,6 +10,8 @@ data class NaviampConnectTrustRecord(
     val publicKeyBase64: String,
     val pairedAtEpochMillis: Long,
     val displayName: String = peerDevice.displayName,
+    /** Optional name chosen only on this installation. Never advertised to the peer. */
+    val localAlias: String? = null,
     val lastKnownEndpoint: NaviampConnectTrustedEndpoint? = null,
 ) {
     init {
@@ -17,6 +19,23 @@ data class NaviampConnectTrustRecord(
         require(identityFingerprint.isNotBlank()) { "A trusted identity fingerprint is required." }
         require(publicKeyBase64.isNotBlank()) { "A trusted public key is required." }
     }
+}
+
+fun NaviampConnectTrustRecord.visibleDisplayName(): String =
+    localAlias?.takeIf(String::isNotBlank)
+        ?: displayName.takeIf { it.isNotBlank() && it != peerDevice.displayName }
+        ?: peerDevice.displayName
+
+/**
+ * Projects durable device trust into one session direction without minting a second trust record.
+ * The peer identity, key, credential lookup ID, name, and advertised device capabilities remain
+ * unchanged; only its role in the new authenticated session changes.
+ */
+fun NaviampConnectTrustRecord.forPeerSessionRole(
+    role: NaviampConnectDeviceRole,
+): NaviampConnectTrustRecord {
+    require(peerDevice.canActAs(role)) { "The trusted peer does not support the requested session role." }
+    return if (peerDevice.role == role) this else copy(peerDevice = peerDevice.copy(role = role))
 }
 
 /** Last authenticated network route for a trusted peer; it contains no secret material. */

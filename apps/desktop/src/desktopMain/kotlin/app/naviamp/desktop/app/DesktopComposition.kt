@@ -7,7 +7,9 @@ import app.naviamp.app.JvmNaviampConnectTcpTransportFactory
 import app.naviamp.app.NaviampConnectEndpointOverrideTransportFactory
 import app.naviamp.app.NaviampConnectSessionCredentialRepository
 import app.naviamp.app.NaviampConnectTrustRepository
+import app.naviamp.desktop.connect.DesktopNaviampConnectAdvertisingEffect
 import app.naviamp.desktop.connect.DesktopNaviampConnectDiscoveryEffect
+import app.naviamp.desktop.connect.DesktopNaviampConnectNetwork
 import app.naviamp.desktop.connect.DesktopNaviampConnectStorageEffects
 import app.naviamp.desktop.platform.desktopCoreDiagnosticsPort
 import app.naviamp.desktop.playback.bass.DesktopBassPlaybackEngineRuntime
@@ -27,7 +29,7 @@ import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreHomeDateSource
-import app.naviamp.presentation.NaviampCoreConnectRole
+import app.naviamp.presentation.NaviampCoreBidirectionalConnectCapabilities
 import app.naviamp.presentation.NaviampCoreConnectServices
 import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.migrateLegacyNaviampPlaybackSession
@@ -45,7 +47,6 @@ import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import app.naviamp.storage.StorageImageCacheRepository
 import java.nio.file.Files
 import java.nio.file.Path
-import java.net.InetAddress
 import java.security.SecureRandom
 import java.time.Instant
 import java.time.LocalDateTime
@@ -86,11 +87,10 @@ internal class DesktopComposition private constructor(
                 } ?: transport
             }
             val secureRandom = SecureRandom()
+            val connectNetwork = DesktopNaviampConnectNetwork()
             val connectServices = NaviampCoreConnectServices(
-                role = NaviampCoreConnectRole.Controller,
-                displayName = runCatching { InetAddress.getLocalHost().hostName }.getOrNull()
-                    ?.takeIf(String::isNotBlank)
-                    ?: "Naviamp Desktop",
+                deviceCapabilities = NaviampCoreBidirectionalConnectCapabilities,
+                displayName = "Naviamp Desktop",
                 identity = connectStorage,
                 identityVerifier = JvmNaviampConnectIdentityVerifier,
                 transport = connectTransport,
@@ -98,7 +98,8 @@ internal class DesktopComposition private constructor(
                 cipher = JvmNaviampConnectAuthenticatedCipherFactory,
                 trust = NaviampConnectTrustRepository(connectStorage),
                 credentials = NaviampConnectSessionCredentialRepository(connectStorage),
-                discovery = DesktopNaviampConnectDiscoveryEffect(),
+                discovery = DesktopNaviampConnectDiscoveryEffect(connectNetwork),
+                advertising = DesktopNaviampConnectAdvertisingEffect(connectNetwork),
                 newOpaqueId = { UUID.randomUUID().toString() },
                 newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
                 nowEpochMillis = nowEpochMillis,

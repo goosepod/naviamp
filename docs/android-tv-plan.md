@@ -342,11 +342,12 @@ Reference:
   revision order, retry only idempotent requests, and reconcile after reconnect instead of assuming
   that a command succeeded.
 
-The version 1 protocol envelope, capability negotiation, connection identity, authority model, and
-initial pairing/session state machines are now drafted and covered by common fake-transport tests.
-The cryptographic dependency, production key lifecycle, channel binding, and complete threat model
-still require explicit approval before production network code is enabled. The current decisions and
-delivery gate are recorded in `docs/naviamp-connect-protocol.md`.
+The version 1 protocol envelope, capability negotiation, connection identity, authority model,
+pairing/session state machines, Android/Desktop J-PAKE, authenticated transport, durable Android
+identity/credentials, and production Android networking are implemented and covered by common,
+JVM, device, and live product-UI tests. Apple still requires an interoperable reviewed PAKE and its
+native networking/key-lifecycle adapters. Current details are recorded in
+`docs/naviamp-connect-protocol.md`.
 
 ## Architecture Placement
 
@@ -444,9 +445,9 @@ independent navigation graph may be introduced in the Apple TV host.
 
 #### Shared playback-control visual polish
 
-- [ ] Use the standard shared album-art-derived accent-color decision for TV waveform/progress
+- [x] Use the standard shared album-art-derived accent-color decision for TV waveform/progress
   instead of a fixed blue.
-- [ ] Smooth the TV waveform/progress geometry so bar gaps are not conspicuous at 1080p or 4K while
+- [x] Smooth the TV waveform/progress geometry so bar gaps are not conspicuous at 1080p or 4K while
   preserving seeking, progress, focus, and accessibility behavior.
 - [ ] Share the repeat-state icon set across phone, Desktop, and TV: Repeat All uses the repeat glyph
   with **A**, and Repeat One uses the repeat glyph with **1**. Remove the TV **ALL** treatment.
@@ -463,15 +464,17 @@ independent navigation graph may be introduced in the Apple TV host.
   transcript-bound session-key derivation, and failure/destruction tests.
 - [ ] Complete the pairing-management flow. Android TV pairing mode, explicit approval, Android
   phone discovery/code entry, expiring short codes, authenticated pairing, and durable Android
-  trust persistence are implemented; rename/revoke, fuller permission/error recovery, Desktop, and
-  Apple host wiring remain.
+  trust persistence, shared self-name/local-alias editing, revoke, and automatic reconnect are
+  implemented; fuller diagnostics/permission recovery, Desktop live acceptance, and Apple host
+  wiring remain.
 - [ ] Add narrow Android TV, Android phone, Desktop, iOS, and tvOS discovery, socket, and secure-key
   adapters while keeping protocol behavior in Core.
 - [x] Add the first-run assisted connection-provisioning transaction and portable-settings filter.
-- [ ] Add phone/Desktop playback-target selection and authoritative remote Now Playing snapshots.
+- [x] Add phone/Desktop playback-target selection and authoritative remote Now Playing snapshots.
   The Core projection from canonical playback/queue state into revisioned Connect snapshots is
   implemented, the post-pair session is retained, and a connected target is projected into the
-  existing shared phone/Desktop Now Playing surface. Explicit target switching remains.
+  existing shared phone/Desktop Now Playing surface. Now Playing exposes the local device and every
+  remembered compatible target, including direct detach/reconnect and selected-output state.
 - [x] Add remote transport, seeking, favorite, repeat, shuffle, Internet Radio, and queue control.
   Transport, seeking, repeat, shuffle, queue selection, upcoming reordering, and upcoming removal
   now execute through Core. Absolute favorite changes and the capability-limited shared controller
@@ -509,11 +512,11 @@ independent navigation graph may be introduced in the Apple TV host.
 #### Next Naviamp Connect slice
 
 The active sequence is maintained in
-[`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#implementation-order). The next
-slice generalizes phone and Desktop into capability-based controllers and playback targets, then
-makes remote output part of the ordinary Now Playing and queue experience. The Android phone-to-TV
-product flow remains the first acceptance topology, followed by physical Google TV, Desktop, and
-Apple coverage.
+[`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#implementation-order). Shared
+capability-based roles, ordinary Now Playing/queue routing, atomic first Play, output selection, and
+friendly names are complete. The next slice closes the Android phone/TV recovery matrix, then adds
+and validates non-TV playback targets and Apple host adapters. Physical Google TV, direct-LAN,
+Desktop live playback, and Apple coverage remain explicit acceptance work.
 
 ### M4: Physical-device acceptance
 
@@ -1109,3 +1112,30 @@ Apple coverage.
   queue handoff, connection provisioning, Internet Radio, and album command sequence. Production
   deadlines and transport behavior are unchanged. Added non-secret shared pairing failure stages
   so future device failures identify the last completed handshake phase.
+
+### 2026-09-02
+
+- Generalized Naviamp Connect roles in shared Core: phone and Desktop can act as controllers or
+  playback targets, while TV remains target-only. A single durable trust record and resumption
+  credential now survive role reversal, app updates, and ordinary reconnects.
+- Made remote output part of the normal shared Now Playing experience. The controller can select
+  local output or any remembered compatible target, sees a persistent **Playing back on** banner,
+  and can stop controlling from the first three-dot-menu action without revoking trust or changing
+  playback on the target.
+- Completed the atomic first-Play authority handoff. Selecting a target leaves both existing queues
+  untouched until Play or a new media selection, then transfers the controller queue, selected
+  occurrence, position, ordering state, and portable playback profile before starting a target-owned
+  stream. Fixed an authenticated outbound-sequence race between acknowledgements and snapshots.
+- Added shared self-name and controller-local alias editing, duplicate-name disambiguation, revoke,
+  legacy trust-record migration, and automatic remembered-device reconnect. Removed the old
+  connection-sharing and manual queue-transfer actions from the ordinary workflow.
+- Reworked the TV waveform to use the shared album-art-derived accent decision and a smooth
+  large-display path. Also corrected track-change waveform refresh, Now Playing Play focus/selection,
+  misleading persistent Play highlighting, and right-arrow access to the active queue row's actions.
+- Verified the retained-trust, detach, reconnect, output-selection, stop-controlling, and native TV
+  playback flows through the physical Pixel 10a and Android TV emulator product UI. A separate run
+  transferred a real 38-item phone queue on first Play and controlled TV Pause/Resume with empty
+  crash buffers. The emulator still needs a test-build route override for its private NAT address;
+  direct-LAN, physical Google TV, Desktop live playback, and Apple acceptance remain open.
+- Passed the shared Core app, presentation, and UI suites, Android assembly, Desktop compilation,
+  and iOS Simulator ARM64 compilation after the final Now Playing output-selector changes.

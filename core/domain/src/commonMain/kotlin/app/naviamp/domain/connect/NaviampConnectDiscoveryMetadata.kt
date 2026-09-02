@@ -81,6 +81,7 @@ private fun NaviampConnectCapability.discoveryToken(): String = when (this) {
     NaviampConnectCapability.QueueSelect -> "queue_select"
     NaviampConnectCapability.QueueEdit -> "queue_edit"
     NaviampConnectCapability.QueueReorder -> "queue_reorder"
+    NaviampConnectCapability.QueueClear -> "queue_clear"
     NaviampConnectCapability.CatalogPlayback -> "catalog"
     NaviampConnectCapability.InternetRadio -> "radio"
     NaviampConnectCapability.DisplayControl -> "display"
@@ -98,6 +99,7 @@ private fun naviampConnectCapabilityForDiscoveryToken(token: String): NaviampCon
     "queue_select" -> NaviampConnectCapability.QueueSelect
     "queue_edit" -> NaviampConnectCapability.QueueEdit
     "queue_reorder" -> NaviampConnectCapability.QueueReorder
+    "queue_clear" -> NaviampConnectCapability.QueueClear
     "catalog" -> NaviampConnectCapability.CatalogPlayback
     "radio" -> NaviampConnectCapability.InternetRadio
     "display" -> NaviampConnectCapability.DisplayControl

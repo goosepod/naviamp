@@ -1004,6 +1004,8 @@ data class NowPlayingUi(
     val subtitle: String,
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val stateLabel: String,
+    val remoteOutputDeviceName: String? = null,
+    val playbackOutputs: List<NaviampPlaybackOutputUi> = emptyList(),
     val coverArtUrl: String? = null,
     val trackCoverArtUrl: String? = coverArtUrl,
     val albumCoverArtUrl: String? = null,
@@ -1063,6 +1065,13 @@ data class NowPlayingUi(
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
     val radioDjs: List<RadioDjPreset> = emptyList(),
     val activeRadioDjId: String? = null,
+)
+
+data class NaviampPlaybackOutputUi(
+    val deviceId: String?,
+    val displayName: String,
+    val selected: Boolean,
+    val available: Boolean = true,
 )
 
 data class NaviampSleepTimerUi(

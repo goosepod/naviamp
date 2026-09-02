@@ -69,6 +69,7 @@ enum class NaviampConnectCapability {
     QueueSelect,
     QueueEdit,
     QueueReorder,
+    QueueClear,
     CatalogPlayback,
     InternetRadio,
     DisplayControl,
@@ -407,6 +408,10 @@ data class NaviampConnectMoveQueueOccurrence(
 data class NaviampConnectRemoveQueueOccurrence(val occurrenceId: String) : NaviampConnectCommand
 
 @Serializable
+@SerialName("clear_up_next")
+data object NaviampConnectClearUpNext : NaviampConnectCommand
+
+@Serializable
 @SerialName("request_snapshot")
 data object NaviampConnectRequestSnapshot : NaviampConnectCommand
 
@@ -423,6 +428,29 @@ data class NaviampConnectStartMedia(
     val shuffle: Boolean = false,
     val sourceIdentity: NaviampConnectSourceIdentity,
 ) : NaviampConnectCommand
+
+@Serializable
+@SerialName("queue_media")
+data class NaviampConnectQueueMedia(
+    val mediaType: NaviampConnectMediaType,
+    val mediaId: String,
+    val placement: NaviampConnectQueuePlacement,
+    val sourceIdentity: NaviampConnectSourceIdentity,
+) : NaviampConnectCommand {
+    init {
+        require(mediaType != NaviampConnectMediaType.InternetRadioStation) {
+            "Internet radio stations cannot be appended to a track queue."
+        }
+        require(mediaId.isNotBlank()) { "Queued media requires an ID." }
+    }
+}
+
+@Serializable
+enum class NaviampConnectQueuePlacement {
+    AddToQueue,
+    PlayNext,
+    PlayNextTrack,
+}
 
 @Serializable
 data class NaviampConnectProvisioningEndpoint(
@@ -531,12 +559,14 @@ fun NaviampConnectCommand.requiredCapability(): NaviampConnectCapability? = when
     is NaviampConnectSelectQueueOccurrence -> NaviampConnectCapability.QueueSelect
     is NaviampConnectMoveQueueOccurrence -> NaviampConnectCapability.QueueReorder
     is NaviampConnectRemoveQueueOccurrence -> NaviampConnectCapability.QueueEdit
+    NaviampConnectClearUpNext -> NaviampConnectCapability.QueueClear
     NaviampConnectRequestSnapshot -> NaviampConnectCapability.QueueRead
     is NaviampConnectShowSurface -> NaviampConnectCapability.DisplayControl
     is NaviampConnectStartMedia -> when (mediaType) {
         NaviampConnectMediaType.InternetRadioStation -> NaviampConnectCapability.InternetRadio
         else -> NaviampConnectCapability.CatalogPlayback
     }
+    is NaviampConnectQueueMedia -> NaviampConnectCapability.QueueEdit
     is NaviampConnectOfferConnectionProvisioning -> NaviampConnectCapability.ConnectionProvisioning
     is NaviampConnectHandoffQueue -> NaviampConnectCapability.QueueHandoff
 }

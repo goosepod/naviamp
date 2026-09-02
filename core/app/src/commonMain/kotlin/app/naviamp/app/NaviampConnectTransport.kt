@@ -43,15 +43,24 @@ class NaviampConnectEndpointOverrideTransportFactory(
     private val delegate: NaviampConnectTransportFactory,
     private val overriddenHosts: Set<String>,
     private val replacementHost: String,
+    private val replacementPort: Int? = null,
 ) : NaviampConnectTransportFactory {
     init {
         require(overriddenHosts.isNotEmpty()) { "At least one overridden host is required." }
         require(overriddenHosts.none(String::isBlank)) { "Overridden hosts must not be blank." }
         require(replacementHost.isNotBlank()) { "The replacement host must not be blank." }
+        require(replacementPort == null || replacementPort in 1..65_535) {
+            "The replacement port must be a valid TCP port."
+        }
     }
 
-    override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection =
-        delegate.connect(host.takeUnless(overriddenHosts::contains) ?: replacementHost, port)
+    override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection {
+        val shouldOverride = host in overriddenHosts
+        return delegate.connect(
+            host = if (shouldOverride) replacementHost else host,
+            port = if (shouldOverride) replacementPort ?: port else port,
+        )
+    }
 
     override fun listen(port: Int): NaviampConnectTransportListener = delegate.listen(port)
 }

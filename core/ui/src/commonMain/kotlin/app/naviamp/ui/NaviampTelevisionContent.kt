@@ -1419,6 +1419,7 @@ internal fun TelevisionNowPlaying(
     nowPlaying: NowPlayingUi,
     playbackProgress: StateFlow<PlaybackProgress>?,
     colors: NaviampColors,
+    playerColors: NaviampPlayerColors = NaviampPlayerColors.fallback(colors),
     actions: NaviampNowPlayingActions,
     interactive: Boolean = true,
     onClose: () -> Unit,
@@ -1613,7 +1614,8 @@ internal fun TelevisionNowPlaying(
                     enabled = false,
                     smoothProgress = nowPlaying.isPlaying,
                     durationSeconds = duration,
-                    colors = colors,
+                    continuousWaveform = true,
+                    colors = colors.copy(accent = playerColors.accent),
                     onValueChange = {},
                     onValueChangeFinished = {},
                     modifier = Modifier.weight(1f).height(listeningScrubberHeight),
@@ -1882,6 +1884,13 @@ private fun TelevisionNowPlayingQueue(
                 .testTag(TelevisionNowPlayingQueueCurrentTestTag)
                 .onPreviewKeyEvent { event ->
                     if (
+                        !stationMode &&
+                        event.type == KeyEventType.KeyDown &&
+                        event.key == Key.DirectionRight
+                    ) {
+                        onOpenActions(currentItem)
+                        true
+                    } else if (
                         event.type == KeyEventType.KeyDown &&
                         event.key == Key.DirectionDown &&
                         upcomingFocusRequesters.isNotEmpty()
@@ -2201,6 +2210,12 @@ internal fun TelevisionIconButton(
     val localFocusRequester = remember { FocusRequester() }
     val effectiveFocusRequester = focusRequester ?: localFocusRequester
     val shape = RoundedCornerShape(999.dp)
+    val usesLightSurface = televisionIconButtonUsesLightSurface(
+        focused = focused,
+        selected = selected,
+        whiteHighlight = whiteHighlight,
+        selectedKeepsDarkBackground = selectedKeepsDarkBackground,
+    )
     LaunchedEffect(Unit) {
         if (initiallyFocused && enabled) {
             repeat(TelevisionFocusRequestAttempts) {
@@ -2231,23 +2246,22 @@ internal fun TelevisionIconButton(
             .clip(shape)
             .background(
                 when {
-                    whiteHighlight && (focused || (selected && !selectedKeepsDarkBackground) || prominent) ->
+                    usesLightSurface ->
                         colors.primaryText
                     selected && selectedKeepsDarkBackground -> colors.controlSurface.copy(alpha = 0.9f)
                     focused -> colors.accent.copy(alpha = if (prominent) 0.96f else 0.82f)
-                    prominent -> colors.primaryText
+                    prominent -> colors.controlSurface.copy(alpha = 0.9f)
                     selected -> colors.accent.copy(alpha = 0.32f)
                     else -> colors.controlSurface.copy(alpha = 0.9f)
                 },
             ),
     ) {
-        val useDarkIcon = prominent || (whiteHighlight && (focused || selected))
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 icon,
                 contentDescription = description,
                 tint = iconTint
-                    ?: if (useDarkIcon) colors.background
+                    ?: if (usesLightSurface) colors.background
                     else if (enabled) colors.primaryText
                     else colors.mutedText,
                 modifier = Modifier.size(iconSize),
@@ -2255,7 +2269,7 @@ internal fun TelevisionIconButton(
             centerText?.let {
                 Text(
                     it,
-                    color = if (useDarkIcon) colors.background else colors.primaryText,
+                    color = if (usesLightSurface) colors.background else colors.primaryText,
                     fontSize = if (it.length > 1) 7.sp else 10.sp,
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Center,
@@ -2264,6 +2278,14 @@ internal fun TelevisionIconButton(
         }
     }
 }
+
+internal fun televisionIconButtonUsesLightSurface(
+    focused: Boolean,
+    selected: Boolean,
+    whiteHighlight: Boolean,
+    selectedKeepsDarkBackground: Boolean,
+): Boolean =
+    whiteHighlight && (focused || (selected && !selectedKeepsDarkBackground))
 
 internal fun televisionRepeatModeDescription(mode: NaviampRepeatMode): String = when (mode) {
     NaviampRepeatMode.Off -> "Repeat off"
