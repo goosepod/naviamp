@@ -24,7 +24,7 @@ import kotlinx.serialization.json.jsonPrimitive
 
 private const val BaseUrl = "https://musicbrainz.org"
 private const val UserAgent =
-    "NaviampGenreOntologyImporter/0.1 (https://forgejo.goosepod.lan/ursasmar/naviamp)"
+    "NaviampGenreOntologyImporter/0.1 (https://github.com/goosepod/naviamp)"
 
 private val json = Json {
     encodeDefaults = true

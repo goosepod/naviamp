@@ -19,8 +19,9 @@ states as if they were shipped behavior.
 - The TV experience is intentionally quieter than phone and Desktop, not artificially incapable.
 - Connection creation, editing, deletion, source switching, playback, queue control, recovery, and
   diagnostics remain available with only the TV remote and platform text-entry UI.
-- Phone and Desktop controllers browse with their normal full UI while targeting the TV for
-  playback. Closing a controller does not stop TV playback.
+- Phone and Desktop controllers browse with their normal full UI while targeting another Naviamp
+  playback device. Phone and Desktop may also be playback targets; Television is target-only.
+  Closing a controller does not stop target playback.
 - When the TV owns playback, only the TV reports its playback lifecycle to the provider.
 - Lyrics are the primary living-room presentation enhancement. A high-performance visualizer is a
   later TV playback milestone rather than a prerequisite for the usable browsing and playback UI.
@@ -215,6 +216,9 @@ and other pointer/touch-specific preferences do not appear in the TV surface.
 Naviamp Connect is the provider-neutral local playback-target system for phone, Desktop, and future
 TV/headless clients. It is more important than Google Cast because it can preserve Naviamp queue
 groups, playback profiles, errors, lyrics, and reporting behavior on every Naviamp controller.
+The canonical device-neutral product behavior and implementation checklist now live in
+[`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md). This TV plan retains the
+Television-specific requirements and evidence.
 
 ### Local-network boundary and interoperability
 
@@ -225,9 +229,9 @@ groups, playback profiles, errors, lyrics, and reporting behavior on every Navia
   local-link discovery does not cross routers. Guest-network isolation, VLAN policy, or blocked
   multicast may prevent discovery even when devices appear to use the same Wi-Fi name; the UI must
   distinguish permission denial, no targets found, and a discovered target that cannot be reached.
-- The wire protocol is platform-neutral and versioned. Android phone can control Android TV or
-  tvOS; iPhone can control Android TV or tvOS; and macOS, Windows, or Linux Desktop can control
-  either TV family.
+- The wire protocol is platform-neutral and versioned. Phone and Desktop advertise independent
+  controller and playback-target capabilities; Television advertises playback-target capability
+  only.
 - Shared Core owns discovery results, capabilities, pairing state, trust state, commands, snapshots,
   reconciliation, disconnect behavior, and user-facing status. Android NSD, Apple Bonjour/Network
   framework, and Desktop DNS-SD implementations are narrow discovery and socket effects only.
@@ -255,9 +259,9 @@ Reference constraints:
   reporting, and standalone operation unchanged.
 - Handoff transfers queue occurrences, group/priority state, current occurrence, position, repeat,
   shuffle, and resolved playback-profile intent before changing authority.
-- Phone and Desktop browse through their normal full Naviamp interface while a selected TV is the
-  playback target. Browse state can remain local, but playback and queue intents are executed by the
-  TV and reconciled from its authoritative snapshots.
+- Phone and Desktop browse through their normal full Naviamp interface while another Naviamp device
+  is the selected playback target. Browse state can remain local, but playback and queue intents are
+  executed by the target and reconciled from its authoritative snapshots.
 - Remote control includes play/pause, previous/next, seeking, favorite, repeat, shuffle, queue
   selection and editing, radio/album/playlist playback, and compatible playback preferences. TV
   display selection may also expose explicit commands such as showing Now Playing, Lyrics, or Queue.
@@ -309,9 +313,10 @@ Reference:
   Core defines that identity from provider type, canonical server origin, account identity, and
   selected library identifiers. Connection display names, local database IDs, and credential
   rotation do not by themselves make two otherwise identical sources different.
-- If identities match, the controller sends provider media identifiers plus Naviamp queue state,
-  never authenticated stream URLs. The target resolves and validates those identifiers through its
-  own provider session before taking authority.
+- If identities match, the controller sends provider media identifiers, compatible media metadata,
+  and Naviamp queue state, never authenticated stream URLs. The target creates stream requests with
+  its own provider session and may enrich or validate transferred metadata asynchronously so queue
+  handoff does not unnecessarily delay the first track.
 - A handoff preserves duplicate occurrences, queue-group and Play Next priority, current occurrence,
   playback position, repeat, shuffle, and resolved playback-profile intent. Authority changes only
   after the target acknowledges a valid complete handoff; failure leaves source playback unchanged.
@@ -437,6 +442,18 @@ independent navigation graph may be introduced in the Apple TV host.
   reporting through sustained real playback rather than settings/UI inspection alone.
 - [ ] Add remote/process/network recovery tests.
 
+#### Shared playback-control visual polish
+
+- [ ] Use the standard shared album-art-derived accent-color decision for TV waveform/progress
+  instead of a fixed blue.
+- [ ] Smooth the TV waveform/progress geometry so bar gaps are not conspicuous at 1080p or 4K while
+  preserving seeking, progress, focus, and accessibility behavior.
+- [ ] Share the repeat-state icon set across phone, Desktop, and TV: Repeat All uses the repeat glyph
+  with **A**, and Repeat One uses the repeat glyph with **1**. Remove the TV **ALL** treatment.
+- [ ] Complete cross-platform size, selected/focus-state, contrast, and accessibility acceptance for
+  both changes. Detailed criteria are tracked in
+  [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#shared-playback-control-polish).
+
 ### M3: Naviamp Connect
 
 - [ ] Approve the versioned envelope, capability negotiation, connection identity, pairing threat
@@ -491,23 +508,12 @@ independent navigation graph may be introduced in the Apple TV host.
 
 #### Next Naviamp Connect slice
 
-1. Add a debug-only emulator endpoint bridge so the normal Pixel phone UI can pair with and control
-   the Android TV AVD through the development Mac. Keep the production discovery and LAN transport
-   unchanged; the bridge only compensates for the AVD advertising its unreachable `10.0.2.15` NAT
-   address. Re-run pairing, transport, queue handoff, catalog playback, Internet Radio, and assisted
-   provisioning through the actual shared settings and Now Playing surfaces.
-2. Finish Android pairing management: explicit active-target selection, trusted-device rename and
-   revoke, one-tap authenticated reconnect that reuses durable trust, a controller-side Stop
-   controlling action that leaves target playback untouched, clearer permission/unavailable states,
-   and recovery when either app, socket, Wi-Fi, or target process restarts. Add retained-session,
-   reconnect, stale-target, controller-detach, and interrupted-command acceptance coverage in shared
-   Core before extending host wiring.
-3. Repeat the unmodified Android phone-to-TV flow on physical Google TV hardware when available.
-   That is the authoritative validation for direct LAN addressing, HDMI/audio behavior, CEC input,
-   sleep/wake, process recovery, and Android `MediaSession`; emulator evidence is not a substitute.
-4. After Android-to-Android is stable, add the narrow Desktop discovery/socket/secure-identity
-   adapters, then iOS/tvOS adapters, while retaining the same Core protocol, controller, UI, and
-   source-validation behavior. Run the cross-platform matrix in that order before considering Cast.
+The active sequence is maintained in
+[`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#implementation-order). The next
+slice generalizes phone and Desktop into capability-based controllers and playback targets, then
+makes remote output part of the ordinary Now Playing and queue experience. The Android phone-to-TV
+product flow remains the first acceptance topology, followed by physical Google TV, Desktop, and
+Apple coverage.
 
 ### M4: Physical-device acceptance
 

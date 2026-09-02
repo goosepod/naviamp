@@ -347,13 +347,22 @@ class NaviampCoreConnectController(
             while (listener === boundListener) {
                 val connection = boundListener.accept()
                 acceptedPairingConnection = connection
-                val initialEnvelope = receiveInitialConnectEnvelopeWithDeadline(connection)
+                var initialFailureStatus: String? = null
+                val initialEnvelope = try {
+                    receiveInitialConnectEnvelopeWithDeadline(connection)
+                } catch (failure: CancellationException) {
+                    throw failure
+                } catch (_: Exception) {
+                    initialFailureStatus = "An incomplete connection request closed. Still waiting for a controller."
+                    null
+                }
                 if (initialEnvelope == null) {
                     connection.close()
                     acceptedPairingConnection = null
                     if (listener !== boundListener) return
                     phase = NaviampConnectPairingUiPhase.Advertising
-                    status = "An incomplete connection request timed out. Still waiting for a controller."
+                    status = initialFailureStatus
+                        ?: "An incomplete connection request timed out. Still waiting for a controller."
                     publish()
                     continue
                 }
@@ -541,14 +550,13 @@ class NaviampCoreConnectController(
 
     private fun refreshTargets() {
         if (services.role != NaviampCoreConnectRole.Controller || discovery == null) return
-        pendingTrustedDeviceId = null
-        reconnectJob?.cancel()
-        reconnectJob = null
+        suspendAutomaticReconnectForManualPairing()
         closeAuthenticatedSession()
         selectedTarget = null
         enteredCode = ""
         phase = NaviampConnectPairingUiPhase.Starting
         status = "Searching this local network…"
+        discovery.stop()
         discovery.start()
         phase = NaviampConnectPairingUiPhase.Advertising
         publish()
@@ -665,6 +673,7 @@ class NaviampCoreConnectController(
     }
 
     private fun selectTarget(targetUi: NaviampConnectDiscoveredTargetUi) {
+        suspendAutomaticReconnectForManualPairing()
         selectedTarget = discovery?.state?.value?.targets?.firstOrNull {
             it.advertisement.instanceId == targetUi.instanceId
         }?.also { target ->
@@ -674,6 +683,17 @@ class NaviampCoreConnectController(
         phase = NaviampConnectPairingUiPhase.AwaitingCode
         status = "Enter the six-digit code shown on ${targetUi.displayName}."
         publish()
+    }
+
+    private fun suspendAutomaticReconnectForManualPairing() {
+        automaticReconnectSuppressed = true
+        pendingTrustedDeviceId = null
+        automaticReconnectRetryJob?.cancel()
+        automaticReconnectRetryJob = null
+        reconnectJob?.cancel()
+        reconnectJob = null
+        activeReconnectConnection?.close()
+        activeReconnectConnection = null
     }
 
     private fun changePairingCode(value: String) {
@@ -826,13 +846,17 @@ class NaviampCoreConnectController(
         return true
     }
 
-    private suspend fun replaceTargetSession(session: NaviampConnectAuthenticatedSession): Boolean {
-        authenticatedSession?.let { previous ->
-            runCatching { previous.send(app.naviamp.domain.connect.NaviampConnectSessionReplaced) }
-            closeAuthenticatedSession()
+    private suspend fun replaceTargetSession(session: NaviampConnectAuthenticatedSession): Boolean =
+        targetSessionMutex.withLock {
+            authenticatedSession?.let { previous ->
+                runCatching {
+                    targetSession?.notifySessionReplaced()
+                        ?: previous.send(app.naviamp.domain.connect.NaviampConnectSessionReplaced)
+                }
+                closeAuthenticatedSession()
+            }
+            startTargetSession(session)
         }
-        return startTargetSession(session)
-    }
 
     private suspend fun startControllerSession(session: NaviampConnectAuthenticatedSession): Boolean {
         val welcomeEnvelope = runCatching { session.receive() }.getOrNull() ?: return false

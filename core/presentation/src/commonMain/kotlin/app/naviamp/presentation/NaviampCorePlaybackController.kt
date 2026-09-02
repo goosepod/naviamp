@@ -215,9 +215,20 @@ class NaviampCorePlaybackController(
         if (command.queue.occurrences.isEmpty() || command.queue.currentIndex !in command.queue.occurrences.indices) {
             return false
         }
-        val provider = providerSource.current() ?: return false
+        providerSource.current() ?: return false
+        val locallyKnownTracks = playback.state.value.queue.tracks.associateBy { it.id.value }
         val tracks = command.queue.occurrences.map { occurrence ->
-            provider.track(app.naviamp.domain.TrackId(occurrence.mediaId)) ?: return false
+            locallyKnownTracks[occurrence.mediaId] ?: app.naviamp.domain.Track(
+                id = app.naviamp.domain.TrackId(occurrence.mediaId),
+                title = occurrence.title,
+                artistName = occurrence.artistName,
+                albumTitle = occurrence.albumTitle,
+                durationSeconds = occurrence.durationMillis?.div(1_000L)?.toInt(),
+                coverArtId = occurrence.artworkId,
+                audioInfo = null,
+                replayGain = null,
+                favoritedAtIso8601 = ConnectHandoffFavoriteMarker.takeIf { occurrence.favorite },
+            )
         }
         val handedOffQueue = app.naviamp.domain.queue.PlaybackQueue(
             tracks = tracks,
@@ -761,3 +772,4 @@ internal fun playbackProfileDiagnosticRows(
 }
 
 private const val PlaybackSessionSaveIntervalMillis = 5_000L
+private const val ConnectHandoffFavoriteMarker = "1970-01-01T00:00:00Z"

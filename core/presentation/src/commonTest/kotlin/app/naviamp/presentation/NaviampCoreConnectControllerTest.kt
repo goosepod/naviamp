@@ -89,7 +89,9 @@ class NaviampCoreConnectControllerTest {
                 cipher = UnusedCipherFactory,
                 trust = trust,
                 advertising = advertising,
-                newOpaqueId = sequenceOf("instance", "session").iterator()::next,
+                newOpaqueId = generateSequence(0) { it + 1 }
+                    .map { index -> "opaque-$index" }
+                    .iterator()::next,
                 newPairingCode = { "123456" },
                 nowEpochMillis = { testScheduler.currentTime + 1_000L },
                 pairingLifetimeMillis = 1_000L,
@@ -153,7 +155,8 @@ class NaviampCoreConnectControllerTest {
         assertEquals(1, discovery.startCount)
         assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Looking for Living Room TV"))
         controller.actions.onRefreshTargets()
-        assertEquals(1, discovery.startCount)
+        assertEquals(1, discovery.stopCount)
+        assertEquals(2, discovery.startCount)
         controller.close()
     }
 
@@ -230,6 +233,12 @@ class NaviampCoreConnectControllerTest {
         advanceTimeBy(2_000L)
         runCurrent()
 
+        assertEquals(2, connectCount)
+        advanceTimeBy(100L)
+        runCurrent()
+        controller.actions.onRefreshTargets()
+        advanceTimeBy(2_000L)
+        runCurrent()
         assertEquals(2, connectCount)
         controller.close()
     }
@@ -428,6 +437,31 @@ class NaviampCoreConnectControllerTest {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
+    fun clientThatClosesBeforeHelloDoesNotTearDownListener() = runTest {
+        val listener = QueuedListener(42425)
+        val closedClient = ClosedConnection()
+        listener.connections.trySend(closedClient)
+        val store = NaviampCoreStateStore()
+        val controller = targetController(
+            listener = listener,
+            store = store,
+            nowEpochMillis = { testScheduler.currentTime + 1_000L },
+            pairingHelloTimeoutMillis = 1_000L,
+            pairingLifetimeMillis = 10_000L,
+        )
+
+        controller.actions.onStartPairingMode()
+        runCurrent()
+
+        assertTrue(closedClient.closed)
+        assertEquals(2, listener.acceptCount)
+        assertTrue(!listener.closed)
+        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        controller.close()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
     fun stoppingPairingClosesAnAcceptedStalledConnection() = runTest {
         val listener = QueuedListener(42425)
         val stalled = StalledConnection()
@@ -604,9 +638,19 @@ private class StalledConnection : NaviampConnectTransportConnection {
     override fun close() { closed = true }
 }
 
+private class ClosedConnection : NaviampConnectTransportConnection {
+    override val remoteAddress = "closed.test"
+    var closed = false
+
+    override suspend fun send(frame: ByteArray) = Unit
+    override suspend fun receive(): ByteArray? = null
+    override fun close() { closed = true }
+}
+
 private class RecordingDiscoveryEffect : NaviampConnectDiscoveryEffect {
     lateinit var listener: NaviampConnectDiscoveryListener
     var startCount = 0
+    var stopCount = 0
 
     override fun start(listener: NaviampConnectDiscoveryListener): NaviampConnectDiscoveryStartResult {
         this.listener = listener
@@ -614,7 +658,9 @@ private class RecordingDiscoveryEffect : NaviampConnectDiscoveryEffect {
         return NaviampConnectDiscoveryStartResult.Started
     }
 
-    override fun stop() = Unit
+    override fun stop() {
+        stopCount += 1
+    }
 }
 
 private object UnusedTransportFactory : NaviampConnectTransportFactory {

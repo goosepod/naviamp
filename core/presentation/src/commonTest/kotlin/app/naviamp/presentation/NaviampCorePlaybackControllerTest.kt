@@ -162,9 +162,34 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
-    fun connectQueueHandoffRejectsMissingTargetTracksWithoutChangingPlayback() = runTest {
+    fun connectQueueHandoffReusesTracksAlreadyKnownByTheTarget() = runTest {
         val fixture = playbackFixture(this)
-        val before = fixture.live.state.value
+        fixture.provider.unavailableTrackIds += listOf("one", "two")
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:one", "one", "One", "Artist"),
+                        NaviampConnectQueueOccurrence("1:two", "two", "Two", "Artist"),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 0,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = false,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals(listOf("one", "two"), fixture.live.state.value.queue.tracks.map { it.id.value })
+    }
+
+    @Test
+    fun connectQueueHandoffUsesTransferredMetadataForTracksNotCachedByTarget() = runTest {
+        val fixture = playbackFixture(this)
         fixture.provider.unavailableTrackIds += "missing"
 
         val accepted = fixture.controller.handoffConnectQueue(
@@ -183,9 +208,10 @@ class NaviampCorePlaybackControllerTest {
             ),
         )
 
-        assertEquals(false, accepted)
-        assertEquals(before, fixture.live.state.value)
-        assertEquals(emptyList(), fixture.effects.queues)
+        assertTrue(accepted)
+        assertEquals(listOf("available", "missing"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals("Missing", fixture.live.state.value.queue.tracks.last().title)
+        assertEquals(listOf("available", "missing"), fixture.effects.queues.single().tracks.map { it.id.value })
     }
 
     @Test

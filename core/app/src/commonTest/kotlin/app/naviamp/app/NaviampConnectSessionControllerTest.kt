@@ -18,11 +18,15 @@ import app.naviamp.domain.connect.NaviampConnectPlaybackState
 import app.naviamp.domain.connect.NaviampConnectProvisioningProfile
 import app.naviamp.domain.connect.NaviampConnectQueueSnapshot
 import app.naviamp.domain.connect.NaviampConnectSeek
+import app.naviamp.domain.connect.NaviampConnectSessionReplaced
 import app.naviamp.domain.connect.NaviampConnectSnapshotMessage
 import app.naviamp.domain.connect.NaviampConnectSourceIdentity
 import app.naviamp.domain.connect.NaviampConnectStartMedia
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,6 +34,85 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class NaviampConnectSessionControllerTest {
+    @Test
+    fun targetSerializesConcurrentAuthenticatedMessages() = runTest {
+        val firstSendEntered = CompletableDeferred<Unit>()
+        val releaseFirstSend = CompletableDeferred<Unit>()
+        val sent = mutableListOf<NaviampConnectEnvelope>()
+        var sendCount = 0
+        val target = NaviampConnectTargetSession(
+            sessionId = SessionId,
+            protocolVersion = 1,
+            initialSnapshot = snapshot(0),
+            transport = NaviampConnectSessionTransport { envelope ->
+                val ordinal = sendCount++
+                if (ordinal == 0) {
+                    firstSendEntered.complete(Unit)
+                    releaseFirstSend.await()
+                }
+                sent += envelope
+            },
+            executor = NaviampConnectTargetCommandExecutor { _, current ->
+                NaviampConnectTargetCommandResult.Success(current, changed = false)
+            },
+            initialOutboundSequence = 1,
+        )
+
+        val snapshotSend = launch { target.publishLocalSnapshot(snapshot(1)) }
+        firstSendEntered.await()
+        val takeoverSend = launch { target.notifySessionReplaced() }
+        releaseFirstSend.complete(Unit)
+        joinAll(snapshotSend, takeoverSend)
+
+        assertEquals(listOf(1L, 2L), sent.map(NaviampConnectEnvelope::sequence))
+    }
+
+    @Test
+    fun targetReportsCommandFailureWithoutClosingItsSession() = runTest {
+        val sent = mutableListOf<NaviampConnectEnvelope>()
+        var executions = 0
+        val target = NaviampConnectTargetSession(
+            sessionId = SessionId,
+            protocolVersion = 1,
+            initialSnapshot = snapshot(0),
+            transport = NaviampConnectSessionTransport(sent::add),
+            executor = NaviampConnectTargetCommandExecutor { _, current ->
+                executions += 1
+                if (executions == 1) error("provider failed")
+                NaviampConnectTargetCommandResult.Success(current, changed = false)
+            },
+        )
+
+        target.receive(commandEnvelope(sequence = 0, requestId = "first", command = NaviampConnectPlay))
+        target.receive(commandEnvelope(sequence = 1, requestId = "second", command = NaviampConnectPause))
+
+        assertEquals(NaviampConnectErrorCode.InternalFailure, assertIs<NaviampConnectErrorMessage>(sent[0].message).code)
+        assertIs<app.naviamp.domain.connect.NaviampConnectAcknowledgement>(sent[1].message)
+        assertEquals(listOf(0L, 1L), sent.map(NaviampConnectEnvelope::sequence))
+    }
+
+    @Test
+    fun targetSequencesTakeoverAfterItsLatestSnapshot() = runTest {
+        val sent = mutableListOf<NaviampConnectEnvelope>()
+        val target = NaviampConnectTargetSession(
+            sessionId = SessionId,
+            protocolVersion = 1,
+            initialSnapshot = snapshot(0),
+            transport = NaviampConnectSessionTransport(sent::add),
+            executor = NaviampConnectTargetCommandExecutor { _, current ->
+                NaviampConnectTargetCommandResult.Success(current, changed = false)
+            },
+            initialOutboundSequence = 1,
+        )
+
+        target.publishLocalSnapshot(snapshot(1))
+        target.notifySessionReplaced()
+
+        assertEquals(listOf(1L, 2L), sent.map(NaviampConnectEnvelope::sequence))
+        assertIs<NaviampConnectSnapshotMessage>(sent[0].message)
+        assertEquals(NaviampConnectSessionReplaced, sent[1].message)
+    }
+
     @Test
     fun retainedSessionContinuesSequencesConsumedByPairingAndWelcome() = runTest {
         lateinit var controller: NaviampConnectControllerSession
@@ -381,6 +464,18 @@ class NaviampConnectSessionControllerTest {
         capabilities = capabilities(),
         playback = NaviampConnectPlaybackSnapshot(),
         queue = NaviampConnectQueueSnapshot(),
+    )
+
+    private fun commandEnvelope(
+        sequence: Long,
+        requestId: String,
+        command: app.naviamp.domain.connect.NaviampConnectCommand,
+    ) = NaviampConnectEnvelope(
+        protocolVersion = 1,
+        sessionId = SessionId,
+        sequence = sequence,
+        requestId = requestId,
+        message = NaviampConnectCommandRequest(command = command, expectedRevision = 0),
     )
 
     private fun capabilities() = setOf(

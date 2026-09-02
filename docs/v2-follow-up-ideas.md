@@ -22,6 +22,35 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Trusted-Device Settings Sync and Shared Listening Activity
+
+- **Status:** Idea. Fresh-device setup is active Connect work; ongoing synchronization and history
+  merging remain follow-up work.
+- **Active dependency:** The pairing, recipient-encrypted credential transfer, initial settings
+  snapshot, and ready-to-play fresh-install flow are tracked in
+  [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#fresh-device-setup-boundary).
+- **Existing foundation:** Naviamp's folder-based Settings Sync and portable settings store remain
+  supported. Trusted-device sync should reuse one shared portable-settings envelope and conflict
+  policy rather than create a second set of platform-specific settings.
+- [ ] Classify every synced value as portable global preference, source-scoped data, device-local
+  setting, derived/cache data, or secret before expanding the sync schema.
+- [ ] Keep credentials out of ordinary settings. Encrypt a provisioning secret for the specific
+  trusted recipient and save it only through Android Keystore, Apple Keychain, or the Desktop
+  secure-value adapter.
+- [ ] Add optional ongoing automatic peer sync after initial setup, with an obvious disable action
+  and useful last-sync/error status.
+- [ ] Define per-record change IDs/revisions, tombstones, retention, and deterministic conflict rules
+  for concurrent edits and devices returning after long offline periods.
+- [ ] Synchronize source connections and compatible library selections without copying local paths,
+  certificate files, cache limits, audio outputs, permissions, or host-only controls.
+- [ ] Merge durable radio stations, generated radio sessions, and shared playback/listening history
+  by stable IDs rather than replacing one device's collection wholesale.
+- [ ] Decide whether direct peer sync, which requires devices to overlap online, is sufficient. Any
+  future intermediary must store only end-to-end encrypted data and must not become a Naviamp
+  account or credential authority.
+- [ ] Add common serialization, migration, merge, conflict, deletion, offline, and corruption tests,
+  followed by Android/Desktop/iOS interoperability acceptance.
+
 ### Seamless Offline Library and Durable Downloads
 
 - **Status:** Idea

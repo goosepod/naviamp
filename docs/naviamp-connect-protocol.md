@@ -13,13 +13,16 @@ and Apple key lifecycle remain pending.
 
 ## Purpose
 
-Naviamp Connect lets a Naviamp phone or Desktop client discover and control a Naviamp playback
-target on the same local network. Android TV and tvOS are the first targets. The target remains the
-authoritative owner of playback, its provider session, queue, playback clock, and reporting.
+Naviamp Connect lets one Naviamp device discover and control another Naviamp playback device on the
+same local network. Phone and Desktop may advertise controller capability, playback-target
+capability, or both. Android TV and tvOS advertise playback-target capability only. The target
+remains the authoritative owner of playback, its provider session, queue, playback clock, and
+reporting.
 
 The first acceptance topology is a physical Android phone controlling the Android TV emulator. The
-same protocol must later support Android, iPhone, macOS, Windows, and Linux controllers without
-platform-specific product behavior.
+same protocol must support Android, iPhone, macOS, Windows, and Linux controllers and playback
+targets without platform-specific product behavior. The complete experience checklist is in
+[`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md).
 
 ## Version 1 contract
 
@@ -42,8 +45,9 @@ platform-specific product behavior.
   groups, Play Next priority, current selection, position, repeat, shuffle, and playback-profile
   intent.
 - Queue handoff and catalog starts are accepted only for a compatible canonical source identity.
-  Authenticated stream URLs are never transferred. Targets resolve provider IDs through their own
-  authenticated provider session before replacing playback.
+  Authenticated stream URLs are never transferred. Targets use their own authenticated provider
+  session to create stream requests; compatible transferred metadata may establish the queue
+  immediately while target-side enrichment or validation continues asynchronously.
 
 ## Pairing and transport security
 
@@ -133,7 +137,8 @@ is active, and discovery alone never enables commands or connection provisioning
 3. Reviewed PAKE, identity, secure-storage, and encrypted-session adapters. **Android/Desktop
    J-PAKE, AES-256-GCM, bounded framed TCP, Core pairing orchestration, and Android Keystore identity
    implemented; Android durable trust persistence is implemented; Apple adapters remain pending.**
-4. TV pairing UI and phone/Desktop target selection, permission, expiry, revoke, and recovery flows.
+4. TV pairing UI and phone/Desktop playback-target selection, permission, expiry, revoke, and
+   recovery flows.
    **Android TV pairing/approval and Android phone discovery/code entry are wired to the shared Core
    lifecycle. Rename/revoke, stronger recovery presentation, and Desktop/Apple host wiring remain.**
 5. Shared playback projection, target command executor, and shared remote Now Playing controller
@@ -143,8 +148,8 @@ is active, and discovery alone never enables commands or connection provisioning
 6. Assisted connection provisioning and same-source atomic queue handoff. **Implemented in shared
    Core, including explicit target approval, portable-settings filtering, failure rollback, and
    controller-to-target plus target-to-controller transfer.**
-7. Physical Pixel controller to Android TV emulator acceptance, followed by the remaining platform
-   combinations.
+7. Physical Pixel controller to Android TV emulator acceptance, followed by the capability-based
+   phone/Desktop controller-and-target matrix and Apple targets.
 
 ## Current test coverage
 

@@ -13,12 +13,16 @@ import app.naviamp.domain.connect.NaviampConnectStartMedia
 import app.naviamp.domain.connect.NaviampConnectPing
 import app.naviamp.domain.connect.NaviampConnectPong
 import app.naviamp.domain.connect.NaviampConnectRequestSnapshot
+import app.naviamp.domain.connect.NaviampConnectSessionReplaced
 import app.naviamp.domain.connect.NaviampConnectSnapshotMessage
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
 import app.naviamp.domain.connect.requiredCapability
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 fun interface NaviampConnectSessionTransport {
     suspend fun send(envelope: NaviampConnectEnvelope)
@@ -69,6 +73,7 @@ class NaviampConnectControllerSession(
     private val mutableState = MutableStateFlow(NaviampConnectControllerSessionState())
     private var nextSequence = 0L
     private var lastReceivedSequence = -1L
+    private val outboundMutex = Mutex()
 
     val state: StateFlow<NaviampConnectControllerSessionState> = mutableState.asStateFlow()
 
@@ -188,10 +193,10 @@ class NaviampConnectControllerSession(
     private suspend fun sendMessage(
         message: app.naviamp.domain.connect.NaviampConnectMessage,
         requestId: String? = null,
-    ) {
+    ) = outboundMutex.withLock {
         val current = mutableState.value
-        val sessionId = current.sessionId ?: return
-        val protocolVersion = current.protocolVersion ?: return
+        val sessionId = current.sessionId ?: return@withLock
+        val protocolVersion = current.protocolVersion ?: return@withLock
         transport.send(
             NaviampConnectEnvelope(
                 protocolVersion = protocolVersion,
@@ -294,6 +299,7 @@ class NaviampConnectTargetSession(
     private var lastReceivedSequence = -1L
     private var nextSequence = initialOutboundSequence
     private val completedRequests = mutableMapOf<String, CompletedNaviampConnectRequest>()
+    private val outboundMutex = Mutex()
 
     init {
         require(initialOutboundSequence >= 0L) { "The initial outbound sequence must not be negative." }
@@ -343,6 +349,11 @@ class NaviampConnectTargetSession(
         require(updated.revision > snapshot.revision) { "A local target mutation must advance the revision." }
         snapshot = updated
         send(NaviampConnectSnapshotMessage(snapshot))
+    }
+
+    /** Orders takeover notification within the target's single authenticated sequence stream. */
+    suspend fun notifySessionReplaced() {
+        send(NaviampConnectSessionReplaced)
     }
 
     private suspend fun execute(
@@ -400,7 +411,21 @@ class NaviampConnectTargetSession(
             return
         }
 
-        when (val result = executor.execute(command, snapshot)) {
+        val execution = try {
+            executor.execute(command, snapshot)
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (_: Exception) {
+            sendError(
+                requestId,
+                NaviampConnectErrorCode.InternalFailure,
+                "The target could not apply the requested command.",
+                retryable = true,
+                currentRevision = snapshot.revision,
+            )
+            return
+        }
+        when (val result = execution) {
             is NaviampConnectTargetCommandResult.Failure -> sendError(
                 requestId,
                 result.code,
@@ -455,7 +480,7 @@ class NaviampConnectTargetSession(
     private suspend fun send(
         message: app.naviamp.domain.connect.NaviampConnectMessage,
         responseToRequestId: String? = null,
-    ) {
+    ) = outboundMutex.withLock {
         transport.send(
             NaviampConnectEnvelope(
                 protocolVersion = protocolVersion,
