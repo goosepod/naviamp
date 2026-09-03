@@ -136,6 +136,11 @@ open "/Applications/Naviamp.app"
 These commands intentionally bypass Gatekeeper for this copy of Naviamp. They do not disable
 Gatekeeper system-wide and do not require `sudo`.
 
+## Translations
+
+Naviamp uses Weblate to manage community translations. To improve an existing translation or help
+add a new language, visit the [Naviamp project on Hosted Weblate](https://hosted.weblate.org/projects/naviamp/).
+
 ## Building from source
 
 Naviamp uses Kotlin Multiplatform, Compose Multiplatform, Gradle, SQLDelight, and native BASS
