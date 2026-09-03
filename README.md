@@ -139,7 +139,7 @@ Gatekeeper system-wide and do not require `sudo`.
 ## Translations
 
 Naviamp uses Weblate to manage community translations. To improve an existing translation or help
-add a new language, visit the [Naviamp project on Hosted Weblate](https://hosted.weblate.org/projects/naviamp/). Any help is greatly appreciated!
+add a new language, visit the [Naviamp project on Hosted Weblate](https://hosted.weblate.org/projects/naviamp/).
 
 ## Building from source
 
