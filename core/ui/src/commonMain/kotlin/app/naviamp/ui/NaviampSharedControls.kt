@@ -48,6 +48,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -121,6 +123,7 @@ internal fun NaviampTextField(
     modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
     isPassword: Boolean = false,
+    inputKind: NaviampTextInputKind = NaviampTextInputKind.NaturalLanguage,
     forceFloatingLabel: Boolean = false,
     onSubmit: (() -> Unit)? = null,
 ) {
@@ -138,7 +141,9 @@ internal fun NaviampTextField(
         } else {
             VisualTransformation.None
         },
-        keyboardOptions = KeyboardOptions(imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default),
+        keyboardOptions = (if (isPassword) NaviampTextInputKind.Password else inputKind).keyboardOptions(
+            imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default,
+        ),
         keyboardActions = KeyboardActions(onSearch = { onSubmit?.invoke() }),
         modifier = modifier.naviampTextInputFocus().then(
             if (onSubmit != null) {
@@ -156,6 +161,36 @@ internal fun NaviampTextField(
         ),
     )
 }
+
+internal enum class NaviampTextInputKind {
+    NaturalLanguage,
+    Technical,
+    Url,
+    Password,
+}
+
+internal fun NaviampTextInputKind.keyboardOptions(imeAction: ImeAction): KeyboardOptions =
+    when (this) {
+        NaviampTextInputKind.NaturalLanguage -> KeyboardOptions(imeAction = imeAction)
+        NaviampTextInputKind.Technical -> KeyboardOptions(
+            capitalization = KeyboardCapitalization.None,
+            autoCorrectEnabled = false,
+            keyboardType = KeyboardType.Ascii,
+            imeAction = imeAction,
+        )
+        NaviampTextInputKind.Url -> KeyboardOptions(
+            capitalization = KeyboardCapitalization.None,
+            autoCorrectEnabled = false,
+            keyboardType = KeyboardType.Uri,
+            imeAction = imeAction,
+        )
+        NaviampTextInputKind.Password -> KeyboardOptions(
+            capitalization = KeyboardCapitalization.None,
+            autoCorrectEnabled = false,
+            keyboardType = KeyboardType.Password,
+            imeAction = imeAction,
+        )
+    }
 
 private const val FloatingLabelSentinel = "\u200B"
 

@@ -6,6 +6,25 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.3.1
+
+This patch prevents Android keyboards from rewriting technical values while a music-server
+connection is being configured.
+
+### Bug Fixes
+
+- Disable automatic capitalization and correction for connection usernames, server and fallback
+  URLs, certificate paths, HTTP header names and values, and passwords. Android now receives URI,
+  technical ASCII, or password keyboard hints as appropriate while connection names remain normal
+  human-readable text.
+
+### Release Notes and Known Limitations
+
+- Existing `v2.3.0` and earlier `v2.x` installations can upgrade in place without resetting app
+  data. This release adds no database migration.
+- The iOS artifact remains an unsigned preview. Windows and macOS packages are not publisher-signed
+  and may show operating-system warnings.
+
 ## v2.3.0
 
 This release makes Play Next aware of album and playlist playback groups, adds an optional stereo
