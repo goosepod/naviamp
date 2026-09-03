@@ -1,8 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_navibeat_mixes">MEZCLAS NAVIBEAT</string>
     <string name="settings_title">Configuracion</string>
     <string name="settings_selected_label">Seleccionado</string>
-
     <string name="settings_language_title">Idioma</string>
     <string name="settings_language_subtitle">Idioma de la interfaz</string>
     <string name="settings_language_system_title">Predeterminado del sistema</string>
@@ -11,7 +11,6 @@
     <string name="settings_language_english_subtitle">Usar ingles en Naviamp.</string>
     <string name="settings_language_spanish_title">Espanol</string>
     <string name="settings_language_spanish_subtitle">Usar espanol en Naviamp.</string>
-
     <string name="settings_category_source_title">Fuente</string>
     <string name="settings_category_source_subtitle">Servidores y bibliotecas</string>
     <string name="settings_category_language_title">Idioma</string>
@@ -28,7 +27,6 @@
     <string name="settings_category_debugging_subtitle">Diagnosticos y datos locales</string>
     <string name="settings_category_about_title">Acerca de</string>
     <string name="settings_category_about_subtitle">Version, bibliotecas, cambios</string>
-
     <string name="common_unknown">Desconocido</string>
     <string name="common_back">Atrás</string>
     <string name="common_cancel">Cancelar</string>
@@ -51,7 +49,6 @@
     <string name="common_connect">Conectar</string>
     <string name="common_reconnect">Reconectar</string>
     <string name="common_connecting">Conectando</string>
-
     <string name="settings_debugging_title">Depuración</string>
     <string name="settings_debugging_empty">Los diagnósticos aparecerán cuando se inicialice la app.</string>
     <string name="settings_lyrics_title">Letras</string>
@@ -110,7 +107,6 @@
     <string name="settings_related_autoplay_summary">Relacionadas, automática</string>
     <string name="settings_related_summary">Relacionadas</string>
     <string name="settings_autoplay_summary">Automática</string>
-
     <string name="settings_about_production">Una producción de GoosePod</string>
     <string name="settings_about_version_build">%1$s Build %2$s</string>
     <string name="settings_about_libraries_title">Bibliotecas</string>
@@ -128,7 +124,6 @@
     <string name="settings_about_changelog_title">Cambios</string>
     <string name="settings_about_changelog_subtitle">Cambios recientes</string>
     <string name="settings_about_changelog_description">Qué cambió en esta versión.</string>
-
     <string name="settings_source_edit_connection_title">Editar conexión</string>
     <string name="settings_source_new_connection_title">Nueva conexión</string>
     <string name="settings_source_edit_connection_subtitle">Servidor, inicio de sesión, TLS y bibliotecas</string>
@@ -154,7 +149,6 @@
     <string name="settings_source_edit_content_description">Editar conexión</string>
     <string name="settings_source_delete_content_description">Eliminar conexión</string>
     <string name="settings_source_libraries_prefix">Bibliotecas: %1$s</string>
-
     <string name="settings_local_data_title">Datos locales</string>
     <string name="settings_local_data_description">Administrar caché local, índice de biblioteca, descargas y almacenamiento de base de datos de la app.</string>
     <string name="settings_local_clear_cache">Borrar caché</string>
@@ -169,7 +163,6 @@
     <string name="settings_reset_database_title">Restablecer base de datos</string>
     <string name="settings_reset_database_message">Esto elimina servidores guardados, caché local, descargas, datos de biblioteca, historial de reproducción y ajustes locales guardados en la base de datos de la app.</string>
     <string name="settings_reset_database_confirm">Restablecer base de datos</string>
-
     <string name="settings_audio_cache_title">Caché de audio</string>
     <string name="settings_audio_cache_enable">Activar precarga de audio</string>
     <string name="settings_audio_cache_enable_subtitle">Guardar audio próximo en caché para una reproducción más fluida.</string>
@@ -203,7 +196,6 @@
     <string name="settings_start_playing_on_launch_subtitle">Reproducir automáticamente la última pista después de restaurar la cola y la posición.</string>
     <string name="settings_storage_title">Almacenamiento</string>
     <string name="settings_storage_empty">Los tamaños de caché aparecerán cuando la app inicialice el almacenamiento.</string>
-
     <string name="settings_downloads_title">Descargas</string>
     <string name="settings_downloads_saved_files_title">Archivos guardados</string>
     <string name="settings_downloads_saved_files_subtitle">Calidad para archivos guardados nuevos.</string>
@@ -218,7 +210,6 @@
     <string name="settings_downloads_change_quality_message">Las descargas existentes conservarán su calidad actual. Las descargas nuevas usarán el ajuste actualizado.</string>
     <string name="settings_downloads_keep_existing">Mantener existentes</string>
     <string name="settings_downloads_redownload">Volver a descargar</string>
-
     <string name="settings_playback_device_title">Dispositivo de audio</string>
     <string name="settings_playback_device_subtitle">Dónde suena la música</string>
     <string name="settings_playback_output_title">Salida de audio</string>
@@ -252,7 +243,6 @@
     <string name="settings_crossfade_strict_rate_matching_message">El fundido no se puede usar con la coincidencia estricta de frecuencia. Elige Desactivada o Inteligente para la coincidencia de frecuencia, o cancela para dejar la configuración igual.</string>
     <string name="settings_crossfade_strict_rate_matching_disabled">Usar Desactivada</string>
     <string name="settings_crossfade_strict_rate_matching_smart">Usar Inteligente</string>
-
     <string name="settings_quality_codec_title">Códec</string>
     <string name="settings_quality_bitrate_title">Tasa de bits</string>
     <string name="settings_quality_maximum">Máxima</string>
@@ -263,7 +253,6 @@
     <string name="settings_quality_wifi_subtitle">Calidad en redes de confianza.</string>
     <string name="settings_quality_mobile_title">Datos móviles</string>
     <string name="settings_quality_mobile_subtitle">Calidad al usar datos celulares.</string>
-
     <string name="settings_replay_gain_title">Replay Gain</string>
     <string name="settings_replay_gain_preamp_title">Preamp</string>
     <string name="settings_replay_gain_preamp_subtitle">Ajuste de salida de Replay Gain</string>
@@ -273,7 +262,6 @@
     <string name="settings_replay_gain_off_description">Dejar el volumen de la pista sin cambios.</string>
     <string name="settings_replay_gain_track_description">Normalizar cada pista de forma independiente.</string>
     <string name="settings_replay_gain_album_description">Mantener el volumen relativo del álbum.</string>
-
     <string name="settings_crossfade_title">Crossfade</string>
     <string name="settings_crossfade_subtitle">Mezclar transiciones entre pistas</string>
     <string name="settings_crossfade_row_subtitle">Mezclar transiciones entre pistas.</string>
@@ -282,7 +270,6 @@
     <string name="settings_seconds_short">%1$ds</string>
     <string name="settings_gapless_title">Sin pausas</string>
     <string name="settings_gapless_subtitle">Mantener reproducción continua de álbumes cuando sea posible.</string>
-
     <string name="settings_player_remove_played">Quitar pistas reproducidas de Atrás</string>
     <string name="settings_player_remove_played_subtitle">Mantener más corto el historial cuando terminan las pistas.</string>
     <string name="settings_player_previous_click_title">Clic en anterior</string>
@@ -297,7 +284,6 @@
     <string name="settings_up_next_skip_selected">Saltar a seleccionada</string>
     <string name="settings_up_next_move_selected_subtitle">Reproducir ahora la canción seleccionada y conservar las anteriores en A continuación.</string>
     <string name="settings_up_next_skip_selected_subtitle">Avanzar por la cola para que las canciones omitidas pasen a Atrás.</string>
-
     <string name="settings_radio_familiarity">Familiaridad</string>
     <string name="settings_radio_artist_spread">Variedad de artistas</string>
     <string name="settings_radio_stay_in_decade">Mantener década de la pista semilla</string>
@@ -313,7 +299,6 @@
     <string name="settings_radio_mixed_artists">artistas mezclados</string>
     <string name="settings_radio_single_artist">un solo artista</string>
     <string name="settings_radio_artist_blocks">%1$d mismo / %2$d otros</string>
-
     <string name="settings_related_lyrics_download">Descargar letras para pistas</string>
     <string name="settings_related_sonic_similarity">Similitud sónica</string>
     <string name="settings_related_sonic_similarity_subtitle">Usar la similitud del servidor para encontrar pistas cercanas.</string>
@@ -321,7 +306,6 @@
     <string name="settings_related_sonic_autoplay_subtitle">Iniciar música relacionada cuando termine la cola.</string>
     <string name="settings_related_requires_support">Las pistas relacionadas requieren soporte del servidor para similitud sónica.</string>
     <string name="settings_debug_logging">Registro de depuración</string>
-
     <string name="settings_equalizer_no_profiles">No hay perfiles guardados.</string>
     <string name="settings_equalizer_enable">Activar ecualizador</string>
     <string name="settings_equalizer_enable_subtitle">Aplicar EQ de 10 bandas a la reproducción.</string>
@@ -335,7 +319,6 @@
     <string name="settings_equalizer_save_profile_title">Guardar perfil de EQ</string>
     <string name="settings_equalizer_rename_profile_title">Renombrar perfil de EQ</string>
     <string name="settings_equalizer_profile_name">Nombre del perfil</string>
-
     <string name="nav_home">Inicio</string>
     <string name="nav_playlists">Listas</string>
     <string name="nav_library">Biblioteca</string>
@@ -348,7 +331,6 @@
     <string name="nav_radio">Radio</string>
     <string name="nav_downloads">Descargas</string>
     <string name="nav_settings">Ajustes</string>
-
     <string name="transport_shuffle">Aleatorio</string>
     <string name="transport_previous">Anterior</string>
     <string name="transport_pause">Pausar</string>
@@ -356,7 +338,6 @@
     <string name="transport_stop">Detener</string>
     <string name="transport_next">Siguiente</string>
     <string name="transport_repeat">Repetir</string>
-
     <string name="home_music_title">Inicio</string>
     <string name="home_empty">Las secciones de inicio aparecerán después de conectar.</string>
     <string name="home_mixes_for_you">MIXES PARA TI</string>
@@ -371,7 +352,6 @@
     <string name="home_more_in">Más en %1$s</string>
     <string name="home_from_decade">De %1$s</string>
     <string name="home_recently_played">REPRODUCIDO RECIENTEMENTE</string>
-
     <string name="search_title">Buscar</string>
     <string name="search_tracks_label">Buscar pistas</string>
     <string name="search_clear">Borrar búsqueda</string>
@@ -379,7 +359,6 @@
     <string name="search_artists">Artistas</string>
     <string name="search_albums">Álbumes</string>
     <string name="search_tracks_section">PISTAS</string>
-
     <string name="library_title">Biblioteca</string>
     <string name="library_search_artists">Buscar artistas en la biblioteca</string>
     <string name="library_clear_search">Borrar búsqueda de biblioteca</string>
@@ -387,7 +366,6 @@
     <string name="library_refreshing">Actualizando...</string>
     <string name="library_no_artists">No se encontraron artistas en la biblioteca.</string>
     <string name="library_no_artist_matches">Ningún artista coincide.</string>
-
     <string name="downloads_offline_title">Descargas</string>
     <string name="downloads_summary">%1$d archivos - %2$s de %3$s</string>
     <string name="downloads_remaining">%1$s restantes - %2$s%% usado</string>
@@ -401,7 +379,6 @@
     <string name="offline_download_budget_detail">%1$s usado - %2$s del presupuesto de descargas</string>
     <string name="offline_streaming_cache_detail">%1$s usado - %2$s de la caché de streaming</string>
     <string name="offline_pending_detail">Las descargas se aplican de inmediato; el seguimiento de errores de sincronización aún no se guarda.</string>
-
     <string name="mix_artist_builder_title">Constructor de mezcla de artistas</string>
     <string name="mix_album_builder_title">Constructor de mezcla de álbumes</string>
     <string name="mix_genre_builder_title">Constructor de mezcla de géneros</string>
@@ -425,7 +402,6 @@
     <string name="mix_bias_favorites">Favoritos</string>
     <string name="mix_bias_unplayed">No reproducidas</string>
     <string name="mix_bias_recent">Recientes</string>
-
     <string name="sonic_path_title">Ruta sónica</string>
     <string name="sonic_path_start_track">Pista inicial</string>
     <string name="sonic_path_destination_track">Pista de destino</string>
@@ -434,7 +410,6 @@
     <string name="sonic_path_find">Buscar ruta</string>
     <string name="sonic_path_result_title">Ruta</string>
     <string name="sonic_path_play">Reproducir ruta</string>
-
     <string name="playlists_title">Listas</string>
     <string name="playlists_empty">No hay listas todavía.</string>
     <string name="playlists_create_smart">Crear lista inteligente</string>
@@ -463,4 +438,5 @@
     <string name="settings_show_artist_information_subtitle">Mostrar biografías e imágenes del proveedor en las páginas de detalles del artista.</string>
     <string name="settings_show_album_information">Mostrar información del álbum</string>
     <string name="settings_show_album_information_subtitle">Mostrar notas e imágenes del proveedor en las páginas de detalles del álbum.</string>
+    <string name="mix_browse_genres">Explorar géneros</string>
 </resources>
