@@ -175,6 +175,7 @@ fun NaviampConnectionForm(
             onValueChange = { onFormChanged(form.copy(serverUrl = it)) },
             label = "Server URL",
             colors = colors,
+            inputKind = NaviampTextInputKind.Url,
             imeAction = ImeAction.Next,
             onImeAction = focusNext,
             modifier = Modifier.testTag(ConnectionServerUrlFieldTestTag),
@@ -185,6 +186,7 @@ fun NaviampConnectionForm(
                 onValueChange = { onFormChanged(form.copy(username = it)) },
                 label = "Username",
                 colors = colors,
+                inputKind = NaviampTextInputKind.Technical,
                 modifier = Modifier.weight(1f).testTag(ConnectionUsernameFieldTestTag),
                 imeAction = ImeAction.Next,
                 onImeAction = focusNext,
@@ -256,6 +258,7 @@ fun NaviampConnectionForm(
                     label = "Trusted certificate or CA file",
                     colors = colors,
                     enabled = !form.skipTlsVerification,
+                    inputKind = NaviampTextInputKind.Technical,
                 )
             }
             if (clientCertificatesVisible) {
@@ -265,6 +268,7 @@ fun NaviampConnectionForm(
                     onValueChange = { onFormChanged(form.copy(clientCertificatePath = it)) },
                     label = "Client certificate PKCS12 file",
                     colors = colors,
+                    inputKind = NaviampTextInputKind.Technical,
                 )
                 NaviampTextField(
                     value = form.clientCertificatePassword,
@@ -287,6 +291,7 @@ fun NaviampConnectionForm(
                             },
                             label = "URL",
                             colors = colors,
+                            inputKind = NaviampTextInputKind.Url,
                             modifier = Modifier.weight(1f),
                         )
                         NaviampTextField(
@@ -330,6 +335,7 @@ fun NaviampConnectionForm(
                             },
                             label = "Header name",
                             colors = colors,
+                            inputKind = NaviampTextInputKind.Technical,
                             modifier = Modifier.weight(1f),
                         )
                         NaviampTextField(
@@ -342,6 +348,7 @@ fun NaviampConnectionForm(
                             label = "Header value",
                             colors = colors,
                             isPassword = header.valueIsSecret,
+                            inputKind = NaviampTextInputKind.Technical,
                             modifier = Modifier.weight(1f),
                         )
                         TextButton(
