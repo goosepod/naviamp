@@ -32,11 +32,13 @@ import kotlin.test.assertTrue
 class NaviampCoreConnectRemoteNowPlayingTest {
     @Test
     fun projectsRemoteQueueAndCapabilitiesIntoSharedNowPlayingUi() {
-        val ui = snapshot().toRemoteNowPlayingUi("Living Room TV")
+        val ui = snapshot().toRemoteNowPlayingUi("Living Room TV") { id -> id?.let { "cover://$it" } }
 
         assertEquals("Current", ui.title)
         assertEquals("Playing on Living Room TV", ui.stateLabel)
         assertEquals("Living Room TV", ui.remoteOutputDeviceName)
+        assertEquals("cover://current-art", ui.coverArtUrl)
+        assertEquals("cover://next-art", ui.upNext.first().coverArtUrl)
         assertEquals(12.5, ui.positionSeconds)
         assertEquals(NaviampRepeatMode.Queue, ui.repeatMode)
         assertTrue(ui.canFavorite)
@@ -141,6 +143,7 @@ class NaviampCoreConnectRemoteNowPlayingTest {
             title = title,
             artistName = "Artist",
             albumTitle = "Album",
+            artworkId = "$mediaId-art",
             favorite = favorite,
         )
 }

@@ -139,7 +139,18 @@ internal class DesktopComposition private constructor(
             }
             setJvmPlatformCoverArtByteLoader { url ->
                 jvmGeneratedCoverArtBytes(url)
-                    ?: runCatching { artworkCache.imageBytes(url) }.getOrNull()
+                    ?: runCatching {
+                        val provider = sessions.currentProvider()
+                        if (provider == null) {
+                            artworkCache.imageBytes(url)
+                        } else {
+                            artworkCache.imageBytesForProvider(provider, url) {
+                                provider.bytesForOwnedUrl(url)
+                                    ?: sharedHttpClient.getBytes(url)
+                                    ?: throw IllegalStateException("Could not load artwork.")
+                            }
+                        }
+                    }.getOrNull()
                     ?: ByteArray(0)
             }
             val engine = CoreBassPlaybackEngine(

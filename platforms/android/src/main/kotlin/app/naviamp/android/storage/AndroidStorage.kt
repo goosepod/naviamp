@@ -137,6 +137,14 @@ class AndroidStorage private constructor(
 
     override suspend fun imageBytes(url: String, fetch: suspend () -> ByteArray): ByteArray =
         withContext(Dispatchers.IO) { graph.imageBytes.bytes(url, fetch) }
+
+    override suspend fun imageBytesForProvider(
+        provider: app.naviamp.domain.provider.MediaProvider,
+        url: String,
+        fetch: suspend () -> ByteArray,
+    ): ByteArray = withContext(Dispatchers.IO) {
+        graph.imageBytes.bytesForProvider(provider, url, fetch)
+    }
 }
 
 private class AndroidStorageGraph(

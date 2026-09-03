@@ -49,9 +49,9 @@ controller or a playback device. Television is a playback device only.
 - [x] Add one shared selected-playback-device owner used by Android, Desktop, and iOS.
 - [x] Make trusted devices automatically reconnect when reachable, with bounded retry and clear
   connected, reconnecting, unavailable, and incompatible states.
-- [ ] Enforce newest-controller-wins in the shared session owner and notify the displaced controller
+- [x] Enforce newest-controller-wins in the shared session owner and notify the displaced controller
   that it returned to local playback mode.
-- [ ] Keep target playback and queue intact when a controller disconnects, stops controlling, exits,
+- [x] Keep target playback and queue intact when a controller disconnects, stops controlling, exits,
   changes network, or is displaced.
 - [x] Complete shared self-name, local-alias, revoke, and reconnect actions.
 - [ ] Add a dedicated shared Connect diagnostics surface beyond the current actionable status text.
@@ -122,6 +122,27 @@ changed the TV MediaSession between paused and playing. This run also exposed an
 authenticated outbound-sequence race between target acknowledgements and playback snapshots; the
 same handoff/transport run then completed with an empty TV crash buffer.
 
+Extended the recovery pass on 2026-09-03 after restarting both apps with durable trust intact. The
+Pixel reauthenticated without pairing, a forced relay interruption moved the target back to its
+listening state, and restoring the route triggered the bounded automatic retry successfully. The
+TV retained its current track and all 51 persisted queue occurrences through controller restart,
+network loss, deliberate **Stop controlling**, and reconnect. Starting the already-trusted Desktop
+controller then displaced the Pixel immediately; the Pixel displayed **Another controller took
+over this TV**, returned to local-output mode without reconnecting, and Desktop held the only live
+target socket. This also exposed and fixed a shared layout defect that hid Settings content when a
+provider was disconnected, ensuring Controllers and trusted-device recovery remain accessible.
+
+Extended Desktop-to-TV acceptance on 2026-09-03 through the real product UI. Desktop automatically
+reconnected through retained trust, first Play transferred its queue and started target-owned BASS
+playback, Pause/Resume, drag seek, shuffle, Repeat All, and queue removal synchronized, and **Stop
+controlling** detached Desktop while TV playback continued. Cover-art handoff now carries complete
+track identity and resolves artwork locally on the target; Navidrome artwork cache identity excludes
+rotating token/salt parameters and lazily promotes older authenticated-URL entries, so a renewed
+target session can reuse persisted covers. The TV
+emulator rendered the transferred track's cover and artwork-derived palette with its Navidrome LAN
+route deliberately unavailable. Physical Google TV and the remaining topology/recovery matrix stay
+open.
+
 - [x] Android phone -> Android TV emulator through the product UI, using only the test-build route
   override required to bridge the emulator's private NAT address.
 - [ ] Android phone -> physical Google TV, including direct LAN, audio, MediaSession, sleep/wake, and
@@ -184,11 +205,11 @@ because every host must consume one shared visual/state decision.
 
 ### Repeat icons on every device
 
-- [ ] Define one shared repeat icon set consumed by phone, Desktop, and Television.
-- [ ] Use the repeat-loop symbol with **A** in the center for Repeat All.
-- [ ] Use the repeat-loop symbol with **1** in the center for Repeat One, based on the current liked TV
+- [x] Define one shared repeat icon set consumed by phone, Desktop, and Television.
+- [x] Use the repeat-loop symbol with **A** in the center for Repeat All.
+- [x] Use the repeat-loop symbol with **1** in the center for Repeat One, based on the current liked TV
   Repeat One treatment.
-- [ ] Remove the current TV **ALL** word treatment.
+- [x] Remove the current TV **ALL** word treatment.
 - [ ] Verify off, Repeat All, and Repeat One states at every supported control size, including TV
   focus/selected states and accessibility labels.
 

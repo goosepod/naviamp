@@ -79,8 +79,10 @@ class AndroidNaviampCoreCatalog private constructor(
             val sessions = androidCoreProviderSessionPort(storage, clock)
             setAndroidPlatformCoverArtByteLoader { url ->
                 runCatching {
-                    storage.imageBytes(url) {
-                        sessions.currentProvider()?.bytesForOwnedUrl(url)
+                    val provider = sessions.currentProvider()
+                        ?: throw IllegalStateException("Could not load provider artwork.")
+                    storage.imageBytesForProvider(provider, url) {
+                        provider.bytesForOwnedUrl(url)
                             ?: throw IllegalStateException("Could not load provider artwork.")
                     }
                 }.getOrNull()

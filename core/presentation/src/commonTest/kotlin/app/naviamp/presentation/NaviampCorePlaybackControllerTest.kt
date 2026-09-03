@@ -97,7 +97,15 @@ class NaviampCorePlaybackControllerTest {
                 queue = NaviampConnectQueueSnapshot(
                     occurrences = listOf(
                         NaviampConnectQueueOccurrence("0:new-one", "new-one", "New One", "Artist"),
-                        NaviampConnectQueueOccurrence("1:new-two", "new-two", "New Two", "Artist"),
+                        NaviampConnectQueueOccurrence(
+                            occurrenceId = "1:new-two",
+                            mediaId = "new-two",
+                            title = "New Two",
+                            artistName = "Artist",
+                            artistId = "new-artist",
+                            albumId = "new-album",
+                            artworkId = "new-cover",
+                        ),
                     ),
                     currentIndex = 1,
                     groups = listOf(
@@ -121,6 +129,9 @@ class NaviampCorePlaybackControllerTest {
         assertTrue(accepted)
         assertEquals(listOf("new-one", "new-two"), fixture.live.state.value.queue.tracks.map { it.id.value })
         assertEquals("new-two", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals("new-artist", fixture.live.state.value.currentTrack?.artistId?.value)
+        assertEquals("new-album", fixture.live.state.value.currentTrack?.albumId?.value)
+        assertEquals("new-cover", fixture.live.state.value.currentTrack?.coverArtId)
         assertEquals(31.5, fixture.live.state.value.progress.positionSeconds)
         assertEquals(RepeatMode.Track, fixture.live.state.value.repeatMode)
         assertEquals(PlaybackState.Paused, fixture.live.state.value.playbackState)

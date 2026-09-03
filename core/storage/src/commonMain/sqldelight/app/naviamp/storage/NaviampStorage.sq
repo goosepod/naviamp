@@ -454,6 +454,10 @@ SELECT bytes
 FROM cached_image
 WHERE url = ?;
 
+selectImageKeys:
+SELECT url
+FROM cached_image;
+
 upsertImage:
 INSERT OR REPLACE INTO cached_image(
   url,

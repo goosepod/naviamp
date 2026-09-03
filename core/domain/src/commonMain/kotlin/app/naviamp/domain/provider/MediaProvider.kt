@@ -169,6 +169,9 @@ interface MediaProvider {
     /** Returns bytes only when [url] belongs to this provider's authenticated server. */
     suspend fun bytesForOwnedUrl(url: String): ByteArray? = null
 
+    /** Stable persistent-cache identity for artwork URLs whose authentication may rotate. */
+    fun artworkCacheKey(url: String): String = url
+
     suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
         throw UnsupportedOperationException("Track favorites are not supported by $displayName.")
     }

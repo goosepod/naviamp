@@ -449,7 +449,7 @@ independent navigation graph may be introduced in the Apple TV host.
   instead of a fixed blue.
 - [x] Smooth the TV waveform/progress geometry so bar gaps are not conspicuous at 1080p or 4K while
   preserving seeking, progress, focus, and accessibility behavior.
-- [ ] Share the repeat-state icon set across phone, Desktop, and TV: Repeat All uses the repeat glyph
+- [x] Share the repeat-state icon set across phone, Desktop, and TV: Repeat All uses the repeat glyph
   with **A**, and Repeat One uses the repeat glyph with **1**. Remove the TV **ALL** treatment.
 - [ ] Complete cross-platform size, selected/focus-state, contrast, and accessibility acceptance for
   both changes. Detailed criteria are tracked in
@@ -1139,3 +1139,29 @@ Desktop live playback, and Apple coverage remain explicit acceptance work.
   direct-LAN, physical Google TV, Desktop live playback, and Apple acceptance remain open.
 - Passed the shared Core app, presentation, and UI suites, Android assembly, Desktop compilation,
   and iOS Simulator ARM64 compilation after the final Now Playing output-selector changes.
+
+### 2026-09-03
+
+- Completed the emulator recovery pass with the physical Pixel 10a after full controller and target
+  process restarts. Durable trust reauthenticated without another pairing code; a deliberately
+  interrupted relay recovered through the shared bounded retry once the route returned.
+- Verified target independence across failure and detachment. The TV retained its current track and
+  all 51 persisted queue occurrences after controller restart, socket loss, **Stop controlling**,
+  and reconnect.
+- Verified newest-controller-wins with the trusted Pixel and Desktop controller. Desktop took the
+  only live TV session, the Pixel was explicitly told another controller took over, and it returned
+  to local output without an automatic reconnect fight.
+- Fixed a shared layout regression found during recovery testing: opening Settings while no provider
+  is connected no longer renders only its title. Settings keeps its own bounded scroll surface, so
+  Controllers and remembered-device recovery remain usable before provider setup. Added a JVM
+  regression test and passed shared UI JVM tests plus Android, Desktop, and iOS compilation.
+- Replaced the TV-only **ALL** repeat treatment with one Core-owned repeat-icon state mapping shared
+  by phone, Desktop, and TV. Repeat All now overlays **A** and Repeat One overlays **1** on the same
+  loop glyph. Common/JVM tests and Android, Desktop, and iOS compilation passed; both active states
+  were visually exercised on the 1080p TV emulator.
+- Fixed missing artwork after Navidrome session renewal and Connect handoff. Connect queue
+  occurrences now preserve artist, album, and artwork identity, while the shared provider cache
+  uses a stable artwork key that excludes rotating Subsonic token/salt values and lazily promotes
+  existing authenticated-URL cache entries to that stable identity. Verified on the TV
+  emulator with its route to the Navidrome LAN host unavailable: the persisted cover rendered from
+  cache and drove the TV background and smooth waveform palette without a network retry.

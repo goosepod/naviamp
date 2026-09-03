@@ -118,6 +118,12 @@ enum class NaviampRepeatMode {
     Track,
 }
 
+internal fun naviampRepeatIconCenterText(mode: NaviampRepeatMode): String? = when (mode) {
+    NaviampRepeatMode.Off -> null
+    NaviampRepeatMode.Queue -> "A"
+    NaviampRepeatMode.Track -> "1"
+}
+
 enum class NaviampNowPlayingTab {
     BackTo,
     UpNext,
@@ -994,7 +1000,7 @@ private fun NowPlayingDetails(
                 selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
                 buttonSize = secondaryTransportButtonSize,
                 iconSize = secondaryTransportIconSize,
-                centerText = if (nowPlaying.repeatMode == NaviampRepeatMode.Track) "1" else null,
+                centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
                 onClick = { actions.playback(NowPlayingPlaybackAction.CycleRepeatMode) },
             )
         }

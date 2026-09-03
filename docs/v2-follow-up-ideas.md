@@ -22,6 +22,33 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Expanded Artist Discography Sections
+
+- **Status:** Idea
+- **Concept:** Expand Artist Detail into a fuller discography like the reference screenshot: show
+  primary releases first, grouped by release type, then a distinct **Appears On** section, followed
+  by **Top Tracks**. Include albums and individual tracks on which the selected artist has a
+  credited appearance without presenting those releases as the artist's own albums.
+- **Existing foundation:** The shared release classifier already supports Albums, EPs, Singles,
+  Live Releases, Compilations, Remixes, Soundtracks, and Other Releases when a provider supplies
+  usable release-type metadata. This work should preserve those sections and add Mixtapes (and
+  other stable types such as DJ mixes, demos, or bootlegs only when provider metadata supports
+  them) rather than infer categories from titles.
+- [ ] Extend the shared release model and classifier with a **Mixtapes** section, map recognized
+  provider values and synonyms, and add common classification and ordering tests.
+- [ ] Define a provider-neutral, source-scoped discography contract that distinguishes primary
+  album-artist releases from releases and tracks where the artist is a contributor.
+- [ ] Implement provider queries where supported and a shared-storage credit index fallback where
+  they are not; match artists by stable source artist ID instead of display name whenever possible.
+- [ ] Specify **Appears On** inclusion and de-duplication rules for featured tracks, compilations,
+  various-artists releases, multiple credited roles, aliases, missing artist IDs, and releases that
+  also qualify for a primary section.
+- [ ] Decide whether an appearance album opens normally with the matching tracks identified, or
+  whether Artist Detail also needs a separate **Appears On Tracks** presentation for isolated
+  credits and singles.
+- [ ] Add Core-owned loading, empty, error, paging, section-order, and navigation behavior so
+  Android, Desktop, iOS, and TV render the same discography; verify TV focus and large libraries.
+
 ### Track Membership in Playlists
 
 - **Status:** Idea

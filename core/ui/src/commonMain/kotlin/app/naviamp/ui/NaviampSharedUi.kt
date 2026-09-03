@@ -192,8 +192,11 @@ fun NaviampSharedAppShell(
             outerContentScrollState.animateScrollTo(0)
         }
     }
-    val routeUsesOwnScroll = connected &&
-        sharedRouteCanUseOwnScroll(editingConnection, selectedRoute) &&
+    val routeUsesOwnScroll = sharedRouteUsesOwnScroll(
+        connected = connected,
+        editingConnection = editingConnection,
+        selectedRoute = selectedRoute,
+    ) &&
         !restoringConnection &&
         !showFullNowPlaying &&
         (
@@ -333,6 +336,14 @@ internal fun sharedRouteCanUseOwnScroll(
     editingConnection: Boolean,
     selectedRoute: SharedRoute,
 ): Boolean = !editingConnection || selectedRoute == SharedRoute.Settings
+
+internal fun sharedRouteUsesOwnScroll(
+    connected: Boolean,
+    editingConnection: Boolean,
+    selectedRoute: SharedRoute,
+): Boolean = sharedRouteCanUseOwnScroll(editingConnection, selectedRoute) &&
+    (connected || selectedRoute == SharedRoute.Settings)
+
 @Composable
 internal fun ConnectedContent(
     colors: NaviampColors,

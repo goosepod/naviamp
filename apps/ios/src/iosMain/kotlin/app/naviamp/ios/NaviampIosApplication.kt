@@ -307,6 +307,16 @@ class NaviampIosApplication(
         driver.close()
     }
 
-    private suspend fun loadProviderArtwork(url: String): ByteArray? =
-        runCatching { artworkCache.imageBytes(url) }.getOrNull()
+    private suspend fun loadProviderArtwork(url: String): ByteArray? = runCatching {
+        val provider = sessions.currentProvider()
+        if (provider == null) {
+            artworkCache.imageBytes(url)
+        } else {
+            artworkCache.imageBytesForProvider(provider, url) {
+                provider.bytesForOwnedUrl(url)
+                    ?: httpClient.getBytes(url)
+                    ?: throw IllegalStateException("Could not load artwork.")
+            }
+        }
+    }.getOrNull()
 }

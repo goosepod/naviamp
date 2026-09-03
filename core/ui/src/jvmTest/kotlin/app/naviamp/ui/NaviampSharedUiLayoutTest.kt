@@ -26,4 +26,22 @@ class NaviampSharedUiLayoutTest {
             ),
         )
     }
+
+    @Test
+    fun disconnectedSettingsKeepsItsBoundedOwnedScroll() {
+        assertTrue(
+            sharedRouteUsesOwnScroll(
+                connected = false,
+                editingConnection = false,
+                selectedRoute = SharedRoute.Settings,
+            ),
+        )
+        assertFalse(
+            sharedRouteUsesOwnScroll(
+                connected = false,
+                editingConnection = false,
+                selectedRoute = SharedRoute.Home,
+            ),
+        )
+    }
 }

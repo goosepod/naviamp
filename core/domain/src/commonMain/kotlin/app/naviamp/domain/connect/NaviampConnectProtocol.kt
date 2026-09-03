@@ -648,6 +648,8 @@ data class NaviampConnectQueueOccurrence(
     val mediaId: String,
     val title: String,
     val artistName: String,
+    val artistId: String? = null,
+    val albumId: String? = null,
     val albumTitle: String? = null,
     val durationMillis: Long? = null,
     val artworkId: String? = null,

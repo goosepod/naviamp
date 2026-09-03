@@ -1750,11 +1750,7 @@ internal fun TelevisionNowPlaying(
                             size = TelevisionNowPlayingSecondaryButtonSize,
                             iconSize = TelevisionNowPlayingSecondaryIconSize,
                             selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
-                            centerText = when (nowPlaying.repeatMode) {
-                                NaviampRepeatMode.Off -> null
-                                NaviampRepeatMode.Queue -> "ALL"
-                                NaviampRepeatMode.Track -> "1"
-                            },
+                            centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
                             whiteHighlight = true,
                         ) {
                             actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)

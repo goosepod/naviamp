@@ -23,6 +23,11 @@ class StorageObjectByteStore(
             }
         }
 
+    override suspend fun objectKeys(): List<String> =
+        withContext(workContext + NonCancellable) {
+            queries.selectImageKeys().executeAsList()
+        }
+
     override suspend fun writeObjectBytes(key: String, bytes: ByteArray): StoredObjectBytes =
         withContext(workContext + NonCancellable) {
             val now = nowMillis()
@@ -68,4 +73,10 @@ class StorageImageCacheRepository(
 
     override suspend fun imageBytes(url: String, fetch: suspend () -> ByteArray): ByteArray =
         service.bytes(url, fetch)
+
+    override suspend fun imageBytesForProvider(
+        provider: app.naviamp.domain.provider.MediaProvider,
+        url: String,
+        fetch: suspend () -> ByteArray,
+    ): ByteArray = service.bytesForProvider(provider, url, fetch)
 }

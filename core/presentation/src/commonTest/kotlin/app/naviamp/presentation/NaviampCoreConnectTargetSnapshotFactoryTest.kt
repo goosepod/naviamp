@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.connect.NaviampConnectCapability
@@ -102,6 +103,9 @@ class NaviampCoreConnectTargetSnapshotFactoryTest {
 
         assertEquals(identity, handoff.sourceIdentity)
         assertEquals(listOf("first", "second"), handoff.queue.occurrences.map { it.mediaId })
+        assertEquals(listOf("artist", "artist"), handoff.queue.occurrences.map { it.artistId })
+        assertEquals(listOf("album", "album"), handoff.queue.occurrences.map { it.albumId })
+        assertEquals(listOf("cover", "cover"), handoff.queue.occurrences.map { it.artworkId })
         assertEquals(1, handoff.queue.currentIndex)
         assertEquals(12_345, handoff.positionMillis)
         assertEquals(NaviampConnectRepeatMode.All, handoff.repeatMode)
@@ -133,6 +137,7 @@ class NaviampCoreConnectTargetSnapshotFactoryTest {
     private fun track(id: String, title: String, favorite: Boolean = false) = Track(
         id = TrackId(id),
         title = title,
+        artistId = ArtistId("artist"),
         artistName = "Artist",
         albumId = AlbumId("album"),
         albumTitle = "Album",

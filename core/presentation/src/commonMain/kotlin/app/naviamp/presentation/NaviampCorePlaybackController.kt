@@ -228,7 +228,9 @@ class NaviampCorePlaybackController(
             locallyKnownTracks[occurrence.mediaId] ?: app.naviamp.domain.Track(
                 id = app.naviamp.domain.TrackId(occurrence.mediaId),
                 title = occurrence.title,
+                artistId = occurrence.artistId?.let { app.naviamp.domain.ArtistId(it) },
                 artistName = occurrence.artistName,
+                albumId = occurrence.albumId?.let { app.naviamp.domain.AlbumId(it) },
                 albumTitle = occurrence.albumTitle,
                 durationSeconds = occurrence.durationMillis?.div(1_000L)?.toInt(),
                 coverArtId = occurrence.artworkId,

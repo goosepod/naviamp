@@ -1221,6 +1221,22 @@ class NavidromeProvider(
             ),
         )
 
+    override fun artworkCacheKey(url: String): String {
+        if (!ownsUrl(url)) return url
+        val queryStart = url.indexOf('?')
+        if (queryStart < 0) return url
+        val stableQuery = url.substring(queryStart + 1)
+            .split('&')
+            .filterNot { parameter ->
+                when (parameter.substringBefore('=').lowercase()) {
+                    "t", "s" -> true
+                    else -> false
+                }
+            }
+            .joinToString("&")
+        return "${url.substring(0, queryStart)}?$stableQuery"
+    }
+
     fun ownsUrl(url: String): Boolean =
         url.startsWith("${connection.normalizedBaseUrl}/", ignoreCase = true)
 

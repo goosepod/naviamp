@@ -1491,7 +1491,10 @@ class NaviampCoreConnectController(
                     remoteHasNext = remoteSnapshot?.queue?.let { it.currentIndex in 0 until it.occurrences.lastIndex } == true,
                     remoteNowPlaying = if (playbackDestination.hasRemotePlaybackAuthority()) {
                         remote?.target?.let { target ->
-                            remoteSnapshot?.toRemoteNowPlayingUiOrNull(target.displayName)
+                            val provider = providerSessions?.currentProvider()
+                            remoteSnapshot?.toRemoteNowPlayingUiOrNull(target.displayName) { artworkId ->
+                                artworkId?.let { provider?.coverArtUrl(it) }
+                            }
                         }
                     } else {
                         null

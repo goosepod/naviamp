@@ -279,7 +279,7 @@ class NaviampTelevisionNowPlayingFocusTest {
         }
 
         onNodeWithContentDescription("Repeat all").assertExists()
-        onNodeWithText("ALL").assertExists()
+        onNodeWithText("A").assertExists()
     }
 
     @Test

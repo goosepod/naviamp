@@ -30,7 +30,10 @@ import app.naviamp.ui.NowPlayingQueueAction
 import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingUi
 
-internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(targetName: String): NowPlayingUi {
+internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(
+    targetName: String,
+    coverArtUrl: (String?) -> String? = { null },
+): NowPlayingUi {
     val current = queue.occurrences.getOrNull(queue.currentIndex)
     fun item(index: Int) = queue.occurrences[index].let { occurrence ->
         NaviampNowPlayingItemUi(
@@ -38,6 +41,7 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(targetName: Strin
             title = occurrence.title,
             subtitle = occurrence.artistName,
             meta = occurrence.albumTitle.orEmpty(),
+            coverArtUrl = coverArtUrl(occurrence.artworkId),
             favoriteActive = occurrence.favorite,
             hasAlbum = !occurrence.albumTitle.isNullOrBlank(),
             playNextPriority = index in (queue.currentIndex + 1)..(queue.currentIndex + queue.playNextCount),
@@ -57,6 +61,8 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(targetName: Strin
             NaviampConnectPlaybackState.Idle -> "Connected to $targetName"
         },
         remoteOutputDeviceName = targetName,
+        coverArtUrl = coverArtUrl(current?.artworkId),
+        trackCoverArtUrl = coverArtUrl(current?.artworkId),
         albumLine = current?.albumTitle.orEmpty(),
         albumTitle = current?.albumTitle.orEmpty(),
         positionSeconds = playback.positionMillis / 1_000.0,
@@ -85,9 +91,12 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(targetName: Strin
     )
 }
 
-internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUiOrNull(targetName: String): NowPlayingUi? =
+internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUiOrNull(
+    targetName: String,
+    coverArtUrl: (String?) -> String? = { null },
+): NowPlayingUi? =
     takeIf { it.queue.currentIndex in it.queue.occurrences.indices }
-        ?.toRemoteNowPlayingUi(targetName)
+        ?.toRemoteNowPlayingUi(targetName, coverArtUrl)
 
 internal fun createNaviampCoreConnectRemoteNowPlayingActions(
     snapshot: () -> NaviampConnectTargetSnapshot?,
