@@ -1,5 +1,11 @@
 # Naviamp Agent Development Rules
 
+## Translatable User-Facing Strings
+
+Every new user-facing string must be defined in the project's string resource files, including
+`strings.xml` and each maintained translation. Do not hardcode new UI copy in Kotlin or
+platform-specific source files.
+
 ## Release Announcements
 
 Whenever a new Naviamp release is pushed, create a GitHub Discussion in the **Announcements**
