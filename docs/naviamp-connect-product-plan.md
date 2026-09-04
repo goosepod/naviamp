@@ -19,6 +19,11 @@ is accepted. A preview release remains gated by representative physical Google T
 general availability additionally requires the phone/Desktop target, Apple host, recovery, and
 cross-platform acceptance rows below.
 
+The authoritative checklist for publishing the Android TV preview is
+[`android-tv-plan.md`](android-tv-plan.md#android-tv-preview-release-gates). Unchecked items in this
+document that are explicitly labeled general-availability or post-preview work do not block that
+preview.
+
 ## Settled Product Decisions
 
 - [x] The selected playback device owns playback, provider reporting, the authoritative queue, and
@@ -62,7 +67,8 @@ cross-platform acceptance rows below.
 - [x] Keep target playback and queue intact when a controller disconnects, stops controlling, exits,
   changes network, or is displaced.
 - [x] Complete shared self-name, local-alias, revoke, and reconnect actions.
-- [ ] Add a dedicated shared Connect diagnostics surface beyond the current actionable status text.
+- [ ] Add a dedicated shared Connect diagnostics surface beyond the current actionable status text
+  before general availability. This is not an Android TV preview gate.
 - [x] Track command completion per request ID, keeping acknowledgement, protocol rejection,
   timeout, disconnection, and outbound write failure distinct under concurrent out-of-order
   completion.
@@ -102,21 +108,28 @@ cross-platform acceptance rows below.
   including swipe/pointer/keyboard removal appropriate to that controller's host.
 - [x] Reconcile every target snapshot into the controller without requiring the user to revisit the
   Controllers settings page.
-- [ ] Preserve the controller's local browse/navigation state when entering or leaving remote mode.
+- [ ] Verify that the controller's local browse/navigation state survives entering and leaving
+  remote mode. The shared navigation owner is retained; explicit restoration coverage is still an
+  Android TV preview gate.
 - [x] Remove **Share connection**, **Send queue**, and **Bring queue here** from the normal workflow.
   Keep Settings > Controllers focused on discovery, trust, naming, reconnect, revoke, and diagnostics.
 
 ### Playback-device experience
 
 - [x] Open or reveal the playback device's full Now Playing surface when remote playback starts.
-- [ ] Keep its scrubber, lyrics, artwork, queue, transport, and local hardware/media controls live.
-- [ ] Apply local actions on the playback device immediately and publish the resulting authoritative
-  snapshot back to the controller.
-- [ ] Apply the controller's portable playback intent, including gapless/crossfade, repeat, shuffle,
-  ReplayGain, and queue behavior, while retaining the playback device's physical-output settings.
-- [ ] Define which DSP choices are portable. Default EQ and output-device calibration to target-local
-  unless a future portable-profile contract explicitly includes them.
-- [ ] Continue playback normally after every controller has disconnected.
+- [x] Keep the emulator target's scrubber, artwork, queue, transport, and MediaSession state live
+  during remote playback. Line-synced lyrics are implemented in the same shared Now Playing surface.
+- [ ] Verify the same live experience with local hardware/media controls on physical Google TV.
+- [x] Apply local target actions immediately and publish the authoritative result to the controller.
+  TV-local Next and controller reconciliation were exercised on the emulator.
+- [x] Transfer queue behavior, repeat, shuffle, and the portable playback profile while retaining
+  the playback device's physical-output settings.
+- [ ] Verify actual target execution of gapless/crossfade and ReplayGain intent through sustained
+  playback rather than transferred state or settings inspection alone.
+- [x] Keep EQ, output-device calibration, and other physical DSP choices target-local in protocol
+  version 1. A future portable-DSP contract must be explicit and capability-negotiated.
+- [x] Continue playback normally after every controller has disconnected. This passed after socket
+  loss, **Stop controlling**, controller restart, and controller takeover on the TV emulator.
 
 ### Cross-device acceptance
 
@@ -201,10 +214,15 @@ changed both devices to **Vidmahe** within five seconds, and TV-local Next chang
 - [ ] Desktop <-> Desktop across macOS, Windows, and Linux where available.
 - [ ] iPhone/iPad <-> Android phone and Desktop.
 - [ ] Phone/Desktop -> tvOS.
-- [ ] Verify that TV never advertises or enters controller mode.
-- [ ] For every topology, verify first pairing, remembered reconnect, newest-controller-wins,
-  controller detachment, target restart, controller restart, interrupted command recovery, queue
-  editing, source mismatch, and continued target playback.
+- [x] Enforce TV as playback-target-only in the shared capability policy and Android TV host
+  configuration.
+- [ ] Confirm on physical Google TV that no controller-mode UI or advertisement is exposed.
+- [x] On Android phone -> Android TV emulator, verify first pairing, remembered reconnect,
+  newest-controller-wins, controller detachment, target/controller restart, interrupted-route
+  recovery, queue editing, and continued target playback.
+- [ ] Exercise source-mismatch recovery through the Android phone -> Android TV product UI.
+- [ ] Repeat the applicable pairing, recovery, queue, source-mismatch, and continued-playback matrix
+  for every additional topology before claiming general availability.
 
 ## Friendly Device Names
 
@@ -222,6 +240,8 @@ changed both devices to **Vidmahe** within five seconds, and TV-local Next chang
 Fresh setup is part of Connect because it is the first-use path into the trusted-device system.
 Ongoing multi-device synchronization and shared history are follow-up work recorded in
 [`v2-follow-up-ideas.md`](v2-follow-up-ideas.md#trusted-device-settings-sync-and-shared-listening-activity).
+Fresh-device setup is required for general Connect availability but is not an Android TV preview
+gate; the preview retains the existing explicit provider setup flow.
 
 - [ ] Offer **Set up from another Naviamp device** on a fresh phone or Desktop install and on an
   unconfigured TV.
@@ -247,9 +267,11 @@ because every host must consume one shared visual/state decision.
 - [x] Replace the visibly separated large-display bars with a smooth waveform/progress presentation,
   such as an interpolated connected path or tightly sampled ribbon, while retaining played/unplayed
   state, seek feedback, focus, and accessibility semantics.
-- [ ] Verify the result at 720p, 1080p, and native 4K with sparse, dense, missing, and changing
-  waveform data and light/dark album artwork. The 1080p dense-waveform pass is complete.
-- [ ] Add shared rendering/state tests where practical and visual acceptance captures for TV.
+- [x] Verify the dense waveform with changing progress and light/dark artwork at 1080p on the TV
+  emulator.
+- [ ] Verify 720p and native 4K plus sparse, missing, and changing waveform data before the preview.
+- [x] Add shared waveform/repeat state and policy tests.
+- [ ] Add representative TV visual acceptance captures before the preview.
 
 ### Repeat icons on every device
 
@@ -258,8 +280,10 @@ because every host must consume one shared visual/state decision.
 - [x] Use the repeat-loop symbol with **1** in the center for Repeat One, based on the current liked TV
   Repeat One treatment.
 - [x] Remove the current TV **ALL** word treatment.
-- [ ] Verify off, Repeat All, and Repeat One states at every supported control size, including TV
-  focus/selected states and accessibility labels.
+- [x] Exercise Repeat All and Repeat One visually on the 1080p TV emulator and cover their shared
+  state mapping in tests.
+- [ ] Verify Off/All/One at every supported control size, including TV focus/selected states,
+  contrast, and accessibility labels before the preview.
 
 ## Implementation Order
 
@@ -271,8 +295,8 @@ because every host must consume one shared visual/state decision.
 - [x] 4. Implement the atomic first-play queue/profile transfer and fast first-track start.
 - [x] 5. Add the Now Playing device banner, output selector, and streamlined Controllers settings.
 - [x] 6. Add friendly self-names and controller-local aliases.
-- [ ] 7. Complete the Android phone/TV product-UI acceptance and recovery matrix.
-- [ ] 8. Add phone and Desktop target adapters, then Apple host adapters, without moving product
-  policy out of Core.
+- [ ] 7. Complete the remaining Android phone/physical-TV product-UI acceptance and recovery gates.
+- [ ] 8. Accept the implemented phone and Desktop target capabilities across supported hosts, then
+  add Apple host adapters without moving product policy out of Core.
 - [ ] 9. Complete remaining waveform and repeat-icon visual/accessibility acceptance.
 - [ ] 10. Add fresh-device setup from a trusted peer, then evaluate ongoing sync/history work.

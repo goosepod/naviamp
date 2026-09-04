@@ -436,12 +436,15 @@ independent navigation graph may be introduced in the Apple TV host.
   line-synced Lyrics presentation.
 - [x] Implement and exercise TV queue selection/reordering, repeat/shuffle/favorite, gapless and
   crossfade exclusivity, ReplayGain choices, and sample-rate matching controls.
-- [ ] Add word-level karaoke highlighting and final OLED burn-in behavior.
+- [ ] Add final OLED burn-in behavior before the Android TV preview.
+- [ ] Add word-level karaoke highlighting as a post-preview lyrics enhancement.
 - [ ] Verify audio focus, background-service retention, process restoration, and `MediaSession`
   behavior on physical Google TV hardware.
 - [ ] Verify playback profiles, gapless/crossfade transitions, ReplayGain output, and provider
   reporting through sustained real playback rather than settings/UI inspection alone.
-- [ ] Add remote/process/network recovery tests.
+- [x] Cover Connect session, target pairing, retry policy, and interrupted-route recovery in shared
+  deterministic tests.
+- [ ] Add Android host process/network recovery tests and complete the physical-TV lifecycle pass.
 
 #### Shared playback-control visual polish
 
@@ -451,8 +454,9 @@ independent navigation graph may be introduced in the Apple TV host.
   preserving seeking, progress, focus, and accessibility behavior.
 - [x] Share the repeat-state icon set across phone, Desktop, and TV: Repeat All uses the repeat glyph
   with **A**, and Repeat One uses the repeat glyph with **1**. Remove the TV **ALL** treatment.
-- [ ] Complete cross-platform size, selected/focus-state, contrast, and accessibility acceptance for
-  both changes. Detailed criteria are tracked in
+- [ ] Complete 720p/native-4K size, selected/focus-state, contrast, accessibility, and representative
+  visual-capture acceptance for both changes. The shared state tests and 1080p emulator exercises
+  are complete. Detailed criteria are tracked in
   [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#shared-playback-control-polish).
 
 ### M3: Naviamp Connect
@@ -462,13 +466,16 @@ independent navigation graph may be introduced in the Apple TV host.
 - [x] Implement initial shared target/controller state machines and fake-transport tests.
 - [x] Implement the shared Android/Desktop J-PAKE adapter, explicit mutual key confirmation,
   transcript-bound session-key derivation, and failure/destruction tests.
-- [ ] Complete the pairing-management flow. Android TV pairing mode, explicit approval, Android
-  phone discovery/code entry, expiring short codes, authenticated pairing, and durable Android
-  trust persistence, shared self-name/local-alias editing, revoke, and automatic reconnect are
-  implemented; fuller diagnostics/permission recovery, Desktop live acceptance, and Apple host
-  wiring remain.
-- [ ] Add narrow Android TV, Android phone, Desktop, iOS, and tvOS discovery, socket, and secure-key
-  adapters while keeping protocol behavior in Core.
+- [x] Complete Android TV/phone pairing mode, explicit approval, discovery/code entry, expiring
+  short codes, authenticated pairing, durable trust, self-name/local-alias editing, revoke, and
+  automatic reconnect.
+- [x] Exercise Desktop controller pairing, retained reconnect, control, and detachment against the
+  Android TV emulator through the product UI.
+- [ ] Complete Android pairing diagnostics and permission-recovery presentation before the preview.
+- [ ] Add Apple pairing-management host wiring before general availability.
+- [x] Keep Android TV, Android phone, and Desktop discovery, socket, and secure-key effects as narrow
+  host adapters with protocol behavior in Core.
+- [ ] Add the equivalent narrow iOS and tvOS adapters before general availability.
 - [x] Add the first-run assisted connection-provisioning transaction and portable-settings filter.
 - [x] Add phone/Desktop playback-target selection and authoritative remote Now Playing snapshots.
   The Core projection from canonical playback/queue state into revisioned Connect snapshots is
@@ -485,8 +492,10 @@ independent navigation graph may be introduced in the Apple TV host.
   order, current position, Play Next priority, repeat, shuffle, groups, and playback profiles.
 - [x] Verify Android phone to Android TV emulator through the test-build route required by the
   emulator network boundary.
-- [ ] Verify Android phone to physical Android TV, Android to tvOS, iPhone to Android TV/tvOS, and
-  macOS/Windows/Linux Desktop to both TV families.
+- [x] Verify macOS Desktop to Android TV emulator through the test-build route.
+- [ ] Verify Android phone and Desktop against physical Android TV before the preview.
+- [ ] Verify Android/iPhone/Desktop controllers and playback targets across supported non-TV and
+  tvOS topologies before general availability.
 
 #### Branch review issues before merge
 
@@ -517,8 +526,9 @@ The active sequence is maintained in
 [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#implementation-order). Shared
 capability-based roles, ordinary Now Playing/queue routing, atomic first Play, output selection, and
 friendly names are complete. The next slice closes the Android phone/TV recovery matrix, then adds
-and validates non-TV playback targets and Apple host adapters. Physical Google TV, direct-LAN,
-Desktop live playback, and Apple coverage remain explicit acceptance work.
+and validates non-TV playback targets and Apple host adapters. Desktop-to-emulator live playback is
+complete; physical Google TV, direct-LAN, additional Desktop hosts, and Apple coverage remain
+explicit acceptance work.
 
 The first recovery-matrix item now has a shared implementation: accepted remote playback-start
 commands open the playback device's full Now Playing route through Core navigation. Failed or
@@ -531,8 +541,29 @@ configuration only and does not alter release LAN routing.
 The same live pass exposed a disconnected-provider controller UI gap. A live target session could
 report **Controlling** while the local provider connection form hid the remote mini player. Shared UI
 now permits remote mini/full Now Playing whenever a target snapshot is available, independently of
-the controller's local provider state, with JVM policy coverage. Live Play-to-reveal remains to be
-repeated with a current target playback snapshot.
+the controller's local provider state, with JVM policy coverage. A later physical-Pixel-to-emulator
+pass transferred **No Division**, started target-owned playback, and confirmed live Play-to-reveal
+with a current target snapshot.
+
+### Android TV preview release gates
+
+This is the authoritative exit checklist for publishing the Android TV preview. General Naviamp
+Connect availability has additional topology and fresh-device requirements in
+[`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md).
+
+- [ ] Approve the version-1 Connect protocol, pairing threat model, cryptographic/key lifecycle,
+  replay protection, and playback-authority design.
+- [ ] Replace the remaining generic Home collection-page fallback and verify multiple saved-source
+  switching on the emulator.
+- [ ] Verify controller browse/navigation restoration and product-UI source-mismatch recovery.
+- [ ] Complete Android pairing diagnostics and permission-recovery presentation.
+- [ ] Complete sustained gapless/crossfade, ReplayGain, provider-reporting, process/network recovery,
+  and target-independent playback acceptance.
+- [ ] Complete 720p/native-4K waveform and repeat-icon visual, focus, contrast, accessibility, and
+  OLED burn-in acceptance with representative captures.
+- [ ] Pass physical Google TV direct-LAN discovery, audio/HDMI/downmix, CEC, MediaSession/audio focus,
+  sleep/wake, process recovery, performance, and Android phone/Desktop controller acceptance.
+- [ ] Validate Google Play TV banner/icon assets, packaging, and store requirements.
 
 ### M4: Physical-device acceptance
 
@@ -540,7 +571,8 @@ repeated with a current target playback snapshot.
 - [ ] Verify HDMI stereo, downmix policy, CEC remote behavior, sleep/wake, process recovery, and
   performance.
 - [ ] Validate Google Play TV requirements, banner/icon assets, and release packaging.
-- [ ] Decide whether Cast Connect adds enough value after Naviamp Connect is complete.
+- [ ] Decide whether Cast Connect adds enough value after Naviamp Connect is complete. This is a
+  post-preview product decision, not a preview release gate.
 
 ## Initial Acceptance Matrix
 
