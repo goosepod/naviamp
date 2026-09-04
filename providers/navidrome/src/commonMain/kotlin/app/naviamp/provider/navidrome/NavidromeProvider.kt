@@ -722,6 +722,24 @@ class NavidromeProvider(
             .take(limit)
     }
 
+    override suspend fun favoriteArtists(limit: Int): List<Artist> {
+        val musicFolderIds = selectedMusicFolderIds.ifEmpty { listOf(null) }
+        return musicFolderIds
+            .flatMap { musicFolderId ->
+                val response = get(
+                    endpoint = "getStarred2.view",
+                    params = musicFolderId?.let { mapOf("musicFolderId" to it) }.orEmpty(),
+                )
+                response.subsonicResponse()["starred2"]
+                    ?.jsonObject
+                    ?.arrayValue("artist")
+                    .orEmpty()
+                    .mapNotNull { artist -> (artist as? JsonObject)?.toArtist() }
+            }
+            .distinctBy { it.id }
+            .take(limit)
+    }
+
     private suspend fun playlistTracksForMusicFolder(playlistId: String, musicFolderId: String?): List<Track> {
         val response = get(
             endpoint = "getPlaylist.view",

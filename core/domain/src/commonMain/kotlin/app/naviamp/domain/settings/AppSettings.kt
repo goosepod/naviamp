@@ -246,6 +246,7 @@ fun InterfaceSettings.withHomeSectionOrder(order: List<String>): InterfaceSettin
     copy(homeSectionOrder = order).normalized()
 
 object HomeSectionIds {
+    const val FavoriteArtists = "favorite-artists"
     const val MixesForYou = "mixes-for-you"
     const val NavibeatMixes = "navibeat-mixes"
     const val RecentRadio = "recent-radio"
@@ -266,6 +267,7 @@ object HomeSectionIds {
 }
 
 val DefaultHomeSectionOrder = listOf(
+    HomeSectionIds.FavoriteArtists,
     HomeSectionIds.MixesForYou,
     HomeSectionIds.NavibeatMixes,
     HomeSectionIds.RecentRadio,

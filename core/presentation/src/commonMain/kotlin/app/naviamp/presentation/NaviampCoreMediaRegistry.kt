@@ -104,6 +104,7 @@ class NaviampCoreMediaRegistry {
     fun artist(id: String): Artist? = sequenceOf(
         artistDetails?.artist,
         home.artists.firstOrNull { it.id.value == id },
+        home.favoriteArtists.firstOrNull { it.id.value == id },
         search.artists.firstOrNull { it.id.value == id },
         libraryArtists.firstOrNull { it.id.value == id },
     ).filterNotNull().firstOrNull { it.id.value == id }

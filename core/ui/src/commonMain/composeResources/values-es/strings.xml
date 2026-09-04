@@ -352,6 +352,7 @@
     <string name="home_more_in">Más en %1$s</string>
     <string name="home_from_decade">De %1$s</string>
     <string name="home_recently_played">REPRODUCIDO RECIENTEMENTE</string>
+    <string name="home_favorite_artists">ARTISTAS FAVORITOS</string>
     <string name="search_title">Buscar</string>
     <string name="search_tracks_label">Buscar pistas</string>
     <string name="search_clear">Borrar búsqueda</string>

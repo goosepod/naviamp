@@ -22,6 +22,7 @@ data class HomeContent(
     val frequentAlbums: List<Album> = emptyList(),
     val randomAlbums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
+    val favoriteArtists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
     val navibeatMixes: List<NavibeatMix> = emptyList(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
@@ -43,6 +44,7 @@ data class HomeContent(
             frequentAlbums.isEmpty() &&
             randomAlbums.isEmpty() &&
             artists.isEmpty() &&
+            favoriteArtists.isEmpty() &&
             playlists.isEmpty() &&
             navibeatMixes.isEmpty() &&
             recentRadioStreams.isEmpty() &&
@@ -128,6 +130,11 @@ class HomeService(
             frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
             randomAlbums = runCatching { albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
             artists = runCatching { artists(limit = artistLimit) }.getOrDefault(emptyList()),
+            favoriteArtists = if (provider.capabilities.supportsArtistFavorites) {
+                runCatching { provider.favoriteArtists(limit = 500) }.getOrDefault(emptyList())
+            } else {
+                emptyList()
+            },
             playlists = playlistPartition.ordinary,
             navibeatMixes = playlistPartition.mixes.prioritizedForHour(date.hourOfDay),
             recentRadioStreams = recentRadioStreams,

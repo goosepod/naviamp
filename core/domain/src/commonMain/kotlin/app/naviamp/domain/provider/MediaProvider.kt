@@ -39,6 +39,8 @@ interface MediaProvider {
     suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography =
         ArtistDiscography(primary = artist(artistId))
     suspend fun artists(limit: Int = 50): List<Artist>
+    suspend fun favoriteArtists(limit: Int = 500): List<Artist> =
+        artists(limit).filter { it.favoritedAtIso8601 != null }
     suspend fun artistsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Artist> =
         if (request.offset == 0) {
             request.toMediaPage(artists(limit = request.limit))

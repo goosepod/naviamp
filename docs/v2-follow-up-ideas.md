@@ -108,16 +108,18 @@ Before moving an idea into the active v2 plan or a release branch:
   Radio** launch, or after a successful track-seeded radio launch when that track's stable artist ID
   identifies a currently favorited artist. Ordinary track, album, playlist, or queue playback does
   not update it.
-- [ ] Confirm provider support and local fallback for artist favorite state and favorited-at time;
-  preserve source scoping and deterministic ordering when timestamps are missing or equal. Hide the
-  section and Settings when the provider does not support artist favorites.
+- [x] Add bounded native favorite-artist queries for Navidrome and Jellyfin, deterministic name
+  ordering, and a shared Home section that is hidden when artist favorites are unsupported.
+- [ ] Add the source-scoped local fallback plus favorited-date and last-played ordering with stable
+  missing/equal timestamp behavior.
 - [ ] Add the source-scoped artist-radio last-played field/query to shared storage, consolidating any
   unreleased schema change according to the repository migration rules.
 - [ ] Update the timestamp through the shared radio transaction only after an eligible radio launch
   succeeds, and cover track-artist attribution, unfavorited artists, failed/cancelled launches, and
   clock behavior in common tests.
-- [ ] Add Core-owned Home presentation, persisted sort selection, empty/loading/error behavior, and
-  navigation to artist detail; render the same section on Android, Desktop, iOS, and TV.
+- [x] Add Core-owned Home presentation, translated labeling, and navigation to Artist Detail.
+- [ ] Add persisted sort selection, live favorite refresh, explicit empty/loading/error behavior,
+  and final Android, Desktop, iOS, and TV rendering acceptance.
 - [ ] Verify all three sorts, source switching, favorite/unfavorite changes, restart persistence,
   and settings-sync classification before release.
 

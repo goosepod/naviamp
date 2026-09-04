@@ -1,6 +1,8 @@
 package app.naviamp.ui
 
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.navibeat.NavibeatMix
@@ -10,6 +12,24 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class NavibeatHomeCardMapperTest {
+    @Test
+    fun favoriteArtistsBecomeASortedTranslatableHomeSection() {
+        val home = HomeContent(
+            favoriteArtists = listOf(
+                Artist(ArtistId("z"), "Zulu", "2026-01-02T00:00:00Z"),
+                Artist(ArtistId("a"), "alpha", "2026-01-01T00:00:00Z"),
+            ),
+        )
+
+        val section = home.toSharedHomeUi(coverArtUrl = { null })
+            .collectionSections
+            .single { it.id == app.naviamp.domain.settings.HomeSectionIds.FavoriteArtists }
+
+        assertEquals(SharedHomeCollectionTitleResource.FavoriteArtists, section.titleResource)
+        assertEquals(listOf("alpha", "Zulu"), section.items.map { it.mediaItem.title })
+        assertEquals(listOf(SharedHomeCollectionItemAction.OpenArtist, SharedHomeCollectionItemAction.OpenArtist), section.items.map { it.action })
+    }
+
     @Test
     fun navibeatCardsPlayByDefaultAndRemainIdentifiableForTheirActionMenu() {
         val playlist = Playlist(id = "navibeat-1", name = "Afternoon", trackCount = 20)

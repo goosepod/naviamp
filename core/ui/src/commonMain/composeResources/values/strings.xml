@@ -371,6 +371,7 @@
     <string name="home_more_in">More In %1$s</string>
     <string name="home_from_decade">From %1$s</string>
     <string name="home_recently_played">RECENTLY PLAYED</string>
+    <string name="home_favorite_artists">FAVORITE ARTISTS</string>
 
     <string name="search_title">Search</string>
     <string name="search_tracks_label">Search tracks</string>

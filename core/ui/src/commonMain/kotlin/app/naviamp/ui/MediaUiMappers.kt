@@ -228,6 +228,29 @@ fun HomeContent.toSharedHomeUi(
             )
         }
 
+        if (favoriteArtists.isNotEmpty()) {
+            val presentation = interfaceSettings.homeSectionPresentation(HomeSectionIds.FavoriteArtists)
+            add(
+                SharedHomeCollectionSectionUi(
+                    id = HomeSectionIds.FavoriteArtists,
+                    title = "",
+                    titleResource = SharedHomeCollectionTitleResource.FavoriteArtists,
+                    items = favoriteArtists
+                        .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Artist::name))
+                        .map { artist ->
+                            SharedHomeCollectionItemUi(
+                                mediaItem = artist.toSharedMediaItemUi(coverArtUrl, canFavorite = true),
+                                mediaKind = SharedMediaItemKind.Artist,
+                                action = SharedHomeCollectionItemAction.OpenArtist,
+                            )
+                        },
+                    visible = presentation.visible,
+                    homeLayout = presentation.homeLayout,
+                    defaultPageLayout = presentation.pageLayout,
+                ),
+            )
+        }
+
         addSection(HomeSectionIds.MixesForYou, "MIXES FOR YOU", mixAlbums.map { album ->
             val mediaItem = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums)
             SharedHomeCollectionItemUi(

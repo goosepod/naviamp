@@ -568,6 +568,7 @@ enum class SharedHomeCollectionArtwork {
 }
 
 enum class SharedHomeCollectionItemAction {
+    OpenArtist,
     PlayAlbum,
     OpenAlbum,
     PlayPlaylist,
@@ -594,10 +595,15 @@ data class SharedHomeCollectionItemUi(
     val station: SharedHomeStationUi? = null,
 )
 
+enum class SharedHomeCollectionTitleResource {
+    FavoriteArtists,
+}
+
 data class SharedHomeCollectionSectionUi(
     val id: String,
     val title: String,
     val items: List<SharedHomeCollectionItemUi>,
+    val titleResource: SharedHomeCollectionTitleResource? = null,
     val visible: Boolean = true,
     val supportedHomeLayouts: Set<HomeSectionLayout> = HomeSectionLayout.entries.toSet(),
     val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,

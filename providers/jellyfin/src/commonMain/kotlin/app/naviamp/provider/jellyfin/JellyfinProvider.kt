@@ -129,6 +129,14 @@ class JellyfinProvider(
             mapper = { it.toArtist() },
         )
 
+    override suspend fun favoriteArtists(limit: Int): List<Artist> =
+        itemPage(
+            request = MediaPageRequest(limit = limit.coerceIn(1, 500)),
+            includeItemTypes = "MusicArtist",
+            extraParameters = listOf("isFavorite" to "true"),
+            mapper = { it.toArtist() },
+        ).items
+
     override suspend fun albums(limit: Int, offset: Int): List<Album> =
         albumsPage(MediaPageRequest(offset = offset, limit = limit.coerceIn(1, 200))).items
 

@@ -98,6 +98,7 @@ private fun HomeCollectionSection(
     onTitleSelected: () -> Unit,
     onItemSelected: (SharedHomeCollectionItemUi) -> Unit,
 ) {
+    val sectionTitle = section.localizedTitle()
     val homeSection = section.copy(items = section.items.take(section.homeItemLimit ?: section.items.size))
     if (homeSection.items.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -111,7 +112,7 @@ private fun HomeCollectionSection(
                 onItemSelected = onItemSelected,
             )
             HomeSectionLayout.List -> {
-                HomeCollectionSectionTitle(section.title, colors, onTitleSelected)
+                HomeCollectionSectionTitle(sectionTitle, colors, onTitleSelected)
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     homeSection.items.forEach { item ->
                         HomeCollectionItemListRow(item, colors, actions, mediaActions)
@@ -119,7 +120,7 @@ private fun HomeCollectionSection(
                 }
             }
             HomeSectionLayout.Grid -> {
-                HomeCollectionSectionTitle(section.title, colors, onTitleSelected)
+                HomeCollectionSectionTitle(sectionTitle, colors, onTitleSelected)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(HomeCollectionGridSpacing),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -141,6 +142,12 @@ private fun HomeCollectionSection(
 }
 
 @Composable
+private fun SharedHomeCollectionSectionUi.localizedTitle(): String = when (titleResource) {
+    SharedHomeCollectionTitleResource.FavoriteArtists -> stringResource(Res.string.home_favorite_artists)
+    null -> title
+}
+
+@Composable
 private fun HomeCollectionCarousel(
     section: SharedHomeCollectionSectionUi,
     colors: NaviampColors,
@@ -149,6 +156,7 @@ private fun HomeCollectionCarousel(
     onTitleSelected: () -> Unit,
     onItemSelected: (SharedHomeCollectionItemUi) -> Unit,
 ) {
+    val sectionTitle = section.localizedTitle()
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val itemStride = with(LocalDensity.current) { HomeCollectionCarouselItemStride.roundToPx() }
@@ -157,7 +165,7 @@ private fun HomeCollectionCarousel(
         modifier = Modifier.fillMaxWidth(),
     ) {
         HomeCollectionSectionTitle(
-            title = section.title,
+            title = sectionTitle,
             colors = colors,
             onTitleSelected = onTitleSelected,
             modifier = Modifier.weight(1f),
@@ -420,6 +428,13 @@ private fun dispatchHomeCollectionItem(
         SharedHomeCollectionItemAction.PlayAlbum -> mediaActions.onMediaItemAction(item.mediaItem.playAlbumRequest())
         SharedHomeCollectionItemAction.OpenAlbum ->
             mediaActions.onMediaItemAction(item.mediaItem.albumActionRequest(NaviampArtistAlbumCommand.Select))
+        SharedHomeCollectionItemAction.OpenArtist ->
+            mediaActions.onMediaItemAction(
+                NaviampMediaItemActionRequest(
+                    item.mediaItem,
+                    NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select),
+                ),
+            )
         SharedHomeCollectionItemAction.PlayPlaylist ->
             mediaActions.onMediaItemAction(
                 item.mediaItem.playlistActionRequest(
@@ -573,13 +588,14 @@ private fun HomeCollectionPageHeader(
     colors: NaviampColors,
     actions: NaviampHomeActions,
 ) {
+    val sectionTitle = page.section.localizedTitle()
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth < HomeCollectionSingleRowHeaderMinWidth) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(1.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                HomeCollectionTitleRow(page.section.title, colors, actions.onCollectionBack)
+                HomeCollectionTitleRow(sectionTitle, colors, actions.onCollectionBack)
                 Row(
                     horizontalArrangement = Arrangement.End,
                     modifier = Modifier.fillMaxWidth(),
@@ -593,7 +609,7 @@ private fun HomeCollectionPageHeader(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 HomeCollectionTitleRow(
-                    title = page.section.title,
+                    title = sectionTitle,
                     colors = colors,
                     onBack = actions.onCollectionBack,
                     modifier = Modifier.weight(1f),
