@@ -18,6 +18,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
     val id: ProviderId
@@ -35,6 +36,8 @@ interface MediaProvider {
     suspend fun album(albumId: AlbumId): AlbumDetails
     suspend fun albumInfo(albumId: AlbumId): AlbumInfo? = null
     suspend fun artist(artistId: ArtistId): ArtistDetails
+    suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography =
+        ArtistDiscography(primary = artist(artistId))
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun artistsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Artist> =
         if (request.offset == 0) {

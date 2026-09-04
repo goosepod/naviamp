@@ -581,7 +581,13 @@ class MediaUiMappersTest {
             ),
         ).toSharedArtistDetailUi(coverArtUrl = { null })
 
-        assertEquals(listOf("Albums", "EPs"), ui.albumSections.map { it.title })
+        assertEquals(
+            listOf(
+                app.naviamp.domain.media.AlbumReleaseSection.Albums,
+                app.naviamp.domain.media.AlbumReleaseSection.Eps,
+            ),
+            ui.albumSections.map { it.releaseSection },
+        )
         assertEquals("2026", ui.albumSections.first().albums.single().meta)
         assertEquals("2 albums, EPs, and singles", ui.localLibraryLabel)
         assertEquals("", ui.sourceContextLabel)

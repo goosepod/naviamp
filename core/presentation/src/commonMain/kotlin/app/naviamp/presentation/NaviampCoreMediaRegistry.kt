@@ -31,6 +31,10 @@ class NaviampCoreMediaRegistry {
         private set
     var artistSimilarArtists: List<SimilarArtistMatch> = emptyList()
         private set
+    var artistAppearanceAlbums: List<Album> = emptyList()
+        private set
+    var artistAppearanceTracks: List<Track> = emptyList()
+        private set
     var playlists: List<Playlist> = emptyList()
         private set
     var selectedPlaylist: Playlist? = null
@@ -69,10 +73,14 @@ class NaviampCoreMediaRegistry {
         details: ArtistDetails?,
         popularTracks: List<Track> = emptyList(),
         similarArtists: List<SimilarArtistMatch> = emptyList(),
+        appearanceAlbums: List<Album> = emptyList(),
+        appearanceTracks: List<Track> = emptyList(),
     ) {
         artistDetails = details
         artistPopularTracks = popularTracks
         artistSimilarArtists = similarArtists
+        artistAppearanceAlbums = appearanceAlbums
+        artistAppearanceTracks = appearanceTracks
     }
 
     fun updatePlaylists(playlists: List<Playlist>) {
@@ -87,6 +95,7 @@ class NaviampCoreMediaRegistry {
     fun album(id: String): Album? = sequenceOf(
         albumDetails?.album,
         artistDetails?.albums?.firstOrNull { it.id.value == id },
+        artistAppearanceAlbums.firstOrNull { it.id.value == id },
         homeAlbums().firstOrNull { it.id.value == id },
         search.albums.firstOrNull { it.id.value == id },
         libraryAlbums.firstOrNull { it.id.value == id },
@@ -110,6 +119,7 @@ class NaviampCoreMediaRegistry {
             search.tracks +
             albumDetails?.tracks.orEmpty() +
             artistPopularTracks +
+            artistAppearanceTracks +
             selectedPlaylistTracks +
             libraryTracks +
             sonicRows.rows.flatMap { it.tracks }

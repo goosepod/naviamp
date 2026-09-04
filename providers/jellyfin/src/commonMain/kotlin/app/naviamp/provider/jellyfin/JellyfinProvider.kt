@@ -7,6 +7,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.media.ArtistDiscography
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Genre
@@ -293,6 +294,31 @@ class JellyfinProvider(
             albumArtistId = artistId.value,
         ).items
         return ArtistDetails(artistObject.toArtist(), albums)
+    }
+
+    override suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography {
+        val primary = artist(artistId)
+        val primaryAlbumIds = primary.albums.mapTo(mutableSetOf()) { it.id }
+        val creditedTracks = itemPage(
+            request = MediaPageRequest(limit = 200),
+            includeItemTypes = "Audio",
+            extraParameters = listOf("artistIds" to artistId.value),
+            mapper = { it.toTrack() },
+        ).items
+        val appearanceTracks = creditedTracks
+            .filter { track -> track.albumId == null || track.albumId !in primaryAlbumIds }
+            .distinctBy { it.id }
+        val appearanceAlbums = appearanceTracks
+            .mapNotNull(Track::albumId)
+            .distinct()
+            .mapNotNull { albumId -> runCatching { item(albumId.value).toAlbum() }.getOrNull() }
+            .filterNot { it.id in primaryAlbumIds }
+            .distinctBy { it.id }
+        return ArtistDiscography(
+            primary = primary,
+            appearanceAlbums = appearanceAlbums,
+            appearanceTracks = appearanceTracks,
+        )
     }
 
     override suspend fun search(query: String, limit: Int): MediaSearchResults {

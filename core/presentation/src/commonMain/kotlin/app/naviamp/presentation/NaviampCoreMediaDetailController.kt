@@ -187,6 +187,8 @@ class NaviampCoreMediaDetailController(
                 shell.artistDetail.copy(
                     detail = details.toSharedArtistDetailUi(
                         coverArtUrl = artistCoverArtUrl,
+                        appearanceAlbums = mediaRegistry.artistAppearanceAlbums,
+                        appearanceTracks = mediaRegistry.artistAppearanceTracks,
                         popularTracks = mediaRegistry.artistPopularTracks,
                         popularTracksStatus = current?.popularTracksStatus,
                         similarArtists = mediaRegistry.artistSimilarArtists,
@@ -214,6 +216,8 @@ class NaviampCoreMediaDetailController(
                 mediaRegistry.artistDetails,
                 mediaRegistry.artistPopularTracks,
                 emptyList(),
+                mediaRegistry.artistAppearanceAlbums,
+                mediaRegistry.artistAppearanceTracks,
             )
             stateStore.updateShell { shell ->
                 shell.copy(
@@ -244,6 +248,8 @@ class NaviampCoreMediaDetailController(
             mediaRegistry.artistDetails,
             mediaRegistry.artistPopularTracks,
             similar.artists,
+            mediaRegistry.artistAppearanceAlbums,
+            mediaRegistry.artistAppearanceTracks,
         )
         stateStore.updateShell { shell ->
             shell.copy(
@@ -383,9 +389,14 @@ class NaviampCoreMediaDetailController(
             id?.takeUnless { nameOnlyCredit && it == artist.id.value }?.let(provider::coverArtUrl)
         }
         runCatching {
-            if (nameOnlyCredit) loadNameOnlyArtistCreditDetails(provider, artist) else provider.artist(artist.id)
+            if (nameOnlyCredit) {
+                app.naviamp.domain.media.ArtistDiscography(primary = loadNameOnlyArtistCreditDetails(provider, artist))
+            } else {
+                provider.artistDiscography(artist.id)
+            }
         }
-            .onSuccess { detail ->
+            .onSuccess { discography ->
+                val detail = discography.primary
                 if (generation != artistGeneration) return@onSuccess
                 navigationController.updateActiveArtist(detail.artist)
                 val popular = loadArtistPopularTracksUpdate(
@@ -399,7 +410,13 @@ class NaviampCoreMediaDetailController(
                     app.naviamp.domain.media.SimilarArtistsUpdate(emptyList(), null)
                 }
                 if (generation != artistGeneration) return@onSuccess
-                mediaRegistry.updateArtist(detail, popular.tracks, similar.artists)
+                mediaRegistry.updateArtist(
+                    detail,
+                    popular.tracks,
+                    similar.artists,
+                    discography.appearanceAlbums,
+                    discography.appearanceTracks,
+                )
                 stateStore.updateShell { shell ->
                     shell.copy(
                         artistDetail = shell.artistDetail.copy(
@@ -409,6 +426,8 @@ class NaviampCoreMediaDetailController(
                             ),
                             detail = detail.toSharedArtistDetailUi(
                                 coverArtUrl = coverArtUrl,
+                                appearanceAlbums = discography.appearanceAlbums,
+                                appearanceTracks = discography.appearanceTracks,
                                 popularTracks = popular.tracks,
                                 popularTracksStatus = popular.status,
                                 similarArtists = similar.artists,

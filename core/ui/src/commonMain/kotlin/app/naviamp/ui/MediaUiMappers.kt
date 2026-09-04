@@ -1561,6 +1561,8 @@ private fun SharedTrackRowUi.toHomeCollectionMediaItem(): SharedMediaItemUi = Sh
 
 fun ArtistDetails.toSharedArtistDetailUi(
     coverArtUrl: (String?) -> String?,
+    appearanceAlbums: List<Album> = emptyList(),
+    appearanceTracks: List<Track> = emptyList(),
     popularTracks: List<Track> = emptyList(),
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
@@ -1584,10 +1586,12 @@ fun ArtistDetails.toSharedArtistDetailUi(
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         albumSections = albums.groupedByReleaseSection().map { group ->
             SharedAlbumSectionUi(
-                title = group.section.label,
+                releaseSection = group.section,
                 albums = group.albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
             )
         },
+        appearanceAlbums = appearanceAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        appearanceTracks = appearanceTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
         localLibraryLabel = artistLocalLibraryLabel(albums.size),
         biography = info?.biography.takeIf { showArtistInformation },
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },

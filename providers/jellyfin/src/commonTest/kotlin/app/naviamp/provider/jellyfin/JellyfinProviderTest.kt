@@ -136,6 +136,35 @@ class JellyfinProviderTest {
     }
 
     @Test
+    fun artistDiscographySeparatesPrimaryReleasesFromStableIdAppearances() = runTest {
+        val fixture = fixture(
+            responses = linkedMapOf(
+                "/Items/artist-1?" to """{"Id":"artist-1","Name":"Guest Artist"}""",
+                "albumArtistIds=artist-1" to """
+                    {"Items":[{"Id":"primary-album","Name":"Primary","AlbumArtist":"Guest Artist"}],"TotalRecordCount":1}
+                """.trimIndent(),
+                "includeItemTypes=Audio" to """
+                    {"Items":[
+                      {"Id":"primary-track","Name":"Own Song","AlbumId":"primary-album","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]},
+                      {"Id":"guest-track","Name":"Guest Verse","AlbumId":"appearance-album","Album":"Compilation","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]},
+                      {"Id":"standalone-track","Name":"Standalone Feature","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]}
+                    ],"TotalRecordCount":3}
+                """.trimIndent(),
+                "/Items/appearance-album?" to """
+                    {"Id":"appearance-album","Name":"Compilation","AlbumArtist":"Various Artists"}
+                """.trimIndent(),
+            ),
+        )
+
+        val discography = fixture.provider.artistDiscography(ArtistId("artist-1"))
+
+        assertEquals(listOf("primary-album"), discography.primary.albums.map { it.id.value })
+        assertEquals(listOf("appearance-album"), discography.appearanceAlbums.map { it.id.value })
+        assertEquals(listOf("guest-track", "standalone-track"), discography.appearanceTracks.map { it.id.value })
+        assertTrue(fixture.http.requestedUrls.any { it.contains("artistIds=artist-1") })
+    }
+
+    @Test
     fun directStreamUsesTokenButArtworkUsesAuthenticatedByteLoading() = runTest {
         val fixture = fixture(binaryResponse = JellyfinBinaryResponse(200, byteArrayOf(1, 2, 3)))
 

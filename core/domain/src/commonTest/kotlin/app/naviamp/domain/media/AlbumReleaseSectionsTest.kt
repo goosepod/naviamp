@@ -14,6 +14,7 @@ class AlbumReleaseSectionsTest {
             album("album", "Album"),
             album("remix", "Album", "Remixes"),
             album("ep", "EP"),
+            album("mixtape", "Mix Tape"),
             album("live", "Live Album"),
             album("soundtrack", "Soundtrack"),
             album("compilation", "Compilation"),
@@ -24,6 +25,7 @@ class AlbumReleaseSectionsTest {
                 AlbumReleaseSection.Albums,
                 AlbumReleaseSection.Eps,
                 AlbumReleaseSection.Singles,
+                AlbumReleaseSection.Mixtapes,
                 AlbumReleaseSection.Live,
                 AlbumReleaseSection.Compilations,
                 AlbumReleaseSection.Remixes,
@@ -42,6 +44,13 @@ class AlbumReleaseSectionsTest {
     @Test
     fun unrecognizedReleaseTypeUsesOtherReleases() {
         assertEquals(AlbumReleaseSection.Other, album("spoken", "Spoken Word").releaseSection())
+    }
+
+    @Test
+    fun recognizesMixtapeMetadataWithoutInferringFromTheTitle() {
+        assertEquals(AlbumReleaseSection.Mixtapes, album("release", "mixtape").releaseSection())
+        assertEquals(AlbumReleaseSection.Mixtapes, album("release", "street album").releaseSection())
+        assertEquals(AlbumReleaseSection.Albums, album("A Mixtape Named Album", "album").releaseSection())
     }
 
     @Test

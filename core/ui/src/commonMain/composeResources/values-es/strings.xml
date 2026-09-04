@@ -375,6 +375,20 @@
     <string name="library_no_album_matches">Ningún álbum coincide.</string>
     <string name="library_no_songs">No se encontraron canciones en la biblioteca.</string>
     <string name="library_no_song_matches">Ninguna canción coincide.</string>
+
+    <string name="artist_releases_albums">Álbumes</string>
+    <string name="artist_releases_eps">EP</string>
+    <string name="artist_releases_singles">Sencillos</string>
+    <string name="artist_releases_mixtapes">Mixtapes</string>
+    <string name="artist_releases_live">Álbumes en vivo</string>
+    <string name="artist_releases_compilations">Recopilaciones</string>
+    <string name="artist_releases_remixes">Remixes</string>
+    <string name="artist_releases_soundtracks">Bandas sonoras</string>
+    <string name="artist_releases_other">Otros lanzamientos</string>
+    <string name="artist_discography">Discografía</string>
+    <string name="artist_no_primary_releases">No se encontraron lanzamientos principales.</string>
+    <string name="artist_appears_on">Aparece en</string>
+    <string name="artist_top_tracks">Canciones destacadas</string>
     <string name="downloads_offline_title">Descargas</string>
     <string name="downloads_summary">%1$d archivos - %2$s de %3$s</string>
     <string name="downloads_remaining">%1$s restantes - %2$s%% usado</string>

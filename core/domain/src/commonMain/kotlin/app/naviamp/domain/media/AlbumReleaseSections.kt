@@ -3,15 +3,16 @@ package app.naviamp.domain.media
 import app.naviamp.domain.Album
 import app.naviamp.domain.settings.AlbumSortOrder
 
-enum class AlbumReleaseSection(val label: String) {
-    Albums("Albums"),
-    Eps("EPs"),
-    Singles("Singles"),
-    Live("Live Releases"),
-    Compilations("Compilations"),
-    Remixes("Remixes"),
-    Soundtracks("Soundtracks"),
-    Other("Other Releases"),
+enum class AlbumReleaseSection {
+    Albums,
+    Eps,
+    Singles,
+    Mixtapes,
+    Live,
+    Compilations,
+    Remixes,
+    Soundtracks,
+    Other,
 }
 
 data class AlbumReleaseSectionGroup(
@@ -36,6 +37,7 @@ fun Album.releaseSection(): AlbumReleaseSection {
         types.any { "live" in it } -> AlbumReleaseSection.Live
         types.any { "remix" in it } -> AlbumReleaseSection.Remixes
         types.any { "compilation" in it } -> AlbumReleaseSection.Compilations
+        types.any { "mixtape" in it || "mix tape" in it || it == "street album" } -> AlbumReleaseSection.Mixtapes
         types.any { it == "ep" || "extended play" in it } -> AlbumReleaseSection.Eps
         types.any { "single" in it } -> AlbumReleaseSection.Singles
         types.isEmpty() || types.any { "album" in it } -> AlbumReleaseSection.Albums

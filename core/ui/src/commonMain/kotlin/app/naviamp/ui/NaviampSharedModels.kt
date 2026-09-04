@@ -19,6 +19,7 @@ import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.media.AlbumReleaseSection
 
 data class NaviampColors(
     val background: Color = Color(0xFF101114),
@@ -368,6 +369,8 @@ data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
     val albumSections: List<SharedAlbumSectionUi> = emptyList(),
+    val appearanceAlbums: List<SharedMediaItemUi> = emptyList(),
+    val appearanceTracks: List<SharedTrackRowUi> = emptyList(),
     val sourceContextLabel: String = "",
     val localLibraryLabel: String = "",
     val biography: String? = null,
@@ -430,7 +433,7 @@ data class NaviampArtistDetailActions(
 )
 
 data class SharedAlbumSectionUi(
-    val title: String,
+    val releaseSection: AlbumReleaseSection,
     val albums: List<SharedMediaItemUi>,
 )
 

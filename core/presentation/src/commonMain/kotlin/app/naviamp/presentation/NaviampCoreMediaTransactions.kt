@@ -497,6 +497,7 @@ class NaviampCoreMediaTransactions(
                 artistDetail = shell.artistDetail.copy(detail = artist?.copy(
                     albums = artist.albums.updated(),
                     albumSections = artist.albumSections.map { it.copy(albums = it.albums.updated()) },
+                    appearanceAlbums = artist.appearanceAlbums.updated(),
                 )),
             )
         }
@@ -532,7 +533,14 @@ class NaviampCoreMediaTransactions(
             )),
             search = shell.search.copy(results = shell.search.results.copy(tracks = shell.search.results.tracks.updated())),
             albumDetail = shell.albumDetail.copy(detail = shell.albumDetail.detail?.let { it.copy(tracks = it.tracks.updated()) }),
-            artistDetail = shell.artistDetail.copy(detail = shell.artistDetail.detail?.let { it.copy(popularTracks = it.popularTracks.updated()) }),
+            artistDetail = shell.artistDetail.copy(
+                detail = shell.artistDetail.detail?.let {
+                    it.copy(
+                        popularTracks = it.popularTracks.updated(),
+                        appearanceTracks = it.appearanceTracks.updated(),
+                    )
+                },
+            ),
             playlistDetail = shell.playlistDetail.copy(detail = shell.playlistDetail.detail?.let { it.copy(tracks = it.tracks.updated()) }),
         ) }
     }

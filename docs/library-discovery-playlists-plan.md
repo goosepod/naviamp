@@ -41,17 +41,18 @@ and Television coverage where applicable.
 
 ## Expanded Artist Discography Sections
 
-- [ ] Add **Mixtapes** to the shared release classifier using provider metadata and known synonyms,
+- [x] Add **Mixtapes** to the shared release classifier using provider metadata and known synonyms,
   never title inference; retain Albums, EPs, Singles, Live Releases, Compilations, Remixes,
   Soundtracks, and Other Releases.
-- [ ] Define a provider-neutral, source-scoped discography contract that distinguishes primary
+- [x] Define a provider-neutral, source-scoped discography contract that distinguishes primary
   releases from albums and tracks where the artist is a contributor.
-- [ ] Use provider queries where supported and a shared-storage credit-index fallback otherwise,
+- [ ] Complete provider coverage: Jellyfin uses a stable-ID provider query; add the shared-storage
+  credit-index fallback for providers without a reverse-credit query.
   matching stable source artist IDs whenever possible.
 - [ ] Define Appears On inclusion and de-duplication for featured tracks, compilations,
   various-artists releases, roles, aliases, missing IDs, and releases also classified as primary.
-- [ ] Decide and document whether matching tracks are highlighted in a normally opened album or
-  presented in a separate **Appears On Tracks** section.
+- [x] Present appearance albums normally and list their matching credited tracks directly in
+  **Appears On**, so isolated credits and the exact matching tracks remain visible.
 - [ ] Keep loading, empty, error, paging, section ordering, and navigation in Core, with shared UI
   and large-library/Television coverage.
 

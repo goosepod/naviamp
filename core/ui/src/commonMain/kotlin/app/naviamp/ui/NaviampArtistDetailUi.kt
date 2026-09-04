@@ -59,6 +59,23 @@ import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
+import app.naviamp.domain.media.AlbumReleaseSection
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+private fun albumReleaseSectionLabel(section: AlbumReleaseSection): String = when (section) {
+    AlbumReleaseSection.Albums -> stringResource(Res.string.artist_releases_albums)
+    AlbumReleaseSection.Eps -> stringResource(Res.string.artist_releases_eps)
+    AlbumReleaseSection.Singles -> stringResource(Res.string.artist_releases_singles)
+    AlbumReleaseSection.Mixtapes -> stringResource(Res.string.artist_releases_mixtapes)
+    AlbumReleaseSection.Live -> stringResource(Res.string.artist_releases_live)
+    AlbumReleaseSection.Compilations -> stringResource(Res.string.artist_releases_compilations)
+    AlbumReleaseSection.Remixes -> stringResource(Res.string.artist_releases_remixes)
+    AlbumReleaseSection.Soundtracks -> stringResource(Res.string.artist_releases_soundtracks)
+    AlbumReleaseSection.Other -> stringResource(Res.string.artist_releases_other)
+}
 
 @Composable
 fun NaviampArtistDetailContent(
@@ -244,7 +261,7 @@ private fun ArtistDetailContent(
     val visibleAlbumSections = if (groupAlbumsByReleaseType) {
         detail.albumSections
     } else {
-        listOf(SharedAlbumSectionUi("Albums", detail.albums))
+        listOf(SharedAlbumSectionUi(AlbumReleaseSection.Albums, detail.albums))
     }.map { section ->
         section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
     }
@@ -415,44 +432,22 @@ private fun ArtistDetailContent(
                     }
                 }
             }
-            if (detail.popularTracks.isNotEmpty() || detail.popularTracksStatus != null) {
-                Text(
-                    "Popular Tracks".uppercase(),
-                    color = colors.primaryText,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (detail.popularTracks.isNotEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
-                            MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
-                        }
-                    }
-                    detail.popularTracksStatus?.let { status ->
-                        Text(status, color = colors.secondaryText, fontSize = 11.sp)
-                    }
-                    detail.popularTracks.forEach { track ->
-                        TrackRow(
-                            track,
-                            colors,
-                            onTrackAction = handlePopularTrackAction,
-                            canSelect = true,
-                            canStartRadio = false,
-                            canAddToQueue = true,
-                            canDownload = true,
-                            canAddToPlaylist = true,
-                        )
-                    }
-                }
-            }
-            Text("DISCOGRAPHY", color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.artist_discography).uppercase(),
+                color = colors.primaryText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (detail.albums.isEmpty()) {
-                Text("No albums found.", color = colors.secondaryText, fontSize = 13.sp)
+                Text(stringResource(Res.string.artist_no_primary_releases), color = colors.secondaryText, fontSize = 13.sp)
             } else {
                 visibleAlbumSections.forEach { section ->
-                    Text(section.title.uppercase(), color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        albumReleaseSectionLabel(section.releaseSection).uppercase(),
+                        color = colors.primaryText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                     if (albumCollectionLayout == AlbumCollectionLayout.Grid) {
                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                             val tileSize = artistAlbumGridTileSize(maxWidth)
@@ -492,6 +487,69 @@ private fun ArtistDetailContent(
                                 )
                             }
                         }
+                    }
+                }
+            }
+            if (detail.appearanceAlbums.isNotEmpty() || detail.appearanceTracks.isNotEmpty()) {
+                Text(
+                    stringResource(Res.string.artist_appears_on).uppercase(),
+                    color = colors.primaryText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    detail.appearanceAlbums.forEach { album ->
+                        SharedMediaRow(
+                            item = album,
+                            colors = colors,
+                            onClick = { onAlbumSelected(album) },
+                            menuItems = albumMenuItems(album),
+                            onFavoriteToggled = onAlbumFavoriteToggled,
+                        )
+                    }
+                    detail.appearanceTracks.forEach { track ->
+                        TrackRow(
+                            track,
+                            colors,
+                            onTrackAction = handlePopularTrackAction,
+                            canSelect = true,
+                            canStartRadio = true,
+                            canAddToQueue = true,
+                            canDownload = true,
+                            canAddToPlaylist = true,
+                        )
+                    }
+                }
+            }
+            if (detail.popularTracks.isNotEmpty() || detail.popularTracksStatus != null) {
+                Text(
+                    stringResource(Res.string.artist_top_tracks).uppercase(),
+                    color = colors.primaryText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (detail.popularTracks.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
+                            MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                        }
+                    }
+                    detail.popularTracksStatus?.let { status ->
+                        Text(status, color = colors.secondaryText, fontSize = 11.sp)
+                    }
+                    detail.popularTracks.forEach { track ->
+                        TrackRow(
+                            track,
+                            colors,
+                            onTrackAction = handlePopularTrackAction,
+                            canSelect = true,
+                            canStartRadio = false,
+                            canAddToQueue = true,
+                            canDownload = true,
+                            canAddToPlaylist = true,
+                        )
                     }
                 }
             }

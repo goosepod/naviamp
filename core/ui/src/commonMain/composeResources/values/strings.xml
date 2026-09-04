@@ -397,6 +397,20 @@
     <string name="library_no_songs">No library songs found.</string>
     <string name="library_no_song_matches">No library songs match.</string>
 
+    <string name="artist_releases_albums">Albums</string>
+    <string name="artist_releases_eps">EPs</string>
+    <string name="artist_releases_singles">Singles</string>
+    <string name="artist_releases_mixtapes">Mixtapes</string>
+    <string name="artist_releases_live">Live Releases</string>
+    <string name="artist_releases_compilations">Compilations</string>
+    <string name="artist_releases_remixes">Remixes</string>
+    <string name="artist_releases_soundtracks">Soundtracks</string>
+    <string name="artist_releases_other">Other Releases</string>
+    <string name="artist_discography">Discography</string>
+    <string name="artist_no_primary_releases">No primary releases found.</string>
+    <string name="artist_appears_on">Appears On</string>
+    <string name="artist_top_tracks">Top Tracks</string>
+
     <string name="downloads_offline_title">Downloads</string>
     <string name="downloads_summary">%1$d files - %2$s of %3$s</string>
     <string name="downloads_remaining">%1$s remaining - %2$s used</string>
