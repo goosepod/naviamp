@@ -102,3 +102,18 @@ and Television coverage where applicable.
 - [ ] Android, Desktop/JVM, and iOS targets compile and their relevant suites pass.
 - [ ] Phone and Television interaction testing is recorded.
 - [ ] Release notes and the required GitHub Announcement are prepared only when this work ships.
+
+## Hands-on validation log
+
+- **2026-09-04 — Pixel 10a:** The physical-phone pass loaded real Artists, Albums, and Songs
+  catalogs; verified view-specific search labels, a song-only `Dear Mama` query, independent query
+  state, and restoration of that Songs query after visiting Albums. The 2Pac detail screen loaded
+  shared Discography, Albums, Compilations, and Top Tracks sections. The current-track playlist
+  membership editor loaded the server's editable playlists, allowed a local selection, and Cancel
+  discarded it without applying a provider mutation. Apply/removal and queue-origin interaction
+  remain for a disposable playlist test.
+- **2026-09-04 — Android schema check:** A clean isolated install started with migration 24 and no
+  SQLite/runtime errors. The existing `v2test` database is already at schema 25 from earlier
+  unreleased branch work but lacks this branch's `favorite_artist_activity` table; its data was
+  left untouched. Favorite Artists phone acceptance therefore remains pending on a clean install
+  with provider credentials or an explicitly approved reset of that test database.
