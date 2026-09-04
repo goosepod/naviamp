@@ -144,6 +144,41 @@ class NaviampConnectProtocolTest {
     }
 
     @Test
+    fun resumptionWireMessagesBindTheFreshControllerChallenge() {
+        val controller = NaviampConnectDevice(
+            deviceId = "controller",
+            displayName = "Phone",
+            role = NaviampConnectDeviceRole.Controller,
+        )
+        val target = targetDevice()
+        val controllerIdentity = NaviampConnectPublicIdentity("controller", "controller-fingerprint", "controller-key")
+        val targetIdentity = NaviampConnectPublicIdentity("target", "target-fingerprint", "target-key")
+        val messages = listOf<NaviampConnectMessage>(
+            NaviampConnectResumeHello(
+                controller,
+                controllerIdentity,
+                NaviampConnectProtocolRange(),
+                controllerNonce = "fresh-controller-challenge",
+            ),
+            NaviampConnectResumeOffer(
+                sessionId = "resume-session",
+                controllerNonce = "fresh-controller-challenge",
+                protocolVersion = 1,
+                target = target,
+                identity = targetIdentity,
+            ),
+        )
+
+        messages.forEachIndexed { index, message ->
+            val original = NaviampConnectEnvelope(1, sequence = index.toLong(), message = message)
+            assertEquals(original, NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(original)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            NaviampConnectResumeHello(controller, controllerIdentity, NaviampConnectProtocolRange(), "")
+        }
+    }
+
+    @Test
     fun wireRoundTripPreservesADeviceThatCanControlAndPlay() {
         val device = NaviampConnectDevice(
             deviceId = "desktop",

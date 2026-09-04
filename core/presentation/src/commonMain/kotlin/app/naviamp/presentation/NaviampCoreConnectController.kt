@@ -95,6 +95,7 @@ data class NaviampCoreConnectServices(
     val credentials: app.naviamp.app.NaviampConnectSessionCredentialRepository? = null,
     val discovery: NaviampConnectDiscoveryEffect? = null,
     val advertising: NaviampConnectAdvertisingEffect? = null,
+    /** CSPRNG-backed, collision-resistant value used for pairing IDs, challenges, and target nonces. */
     val newOpaqueId: () -> String,
     val newPairingCode: () -> String,
     val nowEpochMillis: () -> Long,
@@ -619,7 +620,7 @@ class NaviampCoreConnectController(
                 advertisement = advertisement,
                 trust = trust,
                 credential = credential,
-                sessionId = services.newOpaqueId(),
+                targetNonce = services.newOpaqueId(),
             )
         } ?: return false
         return when (result) {
@@ -761,6 +762,7 @@ class NaviampCoreConnectController(
                         target.advertisement,
                         trust,
                         credential,
+                        controllerNonce = services.newOpaqueId(),
                         onConnectionOpened = { connection -> activeReconnectConnection = connection },
                     )
                 } ?: app.naviamp.app.NaviampConnectResumptionResult.Failed(

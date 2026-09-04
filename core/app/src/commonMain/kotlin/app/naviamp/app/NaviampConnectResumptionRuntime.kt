@@ -36,12 +36,14 @@ class NaviampConnectControllerResumptionRuntime(
         advertisement: NaviampConnectAdvertisement,
         trust: NaviampConnectTrustRecord,
         credential: ByteArray,
+        controllerNonce: String,
         onConnectionOpened: (NaviampConnectTransportConnection) -> Unit = {},
     ): NaviampConnectResumptionResult {
         var connection: NaviampConnectTransportConnection? = null
         var session: NaviampConnectAuthenticatedSession? = null
         return try {
             require(localDevice.role == NaviampConnectDeviceRole.Controller)
+            require(controllerNonce.isNotBlank())
             val sessionTrust = trust.forPeerSessionRole(NaviampConnectDeviceRole.Target)
             val localIdentity = identityEffect.loadOrCreate().asPublicIdentity()
             requireIdentityForResume(localIdentity, localDevice, identityVerifier)
@@ -53,7 +55,12 @@ class NaviampConnectControllerResumptionRuntime(
                 NaviampConnectEnvelope(
                     protocolVersion = protocolVersion,
                     sequence = 0,
-                    message = NaviampConnectResumeHello(localDevice, localIdentity, localProtocolRange),
+                    message = NaviampConnectResumeHello(
+                        localDevice,
+                        localIdentity,
+                        localProtocolRange,
+                        controllerNonce,
+                    ),
                 ),
             )
             val offerEnvelope = connection.receivePlaintext()
@@ -63,6 +70,7 @@ class NaviampConnectControllerResumptionRuntime(
                 offerEnvelope.sessionId != offer.sessionId ||
                 offerEnvelope.protocolVersion != protocolVersion ||
                 offer.protocolVersion != protocolVersion ||
+                offer.controllerNonce != controllerNonce ||
                 !offer.target.matchesTrustedPeerForResume(sessionTrust.peerDevice) ||
                 offer.identity.deviceId != sessionTrust.peerDevice.deviceId ||
                 offer.identity.identityFingerprint != trust.identityFingerprint ||
@@ -122,12 +130,13 @@ class NaviampConnectTargetResumptionRuntime(
         advertisement: NaviampConnectAdvertisement,
         trust: NaviampConnectTrustRecord,
         credential: ByteArray,
-        sessionId: String,
+        targetNonce: String,
     ): NaviampConnectResumptionResult {
         var session: NaviampConnectAuthenticatedSession? = null
         var retainedConnection: NaviampConnectTransportConnection? = connection
         return try {
             require(localDevice.role == NaviampConnectDeviceRole.Target)
+            require(targetNonce.isNotBlank() && targetNonce.length <= 120)
             val sessionTrust = trust.forPeerSessionRole(NaviampConnectDeviceRole.Controller)
             val hello = helloEnvelope.message as? NaviampConnectResumeHello
                 ?: return failed(connection, NaviampConnectErrorCode.InvalidRequest)
@@ -150,12 +159,19 @@ class NaviampConnectTargetResumptionRuntime(
             ) {
                 return failed(connection, NaviampConnectErrorCode.AuthenticationRequired)
             }
+            val sessionId = resumeSessionId(hello.controllerNonce, targetNonce)
             connection.sendPlaintext(
                 NaviampConnectEnvelope(
                     protocolVersion = protocolVersion,
                     sessionId = sessionId,
                     sequence = 0,
-                    message = NaviampConnectResumeOffer(sessionId, protocolVersion, localDevice, localIdentity),
+                    message = NaviampConnectResumeOffer(
+                        sessionId,
+                        hello.controllerNonce,
+                        protocolVersion,
+                        localDevice,
+                        localIdentity,
+                    ),
                 ),
             )
             val channel = resumeChannel(
@@ -205,6 +221,12 @@ private fun resumeChannel(
     val cipher = cipherFactory.create(secret, role, protocolVersion, sessionId)
     return NaviampConnectAuthenticatedChannel(protocolVersion, sessionId, role, cipher)
 }
+
+/** Both peers contribute fresh material to the resumption channel and its AEAD derivation context. */
+private fun resumeSessionId(controllerNonce: String, targetNonce: String): String =
+    "resume-v1|${controllerNonce.length}:$controllerNonce|${targetNonce.length}:$targetNonce".also {
+        require(it.encodeToByteArray().size <= 256) { "The bound resume session ID is too large." }
+    }
 
 private fun requireIdentityForResume(
     identity: app.naviamp.domain.connect.NaviampConnectPublicIdentity,

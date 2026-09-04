@@ -197,10 +197,14 @@ data class NaviampConnectResumeHello(
     val device: NaviampConnectDevice,
     val identity: NaviampConnectPublicIdentity,
     val protocolRange: NaviampConnectProtocolRange,
+    /** Fresh controller contribution that prevents replay of an earlier target resume offer. */
+    val controllerNonce: String,
 ) : NaviampConnectMessage {
     init {
         require(identity.deviceId == device.deviceId) { "The resume identity must belong to the device." }
         require(device.role == NaviampConnectDeviceRole.Controller) { "Only a controller may resume a target session." }
+        require(controllerNonce.isNotBlank()) { "A resume hello requires a fresh controller nonce." }
+        require(controllerNonce.length <= 120) { "The resume controller nonce is too large." }
     }
 }
 
@@ -209,12 +213,17 @@ data class NaviampConnectResumeHello(
 @SerialName("resume_offer")
 data class NaviampConnectResumeOffer(
     val sessionId: String,
+    /** Echo of the fresh challenge from the initiating controller. */
+    val controllerNonce: String,
     val protocolVersion: Int,
     val target: NaviampConnectDevice,
     val identity: NaviampConnectPublicIdentity,
 ) : NaviampConnectMessage {
     init {
         require(sessionId.isNotBlank()) { "A resume offer requires a session ID." }
+        require(sessionId.encodeToByteArray().size <= 256) { "The resume session ID is too large." }
+        require(controllerNonce.isNotBlank()) { "A resume offer requires the controller nonce." }
+        require(controllerNonce.length <= 120) { "The resume controller nonce is too large." }
         require(protocolVersion > 0) { "A resume offer requires a protocol version." }
         require(target.role == NaviampConnectDeviceRole.Target) { "A resume offer must identify a target." }
         require(identity.deviceId == target.deviceId) { "The resume identity must belong to the target." }

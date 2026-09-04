@@ -5,6 +5,7 @@ import app.naviamp.domain.connect.NaviampConnectCapability
 import app.naviamp.domain.connect.NaviampConnectDevice
 import app.naviamp.domain.connect.NaviampConnectDeviceCapability
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
+import app.naviamp.domain.connect.NaviampConnectErrorCode
 import app.naviamp.domain.connect.NaviampConnectPing
 import app.naviamp.domain.connect.NaviampConnectEnvelope
 import app.naviamp.domain.connect.NaviampConnectProtocolRange
@@ -120,7 +121,7 @@ class NaviampConnectPairingRuntimeTest {
                     advertisement = resumeAdvertisement,
                     trust = targetPaired.trust,
                     credential = targetPaired.resumptionCredential.copyOf(),
-                    sessionId = "resumed-session",
+                    targetNonce = "resumed-target-nonce",
                 )
             }
             val resumedController = async(Dispatchers.Default) {
@@ -135,6 +136,7 @@ class NaviampConnectPairingRuntimeTest {
                     advertisement = resumeAdvertisement,
                     trust = controllerPaired.trust,
                     credential = controllerPaired.resumptionCredential.copyOf(),
+                    controllerNonce = "resume-controller-nonce",
                 )
             }
             val controllerResumed = assertIs<NaviampConnectResumptionResult.Connected>(resumedController.await())
@@ -168,7 +170,7 @@ class NaviampConnectPairingRuntimeTest {
                     advertisement = reverseAdvertisement,
                     trust = controllerPaired.trust,
                     credential = controllerPaired.resumptionCredential.copyOf(),
-                    sessionId = "reverse-session",
+                    targetNonce = "reverse-target-nonce",
                 )
             }
             val reversedController = async(Dispatchers.Default) {
@@ -183,6 +185,7 @@ class NaviampConnectPairingRuntimeTest {
                     advertisement = reverseAdvertisement,
                     trust = targetPaired.trust,
                     credential = targetPaired.resumptionCredential.copyOf(),
+                    controllerNonce = "reverse-controller-nonce",
                 )
             }
             val reverseControllerConnected =
@@ -224,7 +227,7 @@ class NaviampConnectPairingRuntimeTest {
                     advertisement = rejectedAdvertisement,
                     trust = targetPaired.trust,
                     credential = targetPaired.resumptionCredential.copyOf(),
-                    sessionId = "rejected-session",
+                    targetNonce = "rejected-target-nonce",
                 )
             }
             val rejectedController = async(Dispatchers.Default) {
@@ -239,6 +242,7 @@ class NaviampConnectPairingRuntimeTest {
                     advertisement = rejectedAdvertisement,
                     trust = controllerPaired.trust,
                     credential = ByteArray(controllerPaired.resumptionCredential.size) { 0x5a },
+                    controllerNonce = "rejected-controller-nonce",
                 )
             }
             try {
@@ -246,6 +250,58 @@ class NaviampConnectPairingRuntimeTest {
                 assertIs<NaviampConnectResumptionResult.Failed>(rejectedTarget.await())
             } finally {
                 rejectedListener.close()
+            }
+
+            val replayListener = factory.listen()
+            val replayAdvertisement = advertisement(
+                replayListener.port,
+                targetIdentity.identity.identityFingerprint,
+            )
+            val replayingTarget = async(Dispatchers.Default) {
+                val connection = replayListener.accept()
+                val hello = assertIs<app.naviamp.domain.connect.NaviampConnectResumeHello>(
+                    connection.receivePlaintext().message,
+                )
+                assertEquals("fresh-controller-nonce", hello.controllerNonce)
+                connection.sendPlaintext(
+                    NaviampConnectEnvelope(
+                        protocolVersion = 1,
+                        sessionId = "recorded-session",
+                        sequence = 0,
+                        message = app.naviamp.domain.connect.NaviampConnectResumeOffer(
+                            sessionId = "recorded-session",
+                            controllerNonce = "recorded-controller-nonce",
+                            protocolVersion = 1,
+                            target = targetDevice,
+                            identity = targetIdentity.identity.asPublicIdentity(),
+                        ),
+                    ),
+                )
+                connection.close()
+            }
+            val replayedController = async(Dispatchers.Default) {
+                NaviampConnectControllerResumptionRuntime(
+                    controllerDevice,
+                    controllerIdentity,
+                    JvmNaviampConnectIdentityVerifier,
+                    factory,
+                    JvmNaviampConnectAuthenticatedCipherFactory,
+                ).reconnect(
+                    host = "127.0.0.1",
+                    advertisement = replayAdvertisement,
+                    trust = controllerPaired.trust,
+                    credential = controllerPaired.resumptionCredential.copyOf(),
+                    controllerNonce = "fresh-controller-nonce",
+                )
+            }
+            try {
+                assertEquals(
+                    NaviampConnectErrorCode.AuthenticationRequired,
+                    assertIs<NaviampConnectResumptionResult.Failed>(replayedController.await()).code,
+                )
+                replayingTarget.await()
+            } finally {
+                replayListener.close()
             }
         } finally {
             controllerPaired.resumptionCredential.fill(0)
