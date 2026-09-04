@@ -11,6 +11,14 @@ dependent on the controller remaining connected.
 This is remote playback, not Bluetooth audio forwarding or casting. Phone and Desktop can each be a
 controller or a playback device. Television is a playback device only.
 
+## Current Release Scope
+
+This branch is an **Android TV preview candidate**, not general Naviamp Connect availability.
+Merging the shared implementation does not claim that the complete cross-platform topology matrix
+is accepted. A preview release remains gated by representative physical Google TV validation;
+general availability additionally requires the phone/Desktop target, Apple host, recovery, and
+cross-platform acceptance rows below.
+
 ## Settled Product Decisions
 
 - [x] The selected playback device owns playback, provider reporting, the authoritative queue, and
@@ -55,6 +63,13 @@ controller or a playback device. Television is a playback device only.
   changes network, or is displaced.
 - [x] Complete shared self-name, local-alias, revoke, and reconnect actions.
 - [ ] Add a dedicated shared Connect diagnostics surface beyond the current actionable status text.
+- [x] Track command completion per request ID, keeping acknowledgement, protocol rejection,
+  timeout, disconnection, and outbound write failure distinct under concurrent out-of-order
+  completion.
+- [x] Preserve queue occurrence identity through remote Now Playing actions and reconcile stale
+  positional reorder operations against a fresh authoritative snapshot.
+- [x] Turn outbound write exceptions into immediate session teardown and bounded reconnect, while
+  retaining only commands allowed by the shared idempotence policy for retry.
 
 ### Starting remote playback
 
@@ -93,7 +108,7 @@ controller or a playback device. Television is a playback device only.
 
 ### Playback-device experience
 
-- [ ] Open or reveal the playback device's full Now Playing surface when remote playback starts.
+- [x] Open or reveal the playback device's full Now Playing surface when remote playback starts.
 - [ ] Keep its scrubber, lyrics, artwork, queue, transport, and local hardware/media controls live.
 - [ ] Apply local actions on the playback device immediately and publish the resulting authoritative
   snapshot back to the controller.
@@ -143,11 +158,44 @@ emulator rendered the transferred track's cover and artwork-derived palette with
 route deliberately unavailable. Physical Google TV and the remaining topology/recovery matrix stay
 open.
 
+Remote playback activation now routes through the shared target command executor into the shared
+navigation owner. A successful playing handoff, catalog/radio start, queue selection, Play, resumed
+toggle, Previous, or Next reveals the playback device's ordinary full Now Playing surface; Pause,
+failed starts, and queue-only edits leave its current navigation untouched. Shared policy tests and
+the Android debug build pass. Live revalidation exposed Android DNS-SD resolving the emulator to an
+IPv6 link-local address rather than its bridged IPv4 address. The shared debug-only endpoint adapter
+now recognizes scoped and unscoped link-local addresses; the physical Pixel then automatically
+reauthenticated its retained trust through the restricted emulator relay and the product UI reported
+the TV as connected without another pairing code.
+
+A controller with no active local provider connection now keeps a connected target's remote mini
+player and full Now Playing surface available. Previously, the connection form hid those controls
+even though the authenticated target session was live. The shared UI policy has JVM coverage. A
+physical Pixel 10a-to-TV-emulator pass then transferred **No Division**, started target-owned
+playback, and automatically revealed the TV's full Now Playing surface. The same pass confirmed
+that transferred artwork identity is retained when the TV already knows a sparser copy of the
+track. With the emulator's stale system proxy repaired, the TV used its transferred Navidrome
+session to fetch the cover directly from the server and applied its artwork-derived palette.
+The emulator-only HTTPS relay was then corrected to preserve TLS data pipelined with CONNECT and to
+handle half-closes without truncating the opposite direction. On a fresh queued track, target-owned
+BASS playback remained active past 85 seconds, the TV scrubber advanced from 0:20 to 1:25, Pause
+held the position, and Resume advanced it to 1:40. This closes the emulator sustained-streaming
+blocker without introducing a production routing workaround.
+
+Target snapshot publication now ignores progress-only ticks and sends a full authoritative queue
+only for structural playback changes: track/station, queue, play state, repeat, or shuffle. This
+prevents a controller from falling minutes behind while decoding redundant full-queue snapshots;
+the playback device remains the owner of the live scrubber. Common tests cover the policy. In the
+physical Pixel 10a-to-TV-emulator acceptance pass, phone Pause/Resume controlled the TV, phone Next
+changed both devices to **Vidmahe** within five seconds, and TV-local Next changed both devices to
+**I Alone** within five seconds while target playback continued to advance.
+
 - [x] Android phone -> Android TV emulator through the product UI, using only the test-build route
   override required to bridge the emulator's private NAT address.
 - [ ] Android phone -> physical Google TV, including direct LAN, audio, MediaSession, sleep/wake, and
   process recovery.
-- [ ] Desktop -> Android TV and physical Google TV.
+- [x] Desktop -> Android TV emulator.
+- [ ] Desktop -> physical Google TV.
 - [ ] Android phone <-> Android phone.
 - [ ] Desktop <-> Android phone.
 - [ ] Desktop <-> Desktop across macOS, Windows, and Linux where available.
@@ -226,5 +274,5 @@ because every host must consume one shared visual/state decision.
 - [ ] 7. Complete the Android phone/TV product-UI acceptance and recovery matrix.
 - [ ] 8. Add phone and Desktop target adapters, then Apple host adapters, without moving product
   policy out of Core.
-- [ ] 9. Complete remaining waveform visual acceptance and implement the shared repeat-icon polish.
+- [ ] 9. Complete remaining waveform and repeat-icon visual/accessibility acceptance.
 - [ ] 10. Add fresh-device setup from a trusted peer, then evaluate ongoing sync/history work.

@@ -13,13 +13,45 @@ this size. The dedicated Television experience and Naviamp Connect behavior are 
 owned by shared Core code, while platform modules remain focused on concrete host boundaries such
 as DNS-SD, secure credential storage, sockets, Android configuration, and native playback.
 
-The most important work before merge is to correct two request/identity races in Connect and make
-outbound transport failure transition the product into its reconnect lifecycle. After those
-correctness fixes, the main risks are maintainability in several very large shared files and the
-still-incomplete physical-device and cross-platform acceptance matrix.
+The three identified Connect correctness blockers—per-request completion, stable remote queue
+identity, and outbound-write lifecycle handling—have been resolved and verified. The remaining
+risks are maintainability in several very large shared files and the still-incomplete
+physical-device and cross-platform acceptance matrix.
 
 The branch adds approximately 24,637 lines and removes 396 lines across 178 files. About 6,970 of
 the added lines are tests across 61 test files, and about 1,946 lines are documentation.
+
+### Blocker resolution update — 2026-09-04
+
+The three merge blockers identified by this review are now resolved in shared Core code:
+
+- Controller requests retain bounded terminal results keyed by request ID. Acknowledgement,
+  protocol rejection, timeout, disconnection, and outbound write failure are distinct outcomes;
+  command waiters no longer infer success from the shared `lastError` field. Tests cover two
+  simultaneous requests completing successfully and unsuccessfully in both orders.
+- Remote Now Playing rows carry their queue occurrence ID and rendered revision as an explicit
+  action target. Selection, removal, favorite, and Play Next resolve the occurrence rather than the
+  latest positional index. A stale positional reorder requests a fresh authoritative snapshot
+  instead of moving a potentially different occurrence.
+- A transport exception before or during an outbound write ends the controller session
+  immediately, publishes an actionable reconnecting state, and retains only idempotent pending
+  commands for the established retry path. A receive-side disconnect after a completed write is
+  recorded separately from write failure.
+
+The Core app, presentation, storage, domain, and UI JVM suites pass after these changes. Android
+Core compilation, iOS Simulator ARM64 Core compilation, Desktop tests, and Android debug assembly
+also pass. The physical Pixel 10a and Android TV emulator pass their local Connect instrumentation
+suites and the full identity-bound cross-device pairing and encrypted command sequence. Direct
+DNS-SD discovery remains unavailable across the emulator/physical-device network boundary, so the
+cross-device protocol run used the existing source-restricted test relay and explicit-host path.
+
+### Merge and release scope decision — 2026-09-04
+
+This branch is ready to be evaluated as an **Android TV preview candidate**, not as general Naviamp
+Connect availability. Merge readiness is based on the resolved shared correctness blockers and the
+completed phone/Desktop-to-TV-emulator coverage. A preview release still requires representative
+physical Google TV validation. General availability remains gated by phone/Desktop playback-target
+acceptance, Apple hosts, broader topology coverage, and the recovery matrix listed below.
 
 ## Findings
 
@@ -275,18 +307,17 @@ scheduling that more closely resembles production.
 
 This is not a merge blocker for the branch, but it is useful follow-up test infrastructure work.
 
-## Recommended Order of Work
+## Recommended Remaining Order of Work
 
-1. Add per-request terminal results and out-of-order multi-request tests.
-2. Preserve occurrence identity through remote queue UI actions and add stale-render tests.
-3. Route outbound write failures into session teardown and bounded reconnect behavior.
-4. Run the complete shared and Android test suites plus the existing emulator cross-device tests.
-5. Split the largest Connect and Television owners without moving behavior out of Core.
-6. Reconcile the plan checklists and define whether the release is a preview or general Connect
-   availability.
-7. Complete physical Google TV and remaining lifecycle acceptance before a general release.
-8. Expand target adapters and Apple coverage only after the shared request/session corrections are
-   in place.
+The correctness blockers, emulator test pass, checklist reconciliation, and Android TV preview
+scope decision were completed on 2026-09-04.
+
+1. Split the largest Connect and Television owners without moving behavior out of Core. This is a
+   maintainability improvement, not a remaining merge blocker.
+2. Complete representative physical Google TV and remaining lifecycle acceptance before publishing
+   the Android TV preview.
+3. Expand phone/Desktop target and Apple adapters, then complete the wider topology matrix before
+   claiming general Naviamp Connect availability.
 
 ## Verification Performed During Review
 
@@ -304,8 +335,17 @@ This is not a merge blocker for the branch, but it is useful follow-up test infr
   failure.
 - iOS native targets were disabled on the Windows review host because the BASS cinterop requires
   an Apple-compatible native toolchain.
-- Android cross-device instrumentation and physical-device scenarios were not rerun as part of
-  this review.
+- On macOS after the blocker fixes, Android debug and instrumentation APKs built and installed on a
+  physical Pixel 10a and the Android TV emulator. Both devices passed the seven-test Connect runtime
+  suite covering PAKE, Keystore identity, framed TCP, and DNS-SD lifecycle behavior.
+- The physical Pixel 10a and Android TV emulator both passed the full identity-bound pairing test
+  through a temporary source-restricted LAN/ADB relay. The encrypted session accepted Play, queue
+  handoff, connection provisioning, Internet Radio start, and album start commands. Both crash
+  buffers were empty afterward.
+- Direct multicast discovery between the physical phone and emulator timed out in both directions;
+  advertising itself succeeded. The acceptance harness now lets an explicit host plus the target's
+  public identity fingerprint bypass that emulator network limitation without bypassing protocol
+  authentication.
 
 ## Overall Assessment
 
@@ -313,7 +353,9 @@ This is ambitious, high-quality work with the right architectural center of grav
 Television implementation is substantial, and Connect already has security, lifecycle, protocol,
 and test foundations that are often deferred too long in remote-playback features.
 
-The branch should not merge without fixing per-request outcome tracking, stale remote queue-item
-identity, and outbound write-failure lifecycle handling. Once those are addressed, the code is in a
-good position for incremental decomposition and broader device acceptance rather than fundamental
-redesign.
+At review time, the branch could not merge without fixing per-request outcome tracking, stale
+remote queue-item identity, and outbound write-failure lifecycle handling. Those three blockers are
+now resolved and covered in shared tests. The code is in a good position for incremental
+decomposition and broader device acceptance rather than fundamental redesign; the remaining
+platform combinations, physical Google TV, and lifecycle gates must still be completed for the
+intended release scope.

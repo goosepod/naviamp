@@ -483,7 +483,9 @@ independent navigation graph may be introduced in the Apple TV host.
 - [x] Add same-source validation plus atomic local-to-TV and TV-to-local queue handoff. Canonical
   provider/server/account/library validation applies in both directions, preserving duplicate
   order, current position, Play Next priority, repeat, shuffle, groups, and playback profiles.
-- [ ] Verify Android phone to Android TV first, then Android to tvOS, iPhone to Android TV/tvOS, and
+- [x] Verify Android phone to Android TV emulator through the test-build route required by the
+  emulator network boundary.
+- [ ] Verify Android phone to physical Android TV, Android to tvOS, iPhone to Android TV/tvOS, and
   macOS/Windows/Linux Desktop to both TV families.
 
 #### Branch review issues before merge
@@ -517,6 +519,20 @@ capability-based roles, ordinary Now Playing/queue routing, atomic first Play, o
 friendly names are complete. The next slice closes the Android phone/TV recovery matrix, then adds
 and validates non-TV playback targets and Apple host adapters. Physical Google TV, direct-LAN,
 Desktop live playback, and Apple coverage remain explicit acceptance work.
+
+The first recovery-matrix item now has a shared implementation: accepted remote playback-start
+commands open the playback device's full Now Playing route through Core navigation. Failed or
+pause-only commands do not disturb the target's current screen. Shared presentation tests and the
+Android debug build pass. The physical Pixel now reauthenticates its retained TV trust after Android
+DNS-SD returns the emulator's IPv6 link-local address: the shared debug endpoint adapter recognizes
+that address family and routes it through the source-restricted emulator relay. This is test-build
+configuration only and does not alter release LAN routing.
+
+The same live pass exposed a disconnected-provider controller UI gap. A live target session could
+report **Controlling** while the local provider connection form hid the remote mini player. Shared UI
+now permits remote mini/full Now Playing whenever a target snapshot is available, independently of
+the controller's local provider state, with JVM policy coverage. Live Play-to-reveal remains to be
+repeated with a current target playback snapshot.
 
 ### M4: Physical-device acceptance
 
@@ -1165,3 +1181,34 @@ Desktop live playback, and Apple coverage remain explicit acceptance work.
   existing authenticated-URL cache entries to that stable identity. Verified on the TV
   emulator with its route to the Navidrome LAN host unavailable: the persisted cover rendered from
   cache and drove the TV background and smooth waveform palette without a network retry.
+- Repaired physical-Pixel reconnect when Android DNS-SD resolves the TV emulator as a scoped or
+  unscoped IPv6 link-local host. The shared endpoint override accepts an explicit set of host
+  prefixes, while Android and Desktop debug wiring opt into `fe80:` alongside the existing emulator
+  IPv4 route. Verified an actual encrypted retained-trust socket from the Pixel through the
+  source-restricted relay to the TV listener; no new pairing code was required.
+- Kept remote Now Playing reachable when a connected controller has no active local provider. The
+  connection form may remain visible, but it no longer suppresses a target-backed mini player or
+  full Now Playing surface. Added shared UI policy coverage and passed the Android debug build.
+- Verified the complete first-Play path from the physical Pixel 10a with **No Division**: the TV
+  accepted the queue/current occurrence, entered target-owned playback, and automatically revealed
+  full-screen Now Playing. Existing sparse target track records are now enriched with the handoff's
+  portable artist, album, duration, favorite, and artwork metadata instead of discarding it.
+- Diagnosed the remaining blank cover as emulator infrastructure rather than target UI behavior.
+  The TV AVD had a stale global HTTP proxy pointing at an unused port and could not route directly
+  to the LAN Navidrome host. With a working temporary CONNECT proxy preserving the original HTTPS
+  hostname and SNI, the TV fetched the cover itself with its transferred Navidrome session and
+  rendered both the image and artwork-derived background. The clean Android build was reinstalled
+  afterward with authenticated artwork URLs absent from logs.
+- Corrected the temporary emulator CONNECT relay to preserve TLS bytes pipelined after the CONNECT
+  headers and to honor full-duplex half-close behavior. A fresh queued track then remained in BASS
+  `PLAYING` state past 85 seconds, the TV scrubber advanced from 0:20 to 1:25, Pause held that
+  position, and Resume advanced it to 1:40. This verifies sustained target-owned audio retrieval and
+  transport behavior through the emulator-only LAN bridge; physical Google TV direct-LAN playback
+  remains open acceptance work.
+- Prevented target-to-controller state backlog by publishing authoritative Connect snapshots only
+  when playback structure changes (track/station, queue, play state, repeat, or shuffle), rather
+  than serializing the full queue on every progress tick. Progress-only changes remain local to the
+  playback device, as intended for remote-control mode. Common tests cover the policy. A physical
+  Pixel 10a then paused and resumed TV playback, advanced both devices to **Vidmahe**, and followed a
+  TV-local advance to **I Alone** within five seconds; the TV scrubber continued advancing while the
+  controller deliberately retained its last structural-snapshot position.

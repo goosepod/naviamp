@@ -22,6 +22,27 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Switchable Complete Library Views
+
+- **Status:** Requested by a user on 2026-09-04
+- **Concept:** Replace the artist-only Library presentation with one shared catalog surface that
+  can switch between **Artists**, **Albums**, and **Songs**, matching the complete-library views
+  available in other music clients.
+- **Existing foundation:** The shared provider contract, Navidrome provider, and Jellyfin provider
+  already support paged artists, albums, and tracks.
+- [ ] Add a shared Library-view model and action owned by Core, including independent query, paging,
+  refresh, and scroll/focus restoration state for each catalog type.
+- [ ] Populate all three views through the provider-neutral paging contracts and reject stale loads
+  when the source, query, or selected view changes.
+- [ ] Render Artists and Albums with the appropriate collection presentation and Songs with the
+  standard shared track rows and actions.
+- [ ] Make search labels, empty states, sorting or A-Z navigation, load-more behavior, and refresh
+  status describe the active catalog type rather than assuming artists.
+- [ ] Give Television the same selector with deterministic D-pad entry, Back behavior, accessible
+  state labels, and per-view focus restoration; do not create a Television-only library.
+- [ ] Add common controller tests and shared phone, Desktop, iOS, and Television UI coverage,
+  including representative large libraries and 720p, 1080p, and native 4K acceptance.
+
 ### Expanded Artist Discography Sections
 
 - **Status:** Idea
@@ -51,18 +72,31 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Track Membership in Playlists
 
-- **Status:** Idea
-- **Concept:** Add an **In Playlists…** action to the shared three-dot menu for a track. It opens
-  a secondary menu listing every playlist that contains that track; choosing a result navigates to
-  the corresponding playlist.
-- [ ] Define the shared provider/storage query, including duplicate occurrences, unavailable or
-  deleted playlists, smart-playlist membership, source scoping, and empty/loading/error states.
-- [ ] Add one Core-owned nested-menu model and navigation action so Android, Desktop, iOS, and TV
-  render the same feature anywhere the standard track action menu appears.
-- [ ] Decide whether the first version is informational/navigation-only or also offers removal from
-  an individual playlist without leaving the menu.
-- [ ] Verify keyboard, touch, and TV remote focus/back behavior for the secondary menu, including
-  returning focus to the originating track action.
+- **Status:** Requested by a user on 2026-09-04
+- **Concept:** Replace the add-only, single-selection playlist picker with one shared **Edit
+  playlist membership** workflow. From the current track or any queue occurrence, show every
+  editable playlist, identify the playlists that already contain the track, and allow adding to or
+  removing from multiple playlists in one edit.
+- [ ] Define a provider-neutral membership query with source scoping and explicit loading,
+  unavailable, and failure states. Avoid unbounded eager playlist-track requests for large
+  libraries; use a Core-owned bounded loader/cache or an optional provider reverse-membership
+  capability when one exists.
+- [ ] Add one Core-owned editor model and action coordinator reused by current-track and queue-item
+  menus on Android, Desktop, iOS, and Television.
+- [ ] Let the user select and deselect multiple playlists, then apply a diff that adds new
+  memberships and removes old memberships without changing unrelated tracks or their order.
+- [ ] Treat removal as removing every occurrence of the selected media identity unless a later UI
+  explicitly offers occurrence-level removal.
+- [ ] Reconcile the displayed membership with authoritative provider state after mutation. Keep the
+  editor open while loading or saving and report partial failure per playlist without discarding
+  successful changes.
+- [ ] Define behavior for duplicate occurrences, unavailable or deleted playlists, smart playlists,
+  concurrent edits, stale responses, source changes, and empty collections.
+- [ ] When controlling remote playback, enable membership editing only after Connect negotiates an
+  explicit capability and can route the mutation to the playback device's active source. Until
+  then, hide or honestly disable the action rather than exposing a visible no-op.
+- [ ] Verify touch, pointer, keyboard, and TV remote selection, Apply/Cancel, Back, accessibility,
+  and focus restoration to the originating track action.
 
 ### Favorite Artists Home Section
 
