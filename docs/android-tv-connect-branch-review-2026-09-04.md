@@ -75,6 +75,14 @@ emulator in both directions. That pass exposed and fixed a Core offline-restorat
 old inventory preference could override the newly selected unavailable source. Shared tests now
 cover both successful and offline two-source transitions.
 
+Controller-local navigation restoration and source-mismatch recovery are now also closed for the
+Android phone -> Android TV emulator preview topology. Dismissing remote Now Playing restored the
+phone's prior Search route. A deliberately mismatched catalog start left TV playback and both queues
+unchanged, displayed a localized shared recovery dialog on the phone, routed into source Settings,
+and completed the existing TV approval-gated secure setup flow. A post-setup catalog attempt reached
+the target but returned media unavailable because the emulator could not resolve its freshly
+provisioned catalog in this network fixture; it did not return source mismatch.
+
 ## Findings
 
 ### 1. High: command completion is not tracked per request
@@ -275,7 +283,8 @@ but the following are still open:
 - iPhone/iPad controller and playback-target behavior.
 - tvOS target behavior.
 - Sleep/wake, process restoration, MediaSession, audio focus, and network transition recovery.
-- Product-UI source-mismatch recovery beyond the now-verified saved-source and offline transitions.
+- Product-UI source-mismatch recovery on additional topologies; Android phone -> Android TV emulator
+  is now verified for the preview.
 - 720p and native 4K visual acceptance.
 - Complete repeat-state size, focus, contrast, and accessibility acceptance.
 - Representative queue sizes, including payloads near the authenticated-frame limit.

@@ -108,9 +108,9 @@ preview.
   including swipe/pointer/keyboard removal appropriate to that controller's host.
 - [x] Reconcile every target snapshot into the controller without requiring the user to revisit the
   Controllers settings page.
-- [ ] Verify that the controller's local browse/navigation state survives entering and leaving
-  remote mode. The shared navigation owner is retained; explicit restoration coverage is still an
-  Android TV preview gate.
+- [x] Verify that the controller's local browse/navigation state survives entering and leaving
+  remote mode. Physical-phone acceptance restored Search after dismissing remote Now Playing, and
+  shared regression coverage preserves both the selected route and last content route.
 - [x] Remove **Share connection**, **Send queue**, and **Bring queue here** from the normal workflow.
   Keep Settings > Controllers focused on discovery, trust, naming, reconnect, revoke, and diagnostics.
 
@@ -220,7 +220,10 @@ changed both devices to **Vidmahe** within five seconds, and TV-local Next chang
 - [x] On Android phone -> Android TV emulator, verify first pairing, remembered reconnect,
   newest-controller-wins, controller detachment, target/controller restart, interrupted-route
   recovery, queue editing, and continued target playback.
-- [ ] Exercise source-mismatch recovery through the Android phone -> Android TV product UI.
+- [x] Exercise source-mismatch recovery through the Android phone -> Android TV product UI. The
+  target rejected a mismatched catalog start without changing playback or either queue; the phone
+  offered localized Settings and approval-gated secure setup recovery, and TV-side setup approval
+  completed after the phone source was restored.
 - [ ] Repeat the applicable pairing, recovery, queue, source-mismatch, and continued-playback matrix
   for every additional topology before claiming general availability.
 

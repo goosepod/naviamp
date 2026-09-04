@@ -560,7 +560,7 @@ Connect availability has additional topology and fresh-device requirements in
   resume-offer key/nonce reuse before approval.
 - [x] Replace the remaining generic Home collection-page fallback and verify multiple saved-source
   switching on the emulator.
-- [ ] Verify controller browse/navigation restoration and product-UI source-mismatch recovery.
+- [x] Verify controller browse/navigation restoration and product-UI source-mismatch recovery.
 - [ ] Complete Android pairing diagnostics and permission-recovery presentation.
 - [ ] Complete sustained gapless/crossfade, ReplayGain, provider-reporting, process/network recovery,
   and target-independent playback acceptance.
@@ -1267,3 +1267,15 @@ Connect availability has additional topology and fresh-device requirements in
   tests cover online and unavailable two-source transitions. The temporary database was backed up
   before the acceptance fixture was installed, restored afterward, and all extra credential-bearing
   copies were removed.
+- Verified on the physical Android phone that opening and dismissing remote Now Playing restores
+  the prior Search route instead of replacing controller-local browse/navigation state. Added a
+  shared navigation regression that preserves both the selected Search route and last content
+  route across the Now Playing overlay.
+- Exercised source mismatch through the Android phone -> Android TV emulator product UI. A catalog
+  selection with different library identities was rejected without changing TV playback or either
+  queue, and the phone displayed the shared localized recovery dialog with Settings and secure
+  target-setup choices. The Settings action opened the source workflow, the phone was restored to
+  its original Music Library-only selection, and the TV approval gate completed secure setup. A
+  later catalog retry reached the target but reported media unavailable because the emulator could
+  not resolve the freshly provisioned catalog in this network fixture; it did not regress to a
+  source-mismatch failure.
