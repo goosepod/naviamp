@@ -1,5 +1,6 @@
 package app.naviamp.android
 
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.security.KeyFactory
 import java.security.Signature
@@ -26,6 +27,7 @@ class AndroidNaviampConnectIdentityInstrumentedTest {
         assertEquals(first, second)
         assertEquals(64, first.identityFingerprint.length)
         assertEquals(first.identityFingerprint.take(32), first.deviceId)
+        Log.i(TestLogTag, "identityFingerprint=${first.identityFingerprint}")
         assertTrue(
             Signature.getInstance("SHA256withECDSA").run {
                 initVerify(publicKey)
@@ -33,5 +35,9 @@ class AndroidNaviampConnectIdentityInstrumentedTest {
                 verify(signature)
             },
         )
+    }
+
+    private companion object {
+        const val TestLogTag = "NaviampConnectTest"
     }
 }

@@ -188,35 +188,17 @@ class AndroidNaviampConnectPairingCrossDeviceInstrumentedTest {
     }
 
     private fun runController() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val resolved = AtomicReference<NaviampConnectResolvedService?>()
-        val discovered = CountDownLatch(1)
-        val discovery = AndroidNaviampConnectDiscoveryEffect(context)
-        val start = discovery.start(
-            object : NaviampConnectDiscoveryListener {
-                override fun onServiceResolved(service: NaviampConnectResolvedService) {
-                    val decoded = NaviampConnectDiscoveryMetadata.decode(
-                        service.textAttributes,
-                        service.port,
-                        Long.MAX_VALUE,
-                    )
-                    if (decoded?.instanceId == PairingInstance) {
-                        resolved.set(service)
-                        discovered.countDown()
-                    }
-                }
-
-                override fun onServiceLost(serviceName: String) = Unit
-                override fun onDiscoveryFailed(message: String) = discovered.countDown()
-            },
-        )
-        assertEquals(NaviampConnectDiscoveryStartResult.Started, start)
-        assertTrue(discovered.await(20, TimeUnit.SECONDS), "Pixel pairing discovery timed out.")
-        discovery.stop()
-        val service = requireNotNull(resolved.get()) { "Pixel did not resolve the pairing target." }
-        val advertisement = requireNotNull(
-            NaviampConnectDiscoveryMetadata.decode(service.textAttributes, service.port, Long.MAX_VALUE),
-        )
+        val arguments = InstrumentationRegistry.getArguments()
+        val explicitHost = arguments.getString("connectHost")?.takeIf(String::isNotBlank)
+        val explicitFingerprint = arguments.getString("connectFingerprint")?.takeIf(String::isNotBlank)
+        val endpoint = if (explicitHost != null) {
+            requireNotNull(explicitFingerprint) {
+                "Explicit-host pairing requires -e connectFingerprint with the target's public identity fingerprint."
+            }
+            explicitHost to advertisement(PairingPort, explicitFingerprint)
+        } else {
+            discoverPairingTarget()
+        }
         val identityEffect = AndroidNaviampConnectDeviceIdentityEffect()
         val identity = identityEffect.loadOrCreate()
         val runtime = NaviampConnectControllerPairingRuntime(
@@ -227,13 +209,10 @@ class AndroidNaviampConnectPairingCrossDeviceInstrumentedTest {
             pakeFactory = BouncyCastleNaviampConnectPakeFactory,
             cipherFactory = JvmNaviampConnectAuthenticatedCipherFactory,
         )
-        val connectHost = InstrumentationRegistry.getArguments().getString("connectHost")
-            ?.takeIf(String::isNotBlank)
-            ?: service.addresses.first()
         runBlocking {
             val pairingResult = runtime.pair(
-                host = connectHost,
-                advertisement = advertisement,
+                host = endpoint.first,
+                advertisement = endpoint.second,
                 pairingCode = PairingCode.toCharArray(),
                 pairedAtEpochMillis = System.currentTimeMillis(),
                 trustedDeviceId = "android-tv-target",
@@ -317,6 +296,42 @@ class AndroidNaviampConnectPairingCrossDeviceInstrumentedTest {
                 paired.session.close()
             }
         }
+    }
+
+    private fun discoverPairingTarget(): Pair<String, NaviampConnectAdvertisement> {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val resolved = AtomicReference<NaviampConnectResolvedService?>()
+        val discovered = CountDownLatch(1)
+        val discovery = AndroidNaviampConnectDiscoveryEffect(context)
+        val start = discovery.start(
+            object : NaviampConnectDiscoveryListener {
+                override fun onServiceResolved(service: NaviampConnectResolvedService) {
+                    val decoded = NaviampConnectDiscoveryMetadata.decode(
+                        service.textAttributes,
+                        service.port,
+                        Long.MAX_VALUE,
+                    )
+                    if (decoded?.instanceId == PairingInstance) {
+                        resolved.set(service)
+                        discovered.countDown()
+                    }
+                }
+
+                override fun onServiceLost(serviceName: String) = Unit
+                override fun onDiscoveryFailed(message: String) = discovered.countDown()
+            },
+        )
+        assertEquals(NaviampConnectDiscoveryStartResult.Started, start)
+        try {
+            assertTrue(discovered.await(20, TimeUnit.SECONDS), "Pairing discovery timed out.")
+        } finally {
+            discovery.stop()
+        }
+        val service = requireNotNull(resolved.get()) { "The pairing target was not resolved." }
+        val advertisement = requireNotNull(
+            NaviampConnectDiscoveryMetadata.decode(service.textAttributes, service.port, Long.MAX_VALUE),
+        )
+        return service.addresses.first() to advertisement
     }
 
     private fun advertisement(port: Int, fingerprint: String) = NaviampConnectAdvertisement(
