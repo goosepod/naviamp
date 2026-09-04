@@ -1023,6 +1023,24 @@ data class SharedGenreMixTreeRowUi(
     val selected: Boolean = false,
 )
 
+data class NaviampPlaylistMembershipRowUi(
+    val playlist: NaviampPlaylistChoiceUi,
+    val selected: Boolean,
+    val originallySelected: Boolean,
+    val failed: Boolean = false,
+)
+
+data class NaviampTrackPlaylistMembershipUi(
+    val trackId: String,
+    val trackTitle: String,
+    val rows: List<NaviampPlaylistMembershipRowUi> = emptyList(),
+    val loading: Boolean = false,
+    val saving: Boolean = false,
+    val unavailable: Boolean = false,
+    val saved: Boolean = false,
+    val truncated: Boolean = false,
+)
+
 data class NowPlayingUi(
     val id: String = "",
     val title: String,
@@ -1078,6 +1096,7 @@ data class NowPlayingUi(
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
+    val playlistMembership: NaviampTrackPlaylistMembershipUi? = null,
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),

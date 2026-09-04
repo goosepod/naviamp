@@ -38,6 +38,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -101,9 +102,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.Res
-import app.naviamp.ui.generated.resources.lyrics_display_text
-import app.naviamp.ui.generated.resources.lyrics_display_lines
-import app.naviamp.ui.generated.resources.lyrics_display_words
+import app.naviamp.ui.generated.resources.*
 import kotlin.math.roundToInt
 
 enum class NaviampRepeatMode {
@@ -139,6 +138,9 @@ data class NaviampNowPlayingActions(
     val onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit,
     val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
     val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
+    val onPlaylistMembershipToggled: (String) -> Unit = {},
+    val onPlaylistMembershipApplied: () -> Unit = {},
+    val onPlaylistMembershipDismissed: () -> Unit = {},
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -254,8 +256,14 @@ fun NaviampNowPlayingPanel(
     visualizerColors: NaviampPlayerColors = NaviampPlayerColors.fallback(colors),
 ) {
     var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
-    var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
     var saveQueueDialogOpen by remember { mutableStateOf(false) }
+    val openPlaylistMembership: (NaviampNowPlayingItemUi) -> Unit = { item ->
+        if (item.id == nowPlaying.id) {
+            actions.currentTrack(NowPlayingCurrentTrackAction.AddToPlaylist)
+        } else {
+            actions.onQueueItemAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
+        }
+    }
     val showStationList = nowPlaying.isLive
     val progressStableNowPlaying = rememberProgressStableNowPlaying(nowPlaying)
     val artSizeDefault = 286.dp
@@ -338,7 +346,7 @@ fun NaviampNowPlayingPanel(
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
                         displaySettings = displaySettings,
-                        onOpenPlaylistDialog = { playlistDialogOpen = it },
+                        onOpenPlaylistDialog = openPlaylistMembership,
                         onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                         compactLayout = viewportMaxHeight < 640.dp,
                         availableHeight = (wideDetailsHeight - WideNowPlayingDetailsTopPadding)
@@ -443,7 +451,7 @@ fun NaviampNowPlayingPanel(
                             actions = actions,
                             selectedVisualizer = selectedVisualizer,
                             displaySettings = displaySettings,
-                            onOpenPlaylistDialog = { playlistDialogOpen = it },
+                            onOpenPlaylistDialog = openPlaylistMembership,
                             onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                             compactLayout = true,
                             availableHeight = compactDetailsHeight,
@@ -501,7 +509,7 @@ fun NaviampNowPlayingPanel(
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
                         displaySettings = displaySettings,
-                        onOpenPlaylistDialog = { playlistDialogOpen = it },
+                        onOpenPlaylistDialog = openPlaylistMembership,
                         onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                         mobileLayout = true,
                         compactSizing = compactWidthSizing,
@@ -540,47 +548,13 @@ fun NaviampNowPlayingPanel(
             },
         )
     }
-    playlistDialogOpen?.let { item ->
-        AddToPlaylistDialog(
-            title = item.title,
+    nowPlaying.playlistMembership?.let { membership ->
+        TrackPlaylistMembershipDialog(
+            membership = membership,
             colors = colors,
-            playlists = nowPlaying.playlistChoices,
-            status = nowPlaying.playlistActionStatus,
-            onDismissRequest = { playlistDialogOpen = null },
-            onAddToExisting = { playlist ->
-                playlistDialogOpen = null
-                if (item.id == nowPlaying.id) {
-                    actions.currentTrack(
-                        NowPlayingCurrentTrackAction.AddToPlaylist,
-                        playlistChoice = playlist,
-                    )
-                } else {
-                    actions.onQueueItemAction(
-                        nowPlayingItemActionRequest(
-                            item,
-                            NowPlayingItemAction.AddToPlaylist,
-                            playlistChoice = playlist,
-                        ),
-                    )
-                }
-            },
-            onCreateAndAdd = { name ->
-                playlistDialogOpen = null
-                if (item.id == nowPlaying.id) {
-                    actions.currentTrack(
-                        NowPlayingCurrentTrackAction.CreatePlaylistAndAdd,
-                        playlistName = name,
-                    )
-                } else {
-                    actions.onQueueItemAction(
-                        nowPlayingItemActionRequest(
-                            item,
-                            NowPlayingItemAction.CreatePlaylistAndAdd,
-                            playlistName = name,
-                        ),
-                    )
-                }
-            },
+            onToggle = actions.onPlaylistMembershipToggled,
+            onApply = actions.onPlaylistMembershipApplied,
+            onDismissRequest = actions.onPlaylistMembershipDismissed,
         )
     }
 }
@@ -2407,6 +2381,91 @@ fun AddToPlaylistDialog(
         dismissButton = {
             TextButton(onClick = onDismissRequest) {
                 Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+fun TrackPlaylistMembershipDialog(
+    membership: NaviampTrackPlaylistMembershipUi,
+    colors: NaviampColors,
+    onToggle: (String) -> Unit,
+    onApply: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    val changed = membership.rows.any { it.selected != it.originallySelected }
+    val listState = rememberLazyListState()
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(stringResource(Res.string.playlist_membership_title), fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(Res.string.playlist_membership_description, membership.trackTitle),
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+                when {
+                    membership.loading -> Text(stringResource(Res.string.playlist_membership_loading), color = colors.secondaryText)
+                    membership.saving -> Text(stringResource(Res.string.playlist_membership_saving), color = colors.secondaryText)
+                    membership.unavailable -> Text(stringResource(Res.string.playlist_membership_unavailable), color = colors.secondaryText)
+                    membership.saved -> Text(stringResource(Res.string.playlist_membership_saved), color = colors.secondaryText)
+                    membership.rows.isEmpty() -> Text(stringResource(Res.string.playlist_membership_empty), color = colors.secondaryText)
+                }
+                if (membership.truncated) {
+                    Text(stringResource(Res.string.playlist_membership_truncated), color = colors.secondaryText, fontSize = 11.sp)
+                }
+                if (membership.rows.isNotEmpty()) {
+                    LazyColumn(
+                        state = listState,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                    ) {
+                        items(membership.rows, key = { it.playlist.id }) { row ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .clickable(
+                                        enabled = !membership.loading && !membership.saving && !row.failed,
+                                        onClick = { onToggle(row.playlist.id) },
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 3.dp),
+                            ) {
+                                Checkbox(
+                                    checked = row.selected,
+                                    enabled = !membership.loading && !membership.saving && !row.failed,
+                                    onCheckedChange = { onToggle(row.playlist.id) },
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(row.playlist.name, color = colors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (row.failed) {
+                                        Text(
+                                            stringResource(Res.string.playlist_membership_row_failed),
+                                            color = colors.secondaryText,
+                                            fontSize = 11.sp,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = changed && !membership.loading && !membership.saving && !membership.unavailable,
+                onClick = onApply,
+            ) {
+                Text(stringResource(Res.string.playlist_membership_apply))
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !membership.saving, onClick = onDismissRequest) {
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )

@@ -20,6 +20,7 @@ data class NaviampCoreNowPlayingDisplayState(
     val sleepTimer: SleepTimerState? = null,
     val sleepTimerNowEpochMillis: Long = 0L,
     val playlistActionStatus: String? = null,
+    val playlistMembership: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null,
 )
 
 /** Maps the complete live playback graph into the one authoritative shared Now Playing state. */
@@ -116,7 +117,10 @@ class NaviampCoreNowPlayingPresenter(
             activeRadioDjId = playbackSettings.activeRadioDjId,
             playlistChoices = shell.playlistChoices,
             playlistActionStatus = display.playlistActionStatus,
-        ).toNowPlayingUi().copy(visualizerFrame = sidecar.visualizerFrame)
+        ).toNowPlayingUi().copy(
+            visualizerFrame = sidecar.visualizerFrame,
+            playlistMembership = display.playlistMembership,
+        )
         stateStore.updateShell { current -> current.copy(nowPlaying = nowPlaying) }
     }
 }

@@ -58,19 +58,19 @@ and Television coverage where applicable.
 
 ## Track Membership in Playlists
 
-- [ ] Define a source-scoped provider-neutral membership query with explicit loading, unavailable,
+- [x] Define a source-scoped provider-neutral membership query with explicit loading, unavailable,
   and failure states, backed by a bounded Core loader/cache or optional reverse-membership provider
   capability.
-- [ ] Add one Core editor and coordinator reused from current-track and queue-item menus on every
+- [x] Add one Core editor and coordinator reused from current-track and queue-item menus on every
   platform.
-- [ ] Show existing membership and allow multi-select additions and removals, then apply only the
+- [x] Show existing membership and allow multi-select additions and removals, then apply only the
   membership diff without changing unrelated tracks or ordering.
-- [ ] Remove every occurrence of the selected media identity unless a later UI explicitly offers
+- [x] Remove every occurrence of the selected media identity unless a later UI explicitly offers
   occurrence-level removal.
-- [ ] Reconcile authoritative provider state after saving; keep the editor open during work and
+- [x] Reconcile authoritative provider state after saving; keep the editor open during work and
   report partial failures per playlist without discarding successful mutations.
-- [ ] Specify duplicate, unavailable/deleted, smart-playlist, concurrent-edit, stale-response,
-  source-change, and empty-library behavior.
+- [x] Handle duplicates, unavailable/deleted playlists, smart playlists, concurrent authoritative
+  re-reads, stale responses, source changes, empty collections, and a 100-playlist safety bound.
 - [ ] Hide or honestly disable remote membership editing until Connect negotiates and routes an
   explicit capability for the playback device's active source.
 - [ ] Verify touch, pointer, keyboard, TV remote, Apply/Cancel, Back, accessibility, and focus

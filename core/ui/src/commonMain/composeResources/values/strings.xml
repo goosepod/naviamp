@@ -411,6 +411,17 @@
     <string name="artist_appears_on">Appears On</string>
     <string name="artist_top_tracks">Top Tracks</string>
 
+    <string name="playlist_membership_title">Edit playlist membership</string>
+    <string name="playlist_membership_description">Choose the playlists that contain %1$s.</string>
+    <string name="playlist_membership_loading">Checking playlists...</string>
+    <string name="playlist_membership_saving">Updating playlists...</string>
+    <string name="playlist_membership_unavailable">Playlist membership is unavailable for this source.</string>
+    <string name="playlist_membership_saved">Playlist membership updated.</string>
+    <string name="playlist_membership_empty">No editable playlists are available.</string>
+    <string name="playlist_membership_truncated">Showing the first 100 editable playlists.</string>
+    <string name="playlist_membership_row_failed">Could not check or update this playlist.</string>
+    <string name="playlist_membership_apply">Apply</string>
+
     <string name="downloads_offline_title">Downloads</string>
     <string name="downloads_summary">%1$d files - %2$s of %3$s</string>
     <string name="downloads_remaining">%1$s remaining - %2$s used</string>

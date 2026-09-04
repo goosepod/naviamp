@@ -389,6 +389,17 @@
     <string name="artist_no_primary_releases">No se encontraron lanzamientos principales.</string>
     <string name="artist_appears_on">Aparece en</string>
     <string name="artist_top_tracks">Canciones destacadas</string>
+
+    <string name="playlist_membership_title">Editar pertenencia a listas</string>
+    <string name="playlist_membership_description">Elige las listas que contienen %1$s.</string>
+    <string name="playlist_membership_loading">Comprobando listas...</string>
+    <string name="playlist_membership_saving">Actualizando listas...</string>
+    <string name="playlist_membership_unavailable">La pertenencia a listas no está disponible para esta fuente.</string>
+    <string name="playlist_membership_saved">Pertenencia a listas actualizada.</string>
+    <string name="playlist_membership_empty">No hay listas editables disponibles.</string>
+    <string name="playlist_membership_truncated">Se muestran las primeras 100 listas editables.</string>
+    <string name="playlist_membership_row_failed">No se pudo comprobar o actualizar esta lista.</string>
+    <string name="playlist_membership_apply">Aplicar</string>
     <string name="downloads_offline_title">Descargas</string>
     <string name="downloads_summary">%1$d archivos - %2$s de %3$s</string>
     <string name="downloads_remaining">%1$s restantes - %2$s%% usado</string>

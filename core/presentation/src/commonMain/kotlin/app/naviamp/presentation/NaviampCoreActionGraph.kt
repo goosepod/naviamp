@@ -254,6 +254,9 @@ fun createNaviampCoreActions(
             onSleepTimerAction = { send(NaviampCoreCommand.NowPlaying.SleepTimer(it)) },
             onSelectionAction = { send(NaviampCoreCommand.NowPlaying.Selection(it)) },
             onQueueItemAction = { send(NaviampCoreCommand.NowPlaying.QueueItem(it)) },
+            onPlaylistMembershipToggled = { send(NaviampCoreCommand.NowPlaying.TogglePlaylistMembership(it)) },
+            onPlaylistMembershipApplied = { send(NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership) },
+            onPlaylistMembershipDismissed = { send(NaviampCoreCommand.NowPlaying.DismissPlaylistMembership) },
         ),
     )
 

@@ -22,6 +22,9 @@ import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.resolveAction
+import app.naviamp.ui.NaviampPlaylistMembershipRowUi
+import app.naviamp.ui.NaviampTrackPlaylistMembershipUi
+import app.naviamp.ui.toPlaylistChoiceUi
 
 /** Owns Now Playing display, current-track, selection, and row-action product behavior. */
 class NaviampCoreNowPlayingMediaController(
@@ -43,11 +46,16 @@ class NaviampCoreNowPlayingMediaController(
     private val favoritedAtIso8601: () -> String,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
+    private var membershipGeneration = 0L
+
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Display,
         is NaviampCoreCommand.NowPlaying.CurrentTrack,
         is NaviampCoreCommand.NowPlaying.Selection,
         is NaviampCoreCommand.NowPlaying.QueueItem,
+        is NaviampCoreCommand.NowPlaying.TogglePlaylistMembership,
+        NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership,
+        NaviampCoreCommand.NowPlaying.DismissPlaylistMembership,
         -> NaviampCoreImmediateCommandResult.Deferred
         else -> NaviampCoreImmediateCommandResult.Unhandled
     }
@@ -58,6 +66,9 @@ class NaviampCoreNowPlayingMediaController(
             is NaviampCoreCommand.NowPlaying.CurrentTrack -> currentTrack(command.request)
             is NaviampCoreCommand.NowPlaying.Selection -> selection(command.request)
             is NaviampCoreCommand.NowPlaying.QueueItem -> queueItem(command.request)
+            is NaviampCoreCommand.NowPlaying.TogglePlaylistMembership -> togglePlaylistMembership(command.playlistId)
+            NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership -> applyPlaylistMembership()
+            NaviampCoreCommand.NowPlaying.DismissPlaylistMembership -> dismissPlaylistMembership()
             else -> return null
         }
         presenter.publish(playbackController.currentDisplay())
@@ -125,7 +136,8 @@ class NaviampCoreNowPlayingMediaController(
         val track = currentTrackOrPublish() ?: return
         when (request.action) {
             NowPlayingCurrentTrackAction.StartRadio -> generatedRadio.startTrackRadio(track)
-            NowPlayingCurrentTrackAction.AddToPlaylist -> addToPlaylist(track, request.playlistChoice?.id)
+            NowPlayingCurrentTrackAction.AddToPlaylist -> request.playlistChoice?.id?.let { addToPlaylist(track, it) }
+                ?: openPlaylistMembership(track)
             NowPlayingCurrentTrackAction.CreatePlaylistAndAdd -> createPlaylist(track, request.playlistName)
             NowPlayingCurrentTrackAction.Download -> downloads.downloadTracks(track.title, listOf(track), includeCompletedCount = false)
             NowPlayingCurrentTrackAction.GoToAlbum -> openAlbum(track)
@@ -188,7 +200,9 @@ class NaviampCoreNowPlayingMediaController(
             }
             NowPlayingItemAction.AddToQueue ->
                 track?.let { applyQueueUpdate(queue.appendTracks(listOf(it), "track")) } ?: staleTrack()
-            NowPlayingItemAction.AddToPlaylist -> track?.let { addToPlaylist(it, resolved.playlistChoice?.id) } ?: staleTrack()
+            NowPlayingItemAction.AddToPlaylist -> track?.let { selected ->
+                resolved.playlistChoice?.id?.let { addToPlaylist(selected, it) } ?: openPlaylistMembership(selected)
+            } ?: staleTrack()
             NowPlayingItemAction.CreatePlaylistAndAdd -> track?.let { createPlaylist(it, resolved.playlistName) } ?: staleTrack()
             NowPlayingItemAction.Download -> track?.let {
                 downloads.downloadTracks(it.title, listOf(it), includeCompletedCount = false)
@@ -237,6 +251,121 @@ class NaviampCoreNowPlayingMediaController(
                 publishPlaylistStatus("Added ${track.title} to playlist.")
             }
             .onFailure { publishPlaylistStatus(it.message ?: "Could not add track to playlist.") }
+    }
+
+    private suspend fun openPlaylistMembership(track: Track) {
+        val generation = ++membershipGeneration
+        val provider = providerSource.current()
+        updateMembership(
+            NaviampTrackPlaylistMembershipUi(
+                trackId = track.id.value,
+                trackTitle = track.title,
+                loading = provider != null,
+                unavailable = provider == null,
+            ),
+        )
+        presenter.publish(playbackController.currentDisplay())
+        if (provider == null) return
+        val sourceKey = provider.id.value to provider.cacheNamespace
+        val knownChoices = stateStore.state.value.shell.playlistChoices
+        val allChoices = if (knownChoices.isNotEmpty()) {
+            knownChoices
+        } else {
+            runCatching { provider.playlists(MaximumMembershipPlaylists + 1) }
+                .getOrElse { emptyList() }
+                .filterNot { it.isSmart }
+                .map { it.toPlaylistChoiceUi() }
+        }
+        val choices = allChoices.take(MaximumMembershipPlaylists)
+        val rows = choices.map { choice ->
+            val membership = runCatching { provider.playlistTracks(choice.id) }
+            NaviampPlaylistMembershipRowUi(
+                playlist = choice,
+                selected = membership.getOrNull()?.any { it.id == track.id } == true,
+                originallySelected = membership.getOrNull()?.any { it.id == track.id } == true,
+                failed = membership.isFailure,
+            )
+        }
+        if (!membershipIsCurrent(generation, sourceKey)) return
+        updateMembership(
+            NaviampTrackPlaylistMembershipUi(
+                trackId = track.id.value,
+                trackTitle = track.title,
+                rows = rows,
+                truncated = allChoices.size > MaximumMembershipPlaylists,
+            ),
+        )
+    }
+
+    private fun togglePlaylistMembership(playlistId: String) {
+        val current = playbackController.currentDisplay().playlistMembership ?: return
+        if (current.loading || current.saving) return
+        updateMembership(
+            current.copy(
+                saved = false,
+                rows = current.rows.map { row ->
+                    if (row.playlist.id == playlistId && !row.failed) row.copy(selected = !row.selected) else row
+                },
+            ),
+        )
+    }
+
+    private suspend fun applyPlaylistMembership() {
+        val current = playbackController.currentDisplay().playlistMembership ?: return
+        if (current.loading || current.saving || current.unavailable) return
+        val provider = providerSource.current() ?: run {
+            updateMembership(current.copy(unavailable = true))
+            return
+        }
+        val generation = ++membershipGeneration
+        val sourceKey = provider.id.value to provider.cacheNamespace
+        updateMembership(current.copy(saving = true, saved = false))
+        presenter.publish(playbackController.currentDisplay())
+        val trackId = app.naviamp.domain.TrackId(current.trackId)
+        val mutationFailures = mutableSetOf<String>()
+        current.rows.filter { it.selected != it.originallySelected }.forEach { row ->
+            runCatching {
+                val existing = provider.playlistTracks(row.playlist.id)
+                if (row.selected) {
+                    if (existing.none { it.id == trackId }) {
+                        provider.addTracksToPlaylist(row.playlist.id, listOf(trackId))
+                    }
+                } else {
+                    provider.replacePlaylistTracks(
+                        playlistId = row.playlist.id,
+                        currentTrackIds = existing.map(Track::id),
+                        trackIds = existing.filterNot { it.id == trackId }.map(Track::id),
+                    )
+                }
+                downloads.playlistTracksChanged(row.playlist.id)
+            }.onFailure { mutationFailures += row.playlist.id }
+        }
+        if (!membershipIsCurrent(generation, sourceKey)) return
+        val reconciled = current.rows.map { row ->
+            val membership = runCatching { provider.playlistTracks(row.playlist.id) }
+            val selected = membership.getOrNull()?.any { it.id == trackId }
+            row.copy(
+                selected = selected ?: row.selected,
+                originallySelected = selected ?: row.originallySelected,
+                failed = row.playlist.id in mutationFailures || membership.isFailure,
+            )
+        }
+        if (!membershipIsCurrent(generation, sourceKey)) return
+        updateMembership(current.copy(rows = reconciled, saving = false, saved = reconciled.none { it.failed }))
+    }
+
+    private fun dismissPlaylistMembership() {
+        membershipGeneration += 1
+        updateMembership(null)
+    }
+
+    private fun updateMembership(editor: NaviampTrackPlaylistMembershipUi?) {
+        playbackController.updateDisplay { it.copy(playlistMembership = editor) }
+    }
+
+    private fun membershipIsCurrent(generation: Long, sourceKey: Pair<String, String>): Boolean {
+        val provider = providerSource.current()
+        return generation == membershipGeneration && provider?.let { it.id.value to it.cacheNamespace } == sourceKey
     }
 
     private suspend fun createPlaylist(track: Track, requestedName: String?) {
@@ -347,3 +476,5 @@ class NaviampCoreNowPlayingMediaController(
         stateStore.update { state -> state.copy(overlays = state.overlays.copy(status = message)) }
     }
 }
+
+private const val MaximumMembershipPlaylists = 100

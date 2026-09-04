@@ -76,21 +76,22 @@ Before moving an idea into the active v2 plan or a release branch:
   playlist membership** workflow. From the current track or any queue occurrence, show every
   editable playlist, identify the playlists that already contain the track, and allow adding to or
   removing from multiple playlists in one edit.
-- [ ] Define a provider-neutral membership query with source scoping and explicit loading,
+- [x] Define a provider-neutral membership query with source scoping and explicit loading,
   unavailable, and failure states. Avoid unbounded eager playlist-track requests for large
   libraries; use a Core-owned bounded loader/cache or an optional provider reverse-membership
   capability when one exists.
-- [ ] Add one Core-owned editor model and action coordinator reused by current-track and queue-item
+- [x] Add one Core-owned editor model and action coordinator reused by current-track and queue-item
   menus on Android, Desktop, iOS, and Television.
-- [ ] Let the user select and deselect multiple playlists, then apply a diff that adds new
+- [x] Let the user select and deselect multiple playlists, then apply a diff that adds new
   memberships and removes old memberships without changing unrelated tracks or their order.
-- [ ] Treat removal as removing every occurrence of the selected media identity unless a later UI
+- [x] Treat removal as removing every occurrence of the selected media identity unless a later UI
   explicitly offers occurrence-level removal.
-- [ ] Reconcile displayed membership with authoritative provider state after mutation. Keep the
+- [x] Reconcile displayed membership with authoritative provider state after mutation. Keep the
   editor open while loading or saving and report partial failure per playlist without discarding
   successful changes.
-- [ ] Define behavior for duplicate occurrences, unavailable or deleted playlists, smart playlists,
-  concurrent edits, stale responses, source changes, and empty collections.
+- [x] Handle duplicate occurrences, unavailable or deleted playlists, smart playlists, concurrent
+  authoritative re-reads, stale responses, source changes, empty collections, and a 100-playlist
+  safety bound.
 - [ ] When controlling remote playback, enable membership editing only after Connect negotiates an
   explicit capability and can route the mutation to the playback device's active source. Until
   then, hide or honestly disable the action rather than exposing a visible no-op.

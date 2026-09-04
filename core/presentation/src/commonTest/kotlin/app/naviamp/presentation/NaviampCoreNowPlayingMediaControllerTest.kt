@@ -98,6 +98,45 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun currentTrackMembershipEditorAddsAndRemovesAllOccurrencesThenReconciles() = runTest {
+        val fixture = mediaFixture(this)
+
+        fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.AddToPlaylist))
+        val opened = assertNotNull(fixture.store.state.value.shell.nowPlaying?.playlistMembership)
+        assertEquals(listOf(true, false), opened.rows.map { it.selected })
+
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.TogglePlaylistMembership("playlist"))
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.TogglePlaylistMembership("playlist-2"))
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership)
+
+        val saved = assertNotNull(fixture.store.state.value.shell.nowPlaying?.playlistMembership)
+        assertTrue(saved.saved)
+        assertEquals(listOf(false, true), saved.rows.map { it.selected })
+        assertEquals(listOf("past", "next"), fixture.provider.playlistContents.getValue("playlist").map { it.id.value })
+        assertEquals(listOf("past", "current"), fixture.provider.playlistContents.getValue("playlist-2").map { it.id.value })
+    }
+
+    @Test
+    fun queueTrackOpensTheSameMembershipEditor() = runTest {
+        val fixture = mediaFixture(this)
+        val next = fixture.store.state.value.shell.nowPlaying!!.upNext.single()
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.QueueItem(
+                NowPlayingItemActionRequest(
+                    item = next,
+                    target = NowPlayingItemTarget.QueueIndex(2),
+                    action = NowPlayingItemAction.AddToPlaylist,
+                ),
+            ),
+        )
+
+        val editor = assertNotNull(fixture.store.state.value.shell.nowPlaying?.playlistMembership)
+        assertEquals("next", editor.trackId)
+        assertEquals(listOf(true, false), editor.rows.map { it.selected })
+    }
+
+    @Test
     fun displayPlaylistMetadataAndDownloadActionsAreOwnedByCore() = runTest {
         val fixture = mediaFixture(this)
 
@@ -290,7 +329,10 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
     store.updateShell { shell ->
         shell.copy(
             connectionSettings = NaviampConnectionSettingsUi(currentSourceId = "source"),
-            playlistChoices = listOf(NaviampPlaylistChoiceUi("playlist", "Playlist")),
+            playlistChoices = listOf(
+                NaviampPlaylistChoiceUi("playlist", "Playlist"),
+                NaviampPlaylistChoiceUi("playlist-2", "Second Playlist"),
+            ),
         )
     }
     val tracks = listOf(nowPlayingTrack("past"), nowPlayingTrack("current"), nowPlayingTrack("next"))
@@ -451,6 +493,15 @@ private class NowPlayingTestProvider : MediaProvider {
     val added = mutableListOf<String>()
     val favorites = mutableListOf<String>()
     val ratings = mutableListOf<String>()
+    val playlistContents = mutableMapOf(
+        "playlist" to mutableListOf(
+            nowPlayingTrack("past"),
+            nowPlayingTrack("current"),
+            nowPlayingTrack("current"),
+            nowPlayingTrack("next"),
+        ),
+        "playlist-2" to mutableListOf(nowPlayingTrack("past")),
+    )
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId) = AlbumDetails(
@@ -488,6 +539,16 @@ private class NowPlayingTestProvider : MediaProvider {
     override suspend fun internetRadioStations() = listOf(InternetRadioStation("station", "Station", "https://radio"))
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         added += "$playlistId:${trackIds.joinToString(",") { it.value }}"
+        playlistContents.getOrPut(playlistId) { mutableListOf() }
+            .addAll(trackIds.map { nowPlayingTrack(it.value) })
+    }
+    override suspend fun playlistTracks(playlistId: String) = playlistContents[playlistId].orEmpty()
+    override suspend fun replacePlaylistTracks(
+        playlistId: String,
+        currentTrackIds: List<TrackId>,
+        trackIds: List<TrackId>,
+    ) {
+        playlistContents[playlistId] = trackIds.map { nowPlayingTrack(it.value) }.toMutableList()
     }
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>) = Playlist("created", name, trackIds.size)
     override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) { favorites += "${trackId.value}:$favorite" }
