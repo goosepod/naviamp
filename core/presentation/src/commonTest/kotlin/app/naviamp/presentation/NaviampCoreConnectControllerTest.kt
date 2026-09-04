@@ -35,6 +35,8 @@ import app.naviamp.domain.connect.NaviampConnectDeviceCapability
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
 import app.naviamp.domain.connect.NaviampConnectDiscoveryMetadata
 import app.naviamp.domain.connect.NaviampConnectProtocolRange
+import app.naviamp.domain.connect.NaviampConnectPlaybackSnapshot
+import app.naviamp.domain.connect.NaviampConnectPlaybackState
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
 import app.naviamp.domain.connect.NaviampConnectTrustRecord
 import kotlinx.coroutines.awaitCancellation
@@ -46,11 +48,42 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCoreConnectControllerTest {
+    @Test
+    fun reconnectResumesAuthorityForActiveTargetButLeavesIdleTargetArmed() {
+        val target = NaviampConnectDevice("tv", "Living Room TV", NaviampConnectDeviceRole.Target)
+
+        assertFalse(
+            NaviampConnectTargetSnapshot(
+                revision = 0,
+                target = target,
+                capabilities = emptySet(),
+                playback = NaviampConnectPlaybackSnapshot(state = NaviampConnectPlaybackState.Idle),
+            ).shouldResumeNaviampConnectPlaybackAuthority(),
+        )
+        assertTrue(
+            NaviampConnectTargetSnapshot(
+                revision = 0,
+                target = target,
+                capabilities = emptySet(),
+                playback = NaviampConnectPlaybackSnapshot(state = NaviampConnectPlaybackState.Playing),
+            ).shouldResumeNaviampConnectPlaybackAuthority(),
+        )
+        assertTrue(
+            NaviampConnectTargetSnapshot(
+                revision = 0,
+                target = target,
+                capabilities = emptySet(),
+                playback = NaviampConnectPlaybackSnapshot(state = NaviampConnectPlaybackState.Paused),
+            ).shouldResumeNaviampConnectPlaybackAuthority(),
+        )
+    }
+
     @Test
     fun armedRemoteUsesTheLocalQueueUntilFirstPlayRegardlessOfTheTargetsOldQueue() {
         assertEquals(
@@ -401,6 +434,59 @@ class NaviampCoreConnectControllerTest {
             "Stopped controlling Living Room TV. The TV will keep playing.",
             store.state.value.shell.connect.status,
         )
+        controller.close()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun outboundCommandFailureImmediatelyEntersTheReconnectLifecycle() = runTest {
+        var storedTrust: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = storedTrust
+            override fun write(value: String) { storedTrust = value }
+        })
+        val target = NaviampConnectDevice("tv", "Living Room TV", NaviampConnectDeviceRole.Target)
+        trust.upsert(NaviampConnectTrustRecord("trusted-tv", target, "fingerprint", "public-key", 1L))
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(
+            scope = this,
+            stateStore = store,
+            services = NaviampCoreConnectServices(
+                deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
+                displayName = "Pixel",
+                identity = FakeIdentity,
+                identityVerifier = FakeIdentityVerifier,
+                transport = UnusedTransportFactory,
+                pake = UnusedPakeFactory,
+                cipher = UnusedCipherFactory,
+                trust = trust,
+                newOpaqueId = { "unused" },
+                newPairingCode = { "123456" },
+                nowEpochMillis = { 1L },
+            ),
+        )
+        val session = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport { error("socket write failed") },
+            requestIds = NaviampConnectRequestIdFactory { "request" },
+        )
+        session.connect(
+            "session",
+            1,
+            target,
+            setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls),
+            NaviampConnectTargetSnapshot(0, target, emptySet()),
+        )
+        controller.adoptControllerSession(session)
+
+        controller.actions.onRemotePlayPause()
+        runCurrent()
+
+        assertEquals(NaviampConnectControllerConnectionStatus.Disconnected, session.state.value.status)
+        assertEquals(
+            app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Reconnecting,
+            store.state.value.shell.connect.playbackDestinationStatus,
+        )
+        assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Reconnecting"))
         controller.close()
     }
 

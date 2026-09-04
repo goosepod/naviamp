@@ -180,7 +180,15 @@ fun NaviampSharedAppShell(
         channel = interfaceSettings.applicationUpdateChannel ?: defaultApplicationUpdateChannel(about.version),
         checker = applicationUpdateChecker,
     )
-    val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
+    val canShowNowPlaying = sharedCanShowNowPlaying(
+        connected = connected,
+        remoteNowPlayingAvailable = remoteNowPlaying != null,
+    )
+    val showFullNowPlaying = canShowNowPlaying &&
+        !editingConnection &&
+        !restoringConnection &&
+        nowPlayingOpen &&
+        nowPlaying != null
     val outerContentScrollState = rememberScrollState()
     LaunchedEffect(editingConnection) {
         if (editingConnection) {
@@ -306,7 +314,7 @@ fun NaviampSharedAppShell(
                     }
                 }
                 if (!showFullNowPlaying) {
-                    if (connected && !editingConnection && !restoringConnection && nowPlaying != null) {
+                    if (canShowNowPlaying && !editingConnection && !restoringConnection && nowPlaying != null) {
                         NaviampMiniNowPlaying(
                             nowPlaying = nowPlaying,
                             colors = colors,
@@ -336,6 +344,11 @@ internal fun sharedRouteCanUseOwnScroll(
     editingConnection: Boolean,
     selectedRoute: SharedRoute,
 ): Boolean = !editingConnection || selectedRoute == SharedRoute.Settings
+
+internal fun sharedCanShowNowPlaying(
+    connected: Boolean,
+    remoteNowPlayingAvailable: Boolean,
+): Boolean = connected || remoteNowPlayingAvailable
 
 internal fun sharedRouteUsesOwnScroll(
     connected: Boolean,
@@ -733,7 +746,9 @@ internal fun NaviampNowPlayingActions.withLocalDisplayActions(
 
 internal fun NowPlayingUi.withSelectedRemoteOutput(connect: NaviampConnectSettingsUi): NowPlayingUi =
     connect.trustedDevices.filter { it.playbackTarget }.let { targets -> copy(
-        remoteOutputDeviceName = connect.selectedPlaybackDeviceName.takeIf { connect.remoteOutputSelected },
+        remoteOutputDeviceName = connect.selectedPlaybackDeviceName.takeIf {
+            connect.playbackDestinationStatus == NaviampConnectPlaybackDestinationUiStatus.Connected
+        },
         playbackOutputs = if (targets.isEmpty()) emptyList() else buildList {
             add(
                 NaviampPlaybackOutputUi(

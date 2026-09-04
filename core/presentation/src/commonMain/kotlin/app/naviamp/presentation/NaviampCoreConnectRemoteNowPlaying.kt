@@ -11,6 +11,7 @@ import app.naviamp.domain.connect.NaviampConnectPlaybackState
 import app.naviamp.domain.connect.NaviampConnectPrevious
 import app.naviamp.domain.connect.NaviampConnectRemoveQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
+import app.naviamp.domain.connect.NaviampConnectRequestSnapshot
 import app.naviamp.domain.connect.NaviampConnectSeek
 import app.naviamp.domain.connect.NaviampConnectSelectQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectSetFavorite
@@ -45,6 +46,11 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(
             favoriteActive = occurrence.favorite,
             hasAlbum = !occurrence.albumTitle.isNullOrBlank(),
             playNextPriority = index in (queue.currentIndex + 1)..(queue.currentIndex + queue.playNextCount),
+            actionTarget = NowPlayingItemTarget.QueueOccurrence(
+                occurrenceId = occurrence.occurrenceId,
+                renderedIndex = index,
+                renderedRevision = revision,
+            ),
         )
     }
     val capabilities = capabilities
@@ -119,7 +125,13 @@ internal fun createNaviampCoreConnectRemoteNowPlayingActions(
     },
     onQueueAction = { request ->
         val current = snapshot() ?: return@NaviampNowPlayingActions
-        val sourceIndex = request.queueIndex
+        val sourceTarget = request.sourceTarget
+        val sourceIndex = when (sourceTarget) {
+            is NowPlayingItemTarget.QueueOccurrence -> current.queue.occurrences.indexOfFirst {
+                it.occurrenceId == sourceTarget.occurrenceId
+            }.takeIf { it >= 0 }
+            else -> request.queueIndex
+        }
         val occurrence = sourceIndex?.let(current.queue.occurrences::getOrNull)
         when (request.action) {
             NowPlayingQueueAction.MoveToNext -> occurrence?.let {
@@ -127,6 +139,12 @@ internal fun createNaviampCoreConnectRemoteNowPlayingActions(
                 send(NaviampConnectMoveQueueOccurrence(it.occurrenceId, before?.occurrenceId))
             }
             NowPlayingQueueAction.MoveQueueItem -> occurrence?.let {
+                if (sourceTarget is NowPlayingItemTarget.QueueOccurrence &&
+                    sourceTarget.renderedRevision != current.revision
+                ) {
+                    send(NaviampConnectRequestSnapshot)
+                    return@let
+                }
                 val destination = request.destinationQueueIndex ?: return@let
                 val beforeIndex = if (sourceIndex < destination) destination + 1 else destination
                 send(
@@ -146,17 +164,25 @@ internal fun createNaviampCoreConnectRemoteNowPlayingActions(
     onSleepTimerAction = {},
     onSelectionAction = { request ->
         if (request.action == NowPlayingSelectionAction.SelectQueueItem) {
-            request.item.queueIndex()?.let { index ->
-                snapshot()?.queue?.occurrences?.getOrNull(index)?.let {
-                    send(NaviampConnectSelectQueueOccurrence(it.occurrenceId))
+            val target = request.item.actionTarget
+            val occurrenceId = when (target) {
+                is NowPlayingItemTarget.QueueOccurrence -> target.occurrenceId
+                else -> request.item.queueIndex()?.let { index ->
+                    snapshot()?.queue?.occurrences?.getOrNull(index)?.occurrenceId
                 }
             }
+            occurrenceId?.let { send(NaviampConnectSelectQueueOccurrence(it)) }
         }
     },
     onQueueItemAction = { request ->
         val current = snapshot() ?: return@NaviampNowPlayingActions
-        val index = (request.target as? NowPlayingItemTarget.QueueIndex)?.index ?: request.item.queueIndex()
-        val occurrence = index?.let(current.queue.occurrences::getOrNull) ?: return@NaviampNowPlayingActions
+        val occurrence = when (val target = request.target) {
+            is NowPlayingItemTarget.QueueOccurrence -> current.queue.occurrences.firstOrNull {
+                it.occurrenceId == target.occurrenceId
+            }
+            is NowPlayingItemTarget.QueueIndex -> current.queue.occurrences.getOrNull(target.index)
+            else -> request.item.queueIndex()?.let(current.queue.occurrences::getOrNull)
+        } ?: return@NaviampNowPlayingActions
         when (request.action) {
             NowPlayingItemAction.RemoveFromQueue -> send(NaviampConnectRemoveQueueOccurrence(occurrence.occurrenceId))
             NowPlayingItemAction.ToggleFavorite ->

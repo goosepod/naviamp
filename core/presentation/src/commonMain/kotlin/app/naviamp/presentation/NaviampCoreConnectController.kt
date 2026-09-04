@@ -28,6 +28,7 @@ import app.naviamp.app.NaviampConnectTransportConnection
 import app.naviamp.app.NaviampConnectTransportListener
 import app.naviamp.app.NaviampConnectTrustRepository
 import app.naviamp.app.NaviampConnectControllerPairingRuntime
+import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.receivePlaintext
 import app.naviamp.domain.connect.NaviampConnectAdvertisement
 import app.naviamp.domain.connect.NaviampConnectCapability
@@ -45,6 +46,7 @@ import app.naviamp.domain.connect.NaviampConnectTrustRecord
 import app.naviamp.domain.connect.NaviampConnectTrustedEndpoint
 import app.naviamp.domain.connect.visibleDisplayName
 import app.naviamp.domain.connect.NaviampConnectSourceIdentity
+import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
 import app.naviamp.domain.connect.NaviampConnectWelcome
 import app.naviamp.domain.connect.NaviampConnectNext
 import app.naviamp.domain.connect.NaviampConnectPrevious
@@ -66,7 +68,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
@@ -125,6 +126,7 @@ class NaviampCoreConnectController(
     private val providerSessions: NaviampCoreProviderSessionPort? = null,
     private val targetConnection: NaviampCoreConnectionController? = null,
     private val targetSettings: NaviampCoreSettingsController? = null,
+    private val revealTargetNowPlaying: () -> Unit = {},
 ) {
     private val controllerScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]),
@@ -155,7 +157,9 @@ class NaviampCoreConnectController(
     private var targetSession: NaviampConnectTargetSession? = null
     private var targetSnapshotFactory: NaviampCoreConnectTargetSnapshotFactory? = null
     private var targetSnapshotPublishJob: Job? = null
+    private var lastObservedTargetPlayback: NaviampLivePlaybackState? = null
     private var controllerSession: NaviampConnectControllerSession? = null
+    private var retryableRemoteCommands = emptyList<app.naviamp.domain.connect.NaviampConnectCommand>()
     private val targetSessionMutex = Mutex()
     private var pendingTargetPairing: NaviampConnectPendingTargetPairing? = null
     private var selectedTarget: NaviampConnectDiscoveredTarget? = null
@@ -342,11 +346,14 @@ class NaviampCoreConnectController(
         controllerScope.cancel()
     }
 
-    fun onLocalPlaybackChanged() {
+    fun onLocalPlaybackChanged(live: NaviampLivePlaybackState) {
+        val previous = lastObservedTargetPlayback
+        lastObservedTargetPlayback = live
         if (targetSession == null) {
             publish()
             return
         }
+        if (!shouldPublishNaviampConnectTargetSnapshot(previous, live)) return
         targetSnapshotPublishJob?.cancel()
         targetSnapshotPublishJob = controllerScope.launch {
             delay(TargetSnapshotDebounceMillis)
@@ -939,9 +946,10 @@ class NaviampCoreConnectController(
             capabilities = supportedTargetCapabilities,
             sourceIdentity = sourceIdentity,
         )
+        val live = playback.connectLiveState()
         val snapshot = snapshots.create(
             revision = 0,
-            live = playback.connectLiveState(),
+            live = live,
             volumePercent = stateStore.state.value.shell.playback.settings.volumePercent,
         )
         session.send(
@@ -972,12 +980,14 @@ class NaviampCoreConnectController(
                     publish()
                     true
                 },
+                revealNowPlaying = revealTargetNowPlaying,
             ),
             initialOutboundSequence = session.nextOutboundSequence(),
         )
         authenticatedSession = session
         targetSession = connectedTarget
         targetSnapshotFactory = snapshots
+        lastObservedTargetPlayback = live
         authenticatedSessionJob = controllerScope.launch { receiveTargetSession(session, connectedTarget) }
         return true
     }
@@ -1020,17 +1030,25 @@ class NaviampCoreConnectController(
         authenticatedSession = session
         adoptControllerSession(connectedController)
         authenticatedSessionJob = controllerScope.launch { receiveControllerSession(session, connectedController) }
+        val retries = retryableRemoteCommands
+        retryableRemoteCommands = emptyList()
+        retries.forEach(::sendRemoteCommand)
         return true
     }
 
     internal fun adoptControllerSession(session: NaviampConnectControllerSession) {
-        session.state.value.target?.let { target ->
+        val connectedState = session.state.value
+        connectedState.target?.let { target ->
             if (playbackDestination.selectedTrustedDeviceId() == null) {
                 services.trust.load()
                     .firstOrNull { it.peerDevice.deviceId == target.deviceId }
                     ?.let(playbackDestination::select)
             }
             playbackDestination.connected(target)
+            if (connectedState.snapshot.shouldResumeNaviampConnectPlaybackAuthority()) {
+                playbackDestination.selectedTrustedDeviceId()
+                    ?.let(playbackDestination::activatePlaybackAuthority)
+            }
         }
         controllerSession = session
         publish()
@@ -1068,6 +1086,16 @@ class NaviampCoreConnectController(
                     continue
                 }
                 connectedController.receive(envelope)
+                if (connectedController.state.value.status ==
+                    app.naviamp.app.NaviampConnectControllerConnectionStatus.Disconnected
+                ) {
+                    sessionEnded("The connection failed while replying to the TV. Reconnecting…")
+                    return
+                }
+                if (connectedController.state.value.snapshot.shouldResumeNaviampConnectPlaybackAuthority()) {
+                    playbackDestination.selectedTrustedDeviceId()
+                        ?.let(playbackDestination::activatePlaybackAuthority)
+                }
                 publish()
             }
         }
@@ -1075,6 +1103,17 @@ class NaviampCoreConnectController(
     }
 
     private fun sessionEnded(message: String, reconnectAutomatically: Boolean = true) {
+        if (reconnectAutomatically) {
+            retryableRemoteCommands += controllerSession
+                ?.state
+                ?.value
+                ?.pendingRequests
+                .orEmpty()
+                .filter { it.idempotent }
+                .map { it.command }
+        } else {
+            retryableRemoteCommands = emptyList()
+        }
         closeAuthenticatedSession()
         if (reconnectAutomatically) playbackDestination.reconnecting() else playbackDestination.selectLocal()
         phase = NaviampConnectPairingUiPhase.Inactive
@@ -1134,6 +1173,7 @@ class NaviampCoreConnectController(
         authenticatedSession = null
         targetSession = null
         targetSnapshotFactory = null
+        lastObservedTargetPlayback = null
         controllerSession?.disconnect()
         controllerSession = null
         pendingProvisioning = null
@@ -1166,18 +1206,21 @@ class NaviampCoreConnectController(
                 is app.naviamp.app.NaviampConnectCommandSendResult.Sent -> {
                     if (activatesPlaybackAuthority) {
                         val completed = awaitRemoteCommand(connected, result.requestId)
-                        if (completed) {
+                        if (completed is app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged) {
                             trustedDeviceId?.let(playbackDestination::activatePlaybackAuthority)
                             status = null
                         } else {
-                            status = connected.state.value.lastError?.message
-                                ?: "The playback device did not start the selection."
+                            status = completed.remoteCommandFailureMessage(
+                                "The playback device did not start the selection.",
+                            )
                         }
                     } else {
                         status = null
                     }
                 }
                 is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> status = result.error.message
+                is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
+                    handleControllerWriteFailure(connected, result.result)
             }
             publish()
         }
@@ -1210,16 +1253,17 @@ class NaviampCoreConnectController(
             }
             when (val sent = connected.send(handoff)) {
                 is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> status = sent.error.message
+                is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
+                    handleControllerWriteFailure(connected, sent.result)
                 is app.naviamp.app.NaviampConnectCommandSendResult.Sent -> {
-                    val succeeded = awaitRemoteCommand(connected, sent.requestId)
-                    val error = connected.state.value.lastError
-                    status = when {
-                        !succeeded && error != null -> error.message
-                        !succeeded -> "The playback device did not respond to the queue transfer."
-                        else -> {
+                    val completed = awaitRemoteCommand(connected, sent.requestId)
+                    status = if (completed is app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged) {
                             trustedDeviceId?.let(playbackDestination::activatePlaybackAuthority)
                             "Queue sent to ${connected.state.value.target?.displayName ?: "the playback device"}."
-                        }
+                    } else {
+                        completed.remoteCommandFailureMessage(
+                            "The playback device did not respond to the queue transfer.",
+                        )
                     }
                 }
             }
@@ -1257,6 +1301,8 @@ class NaviampCoreConnectController(
                         is app.naviamp.app.NaviampConnectCommandSendResult.Sent ->
                             status = "Approve setup on ${connected.state.value.target?.displayName ?: "the TV"}."
                         is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> status = result.error.message
+                        is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
+                            handleControllerWriteFailure(connected, result.result)
                     }
                 }
             }
@@ -1357,21 +1403,30 @@ class NaviampCoreConnectController(
         command: app.naviamp.domain.connect.NaviampConnectCommand,
     ): Boolean {
         val connected = controllerSession ?: return false
-        val sent = connected.send(command) as? app.naviamp.app.NaviampConnectCommandSendResult.Sent
-            ?: return false
-        return awaitRemoteCommand(connected, sent.requestId)
+        return when (val sent = connected.send(command)) {
+            is app.naviamp.app.NaviampConnectCommandSendResult.Sent ->
+                awaitRemoteCommand(connected, sent.requestId) is
+                    app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged
+            is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> false
+            is app.naviamp.app.NaviampConnectCommandSendResult.Failed -> {
+                handleControllerWriteFailure(connected, sent.result)
+                false
+            }
+        }
     }
 
     private suspend fun awaitRemoteCommand(
         connected: NaviampConnectControllerSession,
         requestId: String,
-    ): Boolean {
-        val completed = withTimeoutOrNull(10_000L) {
-            connected.state.first { state ->
-                state.pendingRequests.none { request -> request.requestId == requestId }
-            }
-        } ?: return false
-        return completed.lastError == null
+    ): app.naviamp.app.NaviampConnectRequestTerminalResult =
+        connected.awaitTerminalResult(requestId, 10_000L)
+
+    private fun handleControllerWriteFailure(
+        connected: NaviampConnectControllerSession,
+        failure: app.naviamp.app.NaviampConnectRequestTerminalResult.WriteFailed,
+    ) {
+        if (controllerSession !== connected) return
+        sessionEnded("Connection lost while sending to the playback device. Reconnecting… (${failure.message})")
     }
 
     private suspend fun publishTargetPlaybackSnapshot() {
@@ -1539,6 +1594,21 @@ class NaviampCoreConnectController(
             )
         }
     }
+}
+
+/** A deliberate reconnect adopts playback already in progress, but leaves an idle target armed. */
+internal fun NaviampConnectTargetSnapshot?.shouldResumeNaviampConnectPlaybackAuthority(): Boolean =
+    this != null && playback.state != app.naviamp.domain.connect.NaviampConnectPlaybackState.Idle
+
+private fun app.naviamp.app.NaviampConnectRequestTerminalResult.remoteCommandFailureMessage(
+    fallback: String,
+): String = when (this) {
+    app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged -> fallback
+    is app.naviamp.app.NaviampConnectRequestTerminalResult.ProtocolRejected -> error.message
+    app.naviamp.app.NaviampConnectRequestTerminalResult.TimedOut -> fallback
+    app.naviamp.app.NaviampConnectRequestTerminalResult.Disconnected ->
+        "The playback device disconnected before confirming the command."
+    is app.naviamp.app.NaviampConnectRequestTerminalResult.WriteFailed -> message
 }
 
 internal enum class NaviampCoreConnectPlaybackRoute {

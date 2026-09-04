@@ -593,10 +593,11 @@ class NaviampCore private constructor(
                     providerSessions = services.connection,
                     targetConnection = connection.takeIf { supportsRemotePlayback },
                     targetSettings = settings.takeIf { supportsRemotePlayback },
+                    revealTargetNowPlaying = navigation::openNowPlaying,
                 )
             }
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
-            livePlayback.observe { connect?.onLocalPlaybackChanged() }
+            livePlayback.observe { live -> connect?.onLocalPlaybackChanged(live) }
             nowPlayingPresenter.publish()
             scope.launch { connection.restoreInitialConnection() }
             return NaviampCore(

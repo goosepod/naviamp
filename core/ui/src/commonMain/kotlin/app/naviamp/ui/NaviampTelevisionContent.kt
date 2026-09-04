@@ -1371,6 +1371,7 @@ internal data class TelevisionQueueReorderState(
     val destinationQueueIndex: Int,
     val firstUpcomingQueueIndex: Int,
     val items: List<NaviampNowPlayingItemUi>,
+    val sourceItem: NaviampNowPlayingItemUi,
 )
 
 internal fun televisionQueueBeginReorder(
@@ -1385,6 +1386,7 @@ internal fun televisionQueueBeginReorder(
         destinationQueueIndex = sourceQueueIndex,
         firstUpcomingQueueIndex = firstUpcomingQueueIndex,
         items = items,
+        sourceItem = item,
     )
 }
 
@@ -1556,7 +1558,11 @@ internal fun TelevisionNowPlaying(
                         },
                         onOpenActions = { queueActionItem = it },
                         onCommitReorder = { state ->
-                            actions.moveQueueItem(state.sourceQueueIndex, state.destinationQueueIndex)
+                            actions.moveQueueItem(
+                                state.sourceQueueIndex,
+                                state.destinationQueueIndex,
+                                state.sourceItem,
+                            )
                             queueReorder = null
                         },
                         modifier = Modifier.weight(1f),

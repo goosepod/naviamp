@@ -225,7 +225,20 @@ class NaviampCorePlaybackController(
         providerSource.current() ?: return false
         val locallyKnownTracks = playback.state.value.queue.tracks.associateBy { it.id.value }
         val tracks = command.queue.occurrences.map { occurrence ->
-            locallyKnownTracks[occurrence.mediaId] ?: app.naviamp.domain.Track(
+            val known = locallyKnownTracks[occurrence.mediaId]
+            known?.copy(
+                title = occurrence.title.ifBlank { known.title },
+                artistId = occurrence.artistId?.let { app.naviamp.domain.ArtistId(it) }
+                    ?: known.artistId,
+                artistName = occurrence.artistName.ifBlank { known.artistName },
+                albumId = occurrence.albumId?.let { app.naviamp.domain.AlbumId(it) }
+                    ?: known.albumId,
+                albumTitle = occurrence.albumTitle ?: known.albumTitle,
+                durationSeconds = occurrence.durationMillis?.div(1_000L)?.toInt()
+                    ?: known.durationSeconds,
+                coverArtId = occurrence.artworkId ?: known.coverArtId,
+                favoritedAtIso8601 = ConnectHandoffFavoriteMarker.takeIf { occurrence.favorite },
+            ) ?: app.naviamp.domain.Track(
                 id = app.naviamp.domain.TrackId(occurrence.mediaId),
                 title = occurrence.title,
                 artistId = occurrence.artistId?.let { app.naviamp.domain.ArtistId(it) },

@@ -21,8 +21,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 fun interface NaviampConnectSessionTransport {
     suspend fun send(envelope: NaviampConnectEnvelope)
@@ -51,12 +54,25 @@ data class NaviampConnectControllerSessionState(
     val capabilities: Set<NaviampConnectCapability> = emptySet(),
     val snapshot: NaviampConnectTargetSnapshot? = null,
     val pendingRequests: List<NaviampConnectPendingRequest> = emptyList(),
+    val terminalResults: Map<String, NaviampConnectRequestTerminalResult> = emptyMap(),
     val lastError: NaviampConnectErrorMessage? = null,
 )
+
+sealed interface NaviampConnectRequestTerminalResult {
+    data object Acknowledged : NaviampConnectRequestTerminalResult
+    data class ProtocolRejected(val error: NaviampConnectErrorMessage) : NaviampConnectRequestTerminalResult
+    data object TimedOut : NaviampConnectRequestTerminalResult
+    data object Disconnected : NaviampConnectRequestTerminalResult
+    data class WriteFailed(val message: String) : NaviampConnectRequestTerminalResult
+}
 
 sealed interface NaviampConnectCommandSendResult {
     data class Sent(val requestId: String) : NaviampConnectCommandSendResult
     data class Rejected(val error: NaviampConnectErrorMessage) : NaviampConnectCommandSendResult
+    data class Failed(
+        val requestId: String,
+        val result: NaviampConnectRequestTerminalResult.WriteFailed,
+    ) : NaviampConnectCommandSendResult
 }
 
 /**
@@ -123,12 +139,42 @@ class NaviampConnectControllerSession(
             idempotent = command.isNaviampConnectIdempotent(),
         )
         require(request.requestId.isNotBlank()) { "A Connect request ID is required." }
-        mutableState.value = current.copy(
-            pendingRequests = current.pendingRequests + request,
-            lastError = null,
-        )
-        sendRequest(request)
+        mutableState.update { state ->
+            state.copy(
+                pendingRequests = state.pendingRequests + request,
+                terminalResults = state.terminalResults - request.requestId,
+                lastError = null,
+            )
+        }
+        try {
+            sendRequest(request)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (cause: Throwable) {
+            val failure = NaviampConnectRequestTerminalResult.WriteFailed(
+                cause.message ?: "The command could not be written to the playback device.",
+            )
+            completeRequest(request.requestId, failure, removePending = false)
+            disconnectPendingRequests(failure)
+            return NaviampConnectCommandSendResult.Failed(request.requestId, failure)
+        }
         return NaviampConnectCommandSendResult.Sent(request.requestId)
+    }
+
+    suspend fun awaitTerminalResult(
+        requestId: String,
+        timeoutMillis: Long,
+    ): NaviampConnectRequestTerminalResult {
+        require(requestId.isNotBlank()) { "A Connect request ID is required." }
+        require(timeoutMillis > 0L) { "The Connect request timeout must be positive." }
+        mutableState.value.terminalResults[requestId]?.let { return it }
+        val completed = withTimeoutOrNull(timeoutMillis) {
+            state.first { requestId in it.terminalResults }.terminalResults.getValue(requestId)
+        }
+        if (completed != null) return completed
+        val timeout = NaviampConnectRequestTerminalResult.TimedOut
+        completeRequest(requestId, timeout)
+        return mutableState.value.terminalResults[requestId] ?: timeout
     }
 
     suspend fun receive(envelope: NaviampConnectEnvelope) {
@@ -152,11 +198,21 @@ class NaviampConnectControllerSession(
     }
 
     fun disconnect() {
-        mutableState.value = mutableState.value.copy(
-            status = NaviampConnectControllerConnectionStatus.Disconnected,
-            sessionId = null,
-            protocolVersion = null,
-        )
+        disconnectPendingRequests(NaviampConnectRequestTerminalResult.Disconnected)
+    }
+
+    private fun disconnectPendingRequests(reason: NaviampConnectRequestTerminalResult) {
+        mutableState.update { current ->
+            val results = current.pendingRequests.fold(current.terminalResults) { accumulated, request ->
+                if (request.requestId in accumulated) accumulated else accumulated + (request.requestId to reason)
+            }
+            current.copy(
+                status = NaviampConnectControllerConnectionStatus.Disconnected,
+                sessionId = null,
+                protocolVersion = null,
+                terminalResults = results.boundedTerminalResults(),
+            )
+        }
         nextSequence = 0L
         lastReceivedSequence = -1L
     }
@@ -175,8 +231,26 @@ class NaviampConnectControllerSession(
     ) {
         val retryable = mutableState.value.pendingRequests.filter { it.idempotent }
         connect(sessionId, protocolVersion, target, capabilities, snapshot)
-        mutableState.value = mutableState.value.copy(pendingRequests = retryable)
-        retryable.forEach { sendRequest(it) }
+        mutableState.update { current ->
+            current.copy(
+                pendingRequests = retryable,
+                terminalResults = current.terminalResults - retryable.map(NaviampConnectPendingRequest::requestId).toSet(),
+            )
+        }
+        for (request in retryable) {
+            try {
+                sendRequest(request)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (cause: Throwable) {
+                val failure = NaviampConnectRequestTerminalResult.WriteFailed(
+                    cause.message ?: "The command could not be written to the playback device.",
+                )
+                completeRequest(request.requestId, failure, removePending = false)
+                disconnectPendingRequests(failure)
+                return
+            }
+        }
     }
 
     private suspend fun sendRequest(request: NaviampConnectPendingRequest) {
@@ -195,8 +269,12 @@ class NaviampConnectControllerSession(
         requestId: String? = null,
     ) = outboundMutex.withLock {
         val current = mutableState.value
-        val sessionId = current.sessionId ?: return@withLock
-        val protocolVersion = current.protocolVersion ?: return@withLock
+        val sessionId = checkNotNull(current.sessionId) {
+            "The Connect session ended before the message was written."
+        }
+        val protocolVersion = checkNotNull(current.protocolVersion) {
+            "The Connect session ended before the message was written."
+        }
         transport.send(
             NaviampConnectEnvelope(
                 protocolVersion = protocolVersion,
@@ -210,10 +288,7 @@ class NaviampConnectControllerSession(
 
     private fun acknowledge(requestId: String?) {
         if (requestId == null) return
-        mutableState.value = mutableState.value.copy(
-            pendingRequests = mutableState.value.pendingRequests.filterNot { it.requestId == requestId },
-            lastError = null,
-        )
+        completeRequest(requestId, NaviampConnectRequestTerminalResult.Acknowledged)
     }
 
     private fun applySnapshot(snapshot: NaviampConnectTargetSnapshot) {
@@ -225,11 +300,29 @@ class NaviampConnectControllerSession(
         requestId: String?,
         error: NaviampConnectErrorMessage,
     ) {
-        val current = mutableState.value
-        mutableState.value = current.copy(
-            pendingRequests = current.pendingRequests.filterNot { it.requestId == requestId },
-            lastError = error,
-        )
+        if (requestId != null) completeRequest(requestId, NaviampConnectRequestTerminalResult.ProtocolRejected(error))
+        mutableState.update { it.copy(lastError = error) }
+    }
+
+    private fun completeRequest(
+        requestId: String,
+        result: NaviampConnectRequestTerminalResult,
+        removePending: Boolean = true,
+    ) {
+        mutableState.update { current ->
+            if (current.pendingRequests.none { it.requestId == requestId } && requestId in current.terminalResults) {
+                current
+            } else {
+                current.copy(
+                    pendingRequests = if (removePending) {
+                        current.pendingRequests.filterNot { it.requestId == requestId }
+                    } else {
+                        current.pendingRequests
+                    },
+                    terminalResults = (current.terminalResults + (requestId to result)).boundedTerminalResults(),
+                )
+            }
+        }
     }
 
     private fun reject(
@@ -242,6 +335,12 @@ class NaviampConnectControllerSession(
         return NaviampConnectCommandSendResult.Rejected(error)
     }
 }
+
+private fun Map<String, NaviampConnectRequestTerminalResult>.boundedTerminalResults(): Map<String, NaviampConnectRequestTerminalResult> =
+    if (size <= MaximumRetainedTerminalResults) this
+    else entries.toList().takeLast(MaximumRetainedTerminalResults).associate { it.toPair() }
+
+private const val MaximumRetainedTerminalResults = 256
 
 fun NaviampConnectCommand.isNaviampConnectIdempotent(): Boolean = when (this) {
     app.naviamp.domain.connect.NaviampConnectPlay,

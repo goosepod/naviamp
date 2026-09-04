@@ -9,8 +9,11 @@ import app.naviamp.domain.connect.NaviampConnectPlaybackSnapshot
 import app.naviamp.domain.connect.NaviampConnectPlaybackState
 import app.naviamp.domain.connect.NaviampConnectPause
 import app.naviamp.domain.connect.NaviampConnectPlay
+import app.naviamp.domain.connect.NaviampConnectMoveQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectQueueSnapshot
+import app.naviamp.domain.connect.NaviampConnectRemoveQueueOccurrence
+import app.naviamp.domain.connect.NaviampConnectRequestSnapshot
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
 import app.naviamp.domain.connect.NaviampConnectSeek
 import app.naviamp.domain.connect.NaviampConnectSelectQueueOccurrence
@@ -20,9 +23,11 @@ import app.naviamp.domain.connect.NaviampConnectSetShuffle
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
 import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NowPlayingCurrentTrackAction
+import app.naviamp.ui.NowPlayingItemAction
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingSelectionAction
+import app.naviamp.ui.nowPlayingItemActionRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -75,6 +80,45 @@ class NaviampCoreConnectRemoteNowPlayingTest {
         assertEquals(NaviampConnectSetFavorite("current", false), sent[3])
         assertEquals(NaviampConnectSelectQueueOccurrence("2:third"), sent[4])
         assertEquals(NaviampConnectClearUpNext, sent[5])
+    }
+
+    @Test
+    fun actionsFromAnOlderRenderStillTargetTheSameQueueOccurrence() {
+        val renderedSnapshot = snapshot()
+        val renderedItem = renderedSnapshot.toRemoteNowPlayingUi("TV").upNext.last()
+        val currentSnapshot = renderedSnapshot.copy(
+            revision = renderedSnapshot.revision + 1,
+            queue = renderedSnapshot.queue.copy(
+                occurrences = renderedSnapshot.queue.occurrences.toMutableList().apply {
+                    add(1, occurrence("new:inserted", "inserted", "Inserted"))
+                },
+            ),
+        )
+        val sent = mutableListOf<NaviampConnectCommand>()
+        val actions = createNaviampCoreConnectRemoteNowPlayingActions({ currentSnapshot }, sent::add)
+
+        actions.selectItem(renderedItem, NowPlayingSelectionAction.SelectQueueItem)
+        actions.onQueueItemAction(nowPlayingItemActionRequest(renderedItem, NowPlayingItemAction.RemoveFromQueue))
+        actions.onQueueItemAction(nowPlayingItemActionRequest(renderedItem, NowPlayingItemAction.ToggleFavorite))
+        actions.onQueueItemAction(nowPlayingItemActionRequest(renderedItem, NowPlayingItemAction.PlayNext))
+
+        assertEquals(NaviampConnectSelectQueueOccurrence("2:third"), sent[0])
+        assertEquals(NaviampConnectRemoveQueueOccurrence("2:third"), sent[1])
+        assertEquals(NaviampConnectSetFavorite("third", true), sent[2])
+        assertEquals(NaviampConnectMoveQueueOccurrence("2:third", "new:inserted"), sent[3])
+    }
+
+    @Test
+    fun stalePositionalReorderRequestsAFreshSnapshotInsteadOfMovingTheWrongOccurrence() {
+        val renderedSnapshot = snapshot()
+        val renderedItem = renderedSnapshot.toRemoteNowPlayingUi("TV").upNext.last()
+        val currentSnapshot = renderedSnapshot.copy(revision = renderedSnapshot.revision + 1)
+        val sent = mutableListOf<NaviampConnectCommand>()
+        val actions = createNaviampCoreConnectRemoteNowPlayingActions({ currentSnapshot }, sent::add)
+
+        actions.moveQueueItem(2, 1, renderedItem)
+
+        assertEquals(listOf<NaviampConnectCommand>(NaviampConnectRequestSnapshot), sent)
     }
 
     @Test

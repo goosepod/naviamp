@@ -9,6 +9,9 @@ import app.naviamp.domain.connect.NaviampConnectCapability
 import app.naviamp.domain.connect.NaviampConnectDevice
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
 import app.naviamp.domain.connect.NaviampConnectPlaybackState
+import app.naviamp.domain.connect.NaviampConnectPause
+import app.naviamp.domain.connect.NaviampConnectPlay
+import app.naviamp.domain.connect.NaviampConnectTogglePlayPause
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
 import app.naviamp.domain.connect.NaviampConnectSourceIdentity
 import app.naviamp.domain.playback.PlaybackProgress
@@ -80,6 +83,56 @@ class NaviampCoreConnectTargetSnapshotFactoryTest {
     }
 
     @Test
+    fun suppressesProgressOnlyTargetSnapshotsButPublishesStructuralPlaybackChanges() {
+        val current = track("current", "Current")
+        val initial = NaviampLivePlaybackState(
+            currentTrack = current,
+            queue = PlaybackQueue(listOf(current), currentIndex = 0),
+            progress = PlaybackProgress(10.0, 60.0),
+            playbackState = PlaybackState.Playing,
+        )
+
+        assertEquals(
+            false,
+            shouldPublishNaviampConnectTargetSnapshot(
+                initial,
+                initial.copy(progress = PlaybackProgress(11.0, 60.0)),
+            ),
+        )
+        assertEquals(
+            true,
+            shouldPublishNaviampConnectTargetSnapshot(
+                initial,
+                initial.copy(playbackState = PlaybackState.Paused),
+            ),
+        )
+        assertEquals(
+            true,
+            shouldPublishNaviampConnectTargetSnapshot(
+                initial,
+                initial.copy(currentTrack = track("next", "Next")),
+            ),
+        )
+    }
+
+    @Test
+    fun successfulRemotePlayIntentRevealsTargetNowPlayingOnlyWhenPlaybackStarts() {
+        assertTrue(NaviampConnectPlay.revealsNowPlayingAfter(NaviampConnectPlaybackState.Playing))
+        assertTrue(NaviampConnectPlay.revealsNowPlayingAfter(NaviampConnectPlaybackState.Buffering))
+        assertTrue(
+            NaviampConnectTogglePlayPause.revealsNowPlayingAfter(NaviampConnectPlaybackState.Playing),
+        )
+        assertEquals(
+            false,
+            NaviampConnectTogglePlayPause.revealsNowPlayingAfter(NaviampConnectPlaybackState.Paused),
+        )
+        assertEquals(
+            false,
+            NaviampConnectPause.revealsNowPlayingAfter(NaviampConnectPlaybackState.Paused),
+        )
+    }
+
+    @Test
     fun projectsControllerLocalQueueDirectlyIntoHandoffCommand() {
         val first = track("first", "First")
         val second = track("second", "Second")
@@ -111,6 +164,11 @@ class NaviampCoreConnectTargetSnapshotFactoryTest {
         assertEquals(NaviampConnectRepeatMode.All, handoff.repeatMode)
         assertEquals(true, handoff.shuffled)
         assertEquals(true, handoff.playing)
+        assertTrue(handoff.revealsNowPlayingAfter(NaviampConnectPlaybackState.Playing))
+        assertEquals(
+            false,
+            handoff.copy(playing = false).revealsNowPlayingAfter(NaviampConnectPlaybackState.Paused),
+        )
     }
 
     @Test

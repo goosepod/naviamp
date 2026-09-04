@@ -44,4 +44,26 @@ class NaviampSharedUiLayoutTest {
             ),
         )
     }
+
+    @Test
+    fun remoteNowPlayingRemainsAvailableWithoutALocalProviderConnection() {
+        assertTrue(
+            sharedCanShowNowPlaying(
+                connected = false,
+                remoteNowPlayingAvailable = true,
+            ),
+        )
+        assertTrue(
+            sharedCanShowNowPlaying(
+                connected = true,
+                remoteNowPlayingAvailable = false,
+            ),
+        )
+        assertFalse(
+            sharedCanShowNowPlaying(
+                connected = false,
+                remoteNowPlayingAvailable = false,
+            ),
+        )
+    }
 }

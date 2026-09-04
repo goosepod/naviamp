@@ -632,6 +632,11 @@ private fun nowPlayingSectionsUi(
 
 sealed interface NowPlayingItemTarget {
     data class QueueIndex(val index: Int) : NowPlayingItemTarget
+    data class QueueOccurrence(
+        val occurrenceId: String,
+        val renderedIndex: Int,
+        val renderedRevision: Long,
+    ) : NowPlayingItemTarget
     data class RelatedIndex(val index: Int) : NowPlayingItemTarget
     data class TrackId(val id: String) : NowPlayingItemTarget
 }
@@ -738,6 +743,7 @@ data class NowPlayingQueueActionRequest(
     val playlistName: String? = null,
     val queueIndex: Int? = null,
     val destinationQueueIndex: Int? = null,
+    val sourceTarget: NowPlayingItemTarget? = null,
 )
 
 enum class NowPlayingSleepTimerAction {
@@ -798,7 +804,7 @@ fun nowPlayingListItemKey(index: Int, item: NaviampNowPlayingItemUi): String =
     "$index:${item.id}"
 
 fun nowPlayingItemTarget(item: NaviampNowPlayingItemUi): NowPlayingItemTarget =
-    item.id.removePrefix("queue:")
+    item.actionTarget ?: item.id.removePrefix("queue:")
         .takeIf { it != item.id }
         ?.toIntOrNull()
         ?.let(NowPlayingItemTarget::QueueIndex)
@@ -809,7 +815,11 @@ fun nowPlayingItemTarget(item: NaviampNowPlayingItemUi): NowPlayingItemTarget =
         ?: NowPlayingItemTarget.TrackId(item.id)
 
 fun nowPlayingQueueIndex(item: NaviampNowPlayingItemUi): Int? =
-    (nowPlayingItemTarget(item) as? NowPlayingItemTarget.QueueIndex)?.index
+    when (val target = nowPlayingItemTarget(item)) {
+        is NowPlayingItemTarget.QueueIndex -> target.index
+        is NowPlayingItemTarget.QueueOccurrence -> target.renderedIndex
+        else -> null
+    }
 
 fun nowPlayingRelatedIndex(item: NaviampNowPlayingItemUi): Int? =
     (nowPlayingItemTarget(item) as? NowPlayingItemTarget.RelatedIndex)?.index
@@ -858,6 +868,7 @@ fun NowPlayingItemActionRequest.resolveAction(
 private val NowPlayingItemTarget.source: NowPlayingItemSource
     get() = when (this) {
         is NowPlayingItemTarget.QueueIndex -> NowPlayingItemSource.Queue
+        is NowPlayingItemTarget.QueueOccurrence -> NowPlayingItemSource.Queue
         is NowPlayingItemTarget.RelatedIndex -> NowPlayingItemSource.Related
         is NowPlayingItemTarget.TrackId -> NowPlayingItemSource.TrackId
     }
@@ -902,6 +913,7 @@ private fun resolveNowPlayingTargetTrack(
 ): Track? =
     when (target) {
         is NowPlayingItemTarget.QueueIndex -> queueTracks.getOrNull(target.index)
+        is NowPlayingItemTarget.QueueOccurrence -> queueTracks.getOrNull(target.renderedIndex)
         is NowPlayingItemTarget.RelatedIndex -> relatedTracks.getOrNull(target.index)
         is NowPlayingItemTarget.TrackId ->
             (knownTracks + queueTracks + relatedTracks).firstOrNull { track -> track.id.value == target.id }

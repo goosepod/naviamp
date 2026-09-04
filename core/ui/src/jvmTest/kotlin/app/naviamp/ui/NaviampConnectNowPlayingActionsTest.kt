@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class NaviampConnectNowPlayingActionsTest {
     @Test
@@ -71,6 +72,31 @@ class NaviampConnectNowPlayingActionsTest {
             ),
             decorated.playbackOutputs,
         )
+    }
+
+    @Test
+    fun reconnectingOutputDoesNotLabelLocalFallbackAsRemotePlayback() {
+        val decorated = NowPlayingUi(title = "Local track", subtitle = "Local artist", stateLabel = "Paused")
+            .withSelectedRemoteOutput(
+                NaviampConnectSettingsUi(
+                    available = true,
+                    selectedPlaybackDeviceId = "living-room-trust",
+                    selectedPlaybackDeviceName = "Living room",
+                    playbackDestinationStatus = NaviampConnectPlaybackDestinationUiStatus.Reconnecting,
+                    trustedDevices = listOf(
+                        NaviampConnectTrustedDeviceUi(
+                            deviceId = "living-room-trust",
+                            displayName = "Living room",
+                            detail = "Paired television",
+                            reconnectAvailable = true,
+                            playbackTarget = true,
+                        ),
+                    ),
+                ),
+            )
+
+        assertNull(decorated.remoteOutputDeviceName)
+        assertEquals("living-room-trust", decorated.playbackOutputs.single { it.selected }.deviceId)
     }
 
     private fun actions(

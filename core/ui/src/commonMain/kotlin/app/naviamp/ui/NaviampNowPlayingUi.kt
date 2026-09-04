@@ -141,6 +141,7 @@ data class NaviampNowPlayingItemUi(
     val hasArtist: Boolean = false,
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val playNextPriority: Boolean = false,
+    val actionTarget: NowPlayingItemTarget? = null,
 )
 
 data class NaviampNowPlayingActions(
@@ -234,16 +235,23 @@ data class NaviampNowPlayingActions(
         onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.SaveQueueAsPlaylist, playlistName = name))
     }
 
-    fun removeFromQueue(index: Int) {
-        onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.RemoveFromQueue, queueIndex = index))
+    fun removeFromQueue(index: Int, item: NaviampNowPlayingItemUi? = null) {
+        onQueueAction(
+            NowPlayingQueueActionRequest(
+                NowPlayingQueueAction.RemoveFromQueue,
+                queueIndex = index,
+                sourceTarget = item?.actionTarget,
+            ),
+        )
     }
 
-    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+    fun moveQueueItem(fromIndex: Int, toIndex: Int, item: NaviampNowPlayingItemUi? = null) {
         onQueueAction(
             NowPlayingQueueActionRequest(
                 action = NowPlayingQueueAction.MoveQueueItem,
                 queueIndex = fromIndex,
                 destinationQueueIndex = toIndex,
+                sourceTarget = item?.actionTarget,
             ),
         )
     }
@@ -2983,7 +2991,7 @@ internal fun nowPlayingSwipeActionVisual(
                 onAction(
                     NowPlayingItemActionRequest(
                         item = item,
-                        target = NowPlayingItemTarget.QueueIndex(index),
+                        target = nowPlayingItemTarget(item),
                         action = NowPlayingItemAction.RemoveFromQueue,
                     ),
                 )

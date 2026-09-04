@@ -1,6 +1,7 @@
 package app.naviamp.app
 
 import app.naviamp.domain.connect.NaviampConnectCapability
+import app.naviamp.domain.connect.NaviampConnectAcknowledgement
 import app.naviamp.domain.connect.NaviampConnectCommandRequest
 import app.naviamp.domain.connect.NaviampConnectDevice
 import app.naviamp.domain.connect.NaviampConnectDeviceRole
@@ -25,6 +26,7 @@ import app.naviamp.domain.connect.NaviampConnectStartMedia
 import app.naviamp.domain.connect.NaviampConnectRepeatMode
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -217,6 +219,209 @@ class NaviampConnectSessionControllerTest {
 
         assertEquals(NaviampConnectErrorCode.UnsupportedCapability, result.error.code)
         assertTrue(sent.isEmpty())
+    }
+
+    @Test
+    fun controllerKeepsOutOfOrderTerminalResultsIsolatedByRequestId() = runTest {
+        val controller = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport {},
+            requestIds = incrementingRequestIds(),
+        )
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        val first = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectPlay))
+        val second = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectPause))
+        val rejection = NaviampConnectErrorMessage(
+            NaviampConnectErrorCode.RevisionConflict,
+            "The first request was rejected.",
+        )
+
+        controller.receive(
+            NaviampConnectEnvelope(
+                protocolVersion = 1,
+                sessionId = SessionId,
+                sequence = 0,
+                responseToRequestId = first.requestId,
+                message = rejection,
+            ),
+        )
+        controller.receive(
+            NaviampConnectEnvelope(
+                protocolVersion = 1,
+                sessionId = SessionId,
+                sequence = 1,
+                responseToRequestId = second.requestId,
+                message = NaviampConnectAcknowledgement(0),
+            ),
+        )
+
+        assertEquals(
+            NaviampConnectRequestTerminalResult.ProtocolRejected(rejection),
+            controller.awaitTerminalResult(first.requestId, 1_000),
+        )
+        assertEquals(
+            NaviampConnectRequestTerminalResult.Acknowledged,
+            controller.awaitTerminalResult(second.requestId, 1_000),
+        )
+        assertEquals(rejection, controller.state.value.lastError)
+    }
+
+    @Test
+    fun controllerKeepsAnEarlierAcknowledgementWhenALaterRequestFails() = runTest {
+        val controller = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport {},
+            requestIds = incrementingRequestIds(),
+        )
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        val first = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectPlay))
+        val second = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectPause))
+        val rejection = NaviampConnectErrorMessage(NaviampConnectErrorCode.InternalFailure, "Second failed.")
+
+        controller.receive(
+            NaviampConnectEnvelope(
+                protocolVersion = 1,
+                sessionId = SessionId,
+                sequence = 0,
+                responseToRequestId = first.requestId,
+                message = NaviampConnectAcknowledgement(0),
+            ),
+        )
+        controller.receive(
+            NaviampConnectEnvelope(
+                protocolVersion = 1,
+                sessionId = SessionId,
+                sequence = 1,
+                responseToRequestId = second.requestId,
+                message = rejection,
+            ),
+        )
+
+        assertEquals(
+            NaviampConnectRequestTerminalResult.Acknowledged,
+            controller.awaitTerminalResult(first.requestId, 1_000),
+        )
+        assertEquals(
+            NaviampConnectRequestTerminalResult.ProtocolRejected(rejection),
+            controller.awaitTerminalResult(second.requestId, 1_000),
+        )
+    }
+
+    @Test
+    fun controllerRecordsTimeoutForOnlyTheAwaitedRequest() = runTest {
+        val controller = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport {},
+            requestIds = incrementingRequestIds(),
+        )
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        val sent = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectPlay))
+
+        assertEquals(
+            NaviampConnectRequestTerminalResult.TimedOut,
+            controller.awaitTerminalResult(sent.requestId, 100),
+        )
+        assertTrue(controller.state.value.pendingRequests.isEmpty())
+    }
+
+    @Test
+    fun controllerEndsSessionWhenTransportFailsBeforeWriting() = runTest {
+        val controller = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport { error("socket closed") },
+            requestIds = incrementingRequestIds(),
+        )
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+
+        val failed = assertIs<NaviampConnectCommandSendResult.Failed>(controller.send(NaviampConnectPlay))
+
+        assertEquals(NaviampConnectControllerConnectionStatus.Disconnected, controller.state.value.status)
+        assertEquals(
+            NaviampConnectRequestTerminalResult.WriteFailed("socket closed"),
+            controller.awaitTerminalResult(failed.requestId, 1_000),
+        )
+    }
+
+    @Test
+    fun controllerEndsSessionWhenTransportFailsDuringAWrite() = runTest {
+        val writeStarted = CompletableDeferred<Unit>()
+        val finishWrite = CompletableDeferred<Unit>()
+        val controller = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport {
+                writeStarted.complete(Unit)
+                finishWrite.await()
+                error("partial write")
+            },
+            requestIds = incrementingRequestIds(),
+        )
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+
+        val send = async { controller.send(NaviampConnectPlay) }
+        writeStarted.await()
+        assertEquals(NaviampConnectControllerConnectionStatus.Connected, controller.state.value.status)
+        finishWrite.complete(Unit)
+        val failed = assertIs<NaviampConnectCommandSendResult.Failed>(send.await())
+
+        assertEquals(NaviampConnectControllerConnectionStatus.Disconnected, controller.state.value.status)
+        assertEquals(
+            NaviampConnectRequestTerminalResult.WriteFailed("partial write"),
+            controller.state.value.terminalResults[failed.requestId],
+        )
+    }
+
+    @Test
+    fun controllerDistinguishesDisconnectAfterSuccessfulWriteFromWriteFailure() = runTest {
+        val controller = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport {},
+            requestIds = incrementingRequestIds(),
+        )
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        val sent = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectPlay))
+
+        controller.disconnect()
+
+        assertEquals(
+            NaviampConnectRequestTerminalResult.Disconnected,
+            controller.awaitTerminalResult(sent.requestId, 1_000),
+        )
+    }
+
+    @Test
+    fun reconnectAfterWriteFailureRetriesOnlyIdempotentCommands() = runTest {
+        var failWrites = true
+        val sent = mutableListOf<NaviampConnectEnvelope>()
+        val idempotent = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport { envelope ->
+                if (failWrites) error("write failed")
+                sent += envelope
+            },
+            requestIds = incrementingRequestIds(),
+        )
+        idempotent.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        assertIs<NaviampConnectCommandSendResult.Failed>(idempotent.send(NaviampConnectPause))
+
+        failWrites = false
+        idempotent.reconnect("new-session", 1, targetDevice(), capabilities(), snapshot(1))
+
+        assertEquals(1, sent.size)
+        assertEquals(
+            NaviampConnectPause,
+            assertIs<NaviampConnectCommandRequest>(sent.single().message).command,
+        )
+
+        failWrites = true
+        sent.clear()
+        val nonIdempotent = NaviampConnectControllerSession(
+            transport = NaviampConnectSessionTransport { envelope ->
+                if (failWrites) error("write failed")
+                sent += envelope
+            },
+            requestIds = incrementingRequestIds(),
+        )
+        nonIdempotent.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        assertIs<NaviampConnectCommandSendResult.Failed>(nonIdempotent.send(NaviampConnectNext))
+
+        failWrites = false
+        nonIdempotent.reconnect("another-session", 1, targetDevice(), capabilities(), snapshot(1))
+
+        assertTrue(sent.isEmpty())
+        assertTrue(nonIdempotent.state.value.pendingRequests.isEmpty())
     }
 
     @Test

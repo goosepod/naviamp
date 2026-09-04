@@ -237,6 +237,44 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun connectQueueHandoffEnrichesAnExistingTargetTrackWithTransferredArtwork() = runTest {
+        val fixture = playbackFixture(this)
+        val existing = fixture.live.state.value.queue.tracks.first().copy(coverArtId = null)
+        fixture.live.replace(
+            fixture.live.state.value.copy(
+                currentTrack = existing,
+                queue = PlaybackQueue(listOf(existing), currentIndex = 0),
+            ),
+        )
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence(
+                            occurrenceId = "0:one",
+                            mediaId = "one",
+                            title = "One",
+                            artistName = "Artist",
+                            artworkId = "transferred-cover",
+                        ),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 0,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = false,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals("transferred-cover", fixture.live.state.value.currentTrack?.coverArtId)
+        assertEquals("transferred-cover", fixture.effects.queues.single().current?.coverArtId)
+    }
+
+    @Test
     fun connectQueueHandoffUsesTransferredMetadataForTracksNotCachedByTarget() = runTest {
         val fixture = playbackFixture(this)
         fixture.provider.unavailableTrackIds += "missing"

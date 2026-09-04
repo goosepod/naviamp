@@ -9,6 +9,7 @@ import app.naviamp.domain.connect.NaviampConnectErrorCode
 import app.naviamp.domain.connect.NaviampConnectMoveQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning
 import app.naviamp.domain.connect.NaviampConnectHandoffQueue
+import app.naviamp.domain.connect.NaviampConnectPlay
 import app.naviamp.domain.connect.NaviampConnectPlaybackSnapshot
 import app.naviamp.domain.connect.NaviampConnectPlaybackState
 import app.naviamp.domain.connect.NaviampConnectQueueGroup
@@ -75,6 +76,21 @@ class NaviampCoreConnectTargetSnapshotFactory(
         fun occurrenceId(index: Int, mediaId: String): String = "$index:$mediaId"
     }
 }
+
+/**
+ * Remote controllers do not require a live scrubber. Suppress progress-only mutations so a target
+ * cannot queue repeated full-queue snapshots faster than a controller can render them.
+ */
+internal fun shouldPublishNaviampConnectTargetSnapshot(
+    previous: NaviampLivePlaybackState?,
+    updated: NaviampLivePlaybackState,
+): Boolean = previous == null ||
+    previous.currentTrack != updated.currentTrack ||
+    previous.currentStation != updated.currentStation ||
+    previous.queue != updated.queue ||
+    previous.playbackState != updated.playbackState ||
+    previous.repeatMode != updated.repeatMode ||
+    previous.shuffledUpNextSnapshot != updated.shuffledUpNextSnapshot
 
 /** Projects controller-local playback into a handoff command without inventing a target device. */
 fun naviampCoreConnectQueueHandoff(
@@ -152,6 +168,7 @@ class NaviampCoreConnectTargetCommandExecutor(
     private val stateStore: NaviampCoreStateStore,
     private val snapshots: NaviampCoreConnectTargetSnapshotFactory,
     private val offerProvisioning: (NaviampConnectOfferConnectionProvisioning) -> Boolean = { false },
+    private val revealNowPlaying: () -> Unit = {},
 ) : NaviampConnectTargetCommandExecutor {
     override suspend fun execute(
         command: NaviampConnectCommand,
@@ -196,12 +213,33 @@ class NaviampCoreConnectTargetCommandExecutor(
             volumePercent = stateStore.state.value.shell.playback.settings.volumePercent,
             visibleSurface = currentSnapshot.playback.visibleSurface,
         )
+        if (command.revealsNowPlayingAfter(projected.playback.state)) revealNowPlaying()
         val changed = projected != currentSnapshot
         return NaviampConnectTargetCommandResult.Success(
             snapshot = if (changed) projected.copy(revision = currentSnapshot.revision + 1) else projected,
             changed = changed,
         )
     }
+}
+
+internal fun NaviampConnectCommand.revealsNowPlayingAfter(
+    playbackState: NaviampConnectPlaybackState,
+): Boolean = when (this) {
+    NaviampConnectPlay,
+    is NaviampConnectStartMedia,
+    is NaviampConnectSelectQueueOccurrence,
+    app.naviamp.domain.connect.NaviampConnectPrevious,
+    app.naviamp.domain.connect.NaviampConnectNext,
+    -> playbackState == NaviampConnectPlaybackState.Buffering ||
+        playbackState == NaviampConnectPlaybackState.Playing
+    app.naviamp.domain.connect.NaviampConnectTogglePlayPause ->
+        playbackState == NaviampConnectPlaybackState.Buffering ||
+            playbackState == NaviampConnectPlaybackState.Playing
+    is NaviampConnectHandoffQueue -> playing && (
+        playbackState == NaviampConnectPlaybackState.Buffering ||
+            playbackState == NaviampConnectPlaybackState.Playing
+        )
+    else -> false
 }
 
 private fun NaviampConnectQueueSnapshot.indexOf(occurrenceId: String): Int? =
