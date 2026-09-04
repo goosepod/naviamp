@@ -233,6 +233,123 @@ class StorageLibraryIndexStore(
     override fun recentlyPlayedLibraryTracks(sourceId: String, limit: Long): List<Track> =
         queries.selectRecentlyPlayedLibraryTracks(sourceId, limit).executeAsList().map { it.toTrack() }
 
+    override fun reconcileFavoriteArtists(
+        sourceId: String,
+        artists: List<Artist>,
+        observedAtIso8601: String,
+    ): List<Artist> {
+        val existing = queries.selectFavoriteArtistActivities(sourceId).executeAsList()
+            .associateBy { it.remote_artist_id }
+        val now = nowMillis()
+        queries.transaction {
+            queries.deactivateFavoriteArtistActivities(now, sourceId)
+            artists.forEach { artist ->
+                val previous = existing[artist.id.value]
+                val favoritedAt = artist.favoritedAtIso8601
+                    ?.takeUnless { it == "favorite" }
+                    ?: previous?.favorited_at_iso8601
+                    ?: observedAtIso8601
+                queries.upsertFavoriteArtistActivity(
+                    source_id = sourceId,
+                    remote_artist_id = artist.id.value,
+                    artist_name = artist.name,
+                    favorited_at_iso8601 = favoritedAt,
+                    favorite_active = 1,
+                    last_radio_played_at_iso8601 = previous?.last_radio_played_at_iso8601,
+                    updated_at_epoch_millis = now,
+                )
+            }
+        }
+        return artists.map { artist ->
+            val stored = existing[artist.id.value]
+            artist.copy(
+                favoritedAtIso8601 = artist.favoritedAtIso8601
+                    ?.takeUnless { it == "favorite" }
+                    ?: stored?.favorited_at_iso8601
+                    ?: observedAtIso8601,
+            )
+        }
+    }
+
+    override fun locallyKnownFavoriteArtists(sourceId: String, limit: Long): List<Artist> =
+        queries.selectActiveFavoriteArtistActivities(sourceId, limit)
+            .executeAsList()
+            .map { row ->
+                Artist(
+                    id = ArtistId(row.remote_artist_id),
+                    name = row.artist_name,
+                    favoritedAtIso8601 = row.favorited_at_iso8601,
+                )
+            }
+
+    override fun favoriteArtistRadioLastPlayed(sourceId: String): Map<ArtistId, String> =
+        queries.selectFavoriteArtistActivities(sourceId)
+            .executeAsList()
+            .mapNotNull { row ->
+                row.last_radio_played_at_iso8601?.let { ArtistId(row.remote_artist_id) to it }
+            }
+            .toMap()
+
+    override fun setArtistFavoriteActivity(
+        sourceId: String,
+        artist: Artist,
+        favorite: Boolean,
+        changedAtIso8601: String,
+    ) {
+        val previous = queries.selectFavoriteArtistActivity(sourceId, artist.id.value).executeAsOneOrNull()
+        queries.upsertFavoriteArtistActivity(
+            source_id = sourceId,
+            remote_artist_id = artist.id.value,
+            artist_name = artist.name,
+            favorited_at_iso8601 = if (favorite) {
+                artist.favoritedAtIso8601?.takeUnless { it == "favorite" }
+                    ?: previous?.favorited_at_iso8601
+                    ?: changedAtIso8601
+            } else {
+                null
+            },
+            favorite_active = if (favorite) 1 else 0,
+            last_radio_played_at_iso8601 = previous?.last_radio_played_at_iso8601,
+            updated_at_epoch_millis = nowMillis(),
+        )
+    }
+
+    override fun recordArtistRadioPlayed(
+        sourceId: String,
+        artist: Artist,
+        playedAtIso8601: String,
+    ) {
+        val previous = queries.selectFavoriteArtistActivity(sourceId, artist.id.value).executeAsOneOrNull()
+        queries.upsertFavoriteArtistActivity(
+            source_id = sourceId,
+            remote_artist_id = artist.id.value,
+            artist_name = artist.name,
+            favorited_at_iso8601 = previous?.favorited_at_iso8601,
+            favorite_active = previous?.favorite_active ?: 0,
+            last_radio_played_at_iso8601 = playedAtIso8601,
+            updated_at_epoch_millis = nowMillis(),
+        )
+    }
+
+    override fun recordTrackArtistRadioPlayedIfFavorite(
+        sourceId: String,
+        artistId: ArtistId,
+        artistName: String,
+        playedAtIso8601: String,
+    ): Boolean {
+        val activity = queries.selectFavoriteArtistActivity(sourceId, artistId.value).executeAsOneOrNull()
+            ?.takeIf { it.favorite_active == 1L }
+            ?: return false
+        queries.setFavoriteArtistRadioPlayed(
+            artist_name = artistName.ifBlank { activity.artist_name },
+            last_radio_played_at_iso8601 = playedAtIso8601,
+            updated_at_epoch_millis = nowMillis(),
+            source_id = sourceId,
+            remote_artist_id = artistId.value,
+        )
+        return true
+    }
+
     override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? =
         queries.selectRandomLibraryTrackForAlbum(sourceId, albumId.value).executeAsOneOrNull()?.toTrack()
 

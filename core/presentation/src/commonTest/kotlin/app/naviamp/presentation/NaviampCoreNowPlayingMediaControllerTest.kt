@@ -20,6 +20,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.home.HomeAlbumYear
+import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
@@ -46,16 +48,61 @@ import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingSelectionActionRequest
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreNowPlayingMediaControllerTest {
+    @Test
+    fun successfulGeneratedRadioRecordsOnlyEligibleArtistActivity() = runTest {
+        val trackFixture = mediaFixture(this)
+        trackFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+
+        trackFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+
+        assertEquals(listOf("source:artist:Artist:now"), trackFixture.artistActivity.trackRadioRecords)
+
+        val unfavoritedFixture = mediaFixture(this)
+        unfavoritedFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertTrue(unfavoritedFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val failedFixture = mediaFixture(this)
+        failedFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+        failedFixture.provider.trackRadioFailure = IllegalStateException("radio failed")
+        failedFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertTrue(failedFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val unidentifiedFixture = mediaFixture(this)
+        unidentifiedFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+        unidentifiedFixture.live.replace(
+            unidentifiedFixture.live.state.value.copy(
+                currentTrack = nowPlayingTrack("current").copy(artistId = null),
+                queue = PlaybackQueue(listOf(nowPlayingTrack("current").copy(artistId = null)), 0),
+            ),
+        )
+        unidentifiedFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertTrue(unidentifiedFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val cancelledFixture = mediaFixture(this)
+        cancelledFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+        cancelledFixture.provider.trackRadioFailure = CancellationException("cancelled")
+        assertFailsWith<CancellationException> {
+            cancelledFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        }
+        assertTrue(cancelledFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val artistFixture = mediaFixture(this)
+        artistFixture.transactions.startArtistRadio(Artist(ArtistId("direct"), "Direct"))
+        assertEquals(listOf("source:direct:Direct:now"), artistFixture.artistActivity.artistRadioRecords)
+    }
+
     @Test
     fun presenterPublishesCompleteQueueRelatedAndCapabilityState() = runTest {
         val fixture = mediaFixture(this)
@@ -321,6 +368,8 @@ private data class MediaFixture(
     val controller: NaviampCoreNowPlayingMediaController,
     val visualizers: List<NaviampVisualizer>,
     val downloads: List<String>,
+    val transactions: NaviampCoreMediaTransactions,
+    val artistActivity: RecordingFavoriteArtistActivity,
 )
 
 private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture {
@@ -406,6 +455,7 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         NaviampCoreDownloadedPlaybackPort { _, _ -> },
     )
     var recentRadioStreams = emptyList<app.naviamp.domain.settings.RecentRadioStream>()
+    val artistActivity = RecordingFavoriteArtistActivity()
     val generatedRadio = NaviampCoreMediaTransactions(
         stateStore = store,
         busyIndicator = NaviampCoreBusyIndicator(store),
@@ -425,6 +475,7 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         favoritedAtIso8601 = { "now" },
         publishNowPlaying = { presenter.publish() },
         openNowPlaying = {},
+        favoriteArtistActivity = artistActivity,
     )
     val controller = NaviampCoreNowPlayingMediaController(
         stateStore = store,
@@ -447,7 +498,42 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         favoritedAtIso8601 = { "now" },
     )
     presenter.publish()
-    return MediaFixture(store, provider, live, effects, sidecars, presenter, controller, visualizers, downloaded)
+    return MediaFixture(
+        store,
+        provider,
+        live,
+        effects,
+        sidecars,
+        presenter,
+        controller,
+        visualizers,
+        downloaded,
+        generatedRadio,
+        artistActivity,
+    )
+}
+
+private class RecordingFavoriteArtistActivity : HomeLibraryRepository {
+    val favoriteArtistIds = mutableSetOf<ArtistId>()
+    val artistRadioRecords = mutableListOf<String>()
+    val trackRadioRecords = mutableListOf<String>()
+
+    override fun albumYears(sourceId: String): List<HomeAlbumYear> = emptyList()
+
+    override fun recordArtistRadioPlayed(sourceId: String, artist: Artist, playedAtIso8601: String) {
+        artistRadioRecords += "$sourceId:${artist.id.value}:${artist.name}:$playedAtIso8601"
+    }
+
+    override fun recordTrackArtistRadioPlayedIfFavorite(
+        sourceId: String,
+        artistId: ArtistId,
+        artistName: String,
+        playedAtIso8601: String,
+    ): Boolean {
+        if (artistId !in favoriteArtistIds) return false
+        trackRadioRecords += "$sourceId:${artistId.value}:$artistName:$playedAtIso8601"
+        return true
+    }
 }
 
 private class NowPlayingTestEffects : NaviampCorePlaybackEffectPort {
@@ -493,6 +579,8 @@ private class NowPlayingTestProvider : MediaProvider {
     val added = mutableListOf<String>()
     val favorites = mutableListOf<String>()
     val ratings = mutableListOf<String>()
+    var trackRadioFailure: Throwable? = null
+    var artistRadioFailure: Throwable? = null
     val playlistContents = mutableMapOf(
         "playlist" to mutableListOf(
             nowPlayingTrack("past"),
@@ -535,7 +623,14 @@ private class NowPlayingTestProvider : MediaProvider {
         )
         else -> MediaSearchResults()
     }
-    override suspend fun trackRadio(trackId: TrackId, count: Int) = listOf(nowPlayingTrack("radio"))
+    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+        trackRadioFailure?.let { throw it }
+        return listOf(nowPlayingTrack("radio"))
+    }
+    override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> {
+        artistRadioFailure?.let { throw it }
+        return listOf(nowPlayingTrack("artist-radio"))
+    }
     override suspend fun internetRadioStations() = listOf(InternetRadioStation("station", "Station", "https://radio"))
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         added += "$playlistId:${trackIds.joinToString(",") { it.value }}"

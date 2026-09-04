@@ -234,6 +234,7 @@ class NaviampCore private constructor(
                 services.content.homeLibrary,
                 services.content.sonicHomeDiscovery,
                 mediaRegistry = mediaRegistry,
+                observedAtIso8601 = services.favoritedAtIso8601,
             )
             val settings = NaviampCoreSettingsController(
                 stateStore,
@@ -380,6 +381,7 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 navigation::openNowPlaying,
+                services.content.homeLibrary,
             )
             val nowPlaying = NaviampCoreNowPlayingMediaController(
                 stateStore,

@@ -90,7 +90,35 @@ data class HomeDate(
     val hourOfDay: Int = 12,
 )
 
-interface HomeLibraryRepository {
+interface FavoriteArtistActivityRepository {
+    fun reconcileFavoriteArtists(
+        sourceId: String,
+        artists: List<Artist>,
+        observedAtIso8601: String,
+    ): List<Artist> = artists
+
+    fun locallyKnownFavoriteArtists(sourceId: String, limit: Long = 500): List<Artist> = emptyList()
+
+    fun favoriteArtistRadioLastPlayed(sourceId: String): Map<app.naviamp.domain.ArtistId, String> = emptyMap()
+
+    fun setArtistFavoriteActivity(
+        sourceId: String,
+        artist: Artist,
+        favorite: Boolean,
+        changedAtIso8601: String,
+    ) = Unit
+
+    fun recordArtistRadioPlayed(sourceId: String, artist: Artist, playedAtIso8601: String) = Unit
+
+    fun recordTrackArtistRadioPlayedIfFavorite(
+        sourceId: String,
+        artistId: app.naviamp.domain.ArtistId,
+        artistName: String,
+        playedAtIso8601: String,
+    ): Boolean = false
+}
+
+interface HomeLibraryRepository : FavoriteArtistActivityRepository {
     fun albumYears(sourceId: String): List<HomeAlbumYear>
 
     fun recentlyPlayedTracks(sourceId: String, limit: Long = 12): List<Track> = emptyList()
@@ -107,6 +135,7 @@ class HomeService(
     private val libraryRepository: HomeLibraryRepository? = null,
     private val sourceId: String? = null,
     private val date: HomeDate,
+    private val observedAtIso8601: () -> String = { "" },
 ) {
     suspend fun load(
         recentRadioStreams: List<RecentRadioStream> = emptyList(),
@@ -130,11 +159,7 @@ class HomeService(
             frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
             randomAlbums = runCatching { albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
             artists = runCatching { artists(limit = artistLimit) }.getOrDefault(emptyList()),
-            favoriteArtists = if (provider.capabilities.supportsArtistFavorites) {
-                runCatching { provider.favoriteArtists(limit = 500) }.getOrDefault(emptyList())
-            } else {
-                emptyList()
-            },
+            favoriteArtists = loadFavoriteArtists(),
             playlists = playlistPartition.ordinary,
             navibeatMixes = playlistPartition.mixes.prioritizedForHour(date.hourOfDay),
             recentRadioStreams = recentRadioStreams,
@@ -152,6 +177,20 @@ class HomeService(
             decadeFromYear = decadePick?.fromYear ?: 0,
             decadeToYear = decadePick?.toYear ?: 0,
             decadeAlbums = decadePick?.albums.orEmpty(),
+        )
+    }
+
+    private suspend fun loadFavoriteArtists(): List<Artist> {
+        if (!provider.capabilities.supportsArtistFavorites) return emptyList()
+        val result = runCatching { provider.favoriteArtists(limit = 500) }
+        val id = sourceId
+        val repository = libraryRepository
+        if (id == null || repository == null) return result.getOrDefault(emptyList())
+        return result.fold(
+            onSuccess = { artists ->
+                repository.reconcileFavoriteArtists(id, artists, observedAtIso8601())
+            },
+            onFailure = { repository.locallyKnownFavoriteArtists(id, 500) },
         )
     }
 

@@ -77,6 +77,38 @@ fun localLibraryHomeRepository(
 
     override fun recentlyPlayedTracks(sourceId: String, limit: Long): List<Track> =
         libraryIndex.recentlyPlayedLibraryTracks(sourceId, limit)
+
+    override fun reconcileFavoriteArtists(
+        sourceId: String,
+        artists: List<app.naviamp.domain.Artist>,
+        observedAtIso8601: String,
+    ) = libraryIndex.reconcileFavoriteArtists(sourceId, artists, observedAtIso8601)
+
+    override fun locallyKnownFavoriteArtists(sourceId: String, limit: Long) =
+        libraryIndex.locallyKnownFavoriteArtists(sourceId, limit)
+
+    override fun favoriteArtistRadioLastPlayed(sourceId: String) =
+        libraryIndex.favoriteArtistRadioLastPlayed(sourceId)
+
+    override fun setArtistFavoriteActivity(
+        sourceId: String,
+        artist: app.naviamp.domain.Artist,
+        favorite: Boolean,
+        changedAtIso8601: String,
+    ) = libraryIndex.setArtistFavoriteActivity(sourceId, artist, favorite, changedAtIso8601)
+
+    override fun recordArtistRadioPlayed(
+        sourceId: String,
+        artist: app.naviamp.domain.Artist,
+        playedAtIso8601: String,
+    ) = libraryIndex.recordArtistRadioPlayed(sourceId, artist, playedAtIso8601)
+
+    override fun recordTrackArtistRadioPlayedIfFavorite(
+        sourceId: String,
+        artistId: app.naviamp.domain.ArtistId,
+        artistName: String,
+        playedAtIso8601: String,
+    ) = libraryIndex.recordTrackArtistRadioPlayedIfFavorite(sourceId, artistId, artistName, playedAtIso8601)
 }
 
 /** Owns Home loading, stale refresh rejection, mapping, status, and builder navigation. */
@@ -92,6 +124,7 @@ class NaviampCoreHomeController(
     private val sonicDiscoverySource: NaviampCoreSonicHomeDiscoverySource? = null,
     private val artistLimit: Int = 50,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
+    private val observedAtIso8601: () -> String = { "" },
 ) : NaviampCoreCommandController {
     private var refreshGeneration = 0L
 
@@ -147,6 +180,7 @@ class NaviampCoreHomeController(
                     recentRadioStreams = supplement.recentRadioStreams,
                     recentInternetRadioStations = supplement.recentInternetRadioStations,
                     artistLimit = artistLimit,
+                    observedAtIso8601 = observedAtIso8601,
                 ),
             )
             val sonicEnabled = stateStore.state.value.shell.playback.settings.sonicSimilarityEnabled &&
@@ -195,6 +229,7 @@ class NaviampCoreHomeController(
             }
         }
     }
+
 
     suspend fun refreshAfterConnection() = refresh()
 

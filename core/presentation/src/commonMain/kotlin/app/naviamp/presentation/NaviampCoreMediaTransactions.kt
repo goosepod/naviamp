@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.FavoriteArtistActivityRepository
 import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
 import app.naviamp.domain.playback.PlaybackProfile
 import app.naviamp.domain.playback.PlaybackProfileRepository
@@ -40,6 +41,7 @@ import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.withRecentRadioStreams
+import kotlinx.coroutines.CancellationException
 
 fun interface NaviampCoreExternalUriPort {
     fun open(uri: String)
@@ -153,6 +155,7 @@ class NaviampCoreMediaTransactions(
     private val favoritedAtIso8601: () -> String,
     private val publishNowPlaying: () -> Unit,
     private val openNowPlaying: () -> Unit,
+    private val favoriteArtistActivity: FavoriteArtistActivityRepository? = null,
 ) : NaviampCoreTrackRadioTransactions {
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
@@ -202,14 +205,19 @@ class NaviampCoreMediaTransactions(
                     )
                     if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
                     rememberRecentRadio(trackRecentRadioStream(seed), listOf(seed) + fetched)
+                    recordTrackArtistRadioPlayed(seed)
                     publish("Playing track radio.")
                 } else {
                     val tracks = RadioService(provider).queue(seed, fetched)
                     play(tracks)
                     rememberRecentRadio(trackRecentRadioStream(seed), tracks)
+                    recordTrackArtistRadioPlayed(seed)
                     publish("Playing track radio.")
                 }
-            }.onFailure { publish(it.message ?: "Could not build track radio.") }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                publish(it.message ?: "Could not build track radio.")
+            }
         }
     }
 
@@ -230,7 +238,11 @@ class NaviampCoreMediaTransactions(
     }
 
     suspend fun startArtistRadio(artist: Artist) =
-        radio("artist radio", artistRecentRadioStream(artist)) { it.artistRadio(artist.id) }
+        radio(
+            label = "artist radio",
+            recent = artistRecentRadioStream(artist),
+            onStarted = { recordArtistRadioPlayed(artist) },
+        ) { it.artistRadio(artist.id) }
 
     suspend fun startLibraryRadio() = radio("Library Radio", libraryRecentRadioStream()) { it.libraryRadio() }
 
@@ -342,6 +354,14 @@ class NaviampCoreMediaTransactions(
         val provider = providerOrPublish() ?: return
         mutate("Artist favorites are not supported.", { favoriteArtistUpdate(provider, artist, favoritedAtIso8601()) }) {
             registry.updateArtist(it)
+            activeSourceId()?.let { sourceId ->
+                favoriteArtistActivity?.setArtistFavoriteActivity(
+                    sourceId = sourceId,
+                    artist = it,
+                    favorite = it.favoritedAtIso8601 != null,
+                    changedAtIso8601 = favoritedAtIso8601(),
+                )
+            }
             updateArtistFavoriteUi(it.id.value, it.favoritedAtIso8601 != null)
         }
     }
@@ -379,6 +399,7 @@ class NaviampCoreMediaTransactions(
     private suspend fun radio(
         label: String,
         recent: RecentRadioStream,
+        onStarted: () -> Unit = {},
         load: suspend (RadioService) -> List<Track>,
     ) {
         val provider = providerOrPublish() ?: return
@@ -391,12 +412,40 @@ class NaviampCoreMediaTransactions(
                     } else {
                         play(tracks)
                         rememberRecentRadio(recent, tracks)
+                        onStarted()
                         publish("Playing $label.")
                     }
                 }
-                .onFailure { publish(it.message ?: "Could not build $label.") }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    publish(it.message ?: "Could not build $label.")
+                }
         }
     }
+
+    private fun recordArtistRadioPlayed(artist: Artist) {
+        val sourceId = activeSourceId() ?: return
+        favoriteArtistActivity?.recordArtistRadioPlayed(
+            sourceId = sourceId,
+            artist = artist,
+            playedAtIso8601 = favoritedAtIso8601(),
+        )
+    }
+
+    private fun recordTrackArtistRadioPlayed(seed: Track) {
+        val sourceId = activeSourceId() ?: return
+        val artistId = seed.artistId ?: seed.artistCredits.firstNotNullOfOrNull { it.id } ?: return
+        val artistName = seed.artistCredits.firstOrNull { it.id == artistId }?.name ?: seed.artistName
+        favoriteArtistActivity?.recordTrackArtistRadioPlayedIfFavorite(
+            sourceId = sourceId,
+            artistId = artistId,
+            artistName = artistName,
+            playedAtIso8601 = favoritedAtIso8601(),
+        )
+    }
+
+    private fun activeSourceId(): String? =
+        stateStore.state.value.shell.connectionSettings.currentSourceId
 
     private suspend fun startSeededMix(request: app.naviamp.domain.radio.SeededRadioRequest) {
         val provider = providerOrPublish() ?: return

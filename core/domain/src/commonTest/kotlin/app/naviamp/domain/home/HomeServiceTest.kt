@@ -24,6 +24,44 @@ import kotlin.test.assertNull
 
 class HomeServiceTest {
     @Test
+    fun favoriteArtistsUseStableLocalTimestampsAndFallbackAfterProviderFailure() = runTest {
+        val stored = Artist(ArtistId("stored"), "Stored", "2026-01-01T00:00:00Z")
+        val repository = object : HomeLibraryRepository {
+            override fun albumYears(sourceId: String): List<HomeAlbumYear> = emptyList()
+
+            override fun reconcileFavoriteArtists(
+                sourceId: String,
+                artists: List<Artist>,
+                observedAtIso8601: String,
+            ) = artists.map { artist -> artist.copy(favoritedAtIso8601 = observedAtIso8601) }
+
+            override fun locallyKnownFavoriteArtists(sourceId: String, limit: Long) = listOf(stored)
+        }
+        val provider = FakeHomeProvider(
+            supportsArtistFavorites = true,
+            favoriteArtists = listOf(Artist(ArtistId("native"), "Native")),
+        )
+
+        val native = HomeService(
+            provider = provider,
+            libraryRepository = repository,
+            sourceId = "source",
+            date = HomeDate(2026, 1),
+            observedAtIso8601 = { "2026-02-01T00:00:00Z" },
+        ).load()
+        assertEquals("2026-02-01T00:00:00Z", native.favoriteArtists.single().favoritedAtIso8601)
+
+        provider.favoriteFailure = true
+        val fallback = HomeService(
+            provider = provider,
+            libraryRepository = repository,
+            sourceId = "source",
+            date = HomeDate(2026, 1),
+        ).load()
+        assertEquals(listOf(stored), fallback.favoriteArtists)
+    }
+
+    @Test
     fun loadUsesSharedArtistLimitAndAggregatesProviderSections() = runTest {
         val provider = FakeHomeProvider()
 
@@ -185,6 +223,8 @@ class HomeServiceTest {
 
     private class FakeHomeProvider(
         private val playlists: List<Playlist> = listOf(Playlist("playlist", "Playlist", trackCount = 2)),
+        supportsArtistFavorites: Boolean = false,
+        private val favoriteArtists: List<Artist> = emptyList(),
     ) : MediaProvider {
         override val id: ProviderId = ProviderId("fake-home")
         override val displayName: String = "Fake Home"
@@ -194,9 +234,11 @@ class HomeServiceTest {
             supportsArtistRadio = false,
             supportsAlbumRadio = false,
             supportsTrackRadio = false,
+            supportsArtistFavorites = supportsArtistFavorites,
         )
 
         var artistLimit: Int? = null
+        var favoriteFailure: Boolean = false
 
         override suspend fun validateConnection(): ConnectionValidation =
             ConnectionValidation(serverVersion = null, apiVersion = null)
@@ -216,6 +258,11 @@ class HomeServiceTest {
         override suspend fun artists(limit: Int): List<Artist> {
             artistLimit = limit
             return listOf(Artist(ArtistId("artist-$limit"), "Artist $limit"))
+        }
+
+        override suspend fun favoriteArtists(limit: Int): List<Artist> {
+            if (favoriteFailure) error("favorite lookup failed")
+            return favoriteArtists.take(limit)
         }
 
         override suspend fun playlists(limit: Int): List<Playlist> =

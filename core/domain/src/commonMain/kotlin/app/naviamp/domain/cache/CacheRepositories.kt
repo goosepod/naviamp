@@ -9,6 +9,7 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.home.FavoriteArtistActivityRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.popular.ArtistPopularTracksRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
@@ -340,7 +341,7 @@ data class PlaybackSessionRepositoryPerformance(
     val queueRewritten: Boolean? = null,
 )
 
-interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
+interface LocalLibraryIndexRepository : ArtistPopularTracksRepository, FavoriteArtistActivityRepository {
     fun mediaSource(sourceId: String): SavedMediaSource?
 
     fun markLibraryScanChecked(sourceId: String, signature: String)

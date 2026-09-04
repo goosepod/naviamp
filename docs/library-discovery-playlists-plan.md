@@ -80,14 +80,15 @@ and Television coverage where applicable.
 
 - [x] Add bounded native favorite-artist queries for Navidrome and Jellyfin, hide the Home section
   when artist favorites are unsupported, and provide deterministic name ordering.
-- [ ] Add a source-scoped local fallback and deterministic date-favorited/date-last-played ordering
-  when timestamps are missing or equal.
-- [ ] Add a source-scoped artist-radio last-played value/query to shared storage, consolidating the
+- [x] Add a source-scoped local fallback that preserves a stable first-observed favorite timestamp
+  when providers omit one and remains available after a provider lookup failure.
+- [ ] Add deterministic date-favorited/date-last-played ordering when timestamps are missing or equal.
+- [x] Add a source-scoped artist-radio last-played value/query to shared storage, consolidating the
   change into the next migration after the current release baseline.
-- [ ] Record last played only after successful Artist Radio, or successful track-seeded radio when
+- [x] Record last played only after successful Artist Radio, or successful track-seeded radio when
   the stable artist ID belongs to a currently favorited artist.
-- [ ] Cover artist attribution, unfavorited artists, failed/cancelled launches, and clock behavior
-  in common tests.
+- [x] Cover stable artist attribution, unfavorited artists, failed/cancelled launches, and
+  injected-clock behavior in common tests.
 - [x] Add shared Home presentation, translated section labeling, and Artist Detail navigation.
 - [ ] Add persisted sort selection for name, date favorited, and date last played.
 - [ ] Verify source switching, favorite changes, restart persistence, settings-sync classification,

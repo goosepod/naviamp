@@ -110,11 +110,12 @@ Before moving an idea into the active v2 plan or a release branch:
   not update it.
 - [x] Add bounded native favorite-artist queries for Navidrome and Jellyfin, deterministic name
   ordering, and a shared Home section that is hidden when artist favorites are unsupported.
-- [ ] Add the source-scoped local fallback plus favorited-date and last-played ordering with stable
-  missing/equal timestamp behavior.
-- [ ] Add the source-scoped artist-radio last-played field/query to shared storage, consolidating any
+- [x] Add the source-scoped local fallback with a stable first-observed favorite timestamp when the
+  provider omits one or its favorite lookup fails.
+- [ ] Add favorited-date and last-played ordering with stable missing/equal timestamp behavior.
+- [x] Add the source-scoped artist-radio last-played field/query to shared storage, consolidating any
   unreleased schema change according to the repository migration rules.
-- [ ] Update the timestamp through the shared radio transaction only after an eligible radio launch
+- [x] Update the timestamp through the shared radio transaction only after an eligible radio launch
   succeeds, and cover track-artist attribution, unfavorited artists, failed/cancelled launches, and
   clock behavior in common tests.
 - [x] Add Core-owned Home presentation, translated labeling, and navigation to Artist Detail.

@@ -25,6 +25,61 @@ import kotlin.test.assertTrue
 
 class StorageCriticalStoresTest {
     @Test
+    fun favoriteArtistActivityIsSourceScopedStableAndRadioAware() = withStorage { fixture ->
+        val favorite = Artist(ArtistId("favorite"), "Favorite")
+        val timestamped = Artist(ArtistId("timestamped"), "Timestamped", "2026-01-01T00:00:00Z")
+
+        val first = fixture.library.reconcileFavoriteArtists(
+            fixture.sourceId,
+            listOf(favorite, timestamped),
+            observedAtIso8601 = "2026-02-01T00:00:00Z",
+        )
+        assertEquals("2026-02-01T00:00:00Z", first.first().favoritedAtIso8601)
+        assertEquals("2026-01-01T00:00:00Z", first.last().favoritedAtIso8601)
+
+        fixture.library.recordArtistRadioPlayed(
+            fixture.sourceId,
+            favorite,
+            "2026-03-01T00:00:00Z",
+        )
+        fixture.library.reconcileFavoriteArtists(
+            fixture.sourceId,
+            listOf(favorite),
+            observedAtIso8601 = "2026-04-01T00:00:00Z",
+        )
+
+        assertEquals(
+            "2026-02-01T00:00:00Z",
+            fixture.library.locallyKnownFavoriteArtists(fixture.sourceId).single().favoritedAtIso8601,
+        )
+        assertEquals(
+            "2026-03-01T00:00:00Z",
+            fixture.library.favoriteArtistRadioLastPlayed(fixture.sourceId)[favorite.id],
+        )
+        assertTrue(
+            fixture.library.recordTrackArtistRadioPlayedIfFavorite(
+                fixture.sourceId,
+                favorite.id,
+                favorite.name,
+                "2026-05-01T00:00:00Z",
+            ),
+        )
+        assertEquals(
+            "2026-05-01T00:00:00Z",
+            fixture.library.favoriteArtistRadioLastPlayed(fixture.sourceId)[favorite.id],
+        )
+        assertEquals(
+            false,
+            fixture.library.recordTrackArtistRadioPlayedIfFavorite(
+                fixture.sourceId,
+                timestamped.id,
+                timestamped.name,
+                "2026-06-01T00:00:00Z",
+            ),
+        )
+    }
+
+    @Test
     fun libraryIndexRoundTripsSearchesAndClearsPortableMetadata() = withStorage { fixture ->
         val store = fixture.library
         val artist = Artist(ArtistId("artist"), "Björk")

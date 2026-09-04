@@ -112,6 +112,29 @@ class StorageDatabaseInitializerTest {
             driver.close()
         }
     }
+
+    @Test
+    fun releaseBaselineDatabaseAddsFavoriteArtistActivity() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            NaviampStorageDatabase.Schema.create(driver)
+            driver.execute(null, "DROP TABLE favorite_artist_activity", 0)
+            driver.execute(null, "PRAGMA user_version = 24", 0)
+
+            initializeNaviampStorageDatabase(driver)
+
+            assertEquals(NaviampStorageSchema.version, driver.userVersion())
+            assertEquals(
+                1L,
+                driver.queryLong(
+                    "SELECT COUNT(*) FROM sqlite_master " +
+                        "WHERE type = 'table' AND name = 'favorite_artist_activity'",
+                ),
+            )
+        } finally {
+            driver.close()
+        }
+    }
 }
 
 private fun JdbcSqliteDriver.userVersion(): Long = queryLong("PRAGMA user_version")
@@ -126,6 +149,7 @@ private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFo
     execute(null, "ALTER TABLE playback_history DROP COLUMN original_release_year", 0)
     execute(null, "ALTER TABLE playback_session_state DROP COLUMN queue_groups_payload", 0)
     execute(null, "DROP TABLE playback_profile", 0)
+    execute(null, "DROP TABLE favorite_artist_activity", 0)
     if (!includeSelectedMusicFolders) {
         execute(null, "ALTER TABLE media_source DROP COLUMN selected_music_folder_ids_json", 0)
     }

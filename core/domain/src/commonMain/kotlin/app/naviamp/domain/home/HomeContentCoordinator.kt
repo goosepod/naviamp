@@ -14,6 +14,7 @@ data class HomeContentLoadRequest(
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
     val artistLimit: Int = HomeDefaultArtistLimit,
+    val observedAtIso8601: () -> String = { "" },
 )
 
 class HomeContentCoordinator(
@@ -43,6 +44,7 @@ suspend fun loadHomeContent(request: HomeContentLoadRequest): HomeContent =
         libraryRepository = request.libraryRepository,
         sourceId = request.sourceId,
         date = request.date,
+        observedAtIso8601 = request.observedAtIso8601,
     ).load(
         recentRadioStreams = request.recentRadioStreams,
         recentInternetRadioStations = request.recentInternetRadioStations,
