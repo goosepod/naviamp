@@ -186,6 +186,7 @@ fun createNaviampCoreActions(
             onRefresh = { send(NaviampCoreCommand.Library.Refresh) },
             onLoadMore = { send(NaviampCoreCommand.Library.LoadMore) },
             onJumpToLetter = { send(NaviampCoreCommand.Library.JumpToLetter(it)) },
+            onTrackAction = { send(NaviampCoreCommand.Library.TrackAction(it)) },
         ),
         playlistsActions = NaviampPlaylistsActions(
             onRefresh = { send(NaviampCoreCommand.Playlists.Refresh) },

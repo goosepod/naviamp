@@ -12,6 +12,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PendingActionReportNowPlaying
@@ -61,6 +62,18 @@ class NaviampProviderActionControllerTest {
 
         assertEquals("Album notes", info?.notes)
         assertEquals(listOf("album"), provider.albumInfoRequests)
+    }
+
+    @Test
+    fun offlineCapableProviderForwardsAlphabeticalLibraryOffsets() = runTest {
+        val provider = RecordingProvider(failReports = false)
+        val wrapped = NaviampProviderActionController(RecordingPendingActions())
+            .offlineCapable(provider, "source")
+
+        val offset = wrapped.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Tracks, 'S')
+
+        assertEquals(123, offset)
+        assertEquals(listOf(AlphabeticalLibraryKind.Tracks to 'S'), provider.alphabeticalOffsetRequests)
     }
 
     @Test
@@ -187,6 +200,7 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     val nowPlayingReports = mutableListOf<String>()
     val playlistReplacements = mutableListOf<String>()
     val albumInfoRequests = mutableListOf<String>()
+    val alphabeticalOffsetRequests = mutableListOf<Pair<AlphabeticalLibraryKind, Char>>()
 
     override suspend fun validateConnection(): ConnectionValidation = error("Not used")
     override suspend fun recentlyAddedAlbums(limit: Int): List<Album> = error("Not used")
@@ -198,6 +212,10 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     override suspend fun artist(artistId: ArtistId): ArtistDetails = error("Not used")
     override suspend fun artists(limit: Int): List<Artist> = error("Not used")
     override suspend fun tracks(limit: Int): List<Track> = error("Not used")
+    override suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int {
+        alphabeticalOffsetRequests += kind to letter
+        return 123
+    }
     override suspend fun search(query: String, limit: Int): MediaSearchResults = error("Not used")
     override suspend fun streamUrl(request: StreamRequest): String = error("Not used")
     override fun coverArtUrl(coverArtId: String): String = error("Not used")

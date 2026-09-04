@@ -243,6 +243,8 @@ fun TrackRow(
             hasAlbum = track.hasAlbum,
             hasArtist = track.hasArtist,
             canShowDetails = track.detailSections.isNotEmpty(),
+            playAfterCurrentGroupLabel = stringResource(Res.string.action_play_after_current_group),
+            playImmediatelyNextLabel = stringResource(Res.string.action_play_immediately_next),
         ).mapNotNull { action ->
             when (action.action) {
                 NaviampAction.PlayNext -> if (canAddToQueue) {
@@ -385,7 +387,7 @@ internal fun trackNumberLabel(number: Int): String = "${number.coerceAtLeast(1)}
 
 internal fun trackNumberColumnWidth(maxTrackNumber: Int): Dp {
     val digitCount = maxTrackNumber.coerceAtLeast(1).toString().length
-    return (TrackNumberBaseWidthValue + (digitCount - 2).coerceAtLeast(0) * TrackNumberExtraDigitWidthValue).dp
+    return (TrackNumberBaseWidthValue + (digitCount - 1).coerceAtLeast(0) * TrackNumberExtraDigitWidthValue).dp
 }
 
 @Composable

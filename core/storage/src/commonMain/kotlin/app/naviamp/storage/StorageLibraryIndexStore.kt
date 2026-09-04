@@ -7,10 +7,12 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.resolvedArtistCredits
 import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.media.ArtistDiscographyAppearances
 import app.naviamp.domain.library.GenreOntologyGenre
 import app.naviamp.domain.library.GenreOntologyParentRelation
 import app.naviamp.domain.library.LibraryGenreInventoryItem
@@ -89,6 +91,7 @@ class StorageLibraryIndexStore(
         val now = nowMillis()
         queries.transaction {
             tracks.forEach { track ->
+                queries.clearLibraryTrackArtistCredits(sourceId, track.id.value)
                 queries.upsertLibraryTrack(
                     source_id = sourceId,
                     remote_track_id = track.id.value,
@@ -117,8 +120,49 @@ class StorageLibraryIndexStore(
                     last_played_at_iso8601 = track.lastPlayedAtIso8601,
                     updated_at_epoch_millis = now,
                 )
+                track.resolvedArtistCredits()
+                    .mapNotNull { credit -> credit.id?.let { id -> id to credit.name } }
+                    .distinctBy { (id, _) -> id }
+                    .forEach { (artistId, artistName) ->
+                        queries.upsertLibraryTrackArtistCredit(
+                            source_id = sourceId,
+                            remote_track_id = track.id.value,
+                            remote_artist_id = artistId.value,
+                            artist_name = artistName,
+                        )
+                    }
             }
         }
+    }
+
+    override fun artistDiscographyAppearances(
+        sourceId: String,
+        artistId: ArtistId,
+        primaryAlbumIds: Set<AlbumId>,
+        limit: Long,
+    ): ArtistDiscographyAppearances {
+        val tracks = queries.selectLibraryTracksCreditedToArtist(sourceId, artistId.value, limit)
+            .executeAsList()
+            .map { it.toTrack() }
+            .filter { track -> track.albumId == null || track.albumId !in primaryAlbumIds }
+            .distinctBy(Track::id)
+        val albums = tracks.mapNotNull(Track::albumId)
+            .filterNot(primaryAlbumIds::contains)
+            .distinct()
+            .mapNotNull { albumId ->
+                queries.selectLibraryAlbumById(sourceId, albumId.value).executeAsOneOrNull()?.let { row ->
+                    Album(
+                        id = AlbumId(row.remote_album_id),
+                        title = row.title,
+                        artistName = row.artist_name,
+                        coverArtId = row.cover_art_id,
+                        recentlyAddedAtIso8601 = null,
+                        releaseYear = row.release_year?.toInt(),
+                        originalReleaseYear = row.original_release_year?.toInt(),
+                    )
+                }
+            }
+        return ArtistDiscographyAppearances(albums = albums, tracks = tracks)
     }
 
     override fun replaceLibraryGenreInventory(sourceId: String, genres: List<app.naviamp.domain.Genre>) {

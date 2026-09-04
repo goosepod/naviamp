@@ -4,10 +4,12 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.media.loadArtistPopularTracksUpdate
+import app.naviamp.domain.media.ArtistDiscographyAppearances
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.media.isNameOnlyArtistCredit
 import app.naviamp.domain.media.loadNameOnlyArtistCreditDetails
 import app.naviamp.domain.media.nameOnlyArtistCredit
+import app.naviamp.domain.media.reconciledAppearances
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
@@ -34,6 +36,11 @@ data class NaviampCoreArtistDiscoveryServices(
     val sourceId: () -> String? = { null },
     val popularTracks: suspend (String, Artist, Int) -> List<ArtistPopularTrackMatch> = { _, _, _ -> emptyList() },
     val similarArtists: suspend (Artist, Int) -> List<SimilarArtistMatch> = { _, _ -> emptyList() },
+    val discographyAppearances: (
+        sourceId: String,
+        artistId: ArtistId,
+        primaryAlbumIds: Set<AlbumId>,
+    ) -> ArtistDiscographyAppearances = { _, _, _ -> ArtistDiscographyAppearances() },
 )
 
 /** Builds provider-backed discovery once for every host; platforms supply only durable storage. */
@@ -74,6 +81,9 @@ fun providerArtistDiscoveryServices(
         sourceId = sourceId,
         popularTracks = popular::popularTracks,
         similarArtists = similar::similarArtists,
+        discographyAppearances = { activeSourceId, artistId, primaryAlbumIds ->
+            libraryIndex.artistDiscographyAppearances(activeSourceId, artistId, primaryAlbumIds)
+        },
     )
 }
 
@@ -394,6 +404,23 @@ class NaviampCoreMediaDetailController(
             } else {
                 provider.artistDiscography(artist.id)
             }
+        }.map { providerDiscography ->
+            val combined = if (nameOnlyCredit || provider.capabilities.supportsArtistDiscography) {
+                providerDiscography
+            } else {
+                val stored = discovery.sourceId()?.let { sourceId ->
+                    discovery.discographyAppearances(
+                        sourceId,
+                        artist.id,
+                        providerDiscography.primary.albums.mapTo(mutableSetOf()) { it.id },
+                    )
+                } ?: ArtistDiscographyAppearances()
+                providerDiscography.copy(
+                    appearanceAlbums = stored.albums,
+                    appearanceTracks = stored.tracks,
+                )
+            }
+            combined.reconciledAppearances()
         }
             .onSuccess { discography ->
                 val detail = discography.primary

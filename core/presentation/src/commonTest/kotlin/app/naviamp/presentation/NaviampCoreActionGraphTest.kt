@@ -6,6 +6,9 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.SharedTrackRowUi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,6 +29,12 @@ class NaviampCoreActionGraphTest {
         actions.maintenanceActions.onClearCache()
         actions.searchActions.onQueryChanged("query")
         actions.libraryActions.onLoadMore()
+        actions.libraryActions.onTrackAction(
+            SharedTrackRowActionRequest(
+                SharedTrackRowUi("track", "Track", "Artist"),
+                SharedTrackRowAction.Select,
+            ),
+        )
         actions.downloadsActions.onRefresh()
         actions.playlistsActions.onRefresh()
         actions.radioActions.onRefresh()
@@ -39,11 +48,12 @@ class NaviampCoreActionGraphTest {
         actions.sonicPathActions.onBuild()
         actions.sonicMixActions.onBuild()
 
-        assertEquals(18, handler.dispatched.size)
+        assertEquals(19, handler.dispatched.size)
         assertIs<NaviampCoreCommand.Navigation.SelectRoute>(handler.dispatched[0])
         assertIs<NaviampCoreCommand.Connection.Connect>(handler.dispatched[1])
         assertIs<NaviampCoreCommand.Settings.ChangePlayback>(handler.dispatched[2])
         assertIs<NaviampCoreCommand.Search.ChangeQuery>(handler.dispatched[4])
+        assertIs<NaviampCoreCommand.Library.TrackAction>(handler.dispatched[6])
         assertTrue(handler.dispatched.contains(NaviampCoreCommand.Navigation.BackFromAlbum))
         assertTrue(handler.dispatched.contains(NaviampCoreCommand.Navigation.BackFromArtist))
         assertTrue(handler.dispatched.contains(NaviampCoreCommand.Navigation.BackFromPlaylist))

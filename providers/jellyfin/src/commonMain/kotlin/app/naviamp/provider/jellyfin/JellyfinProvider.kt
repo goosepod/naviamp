@@ -24,9 +24,11 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPage
 import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.provider.collectBoundedMediaPages
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaybackReportState
@@ -91,6 +93,7 @@ class JellyfinProvider(
         supportsArtistFavorites = true,
         supportsAlbumFavorites = true,
         supportsPlayReporting = true,
+        supportsArtistDiscography = true,
     )
 
     override suspend fun validateConnection(): ConnectionValidation =
@@ -196,6 +199,34 @@ class JellyfinProvider(
 
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
         trackPage(request)
+
+    override suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int? {
+        val boundary = letter.uppercaseChar().toString()
+        suspend fun titleAt(offset: Int): Pair<String?, Int?> {
+            val request = MediaPageRequest(offset = offset, limit = 1)
+            return when (kind) {
+                AlphabeticalLibraryKind.Albums -> albumPage(request).let { page ->
+                    page.items.singleOrNull()?.title to page.totalItemCount
+                }
+                AlphabeticalLibraryKind.Tracks -> trackPage(request).let { page ->
+                    page.items.singleOrNull()?.title to page.totalItemCount
+                }
+            }
+        }
+
+        val (firstTitle, total) = titleAt(0)
+        val itemCount = total ?: return null
+        if (itemCount == 0 || firstTitle == null) return null
+        if (firstTitle.uppercase() >= boundary) return 0
+        var low = 1
+        var high = itemCount
+        while (low < high) {
+            val middle = low + (high - low) / 2
+            val title = titleAt(middle).first ?: return null
+            if (title.uppercase() < boundary) low = middle + 1 else high = middle
+        }
+        return low.takeIf { it < itemCount }
+    }
 
     override suspend fun genres(limit: Int): List<Genre> =
         service.getJson(
@@ -305,14 +336,22 @@ class JellyfinProvider(
     }
 
     override suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography {
-        val primary = artist(artistId)
+        val artistObject = item(artistId.value)
+        val primary = ArtistDetails(
+            artist = artistObject.toArtist(),
+            albums = collectBoundedMediaPages { request ->
+                albumPage(request = request, albumArtistId = artistId.value)
+            },
+        )
         val primaryAlbumIds = primary.albums.mapTo(mutableSetOf()) { it.id }
-        val creditedTracks = itemPage(
-            request = MediaPageRequest(limit = 200),
-            includeItemTypes = "Audio",
-            extraParameters = listOf("artistIds" to artistId.value),
-            mapper = { it.toTrack() },
-        ).items
+        val creditedTracks = collectBoundedMediaPages { request ->
+            itemPage(
+                request = request,
+                includeItemTypes = "Audio",
+                extraParameters = listOf("artistIds" to artistId.value),
+                mapper = { it.toTrack() },
+            )
+        }
         val appearanceTracks = creditedTracks
             .filter { track -> track.albumId == null || track.albumId !in primaryAlbumIds }
             .distinctBy { it.id }
@@ -645,6 +684,7 @@ class JellyfinProvider(
             offset = request.offset,
             limit = request.limit,
             hasMore = total?.let { request.offset + items.size < it } ?: (items.size == request.limit),
+            totalItemCount = total,
         )
     }
 

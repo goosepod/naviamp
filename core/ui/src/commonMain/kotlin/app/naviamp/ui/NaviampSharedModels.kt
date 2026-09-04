@@ -716,6 +716,7 @@ data class NaviampLibraryScreenUi(
     val artists: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
     val albums: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
     val songs: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
+    val jumpRequest: NaviampLibraryJumpUi? = null,
 ) {
     fun catalog(view: NaviampLibraryView): NaviampLibraryCatalogUi = when (view) {
         NaviampLibraryView.Artists -> artists
@@ -727,12 +728,19 @@ data class NaviampLibraryScreenUi(
         get() = catalog(selectedView)
 }
 
+data class NaviampLibraryJumpUi(
+    val view: NaviampLibraryView,
+    val letter: Char,
+    val generation: Long,
+)
+
 data class NaviampLibraryActions(
     val onViewChanged: (NaviampLibraryView) -> Unit,
     val onQueryChanged: (String) -> Unit,
     val onRefresh: () -> Unit,
     val onLoadMore: () -> Unit,
     val onJumpToLetter: (Char) -> Unit,
+    val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 )
 
 data class SharedArtistMixBuilderUi(

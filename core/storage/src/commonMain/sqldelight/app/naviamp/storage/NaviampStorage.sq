@@ -111,6 +111,16 @@ CREATE TABLE library_track (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE library_track_artist_credit (
+  source_id TEXT NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  remote_artist_id TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, remote_artist_id),
+  FOREIGN KEY(source_id, remote_track_id)
+    REFERENCES library_track(source_id, remote_track_id) ON DELETE CASCADE
+);
+
 CREATE TABLE genre_ontology_metadata (
   singleton_id INTEGER NOT NULL PRIMARY KEY CHECK(singleton_id = 1),
   source_name TEXT NOT NULL,
@@ -425,6 +435,9 @@ ON library_track(source_id, search_title);
 
 CREATE INDEX library_track_source_artist
 ON library_track(source_id, search_artist_name);
+
+CREATE INDEX library_track_artist_credit_source_artist
+ON library_track_artist_credit(source_id, remote_artist_id);
 
 CREATE INDEX artist_popular_track_artist
 ON artist_popular_track(source_id, remote_artist_id, popular_source, rank);
@@ -795,6 +808,19 @@ INSERT OR REPLACE INTO library_track(
   updated_at_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+clearLibraryTrackArtistCredits:
+DELETE FROM library_track_artist_credit
+WHERE source_id = ?
+AND remote_track_id = ?;
+
+upsertLibraryTrackArtistCredit:
+INSERT OR REPLACE INTO library_track_artist_credit(
+  source_id,
+  remote_track_id,
+  remote_artist_id,
+  artist_name
+) VALUES (?, ?, ?, ?);
+
 selectLibraryArtists:
 SELECT *
 FROM library_artist
@@ -888,6 +914,24 @@ FROM library_track
 WHERE source_id = ?
 AND remote_track_id = ?
 LIMIT 1;
+
+selectLibraryAlbumById:
+SELECT *
+FROM library_album
+WHERE source_id = ?
+AND remote_album_id = ?
+LIMIT 1;
+
+selectLibraryTracksCreditedToArtist:
+SELECT library_track.*
+FROM library_track
+INNER JOIN library_track_artist_credit
+  ON library_track_artist_credit.source_id = library_track.source_id
+  AND library_track_artist_credit.remote_track_id = library_track.remote_track_id
+WHERE library_track.source_id = ?
+AND library_track_artist_credit.remote_artist_id = ?
+ORDER BY library_track.search_album_title, library_track.search_title, library_track.remote_track_id
+LIMIT ?;
 
 selectRandomLibraryTrackForAlbum:
 SELECT *

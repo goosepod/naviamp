@@ -62,6 +62,34 @@ class HomeServiceTest {
     }
 
     @Test
+    fun favoriteArtistPersistenceFailureDoesNotSuppressHomeContent() = runTest {
+        val nativeFavorite = Artist(ArtistId("native"), "Native")
+        val repository = object : HomeLibraryRepository {
+            override fun albumYears(sourceId: String): List<HomeAlbumYear> = emptyList()
+
+            override fun reconcileFavoriteArtists(
+                sourceId: String,
+                artists: List<Artist>,
+                observedAtIso8601: String,
+            ): List<Artist> = error("favorite artist activity is unavailable")
+        }
+
+        val home = HomeService(
+            provider = FakeHomeProvider(
+                supportsArtistFavorites = true,
+                favoriteArtists = listOf(nativeFavorite),
+            ),
+            libraryRepository = repository,
+            sourceId = "source",
+            date = HomeDate(2026, 1),
+        ).load()
+
+        assertEquals(listOf(nativeFavorite), home.favoriteArtists)
+        assertEquals(listOf(album("newest")), home.recentlyAddedAlbums)
+        assertEquals(listOf(Playlist("playlist", "Playlist", trackCount = 2)), home.playlists)
+    }
+
+    @Test
     fun loadUsesSharedArtistLimitAndAggregatesProviderSections() = runTest {
         val provider = FakeHomeProvider()
 

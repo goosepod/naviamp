@@ -104,6 +104,7 @@ sealed interface NaviampCoreCommand {
         data object Refresh : Library
         data object LoadMore : Library
         data class JumpToLetter(val letter: Char) : Library
+        data class TrackAction(val request: app.naviamp.ui.SharedTrackRowActionRequest) : Library
     }
 
     sealed interface Downloads : NaviampCoreCommand {

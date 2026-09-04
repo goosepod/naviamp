@@ -11,6 +11,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.PlaybackReportState
@@ -1092,6 +1093,83 @@ class NavidromeProviderTest {
         )
         assertEquals(listOf("Technique"), page.items.map { it.title })
         assertFalse(page.hasMore)
+    }
+
+    @Test
+    fun nativeAlbumPageIsGloballySortedAcrossSelectedLibraries() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """
+                {
+                  "data": [
+                    {"id":"album-1","name":"(First Album)","albumArtist":"One"},
+                    {"id":"album-2","name":"#Second Album","albumArtist":"Two"}
+                  ],
+                  "total": 401
+                }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("rock", "archive"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val page = provider.albumsPage(MediaPageRequest(offset = 50, limit = 25))
+
+        assertEquals(
+            "https://music.example.test/api/album?_start=50&_end=75&_order=ASC&_sort=name&library_id=rock&library_id=archive",
+            httpClient.getUrls.single(),
+        )
+        assertEquals(listOf("(First Album)", "#Second Album"), page.items.map { it.title })
+        assertEquals(listOf("One", "Two"), page.items.map { it.artistName })
+        assertEquals(401, page.totalItemCount)
+        assertTrue(page.alphabeticallySortedByTitle)
+        assertTrue(page.hasMore)
+    }
+
+    @Test
+    fun nativeSongPageMatchesNavidromesGlobalTitleOrdering() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """
+                [
+                  {"id":"track-1","title":"\"C\" Section","album":"MiClub: The Curriculum","artist":"Canibus"},
+                  {"id":"track-2","title":"#34","album":"Under the Table and Dreaming","artist":"Dave Matthews Band"}
+                ]
+            """.trimIndent(),
+            responseHeaders = mapOf("X-Total-Count" to "23380"),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("1", "2"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val page = provider.tracksPage(MediaPageRequest(limit = 15))
+
+        assertEquals(
+            "https://music.example.test/api/song?_start=0&_end=15&_order=ASC&_sort=title&library_id=1&library_id=2",
+            httpClient.getUrls.single(),
+        )
+        assertEquals(listOf("\"C\" Section", "#34"), page.items.map { it.title })
+        assertEquals(23_380, page.totalItemCount)
+        assertTrue(page.alphabeticallySortedByTitle)
+        assertTrue(page.hasMore)
+    }
+
+    @Test
+    fun alphabeticalOffsetBinarySearchUsesTheNativeGlobalCatalog() = runTest {
+        val httpClient = OffsetNativeHttpClient(total = 8, titles = listOf("#One", "A", "C", "F", "M", "M Two", "Y", "Z"))
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        val offset = provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Tracks, 'M')
+
+        assertEquals(4, offset)
+        assertTrue(httpClient.getUrls.all { "_sort=title" in it })
     }
 
     @Test
@@ -2671,6 +2749,24 @@ class NavidromeProviderTest {
             body: String,
             headers: Map<String, String>,
         ): NavidromeHttpResponse = NavidromeHttpResponse(putJson(url, body, headers), responseHeaders)
+    }
+
+    private class OffsetNativeHttpClient(
+        private val total: Int,
+        private val titles: List<String>,
+    ) : NavidromeHttpClient {
+        val getUrls = mutableListOf<String>()
+
+        override suspend fun get(url: String): String = error("Headers are required")
+
+        override suspend fun getResponse(url: String, headers: Map<String, String>): NavidromeHttpResponse {
+            getUrls += url
+            val offset = url.substringAfter("_start=").substringBefore('&').toInt()
+            return NavidromeHttpResponse(
+                body = """[{"id":"track-$offset","title":"${titles[offset]}"}]""",
+                headers = mapOf("X-Total-Count" to total.toString()),
+            )
+        }
     }
 
     private class FailingNativeHttpClient : NavidromeHttpClient {

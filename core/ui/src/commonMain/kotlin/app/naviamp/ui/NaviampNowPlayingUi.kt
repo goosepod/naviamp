@@ -1866,10 +1866,18 @@ private fun NowPlayingSidePanel(
                 actions.selectItem(item, NowPlayingSelectionAction.SelectQueueItem)
             }
         }
+        val playAfterCurrentGroupLabel = stringResource(Res.string.action_play_after_current_group)
+        val playImmediatelyNextLabel = stringResource(Res.string.action_play_immediately_next)
         val rowActions = when (selectedTab) {
-            NaviampNowPlayingTab.Related -> relatedTrackRowActions()
-            NaviampNowPlayingTab.UpNext -> upNextQueueRowActions()
-            else -> queueRowActions()
+            NaviampNowPlayingTab.Related -> relatedTrackRowActions(
+                playAfterCurrentGroupLabel,
+                playImmediatelyNextLabel,
+            )
+            NaviampNowPlayingTab.UpNext -> upNextQueueRowActions(
+                playAfterCurrentGroupLabel,
+                playImmediatelyNextLabel,
+            )
+            else -> queueRowActions(playAfterCurrentGroupLabel, playImmediatelyNextLabel)
         }
         val listState = when (selectedTab) {
             NaviampNowPlayingTab.BackTo -> backToListState

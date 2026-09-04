@@ -188,9 +188,14 @@ class HomeService(
         if (id == null || repository == null) return result.getOrDefault(emptyList())
         return result.fold(
             onSuccess = { artists ->
-                repository.reconcileFavoriteArtists(id, artists, observedAtIso8601())
+                runCatching {
+                    repository.reconcileFavoriteArtists(id, artists, observedAtIso8601())
+                }.getOrDefault(artists)
             },
-            onFailure = { repository.locallyKnownFavoriteArtists(id, 500) },
+            onFailure = {
+                runCatching { repository.locallyKnownFavoriteArtists(id, 500) }
+                    .getOrDefault(emptyList())
+            },
         )
     }
 

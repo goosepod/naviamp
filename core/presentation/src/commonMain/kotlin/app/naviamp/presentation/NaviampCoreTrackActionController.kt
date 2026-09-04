@@ -9,6 +9,7 @@ class NaviampCoreTrackActionController(
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Media.TrackAction,
+        is NaviampCoreCommand.Library.TrackAction,
         is NaviampCoreCommand.Detail.AlbumTrack,
         is NaviampCoreCommand.Detail.ArtistPopularTrack,
         is NaviampCoreCommand.Detail.PlaylistTrack,
@@ -21,6 +22,7 @@ class NaviampCoreTrackActionController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         val (request, tracks) = when (command) {
             is NaviampCoreCommand.Media.TrackAction -> command.request to registry.search.tracks
+            is NaviampCoreCommand.Library.TrackAction -> command.request to registry.libraryTracks
             is NaviampCoreCommand.Detail.AlbumTrack -> command.request to registry.albumDetails?.tracks.orEmpty()
             is NaviampCoreCommand.Detail.ArtistPopularTrack -> command.request to registry.artistPopularTracks
             is NaviampCoreCommand.Detail.PlaylistTrack -> command.request to registry.selectedPlaylistTracks

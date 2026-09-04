@@ -44,9 +44,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
@@ -163,7 +165,12 @@ fun NaviampSharedAppShell(
     val selectedDownloadLocationId = cache.selectedDownloadLocationId
     val selectedAudioCacheLocationId = cache.selectedAudioCacheLocationId
     val colors = NaviampColors.Dark
+    val baseDensity = LocalDensity.current
     CompositionLocalProvider(
+        LocalDensity provides Density(
+            density = baseDensity.density,
+            fontScale = baseDensity.fontScale * 1.08f,
+        ),
         LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
         LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
     ) {
@@ -435,7 +442,7 @@ private fun ConnectedContent(
     }
     val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
     val homeScrollState = rememberScrollState()
-    val libraryListState = rememberLazyListState()
+    val libraryViewportState = rememberNaviampLibraryViewportState()
     val artistDetailScrollState = rememberScrollState()
     val playlistDetailScrollState = rememberScrollState()
     LaunchedEffect(artistDetail.selectedArtist?.id) {
@@ -526,7 +533,7 @@ private fun ConnectedContent(
                     screen = library,
                     actions = libraryActions,
                     mediaActions = mediaActions,
-                    listState = libraryListState,
+                    viewportState = libraryViewportState,
                 )
             }
             SharedRoute.Search -> NaviampSearchContent(

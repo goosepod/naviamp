@@ -360,6 +360,14 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository, FavoriteA
 
     fun upsertLibraryTracks(sourceId: String, tracks: List<Track>)
 
+    fun artistDiscographyAppearances(
+        sourceId: String,
+        artistId: ArtistId,
+        primaryAlbumIds: Set<AlbumId>,
+        limit: Long = 500,
+    ): app.naviamp.domain.media.ArtistDiscographyAppearances =
+        app.naviamp.domain.media.ArtistDiscographyAppearances()
+
     fun replaceLibraryGenreInventory(sourceId: String, genres: List<Genre>) = Unit
 
     fun libraryGenreInventory(sourceId: String): List<app.naviamp.domain.library.LibraryGenreInventoryItem> =

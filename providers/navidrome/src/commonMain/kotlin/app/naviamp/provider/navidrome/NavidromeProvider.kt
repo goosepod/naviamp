@@ -28,6 +28,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.LibraryScanStatus
@@ -58,8 +59,10 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistRule
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -383,7 +386,11 @@ class NavidromeProvider(
     }
 
     override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> =
-        pageAcrossSelectedMusicFolders(
+        nativeAlphabeticalPage(
+            kind = AlphabeticalLibraryKind.Albums,
+            request = request,
+            mapper = { it.toAlbum() },
+        ) ?: pageAcrossSelectedMusicFolders(
             request = request,
             itemKey = { album -> album.id.value },
         ) { musicFolderId, limit, offset ->
@@ -411,7 +418,11 @@ class NavidromeProvider(
         tracksPage(MediaPageRequest(limit = limit.coerceAtMost(app.naviamp.domain.provider.MaximumMediaPageSize))).items
 
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
-        pageAcrossSelectedMusicFolders(
+        nativeAlphabeticalPage(
+            kind = AlphabeticalLibraryKind.Tracks,
+            request = request,
+            mapper = { it.toTrack() },
+        ) ?: pageAcrossSelectedMusicFolders(
             request = request,
             itemKey = { track -> track.id.value },
         ) { musicFolderId, limit, offset ->
@@ -422,6 +433,95 @@ class NavidromeProvider(
                 musicFolderId = musicFolderId,
             ).tracks
         }
+
+    override suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int? {
+        if (nativeToken.isNullOrBlank()) return null
+        val boundary = letter.uppercaseChar().toString()
+        val first = nativeAlphabeticalPage(kind, MediaPageRequest(limit = 1)) { objectValue ->
+            objectValue.nativeLibraryTitle(kind)
+        } ?: return null
+        val total = first.totalItemCount ?: return null
+        if (total == 0) return null
+        if (first.items.singleOrNull().orEmpty().uppercase() >= boundary) return 0
+
+        var low = 1
+        var high = total
+        while (low < high) {
+            val middle = low + (high - low) / 2
+            val page = nativeAlphabeticalPage(kind, MediaPageRequest(offset = middle, limit = 1)) { objectValue ->
+                objectValue.nativeLibraryTitle(kind)
+            } ?: return null
+            val title = page.items.singleOrNull() ?: return null
+            if (title.uppercase() < boundary) low = middle + 1 else high = middle
+        }
+        return low.takeIf { it < total }
+    }
+
+    private suspend fun <T> nativeAlphabeticalPage(
+        kind: AlphabeticalLibraryKind,
+        request: MediaPageRequest,
+        mapper: (JsonObject) -> T,
+    ): MediaPage<T>? {
+        if (nativeToken.isNullOrBlank()) return null
+        return try {
+            val endpoint = when (kind) {
+                AlphabeticalLibraryKind.Albums -> "album"
+                AlphabeticalLibraryKind.Tracks -> "song"
+            }
+            val sortField = when (kind) {
+                AlphabeticalLibraryKind.Albums -> "name"
+                AlphabeticalLibraryKind.Tracks -> "title"
+            }
+            val parameters = buildList {
+                add("_start" to request.offset.toString())
+                add("_end" to (request.offset + request.limit).toString())
+                add("_order" to "ASC")
+                add("_sort" to sortField)
+                selectedMusicFolderIds.forEach { add("library_id" to it) }
+            }
+            val response = nativeHttpResponse("$endpoint?${parameters.toQueryString()}")
+            val root = json.parseToJsonElement(response.body)
+            val objects = root.nativeDataObjects()
+            val items = objects.map(mapper)
+            val total = when (root) {
+                is JsonObject -> root.intValue("total") ?: root.intValue("totalCount")
+                else -> null
+            } ?: response.nativeTotalCount()
+            MediaPage(
+                items = items,
+                offset = request.offset,
+                limit = request.limit,
+                hasMore = total?.let { request.offset + items.size < it } ?: (items.size == request.limit),
+                totalItemCount = total,
+                alphabeticallySortedByTitle = true,
+            )
+        } catch (cause: CancellationException) {
+            throw cause
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun JsonObject.nativeLibraryTitle(kind: AlphabeticalLibraryKind): String =
+        when (kind) {
+            AlphabeticalLibraryKind.Albums ->
+                stringValue("orderAlbumName") ?: stringValue("name") ?: stringValue("title")
+            AlphabeticalLibraryKind.Tracks -> stringValue("orderTitle") ?: stringValue("title")
+        }.orEmpty()
+
+    private fun JsonElement.nativeDataObjects(): List<JsonObject> = when (this) {
+        is JsonArray -> mapNotNull { it as? JsonObject }
+        is JsonObject -> when (val data = this["data"]) {
+            is JsonArray -> data.mapNotNull { it as? JsonObject }
+            is JsonObject -> listOf(data)
+            else -> listOf(this).takeIf { stringValue("id") != null }.orEmpty()
+        }
+        else -> emptyList()
+    }
+
+    private fun NavidromeHttpResponse.nativeTotalCount(): Int? =
+        header("X-Total-Count")?.trim()?.toIntOrNull()
+            ?: header("Content-Range")?.substringAfterLast('/')?.trim()?.toIntOrNull()
 
     override suspend fun search(query: String, limit: Int): MediaSearchResults {
         val trimmedQuery = query.trim()
@@ -1471,10 +1571,18 @@ class NavidromeProvider(
 
     private suspend fun getNativeJson(endpoint: String): JsonObject =
         nativeJsonRequest {
+            nativeHttpResponse(endpoint)
+        }
+
+    private suspend fun nativeHttpResponse(endpoint: String): NavidromeHttpResponse =
+        try {
             httpClient.getResponse(
                 url = nativeApiUrl(endpoint),
                 headers = customHeaders + nativeAuthHeaders(),
-            )
+            ).also(::retainNativeToken)
+        } catch (error: NavidromeHttpException) {
+            if (error.statusCode == 401) nativeToken = null
+            throw error
         }
 
     private suspend fun putNativeJson(endpoint: String, body: String): JsonObject =
@@ -1500,12 +1608,16 @@ class NavidromeProvider(
         }
 
     private fun nativeJsonResponse(response: NavidromeHttpResponse): JsonObject {
+        retainNativeToken(response)
+        return json.parseToJsonElement(response.body).jsonObject
+    }
+
+    private fun retainNativeToken(response: NavidromeHttpResponse) {
         response.header(NavidromeNativeAuthorizationHeader)
             ?.removePrefix("Bearer ")
             ?.trim()
             ?.takeIf { it.isNotBlank() }
             ?.let { refreshedToken -> nativeToken = refreshedToken }
-        return json.parseToJsonElement(response.body).jsonObject
     }
 
     private fun JsonObject.toNativeDataObject(): JsonObject =
@@ -1661,14 +1773,17 @@ class NavidromeProvider(
         }
 
     private fun JsonObject.toAlbum(): Album {
-        val editionYear = releaseYearValue()
+        val editionYear = releaseYearValue() ?: intValue("maxYear") ?: intValue("minYear")
         val explicitOriginalYear = originalReleaseYearValue()
+            ?: intValue("maxOriginalYear")
+            ?: intValue("minOriginalYear")
         val legacyYearCandidate = intValue("year")
             ?.takeIf { it > 0 && this["releaseDate"] is JsonObject }
+        val albumArtistName = stringValue("artist") ?: stringValue("albumArtist") ?: "Unknown Artist"
         return Album(
             id = AlbumId(stringValue("id") ?: throw NavidromeException("Album is missing an id.")),
             title = stringValue("name") ?: stringValue("title") ?: "Unknown Album",
-            artistName = stringValue("artist") ?: "Unknown Artist",
+            artistName = albumArtistName,
             coverArtId = stringValue("coverArt"),
             recentlyAddedAtIso8601 = stringValue("created"),
             releaseYear = editionYear,
@@ -1684,9 +1799,12 @@ class NavidromeProvider(
             },
             artistCredits = structuredArtistCredits().ifEmpty {
                 listOfNotNull(
-                    stringValue("artist")?.trim()?.takeIf { it.isNotEmpty() }?.let { artistName ->
+                    albumArtistName.trim().takeIf { it.isNotEmpty() && it != "Unknown Artist" }?.let { artistName ->
                         ArtistCredit(
-                            id = stringValue("artistId")?.trim()?.takeIf { it.isNotEmpty() }?.let(::ArtistId),
+                            id = (stringValue("artistId") ?: stringValue("albumArtistId"))
+                                ?.trim()
+                                ?.takeIf { it.isNotEmpty() }
+                                ?.let(::ArtistId),
                             name = artistName,
                         )
                     },

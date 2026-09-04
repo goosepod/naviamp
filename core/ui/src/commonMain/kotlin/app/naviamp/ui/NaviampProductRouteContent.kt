@@ -33,6 +33,7 @@ fun ColumnScope.NaviampProductRouteContent(
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
+    val libraryViewportState = rememberNaviampLibraryViewportState(artists = libraryListState)
 
     Box(
         modifier = Modifier
@@ -94,7 +95,7 @@ fun ColumnScope.NaviampProductRouteContent(
                     screen = shellState.library,
                     actions = shellActions.libraryActions,
                     mediaActions = shellActions.mediaActions,
-                    listState = libraryListState,
+                    viewportState = libraryViewportState,
                 )
                 NaviampRoute.Search -> NaviampSearchContent(
                     colors = colors,

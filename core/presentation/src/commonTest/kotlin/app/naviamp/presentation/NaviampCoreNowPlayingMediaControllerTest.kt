@@ -276,6 +276,18 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun trackRadioPlaybackSurvivesOptionalFavoriteArtistActivityFailure() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.artistActivity.failure = IllegalStateException("favorite artist activity unavailable")
+
+        fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+
+        assertEquals("current", fixture.live.state.value.queue.current?.id?.value)
+        assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
+        assertEquals("Playing track radio.", fixture.store.state.value.overlays.status)
+    }
+
+    @Test
     fun currentTrackArtistAndAlbumLinksCloseNowPlayingAndOpenSharedDetails() = runTest {
         val albumFixture = mediaFixture(this)
         albumFixture.store.updateShell { shell ->
@@ -517,10 +529,12 @@ private class RecordingFavoriteArtistActivity : HomeLibraryRepository {
     val favoriteArtistIds = mutableSetOf<ArtistId>()
     val artistRadioRecords = mutableListOf<String>()
     val trackRadioRecords = mutableListOf<String>()
+    var failure: Throwable? = null
 
     override fun albumYears(sourceId: String): List<HomeAlbumYear> = emptyList()
 
     override fun recordArtistRadioPlayed(sourceId: String, artist: Artist, playedAtIso8601: String) {
+        failure?.let { throw it }
         artistRadioRecords += "$sourceId:${artist.id.value}:${artist.name}:$playedAtIso8601"
     }
 
@@ -530,6 +544,7 @@ private class RecordingFavoriteArtistActivity : HomeLibraryRepository {
         artistName: String,
         playedAtIso8601: String,
     ): Boolean {
+        failure?.let { throw it }
         if (artistId !in favoriteArtistIds) return false
         trackRadioRecords += "$sourceId:${artistId.value}:$artistName:$playedAtIso8601"
         return true

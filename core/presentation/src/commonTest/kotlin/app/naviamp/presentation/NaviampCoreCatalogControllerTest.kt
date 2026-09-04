@@ -11,6 +11,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaPage
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
@@ -138,8 +139,8 @@ class NaviampCoreCatalogControllerTest {
         controller.execute(NaviampCoreCommand.Library.JumpToLetter('t'))
 
         assertEquals(listOf("artist-3"), store.state.value.shell.library.artists.items.map { it.id })
-        assertEquals('T', store.state.value.viewport.libraryJump?.letter)
-        assertEquals(1L, store.state.value.viewport.libraryJump?.generation)
+        assertEquals('T', store.state.value.shell.library.jumpRequest?.letter)
+        assertEquals(1L, store.state.value.shell.library.jumpRequest?.generation)
     }
 
     @Test
@@ -156,8 +157,57 @@ class NaviampCoreCatalogControllerTest {
         controller.execute(NaviampCoreCommand.Library.JumpToLetter('Z'))
 
         assertEquals(listOf("artist-1", "artist-2", "artist-3"), store.state.value.shell.library.artists.items.map { it.id })
-        assertEquals(listOf(0, 1, 2), provider.artistPageOffsets)
-        assertEquals('Z', store.state.value.viewport.libraryJump?.letter)
+        assertEquals(listOf(0, 0, 1, 2), provider.artistPageOffsets)
+        assertEquals('Z', store.state.value.shell.library.jumpRequest?.letter)
+    }
+
+    @Test
+    fun songAlphabetJumpUsesTheProvidersGlobalCatalogOffset() = runTest {
+        val provider = CatalogTestProvider().apply {
+            alphabeticalJumpOffset = 12_345
+            alphabeticalJumpTitle = "M Song"
+        }
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            libraryPageSize = 25,
+        )
+        val songs = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Songs)
+        controller.dispatch(songs)
+        controller.execute(songs)
+
+        controller.execute(NaviampCoreCommand.Library.JumpToLetter('m'))
+
+        assertEquals(AlphabeticalLibraryKind.Tracks, provider.alphabeticalJumpKind)
+        assertEquals('M', provider.alphabeticalJumpLetter)
+        assertEquals(listOf(0, 12_345), provider.trackPageOffsets)
+        assertEquals(listOf("M Song"), store.state.value.shell.library.songs.tracks.map { it.title })
+        assertEquals('M', store.state.value.shell.library.jumpRequest?.letter)
+    }
+
+    @Test
+    fun albumAlphabetJumpUsesTheProvidersGlobalCatalogOffset() = runTest {
+        val provider = CatalogTestProvider().apply {
+            alphabeticalJumpOffset = 8_765
+            alphabeticalJumpTitle = "M Album"
+        }
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            libraryPageSize = 25,
+        )
+        val albums = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Albums)
+        controller.dispatch(albums)
+        controller.execute(albums)
+
+        controller.execute(NaviampCoreCommand.Library.JumpToLetter('m'))
+
+        assertEquals(AlphabeticalLibraryKind.Albums, provider.alphabeticalJumpKind)
+        assertEquals('M', provider.alphabeticalJumpLetter)
+        assertEquals(listOf(0, 8_765), provider.albumPageOffsets)
+        assertEquals(listOf("M Album"), store.state.value.shell.library.albums.items.map { it.title })
     }
 
     @Test
@@ -199,7 +249,7 @@ class NaviampCoreCatalogControllerTest {
         assertEquals(NaviampLibraryView.Songs, library.selectedView)
         assertEquals("Second", library.albums.query)
         assertEquals(listOf("album-2"), library.albums.items.map { it.id })
-        assertEquals(listOf("track-1"), library.songs.tracks.map { it.id })
+        assertEquals(listOf("track-2"), library.songs.tracks.map { it.id })
         assertEquals(listOf(0, 1, 0), provider.albumPageOffsets)
         assertEquals(listOf(0), provider.trackPageOffsets)
     }
@@ -255,6 +305,25 @@ class NaviampCoreCatalogControllerTest {
         assertEquals(emptyList(), store.state.value.shell.library.albums.items)
         assertEquals(listOf("track-1", "track-2"), store.state.value.shell.library.songs.tracks.map { it.id })
     }
+
+    @Test
+    fun songsAreAlphabetizedAsAdditionalPagesLoad() = runTest {
+        val provider = CatalogTestProvider()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            libraryPageSize = 1,
+        )
+
+        val songs = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Songs)
+        controller.dispatch(songs)
+        controller.execute(songs)
+        assertEquals(listOf("Second Song"), store.state.value.shell.library.songs.tracks.map { it.title })
+
+        controller.execute(NaviampCoreCommand.Library.LoadMore)
+        assertEquals(listOf("First Song", "Second Song"), store.state.value.shell.library.songs.tracks.map { it.title })
+    }
 }
 
 private class CatalogTestProvider(
@@ -278,6 +347,10 @@ private class CatalogTestProvider(
     val artistSearchQueries = mutableListOf<String>()
     val albumSearchQueries = mutableListOf<String>()
     val trackSearchQueries = mutableListOf<String>()
+    var alphabeticalJumpOffset: Int? = null
+    var alphabeticalJumpTitle: String? = null
+    var alphabeticalJumpKind: AlphabeticalLibraryKind? = null
+    var alphabeticalJumpLetter: Char? = null
     private val libraryArtists = listOf(
         artist("artist-1", "One"),
         artist("artist-2", "Two"),
@@ -288,8 +361,8 @@ private class CatalogTestProvider(
         Album(AlbumId("album-2"), "Second Album", "Two", null, null),
     )
     private val libraryTracks = listOf(
-        track("track-1", "First Song"),
         track("track-2", "Second Song"),
+        track("track-1", "First Song"),
     )
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
@@ -312,6 +385,15 @@ private class CatalogTestProvider(
     override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> {
         albumPageGate?.await()
         albumPageOffsets += request.offset
+        if (request.offset == alphabeticalJumpOffset) {
+            val title = requireNotNull(alphabeticalJumpTitle)
+            return MediaPage(
+                listOf(Album(AlbumId("jump-album"), title, "Artist", null, null)),
+                request.offset,
+                request.limit,
+                hasMore = true,
+            )
+        }
         val items = libraryAlbums.drop(request.offset).take(request.limit)
         return MediaPage(items, request.offset, request.limit, request.offset + items.size < libraryAlbums.size)
     }
@@ -326,8 +408,18 @@ private class CatalogTestProvider(
     override suspend fun tracks(limit: Int) = libraryTracks.take(limit)
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> {
         trackPageOffsets += request.offset
+        if (request.offset == alphabeticalJumpOffset) {
+            val title = requireNotNull(alphabeticalJumpTitle)
+            return MediaPage(listOf(track("jump-track", title)), request.offset, request.limit, hasMore = true)
+        }
         val items = libraryTracks.drop(request.offset).take(request.limit)
         return MediaPage(items, request.offset, request.limit, request.offset + items.size < libraryTracks.size)
+    }
+
+    override suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int? {
+        alphabeticalJumpKind = kind
+        alphabeticalJumpLetter = letter
+        return alphabeticalJumpOffset
     }
 
     override suspend fun searchTracksPage(query: String, request: MediaPageRequest): MediaPage<Track> {

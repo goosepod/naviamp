@@ -432,6 +432,38 @@ private fun ArtistDetailContent(
                     }
                 }
             }
+            if (detail.popularTracks.isNotEmpty() || detail.popularTracksStatus != null) {
+                Text(
+                    stringResource(Res.string.artist_top_tracks).uppercase(),
+                    color = colors.primaryText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (detail.popularTracks.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
+                            MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                        }
+                    }
+                    detail.popularTracksStatus?.let { status ->
+                        Text(status, color = colors.secondaryText, fontSize = 11.sp)
+                    }
+                    detail.popularTracks.forEach { track ->
+                        TrackRow(
+                            track,
+                            colors,
+                            onTrackAction = handlePopularTrackAction,
+                            canSelect = true,
+                            canStartRadio = false,
+                            canAddToQueue = true,
+                            canDownload = true,
+                            canAddToPlaylist = true,
+                        )
+                    }
+                }
+            }
             Text(
                 stringResource(Res.string.artist_discography).uppercase(),
                 color = colors.primaryText,
@@ -514,38 +546,6 @@ private fun ArtistDetailContent(
                             onTrackAction = handlePopularTrackAction,
                             canSelect = true,
                             canStartRadio = true,
-                            canAddToQueue = true,
-                            canDownload = true,
-                            canAddToPlaylist = true,
-                        )
-                    }
-                }
-            }
-            if (detail.popularTracks.isNotEmpty() || detail.popularTracksStatus != null) {
-                Text(
-                    stringResource(Res.string.artist_top_tracks).uppercase(),
-                    color = colors.primaryText,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (detail.popularTracks.isNotEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
-                            MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
-                        }
-                    }
-                    detail.popularTracksStatus?.let { status ->
-                        Text(status, color = colors.secondaryText, fontSize = 11.sp)
-                    }
-                    detail.popularTracks.forEach { track ->
-                        TrackRow(
-                            track,
-                            colors,
-                            onTrackAction = handlePopularTrackAction,
-                            canSelect = true,
-                            canStartRadio = false,
                             canAddToQueue = true,
                             canDownload = true,
                             canAddToPlaylist = true,

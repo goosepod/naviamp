@@ -355,12 +355,14 @@ class NaviampCoreMediaTransactions(
         mutate("Artist favorites are not supported.", { favoriteArtistUpdate(provider, artist, favoritedAtIso8601()) }) {
             registry.updateArtist(it)
             activeSourceId()?.let { sourceId ->
-                favoriteArtistActivity?.setArtistFavoriteActivity(
-                    sourceId = sourceId,
-                    artist = it,
-                    favorite = it.favoritedAtIso8601 != null,
-                    changedAtIso8601 = favoritedAtIso8601(),
-                )
+                recordFavoriteArtistActivity {
+                    setArtistFavoriteActivity(
+                        sourceId = sourceId,
+                        artist = it,
+                        favorite = it.favoritedAtIso8601 != null,
+                        changedAtIso8601 = favoritedAtIso8601(),
+                    )
+                }
             }
             updateArtistFavoriteUi(it.id.value, it.favoritedAtIso8601 != null)
         }
@@ -425,23 +427,31 @@ class NaviampCoreMediaTransactions(
 
     private fun recordArtistRadioPlayed(artist: Artist) {
         val sourceId = activeSourceId() ?: return
-        favoriteArtistActivity?.recordArtistRadioPlayed(
-            sourceId = sourceId,
-            artist = artist,
-            playedAtIso8601 = favoritedAtIso8601(),
-        )
+        recordFavoriteArtistActivity {
+            recordArtistRadioPlayed(
+                sourceId = sourceId,
+                artist = artist,
+                playedAtIso8601 = favoritedAtIso8601(),
+            )
+        }
     }
 
     private fun recordTrackArtistRadioPlayed(seed: Track) {
         val sourceId = activeSourceId() ?: return
         val artistId = seed.artistId ?: seed.artistCredits.firstNotNullOfOrNull { it.id } ?: return
         val artistName = seed.artistCredits.firstOrNull { it.id == artistId }?.name ?: seed.artistName
-        favoriteArtistActivity?.recordTrackArtistRadioPlayedIfFavorite(
-            sourceId = sourceId,
-            artistId = artistId,
-            artistName = artistName,
-            playedAtIso8601 = favoritedAtIso8601(),
-        )
+        recordFavoriteArtistActivity {
+            recordTrackArtistRadioPlayedIfFavorite(
+                sourceId = sourceId,
+                artistId = artistId,
+                artistName = artistName,
+                playedAtIso8601 = favoritedAtIso8601(),
+            )
+        }
+    }
+
+    private inline fun recordFavoriteArtistActivity(block: FavoriteArtistActivityRepository.() -> Unit) {
+        favoriteArtistActivity?.let { repository -> runCatching { repository.block() } }
     }
 
     private fun activeSourceId(): String? =

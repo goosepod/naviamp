@@ -62,6 +62,8 @@ interface MediaProvider {
         } else {
             request.toMediaPage(emptyList())
         }
+
+    suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int? = null
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
     suspend fun searchArtistsPage(
         query: String,
@@ -188,6 +190,11 @@ interface MediaProvider {
     fun coverArtUrl(coverArtId: String, size: CoverArtSize): String = coverArtUrl(coverArtId)
 }
 
+enum class AlphabeticalLibraryKind {
+    Albums,
+    Tracks,
+}
+
 enum class PlaybackReportState(val providerValue: String) {
     Starting("starting"),
     Playing("playing"),
@@ -230,6 +237,7 @@ data class ProviderCapabilities(
     val supportsPlayReporting: Boolean = false,
     val supportsSmartPlaylists: Boolean = false,
     val supportsSonicSimilarity: Boolean = false,
+    val supportsArtistDiscography: Boolean = false,
 )
 
 fun ProviderCapabilities.effectiveStreamingQuality(requested: StreamQuality): StreamQuality =

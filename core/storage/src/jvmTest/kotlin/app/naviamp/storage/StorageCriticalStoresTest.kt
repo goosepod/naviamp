@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
@@ -127,6 +128,40 @@ class StorageCriticalStoresTest {
         )
 
         assertEquals(listOf(1993, 1980, 1975), fixture.library.libraryAlbumYears(fixture.sourceId).map { it.year })
+    }
+
+    @Test
+    fun artistDiscographyCreditIndexFindsStableIdAppearancesAndRemovesStaleCredits() = withStorage { fixture ->
+        val primaryAlbum = Album(AlbumId("primary"), "Primary", "Guest Artist", null, null)
+        val appearanceAlbum = Album(AlbumId("appearance"), "Compilation", "Various Artists", null, null)
+        fixture.library.upsertLibraryAlbums(fixture.sourceId, listOf(primaryAlbum, appearanceAlbum))
+        val guest = ArtistCredit(ArtistId("guest"), "Guest Artist")
+        val primaryTrack = testTrack("primary-track", "Primary Track", albumId = primaryAlbum.id)
+            .copy(artistCredits = listOf(guest))
+        val appearanceTrack = testTrack("appearance-track", "Guest Verse", albumId = appearanceAlbum.id)
+            .copy(artistCredits = listOf(ArtistCredit(ArtistId("host"), "Host"), guest))
+        fixture.library.upsertLibraryTracks(fixture.sourceId, listOf(primaryTrack, appearanceTrack))
+
+        val appearances = fixture.library.artistDiscographyAppearances(
+            fixture.sourceId,
+            guest.id!!,
+            setOf(primaryAlbum.id),
+        )
+
+        assertEquals(listOf("appearance"), appearances.albums.map { it.id.value })
+        assertEquals(listOf("appearance-track"), appearances.tracks.map { it.id.value })
+
+        fixture.library.upsertLibraryTracks(
+            fixture.sourceId,
+            listOf(appearanceTrack.copy(artistCredits = listOf(ArtistCredit(ArtistId("host"), "Host")))),
+        )
+        assertTrue(
+            fixture.library.artistDiscographyAppearances(
+                fixture.sourceId,
+                guest.id!!,
+                setOf(primaryAlbum.id),
+            ).tracks.isEmpty(),
+        )
     }
 
     @Test

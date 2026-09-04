@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.SearchDisconnectedStatus
 import app.naviamp.domain.provider.normalizedSearchQuery
@@ -177,12 +178,28 @@ class NaviampCoreCatalogController(
                         provider.searchTracksPage(query.trim(), request)
                     }
                     if (!isCurrentLibraryLoad(load, generation, sourceKey)) return@runCatching false to null
-                    mediaRegistry.updateLibraryTracks(page.items, replace)
-                    val mapped = page.items.map { track ->
+                    val merged = if (replace) {
+                        page.items
+                    } else {
+                        (mediaRegistry.libraryTracks + page.items).distinctBy { it.id }
+                    }
+                    val ordered = if (page.alphabeticallySortedByTitle) {
+                        merged
+                    } else {
+                        merged.sortedWith(
+                            compareBy<app.naviamp.domain.Track>(
+                                { it.title.lowercase() },
+                                { it.title },
+                                { it.id.value },
+                            ),
+                        )
+                    }
+                    mediaRegistry.updateLibraryTracks(ordered, replace = true)
+                    val mapped = ordered.map { track ->
                         track.toSharedTrackRowUi(coverArtUrl = { id -> id?.let { provider.coverArtUrl(it) } })
                     }
                     updateLibraryCatalog(view) { current ->
-                        current.copy(tracks = mergeTracks(current.tracks, mapped, replace), syncStatus = NaviampLibrarySyncStatusUi())
+                        current.copy(tracks = mapped, syncStatus = NaviampLibrarySyncStatusUi())
                     }
                     true to page.nextRequest
                 }
@@ -280,12 +297,6 @@ class NaviampCoreCatalogController(
         replace: Boolean,
     ) = if (replace) incoming else (current + incoming).distinctBy { it.id }
 
-    private fun mergeTracks(
-        current: List<app.naviamp.ui.SharedTrackRowUi>,
-        incoming: List<app.naviamp.ui.SharedTrackRowUi>,
-        replace: Boolean,
-    ) = if (replace) incoming else (current + incoming).distinctBy { it.id }
-
     private fun isCurrentLibraryLoad(
         load: LibraryLoadState,
         generation: Long,
@@ -299,8 +310,14 @@ class NaviampCoreCatalogController(
     private fun publishLibraryJump(letter: Char) {
         stateStore.update { state ->
             state.copy(
-                viewport = state.viewport.copy(
-                    libraryJump = NaviampCoreLibraryJumpRequest(letter.uppercaseChar(), ++jumpGeneration),
+                shell = state.shell.copy(
+                    library = state.shell.library.copy(
+                        jumpRequest = app.naviamp.ui.NaviampLibraryJumpUi(
+                            state.shell.library.selectedView,
+                            letter.uppercaseChar(),
+                            ++jumpGeneration,
+                        ),
+                    ),
                 ),
             )
         }
@@ -310,13 +327,45 @@ class NaviampCoreCatalogController(
         val normalized = letter.uppercaseChar()
         val view = stateStore.state.value.shell.library.selectedView
         val library = stateStore.state.value.shell.library
+        val provider = providerSource.current()
+        if (normalized == '#' && library.catalog(view).query.isBlank()) {
+            val load = libraryLoads.getValue(view)
+            val generation = ++load.generation
+            val request = MediaPageRequest(limit = libraryPageSize)
+            load.nextRequest = request
+            loadLibraryPage(view, request, replace = true, generation = generation)
+            publishLibraryJump(normalized)
+            return
+        }
+        val alphabeticalKind = when (view) {
+            NaviampLibraryView.Artists -> null
+            NaviampLibraryView.Albums -> AlphabeticalLibraryKind.Albums
+            NaviampLibraryView.Songs -> AlphabeticalLibraryKind.Tracks
+        }
+        if (normalized != '#' && library.catalog(view).query.isBlank() && provider != null && alphabeticalKind != null) {
+            provider.alphabeticalLibraryOffset(alphabeticalKind, normalized)?.let { offset ->
+                val load = libraryLoads.getValue(view)
+                val generation = ++load.generation
+                val request = MediaPageRequest(offset = offset, limit = libraryPageSize)
+                load.nextRequest = request
+                loadLibraryPage(view, request, replace = true, generation = generation)
+                publishLibraryJump(normalized)
+                return
+            }
+        }
         if (normalized != '#' && library.catalog(view).query.isBlank()) {
+            val load = libraryLoads.getValue(view)
+            val generation = ++load.generation
+            val firstRequest = MediaPageRequest(limit = libraryPageSize)
+            load.nextRequest = firstRequest
+            loadLibraryPage(view, firstRequest, replace = true, generation = generation)
             var remainingPages = 1_000
-            while (libraryLoads.getValue(view).nextRequest != null && remainingPages-- > 0) {
+            while (load.nextRequest != null && remainingPages-- > 0) {
                 val catalog = stateStore.state.value.shell.library.catalog(view)
                 val lastTitle = (catalog.items.lastOrNull()?.title ?: catalog.tracks.lastOrNull()?.title).orEmpty()
                 if (lastTitle.isNotBlank() && lastTitle.first().uppercaseChar() >= normalized) break
-                loadMoreLibrary()
+                val request = load.nextRequest ?: break
+                loadLibraryPage(view, request, replace = false, generation = generation)
             }
         }
         publishLibraryJump(normalized)

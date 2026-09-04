@@ -9,6 +9,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.PlaybackReportState
 import kotlinx.coroutines.test.runTest
@@ -146,9 +147,10 @@ class JellyfinProviderTest {
                 "includeItemTypes=Audio" to """
                     {"Items":[
                       {"Id":"primary-track","Name":"Own Song","AlbumId":"primary-album","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]},
-                      {"Id":"guest-track","Name":"Guest Verse","AlbumId":"appearance-album","Album":"Compilation","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]},
+                      {"Id":"guest-track","Name":"Guest Verse","AlbumId":"appearance-album","Album":"Compilation","Artists":["Stage Name"],"ArtistItems":[{"Id":"artist-1","Name":"Stage Name"}]},
+                      {"Id":"unmapped-track","Name":"Unmapped Remix","AlbumId":"appearance-album","Album":"Compilation","Artists":["Guest Artist"],"ArtistItems":[{"Name":"Guest Artist"}]},
                       {"Id":"standalone-track","Name":"Standalone Feature","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]}
-                    ],"TotalRecordCount":3}
+                    ],"TotalRecordCount":4}
                 """.trimIndent(),
                 "/Items/appearance-album?" to """
                     {"Id":"appearance-album","Name":"Compilation","AlbumArtist":"Various Artists"}
@@ -160,8 +162,35 @@ class JellyfinProviderTest {
 
         assertEquals(listOf("primary-album"), discography.primary.albums.map { it.id.value })
         assertEquals(listOf("appearance-album"), discography.appearanceAlbums.map { it.id.value })
-        assertEquals(listOf("guest-track", "standalone-track"), discography.appearanceTracks.map { it.id.value })
+        assertEquals(
+            listOf("guest-track", "unmapped-track", "standalone-track"),
+            discography.appearanceTracks.map { it.id.value },
+        )
         assertTrue(fixture.http.requestedUrls.any { it.contains("artistIds=artist-1") })
+    }
+
+    @Test
+    fun alphabeticalOffsetsBinarySearchTheServerSortedAlbumAndSongCatalogs() = runTest {
+        val fixture = fixture(
+            responses = linkedMapOf(
+                "includeItemTypes=MusicAlbum&startIndex=0" to
+                    """{"Items":[{"Id":"album-a","Name":"A"}],"TotalRecordCount":4}""",
+                "includeItemTypes=MusicAlbum&startIndex=2" to
+                    """{"Items":[{"Id":"album-m","Name":"M"}],"TotalRecordCount":4}""",
+                "includeItemTypes=MusicAlbum&startIndex=1" to
+                    """{"Items":[{"Id":"album-f","Name":"F"}],"TotalRecordCount":4}""",
+                "includeItemTypes=Audio&startIndex=0" to
+                    """{"Items":[{"Id":"track-a","Name":"A"}],"TotalRecordCount":4}""",
+                "includeItemTypes=Audio&startIndex=2" to
+                    """{"Items":[{"Id":"track-m","Name":"M"}],"TotalRecordCount":4}""",
+                "includeItemTypes=Audio&startIndex=1" to
+                    """{"Items":[{"Id":"track-f","Name":"F"}],"TotalRecordCount":4}""",
+            ),
+        )
+
+        assertEquals(2, fixture.provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Albums, 'M'))
+        assertEquals(2, fixture.provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Tracks, 'M'))
+        assertTrue(fixture.http.requestedUrls.all { "limit=1" in it })
     }
 
     @Test

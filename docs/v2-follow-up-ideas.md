@@ -33,14 +33,17 @@ Before moving an idea into the active v2 plan or a release branch:
   already support paged artists, albums, and tracks.
 - [x] Add a shared Library-view model and action owned by Core, including independent query, paging,
   refresh, and scroll restoration state for each catalog type.
-- [ ] Add explicit per-view focus restoration and Back-navigation acceptance coverage.
+- [x] Add explicit per-view focus restoration and Back-navigation acceptance coverage.
 - [x] Populate all three views through the provider-neutral paging contracts and reject stale loads
   when the source, query, or selected view changes.
 - [x] Render Artists and Albums with the appropriate collection presentation and Songs with the
   standard shared track rows and actions.
 - [x] Make search labels, empty states, A-Z navigation, load-more behavior, and refresh status
   describe the active catalog type rather than assuming artists.
-- [ ] Give Television the same selector with deterministic D-pad entry, Back behavior, accessible
+- [ ] Show a translated loading indicator when an Album or Song quick-index letter requires a
+  server-backed page that has not loaded yet. Keep the selected letter visible and prevent
+  duplicate jump requests until the load succeeds or fails.
+- [x] Give Television the same selector with deterministic D-pad entry, Back behavior, accessible
   state labels, and per-view focus restoration; do not create a Television-only library.
 - [ ] Add shared phone, Desktop, iOS, and Television UI coverage, including representative large
   libraries and 720p, 1080p, and native 4K acceptance. Common controller coverage is in place.
@@ -60,9 +63,9 @@ Before moving an idea into the active v2 plan or a release branch:
   provider values and synonyms, and add common classification and ordering tests.
 - [x] Define a provider-neutral, source-scoped discography contract that distinguishes primary
   album-artist releases from releases and tracks where the artist is a contributor.
-- [ ] Complete provider coverage: Jellyfin uses its stable artist-ID query; add a shared-storage
-  credit-index fallback for providers without a reverse-credit query.
-- [ ] Finish Appears On inclusion and de-duplication coverage for compilations, multiple credited
+- [x] Complete provider coverage: Jellyfin uses its stable artist-ID query, while providers without
+  a reverse-credit query use a source-scoped shared-storage credit index.
+- [x] Finish Appears On inclusion and de-duplication coverage for compilations, multiple credited
   roles, aliases, missing artist IDs, and releases that also qualify for a primary section.
 - [x] Present appearance albums normally and list their matching credited tracks directly in
   **Appears On**, so isolated credits and exact matching tracks remain visible.

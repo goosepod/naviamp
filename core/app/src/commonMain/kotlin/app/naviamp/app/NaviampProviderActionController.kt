@@ -4,6 +4,7 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingActionAlbumFavorite
 import app.naviamp.domain.provider.PendingActionArtistFavorite
@@ -38,6 +39,11 @@ class NaviampProviderActionController(
 
     fun offlineCapable(provider: MediaProvider, sourceId: String?): MediaProvider =
         object : MediaProvider by provider {
+            override suspend fun alphabeticalLibraryOffset(
+                kind: AlphabeticalLibraryKind,
+                letter: Char,
+            ): Int? = provider.alphabeticalLibraryOffset(kind, letter)
+
             override suspend fun albumInfo(albumId: AlbumId): AlbumInfo? =
                 provider.albumInfo(albumId)
 

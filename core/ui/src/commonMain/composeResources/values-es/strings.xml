@@ -364,6 +364,8 @@
     <string name="library_view_artists">Artistas</string>
     <string name="library_view_albums">Álbumes</string>
     <string name="library_view_songs">Canciones</string>
+    <string name="library_view_state_selected">Seleccionada</string>
+    <string name="library_view_state_not_selected">No seleccionada</string>
     <string name="library_search_artists">Buscar artistas en la biblioteca</string>
     <string name="library_search_albums">Buscar álbumes en la biblioteca</string>
     <string name="library_search_songs">Buscar canciones en la biblioteca</string>
@@ -473,5 +475,7 @@
     <string name="settings_show_artist_information_subtitle">Mostrar biografías e imágenes del proveedor en las páginas de detalles del artista.</string>
     <string name="settings_show_album_information">Mostrar información del álbum</string>
     <string name="settings_show_album_information_subtitle">Mostrar notas e imágenes del proveedor en las páginas de detalles del álbum.</string>
+    <string name="action_play_after_current_group">Reproducir después del grupo actual</string>
+    <string name="action_play_immediately_next">Reproducir inmediatamente después</string>
     <string name="mix_browse_genres">Explorar géneros</string>
 </resources>
