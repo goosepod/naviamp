@@ -42,6 +42,27 @@ class NaviampConnectEndpointOverrideTransportFactoryTest {
         assertEquals("192.168.1.80" to 42_426, delegate.lastConnection)
     }
 
+    @Test
+    fun canReplaceConfiguredIpv6PrefixesWithOrWithoutAScopeId() = runTest {
+        val delegate = RecordingTransportFactory()
+        val transport = NaviampConnectEndpointOverrideTransportFactory(
+            delegate = delegate,
+            overriddenHosts = emptySet(),
+            overriddenHostPrefixes = setOf("fe80:"),
+            replacementHost = "192.168.1.25",
+            replacementPort = 42_424,
+        )
+
+        transport.connect("fe80::1234:5678", 42_425)
+        assertEquals("192.168.1.25" to 42_424, delegate.lastConnection)
+
+        transport.connect("FE80::1234:5678%wlan0", 42_426)
+        assertEquals("192.168.1.25" to 42_424, delegate.lastConnection)
+
+        transport.connect("2001:db8::1", 42_427)
+        assertEquals("2001:db8::1" to 42_427, delegate.lastConnection)
+    }
+
     private class RecordingTransportFactory : NaviampConnectTransportFactory {
         val connection = object : NaviampConnectTransportConnection {
             override val remoteAddress = "test"

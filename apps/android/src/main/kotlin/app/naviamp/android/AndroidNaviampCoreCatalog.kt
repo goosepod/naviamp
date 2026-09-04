@@ -211,6 +211,7 @@ class AndroidNaviampCoreCatalog private constructor(
                     NaviampConnectEndpointOverrideTransportFactory(
                         delegate = transport,
                         overriddenHosts = setOf(AndroidEmulatorPrivateAddress),
+                        overriddenHostPrefixes = setOf(AndroidEmulatorLinkLocalAddressPrefix),
                         replacementHost = debugHost,
                         replacementPort = AndroidEmulatorControllerBridgePort,
                     )
@@ -263,5 +264,6 @@ private fun List<AndroidStorageLocation>.idFor(directory: File): String? {
 
 private const val AndroidSettingsSyncDeviceId = "android"
 private const val AndroidEmulatorPrivateAddress = "10.0.2.15"
+private const val AndroidEmulatorLinkLocalAddressPrefix = "fe80:"
 private const val AndroidEmulatorControllerBridgePort = 42_424
 private const val AndroidEmulatorPairingPort = 42_425

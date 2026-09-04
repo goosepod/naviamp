@@ -42,12 +42,16 @@ interface NaviampConnectTransportFactory {
 class NaviampConnectEndpointOverrideTransportFactory(
     private val delegate: NaviampConnectTransportFactory,
     private val overriddenHosts: Set<String>,
+    private val overriddenHostPrefixes: Set<String> = emptySet(),
     private val replacementHost: String,
     private val replacementPort: Int? = null,
 ) : NaviampConnectTransportFactory {
     init {
-        require(overriddenHosts.isNotEmpty()) { "At least one overridden host is required." }
+        require(overriddenHosts.isNotEmpty() || overriddenHostPrefixes.isNotEmpty()) {
+            "At least one overridden host or host prefix is required."
+        }
         require(overriddenHosts.none(String::isBlank)) { "Overridden hosts must not be blank." }
+        require(overriddenHostPrefixes.none(String::isBlank)) { "Overridden host prefixes must not be blank." }
         require(replacementHost.isNotBlank()) { "The replacement host must not be blank." }
         require(replacementPort == null || replacementPort in 1..65_535) {
             "The replacement port must be a valid TCP port."
@@ -55,7 +59,9 @@ class NaviampConnectEndpointOverrideTransportFactory(
     }
 
     override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection {
-        val shouldOverride = host in overriddenHosts
+        val shouldOverride = host in overriddenHosts || overriddenHostPrefixes.any { prefix ->
+            host.substringBefore('%').startsWith(prefix, ignoreCase = true)
+        }
         return delegate.connect(
             host = if (shouldOverride) replacementHost else host,
             port = if (shouldOverride) replacementPort ?: port else port,

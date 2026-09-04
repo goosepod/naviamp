@@ -82,6 +82,7 @@ internal class DesktopComposition private constructor(
                     NaviampConnectEndpointOverrideTransportFactory(
                         delegate = transport,
                         overriddenHosts = setOf(AndroidEmulatorPrivateAddress),
+                        overriddenHostPrefixes = setOf(AndroidEmulatorLinkLocalAddressPrefix),
                         replacementHost = debugHost,
                     )
                 } ?: transport
@@ -303,3 +304,4 @@ internal class DesktopComposition private constructor(
 
 private const val DesktopSettingsSyncDeviceId = "desktop"
 private const val AndroidEmulatorPrivateAddress = "10.0.2.15"
+private const val AndroidEmulatorLinkLocalAddressPrefix = "fe80:"
