@@ -188,6 +188,10 @@ class NaviampCoreConnectionController(
             .onFailure { cause ->
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
                 if (savedSourceId != null && connectionFailureAllowsOfflineRestoration(cause)) {
+                    if (previousSourceId != savedSourceId || plan.clearExistingPlayback) {
+                        onSourceChanging(previousSourceId, savedSourceId)
+                    }
+                    inventory = inventory.copy(currentSourceId = savedSourceId)
                     connection.offline(
                         sourceId = savedSourceId,
                         status = "Offline. Downloaded music remains available.",

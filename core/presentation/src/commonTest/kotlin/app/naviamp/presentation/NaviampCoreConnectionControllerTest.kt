@@ -141,6 +141,41 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun switchingAmongMultipleSavedSourcesPublishesExactlyOneCurrentSource() = kotlinx.coroutines.test.runTest {
+        val records = listOf(
+            savedRecord(),
+            savedRecord(
+                id = "source-2",
+                displayName = "Studio Music",
+                serverUrl = "https://studio.example",
+            ),
+        )
+        val transitions = mutableListOf<Pair<String?, String>>()
+        val fixture = fixture(
+            savedRecords = records,
+            onSourceChanging = { previous, next -> transitions += previous to next },
+        )
+
+        fixture.controller.execute(
+            NaviampCoreCommand.Connection.ConnectSaved(
+                NaviampSavedConnectionUi(
+                    id = "source-2",
+                    displayName = "Studio Music",
+                    serverUrl = "https://studio.example",
+                    username = "demo",
+                ),
+            ),
+        )
+
+        assertEquals(NaviampCoreConnectionRequest.Saved("source-2"), fixture.port.connectRequests.single().first)
+        assertEquals(listOf<Pair<String?, String>>("source-1" to "source-2"), transitions)
+        val settings = fixture.store.state.value.shell.connectionSettings
+        assertEquals("source-2", settings.currentSourceId)
+        assertEquals(listOf(false, true), settings.connection.savedConnections.map { it.current })
+        assertEquals("Connected to Studio Music.", settings.connection.status)
+    }
+
+    @Test
     fun startupRestoresThePreferredSavedConnectionInCore() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(currentSourceId = null)
 
@@ -179,6 +214,41 @@ class NaviampCoreConnectionControllerTest {
         assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
         assertEquals("source-1", offlineSourceId)
     }
+
+    @Test
+    fun unreachableSavedSourceSwitchMakesTheSelectedOfflineSourceAuthoritative() =
+        kotlinx.coroutines.test.runTest {
+            val records = listOf(
+                savedRecord(),
+                savedRecord("source-2", "Studio Music", "https://studio.example"),
+            )
+            val transitions = mutableListOf<Pair<String?, String>>()
+            var offlineSourceId: String? = null
+            val fixture = fixture(
+                connectFailure = IllegalStateException("Failed to connect to server"),
+                savedRecords = records,
+                onSourceChanging = { previous, next -> transitions += previous to next },
+                onOfflineRestored = { offlineSourceId = it },
+            )
+
+            fixture.controller.execute(
+                NaviampCoreCommand.Connection.ConnectSaved(
+                    NaviampSavedConnectionUi(
+                        id = "source-2",
+                        displayName = "Studio Music",
+                        serverUrl = "https://studio.example",
+                        username = "demo",
+                    ),
+                ),
+            )
+
+            val settings = fixture.store.state.value.shell.connectionSettings
+            assertEquals("source-2", settings.currentSourceId)
+            assertEquals(listOf(false, true), settings.connection.savedConnections.map { it.current })
+            assertEquals(listOf<Pair<String?, String>>("source-1" to "source-2"), transitions)
+            assertEquals("source-2", offlineSourceId)
+            assertEquals("Offline. Downloaded music remains available.", settings.connection.status)
+        }
 
     @Test
     fun authenticationFailureDoesNotEnterOfflineMode() = kotlinx.coroutines.test.runTest {
@@ -296,10 +366,10 @@ class NaviampCoreConnectionControllerTest {
         onSourceChanging: (String?, String) -> Unit = { _, _ -> },
         currentSourceId: String? = "source-1",
         hasSavedConnection: Boolean = true,
+        savedRecords: List<NaviampCoreSavedConnectionRecord> = listOf(savedRecord()),
     ): ConnectionFixture {
-        val record = savedRecord()
         val inventory = NaviampCoreConnectionInventory(
-            connections = listOfNotNull(record.takeIf { hasSavedConnection }),
+            connections = savedRecords.takeIf { hasSavedConnection }.orEmpty(),
             currentSourceId = currentSourceId?.takeIf { hasSavedConnection },
         )
         val port = FakeProviderSessionPort(inventory, connectFailure, musicFoldersLoadFailed)
@@ -319,10 +389,14 @@ class NaviampCoreConnectionControllerTest {
         )
     }
 
-    private fun savedRecord() = NaviampCoreSavedConnectionRecord(
-        id = "source-1",
-        displayName = "Home Music",
-        serverUrl = "https://music.example",
+    private fun savedRecord(
+        id: String = "source-1",
+        displayName: String = "Home Music",
+        serverUrl: String = "https://music.example",
+    ) = NaviampCoreSavedConnectionRecord(
+        id = id,
+        displayName = displayName,
+        serverUrl = serverUrl,
         username = "demo",
     )
 
@@ -356,10 +430,12 @@ private class FakeProviderSessionPort(
     ): NaviampCoreConnectedSession {
         connectRequests += request to plan
         connectFailure?.let { throw it }
-        inventory = inventory.copy(currentSourceId = "source-1")
+        val sourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id ?: "source-1"
+        val saved = inventory.connections.firstOrNull { it.id == sourceId }
+        inventory = inventory.copy(currentSourceId = sourceId)
         return NaviampCoreConnectedSession(
-            sourceId = "source-1",
-            displayName = "Home Music",
+            sourceId = sourceId,
+            displayName = saved?.displayName ?: "Home Music",
             serverVersion = "1.2.3",
             inventory = inventory,
         )

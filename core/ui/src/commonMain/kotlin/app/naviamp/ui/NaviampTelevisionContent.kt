@@ -120,7 +120,7 @@ internal fun TelevisionHome(
     val density = LocalDensity.current
     val contextInsetPx = with(density) { TelevisionHomeFocusedSectionTopInset.roundToPx() }
     val sectionItemKeys = sections.map { section ->
-        section.items.map { item -> "${item.mediaKind}:${item.mediaItem.id}" }
+        section.items.map { item -> "${item.mediaKind}:${item.mediaItem.id}" } + "view-all:${section.id}"
     }
     val itemFocusRequesters = remember(sectionItemKeys) {
         sectionItemKeys.map { itemKeys -> List(itemKeys.size) { FocusRequester() } }
@@ -180,7 +180,7 @@ internal fun TelevisionHome(
                         itemFocusRequesters[targetSectionIndex].getOrNull(
                             televisionHomeRememberedItemIndex(
                                 rememberedIndex = rememberedItemIndices[sections[targetSectionIndex].id],
-                                itemCount = sections[targetSectionIndex].items.size,
+                                itemCount = itemFocusRequesters[targetSectionIndex].size,
                             ),
                         )
                     },
@@ -188,7 +188,7 @@ internal fun TelevisionHome(
                         itemFocusRequesters[targetSectionIndex].getOrNull(
                             televisionHomeRememberedItemIndex(
                                 rememberedIndex = rememberedItemIndices[sections[targetSectionIndex].id],
-                                itemCount = sections[targetSectionIndex].items.size,
+                                itemCount = itemFocusRequesters[targetSectionIndex].size,
                             ),
                         )
                     },
@@ -197,6 +197,7 @@ internal fun TelevisionHome(
                         rememberedItemIndices = rememberedItemIndices + (section.id to itemIndex)
                     },
                     onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
+                    onViewAll = { actions.onCollectionSelected(section.id) },
                 )
             }
         }
@@ -217,6 +218,7 @@ private fun TelevisionHomeCarousel(
     onSectionFocused: () -> Unit,
     onItemFocused: (Int) -> Unit,
     onSelected: (SharedHomeCollectionItemUi) -> Unit,
+    onViewAll: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
@@ -280,16 +282,7 @@ private fun TelevisionHomeCarousel(
                         item = item,
                         colors = colors,
                         modifier = Modifier
-                            .focusRequester(itemFocusRequesters[index])
-                            .then(
-                                if (index == section.items.lastIndex) {
-                                    Modifier.onPreviewKeyEvent { event ->
-                                        televisionHomeConsumesEndOfRailKey(event.key)
-                                    }
-                                } else {
-                                    Modifier
-                                },
-                            ),
+                            .focusRequester(itemFocusRequesters[index]),
                         onFocused = {
                             focusedIndex = index
                             onItemFocused(index)
@@ -298,6 +291,19 @@ private fun TelevisionHomeCarousel(
                         onClick = { onSelected(item) },
                     )
                 }
+                TelevisionHomeViewAllCard(
+                    section = section,
+                    colors = colors,
+                    onFocused = {
+                        focusedIndex = section.items.size
+                        onItemFocused(section.items.size)
+                        onSectionFocused()
+                    },
+                    onClick = onViewAll,
+                    modifier = Modifier
+                        .focusRequester(itemFocusRequesters[section.items.size])
+                        .onPreviewKeyEvent { event -> televisionHomeConsumesEndOfRailKey(event.key) },
+                )
             }
         }
     }
@@ -332,6 +338,169 @@ private fun TelevisionHomeCard(
         TelevisionCardLabels(item.title, item.subtitle, colors)
     }
 }
+
+@Composable
+private fun TelevisionHomeViewAllCard(
+    section: SharedHomeCollectionSectionUi,
+    colors: NaviampColors,
+    onFocused: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    TelevisionFocusableCard(
+        colors = colors,
+        width = TelevisionHomeCardWidth,
+        onFocused = onFocused,
+        onClick = onClick,
+        modifier = modifier.testTag("$TelevisionHomeViewAllTestTagPrefix${section.id}"),
+    ) { focused ->
+        val shape = RoundedCornerShape(12.dp)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .requiredSize(TelevisionHomeCardWidth)
+                .televisionMediaArtworkFocusEffect(focused, colors, shape)
+                .clip(shape)
+                .background(colors.controlSurface.copy(alpha = 0.92f)),
+        ) {
+            Icon(
+                imageVector = NaviampIcons.ChevronRight,
+                contentDescription = null,
+                tint = colors.primaryText,
+                modifier = Modifier.size(42.dp),
+            )
+        }
+        TelevisionCardLabels("View all", section.title, colors)
+    }
+}
+
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+internal fun TelevisionHomeCollection(
+    page: SharedHomeCollectionPageUi,
+    colors: NaviampColors,
+    actions: NaviampHomeActions,
+    mediaActions: NaviampMediaActions,
+    topNavigationFocusRequester: FocusRequester,
+) {
+    val items = page.section.items
+    val itemKeys = items.map { item -> "${item.mediaKind}:${item.mediaItem.id}" }
+    val focusRequesters = remember(itemKeys) { List(items.size) { FocusRequester() } }
+    val backFocusRequester = remember(page.section.id) { FocusRequester() }
+    val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val focusedRowInsetPx = with(density) { TelevisionGridFocusedRowTopInset.roundToPx() }
+    var focusedRowStart by remember { mutableStateOf<Int?>(null) }
+
+    suspend fun focusItem(index: Int) {
+        gridState.scrollToItem(index)
+        repeat(TelevisionFocusRequestAttempts) {
+            withFrameNanos { }
+            if (focusRequesters[index].requestFocus()) return
+        }
+    }
+
+    LaunchedEffect(page.section.id, itemKeys) {
+        if (items.isNotEmpty()) focusItem(0) else backFocusRequester.requestFocus()
+    }
+    LaunchedEffect(focusedRowStart) {
+        focusedRowStart?.let { gridState.scrollToItem(it, -focusedRowInsetPx) }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            TelevisionTextButton(
+                label = "Back",
+                colors = colors,
+                calmFocus = true,
+                onClick = actions.onCollectionBack,
+                modifier = Modifier
+                    .focusRequester(backFocusRequester)
+                    .testTag(TelevisionHomeCollectionBackTestTag)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                            topNavigationFocusRequester.requestFocus()
+                            true
+                        } else {
+                            false
+                        }
+                    },
+            )
+            Text(
+                page.section.title,
+                color = colors.primaryText,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 14.dp),
+            )
+            Spacer(Modifier.weight(1f))
+            Text("${items.size} items", color = colors.secondaryText, fontSize = 15.sp)
+        }
+        if (items.isEmpty()) {
+            Text("This collection is empty.", color = colors.secondaryText, fontSize = 20.sp)
+        } else {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val columnCount = televisionHomeCollectionColumnCount(maxWidth)
+                CompositionLocalProvider(LocalBringIntoViewSpec provides TelevisionGridBringIntoViewSpec) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columnCount),
+                        state = gridState,
+                        horizontalArrangement = Arrangement.spacedBy(TelevisionGridSpacing),
+                        verticalArrangement = Arrangement.spacedBy(22.dp),
+                        contentPadding = PaddingValues(TelevisionFocusedItemOverflow),
+                        modifier = Modifier.fillMaxSize().testTag(TelevisionHomeCollectionTestTag),
+                    ) {
+                        gridItemsIndexed(
+                            items,
+                            key = { _, item -> "${item.mediaKind}:${item.mediaItem.id}" },
+                        ) { index, item ->
+                            TelevisionHomeCard(
+                                item = item,
+                                colors = colors,
+                                onFocused = { focusedRowStart = televisionGridRowStart(index, columnCount) },
+                                onClick = { dispatchHomeCollectionItem(item, actions, mediaActions) },
+                                modifier = Modifier
+                                    .focusRequester(focusRequesters[index])
+                                    .testTag("$TelevisionHomeCollectionItemTestTagPrefix$index")
+                                    .onPreviewKeyEvent { event ->
+                                        if (
+                                            event.type == KeyEventType.KeyDown &&
+                                            event.key == Key.DirectionUp &&
+                                            index < columnCount
+                                        ) {
+                                            backFocusRequester.requestFocus()
+                                            true
+                                        } else {
+                                            val nextIndex = televisionGridRightTarget(index, items.size)
+                                            if (
+                                                event.type == KeyEventType.KeyDown &&
+                                                event.key == Key.DirectionRight &&
+                                                nextIndex != null
+                                            ) {
+                                                if (!focusRequesters[nextIndex].requestFocus()) {
+                                                    coroutineScope.launch { focusItem(nextIndex) }
+                                                }
+                                                true
+                                            } else {
+                                                false
+                                            }
+                                        }
+                                    },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun televisionHomeCollectionColumnCount(availableWidth: Dp): Int =
+    ((availableWidth + TelevisionGridSpacing) / (TelevisionHomeCardWidth + TelevisionGridSpacing))
+        .toInt()
+        .coerceAtLeast(1)
 
 @Composable
 internal fun TelevisionLibrary(
@@ -2408,3 +2577,7 @@ internal const val TelevisionNowPlayingListeningModeTestTag = "television-now-pl
 internal const val TelevisionNowPlayingQueueTestTag = "television-now-playing-queue"
 internal const val TelevisionNowPlayingQueueCurrentTestTag = "television-now-playing-queue-current"
 internal const val TelevisionNowPlayingQueueUpcomingTestTagPrefix = "television-now-playing-queue-upcoming-"
+internal const val TelevisionHomeViewAllTestTagPrefix = "television-home-view-all-"
+internal const val TelevisionHomeCollectionTestTag = "television-home-collection"
+internal const val TelevisionHomeCollectionBackTestTag = "television-home-collection-back"
+internal const val TelevisionHomeCollectionItemTestTagPrefix = "television-home-collection-item-"

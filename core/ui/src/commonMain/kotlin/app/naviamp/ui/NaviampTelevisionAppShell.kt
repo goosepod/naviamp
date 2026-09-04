@@ -242,10 +242,12 @@ fun NaviampTelevisionAppShell(
                     val albumDetailOpen = uiState.albumDetail.selectedAlbum != null
                     val artistDetailOpen = uiState.artistDetail.selectedArtist != null
                     val playlistDetailOpen = uiState.playlistDetail.selectedPlaylist != null
+                    val homeCollectionOpen = uiState.home.collectionPage != null
                     val internetRadioOpen = uiState.shellChrome.selectedRoute == SharedRoute.Radio
                     NaviampSystemBackHandler(
                         enabled = returnToNowPlayingFromSearch || nowPlayingPreview ||
-                            albumDetailOpen || artistDetailOpen || playlistDetailOpen || internetRadioOpen ||
+                            albumDetailOpen || artistDetailOpen || playlistDetailOpen || homeCollectionOpen ||
+                            internetRadioOpen ||
                             (!transientContentOpen && !navigationFocused),
                     ) {
                         if (
@@ -267,6 +269,7 @@ fun NaviampTelevisionAppShell(
                                 albumDetailOpen -> actions.albumDetailActions.onBack()
                                 artistDetailOpen -> actions.artistDetailActions.onBack()
                                 playlistDetailOpen -> actions.playlistDetailActions.onBack()
+                                homeCollectionOpen -> actions.homeActions.onCollectionBack()
                                 internetRadioOpen -> actions.navigationActions.onRouteSelected(SharedRoute.Library)
                                 else -> focusNavigation()
                             }
@@ -549,7 +552,6 @@ private fun TelevisionConnectedContent(
     contentEntryGeneration: Int,
     onContentEntryHandled: (Int) -> Unit,
 ) {
-    val hasStandardDetail = uiState.home.collectionPage != null
     val selectedContentDestination = naviampSelectedTelevisionDestination(
         uiState.shellChrome.selectedRoute,
         nowPlayingOpen = false,
@@ -587,14 +589,12 @@ private fun TelevisionConnectedContent(
             actions = actions.playlistDetailActions,
             topNavigationFocusRequester = topNavigationFocusRequester,
         )
-        hasStandardDetail -> ConnectedContent(
+        uiState.home.collectionPage != null -> TelevisionHomeCollection(
+            page = uiState.home.collectionPage,
             colors = colors,
-            uiState = uiState,
-            playbackProgress = playbackProgress,
-            visualizerBandsProvider = visualizerBandsProvider,
-            settingsSync = settingsSync,
-            actions = actions,
-            syncActions = syncActions,
+            actions = actions.homeActions,
+            mediaActions = televisionMediaActions,
+            topNavigationFocusRequester = topNavigationFocusRequester,
         )
         uiState.shellChrome.selectedRoute == SharedRoute.Home -> TelevisionHome(
             home = uiState.home,
