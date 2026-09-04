@@ -461,8 +461,11 @@ independent navigation graph may be introduced in the Apple TV host.
 
 ### M3: Naviamp Connect
 
-- [ ] Approve the versioned envelope, capability negotiation, connection identity, pairing threat
-  model, cryptographic dependency, key lifecycle, replay protection, and authority design.
+- [x] Approve the Android/JVM version-1 envelope, capability negotiation, connection identity,
+  pairing threat model, cryptographic dependency, key lifecycle, replay protection, and authority
+  design for the Android TV preview. The decision and accepted limitations are recorded in
+  [`naviamp-connect-protocol.md`](naviamp-connect-protocol.md#version-1-security-review--2026-09-04);
+  Apple remains subject to a separate implementation review.
 - [x] Implement initial shared target/controller state machines and fake-transport tests.
 - [x] Implement the shared Android/Desktop J-PAKE adapter, explicit mutual key confirmation,
   transcript-bound session-key derivation, and failure/destruction tests.
@@ -551,8 +554,9 @@ This is the authoritative exit checklist for publishing the Android TV preview. 
 Connect availability has additional topology and fresh-device requirements in
 [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md).
 
-- [ ] Approve the version-1 Connect protocol, pairing threat model, cryptographic/key lifecycle,
-  replay protection, and playback-authority design.
+- [x] Approve the Android/JVM version-1 Connect protocol, pairing threat model, cryptographic/key
+  lifecycle, replay protection, and playback-authority design. The review found and fixed replayed
+  resume-offer key/nonce reuse before approval.
 - [ ] Replace the remaining generic Home collection-page fallback and verify multiple saved-source
   switching on the emulator.
 - [ ] Verify controller browse/navigation restoration and product-UI source-mismatch recovery.

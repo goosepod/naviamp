@@ -53,6 +53,19 @@ completed phone/Desktop-to-TV-emulator coverage. A preview release still require
 physical Google TV validation. General availability remains gated by phone/Desktop playback-target
 acceptance, Apple hosts, broader topology coverage, and the recovery matrix listed below.
 
+### Protocol security gate update — 2026-09-04
+
+The Android/JVM version-1 protocol completed its internal threat-model and implementation review.
+The review found that trusted resumption originally relied only on a target-selected session ID, so
+a recorded target resume offer could induce reuse of an earlier AES-GCM key/nonce schedule. Because
+version 1 is unreleased, the wire contract was corrected in place: each controller supplies a fresh
+challenge, the target echoes it and contributes its own fresh nonce, both values are bound into the
+session/AEAD derivation context, and replayed offers are rejected before channel construction. The
+new regression and the existing PAKE, identity, channel, replay, capability, revision, source, and
+authority suites pass. The approved threat model and accepted limitations are recorded in
+[`naviamp-connect-protocol.md`](naviamp-connect-protocol.md#version-1-security-review--2026-09-04).
+Apple remains outside this approval until its implementation and interoperability tests exist.
+
 ## Findings
 
 ### 1. High: command completion is not tracked per request

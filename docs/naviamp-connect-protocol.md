@@ -10,8 +10,10 @@ commands with revisioned reconciliation. Connected targets render through the sh
 Now Playing controller surface. Same-source local-to-target queue handoff and controller-side
 catalog/Internet Radio playback routing, assisted connection provisioning, and reverse
 target-to-controller handoff, automatic trusted reconnect, output selection, and friendly-name,
-local-alias, and revoke management are implemented. Desktop discovery/advertising and secure-value
-effects are wired; Apple networking, PAKE, and key lifecycle remain pending.
+local-alias, and revoke management are implemented. The Android/Desktop version-1 design completed
+its internal protocol and threat-model review on 2026-09-04 after adding two-party freshness to
+trusted resumption. Desktop discovery/advertising and secure-value effects are wired; Apple
+networking, PAKE, and key lifecycle remain pending and are not covered by that approval.
 
 ## Purpose
 
@@ -50,6 +52,79 @@ targets without platform-specific product behavior. The complete experience chec
   Authenticated stream URLs are never transferred. Targets use their own authenticated provider
   session to create stream requests; compatible transferred metadata may establish the queue
   immediately while target-side enrichment or validation continues asynchronously.
+
+## Version 1 security review — 2026-09-04
+
+**Decision:** Approved for the Android TV preview on Android and JVM/Desktop. This is an internal
+architecture and implementation review, not an independent cryptographic audit. Apple transports,
+secure storage, and PAKE interoperability remain outside the approval until their adapters and test
+vectors exist.
+
+### Protected assets and trust boundary
+
+- The pairing code, PAKE/session roots, resumption credentials, durable private identity keys,
+  provider credentials, authenticated commands, authoritative queue/playback state, and transferred
+  library metadata are protected assets.
+- DNS-SD records, display names, instance IDs, protocol/capability ranges, listening ports, public
+  identity keys/fingerprints, and non-secret trust records are public local-network metadata.
+- Pairing establishes trust in one durable peer identity. After pairing, that trusted controller is
+  authorized for every capability the target advertises. Connection provisioning remains a separate
+  explicit target approval because it transfers provider credentials.
+
+### Attacker model and required properties
+
+Version 1 defends against a passive listener and an active unauthenticated attacker on the local
+network who can discover, connect, drop, delay, reorder, replay, alter, and inject packets or spoof
+DNS-SD metadata. It requires:
+
+- the six-digit display code never to cross the wire and each approved PAKE attempt to consume it;
+- the target's visible approval before PAKE work begins;
+- PAKE confirmation plus durable ECDSA proofs binding protocol version, session, ordered identities,
+  public keys, fingerprints, and controller/target roles;
+- independent directional AES-256-GCM keys and nonce prefixes, contiguous sequence enforcement,
+  bounded frames, and fail-closed authentication/session/payload handling;
+- a fresh controller challenge and fresh target nonce for every trusted resumption, both
+  length-delimited into the resumed session ID and therefore the AEAD derivation context;
+- exact trust pinning to the peer device ID, public key, and fingerprint, with mutable names and
+  capabilities excluded from cryptographic identity; and
+- capability checks, target-revision conflicts, occurrence IDs, source-identity validation,
+  request de-duplication, and idempotence-limited retry after authentication.
+
+During this review, the original resumption flow was found to rely only on a target-generated
+session ID. A recorded target offer could therefore be replayed to a controller and induce reuse of
+an earlier resumption key/nonce schedule. Version 1 was still unreleased, so its resume hello/offer
+contract was corrected in place: the controller now sends a CSPRNG-backed challenge, the target
+echoes it, both peers contribute fresh values to the session/AEAD context, and a mismatched or
+recorded offer is rejected before channel construction. A regression test exercises that replay.
+
+### Key and credential lifecycle
+
+- Android identity private keys and the credential-wrapping key are non-exportable Android Keystore
+  keys. Desktop identity and resumption material use the existing OS-backed credential protector.
+- The PAKE root retained for resumption is stored separately from the public trust record, copied
+  defensively at the Core boundary, and cleared from mutable buffers after use where the runtime
+  permits. Revocation removes the corresponding resumption credential.
+- Every initial pairing uses fresh J-PAKE ephemeral values. Every resumed channel uses fresh
+  controller and target contributions; direction, protocol version, and the resulting session ID
+  are bound into key derivation and authenticated data.
+- Loss or replacement of a device identity fails pinned resumption and requires explicit re-pairing.
+  Version 1 does not silently migrate or accept a changed public key.
+
+### Accepted limitations and non-goals
+
+- Availability is not guaranteed. A local attacker may flood discovery/listeners, suppress traffic,
+  or repeatedly cause failed connections. Bounded frames, deadlines, single-use approval, and
+  rate-limited invalid attempts limit resource use but do not prevent denial of service.
+- Discovery reveals a device name and stable public fingerprint while pairing/target advertising is
+  active, and encrypted traffic still reveals timing and frame sizes.
+- A compromised trusted controller may issue every negotiated command and view the state exposed to
+  controllers. A compromised target receives any provisioning secret the user explicitly approves.
+  Revocation is the recovery mechanism; per-command authorization is not a version-1 goal.
+- Resumption credentials are long-lived bearer secrets and do not provide forward secrecy if an OS
+  secure store is later compromised. Re-pairing rotates them; automatic ratcheting is deferred.
+- Rooted devices, process-memory compromise, malicious provider servers, and weaknesses in the OS
+  Keystore/Keychain/credential service or reviewed cryptographic libraries are outside the protocol
+  boundary. Apple support requires its own implementation review before general availability.
 
 ## Pairing and transport security
 
@@ -100,9 +175,9 @@ Successful initial pairing also retains the confirmed PAKE root behind Core's se
 boundary, separate from the non-secret trust record. While the TV explicitly advertises pairing
 mode, a remembered controller may use that credential to open a fresh session without another code
 or another trust record. The resume exchange binds both durable identities, the advertised target
-fingerprint, a fresh target-generated session ID, and encrypted mutual confirmations; a missing or
-mismatched credential fails closed. Android encrypts this credential with an AES-GCM key held in
-Android Keystore before persisting it.
+fingerprint, fresh controller and target contributions, and encrypted mutual confirmations into the
+new session; a replayed offer, missing/mismatched credential, or changed identity fails closed.
+Android encrypts this credential with an AES-GCM key held in Android Keystore before persisting it.
 
 Each peer then signs one canonical proof binding the negotiated protocol, pairing-session ID,
 ordered controller and target device IDs, fingerprints, and public keys. Core verifies that each
@@ -135,8 +210,9 @@ is active, and discovery alone never enables commands or connection provisioning
    transport tests. **Implemented.**
 2. Shared discovery/advertising coordinators and narrow native DNS-SD adapters, with no command
    policy in the host. **Shared coordinators plus Android browsing/registration and Desktop JmDNS
-   browsing/registration are implemented. Android is verified between a physical Pixel and the TV
-   emulator; Desktop live interoperability and Apple remain pending.**
+   browsing/registration are implemented. Android DNS-SD lifecycle is verified on the physical
+   Pixel and TV emulator, while multicast across the emulator boundary is environment-dependent;
+   Desktop-to-TV-emulator live interoperability is complete and Apple remains pending.**
 3. Reviewed PAKE, identity, secure-storage, and encrypted-session adapters. **Android/Desktop
    J-PAKE, AES-256-GCM, bounded framed TCP, Core pairing orchestration, and Android Keystore identity
    implemented; Android durable trust persistence is implemented; Apple adapters remain pending.**
@@ -144,8 +220,8 @@ is active, and discovery alone never enables commands or connection provisioning
    recovery flows.
    **Android TV pairing/approval and Android phone discovery/code entry are wired to the shared Core
    lifecycle. Shared output selection, self-name/local-alias editing, revoke, and automatic trusted
-   reconnect are implemented. Stronger diagnostics/recovery presentation, Desktop live acceptance,
-   and Apple host wiring remain.**
+   reconnect are implemented. Desktop-to-TV-emulator live acceptance is complete. Stronger
+   diagnostics/recovery presentation and Apple host wiring remain.**
 5. Shared playback projection, target command executor, and shared remote Now Playing controller
    surface wired to the existing shared playback owner. **Implemented for transport, seeking,
    favorites, repeat, shuffle, queue selection, Play Next, reorder, removal, catalog playback, and
@@ -166,7 +242,7 @@ catalog action routing. JVM tests additionally complete matching-code J-PAKE exc
 compare derived secrets, verify caller-code and secret destruction, and reject wrong codes, altered
 confirmations, malformed payloads, out-of-order rounds, and cross-session messages. Android
 instrumentation additionally covers DNS-SD translation,
-registration, browse lifecycle, real Pixel-to-TV-emulator discovery, and a durable Keystore EC
+registration and browse lifecycle on both Android devices, and a durable Keystore EC
 identity whose signatures verify against its exported public key. The complete matching-code
 J-PAKE exchange also passes on the physical Pixel 10a, including confirmation and equal 32-byte
 session roots for both roles. JVM coverage additionally verifies bidirectional authenticated
@@ -174,9 +250,11 @@ envelopes, directional key separation, session binding, replay/gap rejection, ta
 secret destruction, bounded TCP framing, clean peer closure, and oversized-frame rejection. The
 bounded framed-TCP effect also round-trips in both directions on the physical Pixel 10a. The
 complete Android pairing path also passes from the physical Pixel controller to the Android TV
-emulator target with separate Keystore identities and an encrypted post-pair ping/pong. The
-emulator's private NAT address required a temporary test-only host TCP relay; discovery and both
-protocol endpoints remained on the actual devices. The shared settings surfaces compile for
+emulator target with separate Keystore identities and encrypted Play, queue handoff, provisioning,
+Internet Radio, and album commands. The emulator's private NAT address required a temporary
+test-only host TCP relay and explicit-host test route because multicast and direct TCP do not
+reliably cross that boundary; both protocol endpoints remained on the actual devices. The shared
+settings surfaces compile for
 Android, Desktop/JVM, and iOS Simulator ARM64. Android now injects the real effects: the TV
 Controllers page starts a bound listener, advertises its actual port and identity, displays the
 short code, and requires explicit approval; the standard Android settings page discovers targets
