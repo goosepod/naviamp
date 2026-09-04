@@ -52,6 +52,13 @@
     <string name="common_reconnect">Reconectar</string>
     <string name="common_connecting">Conectando</string>
 
+    <string name="connect_source_mismatch_title">Fuentes de música diferentes</string>
+    <string name="connect_source_mismatch_message">%1$s no puede reproducir esta selección porque usa una fuente de música diferente. Cambia la fuente de este dispositivo en Ajustes o configura de forma segura el dispositivo de reproducción con la fuente actual de este dispositivo. La reproducción y ambas colas no se modificaron.</string>
+    <string name="connect_source_mismatch_set_up">Configurar %1$s</string>
+    <string name="connect_source_mismatch_open_settings">Abrir ajustes</string>
+    <string name="connect_source_mismatch_not_now">Ahora no</string>
+    <string name="connect_source_mismatch_playback_device">Dispositivo de reproducción</string>
+
     <string name="settings_debugging_title">Depuración</string>
     <string name="settings_debugging_empty">Los diagnósticos aparecerán cuando se inicialice la app.</string>
     <string name="settings_lyrics_title">Letras</string>

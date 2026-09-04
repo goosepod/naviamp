@@ -56,6 +56,7 @@ import app.naviamp.ui.NaviampConnectPairingUiPhase
 import app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus
 import app.naviamp.ui.NaviampConnectSettingsActions
 import app.naviamp.ui.NaviampConnectSettingsUi
+import app.naviamp.ui.NaviampConnectSourceMismatchUi
 import app.naviamp.ui.NaviampConnectTrustedDeviceUi
 import app.naviamp.ui.NaviampConnectUiRole
 import app.naviamp.ui.NowPlayingPlaybackAction
@@ -187,6 +188,7 @@ class NaviampCoreConnectController(
     private var pendingProvisioningSession: NaviampConnectAuthenticatedSession? = null
     private var pendingProvisioningControllerName: String? = null
     private var needsProvisioningCredential = false
+    private var sourceMismatchRecoveryVisible = false
     private val supportedTargetCapabilities: Set<NaviampConnectCapability> =
         NaviampCoreSupportedConnectTargetCapabilities + if (
             targetConnection != null && targetSettings != null
@@ -226,6 +228,7 @@ class NaviampCoreConnectController(
         onProvisionTarget = ::provisionTarget,
         onApproveProvisioning = ::approveProvisioning,
         onRejectProvisioning = ::rejectProvisioning,
+        onDismissSourceMismatchRecovery = ::dismissSourceMismatchRecovery,
         remoteNowPlayingActions = createNaviampCoreConnectRemoteNowPlayingActions(
             snapshot = { controllerSession?.state?.value?.snapshot },
             send = ::sendRemoteCommand,
@@ -1212,7 +1215,8 @@ class NaviampCoreConnectController(
                             trustedDeviceId?.let(playbackDestination::activatePlaybackAuthority)
                             status = null
                         } else {
-                            status = completed.remoteCommandFailureMessage(
+                            applyRemoteCommandFailure(
+                                completed,
                                 "The playback device did not start the selection.",
                             )
                         }
@@ -1220,7 +1224,7 @@ class NaviampCoreConnectController(
                         status = null
                     }
                 }
-                is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> status = result.error.message
+                is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> applyRemoteCommandError(result.error)
                 is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
                     handleControllerWriteFailure(connected, result.result)
             }
@@ -1254,16 +1258,17 @@ class NaviampCoreConnectController(
                 naviampCoreConnectQueueHandoff(checkNotNull(live), checkNotNull(identity), playing)
             }
             when (val sent = connected.send(handoff)) {
-                is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> status = sent.error.message
+                is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> applyRemoteCommandError(sent.error)
                 is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
                     handleControllerWriteFailure(connected, sent.result)
                 is app.naviamp.app.NaviampConnectCommandSendResult.Sent -> {
                     val completed = awaitRemoteCommand(connected, sent.requestId)
-                    status = if (completed is app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged) {
-                            trustedDeviceId?.let(playbackDestination::activatePlaybackAuthority)
-                            "Queue sent to ${connected.state.value.target?.displayName ?: "the playback device"}."
+                    if (completed is app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged) {
+                        trustedDeviceId?.let(playbackDestination::activatePlaybackAuthority)
+                        status = "Queue sent to ${connected.state.value.target?.displayName ?: "the playback device"}."
                     } else {
-                        completed.remoteCommandFailureMessage(
+                        applyRemoteCommandFailure(
+                            completed,
                             "The playback device did not respond to the queue transfer.",
                         )
                     }
@@ -1276,6 +1281,7 @@ class NaviampCoreConnectController(
     private fun provisionTarget() {
         val sessions = providerSessions ?: return
         val connected = controllerSession ?: return
+        sourceMismatchRecoveryVisible = false
         status = "Preparing this connection for secure TV setup…"
         publish()
         controllerScope.launch {
@@ -1369,7 +1375,8 @@ class NaviampCoreConnectController(
         val localIdentity = sourceIdentity() ?: return
         val remoteIdentity = remote.sourceIdentity ?: return
         if (!localIdentity.isCompatibleWith(remoteIdentity)) {
-            status = "The TV queue belongs to a different music source."
+            sourceMismatchRecoveryVisible = true
+            status = null
             publish()
             return
         }
@@ -1422,6 +1429,33 @@ class NaviampCoreConnectController(
         requestId: String,
     ): app.naviamp.app.NaviampConnectRequestTerminalResult =
         connected.awaitTerminalResult(requestId, 10_000L)
+
+    private fun applyRemoteCommandError(error: app.naviamp.domain.connect.NaviampConnectErrorMessage) {
+        if (error.code == NaviampConnectErrorCode.SourceMismatch) {
+            sourceMismatchRecoveryVisible = true
+            status = null
+        } else {
+            status = error.message
+        }
+    }
+
+    private fun applyRemoteCommandFailure(
+        result: app.naviamp.app.NaviampConnectRequestTerminalResult,
+        fallback: String,
+    ) {
+        val rejection = result as? app.naviamp.app.NaviampConnectRequestTerminalResult.ProtocolRejected
+        if (rejection?.error?.code == NaviampConnectErrorCode.SourceMismatch) {
+            applyRemoteCommandError(rejection.error)
+        } else {
+            status = result.remoteCommandFailureMessage(fallback)
+        }
+    }
+
+    private fun dismissSourceMismatchRecovery() {
+        sourceMismatchRecoveryVisible = false
+        status = null
+        publish()
+    }
 
     private fun handleControllerWriteFailure(
         connected: NaviampConnectControllerSession,
@@ -1573,6 +1607,16 @@ class NaviampCoreConnectController(
                     canProvisionTarget = remote?.capabilities?.contains(
                         NaviampConnectCapability.ConnectionProvisioning,
                     ) == true && providerSessions?.currentSourceId() != null,
+                    sourceMismatchRecovery = if (sourceMismatchRecoveryVisible) {
+                        NaviampConnectSourceMismatchUi(
+                            targetName = remote?.target?.displayName,
+                            canProvisionTarget = remote?.capabilities?.contains(
+                                NaviampConnectCapability.ConnectionProvisioning,
+                            ) == true && providerSessions?.currentSourceId() != null,
+                        )
+                    } else {
+                        null
+                    },
                     needsProvisioningCredential = needsProvisioningCredential,
                     pendingProvisioningControllerName = pendingProvisioningControllerName,
                     pendingProvisioningConnectionName = pendingProvisioning?.profile?.displayName

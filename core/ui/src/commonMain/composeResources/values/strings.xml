@@ -52,6 +52,13 @@
     <string name="common_reconnect">Reconnect</string>
     <string name="common_connecting">Connecting</string>
 
+    <string name="connect_source_mismatch_title">Different music sources</string>
+    <string name="connect_source_mismatch_message">%1$s cannot play this selection because it uses a different music source. Switch this device's source in Settings, or securely set up the playback device with this device's current source. Playback and both queues were left unchanged.</string>
+    <string name="connect_source_mismatch_set_up">Set up %1$s</string>
+    <string name="connect_source_mismatch_open_settings">Open settings</string>
+    <string name="connect_source_mismatch_not_now">Not now</string>
+    <string name="connect_source_mismatch_playback_device">Playback device</string>
+
     <string name="settings_debugging_title">Debugging</string>
     <string name="settings_debugging_empty">Diagnostics will appear after the app initializes.</string>
     <string name="settings_lyrics_title">Lyrics</string>

@@ -43,6 +43,11 @@ data class NaviampConnectTrustedDeviceUi(
     val playbackTarget: Boolean = false,
 )
 
+data class NaviampConnectSourceMismatchUi(
+    val targetName: String?,
+    val canProvisionTarget: Boolean,
+)
+
 data class NaviampConnectSettingsUi(
     val available: Boolean = false,
     val role: NaviampConnectUiRole = NaviampConnectUiRole.Controller,
@@ -69,6 +74,7 @@ data class NaviampConnectSettingsUi(
     val canHandoffLocalQueue: Boolean = false,
     val canReceiveRemoteQueue: Boolean = false,
     val canProvisionTarget: Boolean = false,
+    val sourceMismatchRecovery: NaviampConnectSourceMismatchUi? = null,
     val needsProvisioningCredential: Boolean = false,
     val pendingProvisioningControllerName: String? = null,
     val pendingProvisioningConnectionName: String? = null,
@@ -112,6 +118,7 @@ data class NaviampConnectSettingsActions(
     val onProvisionTarget: () -> Unit,
     val onApproveProvisioning: () -> Unit,
     val onRejectProvisioning: () -> Unit,
+    val onDismissSourceMismatchRecovery: () -> Unit,
     val remoteNowPlayingActions: NaviampNowPlayingActions,
 )
 

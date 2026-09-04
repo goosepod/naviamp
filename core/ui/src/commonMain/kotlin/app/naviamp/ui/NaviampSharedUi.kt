@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -43,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -335,10 +337,73 @@ fun NaviampSharedAppShell(
                 }
             }
         }
+        uiState.connect.sourceMismatchRecovery?.let { recovery ->
+            NaviampConnectSourceMismatchDialog(
+                recovery = recovery,
+                colors = colors,
+                onOpenSettings = {
+                    connectActions?.onDismissSourceMismatchRecovery?.invoke()
+                    navigationActions.onCloseNowPlaying()
+                    navigationActions.onRouteSelected(SharedRoute.Settings)
+                },
+                onProvisionTarget = connectActions?.onProvisionTarget,
+                onDismiss = { connectActions?.onDismissSourceMismatchRecovery?.invoke() },
+            )
+        }
     }
 
     }
 }
+
+@Composable
+internal fun NaviampConnectSourceMismatchDialog(
+    recovery: NaviampConnectSourceMismatchUi,
+    colors: NaviampColors,
+    onOpenSettings: () -> Unit,
+    onProvisionTarget: (() -> Unit)?,
+    onDismiss: () -> Unit,
+) {
+    val targetName = recovery.targetName ?: stringResource(Res.string.connect_source_mismatch_playback_device)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.controlSurface,
+        title = { Text(stringResource(Res.string.connect_source_mismatch_title), color = colors.primaryText) },
+        text = {
+            Text(
+                stringResource(Res.string.connect_source_mismatch_message, targetName),
+                color = colors.secondaryText,
+            )
+        },
+        confirmButton = {
+            if (recovery.canProvisionTarget && onProvisionTarget != null) {
+                TextButton(
+                    onClick = onProvisionTarget,
+                    modifier = Modifier.testTag(NaviampConnectSourceMismatchProvisionTestTag),
+                ) { Text(stringResource(Res.string.connect_source_mismatch_set_up, targetName)) }
+            } else {
+                TextButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.testTag(NaviampConnectSourceMismatchSettingsTestTag),
+                ) { Text(stringResource(Res.string.connect_source_mismatch_open_settings)) }
+            }
+        },
+        dismissButton = {
+            if (recovery.canProvisionTarget && onProvisionTarget != null) {
+                TextButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.testTag(NaviampConnectSourceMismatchSettingsTestTag),
+                ) { Text(stringResource(Res.string.connect_source_mismatch_open_settings)) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.connect_source_mismatch_not_now)) }
+            }
+        },
+        modifier = Modifier.testTag(NaviampConnectSourceMismatchDialogTestTag),
+    )
+}
+
+internal const val NaviampConnectSourceMismatchDialogTestTag = "connect-source-mismatch"
+internal const val NaviampConnectSourceMismatchProvisionTestTag = "connect-source-mismatch-provision"
+internal const val NaviampConnectSourceMismatchSettingsTestTag = "connect-source-mismatch-settings"
 
 internal fun sharedRouteCanUseOwnScroll(
     editingConnection: Boolean,
