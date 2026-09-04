@@ -381,12 +381,21 @@
     <string name="search_tracks_section">TRACKS</string>
 
     <string name="library_title">Library</string>
+    <string name="library_view_artists">Artists</string>
+    <string name="library_view_albums">Albums</string>
+    <string name="library_view_songs">Songs</string>
     <string name="library_search_artists">Search library artists</string>
+    <string name="library_search_albums">Search library albums</string>
+    <string name="library_search_songs">Search library songs</string>
     <string name="library_clear_search">Clear library search</string>
     <string name="library_refresh">Refresh</string>
     <string name="library_refreshing">Refreshing...</string>
     <string name="library_no_artists">No library artists found.</string>
     <string name="library_no_artist_matches">No library artists match.</string>
+    <string name="library_no_albums">No library albums found.</string>
+    <string name="library_no_album_matches">No library albums match.</string>
+    <string name="library_no_songs">No library songs found.</string>
+    <string name="library_no_song_matches">No library songs match.</string>
 
     <string name="downloads_offline_title">Downloads</string>
     <string name="downloads_summary">%1$d files - %2$s of %3$s</string>

@@ -19,6 +19,10 @@ class NaviampCoreMediaRegistry {
         private set
     var libraryArtists: List<Artist> = emptyList()
         private set
+    var libraryAlbums: List<Album> = emptyList()
+        private set
+    var libraryTracks: List<Track> = emptyList()
+        private set
     var albumDetails: AlbumDetails? = null
         private set
     var artistDetails: ArtistDetails? = null
@@ -49,6 +53,14 @@ class NaviampCoreMediaRegistry {
         libraryArtists = if (replace) artists else (libraryArtists + artists).distinctBy { it.id }
     }
 
+    fun updateLibraryAlbums(albums: List<Album>, replace: Boolean) {
+        libraryAlbums = if (replace) albums else (libraryAlbums + albums).distinctBy { it.id }
+    }
+
+    fun updateLibraryTracks(tracks: List<Track>, replace: Boolean) {
+        libraryTracks = if (replace) tracks else (libraryTracks + tracks).distinctBy { it.id }
+    }
+
     fun updateAlbum(details: AlbumDetails?) {
         albumDetails = details
     }
@@ -77,6 +89,7 @@ class NaviampCoreMediaRegistry {
         artistDetails?.albums?.firstOrNull { it.id.value == id },
         homeAlbums().firstOrNull { it.id.value == id },
         search.albums.firstOrNull { it.id.value == id },
+        libraryAlbums.firstOrNull { it.id.value == id },
     ).filterNotNull().firstOrNull { it.id.value == id }
 
     fun artist(id: String): Artist? = sequenceOf(
@@ -98,6 +111,7 @@ class NaviampCoreMediaRegistry {
             albumDetails?.tracks.orEmpty() +
             artistPopularTracks +
             selectedPlaylistTracks +
+            libraryTracks +
             sonicRows.rows.flatMap { it.tracks }
         ).distinctBy { it.id }
 
@@ -114,6 +128,7 @@ class NaviampCoreMediaRegistry {
         albumDetails = albumDetails?.copy(tracks = albumDetails!!.tracks.replace(track))
         artistPopularTracks = artistPopularTracks.replace(track)
         selectedPlaylistTracks = selectedPlaylistTracks.replace(track)
+        libraryTracks = libraryTracks.replace(track)
         sonicRows = sonicRows.copy(
             rows = sonicRows.rows.map { row -> row.copy(tracks = row.tracks.replace(track)) },
         )

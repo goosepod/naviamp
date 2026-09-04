@@ -551,7 +551,7 @@ class NaviampCoreTest {
         advanceUntilIdle()
 
         assertEquals(listOf(provider.playlist.name), core.state.value.shell.home.content.playlists.map { it.title })
-        assertEquals(listOf(provider.artist.name), core.state.value.shell.library.artists.map { it.title })
+        assertEquals(listOf(provider.artist.name), core.state.value.shell.library.artists.items.map { it.title })
         assertEquals(listOf(provider.playlist.name), core.state.value.shell.playlists.playlists.map { it.title })
         assertTrue(core.state.value.shell.playback.sonicSimilarityAvailable)
         assertTrue(core.state.value.shell.capabilities.sonicSimilarity)

@@ -87,10 +87,13 @@ internal fun naviampCoreDiagnostics(
     sections += NaviampDiagnosticsSectionUi(
         "Library",
         listOf(
-            "Syncing" to shell.library.syncStatus.isSyncing.toString(),
-            "Status" to (shell.library.syncStatus.message ?: "Idle"),
-            "Search query" to shell.library.query.ifBlank { "None" },
-            "Loaded artists" to shell.library.artists.size.toString(),
+            "View" to shell.library.selectedView.name,
+            "Syncing" to shell.library.selectedCatalog.syncStatus.isSyncing.toString(),
+            "Status" to (shell.library.selectedCatalog.syncStatus.message ?: "Idle"),
+            "Search query" to shell.library.selectedCatalog.query.ifBlank { "None" },
+            "Loaded artists" to shell.library.artists.items.size.toString(),
+            "Loaded albums" to shell.library.albums.items.size.toString(),
+            "Loaded songs" to shell.library.songs.tracks.size.toString(),
             "Indexed artists" to (storage?.libraryArtistCount?.toString() ?: "Unknown"),
             "Indexed albums" to (storage?.libraryAlbumCount?.toString() ?: "Unknown"),
             "Indexed tracks" to (storage?.libraryTrackCount?.toString() ?: "Unknown"),

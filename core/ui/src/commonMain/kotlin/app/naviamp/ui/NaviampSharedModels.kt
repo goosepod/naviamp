@@ -689,13 +689,37 @@ data class NaviampSearchActions(
     val onClear: () -> Unit,
 )
 
-data class NaviampLibraryScreenUi(
-    val artists: List<SharedMediaItemUi> = emptyList(),
+enum class NaviampLibraryView {
+    Artists,
+    Albums,
+    Songs,
+}
+
+data class NaviampLibraryCatalogUi(
     val query: String = "",
+    val items: List<SharedMediaItemUi> = emptyList(),
+    val tracks: List<SharedTrackRowUi> = emptyList(),
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
 )
 
+data class NaviampLibraryScreenUi(
+    val selectedView: NaviampLibraryView = NaviampLibraryView.Artists,
+    val artists: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
+    val albums: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
+    val songs: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
+) {
+    fun catalog(view: NaviampLibraryView): NaviampLibraryCatalogUi = when (view) {
+        NaviampLibraryView.Artists -> artists
+        NaviampLibraryView.Albums -> albums
+        NaviampLibraryView.Songs -> songs
+    }
+
+    val selectedCatalog: NaviampLibraryCatalogUi
+        get() = catalog(selectedView)
+}
+
 data class NaviampLibraryActions(
+    val onViewChanged: (NaviampLibraryView) -> Unit,
     val onQueryChanged: (String) -> Unit,
     val onRefresh: () -> Unit,
     val onLoadMore: () -> Unit,

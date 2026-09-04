@@ -99,6 +99,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Library : NaviampCoreCommand {
+        data class ChangeView(val view: app.naviamp.ui.NaviampLibraryView) : Library
         data class ChangeQuery(val query: String) : Library
         data object Refresh : Library
         data object LoadMore : Library

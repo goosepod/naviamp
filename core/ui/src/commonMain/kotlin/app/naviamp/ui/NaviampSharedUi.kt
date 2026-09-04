@@ -518,7 +518,7 @@ private fun ConnectedContent(
                 )
             }
             SharedRoute.Library -> PullToRefreshRoute(
-                isRefreshing = library.syncStatus.isSyncing,
+                isRefreshing = library.selectedCatalog.syncStatus.isSyncing,
                 onRefresh = libraryActions.onRefresh,
             ) {
                 NaviampLibraryContent(

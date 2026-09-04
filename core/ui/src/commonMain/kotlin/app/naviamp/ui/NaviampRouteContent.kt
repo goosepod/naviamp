@@ -32,6 +32,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1210,9 +1211,18 @@ fun NaviampLibraryContent(
     mediaActions: NaviampMediaActions,
     listState: LazyListState,
 ) {
-    val items = screen.artists
-    val query = screen.query
-    val syncStatus = screen.syncStatus
+    val catalog = screen.selectedCatalog
+    val items = catalog.items
+    val tracks = catalog.tracks
+    val query = catalog.query
+    val syncStatus = catalog.syncStatus
+    val albumListState = rememberLazyListState()
+    val songListState = rememberLazyListState()
+    val activeListState = when (screen.selectedView) {
+        NaviampLibraryView.Artists -> listState
+        NaviampLibraryView.Albums -> albumListState
+        NaviampLibraryView.Songs -> songListState
+    }
     val searchFocusRequester = remember { FocusRequester() }
     var pendingJump by remember { mutableStateOf<Char?>(null) }
     val filteredItems = remember(items, query) {
@@ -1227,13 +1237,23 @@ fun NaviampLibraryContent(
             }
         }
     }
-    androidx.compose.runtime.LaunchedEffect(items, pendingJump) {
+    val filteredTracks = remember(tracks, query) {
+        val normalizedQuery = query.trim().lowercase()
+        if (normalizedQuery.isBlank()) tracks else tracks.filter { track ->
+            track.title.lowercase().contains(normalizedQuery) || track.subtitle.lowercase().contains(normalizedQuery)
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(items, tracks, pendingJump) {
         val letter = pendingJump ?: return@LaunchedEffect
         val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
-        val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
+        val index = if (screen.selectedView == NaviampLibraryView.Songs) {
+            filteredTracks.indexOfFirst { track -> track.title.lowercase() >= boundary }
+        } else {
+            filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
+        }
         if (index >= 0) {
-            val headerCount = 1 + if (syncStatus.message != null) 1 else 0
-            listState.scrollToItem(index + headerCount)
+            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
+            activeListState.scrollToItem(index + headerCount)
             pendingJump = null
         }
     }
@@ -1261,15 +1281,39 @@ fun NaviampLibraryContent(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             LazyColumn(
-                state = listState,
+                state = activeListState,
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+            item(key = "library-view-selector") {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp).horizontalScroll(rememberScrollState()),
+                ) {
+                    NaviampLibraryView.entries.forEach { view ->
+                        val label = when (view) {
+                            NaviampLibraryView.Artists -> stringResource(Res.string.library_view_artists)
+                            NaviampLibraryView.Albums -> stringResource(Res.string.library_view_albums)
+                            NaviampLibraryView.Songs -> stringResource(Res.string.library_view_songs)
+                        }
+                        FilterChip(
+                            selected = screen.selectedView == view,
+                            onClick = { actions.onViewChanged(view) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+            }
             item {
+            val searchPlaceholder = when (screen.selectedView) {
+                NaviampLibraryView.Artists -> stringResource(Res.string.library_search_artists)
+                NaviampLibraryView.Albums -> stringResource(Res.string.library_search_albums)
+                NaviampLibraryView.Songs -> stringResource(Res.string.library_search_songs)
+            }
             NaviampCompactSearchField(
                 value = query,
                 onValueChange = actions.onQueryChanged,
-                placeholder = stringResource(Res.string.library_search_artists),
+                placeholder = searchPlaceholder,
                 colors = colors,
                 onClear = {
                     actions.onQueryChanged("")
@@ -1294,56 +1338,107 @@ fun NaviampLibraryContent(
                 }
                 }
             }
-            if (filteredItems.isEmpty()) {
+            if (filteredItems.isEmpty() && filteredTracks.isEmpty()) {
                 item {
+                val emptyMessage = when (screen.selectedView) {
+                    NaviampLibraryView.Artists -> if (query.isBlank()) {
+                        stringResource(Res.string.library_no_artists)
+                    } else {
+                        stringResource(Res.string.library_no_artist_matches)
+                    }
+                    NaviampLibraryView.Albums -> if (query.isBlank()) {
+                        stringResource(Res.string.library_no_albums)
+                    } else {
+                        stringResource(Res.string.library_no_album_matches)
+                    }
+                    NaviampLibraryView.Songs -> if (query.isBlank()) {
+                        stringResource(Res.string.library_no_songs)
+                    } else {
+                        stringResource(Res.string.library_no_song_matches)
+                    }
+                }
                 Text(
-                    if (query.isBlank()) stringResource(Res.string.library_no_artists) else stringResource(Res.string.library_no_artist_matches),
+                    emptyMessage,
                     color = colors.secondaryText,
                     fontSize = 13.sp,
                 )
                 }
             }
-            items(
-                items = filteredItems,
-                key = { item -> item.id },
-            ) { item ->
-                val menuItems = artistRowActions(
-                    canStartRadio = NaviampSharedMediaCapabilities.artist.canStartRadio,
-                    canAddToQueue = NaviampSharedMediaCapabilities.artist.canAddToQueue,
-                    canAddToPlaylist = NaviampSharedMediaCapabilities.artist.canAddToPlaylist,
-                    canFavorite = NaviampSharedMediaCapabilities.artist.canToggleFavorite && item.canFavorite,
-                    favoriteActive = item.favoriteActive,
-                ).mapNotNull { spec ->
-                    spec.action.artistMediaCommandOrNull()?.let { command ->
+            if (screen.selectedView == NaviampLibraryView.Songs) {
+                items(items = filteredTracks, key = { track -> track.id }) { track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackAction = mediaActions.onTrackAction,
+                        canSelect = true,
+                        canStartRadio = true,
+                        canAddToQueue = true,
+                        canDownload = true,
+                        canAddToPlaylist = true,
+                        background = true,
+                        horizontalPadding = 6.dp,
+                    )
+                }
+            } else {
+                items(items = filteredItems, key = { item -> item.id }) { item ->
+                    val kind = if (screen.selectedView == NaviampLibraryView.Artists) {
+                        SharedMediaItemKind.Artist
+                    } else {
+                        SharedMediaItemKind.Album
+                    }
+                    val specs = if (kind == SharedMediaItemKind.Artist) {
+                        artistRowActions(
+                            canStartRadio = NaviampSharedMediaCapabilities.artist.canStartRadio,
+                            canAddToQueue = NaviampSharedMediaCapabilities.artist.canAddToQueue,
+                            canAddToPlaylist = NaviampSharedMediaCapabilities.artist.canAddToPlaylist,
+                            canFavorite = NaviampSharedMediaCapabilities.artist.canToggleFavorite && item.canFavorite,
+                            favoriteActive = item.favoriteActive,
+                        )
+                    } else {
+                        albumRowActions(
+                            canStartRadio = NaviampSharedMediaCapabilities.album.canStartRadio,
+                            canDownload = NaviampSharedMediaCapabilities.album.canDownload,
+                            canAddToQueue = NaviampSharedMediaCapabilities.album.canAddToQueue,
+                            canAddToPlaylist = NaviampSharedMediaCapabilities.album.canAddToPlaylist,
+                            canFavorite = NaviampSharedMediaCapabilities.album.canToggleFavorite && item.canFavorite,
+                            favoriteActive = item.favoriteActive,
+                        )
+                    }
+                    val menuItems = specs.mapNotNull { spec ->
+                        val command = if (kind == SharedMediaItemKind.Artist) {
+                            spec.action.artistMediaCommandOrNull()?.let(NaviampMediaItemCommand::Artist)
+                        } else {
+                            spec.action.albumMediaCommandOrNull()?.let(NaviampMediaItemCommand::Album)
+                        }
+                        command?.let {
                         NaviampRowMenuItem(
                             label = spec.label,
                             icon = spec.icon,
                             onClick = {
-                                mediaActions.onMediaItemAction(
-                                    NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Artist(command)),
-                                )
+                                mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, it))
                             },
                             enabled = spec.enabled,
                         )
                     }
+                    }
+                    SharedMediaRow(
+                        item = item,
+                        colors = colors,
+                        menuItems = menuItems,
+                        onClick = {
+                            val command = if (kind == SharedMediaItemKind.Artist) {
+                                NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select)
+                            } else {
+                                NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select)
+                            }
+                            mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, command))
+                        },
+                    )
                 }
-                SharedMediaRow(
-                    item = item,
-                    colors = colors,
-                    menuItems = menuItems,
-                    onClick = {
-                        mediaActions.onMediaItemAction(
-                            NaviampMediaItemActionRequest(
-                                item,
-                                NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select),
-                            ),
-                        )
-                    },
-                )
             }
-            if (query.isBlank() && items.isNotEmpty()) {
-                item(key = "library-load-more") {
-                    androidx.compose.runtime.LaunchedEffect(items.size) {
+            if (filteredItems.isNotEmpty() || filteredTracks.isNotEmpty()) {
+                item(key = "library-load-more-${screen.selectedView.name}") {
+                    androidx.compose.runtime.LaunchedEffect(screen.selectedView, items.size, tracks.size, query) {
                         if (!syncStatus.isSyncing) actions.onLoadMore()
                     }
                 }

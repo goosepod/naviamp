@@ -181,6 +181,7 @@ fun createNaviampCoreActions(
             onDeleteAll = { send(NaviampCoreCommand.Downloads.DeleteAll) },
         ),
         libraryActions = NaviampLibraryActions(
+            onViewChanged = { send(NaviampCoreCommand.Library.ChangeView(it)) },
             onQueryChanged = { send(NaviampCoreCommand.Library.ChangeQuery(it)) },
             onRefresh = { send(NaviampCoreCommand.Library.Refresh) },
             onLoadMore = { send(NaviampCoreCommand.Library.LoadMore) },

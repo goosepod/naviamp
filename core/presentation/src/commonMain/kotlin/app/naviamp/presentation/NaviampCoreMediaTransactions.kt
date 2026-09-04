@@ -506,7 +506,9 @@ class NaviampCoreMediaTransactions(
         fun List<SharedMediaItemUi>.updated() = map { if (it.id == id) it.copy(favoriteActive = active) else it }
         stateStore.updateShell { shell -> shell.copy(
             search = shell.search.copy(results = shell.search.results.copy(artists = shell.search.results.artists.updated())),
-            library = shell.library.copy(artists = shell.library.artists.updated()),
+            library = shell.library.copy(
+                artists = shell.library.artists.copy(items = shell.library.artists.items.updated()),
+            ),
             artistDetail = shell.artistDetail.copy(
                 selectedArtist = shell.artistDetail.selectedArtist?.let { if (it.id == id) it.copy(favoriteActive = active) else it },
                 detail = shell.artistDetail.detail?.let { detail ->
@@ -521,6 +523,9 @@ class NaviampCoreMediaTransactions(
             if (it.id == id) it.copy(favoriteActive = active) else it
         }
         stateStore.updateShell { shell -> shell.copy(
+            library = shell.library.copy(
+                songs = shell.library.songs.copy(tracks = shell.library.songs.tracks.updated()),
+            ),
             home = shell.home.copy(content = shell.home.content.copy(
                 recentlyPlayedTracks = shell.home.content.recentlyPlayedTracks.updated(),
                 sonicDiscoveryRows = shell.home.content.sonicDiscoveryRows.map { it.copy(tracks = it.tracks.updated()) },
