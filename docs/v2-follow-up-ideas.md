@@ -22,6 +22,104 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Switchable Complete Library Views
+
+- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#switchable-complete-library-views)
+- **Concept:** Replace the artist-only Library presentation with one shared catalog surface that
+  can switch between **Artists**, **Albums**, and **Songs**, matching the complete-library views
+  available in other music clients.
+- **Existing foundation:** The shared provider contract, Navidrome provider, and Jellyfin provider
+  already support paged artists, albums, and tracks.
+- [x] Add a shared Library-view model and action owned by Core, including independent query, paging,
+  refresh, and scroll restoration state for each catalog type.
+- [ ] Add explicit per-view focus restoration and Back-navigation acceptance coverage.
+- [x] Populate all three views through the provider-neutral paging contracts and reject stale loads
+  when the source, query, or selected view changes.
+- [x] Render Artists and Albums with the appropriate collection presentation and Songs with the
+  standard shared track rows and actions.
+- [x] Make search labels, empty states, A-Z navigation, load-more behavior, and refresh status
+  describe the active catalog type rather than assuming artists.
+- [ ] Give Television the same selector with deterministic D-pad entry, Back behavior, accessible
+  state labels, and per-view focus restoration; do not create a Television-only library.
+- [ ] Add shared phone, Desktop, iOS, and Television UI coverage, including representative large
+  libraries and 720p, 1080p, and native 4K acceptance. Common controller coverage is in place.
+
+### Expanded Artist Discography Sections
+
+- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#expanded-artist-discography-sections)
+- **Concept:** Expand Artist Detail into a fuller discography: show primary releases first, grouped
+  by release type, then a distinct **Appears On** section, followed by **Top Tracks**. Include
+  albums and individual tracks on which the selected artist has a credited appearance without
+  presenting those releases as the artist's own albums.
+- **Existing foundation:** The shared release classifier supports Albums, EPs, Singles, Live
+  Releases, Compilations, Remixes, Soundtracks, and Other Releases when a provider supplies usable
+  release-type metadata.
+- [x] Extend the shared release model and classifier with a **Mixtapes** section, map recognized
+  provider values and synonyms, and add common classification and ordering tests.
+- [x] Define a provider-neutral, source-scoped discography contract that distinguishes primary
+  album-artist releases from releases and tracks where the artist is a contributor.
+- [ ] Complete provider coverage: Jellyfin uses its stable artist-ID query; add a shared-storage
+  credit-index fallback for providers without a reverse-credit query.
+- [ ] Finish Appears On inclusion and de-duplication coverage for compilations, multiple credited
+  roles, aliases, missing artist IDs, and releases that also qualify for a primary section.
+- [x] Present appearance albums normally and list their matching credited tracks directly in
+  **Appears On**, so isolated credits and exact matching tracks remain visible.
+- [ ] Finish Core loading, empty, error, paging, navigation, large-library, and Television coverage.
+
+### Track Membership in Playlists
+
+- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#track-membership-in-playlists)
+- **Concept:** Replace the add-only, single-selection playlist picker with one shared **Edit
+  playlist membership** workflow. From the current track or any queue occurrence, show every
+  editable playlist, identify the playlists that already contain the track, and allow adding to or
+  removing from multiple playlists in one edit.
+- [ ] Define a provider-neutral membership query with source scoping and explicit loading,
+  unavailable, and failure states. Avoid unbounded eager playlist-track requests for large
+  libraries; use a Core-owned bounded loader/cache or an optional provider reverse-membership
+  capability when one exists.
+- [ ] Add one Core-owned editor model and action coordinator reused by current-track and queue-item
+  menus on Android, Desktop, iOS, and Television.
+- [ ] Let the user select and deselect multiple playlists, then apply a diff that adds new
+  memberships and removes old memberships without changing unrelated tracks or their order.
+- [ ] Treat removal as removing every occurrence of the selected media identity unless a later UI
+  explicitly offers occurrence-level removal.
+- [ ] Reconcile displayed membership with authoritative provider state after mutation. Keep the
+  editor open while loading or saving and report partial failure per playlist without discarding
+  successful changes.
+- [ ] Define behavior for duplicate occurrences, unavailable or deleted playlists, smart playlists,
+  concurrent edits, stale responses, source changes, and empty collections.
+- [ ] When controlling remote playback, enable membership editing only after Connect negotiates an
+  explicit capability and can route the mutation to the playback device's active source. Until
+  then, hide or honestly disable the action rather than exposing a visible no-op.
+- [ ] Verify touch, pointer, keyboard, and TV remote selection, Apply/Cancel, Back, accessibility,
+  and focus restoration to the originating track action.
+
+### Favorite Artists Home Section
+
+- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#favorite-artists-home-section)
+- **Concept:** Add a shared **Favorite Artists** section to Home containing the artists the user has
+  favorited, with sort choices for name, date favorited, and date last played.
+- **Last-played definition:** Record an artist's last-played timestamp after a successful **Artist
+  Radio** launch, or after a successful track-seeded radio launch when that track's stable artist ID
+  identifies a currently favorited artist. Ordinary track, album, playlist, or queue playback does
+  not update it.
+- [ ] Confirm provider support and local fallback for artist favorite state and favorited-at time;
+  preserve source scoping and deterministic ordering when timestamps are missing or equal. Hide the
+  section and Settings when the provider does not support artist favorites.
+- [ ] Add the source-scoped artist-radio last-played field/query to shared storage, consolidating any
+  unreleased schema change according to the repository migration rules.
+- [ ] Update the timestamp through the shared radio transaction only after an eligible radio launch
+  succeeds, and cover track-artist attribution, unfavorited artists, failed/cancelled launches, and
+  clock behavior in common tests.
+- [ ] Add Core-owned Home presentation, persisted sort selection, empty/loading/error behavior, and
+  navigation to artist detail; render the same section on Android, Desktop, iOS, and TV.
+- [ ] Verify all three sorts, source switching, favorite/unfavorite changes, restart persistence,
+  and settings-sync classification before release.
+
 ### Weblate Translation Management
 
 - **Status:** Investigating
