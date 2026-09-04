@@ -66,6 +66,15 @@ authority suites pass. The approved threat model and accepted limitations are re
 [`naviamp-connect-protocol.md`](naviamp-connect-protocol.md#version-1-security-review--2026-09-04).
 Apple remains outside this approval until its implementation and interoperability tests exist.
 
+### Android TV M1 gate update — 2026-09-04
+
+The final standard-content fallback was removed from the Television shell. Home rails now expose a
+remote-reachable **View all** card and open a dedicated shared Television collection grid with
+deterministic focus and Back behavior. Multiple saved-source switching was also exercised on the TV
+emulator in both directions. That pass exposed and fixed a Core offline-restoration defect where the
+old inventory preference could override the newly selected unavailable source. Shared tests now
+cover both successful and offline two-source transitions.
+
 ## Findings
 
 ### 1. High: command completion is not tracked per request
@@ -266,7 +275,7 @@ but the following are still open:
 - iPhone/iPad controller and playback-target behavior.
 - tvOS target behavior.
 - Sleep/wake, process restoration, MediaSession, audio focus, and network transition recovery.
-- Multiple saved-source switching and source mismatch recovery.
+- Product-UI source-mismatch recovery beyond the now-verified saved-source and offline transitions.
 - 720p and native 4K visual acceptance.
 - Complete repeat-state size, focus, contrast, and accessibility acceptance.
 - Representative queue sizes, including payloads near the authenticated-frame limit.

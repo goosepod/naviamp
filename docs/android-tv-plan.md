@@ -391,9 +391,9 @@ independent navigation graph may be introduced in the Apple TV host.
 
 ### Current implementation gaps
 
-- The dedicated Television shell, Home, Library, Search, Playlists, Settings, and artist, album, and
-  playlist detail pages are in place. Home collection pages are the remaining standard-content
-  fallback to replace before completing M1.
+- The dedicated Television shell, Home and Home collection pages, Library, Search, Playlists,
+  Settings, and artist, album, and playlist detail pages are in place. No M1 Television route uses
+  the standard phone/Desktop content fallback.
 - The dedicated Internet Radio Stations collection and shared editor are available from Library,
   including remote-friendly play, refresh, create, edit, delete, focus, and Back behavior.
 - The dedicated full-screen Now Playing, listening-mode transition, queue panel, and smoothly
@@ -425,8 +425,9 @@ independent navigation graph may be introduced in the Apple TV host.
 - [x] Verify Navidrome connection plus populated Home, Library, and Search browsing on both 1080p
   and native-4K emulator configurations.
 - [x] Add the dedicated TV Internet Radio Stations browse, play, add/edit, and delete workflow.
-- [ ] Replace the remaining standard Home collection-page fallback with a dedicated TV page.
-- [ ] Verify switching between multiple saved sources on the emulator.
+- [x] Replace the remaining standard Home collection-page fallback with a dedicated TV page.
+- [x] Verify switching between multiple saved sources on the emulator, including unavailable-source
+  offline restoration and switching back to the original source.
 
 ### M2: TV playback experience
 
@@ -557,7 +558,7 @@ Connect availability has additional topology and fresh-device requirements in
 - [x] Approve the Android/JVM version-1 Connect protocol, pairing threat model, cryptographic/key
   lifecycle, replay protection, and playback-authority design. The review found and fixed replayed
   resume-offer key/nonce reuse before approval.
-- [ ] Replace the remaining generic Home collection-page fallback and verify multiple saved-source
+- [x] Replace the remaining generic Home collection-page fallback and verify multiple saved-source
   switching on the emulator.
 - [ ] Verify controller browse/navigation restoration and product-UI source-mismatch recovery.
 - [ ] Complete Android pairing diagnostics and permission-recovery presentation.
@@ -810,7 +811,8 @@ Connect availability has additional topology and fresh-device requirements in
 - Added common policy coverage for single-track shuffle availability and passed shared UI tests plus
   Android, Desktop, and iOS Simulator compilation.
 - Reconciled stale plan text with the implemented album, artist, playlist, mini-player, and Search
-  behavior. Standard composition now remains only for Home collection pages on the M1 path.
+  behavior. At that point, standard composition remained only for Home collection pages on the M1
+  path; that final fallback was removed on 2026-09-04.
 - Added a shared right-side Television Settings sheet modeled on the compact category-first pattern
   used by established TV music clients. It preserves the underlying destination, dims it, exposes
   current values, uses nested choice pages, unwinds Back locally, and restores focus to the gear.
@@ -1115,9 +1117,9 @@ Connect availability has additional topology and fresh-device requirements in
   sheet scrolled with the moving row; the item was then returned to its original position and the
   saved order/visibility were left unchanged.
 - Verified native-4K Now Playing and Library layout/focus independently of the 1080p pass. The
-  remaining emulator gaps are multiple-source switching (only one source is configured), the
-  standard-fallback Home collection page, sustained audio-policy/provider reporting validation, and
-  automated recovery/direct Compose coverage. HDMI/CEC, audio focus,
+  remaining emulator gaps at that point included multiple-source switching and the standard-fallback
+  Home collection page; both were closed on 2026-09-04. Sustained audio-policy/provider reporting
+  validation and automated recovery/direct Compose coverage remain. HDMI/CEC, audio focus,
   sleep/wake, and authoritative `MediaSession` acceptance remain physical-hardware work.
 - Completed the dedicated Internet Radio acceptance on the native-4K TV emulator. The saved station
   collection, deterministic entry focus, live station playback, streamed track metadata/artwork,
@@ -1248,3 +1250,20 @@ Connect availability has additional topology and fresh-device requirements in
   Pixel 10a then paused and resumed TV playback, advanced both devices to **Vidmahe**, and followed a
   TV-local advance to **I Alone** within five seconds; the TV scrubber continued advancing while the
   controller deliberately retained its last structural-snapshot position.
+
+### 2026-09-04
+
+- Replaced the last standard Home collection fallback with a dedicated shared Television page.
+  Every Home rail now ends in a D-pad-reachable **View all** card; the collection opens as a
+  ten-foot grid with deterministic first-item focus, remote Back handling, generated-art support,
+  and the same shared item actions as Home.
+- Added direct shared Compose coverage for opening a collection, first-item focus, Up-to-Back
+  navigation, Back dispatch, and item selection. The shared UI/presentation suites, Android APK,
+  Desktop tests, and iOS Simulator compilation pass.
+- Configured two distinct saved-source identities on the Android TV emulator and switched to the
+  second source and back with the remote. The unavailable test source exposed a shared Core bug:
+  offline restoration retained the old inventory preference and marked the wrong row current.
+  Core now makes the selected offline source authoritative before publishing state; deterministic
+  tests cover online and unavailable two-source transitions. The temporary database was backed up
+  before the acceptance fixture was installed, restored afterward, and all extra credential-bearing
+  copies were removed.
