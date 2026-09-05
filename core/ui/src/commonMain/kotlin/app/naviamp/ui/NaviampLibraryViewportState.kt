@@ -12,6 +12,14 @@ import androidx.compose.runtime.remember
 class NaviampLibraryViewportState internal constructor(
     private val listStates: Map<NaviampLibraryView, LazyListState>,
 ) {
+    private var consumedJumpGeneration: Long? = null
+
+    internal fun consumeJump(generation: Long): Boolean {
+        if (consumedJumpGeneration == generation) return false
+        consumedJumpGeneration = generation
+        return true
+    }
+
     private val focusedTargets = mutableStateMapOf<NaviampLibraryView, String>()
 
     fun listState(view: NaviampLibraryView): LazyListState = listStates.getValue(view)

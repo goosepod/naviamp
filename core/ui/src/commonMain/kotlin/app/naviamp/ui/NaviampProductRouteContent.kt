@@ -34,6 +34,7 @@ fun ColumnScope.NaviampProductRouteContent(
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
     val libraryViewportState = rememberNaviampLibraryViewportState(artists = libraryListState)
+    val artistAppearanceState = rememberNaviampArtistAppearanceState(shellState.artistDetail.selectedArtist?.id)
 
     Box(
         modifier = Modifier
@@ -69,6 +70,7 @@ fun ColumnScope.NaviampProductRouteContent(
                 NaviampRoute.ArtistDetail -> NaviampArtistDetailContent(
                     colors = colors,
                     screen = shellState.artistDetail,
+                    appearanceState = artistAppearanceState,
                     albumCollectionLayout = shellState.general.interfaceSettings.albumCollectionLayout,
                     albumSortOrder = shellState.general.interfaceSettings.albumSortOrder,
                     groupAlbumsByReleaseType = shellState.general.interfaceSettings.groupAlbumsByReleaseType,

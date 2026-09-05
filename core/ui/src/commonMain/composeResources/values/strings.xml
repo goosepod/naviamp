@@ -414,16 +414,19 @@
     <string name="artist_appears_on">Appears On</string>
     <string name="artist_top_tracks">Top Tracks</string>
 
-    <string name="playlist_membership_title">Edit playlist membership</string>
-    <string name="playlist_membership_description">Choose the playlists that contain %1$s.</string>
+    <string name="library_return_to_search">Back to search</string>
+    <string name="playlist_membership_title">Add to playlists</string>
+    <string name="playlist_membership_description">Select playlists for “%1$s”. Checked playlists already contain this song. Check to add, uncheck to remove, then save your changes.</string>
     <string name="playlist_membership_loading">Checking playlists...</string>
     <string name="playlist_membership_saving">Updating playlists...</string>
     <string name="playlist_membership_unavailable">Playlist membership is unavailable for this source.</string>
     <string name="playlist_membership_saved">Playlist membership updated.</string>
-    <string name="playlist_membership_empty">No editable playlists are available.</string>
+    <string name="playlist_membership_empty">No playlists are available.</string>
     <string name="playlist_membership_truncated">Showing the first 100 editable playlists.</string>
     <string name="playlist_membership_row_failed">Could not check or update this playlist.</string>
-    <string name="playlist_membership_apply">Apply</string>
+    <string name="playlist_membership_apply">Save changes</string>
+    <string name="playlist_membership_new_playlist">New playlist</string>
+    <string name="playlist_membership_done">Done</string>
 
     <string name="downloads_offline_title">Downloads</string>
     <string name="downloads_summary">%1$d files - %2$s of %3$s</string>
@@ -512,4 +515,33 @@
     <string name="settings_show_album_information_subtitle">Show notes and provider artwork on album detail pages.</string>
     <string name="action_play_after_current_group">Play After Current Group</string>
     <string name="action_play_immediately_next">Play Immediately Next</string>
+    <string name="playlist_membership_load_failed">Could not load playlists. Try again.</string>
+    <string name="playlist_membership_retry">Retry</string>
+    <string name="library_jump_loading">Loading %1$s…</string>
+    <string name="library_jump_failed">Could not load this letter. Try again.</string>
+    <string name="favorite_artists_sort_name">Name</string>
+    <string name="favorite_artists_sort_favorited">Date favorited</string>
+    <string name="favorite_artists_sort_played">Last radio played</string>
+    <string name="favorite_artists_empty">No favorite artists yet.</string>
+    <string name="favorite_artists_failed">Could not load favorite artists. Refresh to try again.</string>
+    <string name="favorite_artists_cached">Showing saved favorites. Refresh to try again.</string>
+    <string name="playlist_membership_create_failed">Could not create the playlist. Try again.</string>
+    <string name="artist_appearances_failed">Could not load credited appearances. Reopen this artist to try again.</string>
+    <string name="artist_appearances_truncated">Showing a limited set of credited appearances.</string>
+    <string name="artist_appearances_load_more">Show more appearances</string>
+    <string name="library_loading_artists">Loading artists…</string>
+    <string name="library_loading_albums">Loading albums…</string>
+    <string name="library_loading_songs">Loading songs…</string>
+    <string name="playlist_membership_create_and_add">Create playlist and add song</string>
+    <string name="playlist_membership_rule_based">Smart playlist: membership is controlled by its rules.</string>
+    <string name="playlist_membership_create_description">Create a playlist containing “%1$s”.</string>
+    <string name="library_indexing_albums">Indexing albums… %1$d found</string>
+    <string name="library_album_index_failed">Could not refresh albums. Your loaded albums are still available; use Refresh to try again.</string>
+    <string name="settings_favorite_artists">Favorite Artists</string>
+    <string name="home_settings_visible">Visible</string>
+    <string name="home_settings_hidden">Hidden</string>
+    <string name="home_settings_reorder_hint">Drag to reorder. Select a section to change its visibility and layout.</string>
+    <string name="home_settings_move_up">Move up</string>
+    <string name="home_settings_move_down">Move down</string>
+    <string name="home_settings_drag_section">Drag %1$s to reorder</string>
 </resources>

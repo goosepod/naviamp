@@ -33,6 +33,7 @@ data class NaviampColors(
     val onAccent: Color = Color.White,
     val controlSurface: Color = Color(0xFF201921),
     val albumArtPlaceholder: Color = Color(0xFF43536B),
+    val favorite: Color = Color(0xFFEF5350),
 ) {
     companion object {
         val Dark = NaviampColors(
@@ -371,6 +372,8 @@ data class SharedArtistDetailUi(
     val albumSections: List<SharedAlbumSectionUi> = emptyList(),
     val appearanceAlbums: List<SharedMediaItemUi> = emptyList(),
     val appearanceTracks: List<SharedTrackRowUi> = emptyList(),
+    val appearanceLoadFailed: Boolean = false,
+    val appearancesTruncated: Boolean = false,
     val sourceContextLabel: String = "",
     val localLibraryLabel: String = "",
     val biography: String? = null,
@@ -604,6 +607,8 @@ data class SharedHomeCollectionSectionUi(
     val title: String,
     val items: List<SharedHomeCollectionItemUi>,
     val titleResource: SharedHomeCollectionTitleResource? = null,
+    val favoriteArtistSort: app.naviamp.domain.settings.FavoriteArtistSort? = null,
+    val favoriteArtistsStatus: app.naviamp.domain.home.FavoriteArtistsStatus? = null,
     val visible: Boolean = true,
     val supportedHomeLayouts: Set<HomeSectionLayout> = HomeSectionLayout.entries.toSet(),
     val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,
@@ -705,6 +710,8 @@ enum class NaviampLibraryView {
 }
 
 data class NaviampLibraryCatalogUi(
+    val pendingJump: Char? = null,
+    val jumpFailed: Boolean = false,
     val query: String = "",
     val items: List<SharedMediaItemUi> = emptyList(),
     val tracks: List<SharedTrackRowUi> = emptyList(),
@@ -835,6 +842,7 @@ data class NaviampHomeActions(
     val onCollectionSelected: (String) -> Unit,
     val onCollectionBack: () -> Unit,
     val onCollectionPageLayoutChanged: (String, HomeSectionPageLayout) -> Unit,
+    val onFavoriteArtistSortChanged: (app.naviamp.domain.settings.FavoriteArtistSort) -> Unit = {},
 )
 
 data class NaviampMediaActions(
@@ -937,6 +945,7 @@ data class NaviampAppShellUiState(
     val artistDetail: NaviampArtistDetailScreenUi = NaviampArtistDetailScreenUi(),
     val playlistDetail: NaviampPlaylistDetailScreenUi = NaviampPlaylistDetailScreenUi(),
     val nowPlaying: NowPlayingUi? = null,
+    val playlistMembership: NaviampTrackPlaylistMembershipUi? = null,
 )
 
 data class NaviampAppShellActions(
@@ -1042,11 +1051,14 @@ data class NaviampPlaylistMembershipRowUi(
     val selected: Boolean,
     val originallySelected: Boolean,
     val failed: Boolean = false,
+    val ruleBased: Boolean = false,
 )
 
 data class NaviampTrackPlaylistMembershipUi(
     val trackId: String,
     val trackTitle: String,
+    val loadingFailed: Boolean = false,
+    val creationFailed: Boolean = false,
     val rows: List<NaviampPlaylistMembershipRowUi> = emptyList(),
     val loading: Boolean = false,
     val saving: Boolean = false,
@@ -1110,7 +1122,8 @@ data class NowPlayingUi(
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
-    val playlistMembership: NaviampTrackPlaylistMembershipUi? = null,
+    /** Enabled only by a session that routes membership commands to its active source. */
+    val canEditPlaylistMembership: Boolean = false,
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
@@ -1391,6 +1404,8 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
 data class NaviampLibrarySyncStatusUi(
     val message: String? = null,
     val isSyncing: Boolean = false,
+    val albumIndexCount: Int? = null,
+    val albumIndexFailed: Boolean = false,
 ) {
     val showRefresh: Boolean
         get() = message?.startsWith("Library changed on server") == true ||

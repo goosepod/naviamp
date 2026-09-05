@@ -20,7 +20,6 @@ data class NaviampCoreNowPlayingDisplayState(
     val sleepTimer: SleepTimerState? = null,
     val sleepTimerNowEpochMillis: Long = 0L,
     val playlistActionStatus: String? = null,
-    val playlistMembership: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null,
 )
 
 /** Maps the complete live playback graph into the one authoritative shared Now Playing state. */
@@ -119,7 +118,7 @@ class NaviampCoreNowPlayingPresenter(
             playlistActionStatus = display.playlistActionStatus,
         ).toNowPlayingUi().copy(
             visualizerFrame = sidecar.visualizerFrame,
-            playlistMembership = display.playlistMembership,
+            canEditPlaylistMembership = provider != null,
         )
         stateStore.updateShell { current -> current.copy(nowPlaying = nowPlaying) }
     }

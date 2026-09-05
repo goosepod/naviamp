@@ -1,11 +1,13 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.Track
 import app.naviamp.ui.SharedTrackRowActionRequest
 
 /** Routes every non-Now-Playing track row through the same Core-owned transaction policy. */
 class NaviampCoreTrackActionController(
     private val registry: NaviampCoreMediaRegistry,
     private val media: NaviampCoreMediaTransactions,
+    private val openPlaylistMembership: suspend (Track) -> Unit,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Media.TrackAction,
@@ -24,7 +26,12 @@ class NaviampCoreTrackActionController(
             is NaviampCoreCommand.Media.TrackAction -> command.request to registry.search.tracks
             is NaviampCoreCommand.Library.TrackAction -> command.request to registry.libraryTracks
             is NaviampCoreCommand.Detail.AlbumTrack -> command.request to registry.albumDetails?.tracks.orEmpty()
-            is NaviampCoreCommand.Detail.ArtistPopularTrack -> command.request to registry.artistPopularTracks
+            is NaviampCoreCommand.Detail.ArtistPopularTrack -> command.request to
+                if (registry.artistPopularTracks.any { it.id.value == command.request.track.id }) {
+                    registry.artistPopularTracks
+                } else {
+                    registry.artistAppearanceTracks
+                }
             is NaviampCoreCommand.Detail.PlaylistTrack -> command.request to registry.selectedPlaylistTracks
             is NaviampCoreCommand.Home.RecentTrackAction -> command.request to registry.home.recentlyPlayedTracks
             is NaviampCoreCommand.Home.SonicTrackAction -> SharedTrackRowActionRequest(
@@ -51,7 +58,7 @@ class NaviampCoreTrackActionController(
             app.naviamp.ui.SharedTrackRowAction.AddToQueue -> media.addToQueue(listOf(track))
             app.naviamp.ui.SharedTrackRowAction.Download -> media.download(track.title, listOf(track))
             app.naviamp.ui.SharedTrackRowAction.AddToPlaylist -> request.playlistChoice?.let { media.addToPlaylist(listOf(track), it) }
-                ?: media.publish("Choose a playlist first.")
+                ?: openPlaylistMembership(track)
             app.naviamp.ui.SharedTrackRowAction.CreatePlaylistAndAdd -> request.playlistName?.let { media.createPlaylist(listOf(track), it) }
                 ?: media.publish("Playlist name is missing.")
             app.naviamp.ui.SharedTrackRowAction.ToggleFavorite -> media.toggleFavorite(track)

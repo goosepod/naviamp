@@ -33,6 +33,7 @@ class HomeServiceTest {
                 sourceId: String,
                 artists: List<Artist>,
                 observedAtIso8601: String,
+                complete: Boolean,
             ) = artists.map { artist -> artist.copy(favoritedAtIso8601 = observedAtIso8601) }
 
             override fun locallyKnownFavoriteArtists(sourceId: String, limit: Long) = listOf(stored)
@@ -71,6 +72,7 @@ class HomeServiceTest {
                 sourceId: String,
                 artists: List<Artist>,
                 observedAtIso8601: String,
+                complete: Boolean,
             ): List<Artist> = error("favorite artist activity is unavailable")
         }
 

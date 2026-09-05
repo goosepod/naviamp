@@ -409,15 +409,16 @@ class NaviampCoreMediaDetailController(
                 providerDiscography
             } else {
                 val stored = discovery.sourceId()?.let { sourceId ->
-                    discovery.discographyAppearances(
-                        sourceId,
-                        artist.id,
-                        providerDiscography.primary.albums.mapTo(mutableSetOf()) { it.id },
-                    )
+                    runCatching {
+                        discovery.discographyAppearances(sourceId, artist.id,
+                            providerDiscography.primary.albums.mapTo(mutableSetOf()) { it.id })
+                    }.getOrElse { ArtistDiscographyAppearances(failed = true) }
                 } ?: ArtistDiscographyAppearances()
                 providerDiscography.copy(
                     appearanceAlbums = stored.albums,
                     appearanceTracks = stored.tracks,
+                    appearanceLoadFailed = stored.failed,
+                    appearancesTruncated = stored.truncated,
                 )
             }
             combined.reconciledAppearances()
@@ -455,6 +456,8 @@ class NaviampCoreMediaDetailController(
                                 coverArtUrl = coverArtUrl,
                                 appearanceAlbums = discography.appearanceAlbums,
                                 appearanceTracks = discography.appearanceTracks,
+                                appearanceLoadFailed = discography.appearanceLoadFailed,
+                                appearancesTruncated = discography.appearancesTruncated,
                                 popularTracks = popular.tracks,
                                 popularTracksStatus = popular.status,
                                 similarArtists = similar.artists,

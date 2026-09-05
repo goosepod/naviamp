@@ -23,6 +23,60 @@ import kotlin.test.assertFailsWith
 
 class JellyfinProviderTest {
     @Test
+    fun appearanceQueryFailureKeepsPrimaryDiscographyAvailable() = runTest {
+        val fixture = fixture(responses = mapOf(
+            "/Items/artist?" to """{"Id":"artist","Name":"Artist"}""",
+            "albumArtistIds=artist" to """{"Items":[{"Id":"primary","Name":"Primary"}],"TotalRecordCount":1}""",
+        ))
+        val result = fixture.provider.artistDiscography(ArtistId("artist"))
+        assertEquals("primary", result.primary.albums.single().id.value)
+        assertTrue(result.appearanceLoadFailed)
+        assertTrue(result.appearanceTracks.isEmpty())
+    }
+
+    @Test
+    fun homeFavoriteRequestCollectsFiveHundredArtistsThroughValidPages() = runTest {
+        fun page(start: Int, count: Int): String =
+            """{"Items":[${(start until start + count).joinToString(",") { """{"Id":"artist-$it","Name":"Artist $it"}""" }}],"TotalRecordCount":600}"""
+        val fixture = fixture(responses = mapOf(
+            "startIndex=0" to page(0, 200),
+            "startIndex=200" to page(200, 200),
+            "startIndex=400" to page(400, 100),
+        ))
+        assertEquals(500, fixture.provider.favoriteArtists(500).size)
+        assertEquals(3, fixture.http.requestedUrls.size)
+        assertTrue(fixture.http.requestedUrls.all { "isFavorite=true" in it })
+        assertTrue(fixture.http.requestedUrls.last().contains("limit=100"))
+    }
+
+    @Test
+    fun membershipRemovalDeletesOnlyMatchingOccurrenceIdsWithoutReaddingAnything() = runTest {
+        val fixture = fixture(responses = mapOf("/Playlists/list/Items" to """
+            {"Items":[
+              {"Id":"keep","PlaylistItemId":"entry-keep"},
+              {"Id":"remove","PlaylistItemId":"entry-one"},
+              {"Id":"remove","PlaylistItemId":"entry-two"}
+            ],"TotalRecordCount":3}
+        """.trimIndent()))
+        fixture.provider.removeTrackFromPlaylist("list", TrackId("remove"))
+        val mutation = fixture.http.mutations.single()
+        assertEquals("DELETE", mutation.first)
+        assertTrue("entry-one" in mutation.second && "entry-two" in mutation.second)
+        assertFalse("entry-keep" in mutation.second)
+        assertTrue(fixture.http.jsonPosts.isEmpty())
+    }
+
+    @Test
+    fun missingOccurrenceIdRefusesRemovalBeforeAnyMutation() = runTest {
+        val fixture = fixture(responses = mapOf("/Playlists/list/Items" to
+            """{"Items":[{"Id":"remove"}],"TotalRecordCount":1}"""))
+        assertFailsWith<IllegalArgumentException> {
+            fixture.provider.removeTrackFromPlaylist("list", TrackId("remove"))
+        }
+        assertTrue(fixture.http.mutations.isEmpty())
+    }
+
+    @Test
     fun searchUsesSelectedLibraryPaginationAndUrlEncodingAcrossMediaTypes() = runTest {
         val fixture = fixture(
             responses = mapOf(

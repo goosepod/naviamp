@@ -156,6 +156,8 @@ class NaviampCoreMediaTransactions(
     private val publishNowPlaying: () -> Unit,
     private val openNowPlaying: () -> Unit,
     private val favoriteArtistActivity: FavoriteArtistActivityRepository? = null,
+    private val onFavoriteArtistActivityChanged: () -> Unit = {},
+    private val onAlbumUpdated: (app.naviamp.domain.provider.MediaProvider, Album) -> Unit = { _, _ -> },
 ) : NaviampCoreTrackRadioTransactions {
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
@@ -188,6 +190,7 @@ class NaviampCoreMediaTransactions(
 
     override suspend fun startTrackRadio(seed: Track) {
         val provider = providerOrPublish() ?: return
+        val sourceId = activeSourceId()
         busyIndicator.during("Building track radio...") {
             publish("Building track radio...")
             runCatching {
@@ -195,6 +198,7 @@ class NaviampCoreMediaTransactions(
                 RadioService(provider, tuning = settings.radioTuning)
                     .trackRadio(seed, settings.sonicSimilarityEnabled)
             }.onSuccess { fetched ->
+                if (sourceId != activeSourceId()) return@onSuccess
                 if (fetched.isEmpty()) {
                     publish("track radio did not return any tracks.")
                 } else if (playback.state.value.currentTrack?.id == seed.id && playback.state.value.queue.current?.id == seed.id) {
@@ -344,15 +348,20 @@ class NaviampCoreMediaTransactions(
 
     suspend fun toggleFavorite(album: Album) {
         val provider = providerOrPublish() ?: return
+        val sourceId = activeSourceId()
         mutate("Album favorites are not supported.", { favoriteAlbumUpdate(provider, album, favoritedAtIso8601()) }) {
+            if (sourceId != activeSourceId()) return@mutate
             registry.updateAlbum(it)
             updateAlbumFavoriteUi(it.id.value, it.favoritedAtIso8601 != null)
+            onAlbumUpdated(provider, it)
         }
     }
 
     suspend fun toggleFavorite(artist: Artist) {
         val provider = providerOrPublish() ?: return
+        val sourceId = activeSourceId()
         mutate("Artist favorites are not supported.", { favoriteArtistUpdate(provider, artist, favoritedAtIso8601()) }) {
+            if (sourceId != activeSourceId()) return@mutate
             registry.updateArtist(it)
             activeSourceId()?.let { sourceId ->
                 recordFavoriteArtistActivity {
@@ -405,10 +414,12 @@ class NaviampCoreMediaTransactions(
         load: suspend (RadioService) -> List<Track>,
     ) {
         val provider = providerOrPublish() ?: return
+        val sourceId = activeSourceId()
         busyIndicator.during("Building $label...") {
             publish("Building $label...")
             runCatching { load(RadioService(provider, tuning = radioTuning())) }
                 .onSuccess { tracks ->
+                    if (sourceId != activeSourceId()) return@onSuccess
                     if (tracks.isEmpty()) {
                         publish("$label did not return any tracks.")
                     } else {
@@ -452,6 +463,7 @@ class NaviampCoreMediaTransactions(
 
     private inline fun recordFavoriteArtistActivity(block: FavoriteArtistActivityRepository.() -> Unit) {
         favoriteArtistActivity?.let { repository -> runCatching { repository.block() } }
+        onFavoriteArtistActivityChanged()
     }
 
     private fun activeSourceId(): String? =
@@ -537,6 +549,7 @@ class NaviampCoreMediaTransactions(
             val home = shell.home.content
             val artist = shell.artistDetail.detail
             shell.copy(
+                library = shell.library.copy(albums = shell.library.albums.copy(items = shell.library.albums.items.updated())),
                 home = shell.home.copy(content = home.copy(
                     recentlyAddedAlbums = home.recentlyAddedAlbums.updated(),
                     mixAlbums = home.mixAlbums.updated(),

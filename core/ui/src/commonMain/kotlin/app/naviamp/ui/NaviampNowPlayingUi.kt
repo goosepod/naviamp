@@ -37,6 +37,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -56,6 +59,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -139,6 +144,8 @@ data class NaviampNowPlayingActions(
     val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
     val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
     val onPlaylistMembershipToggled: (String) -> Unit = {},
+    val onMembershipPlaylistCreated: (String) -> Unit = {},
+    val onPlaylistMembershipRetried: () -> Unit = {},
     val onPlaylistMembershipApplied: () -> Unit = {},
     val onPlaylistMembershipDismissed: () -> Unit = {},
 ) {
@@ -548,15 +555,7 @@ fun NaviampNowPlayingPanel(
             },
         )
     }
-    nowPlaying.playlistMembership?.let { membership ->
-        TrackPlaylistMembershipDialog(
-            membership = membership,
-            colors = colors,
-            onToggle = actions.onPlaylistMembershipToggled,
-            onApply = actions.onPlaylistMembershipApplied,
-            onDismissRequest = actions.onPlaylistMembershipDismissed,
-        )
-    }
+
 }
 
 @Composable
@@ -1074,7 +1073,7 @@ private fun NowPlayingDetails(
                             visualizerAvailable = nowPlaying.visualizerAvailable,
                             isLive = nowPlaying.isLive,
                             hasDetails = nowPlaying.detailSections.isNotEmpty(),
-                            canAddToPlaylist = nowPlaying.canAddToPlaylist,
+                            canAddToPlaylist = nowPlaying.canAddToPlaylist && nowPlaying.canEditPlaylistMembership,
                             canSaveQueueAsPlaylist = nowPlaying.canSaveQueueAsPlaylist,
                             canEmptyQueue = nowPlaying.upNext.isNotEmpty(),
                             sleepTimerLabel = nowPlaying.sleepTimer.label,
@@ -1662,7 +1661,7 @@ private fun RatingRow(
             Icon(
                 imageVector = if (favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                 contentDescription = if (favoriteActive) "Remove favorite" else "Favorite",
-                tint = if (favoriteActive) colors.primaryText else inactiveColor,
+                tint = if (favoriteActive) colors.favorite else inactiveColor,
                 modifier = Modifier.size(iconSize),
             )
         }
@@ -1895,7 +1894,8 @@ private fun NowPlayingSidePanel(
                 NaviampNowPlayingTab.Related -> nowPlaying.relatedEmptyLabel
             },
             playlistChoices = nowPlaying.playlistChoices,
-            useInlinePlaylistPicker = nowPlaying.useInlinePlaylistPicker,
+            useInlinePlaylistPicker = false,
+            canAddToPlaylist = nowPlaying.canAddToPlaylist && nowPlaying.canEditPlaylistMembership,
             onClick = onClick,
             rowActions = rowActions,
             onAction = actions.onQueueItemAction,
@@ -2400,12 +2400,85 @@ fun TrackPlaylistMembershipDialog(
     colors: NaviampColors,
     onToggle: (String) -> Unit,
     onApply: () -> Unit,
+    onRetry: () -> Unit = {},
+    onCreate: (String) -> Unit = {},
     onDismissRequest: () -> Unit,
 ) {
-    val changed = membership.rows.any { it.selected != it.originallySelected }
+    var playlistName by remember(membership.trackId) { mutableStateOf("") }
+    var creatingPlaylist by remember(membership.trackId) { mutableStateOf(false) }
+    val changed = membership.rows.any { !it.ruleBased && it.selected != it.originallySelected }
     val listState = rememberLazyListState()
+    val orderedRows = remember(membership.rows) { membership.rows.sortedByDescending { it.originallySelected } }
+    var creationPending by remember(membership.trackId) { mutableStateOf(false) }
+    var rowsBeforeCreate by remember(membership.trackId) { mutableStateOf(0) }
+    var playlistIdsBeforeCreate by remember(membership.trackId) { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(creationPending, membership.rows.size, membership.saving, membership.creationFailed) {
+        if (creationPending && !membership.saving) {
+            if (membership.creationFailed) {
+                creationPending = false
+            } else if (membership.rows.size > rowsBeforeCreate) {
+                val createdIndex = orderedRows.indexOfFirst { it.playlist.id !in playlistIdsBeforeCreate }
+                if (createdIndex >= 0) listState.requestScrollToItem(createdIndex)
+                creationPending = false
+                creatingPlaylist = false
+                playlistName = ""
+            }
+        }
+    }
+    if (creatingPlaylist) {
+        val nameFocusRequester = remember { FocusRequester() }
+        val busy = creationPending || membership.saving
+        LaunchedEffect(Unit) {
+            androidx.compose.runtime.withFrameNanos { }
+            nameFocusRequester.requestFocus()
+        }
+        AlertDialog(
+            onDismissRequest = { if (!busy) creatingPlaylist = false },
+            title = { Text(stringResource(Res.string.playlist_membership_new_playlist)) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                ) {
+                    Text(stringResource(Res.string.playlist_membership_create_description, membership.trackTitle),
+                        color = colors.secondaryText, fontSize = 12.sp)
+                    OutlinedTextField(
+                        value = playlistName,
+                        onValueChange = { playlistName = it },
+                        label = { Text(stringResource(Res.string.playlists_name)) },
+                        singleLine = true,
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().focusRequester(nameFocusRequester),
+                    )
+                    when {
+                        busy -> Text(stringResource(Res.string.playlist_membership_saving))
+                        membership.creationFailed -> Text(stringResource(Res.string.playlist_membership_create_failed))
+                        membership.unavailable -> Text(stringResource(Res.string.playlist_membership_unavailable))
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = playlistName.isNotBlank() && !busy && !membership.unavailable,
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.onAccent),
+                    onClick = {
+                        rowsBeforeCreate = membership.rows.size
+                        playlistIdsBeforeCreate = membership.rows.map { it.playlist.id }.toSet()
+                        creationPending = true
+                        onCreate(playlistName.trim())
+                    },
+                ) { Text(stringResource(Res.string.playlist_membership_create_and_add)) }
+            },
+            dismissButton = {
+                TextButton(enabled = !busy, onClick = { creatingPlaylist = false }) {
+                    Text(stringResource(Res.string.common_cancel))
+                }
+            },
+        )
+        return
+    }
     AlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (!membership.saving) onDismissRequest() },
         title = { Text(stringResource(Res.string.playlist_membership_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2417,9 +2490,15 @@ fun TrackPlaylistMembershipDialog(
                 when {
                     membership.loading -> Text(stringResource(Res.string.playlist_membership_loading), color = colors.secondaryText)
                     membership.saving -> Text(stringResource(Res.string.playlist_membership_saving), color = colors.secondaryText)
+                    membership.loadingFailed -> Text(stringResource(Res.string.playlist_membership_load_failed), color = colors.secondaryText)
                     membership.unavailable -> Text(stringResource(Res.string.playlist_membership_unavailable), color = colors.secondaryText)
                     membership.saved -> Text(stringResource(Res.string.playlist_membership_saved), color = colors.secondaryText)
                     membership.rows.isEmpty() -> Text(stringResource(Res.string.playlist_membership_empty), color = colors.secondaryText)
+                }
+                if (membership.loadingFailed || membership.rows.any { it.failed }) {
+                    TextButton(enabled = !membership.loading && !membership.saving, onClick = onRetry) {
+                        Text(stringResource(Res.string.playlist_membership_retry))
+                    }
                 }
                 if (membership.truncated) {
                     Text(stringResource(Res.string.playlist_membership_truncated), color = colors.secondaryText, fontSize = 11.sp)
@@ -2427,28 +2506,36 @@ fun TrackPlaylistMembershipDialog(
                 if (membership.rows.isNotEmpty()) {
                     LazyColumn(
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                        modifier = Modifier.weight(1f, fill = false).fillMaxWidth().heightIn(max = 300.dp),
                     ) {
-                        items(membership.rows, key = { it.playlist.id }) { row ->
+                        items(orderedRows, key = { it.playlist.id }) { row ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(5.dp))
-                                    .clickable(
-                                        enabled = !membership.loading && !membership.saving && !row.failed,
-                                        onClick = { onToggle(row.playlist.id) },
+                                    .toggleable(
+                                        value = row.selected,
+                                        role = Role.Checkbox,
+                                        enabled = !membership.loading && !membership.saving && !row.failed && !row.ruleBased,
+                                        onValueChange = { onToggle(row.playlist.id) },
                                     )
-                                    .padding(horizontal = 6.dp, vertical = 3.dp),
+                                    .heightIn(min = 40.dp)
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
                             ) {
                                 Checkbox(
                                     checked = row.selected,
-                                    enabled = !membership.loading && !membership.saving && !row.failed,
-                                    onCheckedChange = { onToggle(row.playlist.id) },
+                                    enabled = !membership.loading && !membership.saving && !row.failed && !row.ruleBased,
+                                    onCheckedChange = null,
+                                    modifier = Modifier.size(28.dp),
                                 )
                                 Column(Modifier.weight(1f)) {
                                     Text(row.playlist.name, color = colors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (row.ruleBased) {
+                                        Text(stringResource(Res.string.playlist_membership_rule_based),
+                                            color = colors.secondaryText, fontSize = 11.sp)
+                                    }
                                     if (row.failed) {
                                         Text(
                                             stringResource(Res.string.playlist_membership_row_failed),
@@ -2461,6 +2548,18 @@ fun TrackPlaylistMembershipDialog(
                         }
                     }
                 }
+                if (!membership.unavailable) {
+                    Button(
+                        enabled = !membership.loading && !membership.saving,
+                        onClick = { creatingPlaylist = true },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.onAccent),
+                    ) {
+                        Text(stringResource(Res.string.playlist_membership_new_playlist))
+                    }
+
+                }
+
             }
         },
         confirmButton = {
@@ -2473,7 +2572,7 @@ fun TrackPlaylistMembershipDialog(
         },
         dismissButton = {
             TextButton(enabled = !membership.saving, onClick = onDismissRequest) {
-                Text(stringResource(Res.string.common_cancel))
+                Text(stringResource(if (membership.saved && !changed) Res.string.playlist_membership_done else Res.string.common_cancel))
             }
         },
     )
@@ -2617,6 +2716,7 @@ private fun NowPlayingItemList(
     emptyLabel: String = "Nothing here yet.",
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     useInlinePlaylistPicker: Boolean = true,
+    canAddToPlaylist: Boolean = true,
     showActions: Boolean = true,
     onClick: (NaviampNowPlayingItemUi) -> Unit,
     rowActions: List<NaviampActionSpec> = queueRowActions(),
@@ -2649,6 +2749,7 @@ private fun NowPlayingItemList(
             var playlistDialogOpen by remember { mutableStateOf(false) }
             val visibleRowActions = rowActions.filter { action ->
                 when (action.action) {
+                    NaviampAction.AddToPlaylist -> canAddToPlaylist
                     NaviampAction.GoToAlbum -> item.hasAlbum
                     NaviampAction.GoToArtist -> item.hasArtist
                     else -> true
@@ -2665,7 +2766,7 @@ private fun NowPlayingItemList(
             )
             SwipeActionContainer(
                 swipeRight = nowPlayingSwipeActionVisual(
-                    swipeRightAction,
+                    if (!canAddToPlaylist && swipeRightAction == TrackSwipeAction.AddToPlaylist) TrackSwipeAction.None else swipeRightAction,
                     item,
                     queueContext,
                     canToggleFavorite,
@@ -2676,7 +2777,7 @@ private fun NowPlayingItemList(
                     onAction = onAction,
                 ),
                 swipeLeft = nowPlayingSwipeActionVisual(
-                    swipeLeftAction,
+                    if (!canAddToPlaylist && swipeLeftAction == TrackSwipeAction.AddToPlaylist) TrackSwipeAction.None else swipeLeftAction,
                     item,
                     queueContext,
                     canToggleFavorite,
@@ -2730,7 +2831,7 @@ private fun NowPlayingItemList(
                                 visibleRowActions.forEach { action ->
                                     NaviampDropdownMenuItem(
                                         label = action.label,
-                                        icon = action.icon,
+                                        icon = if (action.action == NaviampAction.ToggleFavorite && item.favoriteActive) NaviampTransportIcons.HeartFilled else action.icon,
                                         enabled = action.enabled,
                                         onClick = {
                                             menuExpanded = false

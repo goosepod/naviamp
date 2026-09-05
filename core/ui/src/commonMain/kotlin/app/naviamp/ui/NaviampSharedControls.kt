@@ -44,6 +44,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.MaterialTheme
@@ -355,13 +356,15 @@ internal fun MiniPlayerIconButton(
             onClick = onClick,
             modifier = Modifier
                 .size(size)
+                .semantics { this.selected = selected }
                 .clip(RoundedCornerShape(size / 2f))
-                .background(if (selected && enabled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
+                .background(if (selected && enabled && icon != NaviampTransportIcons.HeartFilled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = when {
+                    icon == NaviampTransportIcons.HeartFilled -> colors.favorite
                     !enabled -> colors.mutedText
                     else -> colors.primaryText
                 },
@@ -473,7 +476,7 @@ fun NaviampDropdownMenuItem(
                 Icon(
                     imageVector = it,
                     contentDescription = null,
-                    tint = if (enabled) MenuText else MenuText.copy(alpha = 0.42f),
+                    tint = if (it == NaviampTransportIcons.HeartFilled) NaviampColors.Dark.favorite else if (enabled) MenuText else MenuText.copy(alpha = 0.42f),
                     modifier = Modifier.size(17.dp),
                 )
             }

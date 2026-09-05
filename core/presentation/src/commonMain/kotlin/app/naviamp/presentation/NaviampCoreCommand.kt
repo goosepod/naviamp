@@ -63,6 +63,7 @@ sealed interface NaviampCoreCommand {
 
     sealed interface Settings : NaviampCoreCommand {
         data class ChangeInterface(val settings: InterfaceSettings) : Settings
+        data class ChangeFavoriteArtistSort(val sort: app.naviamp.domain.settings.FavoriteArtistSort) : Settings
         data class ChangeHomeSectionPageLayout(
             val sectionId: String,
             val layout: HomeSectionPageLayout,
@@ -244,6 +245,8 @@ sealed interface NaviampCoreCommand {
         data class Selection(val request: NowPlayingSelectionActionRequest) : NowPlaying
         data class QueueItem(val request: NowPlayingItemActionRequest) : NowPlaying
         data class TogglePlaylistMembership(val playlistId: String) : NowPlaying
+        data class CreateMembershipPlaylist(val name: String) : NowPlaying
+        data object RetryPlaylistMembership : NowPlaying
         data object ApplyPlaylistMembership : NowPlaying
         data object DismissPlaylistMembership : NowPlaying
     }

@@ -230,6 +230,7 @@ fun createNaviampCoreActions(
             onTrackAction = { send(NaviampCoreCommand.Detail.PlaylistTrack(it)) },
         ),
         homeActions = NaviampHomeActions(
+            onFavoriteArtistSortChanged = { send(NaviampCoreCommand.Settings.ChangeFavoriteArtistSort(it)) },
             onRefresh = { send(NaviampCoreCommand.Home.Refresh) },
             onRecentRadioSelected = { send(NaviampCoreCommand.Home.SelectRecentRadio(it)) },
             onInternetRadioStationSelected = { send(NaviampCoreCommand.Home.SelectInternetRadio(it)) },
@@ -256,6 +257,8 @@ fun createNaviampCoreActions(
             onSelectionAction = { send(NaviampCoreCommand.NowPlaying.Selection(it)) },
             onQueueItemAction = { send(NaviampCoreCommand.NowPlaying.QueueItem(it)) },
             onPlaylistMembershipToggled = { send(NaviampCoreCommand.NowPlaying.TogglePlaylistMembership(it)) },
+            onMembershipPlaylistCreated = { send(NaviampCoreCommand.NowPlaying.CreateMembershipPlaylist(it)) },
+            onPlaylistMembershipRetried = { send(NaviampCoreCommand.NowPlaying.RetryPlaylistMembership) },
             onPlaylistMembershipApplied = { send(NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership) },
             onPlaylistMembershipDismissed = { send(NaviampCoreCommand.NowPlaying.DismissPlaylistMembership) },
         ),

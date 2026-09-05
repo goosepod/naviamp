@@ -320,6 +320,11 @@ class NavidromeProvider(
             artist = artist.toArtist(),
             albums = albums.mapNotNull { album ->
                 (album as? JsonObject)?.toAlbum()
+            }.filter { album ->
+                // ArtistParticipations can add track-only credits to getArtist. Only explicit
+                // album-artist identities can disprove primary membership; names are not IDs.
+                val credits = album.artistCredits
+                credits.isEmpty() || credits.any { it.id == null || it.id == artistId }
             },
             info = info,
         )
@@ -389,7 +394,7 @@ class NavidromeProvider(
         nativeAlphabeticalPage(
             kind = AlphabeticalLibraryKind.Albums,
             request = request,
-            mapper = { it.toAlbum() },
+            mapper = { it.toNativeAlbum() },
         ) ?: pageAcrossSelectedMusicFolders(
             request = request,
             itemKey = { album -> album.id.value },
@@ -421,7 +426,7 @@ class NavidromeProvider(
         nativeAlphabeticalPage(
             kind = AlphabeticalLibraryKind.Tracks,
             request = request,
-            mapper = { it.toTrack() },
+            mapper = { it.toNativeTrack() },
         ) ?: pageAcrossSelectedMusicFolders(
             request = request,
             itemKey = { track -> track.id.value },
@@ -436,13 +441,13 @@ class NavidromeProvider(
 
     override suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int? {
         if (nativeToken.isNullOrBlank()) return null
-        val boundary = letter.uppercaseChar().toString()
+        val boundary = letter.lowercaseChar().toString()
         val first = nativeAlphabeticalPage(kind, MediaPageRequest(limit = 1)) { objectValue ->
             objectValue.nativeLibraryTitle(kind)
         } ?: return null
         val total = first.totalItemCount ?: return null
         if (total == 0) return null
-        if (first.items.singleOrNull().orEmpty().uppercase() >= boundary) return 0
+        if (first.items.singleOrNull().orEmpty().lowercase() >= boundary) return 0
 
         var low = 1
         var high = total
@@ -452,7 +457,7 @@ class NavidromeProvider(
                 objectValue.nativeLibraryTitle(kind)
             } ?: return null
             val title = page.items.singleOrNull() ?: return null
-            if (title.uppercase() < boundary) low = middle + 1 else high = middle
+            if (title.lowercase() < boundary) low = middle + 1 else high = middle
         }
         return low.takeIf { it < total }
     }
@@ -501,6 +506,33 @@ class NavidromeProvider(
             null
         }
     }
+
+    // Native catalog responses use model fields, not the Subsonic wire schema. Keep
+    // these conversions at the provider boundary so every host receives complete media.
+    private fun JsonObject.toNativeAlbum(): Album = toAlbum().let { album ->
+        album.copy(
+            coverArtId = stringValue("coverArt") ?: "al-${album.id.value}",
+            favoritedAtIso8601 = nativeFavoriteTimestamp(),
+            recentlyAddedAtIso8601 = stringValue("createdAt"),
+        )
+    }
+
+    private fun JsonObject.toNativeTrack(): Track = toTrack().let { track ->
+        track.copy(
+            coverArtId = stringValue("coverArt") ?: "mf-${track.id.value}",
+            durationSeconds = doubleValue("duration")
+                ?.takeIf { it.isFinite() && it >= 0 && it <= Int.MAX_VALUE }
+                ?.toInt(),
+            favoritedAtIso8601 = nativeFavoriteTimestamp(),
+            userRating = intValue("rating")?.takeIf { it in 1..5 },
+            lastPlayedAtIso8601 = stringValue("playDate"),
+            musicFolderId = stringValue("libraryId"),
+            audioInfo = track.audioInfo?.copy(samplingRateHz = intValue("sampleRate")),
+        )
+    }
+
+    private fun JsonObject.nativeFavoriteTimestamp(): String? =
+        if (booleanValue("starred") == true) stringValue("starredAt") else null
 
     private fun JsonObject.nativeLibraryTitle(kind: AlphabeticalLibraryKind): String =
         when (kind) {
@@ -977,6 +1009,21 @@ class NavidromeProvider(
                 trackIds.forEach { trackId -> add("songIdToAdd" to trackId.value) }
             },
         )
+    }
+
+    override suspend fun removeTrackFromPlaylist(playlistId: String, trackId: TrackId) {
+        val indices = playlistTracksForMusicFolder(playlistId, musicFolderId = null).mapIndexedNotNull { index, track ->
+            index.takeIf { track.id == trackId }
+        }
+        if (indices.isEmpty()) return
+        if (profile.serialPlaylistTrackMutations) {
+            indices.asReversed().forEach { index ->
+                get("updatePlaylist.view", listOf("playlistId" to playlistId, "songIndexToRemove" to index.toString()))
+            }
+        } else {
+            get("updatePlaylist.view", listOf("playlistId" to playlistId) +
+                indices.map { "songIndexToRemove" to it.toString() })
+        }
     }
 
     private fun List<TrackId>.indicesToRemoveForSubsequence(requested: List<TrackId>): List<Int>? {
@@ -1849,8 +1896,8 @@ class NavidromeProvider(
     }
 
     private fun JsonObject.isSmartPlaylistObject(): Boolean =
-        this["rules"] != null ||
-            this["validUntil"] != null ||
+        this["rules"]?.let { it != kotlinx.serialization.json.JsonNull } == true ||
+            this["validUntil"]?.let { it != kotlinx.serialization.json.JsonNull } == true ||
             booleanValue("smart") == true ||
             booleanValue("smartPlaylist") == true ||
             stringValue("type")?.equals("smart", ignoreCase = true) == true

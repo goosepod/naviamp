@@ -233,6 +233,17 @@ fun NaviampSharedAppShell(
         ),
         typography = rememberNaviampTypography(),
     ) {
+        uiState.playlistMembership?.let { membership ->
+            TrackPlaylistMembershipDialog(
+                membership = membership,
+                colors = colors,
+                onToggle = nowPlayingActions.onPlaylistMembershipToggled,
+                onCreate = nowPlayingActions.onMembershipPlaylistCreated,
+                onRetry = nowPlayingActions.onPlaylistMembershipRetried,
+                onApply = nowPlayingActions.onPlaylistMembershipApplied,
+                onDismissRequest = nowPlayingActions.onPlaylistMembershipDismissed,
+            )
+        }
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -444,6 +455,7 @@ private fun ConnectedContent(
     val homeScrollState = rememberScrollState()
     val libraryViewportState = rememberNaviampLibraryViewportState()
     val artistDetailScrollState = rememberScrollState()
+    val artistAppearanceState = rememberNaviampArtistAppearanceState(artistDetail.selectedArtist?.id)
     val playlistDetailScrollState = rememberScrollState()
     LaunchedEffect(artistDetail.selectedArtist?.id) {
         artistDetailScrollState.scrollTo(0)
@@ -480,6 +492,7 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
             scrollState = artistDetailScrollState,
+            appearanceState = artistAppearanceState,
         )
         playlistDetail.selectedPlaylist != null -> NaviampPlaylistDetailContent(
             colors = colors,

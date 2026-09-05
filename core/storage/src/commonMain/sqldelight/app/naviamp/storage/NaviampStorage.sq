@@ -930,6 +930,7 @@ INNER JOIN library_track_artist_credit
   AND library_track_artist_credit.remote_track_id = library_track.remote_track_id
 WHERE library_track.source_id = ?
 AND library_track_artist_credit.remote_artist_id = ?
+AND (library_track.remote_album_id IS NULL OR library_track.remote_album_id NOT IN :primaryAlbumIds)
 ORDER BY library_track.search_album_title, library_track.search_title, library_track.remote_track_id
 LIMIT ?;
 
@@ -1939,3 +1940,24 @@ INSERT OR REPLACE INTO library_genre_inventory_metadata(
   ontology_payload_sha256,
   updated_at_epoch_millis
 ) VALUES (?, ?, ?);
+
+CREATE TABLE album_catalog_snapshot (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  catalog_key TEXT NOT NULL,
+  albums_json TEXT NOT NULL,
+  refreshed_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, catalog_key)
+);
+
+selectAlbumCatalogSnapshot:
+SELECT * FROM album_catalog_snapshot WHERE source_id = ? AND catalog_key = ?;
+
+replaceAlbumCatalogSnapshot:
+INSERT OR REPLACE INTO album_catalog_snapshot(source_id, catalog_key, albums_json, refreshed_at_epoch_millis)
+VALUES (?, ?, ?, ?);
+
+clearAlbumCatalogSnapshots:
+DELETE FROM album_catalog_snapshot;
+
+clearAlbumCatalogSnapshotsForSource:
+DELETE FROM album_catalog_snapshot WHERE source_id = ?;

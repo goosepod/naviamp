@@ -1,5 +1,8 @@
 package app.naviamp.storage
 
+import app.naviamp.domain.library.AlbumCatalogSnapshot
+import app.naviamp.domain.library.AlbumCatalogScope
+import app.naviamp.domain.library.AlbumCatalogRepository
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -29,6 +32,24 @@ class StorageLibraryIndexStore(
     private val mediaSources: StorageMediaSourceStore,
     private val nowMillis: () -> Long,
 ) : LocalLibraryIndexRepository {
+    override val albumCatalog = object : AlbumCatalogRepository {
+        private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+        override fun readAlbumCatalog(scope: AlbumCatalogScope): AlbumCatalogSnapshot? {
+            val row = queries.selectAlbumCatalogSnapshot(scope.sourceId, scope.catalogKey).executeAsOneOrNull() ?: return null
+            return runCatching {
+                AlbumCatalogSnapshot(
+                    json.decodeFromString<List<Album>>(row.albums_json), row.refreshed_at_epoch_millis,
+                )
+            }.getOrNull()
+        }
+
+        override fun replaceAlbumCatalog(scope: AlbumCatalogScope, snapshot: AlbumCatalogSnapshot) {
+            val payload = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(Album.serializer()), snapshot.albums)
+            queries.replaceAlbumCatalogSnapshot(scope.sourceId, scope.catalogKey, payload, snapshot.refreshedAtEpochMillis)
+        }
+    }
+
     override fun mediaSource(sourceId: String) =
         mediaSources.mediaSource(sourceId)
 
@@ -141,7 +162,7 @@ class StorageLibraryIndexStore(
         primaryAlbumIds: Set<AlbumId>,
         limit: Long,
     ): ArtistDiscographyAppearances {
-        val tracks = queries.selectLibraryTracksCreditedToArtist(sourceId, artistId.value, limit)
+        val tracks = queries.selectLibraryTracksCreditedToArtist(sourceId, artistId.value, primaryAlbumIds.map { it.value }, limit + 1)
             .executeAsList()
             .map { it.toTrack() }
             .filter { track -> track.albumId == null || track.albumId !in primaryAlbumIds }
@@ -162,7 +183,7 @@ class StorageLibraryIndexStore(
                     )
                 }
             }
-        return ArtistDiscographyAppearances(albums = albums, tracks = tracks)
+        return ArtistDiscographyAppearances(albums = albums, tracks = tracks.take(limit.toInt()), truncated = tracks.size > limit)
     }
 
     override fun replaceLibraryGenreInventory(sourceId: String, genres: List<app.naviamp.domain.Genre>) {
@@ -281,12 +302,13 @@ class StorageLibraryIndexStore(
         sourceId: String,
         artists: List<Artist>,
         observedAtIso8601: String,
+        complete: Boolean,
     ): List<Artist> {
         val existing = queries.selectFavoriteArtistActivities(sourceId).executeAsList()
             .associateBy { it.remote_artist_id }
         val now = nowMillis()
         queries.transaction {
-            queries.deactivateFavoriteArtistActivities(now, sourceId)
+            if (complete) queries.deactivateFavoriteArtistActivities(now, sourceId)
             artists.forEach { artist ->
                 val previous = existing[artist.id.value]
                 val favoritedAt = artist.favoritedAtIso8601
@@ -491,6 +513,7 @@ class StorageLibraryIndexStore(
                 queries.clearLibraryGenreInventoryMetadata()
                 queries.clearArtistPopularTracks()
                 queries.clearLibraryTracks()
+                queries.clearAlbumCatalogSnapshots()
                 queries.clearLibraryAlbums()
                 queries.clearLibraryArtists()
             } else {
@@ -498,6 +521,7 @@ class StorageLibraryIndexStore(
                 queries.clearLibraryGenreInventoryMetadataForSource(sourceId)
                 queries.clearArtistPopularTracksForSource(sourceId)
                 queries.clearLibraryForSource(sourceId)
+                queries.clearAlbumCatalogSnapshotsForSource(sourceId)
                 queries.clearLibraryAlbumsForSource(sourceId)
                 queries.clearLibraryArtistsForSource(sourceId)
             }

@@ -36,6 +36,81 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCorePlaylistBrowseControllerTest {
     @Test
+    fun membershipReconciliationRejectsOlderListSuccessAndFailure() = runTest {
+        for (failRefresh in listOf(false, true)) {
+            val base = PlaylistBrowseTestProvider()
+            val gate = CompletableDeferred<Unit>()
+            var blockRefresh = false
+            val provider = object : MediaProvider by base {
+                override suspend fun playlists(limit: Int): List<Playlist> {
+                    val snapshot = base.playlists(limit)
+                    if (blockRefresh) {
+                        gate.await()
+                        if (failRefresh) error("Stale refresh failed")
+                    }
+                    return snapshot
+                }
+            }
+            val registry = NaviampCoreMediaRegistry()
+            val (store, controller) = controller(provider, registry)
+            controller.execute(NaviampCoreCommand.Playlists.Refresh)
+            val unaffected = store.state.value.shell.playlists.playlists.last()
+            blockRefresh = true
+            val refresh = launch { controller.execute(NaviampCoreCommand.Playlists.Refresh) }
+            runCurrent()
+            assertTrue(store.state.value.shell.playlists.refreshing)
+            controller.reconcileContents("playlist-a", emptyList())
+            gate.complete(Unit)
+            refresh.join()
+
+            val shell = store.state.value.shell
+            assertEquals(0, shell.playlists.playlists.first().trackCount)
+            assertEquals(unaffected, shell.playlists.playlists.last())
+            assertEquals("0 tracks", shell.playlistChoices.single().subtitle)
+            assertEquals(0, registry.playlist("playlist-a")?.trackCount)
+            assertFalse(shell.playlists.refreshing)
+            assertNull(shell.playlists.status)
+            assertNull(shell.playlistDetail.selectedPlaylist)
+        }
+    }
+
+    @Test
+    fun anOlderRefreshCannotRemoveACreatedPlaylist() = runTest {
+        val base = PlaylistBrowseTestProvider()
+        val gate = CompletableDeferred<Unit>()
+        var blockRefresh = false
+        val provider = object : MediaProvider by base {
+            override suspend fun playlists(limit: Int): List<Playlist> {
+                val snapshot = base.playlists(limit)
+                if (blockRefresh) gate.await()
+                return snapshot
+            }
+        }
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        blockRefresh = true
+        val refresh = launch { controller.execute(NaviampCoreCommand.Playlists.Refresh) }
+        runCurrent()
+        controller.publishCreated(Playlist("new", "New playlist", 1))
+        gate.complete(Unit)
+        refresh.join()
+        assertEquals(listOf("playlist-a", "playlist-b", "new"), store.state.value.shell.playlists.playlists.map { it.id })
+        assertFalse(store.state.value.shell.playlists.refreshing)
+    }
+
+    @Test
+    fun createdPlaylistAppearsImmediatelyWithoutReplacingExistingRows() = runTest {
+        val (store, controller) = controller(PlaylistBrowseTestProvider())
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        controller.publishCreated(Playlist("new", "New playlist", 1))
+        controller.publishCreated(Playlist("new", "New playlist", 1))
+        assertEquals(listOf("playlist-a", "playlist-b", "new"), store.state.value.shell.playlists.playlists.map { it.id })
+        assertEquals(listOf("playlist-a", "new"), store.state.value.shell.playlistChoices.map { it.id })
+        assertFalse(store.state.value.shell.playlists.refreshing)
+        assertNull(store.state.value.shell.playlistDetail.selectedPlaylist)
+    }
+
+    @Test
     fun refreshMapsPlaylistSupplementsAndSortIsImmediateCoreState() = runTest {
         val provider = PlaylistBrowseTestProvider()
         val (store, controller) = controller(provider)
@@ -86,6 +161,31 @@ class NaviampCorePlaylistBrowseControllerTest {
         assertEquals(listOf("Track 1", "Track 2"), state.detail?.tracks?.map { it.title })
         assertEquals(2, state.detail?.playlist?.trackCount)
         assertEquals("Connected.", state.status)
+    }
+
+    @Test
+    fun reconciledMembershipUpdatesOpenDetailAndRejectsOlderLoads() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val provider = PlaylistBrowseTestProvider(gate)
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+        val opening = launch {
+            controller.execute(NaviampCoreCommand.Media.ItemAction(
+                SharedMediaItemUi("playlist-a", "Playlist A", "")
+                    .playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+            ))
+        }
+        runCurrent()
+        val reconciled = provider.playlistTracks("playlist-b")
+        controller.reconcileContents("playlist-a", reconciled)
+        gate.complete(Unit)
+        opening.join()
+        assertEquals(listOf("Track B"), store.state.value.shell.playlistDetail.detail?.tracks?.map { it.title })
+        assertEquals(1, store.state.value.shell.playlistDetail.selectedPlaylist?.trackCount)
+        assertEquals(1, store.state.value.shell.playlists.playlists.first().trackCount)
+        assertNull(store.state.value.shell.playlistDetail.status)
+        controller.reconcileContents("playlist-b", emptyList())
+        assertEquals(listOf("Track B"), store.state.value.shell.playlistDetail.detail?.tracks?.map { it.title })
     }
 
     @Test
@@ -161,6 +261,7 @@ class NaviampCorePlaylistBrowseControllerTest {
 
     private fun controller(
         provider: MediaProvider?,
+        mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
     ): Pair<NaviampCoreStateStore, NaviampCorePlaylistBrowseController> {
         val store = NaviampCoreStateStore()
         val navigation = NaviampCoreNavigationController(
@@ -170,6 +271,7 @@ class NaviampCorePlaylistBrowseControllerTest {
         )
         return store to NaviampCorePlaylistBrowseController(
             stateStore = store,
+            mediaRegistry = mediaRegistry,
             providerSource = NaviampCoreMediaProviderSource { provider },
             navigationController = navigation,
             supplementSource = NaviampCorePlaylistBrowseSupplementSource {

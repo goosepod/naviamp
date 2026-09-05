@@ -119,6 +119,7 @@ class StorageDatabaseInitializerTest {
         try {
             NaviampStorageDatabase.Schema.create(driver)
             driver.execute(null, "DROP TABLE favorite_artist_activity", 0)
+            driver.execute(null, "DROP TABLE album_catalog_snapshot", 0)
             driver.execute(null, "DROP TABLE library_track_artist_credit", 0)
             driver.execute(null, "PRAGMA user_version = 24", 0)
 
@@ -158,6 +159,7 @@ private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFo
     execute(null, "ALTER TABLE playback_session_state DROP COLUMN queue_groups_payload", 0)
     execute(null, "DROP TABLE playback_profile", 0)
     execute(null, "DROP TABLE favorite_artist_activity", 0)
+    execute(null, "DROP TABLE album_catalog_snapshot", 0)
     execute(null, "DROP TABLE library_track_artist_credit", 0)
     if (!includeSelectedMusicFolders) {
         execute(null, "ALTER TABLE media_source DROP COLUMN selected_music_folder_ids_json", 0)

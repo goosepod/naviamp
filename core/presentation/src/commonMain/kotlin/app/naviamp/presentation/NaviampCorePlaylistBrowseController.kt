@@ -150,6 +150,67 @@ class NaviampCorePlaylistBrowseController(
         refresh(finalStatus = status)
     }
 
+    internal fun publishCreated(playlist: Playlist) {
+        val provider = providerSource.current() ?: return
+        ++listGeneration // A refresh begun before creation must not remove the new playlist.
+        playlistsById = playlistsById + (playlist.id to playlist)
+        mediaRegistry.updatePlaylists(playlistsById.values.toList())
+        val mapped = playlist.toSharedMediaItemUi(coverArtUrl = { id -> id?.let(provider::coverArtUrl) })
+        stateStore.updateShell { shell ->
+            shell.copy(
+                playlists = shell.playlists.copy(
+                    playlists = shell.playlists.playlists.filterNot { it.id == playlist.id } + mapped,
+                    refreshing = false,
+                    status = null,
+                ),
+                playlistChoices = shell.playlistChoices.filterNot { it.id == playlist.id } + playlist.toPlaylistChoiceUi(),
+            )
+        }
+    }
+
+    internal fun reconcileContents(playlistId: String, tracks: List<app.naviamp.domain.Track>) {
+        val provider = providerSource.current() ?: return
+        val selected = stateStore.state.value.shell.playlistDetail.selectedPlaylist
+        val playlist = playlistsById[playlistId]
+            ?: selected?.takeIf { it.id == playlistId }?.let(::resolvePlaylist)
+            ?: return
+        val updated = playlist.copy(trackCount = tracks.size)
+        ++listGeneration // An older list response cannot restore pre-mutation counts.
+        playlistsById = playlistsById + (playlistId to updated)
+        mediaRegistry.updatePlaylists(playlistsById.values.toList())
+        val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
+        val mapped = updated.toSharedMediaItemUi(
+            coverArtUrl = coverArtUrl,
+            tracks = tracks,
+            keepDownloadedActive = playlistId in supplementSource.current().keepDownloadedPlaylistIds,
+        )
+        if (selected?.id == playlistId) {
+            ++detailGeneration // An older detail load cannot restore pre-mutation contents.
+            mediaRegistry.updateSelectedPlaylist(updated, tracks)
+        }
+        stateStore.updateShell { shell ->
+            shell.copy(
+                playlists = shell.playlists.copy(
+                    playlists = shell.playlists.playlists.map {
+                        if (it.id == playlistId) mapped else it
+                    },
+                    refreshing = false,
+                    status = null,
+                ),
+                playlistChoices = shell.playlistChoices.map {
+                    if (it.id == playlistId) updated.toPlaylistChoiceUi() else it
+                },
+                playlistDetail = if (shell.playlistDetail.selectedPlaylist?.id == playlistId) {
+                    shell.playlistDetail.copy(
+                        selectedPlaylist = mapped,
+                        detail = SharedPlaylistDetailUi(mapped, tracks.map { it.toSharedTrackRowUi(coverArtUrl) }),
+                        status = null,
+                    )
+                } else shell.playlistDetail,
+            )
+        }
+    }
+
     internal fun resolvePlaylist(item: SharedMediaItemUi): Playlist =
         playlistsById[item.id] ?: Playlist(
             id = item.id,

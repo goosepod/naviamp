@@ -12,11 +12,15 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
@@ -24,9 +28,149 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampLibraryFocusUiTest {
+    @Test
+    fun loadingPanelStaysVisibleAboveAScrolledCatalogAndClearsWhenFinished() = runComposeUiTest {
+        lateinit var screen: MutableState<NaviampLibraryScreenUi>
+        lateinit var viewport: NaviampLibraryViewportState
+        setContent {
+            screen = remember { mutableStateOf(NaviampLibraryScreenUi(
+                selectedView = NaviampLibraryView.Albums,
+                albums = NaviampLibraryCatalogUi(items = List(100) {
+                    SharedMediaItemUi("album-$it", "Album $it", "Artist")
+                }),
+            )) }
+            viewport = rememberNaviampLibraryViewportState()
+            Box(Modifier.height(400.dp)) {
+                NaviampLibraryContent(NaviampColors(), screen.value, libraryActions {}, emptyMediaActions(), viewport)
+            }
+        }
+        runOnIdle { viewport.listState(NaviampLibraryView.Albums).requestScrollToItem(25) }
+        waitForIdle()
+        runOnIdle { screen.value = screen.value.copy(albums = screen.value.albums.copy(pendingJump = 'M')) }
+        onNodeWithText("Loading M…").assertIsDisplayed()
+        runOnIdle { assertEquals(25, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex) }
+        runOnIdle { screen.value = screen.value.copy(albums = screen.value.albums.copy(pendingJump = null)) }
+        onNodeWithText("Loading M…").assertDoesNotExist()
+        runOnIdle { assertEquals(25, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex) }
+    }
+
+    @Test
+    fun albumJumpSkipsCurlyQuotedAndNumberedTitles() = runComposeUiTest {
+        lateinit var screen: MutableState<NaviampLibraryScreenUi>
+        lateinit var viewport: NaviampLibraryViewportState
+        setContent {
+            screen = remember { mutableStateOf(NaviampLibraryScreenUi(
+                selectedView = NaviampLibraryView.Albums,
+                albums = NaviampLibraryCatalogUi(items =
+                    (listOf("’90s Rock Essentials", "10 000 Hz Legend", "25") +
+                        List(20) { "G Album $it" }).mapIndexed { index, title ->
+                        SharedMediaItemUi("album-$index", title, "Artist")
+                    }),
+            )) }
+            viewport = rememberNaviampLibraryViewportState()
+            Box(Modifier.height(400.dp)) {
+                NaviampLibraryContent(NaviampColors(), screen.value, libraryActions {}, emptyMediaActions(), viewport)
+            }
+        }
+        runOnIdle { screen.value = screen.value.copy(
+            jumpRequest = NaviampLibraryJumpUi(NaviampLibraryView.Albums, 'G', 1)) }
+        waitForIdle()
+        onNodeWithText("G Album 0").assertIsDisplayed()
+        runOnIdle { assertEquals(3, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex) }
+    }
+
+    @Test
+    fun alphabetTargetsAreCenteredAndClickableAcrossTheirColumnInEveryView() = runComposeUiTest {
+        val screen = mutableStateOf(libraryScreen())
+        var requested: Char? = null
+        setContent {
+            Box(Modifier.height(600.dp)) {
+                NaviampLibraryContent(NaviampColors(), screen.value,
+                    libraryActions(onViewChanged = {}, onJumpToLetter = { requested = it }),
+                    emptyMediaActions(), rememberNaviampLibraryViewportState())
+            }
+        }
+        NaviampLibraryView.entries.forEach { view ->
+            runOnIdle { screen.value = screen.value.copy(selectedView = view); requested = null }
+            val letter = onNodeWithText("G").performScrollTo()
+            val bounds = letter.fetchSemanticsNode().boundsInRoot
+            assertTrue(bounds.width >= 36f)
+            letter.performTouchInput { click(androidx.compose.ui.geometry.Offset(2f, center.y)) }
+            runOnIdle { assertEquals('G', requested); requested = null }
+            letter.performTouchInput { click(androidx.compose.ui.geometry.Offset(width - 2f, center.y)) }
+            runOnIdle { assertEquals('G', requested) }
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            letter.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            val layout = layouts.single()
+            val glyph = layout.getBoundingBox(0)
+            assertTrue(kotlin.math.abs(glyph.center.x - layout.size.width / 2f) <= 1f)
+        }
+    }
+
+    @Test
+    fun initialLoadingDoesNotClaimTheCatalogIsEmpty() = runComposeUiTest {
+        lateinit var screen: MutableState<NaviampLibraryScreenUi>
+        setContent {
+            screen = remember { mutableStateOf(NaviampLibraryScreenUi(
+                selectedView = NaviampLibraryView.Songs,
+                songs = NaviampLibraryCatalogUi(syncStatus = NaviampLibrarySyncStatusUi(isSyncing = true)),
+            )) }
+            NaviampLibraryContent(NaviampColors(), screen.value, libraryActions {}, emptyMediaActions(), rememberNaviampLibraryViewportState())
+        }
+        onNodeWithText("Loading songs…").assertIsDisplayed()
+        onNodeWithText("No library songs found.").assertDoesNotExist()
+        runOnIdle { screen.value = screen.value.copy(songs = NaviampLibraryCatalogUi()) }
+        onNodeWithText("Loading songs…").assertDoesNotExist()
+        onNodeWithText("No library songs found.").assertIsDisplayed()
+    }
+
+    @Test
+    fun aConsumedJumpDoesNotReplayAfterPagingOrDetailBack() = runComposeUiTest {
+        lateinit var screen: MutableState<NaviampLibraryScreenUi>
+        lateinit var visible: MutableState<Boolean>
+        lateinit var viewport: NaviampLibraryViewportState
+        fun rows(count: Int) = List(count) { SharedMediaItemUi("m-$it", "M Album $it", "Artist") }
+        setContent {
+            screen = remember { mutableStateOf(NaviampLibraryScreenUi(selectedView = NaviampLibraryView.Albums,
+                albums = NaviampLibraryCatalogUi(items = rows(100)),
+                jumpRequest = NaviampLibraryJumpUi(NaviampLibraryView.Albums, 'M', 1))) }
+            visible = remember { mutableStateOf(true) }
+            viewport = rememberNaviampLibraryViewportState()
+            if (visible.value) Box(Modifier.height(300.dp)) {
+                NaviampLibraryContent(NaviampColors(), screen.value, libraryActions {}, emptyMediaActions(), viewport)
+            }
+        }
+        waitForIdle()
+        runOnIdle { viewport.listState(NaviampLibraryView.Albums).requestScrollToItem(25) }
+        waitForIdle()
+        runOnIdle { screen.value = screen.value.copy(albums = screen.value.albums.copy(items = rows(150))) }
+        waitForIdle()
+        runOnIdle { assertEquals(25, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex) }
+        runOnIdle { visible.value = false }
+        runOnIdle { visible.value = true }
+        waitForIdle()
+        runOnIdle { assertEquals(25, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex) }
+    }
+
+    @Test
+    fun replacingTheFocusedRowFallsBackToTheSelector() = runComposeUiTest {
+        lateinit var screen: MutableState<NaviampLibraryScreenUi>
+        setContent {
+            screen = remember { mutableStateOf(libraryScreen()) }
+            NaviampLibraryContent(NaviampColors(), screen.value, libraryActions {}, emptyMediaActions(), rememberNaviampLibraryViewportState())
+        }
+        onNodeWithText("Artist A").performSemanticsAction(SemanticsActions.RequestFocus)
+        waitForIdle()
+        runOnIdle { screen.value = screen.value.copy(artists = NaviampLibraryCatalogUi(
+            items = listOf(SharedMediaItemUi("other", "Other artist", "Artist")))) }
+        waitForIdle()
+        onNodeWithText("Artists").assertIsFocused()
+    }
+
     @Test
     fun quickIndexWaitsForTheServerBackedJumpWindowBeforeScrolling() = runComposeUiTest {
         lateinit var screenState: MutableState<NaviampLibraryScreenUi>
@@ -60,7 +204,7 @@ class NaviampLibraryFocusUiTest {
             }
         }
 
-        onNodeWithText("M").performClick()
+        onNodeWithText("M").performScrollTo().performClick()
         runOnIdle {
             assertEquals('M', requestedLetter)
             assertEquals(0, viewportState.listState(NaviampLibraryView.Albums).firstVisibleItemIndex)
@@ -75,9 +219,9 @@ class NaviampLibraryFocusUiTest {
         }
         waitForIdle()
 
-        runOnIdle {
-            assertEquals(2, viewportState.listState(NaviampLibraryView.Albums).firstVisibleItemIndex)
-        }
+        val searchBounds = onNodeWithText("Search library albums").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val targetBounds = onNodeWithText("M Album 0").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue(targetBounds.top >= searchBounds.bottom, "The jump target must remain below the pinned search")
     }
 
     @Test

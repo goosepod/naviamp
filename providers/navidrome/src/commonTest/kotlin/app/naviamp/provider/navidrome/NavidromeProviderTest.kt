@@ -760,6 +760,39 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun artistParticipationsDoNotBecomePrimaryReleasesWhenAlbumArtistIdsDisagree() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = SequencedHttpClient(listOf(
+                """{"subsonic-response":{"status":"ok","artist":{
+                    "id":"selected","name":"Selected artist","album":[
+                        {"id":"own","name":"Own album","artist":"Alias","artistId":"selected"},
+                        {"id":"guest","name":"Guest appearance","artist":"Other","artistId":"other"},
+                        {"id":"collaboration","name":"Joint album","artist":"Other","artistId":"other",
+                         "artists":[{"id":"other","name":"Other"},{"id":"selected","name":"Alias"}]},
+                        {"id":"same-name","name":"Names are not identities","artist":"Selected artist","artistId":"different"},
+                        {"id":"legacy","name":"Legacy album","artist":"Different display name"},
+                        {"id":"partial","name":"Incomplete credit IDs","artist":"Other / Alias",
+                         "artists":[{"id":"other","name":"Other"},{"name":"Alias"}]}
+                    ]
+                }}}""",
+                """{"subsonic-response":{"status":"ok","artistInfo2":{}}}""",
+            )),
+        )
+
+        val discography = provider.artistDiscography(ArtistId("selected"))
+
+        assertEquals(listOf("own", "collaboration", "legacy", "partial"),
+            discography.primary.albums.map { it.id.value })
+        assertEquals(listOf("other", "selected"),
+            discography.primary.albums[1].artistCredits.mapNotNull { it.id?.value })
+        assertEquals("Other", discography.primary.albums[1].artistName,
+            "The scalar display artist may omit a valid secondary album artist supplied in structured credits.")
+        assertFalse(provider.capabilities.supportsArtistDiscography,
+            "Credited appearances still come from the source-scoped shared index.")
+    }
+
+    @Test
     fun searchMapsArtistsAlbumsAndTracks() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
@@ -1159,6 +1192,40 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun nativeCatalogMappingPreservesArtworkAndNativeMetadata() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """
+                [
+                  {"id":"one","name":"Album","title":"Song","albumId":"album",
+                   "duration":200.75,"sampleRate":44100,"libraryId":2,"rating":4,
+                   "starred":true,"starredAt":"2026-09-04T12:00:00Z",
+                   "playDate":"2026-09-03T12:00:00Z","createdAt":"2026-09-01T12:00:00Z"},
+                  {"id":"two","name":"Other","title":"Other","duration":114,
+                   "coverArt":"explicit-cover","starred":false,"starredAt":"2020-01-01T00:00:00Z"}
+                ]
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+        val tracks = provider.tracksPage(MediaPageRequest(limit = 15)).items
+        assertEquals(listOf("mf-one", "explicit-cover"), tracks.map { it.coverArtId })
+        assertEquals(listOf(200, 114), tracks.map { it.durationSeconds })
+        assertEquals(44100, tracks.first().audioInfo?.samplingRateHz)
+        assertEquals("2", tracks.first().musicFolderId)
+        assertEquals(4, tracks.first().userRating)
+        assertEquals("2026-09-04T12:00:00Z", tracks.first().favoritedAtIso8601)
+        assertEquals("2026-09-03T12:00:00Z", tracks.first().lastPlayedAtIso8601)
+        assertNull(tracks.last().favoritedAtIso8601)
+        val albums = provider.albumsPage(MediaPageRequest(limit = 15)).items
+        assertEquals(listOf("al-one", "explicit-cover"), albums.map { it.coverArtId })
+        assertEquals("2026-09-01T12:00:00Z", albums.first().recentlyAddedAtIso8601)
+        assertEquals("2026-09-04T12:00:00Z", albums.first().favoritedAtIso8601)
+        assertNull(albums.last().favoritedAtIso8601)
+    }
+
+    @Test
     fun alphabeticalOffsetBinarySearchUsesTheNativeGlobalCatalog() = runTest {
         val httpClient = OffsetNativeHttpClient(total = 8, titles = listOf("#One", "A", "C", "F", "M", "M Two", "Y", "Z"))
         val provider = NavidromeProvider(
@@ -1170,6 +1237,19 @@ class NavidromeProviderTest {
 
         assertEquals(4, offset)
         assertTrue(httpClient.getUrls.all { "_sort=title" in it })
+    }
+
+    @Test
+    fun albumOffsetKeepsSymbolsBeforeLowercaseAlphabeticalSortKeys() = runTest {
+        val httpClient = OffsetNativeHttpClient(total = 5,
+            titles = listOf("25", "[non-album tracks]", "a", "g", "z"), album = true)
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+        assertEquals(2, provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Albums, 'A'))
+        assertEquals(3, provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Albums, 'G'))
+        assertTrue(httpClient.getUrls.all { "_sort=name" in it })
     }
 
     @Test
@@ -1268,7 +1348,9 @@ class NavidromeProviderTest {
                           "songCount": 34,
                           "duration": 25440,
                           "coverArt": "playlist-cover",
-                          "comment": "Generated playlist metadata"
+                          "comment": "Generated playlist metadata",
+                          "rules": null,
+                          "validUntil": null
                         }
                       ]
                     }
@@ -1280,6 +1362,7 @@ class NavidromeProviderTest {
 
         val playlists = provider.playlists()
 
+        assertFalse(playlists.single().isSmart)
         assertEquals("playlist-1", playlists.single().id)
         assertEquals("April 2026 Playlist", playlists.single().name)
         assertEquals(34, playlists.single().trackCount)
@@ -1889,6 +1972,21 @@ class NavidromeProviderTest {
             "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&songIdToAdd=track-1&songIdToAdd=track-2",
             httpClient.urls.single(),
         )
+    }
+
+    @Test
+    fun membershipRemovalUsesOnlyMatchingIndicesAndNeverReaddsUnrelatedTracks() = runTest {
+        val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"ok","playlist":{"entry":[
+            {"id":"keep","title":"Keep"},{"id":"remove","title":"Remove"},{"id":"remove","title":"Remove"}
+        ]}}}""")
+        val provider = NavidromeProvider(connection("https://music.example.test").copy(selectedMusicFolderIds = listOf("selected")), http)
+        provider.removeTrackFromPlaylist("playlist", TrackId("remove"))
+        assertFalse("musicFolderId" in http.urls.first())
+        val mutation = http.urls.last()
+        assertTrue("songIndexToRemove=1" in mutation && "songIndexToRemove=2" in mutation)
+        assertFalse("songIndexToRemove=0" in mutation)
+        assertFalse("songIdToAdd" in mutation)
+        assertEquals(2, http.urls.size)
     }
 
     @Test
@@ -2754,6 +2852,7 @@ class NavidromeProviderTest {
     private class OffsetNativeHttpClient(
         private val total: Int,
         private val titles: List<String>,
+        private val album: Boolean = false,
     ) : NavidromeHttpClient {
         val getUrls = mutableListOf<String>()
 
@@ -2763,7 +2862,8 @@ class NavidromeProviderTest {
             getUrls += url
             val offset = url.substringAfter("_start=").substringBefore('&').toInt()
             return NavidromeHttpResponse(
-                body = """[{"id":"track-$offset","title":"${titles[offset]}"}]""",
+                body = if (album) """[{"id":"album-$offset","name":"${titles[offset]}","orderAlbumName":"${titles[offset]}"}]"""
+                    else """[{"id":"track-$offset","title":"${titles[offset]}"}]""",
                 headers = mapOf("X-Total-Count" to total.toString()),
             )
         }

@@ -3,6 +3,7 @@ package app.naviamp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -60,6 +61,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -110,7 +112,10 @@ private fun HomeCollectionSection(
 ) {
     val sectionTitle = section.localizedTitle()
     val homeSection = section.copy(items = section.items.take(section.homeItemLimit ?: section.items.size))
-    if (homeSection.items.isEmpty()) return
+    if (homeSection.favoriteArtistSort != null) {
+        FavoriteArtistControls(homeSection, colors, actions)
+        if (homeSection.items.isEmpty()) return
+    } else if (homeSection.items.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when (homeSection.homeLayout) {
             HomeSectionLayout.Carousel -> HomeCollectionCarousel(
@@ -149,6 +154,29 @@ private fun HomeCollectionSection(
             }
         }
     }
+}
+
+@Composable
+private fun FavoriteArtistControls(section: SharedHomeCollectionSectionUi, colors: NaviampColors, actions: NaviampHomeActions) {
+    val sort = section.favoriteArtistSort ?: return
+    if (section.items.isEmpty()) Text(section.localizedTitle(), color = colors.primaryText)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+        app.naviamp.domain.settings.FavoriteArtistSort.entries.forEach { option ->
+            val label = when (option) {
+                app.naviamp.domain.settings.FavoriteArtistSort.Name -> stringResource(Res.string.favorite_artists_sort_name)
+                app.naviamp.domain.settings.FavoriteArtistSort.DateFavorited -> stringResource(Res.string.favorite_artists_sort_favorited)
+                app.naviamp.domain.settings.FavoriteArtistSort.LastRadioPlayed -> stringResource(Res.string.favorite_artists_sort_played)
+            }
+            FilterChip(selected = sort == option, onClick = { actions.onFavoriteArtistSortChanged(option) }, label = { Text(label) })
+        }
+    }
+    val status = when {
+        section.favoriteArtistsStatus == app.naviamp.domain.home.FavoriteArtistsStatus.Failed -> Res.string.favorite_artists_failed
+        section.favoriteArtistsStatus == app.naviamp.domain.home.FavoriteArtistsStatus.Cached -> Res.string.favorite_artists_cached
+        section.items.isEmpty() -> Res.string.favorite_artists_empty
+        else -> null
+    }
+    status?.let { Text(stringResource(it), color = colors.secondaryText) }
 }
 
 @Composable
@@ -503,7 +531,7 @@ private fun homeCollectionMenuItems(
             if (includeFavorite && item.mediaItem.canFavorite) {
                 add(NaviampRowMenuItem(
                     if (item.mediaItem.favoriteActive) "Remove favorite" else "Favorite",
-                    NaviampTransportIcons.Heart,
+                    if (item.mediaItem.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                     {
                         mediaActions.onMediaItemAction(
                             item.mediaItem.albumActionRequest(NaviampArtistAlbumCommand.ToggleFavorite),
@@ -519,7 +547,7 @@ private fun homeCollectionMenuItems(
             if (includeFavorite && track.canToggleFavorite) {
                 add(NaviampRowMenuItem(
                     if (track.favoriteActive) "Unfavorite" else "Favorite",
-                    NaviampTransportIcons.Heart,
+                    if (track.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                     { dispatchHomeTrackAction(item, track, SharedTrackRowAction.ToggleFavorite, actions) },
                 ))
             }
@@ -598,6 +626,7 @@ private fun HomeCollectionPageHeader(
     colors: NaviampColors,
     actions: NaviampHomeActions,
 ) {
+    FavoriteArtistControls(page.section, colors, actions)
     val sectionTitle = page.section.localizedTitle()
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth < HomeCollectionSingleRowHeaderMinWidth) {
@@ -1243,6 +1272,7 @@ fun NaviampLibraryContent(
     val query = catalog.query
     val syncStatus = catalog.syncStatus
     val activeListState = viewportState.listState(screen.selectedView)
+    val libraryScope = rememberCoroutineScope()
     val searchFocusRequester = remember { FocusRequester() }
     val selectorFocusRequesters = remember {
         NaviampLibraryView.entries.associateWith { FocusRequester() }
@@ -1267,27 +1297,37 @@ fun NaviampLibraryContent(
             track.title.lowercase().contains(normalizedQuery) || track.subtitle.lowercase().contains(normalizedQuery)
         }
     }
-    androidx.compose.runtime.LaunchedEffect(screen.selectedView, restoredTarget, items, tracks) {
+    val focusIds = if (screen.selectedView == NaviampLibraryView.Songs) filteredTracks.map { it.id } else filteredItems.map { it.id }
+    val restoredIndex = focusIds.indexOfFirst { libraryItemFocusTarget(it) == restoredTarget }
+    val targetExists = restoredIndex >= 0 || restoredTarget == LibrarySearchFocusTarget
+    androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists) {
+        if (restoredTarget == null && (activeListState.firstVisibleItemIndex > 0 || activeListState.firstVisibleItemScrollOffset > 0)) return@LaunchedEffect
+        if (restoredIndex >= 0) {
+            if (activeListState.layoutInfo.visibleItemsInfo.none { it.key == focusIds[restoredIndex] }) {
+                activeListState.scrollToItem(restoredIndex)
+            }
+        } else if (restoredTarget != LibrarySearchFocusTarget) {
+            activeListState.scrollToItem(0)
+        }
         withFrameNanos { }
         val requester = when {
-            restoredTarget == null -> selectorFocusRequesters.getValue(screen.selectedView)
+            restoredIndex >= 0 -> restoredItemFocusRequester
             restoredTarget == LibrarySearchFocusTarget -> searchFocusRequester
-            else -> restoredItemFocusRequester
+            else -> selectorFocusRequesters.getValue(screen.selectedView)
         }
         requester.requestFocus()
     }
-    androidx.compose.runtime.LaunchedEffect(items, tracks, screen.jumpRequest) {
+    androidx.compose.runtime.LaunchedEffect(screen.jumpRequest) {
         val jump = screen.jumpRequest?.takeIf { it.view == screen.selectedView } ?: return@LaunchedEffect
-        val letter = jump.letter
-        val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
-        val index = if (screen.selectedView == NaviampLibraryView.Songs) {
-            filteredTracks.indexOfFirst { track -> track.title.lowercase() >= boundary }
+        if (!viewportState.consumeJump(jump.generation)) return@LaunchedEffect
+        val titles = if (screen.selectedView == NaviampLibraryView.Songs) {
+            filteredTracks.map { it.title }
         } else {
-            filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
+            filteredItems.map { it.title }
         }
+        val index = app.naviamp.domain.library.libraryLetterJumpIndex(titles, jump.letter)
         if (index >= 0) {
-            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
-            activeListState.scrollToItem(index + headerCount)
+            activeListState.scrollToItem(index)
         }
     }
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1296,7 +1336,17 @@ fun NaviampLibraryContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            NaviampPageTitle(stringResource(Res.string.library_title), colors)
+            Box(Modifier.weight(1f)) { NaviampPageTitle(stringResource(Res.string.library_title), colors) }
+            IconButton(onClick = {
+                libraryScope.launch {
+                    activeListState.scrollToItem(0)
+                    withFrameNanos { }
+                    searchFocusRequester.requestFocus()
+                }
+            }) {
+                Icon(NaviampIcons.Search, contentDescription = stringResource(Res.string.library_return_to_search),
+                    tint = colors.primaryText)
+            }
             NaviampRowOverflowMenu(
                 colors = colors,
                 items = listOf(
@@ -1309,81 +1359,80 @@ fun NaviampLibraryContent(
                 ),
             )
         }
-        Row(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         ) {
-            LazyColumn(
-                state = activeListState,
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             ) {
-            item(key = "library-view-selector") {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(horizontal = 8.dp).horizontalScroll(rememberScrollState()),
-                ) {
-                    NaviampLibraryView.entries.forEachIndexed { index, view ->
-                        val label = when (view) {
-                            NaviampLibraryView.Artists -> stringResource(Res.string.library_view_artists)
-                            NaviampLibraryView.Albums -> stringResource(Res.string.library_view_albums)
-                            NaviampLibraryView.Songs -> stringResource(Res.string.library_view_songs)
-                        }
-                        val selectionState = if (screen.selectedView == view) {
-                            stringResource(Res.string.library_view_state_selected)
-                        } else {
-                            stringResource(Res.string.library_view_state_not_selected)
-                        }
-                        FilterChip(
-                            selected = screen.selectedView == view,
-                            onClick = { actions.onViewChanged(view) },
-                            label = { Text(label) },
-                            modifier = Modifier
-                                .focusRequester(selectorFocusRequesters.getValue(view))
-                                .onPreviewKeyEvent { event ->
-                                    if (event.type != KeyEventType.KeyDown) {
-                                        false
-                                    } else {
-                                        when (event.key) {
-                                            Key.DirectionLeft -> {
-                                                selectorFocusRequesters.getValue(
-                                                    NaviampLibraryView.entries[(index - 1).coerceAtLeast(0)],
-                                                ).requestFocus()
-                                                true
-                                            }
-                                            Key.DirectionRight -> {
-                                                selectorFocusRequesters.getValue(
-                                                    NaviampLibraryView.entries[
-                                                        (index + 1).coerceAtMost(NaviampLibraryView.entries.lastIndex)
-                                                    ],
-                                                ).requestFocus()
-                                                true
-                                            }
-                                            Key.DirectionDown -> {
-                                                searchFocusRequester.requestFocus()
-                                                true
-                                            }
-                                            else -> false
+                NaviampLibraryView.entries.forEachIndexed { index, view ->
+                    val label = when (view) {
+                        NaviampLibraryView.Artists -> stringResource(Res.string.library_view_artists)
+                        NaviampLibraryView.Albums -> stringResource(Res.string.library_view_albums)
+                        NaviampLibraryView.Songs -> stringResource(Res.string.library_view_songs)
+                    }
+                    val selectionState = if (screen.selectedView == view) {
+                        stringResource(Res.string.library_view_state_selected)
+                    } else {
+                        stringResource(Res.string.library_view_state_not_selected)
+                    }
+                    TextButton(
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = if (screen.selectedView == view) colors.accent else colors.controlSurface,
+                            contentColor = if (screen.selectedView == view) colors.onAccent else colors.primaryText,
+                        ),
+                        onClick = { actions.onViewChanged(view) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(selectorFocusRequesters.getValue(view))
+                            .onPreviewKeyEvent { event ->
+                                if (event.type != KeyEventType.KeyDown) {
+                                    false
+                                } else {
+                                    when (event.key) {
+                                        Key.DirectionLeft -> {
+                                            selectorFocusRequesters.getValue(
+                                                NaviampLibraryView.entries[(index - 1).coerceAtLeast(0)],
+                                            ).requestFocus()
+                                            true
                                         }
+                                        Key.DirectionRight -> {
+                                            selectorFocusRequesters.getValue(
+                                                NaviampLibraryView.entries[
+                                                    (index + 1).coerceAtMost(NaviampLibraryView.entries.lastIndex)
+                                                ],
+                                            ).requestFocus()
+                                            true
+                                        }
+                                        Key.DirectionDown -> {
+                                            searchFocusRequester.requestFocus()
+                                            true
+                                        }
+                                        else -> false
                                     }
                                 }
-                                .focusProperties {
-                                    left = selectorFocusRequesters.getValue(
-                                        NaviampLibraryView.entries[(index - 1).coerceAtLeast(0)],
-                                    )
-                                    right = selectorFocusRequesters.getValue(
-                                        NaviampLibraryView.entries[(index + 1).coerceAtMost(NaviampLibraryView.entries.lastIndex)],
-                                    )
-                                    down = searchFocusRequester
-                                }
-                                .semantics {
-                                    stateDescription = selectionState
-                                },
-                        )
-                    }
+                            }
+                            .focusProperties {
+                                left = selectorFocusRequesters.getValue(
+                                    NaviampLibraryView.entries[(index - 1).coerceAtLeast(0)],
+                                )
+                                right = selectorFocusRequesters.getValue(
+                                    NaviampLibraryView.entries[(index + 1).coerceAtMost(NaviampLibraryView.entries.lastIndex)],
+                                )
+                                down = searchFocusRequester
+                            }
+                            .semantics {
+                                selected = screen.selectedView == view
+                                stateDescription = selectionState
+                            },
+                    ) { Text(label, maxLines = 1) }
                 }
             }
-            item {
             val searchPlaceholder = when (screen.selectedView) {
                 NaviampLibraryView.Artists -> stringResource(Res.string.library_search_artists)
                 NaviampLibraryView.Albums -> stringResource(Res.string.library_search_albums)
@@ -1401,31 +1450,27 @@ fun NaviampLibraryContent(
                 modifier = Modifier
                     .padding(horizontal = 8.dp)
                     .focusRequester(searchFocusRequester)
-                    .focusProperties { up = selectorFocusRequesters.getValue(screen.selectedView) }
+                    .focusProperties {
+                        up = selectorFocusRequesters.getValue(screen.selectedView)
+                    }
                     .onFocusChanged { focus ->
                         if (focus.isFocused) {
                             viewportState.recordFocusedTarget(screen.selectedView, LibrarySearchFocusTarget)
                         }
                     },
             )
-            }
-            syncStatus.message?.let { message ->
-                item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        message,
-                        color = colors.secondaryText,
-                        fontSize = 12.sp,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                }
-            }
-            if (filteredItems.isEmpty() && filteredTracks.isEmpty()) {
+        }
+        Row(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            LazyColumn(
+                state = activeListState,
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+            if (filteredItems.isEmpty() && filteredTracks.isEmpty() &&
+                !syncStatus.isSyncing && catalog.pendingJump == null) {
                 item {
                 val emptyMessage = when (screen.selectedView) {
                     NaviampLibraryView.Artists -> if (query.isBlank()) {
@@ -1562,16 +1607,18 @@ fun NaviampLibraryContent(
             if (query.isBlank()) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.width(18.dp).verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.width(36.dp).verticalScroll(rememberScrollState()),
                 ) {
                     (listOf('#') + ('A'..'Z')).forEach { letter ->
                         Text(
                             text = letter.toString(),
                             color = colors.secondaryText,
                             fontSize = 10.sp,
-                            modifier = Modifier.clickable {
-                                actions.onJumpToLetter(letter)
-                            },
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable { actions.onJumpToLetter(letter) }
+                                .padding(vertical = 2.dp),
                         )
                     }
                 }

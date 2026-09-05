@@ -9,11 +9,15 @@ data class ArtistDiscography(
     val primary: ArtistDetails,
     val appearanceAlbums: List<Album> = emptyList(),
     val appearanceTracks: List<Track> = emptyList(),
+    val appearanceLoadFailed: Boolean = false,
+    val appearancesTruncated: Boolean = false,
 )
 
 data class ArtistDiscographyAppearances(
     val albums: List<Album> = emptyList(),
     val tracks: List<Track> = emptyList(),
+    val failed: Boolean = false,
+    val truncated: Boolean = false,
 )
 
 /**

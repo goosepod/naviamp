@@ -6,9 +6,11 @@ import kotlin.jvm.JvmInline
 @JvmInline
 value class ProviderId(val value: String)
 
+@Serializable
 @JvmInline
 value class ArtistId(val value: String)
 
+@Serializable
 @JvmInline
 value class AlbumId(val value: String)
 
@@ -21,6 +23,7 @@ data class Artist(
     val favoritedAtIso8601: String? = null,
 )
 
+@Serializable
 data class ArtistCredit(
     val id: ArtistId?,
     val name: String,
@@ -39,6 +42,7 @@ data class ArtistInfo(
     val largeImageUrl: String?,
 )
 
+@Serializable
 data class Album(
     val id: AlbumId,
     val title: String,

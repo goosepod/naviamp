@@ -342,6 +342,8 @@ data class PlaybackSessionRepositoryPerformance(
 )
 
 interface LocalLibraryIndexRepository : ArtistPopularTracksRepository, FavoriteArtistActivityRepository {
+    val albumCatalog: app.naviamp.domain.library.AlbumCatalogRepository? get() = null
+
     fun mediaSource(sourceId: String): SavedMediaSource?
 
     fun markLibraryScanChecked(sourceId: String, signature: String)

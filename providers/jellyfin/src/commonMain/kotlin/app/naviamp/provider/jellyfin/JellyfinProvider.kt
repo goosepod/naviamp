@@ -2,6 +2,10 @@ package app.naviamp.provider.jellyfin
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistCredit
@@ -133,12 +137,14 @@ class JellyfinProvider(
         )
 
     override suspend fun favoriteArtists(limit: Int): List<Artist> =
+        collectBoundedMediaPages(maximumItems = limit.coerceIn(1, 500)) { request ->
         itemPage(
-            request = MediaPageRequest(limit = limit.coerceIn(1, 500)),
+            request = request,
             includeItemTypes = "MusicArtist",
             extraParameters = listOf("isFavorite" to "true"),
             mapper = { it.toArtist() },
-        ).items
+        )
+        }
 
     override suspend fun albums(limit: Int, offset: Int): List<Album> =
         albumsPage(MediaPageRequest(offset = offset, limit = limit.coerceIn(1, 200))).items
@@ -344,13 +350,15 @@ class JellyfinProvider(
             },
         )
         val primaryAlbumIds = primary.albums.mapTo(mutableSetOf()) { it.id }
-        val creditedTracks = collectBoundedMediaPages { request ->
-            itemPage(
-                request = request,
-                includeItemTypes = "Audio",
-                extraParameters = listOf("artistIds" to artistId.value),
-                mapper = { it.toTrack() },
-            )
+        val creditedTracks = try {
+            collectBoundedMediaPages { request ->
+                itemPage(request = request, includeItemTypes = "Audio",
+                    extraParameters = listOf("artistIds" to artistId.value), mapper = { it.toTrack() })
+            }
+        } catch (cause: CancellationException) {
+            throw cause
+        } catch (_: Exception) {
+            return ArtistDiscography(primary = primary, appearanceLoadFailed = true)
         }
         val appearanceTracks = creditedTracks
             .filter { track -> track.albumId == null || track.albumId !in primaryAlbumIds }
@@ -358,13 +366,21 @@ class JellyfinProvider(
         val appearanceAlbums = appearanceTracks
             .mapNotNull(Track::albumId)
             .distinct()
-            .mapNotNull { albumId -> runCatching { item(albumId.value).toAlbum() }.getOrNull() }
+            .chunked(4)
+            .flatMap { chunk -> coroutineScope {
+                chunk.map { albumId -> async {
+                    try { item(albumId.value).toAlbum() }
+                    catch (cause: CancellationException) { throw cause }
+                    catch (_: Exception) { null }
+                } }.awaitAll().filterNotNull()
+            } }
             .filterNot { it.id in primaryAlbumIds }
             .distinctBy { it.id }
         return ArtistDiscography(
             primary = primary,
             appearanceAlbums = appearanceAlbums,
             appearanceTracks = appearanceTracks,
+            appearancesTruncated = creditedTracks.size >= app.naviamp.domain.provider.MaximumArtistDiscographyItems,
         )
     }
 
@@ -458,6 +474,18 @@ class JellyfinProvider(
             )
         }
         addTracksToPlaylist(playlistId, trackIds)
+    }
+
+    override suspend fun removeTrackFromPlaylist(playlistId: String, trackId: TrackId) {
+        val matches = playlistItems(playlistId).filter { it.string("Id") == trackId.value }
+        // Refuse an incomplete identity mapping before sending any mutation.
+        val entryIds = matches.map { requireNotNull(it.string("PlaylistItemId")) }
+        if (entryIds.isEmpty()) return
+        service.delete(
+            connection = readyConnection(),
+            path = "Playlists/$playlistId/Items",
+            parameters = listOf("entryIds" to entryIds.joinToString(",")),
+        )
     }
 
     override suspend fun renamePlaylist(playlistId: String, name: String) {
@@ -590,17 +618,28 @@ class JellyfinProvider(
 
     private suspend fun playlistItems(playlistId: String): List<JsonObject> {
         val connection = readyConnection()
-        return service.getJson(
-            connection = connection,
-            path = "Playlists/$playlistId/Items",
-            parameters = listOf(
-                "userId" to connection.userId,
-                "limit" to JellyfinPlaylistItemLimit.toString(),
-                "fields" to JellyfinItemFields,
-                "enableUserData" to "true",
-                "imageTypeLimit" to "1",
-            ),
-        ).items()
+        val entries = mutableListOf<JsonObject>()
+        while (true) {
+            val response = service.getJson(
+                connection = connection,
+                path = "Playlists/$playlistId/Items",
+                parameters = listOf(
+                    "userId" to connection.userId,
+                    "startIndex" to entries.size.toString(),
+                    "limit" to JellyfinPlaylistItemLimit.toString(),
+                    "fields" to JellyfinItemFields,
+                    "enableUserData" to "true",
+                    "imageTypeLimit" to "1",
+                ),
+            )
+            val page = response.items()
+            entries += page
+            val total = response.int("TotalRecordCount")
+            if (total != null && entries.size >= total) return entries
+            if (total == null && page.size < JellyfinPlaylistItemLimit) return entries
+            // Refuse incomplete or unbounded snapshots before an edit can use them.
+            check(page.isNotEmpty() && entries.size < 100_000)
+        }
     }
 
     private suspend fun startPlaybackSession(trackId: TrackId): JellyfinPlaybackSession {

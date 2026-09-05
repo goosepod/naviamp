@@ -26,6 +26,72 @@ import kotlin.test.assertTrue
 
 class StorageCriticalStoresTest {
     @Test
+    fun albumCatalogSurvivesClosingAndReopeningTheDatabase() {
+        val file = java.nio.file.Files.createTempFile("naviamp-album-index", ".db")
+        val scope = app.naviamp.domain.library.AlbumCatalogScope("source", "catalog")
+        val payload = "[]"
+        try {
+            JdbcSqliteDriver("jdbc:sqlite:$file").use { driver ->
+                val db = initializeNaviampStorageDatabase(driver)
+                val sources = StorageMediaSourceStore(db.naviampStorageQueries, nowMillis = { 1L })
+                val saved = sources.upsertProviderMediaSource(
+                    ProviderMediaSourceConnection("Server", "https://example.test", "user", "token", "salt"),
+                    cacheNamespace = "cache", providerId = "navidrome",
+                )
+                db.naviampStorageQueries.replaceAlbumCatalogSnapshot(saved.id, scope.catalogKey, payload, 123L)
+            }
+            JdbcSqliteDriver("jdbc:sqlite:$file").use { driver ->
+                val db = initializeNaviampStorageDatabase(driver)
+                val sources = StorageMediaSourceStore(db.naviampStorageQueries, nowMillis = { 1L })
+                val saved = sources.latestMediaSource()!!
+                val index = StorageLibraryIndexStore(db.naviampStorageQueries, sources, { 2L }).albumCatalog
+                assertEquals(123L, index.readAlbumCatalog(scope.copy(sourceId = saved.id))?.refreshedAtEpochMillis)
+                assertEquals(emptyList(), index.readAlbumCatalog(scope.copy(sourceId = saved.id))?.albums)
+            }
+        } finally {
+            java.nio.file.Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
+    fun completeAlbumCatalogSurvivesStoreRecreationAndClearsWithItsLibrary() = withStorage { fixture ->
+        val scope = app.naviamp.domain.library.AlbumCatalogScope(fixture.sourceId, "selected-library")
+        val album = Album(AlbumId("one"), "G I R L", "Artist", "cover", "2026-01-01", 2020,
+            favoritedAtIso8601 = "2026-09-05", artistCredits = listOf(ArtistCredit(ArtistId("artist"), "Artist")))
+        val snapshot = app.naviamp.domain.library.AlbumCatalogSnapshot(listOf(album), 1000L)
+        fixture.library.albumCatalog.replaceAlbumCatalog(scope, snapshot)
+        val reopened = StorageLibraryIndexStore(fixture.queries, StorageMediaSourceStore(fixture.queries, nowMillis = { 1L }), { 2L })
+        assertEquals(snapshot, reopened.albumCatalog.readAlbumCatalog(scope))
+        assertNull(reopened.albumCatalog.readAlbumCatalog(scope.copy(catalogKey = "other")))
+        reopened.albumCatalog.replaceAlbumCatalog(scope, snapshot.copy(albums = emptyList()))
+        assertEquals(emptyList(), reopened.albumCatalog.readAlbumCatalog(scope)?.albums)
+        reopened.clearLibraryData(fixture.sourceId)
+        assertNull(reopened.albumCatalog.readAlbumCatalog(scope))
+    }
+
+    @Test
+    fun partialFavoriteSnapshotsDoNotDeactivateUnreturnedArtists() = withStorage { fixture ->
+        val first = Artist(ArtistId("first"), "First")
+        val second = Artist(ArtistId("second"), "Second")
+        fixture.library.reconcileFavoriteArtists(fixture.sourceId, listOf(first, second), "2026-01-01T00:00:00Z")
+        fixture.library.reconcileFavoriteArtists(fixture.sourceId, listOf(first), "2026-02-01T00:00:00Z", complete = false)
+        assertEquals(2, fixture.library.locallyKnownFavoriteArtists(fixture.sourceId).size)
+    }
+
+    @Test
+    fun appearanceLimitDoesNotCountPrimaryTracks() = withStorage { fixture ->
+        val primary = AlbumId("primary")
+        val artist = ArtistId("guest")
+        val tracks = (0 until 501).map {
+            testTrack("primary-$it", "A $it", artistId = artist, albumId = primary)
+        } + testTrack("guest", "Z guest", artistId = artist, albumId = null)
+        fixture.library.upsertLibraryTracks(fixture.sourceId, tracks)
+        assertEquals(listOf("guest"), fixture.library.artistDiscographyAppearances(
+            fixture.sourceId, artist, setOf(primary), limit = 1,
+        ).tracks.map { it.id.value })
+    }
+
+    @Test
     fun favoriteArtistActivityIsSourceScopedStableAndRadioAware() = withStorage { fixture ->
         val favorite = Artist(ArtistId("favorite"), "Favorite")
         val timestamped = Artist(ArtistId("timestamped"), "Timestamped", "2026-01-01T00:00:00Z")

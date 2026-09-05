@@ -1,5 +1,7 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.home.sortedFavoriteArtists
+
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseService
@@ -82,7 +84,8 @@ fun localLibraryHomeRepository(
         sourceId: String,
         artists: List<app.naviamp.domain.Artist>,
         observedAtIso8601: String,
-    ) = libraryIndex.reconcileFavoriteArtists(sourceId, artists, observedAtIso8601)
+        complete: Boolean,
+    ) = libraryIndex.reconcileFavoriteArtists(sourceId, artists, observedAtIso8601, complete)
 
     override fun locallyKnownFavoriteArtists(sourceId: String, limit: Long) =
         libraryIndex.locallyKnownFavoriteArtists(sourceId, limit)
@@ -261,10 +264,17 @@ class NaviampCoreHomeController(
     }
 
     internal fun interfaceSettingsChanged(settings: InterfaceSettings) {
+        val favoriteOrder = mediaRegistry.home.favoriteArtists
+            .sortedFavoriteArtists(settings.favoriteArtistSort, mediaRegistry.home.favoriteArtistLastPlayed)
+            .withIndex().associate { it.value.id.value to it.index }
         stateStore.updateShell { shell ->
             val updatedSections = shell.home.content.collectionSections.map { section ->
                 val presentation = settings.homeSectionPresentation(section.id)
                 section.copy(
+                    items = if (section.favoriteArtistSort != null) section.items.sortedBy {
+                        favoriteOrder[it.mediaItem.id] ?: Int.MAX_VALUE
+                    } else section.items,
+                    favoriteArtistSort = section.favoriteArtistSort?.let { settings.favoriteArtistSort },
                     visible = presentation.visible,
                     homeLayout = presentation.homeLayout,
                     homeItemLimit = presentation.homeItemLimit,

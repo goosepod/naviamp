@@ -172,17 +172,9 @@ private fun AlbumDetailContent(
     playlistActionStatus: String?,
 ) {
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
-    var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumImageOpen by remember(detail.album.id) { mutableStateOf(false) }
     var informationExpanded by remember(detail.album.id) { mutableStateOf(false) }
     var playbackProfileOpen by remember(detail.album.id) { mutableStateOf(false) }
-    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        if (request.action == SharedTrackRowAction.AddToPlaylist && request.playlistChoice == null) {
-            trackForPlaylist = request.track
-        } else {
-            onTrackAction(request)
-        }
-    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -248,9 +240,10 @@ private fun AlbumDetailContent(
                         NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()),
                         NaviampDetailAction(
                             if (detail.album.favoriteActive) "Remove album favorite" else "Favorite album",
-                            NaviampTransportIcons.Heart,
+                            if (detail.album.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                             onAlbumFavoriteToggled,
                             detail.album.canFavorite,
+                            selected = detail.album.favoriteActive,
                         ),
                     ),
                 )
@@ -304,7 +297,7 @@ private fun AlbumDetailContent(
                 TrackRow(
                     track,
                     colors,
-                    onTrackAction = handleTrackAction,
+                    onTrackAction = onTrackAction,
                     canSelect = true,
                     canStartRadio = false,
                     canAddToQueue = true,
@@ -336,36 +329,6 @@ private fun AlbumDetailContent(
             onCreateAndAdd = { name ->
                 addAlbumToPlaylistOpen = false
                 onAlbumCreatePlaylistAndAdd(name)
-            },
-        )
-    }
-
-    trackForPlaylist?.let { track ->
-        AddToPlaylistDialog(
-            title = track.title,
-            colors = colors,
-            playlists = playlistChoices,
-            status = playlistActionStatus,
-            onDismissRequest = { trackForPlaylist = null },
-            onAddToExisting = { playlist ->
-                trackForPlaylist = null
-                handleTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.AddToPlaylist,
-                        playlistChoice = playlist,
-                    ),
-                )
-            },
-            onCreateAndAdd = { name ->
-                trackForPlaylist = null
-                handleTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
-                        playlistName = name,
-                    ),
-                )
             },
         )
     }

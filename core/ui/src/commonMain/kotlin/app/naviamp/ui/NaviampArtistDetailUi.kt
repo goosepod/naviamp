@@ -88,6 +88,7 @@ fun NaviampArtistDetailContent(
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     playlistActionStatus: String? = null,
     scrollState: androidx.compose.foundation.ScrollState = rememberScrollState(),
+    appearanceState: NaviampArtistAppearanceState = rememberNaviampArtistAppearanceState(screen.detail?.artist?.id),
 ) {
     val detail = screen.detail
     if (detail == null) {
@@ -212,6 +213,7 @@ fun NaviampArtistDetailContent(
         playlistChoices = playlistChoices,
         playlistActionStatus = playlistActionStatus,
         scrollState = scrollState,
+        appearanceState = appearanceState,
     )
 }
 
@@ -244,19 +246,12 @@ private fun ArtistDetailContent(
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
     scrollState: androidx.compose.foundation.ScrollState,
+    appearanceState: NaviampArtistAppearanceState,
 ) {
     var addArtistToPlaylistOpen by remember(detail.artist.id) { mutableStateOf(false) }
-    var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
     var artistImageOpen by remember(detail.artist.id) { mutableStateOf(false) }
-    val handlePopularTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        if (request.action == SharedTrackRowAction.AddToPlaylist && request.playlistChoice == null) {
-            popularTrackForPlaylist = request.track
-        } else {
-            onPopularTrackAction(request)
-        }
-    }
     val similarArtistsVisible = detail.similarArtistsExpanded
     val visibleAlbumSections = if (groupAlbumsByReleaseType) {
         detail.albumSections
@@ -354,9 +349,10 @@ private fun ArtistDetailContent(
                         NaviampDetailAction("Start artist radio", NaviampTransportIcons.Radio, onArtistRadio, detail.albums.isNotEmpty()),
                         NaviampDetailAction(
                             if (detail.artist.favoriteActive) "Remove artist favorite" else "Favorite artist",
-                            NaviampTransportIcons.Heart,
+                            if (detail.artist.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                             onArtistFavoriteToggled,
                             detail.artist.canFavorite,
+                            selected = detail.artist.favoriteActive,
                         ),
                         NaviampDetailAction(
                             if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
@@ -454,7 +450,7 @@ private fun ArtistDetailContent(
                         TrackRow(
                             track,
                             colors,
-                            onTrackAction = handlePopularTrackAction,
+                            onTrackAction = onPopularTrackAction,
                             canSelect = true,
                             canStartRadio = false,
                             canAddToQueue = true,
@@ -522,7 +518,14 @@ private fun ArtistDetailContent(
                     }
                 }
             }
+            if (detail.appearanceLoadFailed) {
+                Text(stringResource(Res.string.artist_appearances_failed), color = colors.secondaryText)
+            }
+            if (detail.appearancesTruncated) {
+                Text(stringResource(Res.string.artist_appearances_truncated), color = colors.secondaryText)
+            }
             if (detail.appearanceAlbums.isNotEmpty() || detail.appearanceTracks.isNotEmpty()) {
+                val visibleAppearances = appearanceState.visibleCount
                 Text(
                     stringResource(Res.string.artist_appears_on).uppercase(),
                     color = colors.primaryText,
@@ -530,7 +533,7 @@ private fun ArtistDetailContent(
                     fontWeight = FontWeight.Bold,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    detail.appearanceAlbums.forEach { album ->
+                    detail.appearanceAlbums.take(visibleAppearances).forEach { album ->
                         SharedMediaRow(
                             item = album,
                             colors = colors,
@@ -539,17 +542,22 @@ private fun ArtistDetailContent(
                             onFavoriteToggled = onAlbumFavoriteToggled,
                         )
                     }
-                    detail.appearanceTracks.forEach { track ->
+                    detail.appearanceTracks.take(visibleAppearances).forEach { track ->
                         TrackRow(
                             track,
                             colors,
-                            onTrackAction = handlePopularTrackAction,
+                            onTrackAction = onPopularTrackAction,
                             canSelect = true,
                             canStartRadio = true,
                             canAddToQueue = true,
                             canDownload = true,
                             canAddToPlaylist = true,
                         )
+                    }
+                    if (detail.appearanceTracks.size > visibleAppearances || detail.appearanceAlbums.size > visibleAppearances) {
+                        TextButton(onClick = appearanceState::showMore) {
+                            Text(stringResource(Res.string.artist_appearances_load_more))
+                        }
                     }
                 }
             }
@@ -570,36 +578,6 @@ private fun ArtistDetailContent(
             onCreateAndAdd = { name ->
                 addArtistToPlaylistOpen = false
                 onArtistCreatePlaylistAndAdd(name)
-            },
-        )
-    }
-
-    popularTrackForPlaylist?.let { track ->
-        AddToPlaylistDialog(
-            title = track.title,
-            colors = colors,
-            playlists = playlistChoices,
-            status = playlistActionStatus,
-            onDismissRequest = { popularTrackForPlaylist = null },
-            onAddToExisting = { playlist ->
-                popularTrackForPlaylist = null
-                handlePopularTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.AddToPlaylist,
-                        playlistChoice = playlist,
-                    ),
-                )
-            },
-            onCreateAndAdd = { name ->
-                popularTrackForPlaylist = null
-                handlePopularTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
-                        playlistName = name,
-                    ),
-                )
             },
         )
     }

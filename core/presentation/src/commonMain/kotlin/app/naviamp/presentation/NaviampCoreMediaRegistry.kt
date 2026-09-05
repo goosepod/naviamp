@@ -138,6 +138,7 @@ class NaviampCoreMediaRegistry {
         search = search.copy(tracks = search.tracks.replace(track))
         albumDetails = albumDetails?.copy(tracks = albumDetails!!.tracks.replace(track))
         artistPopularTracks = artistPopularTracks.replace(track)
+        artistAppearanceTracks = artistAppearanceTracks.replace(track)
         selectedPlaylistTracks = selectedPlaylistTracks.replace(track)
         libraryTracks = libraryTracks.replace(track)
         sonicRows = sonicRows.copy(
@@ -146,6 +147,8 @@ class NaviampCoreMediaRegistry {
     }
 
     fun updateAlbum(album: Album) {
+        libraryAlbums = libraryAlbums.replace(album)
+        artistAppearanceAlbums = artistAppearanceAlbums.replace(album)
         home = home.copy(
             recentlyAddedAlbums = home.recentlyAddedAlbums.replace(album),
             mixAlbums = home.mixAlbums.replace(album),
@@ -161,7 +164,7 @@ class NaviampCoreMediaRegistry {
     }
 
     fun updateArtist(artist: Artist) {
-        home = home.copy(artists = home.artists.replace(artist))
+        home = home.copy(artists = home.artists.replace(artist), favoriteArtists = home.favoriteArtists.replace(artist))
         search = search.copy(artists = search.artists.replace(artist))
         libraryArtists = libraryArtists.replace(artist)
         artistDetails = artistDetails?.let { it.copy(artist = if (it.artist.id == artist.id) artist else it.artist) }

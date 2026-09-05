@@ -116,6 +116,10 @@ interface MediaProvider {
     ) {
         throw UnsupportedOperationException("Playlist track replacement is not supported by $displayName.")
     }
+    /** Removes every occurrence of this identity without rewriting unrelated playlist entries. */
+    suspend fun removeTrackFromPlaylist(playlistId: String, trackId: TrackId) {
+        throw UnsupportedOperationException()
+    }
     suspend fun renamePlaylist(playlistId: String, name: String) {
         throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
     }

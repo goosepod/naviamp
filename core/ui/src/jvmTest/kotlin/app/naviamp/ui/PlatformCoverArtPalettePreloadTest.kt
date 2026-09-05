@@ -12,6 +12,52 @@ import kotlin.test.assertTrue
 
 class PlatformCoverArtPalettePreloadTest {
     @Test
+    fun cancelledArtworkLoadDoesNotPoisonTheNextRequest() = runTest {
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val bytes = assertNotNull(jvmGeneratedCoverArtBytes(
+            "naviamp-radio-tile://cover?label=C&from=7A2248&to=162A52",
+        ))
+        val loads = AtomicInteger()
+        setJvmPlatformCoverArtByteLoader {
+            if (loads.incrementAndGet() == 1) {
+                started.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+            bytes
+        }
+        try {
+            val owner = async { jvmPlatformCoverArtPlayerColors("test://cancelled-cover") }
+            started.await()
+            val waiter = async { jvmPlatformCoverArtPlayerColors("test://cancelled-cover") }
+            owner.cancel()
+            owner.join()
+            waiter.await()
+            assertEquals(2, loads.get())
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+        }
+    }
+
+    @Test
+    fun identicalConcurrentRequestsShareOneLoad() = runTest {
+        val bytes = assertNotNull(jvmGeneratedCoverArtBytes(
+            "naviamp-radio-tile://cover?label=C&from=7A2248&to=162A52",
+        ))
+        val loads = AtomicInteger()
+        setJvmPlatformCoverArtByteLoader {
+            loads.incrementAndGet()
+            kotlinx.coroutines.delay(50)
+            bytes
+        }
+        try {
+            (1..12).map { async { jvmPlatformCoverArtPlayerColors("test://same-cover") } }.awaitAll()
+            assertEquals(1, loads.get())
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+        }
+    }
+
+    @Test
     fun coverArtPreloadCachesPaletteWithoutASecondLoad() = runTest {
         val url = "test://preloaded-cover-art-palette"
         val bytes = requireNotNull(

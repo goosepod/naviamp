@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.home.sortedFavoriteArtists
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -228,15 +229,17 @@ fun HomeContent.toSharedHomeUi(
             )
         }
 
-        if (favoriteArtists.isNotEmpty()) {
+        if (favoriteArtists.isNotEmpty() || favoriteArtistsStatus != app.naviamp.domain.home.FavoriteArtistsStatus.Unsupported) {
             val presentation = interfaceSettings.homeSectionPresentation(HomeSectionIds.FavoriteArtists)
             add(
                 SharedHomeCollectionSectionUi(
                     id = HomeSectionIds.FavoriteArtists,
                     title = "",
                     titleResource = SharedHomeCollectionTitleResource.FavoriteArtists,
+                    favoriteArtistSort = interfaceSettings.favoriteArtistSort,
+                    favoriteArtistsStatus = favoriteArtistsStatus,
                     items = favoriteArtists
-                        .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Artist::name))
+                        .sortedFavoriteArtists(interfaceSettings.favoriteArtistSort, favoriteArtistLastPlayed)
                         .map { artist ->
                             SharedHomeCollectionItemUi(
                                 mediaItem = artist.toSharedMediaItemUi(coverArtUrl, canFavorite = true),
@@ -1586,6 +1589,8 @@ fun ArtistDetails.toSharedArtistDetailUi(
     coverArtUrl: (String?) -> String?,
     appearanceAlbums: List<Album> = emptyList(),
     appearanceTracks: List<Track> = emptyList(),
+    appearanceLoadFailed: Boolean = false,
+    appearancesTruncated: Boolean = false,
     popularTracks: List<Track> = emptyList(),
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
@@ -1615,6 +1620,8 @@ fun ArtistDetails.toSharedArtistDetailUi(
         },
         appearanceAlbums = appearanceAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         appearanceTracks = appearanceTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
+        appearanceLoadFailed = appearanceLoadFailed,
+        appearancesTruncated = appearancesTruncated,
         localLibraryLabel = artistLocalLibraryLabel(albums.size),
         biography = info?.biography.takeIf { showArtistInformation },
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },

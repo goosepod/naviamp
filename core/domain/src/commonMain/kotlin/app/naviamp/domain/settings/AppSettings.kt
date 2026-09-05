@@ -152,6 +152,7 @@ enum class ApplicationUpdateChannel {
 
 @Serializable
 data class InterfaceSettings(
+    val favoriteArtistSort: FavoriteArtistSort = FavoriteArtistSort.Name,
     val language: InterfaceLanguage = InterfaceLanguage.System,
     val checkForUpdates: Boolean = true,
     val applicationUpdateChannel: ApplicationUpdateChannel? = null,
@@ -244,6 +245,9 @@ fun InterfaceSettings.resolvedHomeSectionOrder(
 
 fun InterfaceSettings.withHomeSectionOrder(order: List<String>): InterfaceSettings =
     copy(homeSectionOrder = order).normalized()
+
+@Serializable
+enum class FavoriteArtistSort { Name, DateFavorited, LastRadioPlayed }
 
 object HomeSectionIds {
     const val FavoriteArtists = "favorite-artists"
