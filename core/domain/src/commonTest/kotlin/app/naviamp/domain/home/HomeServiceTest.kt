@@ -106,10 +106,10 @@ class HomeServiceTest {
 
         assertEquals(123, provider.artistLimit)
         assertEquals(listOf(album("newest")), home.recentlyAddedAlbums)
-        assertEquals(listOf(album("random-8")), home.mixAlbums)
+        assertEquals(listOf(album("random-14")), home.mixAlbums)
         assertEquals(listOf(album("recent")), home.recentAlbums)
         assertEquals(listOf(album("frequent")), home.frequentAlbums)
-        assertEquals(listOf(album("random-6")), home.randomAlbums)
+        assertEquals(listOf(album("random-14")), home.randomAlbums)
         assertEquals(listOf(Artist(ArtistId("artist-123"), "Artist 123")), home.artists)
         assertEquals(listOf(Playlist("playlist", "Playlist", trackCount = 2)), home.playlists)
         assertEquals(listOf(radioStation("station")), home.radioStations)

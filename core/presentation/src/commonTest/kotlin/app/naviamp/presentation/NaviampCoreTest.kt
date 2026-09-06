@@ -100,7 +100,7 @@ class NaviampCoreTest {
     }
 
     @Test
-    fun failedNowPlayingReportEntersTheSharedPendingActionQueue() = runTest {
+    fun failedNowPlayingReportIsNotReplayedAsStalePresence() = runTest {
         val provider = FakeCoreMediaProvider(
             supportsPlayReporting = true,
             failNowPlayingReports = true,
@@ -138,7 +138,7 @@ class NaviampCoreTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf("source:${app.naviamp.domain.provider.PendingActionReportNowPlaying}:core-track"),
+            emptyList(),
             pending.enqueued,
         )
     }

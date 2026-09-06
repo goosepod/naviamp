@@ -133,6 +133,7 @@ class NaviampCorePlaylistBrowseController(
                         ),
                         playlistChoices = visiblePlaylists
                             .filterNot(Playlist::isSmart)
+                            .filter(Playlist::canEdit)
                             .map(Playlist::toPlaylistChoiceUi),
                     )
                 }
@@ -217,6 +218,7 @@ class NaviampCorePlaylistBrowseController(
             name = item.title,
             trackCount = item.trackCount ?: 0,
             isSmart = item.isSmartPlaylist,
+            canEdit = item.canEditPlaylist,
         )
 
     private suspend fun open(item: SharedMediaItemUi) {

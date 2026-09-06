@@ -112,6 +112,7 @@ fun Playlist.toSharedMediaItemUi(
         coverArtUrl = coverArtUrl(coverArtId),
         coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
         isSmartPlaylist = isSmart,
+        canEditPlaylist = canEdit,
         keepDownloadedActive = keepDownloadedActive,
     )
 

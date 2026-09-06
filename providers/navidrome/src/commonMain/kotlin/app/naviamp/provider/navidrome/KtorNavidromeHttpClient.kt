@@ -31,6 +31,9 @@ class KtorNavidromeHttpClient(
     override suspend fun getResponse(url: String, headers: Map<String, String>): NavidromeHttpResponse =
         request(url = url, method = HttpMethod.Get, headers = headers)
 
+    override suspend fun postForm(url: String, body: String, headers: Map<String, String>): String =
+        request(url, HttpMethod.Post, body, headers, ContentType.Application.FormUrlEncoded).body
+
     override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String =
         postJsonResponse(url, body, headers).body
 
@@ -64,6 +67,7 @@ class KtorNavidromeHttpClient(
         method: HttpMethod,
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
+        bodyContentType: ContentType = ContentType.Application.Json,
     ): NavidromeHttpResponse {
         val startedAt = navidromeCurrentTimeMillis()
         return runCatching {
@@ -74,7 +78,7 @@ class KtorNavidromeHttpClient(
                     (DefaultNavidromeHeaders + headers).forEach { (name, value) -> append(name, value) }
                 }
                 if (body != null) {
-                    contentType(ContentType.Application.Json)
+                    contentType(bodyContentType)
                     setBody(body)
                 }
             }
@@ -216,6 +220,15 @@ class KtorNavidromeHttpClient(
                 }
 
                 val channel = response.bodyAsChannel()
+                val prefix = ByteArray(4096)
+                var prefixSize = 0
+                while (prefixSize < prefix.size && !channel.isClosedForRead) {
+                    val read = channel.readAvailable(prefix, prefixSize, prefix.size - prefixSize)
+                    if (read == -1) break
+                    prefixSize += read
+                }
+                validateSubsonicMediaResponse(response.headers[HttpHeaders.ContentType], prefix.copyOf(prefixSize))
+                if (prefixSize > 0) writeChunk(prefix, prefixSize)
                 val buffer = ByteArray(64 * 1024)
                 while (!channel.isClosedForRead) {
                     val read = channel.readAvailable(buffer, 0, buffer.size)

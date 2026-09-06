@@ -222,7 +222,7 @@ class StorageAudioStore(
             qualityKey = qualityKey,
             contentType = contentType,
             provider = provider,
-            streamUrl = provider.streamUrl(StreamRequest(trackId = track.id, quality = quality)),
+            streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
             errorMessage = "Could not download audio track.",
         )
         val currentBytes = queries.downloadedAudioSize().executeAsOne()
@@ -251,7 +251,7 @@ class StorageAudioStore(
             qualityKey = qualityKey,
             contentType = contentType,
             provider = provider,
-            streamUrl = provider.streamUrl(StreamRequest(trackId = track.id, quality = quality)),
+            streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
             errorMessage = "Could not download audio track.",
         )
         val nextSize = queries.downloadedAudioSize().executeAsOne() - existingRows.sumOf { it.size_bytes } + stored.sizeBytes

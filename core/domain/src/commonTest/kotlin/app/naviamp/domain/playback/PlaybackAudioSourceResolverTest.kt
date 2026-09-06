@@ -12,6 +12,19 @@ import kotlin.test.assertNull
 
 class PlaybackAudioSourceResolverTest {
     @Test
+    fun unadvertisedStreamOffsetUsesEngineSeeking() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source", track = track("one"), quality = StreamQuality.Transcoded(AudioCodec.Mp3, 128),
+            audioCachingEnabled = false, startPositionSeconds = 45.0,
+            downloadedAudio = { _, _, _ -> null }, cachedAudio = { _, _, _ -> null },
+        )
+        val fallback = plan.withAudioStreamOffsetSupport(false)
+        assertNull(fallback.target.providerStreamRequest.startPositionSeconds)
+        assertEquals(45.0, fallback.target.engineStartPositionSeconds)
+        assertEquals(plan, plan.withAudioStreamOffsetSupport(true))
+    }
+
+    @Test
     fun downloadedAudioWinsOverCachedAudio() = runTest {
         val plan = resolvePlaybackAudioSource(
             sourceId = "source",

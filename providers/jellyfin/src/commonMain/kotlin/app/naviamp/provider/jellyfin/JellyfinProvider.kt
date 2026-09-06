@@ -97,6 +97,7 @@ class JellyfinProvider(
         supportsArtistFavorites = true,
         supportsAlbumFavorites = true,
         supportsPlayReporting = true,
+        supportsPlaybackTimeline = true,
         supportsArtistDiscography = true,
     )
 

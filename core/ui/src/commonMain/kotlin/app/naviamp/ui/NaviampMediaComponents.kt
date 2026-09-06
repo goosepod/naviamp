@@ -1140,6 +1140,27 @@ fun GenreMixBuilderContent(
         (builder.status ?: if (builder.loading) stringResource(Res.string.mix_loading_genres) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
+        if (builder.canBrowseSongs) {
+            Button(onClick = actions.onBrowseSongs, enabled = !builder.songsLoading &&
+                (!builder.songsOpened || builder.songsHaveMore)) {
+                Text(stringResource(when {
+                    builder.songsLoading -> Res.string.library_loading_songs
+                    builder.songsFailed -> Res.string.playlist_membership_retry
+                    builder.songsOpened -> Res.string.genre_songs_more
+                    else -> Res.string.genre_songs_browse
+                }))
+            }
+        }
+        if (builder.songsFailed) {
+            Text(stringResource(Res.string.genre_songs_failed), color = colors.secondaryText)
+        } else if (builder.songsOpened && !builder.songsLoading && builder.songs.isEmpty() && !builder.songsHaveMore) {
+            Text(stringResource(Res.string.genre_songs_empty), color = colors.secondaryText)
+        }
+        builder.songs.forEach { track ->
+            TrackRow(track, colors, onTrackAction = trackSelectionAction(actions.onSongSelected),
+                canSelect = true, canStartRadio = false, canAddToQueue = false,
+                canDownload = false, canAddToPlaylist = false)
+        }
         val browsingOntology = builder.query.isBlank() &&
             (builder.treeRows.isNotEmpty() || builder.unmatchedGenres.isNotEmpty())
         if (browsingOntology) {

@@ -438,6 +438,10 @@ class NaviampCore private constructor(
                     override suspend fun playGenreMix(genres: List<app.naviamp.domain.Genre>) {
                         mediaTransactions.startGenreMix(genres)
                     }
+
+                    override suspend fun playGenreSongs(tracks: List<app.naviamp.domain.Track>, startIndex: Int) {
+                        mediaTransactions.play(tracks, startIndex)
+                    }
                 },
             )
             val sonicBuilders = NaviampCoreSonicBuilderController(

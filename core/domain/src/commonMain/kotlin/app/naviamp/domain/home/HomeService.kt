@@ -155,13 +155,14 @@ class HomeService(
             .partitionNavibeatMixes()
 
         val favoriteArtists = loadFavoriteArtists()
+        val randomPool = runCatching { albumList(AlbumListType.Random, limit = 14) }.getOrDefault(emptyList())
         return HomeContent(
             date = date,
             recentlyAddedAlbums = runCatching { albumList(AlbumListType.Newest, limit = 8) }.getOrDefault(emptyList()),
-            mixAlbums = runCatching { albumList(AlbumListType.Random, limit = 8) }.getOrDefault(emptyList()),
+            mixAlbums = randomPool.take(8),
             recentAlbums = runCatching { albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
             frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
-            randomAlbums = runCatching { albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
+            randomAlbums = randomPool.drop(8).ifEmpty { randomPool }.take(6),
             artists = runCatching { artists(limit = artistLimit) }.getOrDefault(emptyList()),
             favoriteArtists = favoriteArtists,
             favoriteArtistsStatus = favoriteStatus,

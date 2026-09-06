@@ -5,6 +5,7 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.TrackId
 
 const val PendingActionReportNowPlaying = "report_now_playing"
+const val PendingActionSubmitListen = "submit_listen"
 const val PendingActionTrackFavorite = "track_favorite"
 const val PendingActionArtistFavorite = "artist_favorite"
 const val PendingActionAlbumFavorite = "album_favorite"
@@ -62,6 +63,7 @@ suspend fun replayPendingProviderActions(
             repository.deletePendingProviderAction(action.id)
             completed++
         }.onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
             repository.markPendingProviderActionFailed(action.id, error.message)
             failed++
         }
@@ -75,7 +77,9 @@ suspend fun replayPendingProviderActions(
 
 private suspend fun PendingProviderAction.applyTo(provider: MediaProvider) {
     when (actionType) {
-        PendingActionReportNowPlaying -> provider.reportNowPlaying(TrackId(entityId))
+        // A historical now-playing notification is stale; only timestamped listens are replayable.
+        PendingActionReportNowPlaying -> Unit
+        PendingActionSubmitListen -> provider.submitListen(TrackId(entityId), requireNotNull(longValue))
         PendingActionTrackFavorite -> provider.setTrackFavorite(TrackId(entityId), requireNotNull(boolValue))
         PendingActionArtistFavorite -> provider.setArtistFavorite(ArtistId(entityId), requireNotNull(boolValue))
         PendingActionAlbumFavorite -> provider.setAlbumFavorite(AlbumId(entityId), requireNotNull(boolValue))

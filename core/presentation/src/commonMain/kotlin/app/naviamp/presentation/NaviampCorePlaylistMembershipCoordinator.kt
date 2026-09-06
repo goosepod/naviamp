@@ -45,7 +45,7 @@ class NaviampCorePlaylistMembershipCoordinator(
                 return
             }
             val all = playlists.getOrThrow()
-            val choices = all.take(MaximumPlaylists)
+            val choices = all.filter { it.canEdit }.take(MaximumPlaylists)
             editor = editor.copy(truncated = all.size > MaximumPlaylists)
             val rows = mutableListOf<NaviampPlaylistMembershipRowUi>()
             for (chunk in choices.chunked(ConcurrentReads)) {

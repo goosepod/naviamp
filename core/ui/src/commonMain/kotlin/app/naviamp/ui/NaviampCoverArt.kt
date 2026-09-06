@@ -57,7 +57,9 @@ fun NaviampCoverArt(
     val targetSidePx = with(LocalDensity.current) {
         ceil(size.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
     }
-    var image by remember(url, targetSidePx) { mutableStateOf<ImageBitmap?>(null) }
+    // Keep the displayed bitmap while a new URL or decode size is loading. Resetting this
+    // state by size exposes the placeholder again after the incoming cover has faded in.
+    var image by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(url, targetSidePx) {
         image = url?.let { NaviampCoverArtCache.image(it, targetSidePx) }
     }
@@ -91,7 +93,7 @@ fun NaviampExpandedMediaImage(
         ceil(maxOf(maxWidth.toPx(), maxHeight.toPx())).toInt()
             .coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
     }
-    var image by remember(url, targetSidePx) { mutableStateOf<ImageBitmap?>(null) }
+    var image by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(url, targetSidePx) {
         image = url?.let { NaviampCoverArtCache.image(it, targetSidePx) }
     }

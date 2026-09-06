@@ -243,10 +243,10 @@ class NaviampCorePlaybackControllerTest {
         fixture.effects.observer?.onProgressChanged(PlaybackProgress(30.0, 180.0))
         advanceUntilIdle()
 
-        assertEquals(listOf("two"), fixture.provider.nowPlayingReports)
+        assertEquals(emptyList(), fixture.provider.nowPlayingReports)
         assertEquals(listOf("two"), fixture.sidecars.loadedTracks)
         assertEquals(
-            listOf("two:playing:20.0"),
+            listOf("two:starting:20.0", "two:playing:20.0"),
             fixture.provider.stateReports,
         )
     }
@@ -602,6 +602,7 @@ private class PlaybackTestProvider(
         supportsAlbumRadio = true,
         supportsTrackRadio = true,
         supportsPlayReporting = true,
+        supportsPlaybackTimeline = true,
         supportsSonicSimilarity = supportsSonicSimilarity,
     )
     val created = mutableListOf<String>()

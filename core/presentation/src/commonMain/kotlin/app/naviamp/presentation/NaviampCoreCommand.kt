@@ -194,6 +194,8 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface GenreAction {
+        data object BrowseSongs : GenreAction
+        data class PlaySong(val id: String) : GenreAction
         data class ChangeQuery(val query: String) : GenreAction
         data object Search : GenreAction
         data class Select(val genre: SharedGenreMixItemUi) : GenreAction

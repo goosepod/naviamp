@@ -1,5 +1,7 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.playback.withAudioStreamOffsetSupport
+
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.DownloadFallbackAwarePlaybackEngine
 import app.naviamp.domain.playback.AudioPrefetchCompletionLedger
@@ -341,7 +343,7 @@ class NaviampCorePlaybackEngineAdapter(
                     audioAssets = audioAssets,
                     downloadedTrackPlayback = playbackSettings.downloadedTrackPlayback,
                     startPositionSeconds = startPositionSeconds,
-                )
+                ).withAudioStreamOffsetSupport(provider?.capabilities?.supportsAudioStreamOffset == true)
             }
             val streamUrl = externalStreamUrl ?: runCatching {
                 requireNotNull(audioSource).playbackStreamUrl { target ->

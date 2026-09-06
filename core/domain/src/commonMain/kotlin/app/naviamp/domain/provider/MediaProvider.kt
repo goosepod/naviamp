@@ -54,6 +54,8 @@ interface MediaProvider {
     suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
+    /** Bulk metadata enumeration, or null when the provider requires album-detail traversal. */
+    suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun favoriteTracks(limit: Int = 5000): List<Track> =
         tracks(limit).filter { it.favoritedAtIso8601 != null }
     suspend fun tracksPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Track> =
@@ -127,6 +129,8 @@ interface MediaProvider {
         throw UnsupportedOperationException("Playlist deletion is not supported by $displayName.")
     }
     suspend fun genres(limit: Int = 50): List<Genre> = emptyList()
+    /** Exact provider genre name, with stable pagination; null means unsupported. */
+    suspend fun genreTracksPage(genre: String, request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun randomSongs(
         limit: Int = 50,
         genre: String? = null,
@@ -162,12 +166,14 @@ interface MediaProvider {
     ): List<SonicPathMatch> = emptyList()
     suspend fun lyrics(trackId: TrackId): Lyrics? = null
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
+    suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) = Unit
     suspend fun reportPlaybackState(
         trackId: TrackId,
         state: PlaybackReportState,
         positionSeconds: Double?,
     ) = Unit
     suspend fun streamUrl(request: StreamRequest): String
+    suspend fun downloadUrl(request: StreamRequest): String = streamUrl(request)
     suspend fun downloadStream(
         url: String,
         httpClient: SharedHttpClient,
@@ -242,6 +248,11 @@ data class ProviderCapabilities(
     val supportsSmartPlaylists: Boolean = false,
     val supportsSonicSimilarity: Boolean = false,
     val supportsArtistDiscography: Boolean = false,
+    val supportsAudioStreamOffset: Boolean = false,
+    val supportsPlaybackTimeline: Boolean = false,
+    val supportsDownloads: Boolean = true,
+    val supportsListenSubmission: Boolean = false,
+    val supportsGenreTrackBrowsing: Boolean = false,
 )
 
 fun ProviderCapabilities.effectiveStreamingQuality(requested: StreamQuality): StreamQuality =

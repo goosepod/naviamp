@@ -1327,6 +1327,20 @@ private fun HomeScreenSectionPresentationSettings(
             colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = colors.accent, checkedThumbColor = colors.onAccent))
     }
 
+    if (selectedSection.id == HomeSectionIds.FavoriteArtists) {
+        SettingsSectionTitle(stringResource(Res.string.favorite_artists_sort_title), colors)
+        app.naviamp.domain.settings.FavoriteArtistSort.entries.forEach { sort ->
+            SelectableSettingsRow(
+                title = favoriteArtistSortLabel(sort),
+                subtitle = "",
+                selected = interfaceSettings.favoriteArtistSort == sort,
+                colors = colors,
+            ) {
+                onInterfaceSettingsChanged(interfaceSettings.copy(favoriteArtistSort = sort))
+            }
+        }
+    }
+
     SettingsSectionTitle("Home screen", colors)
     HomeSectionLayout.entries.forEach { layout ->
         SelectableSettingsRow(

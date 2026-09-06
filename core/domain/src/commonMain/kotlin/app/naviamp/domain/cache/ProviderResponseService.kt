@@ -392,6 +392,9 @@ private data class PlaylistDto(
     val coverArtId: String? = null,
     val isSmart: Boolean = false,
     val comment: String? = null,
+    val owner: String? = null,
+    val public: Boolean? = null,
+    val canEdit: Boolean = true,
 ) {
     fun toPlaylist(): Playlist =
         Playlist(
@@ -402,6 +405,7 @@ private data class PlaylistDto(
             coverArtId = coverArtId,
             isSmart = isSmart,
             comment = comment,
+            owner = owner, public = public, canEdit = canEdit,
         )
 
     companion object {
@@ -414,6 +418,7 @@ private data class PlaylistDto(
                 coverArtId = playlist.coverArtId,
                 isSmart = playlist.isSmart,
                 comment = playlist.comment,
+                owner = playlist.owner, public = playlist.public, canEdit = playlist.canEdit,
             )
     }
 }
@@ -456,6 +461,8 @@ private data class AlbumDto(
     val favoritedAtIso8601: String? = null,
     val releaseTypes: List<String> = emptyList(),
     val explicitStatus: AlbumExplicitStatus = AlbumExplicitStatus.Unknown,
+    val playCount: Int? = null,
+    val lastPlayedAtIso8601: String? = null,
 ) {
     fun toAlbum(): Album =
         Album(
@@ -469,6 +476,7 @@ private data class AlbumDto(
             favoritedAtIso8601 = favoritedAtIso8601,
             releaseTypes = releaseTypes,
             explicitStatus = explicitStatus,
+            playCount = playCount, lastPlayedAtIso8601 = lastPlayedAtIso8601,
         )
 
     companion object {
@@ -484,6 +492,7 @@ private data class AlbumDto(
                 favoritedAtIso8601 = album.favoritedAtIso8601,
                 releaseTypes = album.releaseTypes,
                 explicitStatus = album.explicitStatus,
+                playCount = album.playCount, lastPlayedAtIso8601 = album.lastPlayedAtIso8601,
             )
     }
 }

@@ -19,11 +19,15 @@ import app.naviamp.ui.SharedGenreMixTreeRowUi
 import app.naviamp.ui.genreDisplayTitle
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedTrackRowUi
+import app.naviamp.domain.genremix.GenreTrackBrowser
+import kotlinx.coroutines.CancellationException
 
 interface NaviampCoreStandardMixPlaybackPort {
     suspend fun playArtistMix(artists: List<Artist>, seedTracks: List<Track>)
     suspend fun playAlbumMix(albums: List<Album>, seedTracks: List<Track>)
     suspend fun playGenreMix(genres: List<Genre>)
+    suspend fun playGenreSongs(tracks: List<Track>, startIndex: Int)
 }
 
 /** Owns Artist, Album, and Genre builder state, selection, discovery, and playback intent. */
@@ -48,6 +52,8 @@ class NaviampCoreStandardMixController(
     private var artistGeneration = 0L
     private var albumGeneration = 0L
     private var genreGeneration = 0L
+    private var genreBrowser: GenreTrackBrowser? = null
+    private var genreBrowserKey: Pair<String?, List<String>>? = null
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.MixBuilder.Artist -> when (val action = command.action) {
@@ -113,6 +119,12 @@ class NaviampCoreStandardMixController(
 
     private suspend fun executeGenre(action: NaviampCoreCommand.GenreAction) {
         when (action) {
+            NaviampCoreCommand.GenreAction.BrowseSongs -> browseGenreSongs()
+            is NaviampCoreCommand.GenreAction.PlaySong -> {
+                val tracks = genreBrowser?.tracks.orEmpty()
+                val index = tracks.indexOfFirst { it.id.value == action.id }
+                if (index >= 0) playback.playGenreSongs(tracks, index)
+            }
             is NaviampCoreCommand.GenreAction.ChangeQuery -> updateGenreUi { it.copy(query = action.query) }
             NaviampCoreCommand.GenreAction.Search -> loadGenreSuggestions()
             is NaviampCoreCommand.GenreAction.Select -> selectGenre(action.genre.id)
@@ -279,7 +291,7 @@ class NaviampCoreStandardMixController(
 
     private suspend fun loadGenreSuggestions() {
         val generation = ++genreGeneration
-        updateGenreUi { it.copy(loading = true, status = null) }
+        publishGenre(loading = true, status = null)
         runCatching {
             val service = genreService()
             service.browseProjection() to service.searchSuggestions(currentGenreUi().query, selectedGenres)
@@ -375,10 +387,19 @@ class NaviampCoreStandardMixController(
     }
 
     private fun publishGenre(loading: Boolean, status: String?) {
+        val provider = providerSource.current()
+        val key = provider?.cacheNamespace to selectedGenres.map { it.name }
+        if (genreBrowserKey != key) {
+            genreBrowserKey = key
+            genreBrowser = null
+            updateGenreUi { it.copy(songs = emptyList(), songsOpened = false, songsLoading = false,
+                songsFailed = false, songsHaveMore = false) }
+        }
         val browseOntology = genreProjection.audit.usefulForBrowsing
         updateGenreUi {
             it.copy(
                 selectedGenres = selectedGenres.map(Genre::toSharedGenreMixItemUi),
+                canBrowseSongs = provider?.capabilities?.supportsGenreTrackBrowsing == true && selectedGenres.isNotEmpty(),
                 suggestedGenres = genreSuggestions.map(Genre::toSharedGenreMixItemUi),
                 treeRows = if (browseOntology) {
                     genreTreeRows(genreProjection, expandedGenreOntologyIds, selectedGenres)
@@ -390,6 +411,26 @@ class NaviampCoreStandardMixController(
                 status = status,
                 initialized = true,
             )
+        }
+    }
+
+    private suspend fun browseGenreSongs() {
+        val provider = providerSource.current() ?: return
+        if (!provider.capabilities.supportsGenreTrackBrowsing || selectedGenres.isEmpty() || currentGenreUi().songsLoading) return
+        val key = provider.cacheNamespace to selectedGenres.map { it.name }
+        val browser = genreBrowser ?: GenreTrackBrowser(selectedGenres, provider::genreTracksPage).also { genreBrowser = it }
+        updateGenreUi { it.copy(songsOpened = true, songsLoading = true, songsFailed = false) }
+        try {
+            browser.loadNext()
+            if (key != (providerSource.current()?.cacheNamespace to selectedGenres.map { it.name })) return
+            updateGenreUi { it.copy(songs = browser.tracks.map { track -> track.toSharedTrackRowUi(coverArtUrl()) },
+                songsLoading = false, songsHaveMore = browser.hasMore) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            if (key == (providerSource.current()?.cacheNamespace to selectedGenres.map { it.name })) {
+                updateGenreUi { it.copy(songsLoading = false, songsFailed = true, songsHaveMore = true) }
+            }
         }
     }
 

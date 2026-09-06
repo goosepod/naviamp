@@ -22,6 +22,20 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class NaviampFavoriteArtistSettingsUiTest {
     @Test
+    fun detailSortMenuShowsOnlyTheCurrentChoiceUntilOpened() = runDesktopComposeUiTest(300, 300) {
+        val sort = mutableStateOf(FavoriteArtistSort.Name)
+        setContent { FavoriteArtistSortMenu(sort.value, NaviampColors()) { sort.value = it } }
+        onNodeWithText("Name").assertIsDisplayed()
+        onNodeWithText("Date favorited").assertDoesNotExist()
+        onNodeWithText("Last radio played").assertDoesNotExist()
+        onNodeWithContentDescription("Sorting").performClick()
+        onNodeWithText("Last radio played").performClick()
+        runOnIdle { assertEquals(FavoriteArtistSort.LastRadioPlayed, sort.value) }
+        onNodeWithText("Last radio played").assertIsDisplayed()
+        onNodeWithText("Name").assertDoesNotExist()
+    }
+
+    @Test
     fun favoriteArtistsHasVisibilityAndLayoutControlsInHomeSettings() = runDesktopComposeUiTest(300, 640) {
         val settings = mutableStateOf(InterfaceSettings())
         setContent {
@@ -30,6 +44,13 @@ class NaviampFavoriteArtistSettingsUiTest {
             }
         }
         onNodeWithText("Favorite Artists").assertIsDisplayed().performClick()
+        onNodeWithText("Last radio played").performScrollTo().performClick()
+        runOnIdle { assertEquals(FavoriteArtistSort.LastRadioPlayed, settings.value.favoriteArtistSort) }
+        onNodeWithText("Date favorited").performScrollTo().performClick()
+        runOnIdle { assertEquals(FavoriteArtistSort.DateFavorited, settings.value.favoriteArtistSort) }
+        onNodeWithText("Name").performScrollTo().performClick()
+        runOnIdle { assertEquals(FavoriteArtistSort.Name, settings.value.favoriteArtistSort) }
+        onNodeWithText("Visible").performScrollTo()
         writeHomeSettingsImage(onRoot().captureToImage(), "section-details")
         onNodeWithText("Visible").performClick()
         runOnIdle { assertFalse(settings.value.homeSectionPresentation(HomeSectionIds.FavoriteArtists).visible) }

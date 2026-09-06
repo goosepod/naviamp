@@ -32,7 +32,6 @@ class PendingProviderActionsTest {
         assertEquals(PendingProviderActionSyncResult(attempted = 4, completed = 4, failed = 0), result)
         assertEquals(
             listOf(
-                "now-playing:track-1",
                 "track-favorite:track-1:true",
                 "artist-favorite:artist-1:false",
                 "album-favorite:album-1:true",

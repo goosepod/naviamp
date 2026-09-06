@@ -354,7 +354,8 @@
     <string name="home_recently_played">REPRODUCIDO RECIENTEMENTE</string>
     <string name="home_favorite_artists">ARTISTAS FAVORITOS</string>
     <string name="search_title">Buscar</string>
-    <string name="search_tracks_label">Buscar pistas</string>
+    <string name="search_music_label">Buscar música</string>
+    <string name="search_searching">Buscando...</string>
     <string name="search_clear">Borrar búsqueda</string>
     <string name="search_no_matches">No se encontraron resultados.</string>
     <string name="search_artists">Artistas</string>
@@ -407,10 +408,10 @@
     <string name="playlist_membership_new_playlist">Nueva lista</string>
     <string name="playlist_membership_done">Listo</string>
     <string name="downloads_offline_title">Descargas</string>
-    <string name="downloads_summary">%1$d archivos - %2$s de %3$s</string>
+    <string name="downloads_summary">Archivos: %1$d - %2$s de %3$s</string>
     <string name="downloads_remaining">%1$s restantes - %2$s%% usado</string>
     <string name="downloads_empty">Las pistas descargadas aparecerán aquí.</string>
-    <string name="offline_ready">Listo para reproducción sin conexión y navegación de descargas en Android Auto.</string>
+    <string name="offline_ready">Listo para reproducir y explorar descargas sin conexión.</string>
     <string name="offline_not_ready">Descarga álbumes, listas o pistas antes de usar el modo sin conexión.</string>
     <string name="offline_dashboard_title">PANEL SIN CONEXIÓN</string>
     <string name="offline_downloaded_tracks">Pistas descargadas</string>
@@ -485,6 +486,7 @@
     <string name="playlist_membership_retry">Reintentar</string>
     <string name="library_jump_loading">Cargando %1$s…</string>
     <string name="library_jump_failed">No se pudo cargar esta letra. Inténtalo de nuevo.</string>
+    <string name="favorite_artists_sort_title">Ordenación</string>
     <string name="favorite_artists_sort_name">Nombre</string>
     <string name="favorite_artists_sort_favorited">Fecha de favorito</string>
     <string name="favorite_artists_sort_played">Última radio reproducida</string>
@@ -510,4 +512,8 @@
     <string name="home_settings_move_up">Mover hacia arriba</string>
     <string name="home_settings_move_down">Mover hacia abajo</string>
     <string name="home_settings_drag_section">Arrastrar %1$s para reordenar</string>
+    <string name="genre_songs_browse">Explorar canciones</string>
+    <string name="genre_songs_more">Cargar más canciones</string>
+    <string name="genre_songs_failed">No se pudieron cargar las canciones. Inténtalo de nuevo.</string>
+    <string name="genre_songs_empty">Ninguna canción coincide con los géneros seleccionados.</string>
 </resources>

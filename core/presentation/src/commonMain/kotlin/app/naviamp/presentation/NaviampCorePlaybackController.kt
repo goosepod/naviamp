@@ -2,7 +2,6 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackCommandController
-import app.naviamp.app.NaviampNowPlayingReportRequest
 import app.naviamp.app.NaviampPlaybackReportingController
 import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampPlaybackSessionController
@@ -66,9 +65,17 @@ class NaviampCorePlaybackController(
     }
     private val repeat = NaviampPlaybackRepeatCommandController(queue, effects::applyRepeatMode)
     private val reporting = NaviampPlaybackReportingController()
+    private data class ListenObservation(
+        val provider: app.naviamp.domain.provider.MediaProvider,
+        val track: app.naviamp.domain.Track,
+        val state: PlaybackState,
+        val progress: PlaybackProgress,
+        val now: Long,
+    )
+    private val listenReporting = app.naviamp.app.NaviampListenReporting()
+    private var listenReportJob: Job? = null
     private var reportingSessionId = 0L
     private var reportingTrackId: app.naviamp.domain.TrackId? = null
-    private var reportedNowPlayingSessionId = -1L
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarLoadJob: Job? = null
     private var sonicAutoplayJob: Job? = null
@@ -355,18 +362,6 @@ class NaviampCorePlaybackController(
             reportingTrackId = track.id
             reportingSessionId += 1
         }
-        if (reportedNowPlayingSessionId != reportingSessionId) {
-            reporting.nowPlayingReport(
-                NaviampNowPlayingReportRequest(
-                    trackId = track.id,
-                    isInternetRadioTrack = track.isInternetRadioTrack(),
-                    supportsPlayReporting = provider.capabilities.supportsPlayReporting,
-                ),
-            )?.let { report ->
-                reportedNowPlayingSessionId = reportingSessionId
-                scope.launch { runCatching { provider.reportNowPlaying(report.trackId) } }
-            }
-        }
         reporting.stateReport(
             NaviampPlaybackStateReportRequest(
                 sessionId = reportingSessionId,
@@ -377,11 +372,12 @@ class NaviampCorePlaybackController(
                 progress = progress,
                 nowEpochMillis = nowEpochMillis(),
             ),
-        )?.let { report ->
-            scope.launch {
-                runCatching {
-                    provider.reportPlaybackState(report.trackId, report.state, report.positionSeconds)
-                }
+        )?.let {
+            val observation = ListenObservation(provider, track, state, progress, nowEpochMillis())
+            val previous = listenReportJob
+            listenReportJob = scope.launch {
+                previous?.join()
+                listenReporting.observe(observation.provider, observation.track, observation.state, observation.progress, observation.now)
             }
         }
     }

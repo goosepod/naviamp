@@ -257,6 +257,7 @@ data class SharedMediaItemUi(
     val coverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
+    val canEditPlaylist: Boolean = true,
     val keepDownloadedActive: Boolean = false,
     val favoriteActive: Boolean = false,
     val canFavorite: Boolean = false,
@@ -793,6 +794,12 @@ data class SharedGenreMixBuilderUi(
     val status: String? = null,
     val loading: Boolean = false,
     val initialized: Boolean = false,
+    val canBrowseSongs: Boolean = false,
+    val songs: List<SharedTrackRowUi> = emptyList(),
+    val songsOpened: Boolean = false,
+    val songsLoading: Boolean = false,
+    val songsFailed: Boolean = false,
+    val songsHaveMore: Boolean = false,
 )
 
 data class SharedGenreMixBuilderActions(
@@ -804,6 +811,8 @@ data class SharedGenreMixBuilderActions(
     val onBranchSelected: (String) -> Unit,
     val onReset: () -> Unit,
     val onPlay: () -> Unit,
+    val onBrowseSongs: () -> Unit = {},
+    val onSongSelected: (SharedTrackRowUi) -> Unit = {},
 )
 
 data class SharedSonicPathBuilderUi(

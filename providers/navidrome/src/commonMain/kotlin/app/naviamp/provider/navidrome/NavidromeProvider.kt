@@ -60,6 +60,8 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistRule
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -81,6 +83,7 @@ data class NavidromeMusicFolder(
     val name: String,
 )
 
+@OptIn(ExperimentalAtomicApi::class)
 class NavidromeProvider(
     private val connection: NavidromeConnection,
     private val httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
@@ -125,6 +128,8 @@ class NavidromeProvider(
             supportsAlbumFavorites = profile.favorites,
             supportsTrackRatings = profile.ratings,
             supportsPlayReporting = profile.playReporting,
+            supportsListenSubmission = profile.playReporting,
+            supportsGenreTrackBrowsing = profile.generatedRadio,
             supportsSmartPlaylists = profile.nativeSmartPlaylists,
         )
     override var capabilities: ProviderCapabilities = baseCapabilities
@@ -141,17 +146,34 @@ class NavidromeProvider(
                 errorMessage = call.errorMessage,
             )
         }
+    private var supportsSongLyrics: Boolean? = null
+    private var supportsFormPost: Boolean = false
+    private var supportsTopSongsByArtistId: Boolean = false
     private var supportsEnhancedSongLyrics: Boolean = false
     private var supportsPlaybackReport: Boolean = false
     private var canonicalIdMigrationSupport: NavidromeCanonicalIdMigrationSupport =
         NavidromeCanonicalIdMigrationSupport.Inconclusive
     private var libraryArtistsCache: List<Artist>? = null
+    private val favoritesMutex = Mutex()
+    private var favoriteSnapshot: Pair<Long, List<JsonObject>>? = null
+    private val knownTracks = AtomicReference<Map<TrackId, Track>>(emptyMap())
+    private var playlistWriteAllowed = true
+    private var bulkMetadataEnumeration = profile.nativeAuthentication
+
+    private suspend fun starredSnapshot(): List<JsonObject> = favoritesMutex.withLock {
+        favoriteSnapshot?.takeIf { navidromeCurrentTimeMillis() - it.first < 15_000L }?.let { return@withLock it.second }
+        forSelectedMusicFolders { folder ->
+            val response = get("getStarred2.view", folder?.let { mapOf("musicFolderId" to it) }.orEmpty())
+            listOfNotNull(response.subsonicResponse()["starred2"] as? JsonObject)
+        }.also { favoriteSnapshot = navidromeCurrentTimeMillis() to it }
+    }
 
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun validateConnection(): ConnectionValidation {
         val response = get("ping.view")
         val root = response.subsonicResponse()
+        bulkMetadataEnumeration = profile.nativeAuthentication || root.booleanValue("openSubsonic") == true
         val extensions = openSubsonicExtensionVersions()
         val extensionVersions = extensions.versions
         capabilities = baseCapabilities.copy(
@@ -159,6 +181,12 @@ class NavidromeProvider(
                 name = "sonicSimilarity",
                 minimumVersion = 1,
             ),
+        )
+        supportsFormPost = extensionVersions.supportsOpenSubsonicExtension("formPost", 1)
+        supportsTopSongsByArtistId = extensionVersions.supportsOpenSubsonicExtension("topSongsByArtistId", 1)
+        supportsSongLyrics = if (extensions.loaded) extensionVersions.supportsOpenSubsonicExtension("songLyrics", 1) else null
+        capabilities = capabilities.copy(
+            supportsAudioStreamOffset = extensionVersions.supportsOpenSubsonicExtension("transcodeOffset", 1),
         )
         supportsPlaybackReport = extensionVersions.supportsOpenSubsonicExtension(
             name = "playbackReport",
@@ -168,6 +196,7 @@ class NavidromeProvider(
             name = "songLyrics",
             minimumVersion = 2,
         )
+        capabilities = capabilities.copy(supportsPlaybackTimeline = supportsPlaybackReport)
         canonicalIdMigrationSupport = when {
             !profile.canonicalIdMigration -> NavidromeCanonicalIdMigrationSupport.Unsupported
             !extensions.loaded -> NavidromeCanonicalIdMigrationSupport.Inconclusive
@@ -178,6 +207,15 @@ class NavidromeProvider(
             else -> NavidromeCanonicalIdMigrationSupport.Unsupported
         }
 
+        if (!profile.serialPlaylistTrackMutations) {
+            try {
+                val user = get("getUser.view", mapOf("username" to connection.username))
+                    .subsonicResponse()["user"] as? JsonObject
+                capabilities = capabilities.copy(supportsDownloads = user?.booleanValue("downloadRole") ?: true)
+                playlistWriteAllowed = user?.booleanValue("playlistRole") ?: true
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Optional account metadata must not prevent a connection. */ }
+        }
         return ConnectionValidation(
             serverVersion = root.stringValue("serverVersion"),
             apiVersion = root.stringValue("version"),
@@ -239,17 +277,14 @@ class NavidromeProvider(
         type: String,
         limit: Int,
         extraParams: Map<String, String> = emptyMap(),
-    ): List<Album> =
-        forSelectedMusicFolders { musicFolderId ->
-            albumListForMusicFolder(
-                type = type,
-                limit = limit,
-                extraParams = extraParams,
-                musicFolderId = musicFolderId,
-            )
-        }.distinctBy { it.id }
-            .take(limit)
-
+    ): List<Album> {
+        if (limit <= 0) return emptyList()
+        val lists = selectedMusicFolderIds.ifEmpty { listOf(null) }.map { folder ->
+            albumListForMusicFolder(type, limit.coerceAtMost(500), extraParams, folder)
+        }
+        return mergeSubsonicAlbumLists(lists, type, limit,
+            descendingYears = (extraParams["fromYear"]?.toIntOrNull() ?: 0) > (extraParams["toYear"]?.toIntOrNull() ?: 0))
+    }
     private suspend fun albumListForMusicFolder(
         type: String,
         limit: Int,
@@ -374,22 +409,25 @@ class NavidromeProvider(
     }
 
     override suspend fun albums(limit: Int, offset: Int): List<Album> {
-        if (selectedMusicFolderIds.isNotEmpty() && offset == 0) {
-            return forSelectedMusicFolders { musicFolderId ->
-                albumsForMusicFolder(limit, offset, musicFolderId)
-            }.distinctBy { it.id }
-                .take(limit)
+        require(offset >= 0 && limit >= 0)
+        if (limit == 0) return emptyList()
+        val result = mutableListOf<Album>()
+        var remainingSkip = offset
+        for (folder in selectedMusicFolderIds.ifEmpty { listOf(null) }) {
+            var folderOffset = 0
+            while (result.size < limit) {
+                val size = (remainingSkip.toLong() + limit - result.size).coerceIn(1, 500).toInt()
+                val page = albumsForMusicFolder(size, folderOffset, folder)
+                val skip = minOf(remainingSkip, page.size)
+                remainingSkip -= skip
+                result += page.drop(skip).take(limit - result.size)
+                if (page.size < size) break
+                folderOffset += page.size
+            }
+            if (result.size == limit) break
         }
-        if (selectedMusicFolderIds.isNotEmpty()) {
-            return forSelectedMusicFolders { musicFolderId ->
-                albumsForMusicFolder(limit + offset, 0, musicFolderId)
-            }.distinctBy { it.id }
-                .drop(offset)
-                .take(limit)
-        }
-        return albumsForMusicFolder(limit, offset, musicFolderId = null)
+        return result
     }
-
     override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> =
         nativeAlphabeticalPage(
             kind = AlphabeticalLibraryKind.Albums,
@@ -421,6 +459,11 @@ class NavidromeProvider(
 
     override suspend fun tracks(limit: Int): List<Track> =
         tracksPage(MediaPageRequest(limit = limit.coerceAtMost(app.naviamp.domain.provider.MaximumMediaPageSize))).items
+
+    override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? =
+        if (!bulkMetadataEnumeration) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
+            searchForMusicFolder(query = "", songCount = limit, songOffset = offset, musicFolderId = folder).tracks
+        }
 
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
         nativeAlphabeticalPage(
@@ -733,7 +776,7 @@ class NavidromeProvider(
             endpoint = "getTopSongs.view",
             params = buildMap {
                 put("artist", artist.name)
-                if (canonicalIdMigrationSupport == NavidromeCanonicalIdMigrationSupport.Confirmed) {
+                if (supportsTopSongsByArtistId) {
                     put("id", artist.id.value)
                 }
                 put("count", limit.coerceIn(1, 50).toString())
@@ -796,12 +839,6 @@ class NavidromeProvider(
             ?: "https://www.last.fm/music/${name.urlEncode()}"
 
     override suspend fun playlists(limit: Int): List<Playlist> {
-        if (selectedMusicFolderIds.isNotEmpty()) {
-            return selectedMusicFolderIds
-                .flatMap { musicFolderId -> playlistsForMusicFolder(limit, musicFolderId) }
-                .distinctBy { it.id }
-                .take(limit)
-        }
         return playlistsForMusicFolder(limit, musicFolderId = null)
     }
 
@@ -814,7 +851,7 @@ class NavidromeProvider(
             ?.jsonObject
             ?.arrayValue("playlist")
             .orEmpty()
-        val smartPlaylistIds = smartPlaylistIds()
+        val smartPlaylistIds = if (nativeToken.isNullOrBlank()) emptySet() else smartPlaylistIds()
 
         return playlists
             .mapNotNull { playlist ->
@@ -824,54 +861,17 @@ class NavidromeProvider(
     }
 
     override suspend fun playlistTracks(playlistId: String): List<Track> {
-        if (selectedMusicFolderIds.isNotEmpty()) {
-            val selectedIds = selectedMusicFolderIds.toSet()
-            return selectedMusicFolderIds
-                .flatMap { musicFolderId -> playlistTracksForMusicFolder(playlistId, musicFolderId) }
-                .filter { track ->
-                    track.musicFolderId == null || track.musicFolderId in selectedIds
-                }
-                .distinctBy { it.id }
-        }
+        // Catalog folder selection must never change playlist occurrence positions.
         return playlistTracksForMusicFolder(playlistId, musicFolderId = null)
     }
 
-    override suspend fun favoriteTracks(limit: Int): List<Track> {
-        val musicFolderIds = selectedMusicFolderIds.ifEmpty { listOf(null) }
-        return musicFolderIds
-            .flatMap { musicFolderId ->
-                val response = get(
-                    endpoint = "getStarred2.view",
-                    params = musicFolderId?.let { mapOf("musicFolderId" to it) }.orEmpty(),
-                )
-                response.subsonicResponse()["starred2"]
-                    ?.jsonObject
-                    ?.arrayValue("song")
-                    .orEmpty()
-                    .mapNotNull { song -> (song as? JsonObject)?.toTrack() }
-            }
-            .distinctBy { it.id }
-            .take(limit)
-    }
+    override suspend fun favoriteTracks(limit: Int): List<Track> =
+        starredSnapshot().flatMap { it.arrayValue("song") }
+            .mapNotNull { (it as? JsonObject)?.toTrack() }.distinctBy { it.id }.take(limit)
 
-    override suspend fun favoriteArtists(limit: Int): List<Artist> {
-        val musicFolderIds = selectedMusicFolderIds.ifEmpty { listOf(null) }
-        return musicFolderIds
-            .flatMap { musicFolderId ->
-                val response = get(
-                    endpoint = "getStarred2.view",
-                    params = musicFolderId?.let { mapOf("musicFolderId" to it) }.orEmpty(),
-                )
-                response.subsonicResponse()["starred2"]
-                    ?.jsonObject
-                    ?.arrayValue("artist")
-                    .orEmpty()
-                    .mapNotNull { artist -> (artist as? JsonObject)?.toArtist() }
-            }
-            .distinctBy { it.id }
-            .take(limit)
-    }
-
+    override suspend fun favoriteArtists(limit: Int): List<Artist> =
+        starredSnapshot().flatMap { it.arrayValue("artist") }
+            .mapNotNull { (it as? JsonObject)?.toArtist() }.distinctBy { it.id }.take(limit)
     private suspend fun playlistTracksForMusicFolder(playlistId: String, musicFolderId: String?): List<Track> {
         val response = get(
             endpoint = "getPlaylist.view",
@@ -1001,14 +1001,17 @@ class NavidromeProvider(
                     "No playlist changes were sent.",
             )
         }
-        get(
-            endpoint = "updatePlaylist.view",
-            params = buildList {
-                add("playlistId" to playlistId)
-                currentTrackIds.indices.forEach { index -> add("songIndexToRemove" to index.toString()) }
-                trackIds.forEach { trackId -> add("songIdToAdd" to trackId.value) }
-            },
-        )
+        if (trackIds.isEmpty()) {
+            // Omitting songId on createPlaylist preserves contents on Navidrome. Clear the
+            // authoritative occurrences explicitly; there is no dedicated clear endpoint.
+            if (currentTrackIds.isNotEmpty()) get("updatePlaylist.view",
+                listOf("playlistId" to playlistId) + currentTrackIds.indices.map { "songIndexToRemove" to it.toString() })
+        } else {
+            get(
+                endpoint = "createPlaylist.view",
+                params = listOf("playlistId" to playlistId) + trackIds.map { "songId" to it.value },
+            )
+        }
     }
 
     override suspend fun removeTrackFromPlaylist(playlistId: String, trackId: TrackId) {
@@ -1085,6 +1088,17 @@ class NavidromeProvider(
             .sortedWith(compareByDescending<Genre> { it.albumCount ?: 0 }.thenBy { it.name.lowercase() })
             .take(limit)
     }
+
+    override suspend fun genreTracksPage(genre: String, request: MediaPageRequest): MediaPage<Track>? =
+        if (!profile.generatedRadio) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
+            get("getSongsByGenre.view", buildMap {
+                put("genre", genre)
+                put("count", limit.toString())
+                put("offset", offset.toString())
+                folder?.let { put("musicFolderId", it) }
+            }).subsonicResponse()["songsByGenre"]?.jsonObject?.arrayValue("song").orEmpty()
+                .mapNotNull { (it as? JsonObject)?.toTrack() }
+        }
 
     override suspend fun randomSongs(
         limit: Int,
@@ -1244,7 +1258,11 @@ class NavidromeProvider(
                         }
                 }
                 .filterNot { it.track.id == trackId }
-        }.getOrDefault(emptyList())
+        }.getOrElse { cause ->
+            if (cause is NavidromeException && (cause.subsonicErrorCode == 70 ||
+                    cause is NavidromeHttpException && cause.statusCode in listOf(404, 501))) emptyList()
+            else throw cause
+        }
 
     override suspend fun findSonicPath(
         startTrackId: TrackId,
@@ -1274,38 +1292,55 @@ class NavidromeProvider(
                             )
                         }
                 }
-        }.getOrDefault(emptyList())
+        }.getOrElse { cause ->
+            if (cause is NavidromeException && (cause.subsonicErrorCode == 70 ||
+                    cause is NavidromeHttpException && cause.statusCode in listOf(404, 501))) emptyList()
+            else throw cause
+        }
 
     override suspend fun lyrics(trackId: TrackId): Lyrics? {
-        val response = runCatching {
-            get(
-                endpoint = "getLyricsBySongId.view",
-                params = buildMap {
+        val structured = if (supportsSongLyrics != false) {
+            try {
+                get("getLyricsBySongId.view", buildMap {
                     put("id", trackId.value)
                     if (supportsEnhancedSongLyrics) put("enhanced", "true")
-                },
-            )
-        }.getOrNull() ?: return null
-        val lyricsList = response.subsonicResponse()["lyricsList"]?.jsonObject ?: return null
-        val structuredLyrics = lyricsList["structuredLyrics"] as? JsonArray ?: return null
-        return structuredLyrics
-            .mapNotNull { it as? JsonObject }
-            .mapNotNull { it.toLyrics() }
-            .sortedWith(
-                compareByDescending<Lyrics> { it.hasKaraokeCues }
-                    .thenByDescending { it.hasTimedLines }
-                    .thenByDescending { it.lines.size },
-            )
-            .firstOrNull()
+                }).subsonicResponse()["lyricsList"]?.jsonObject?.arrayValue("structuredLyrics").orEmpty()
+            } catch (cause: CancellationException) { throw cause }
+            catch (cause: NavidromeException) {
+                if (cause.subsonicErrorCode != 70 && (cause !is NavidromeHttpException || cause.statusCode !in listOf(404, 501))) throw cause
+                supportsSongLyrics = false
+                emptyList()
+            }
+        } else emptyList()
+        structured.mapNotNull { (it as? JsonObject)?.toLyrics() }
+            .filter { it.kind == null || it.kind == "main" }
+            .sortedWith(compareByDescending<Lyrics> { it.hasKaraokeCues }
+                .thenByDescending { it.hasTimedLines }.thenByDescending { it.lines.size })
+            .firstOrNull()?.let { return it }
+        val track = knownTracks.load()[trackId] ?: song(trackId) ?: return null
+        val legacy = get("getLyrics.view", mapOf("artist" to track.artistName, "title" to track.title))
+            .subsonicResponse()["lyrics"] as? JsonObject ?: return null
+        val value = legacy.stringValue("value")?.takeIf { it.isNotBlank() } ?: return null
+        return Lyrics(source = LyricsSource.Provider, synced = false,
+            lines = value.lines().map { LyricLine(startMillis = null, text = it) },
+            displayArtist = legacy.stringValue("artist"), displayTitle = legacy.stringValue("title"))
     }
-
     override suspend fun reportNowPlaying(trackId: TrackId) {
-        if (!supportsPlaybackReport) return
+        if (!supportsPlaybackReport) {
+            if (capabilities.supportsPlayReporting) get("scrobble.view", mapOf("id" to trackId.value, "submission" to "false"))
+            return
+        }
         reportPlayback(
             trackId = trackId,
             state = PlaybackReportState.Starting,
             positionMs = 0,
         )
+    }
+
+    override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) {
+        if (capabilities.supportsPlayReporting) get("scrobble.view", mapOf(
+            "id" to trackId.value, "submission" to "true", "time" to startedAtEpochMillis.toString(),
+        ))
     }
 
     override suspend fun reportPlaybackState(
@@ -1323,7 +1358,7 @@ class NavidromeProvider(
 
     override suspend fun streamUrl(request: StreamRequest): String {
         val params = when (val quality = capabilities.effectiveStreamingQuality(request.quality)) {
-            StreamQuality.Original -> mapOf("id" to request.trackId.value)
+            StreamQuality.Original -> mapOf("id" to request.trackId.value, "format" to "raw")
             is StreamQuality.Transcoded -> {
                 val format = quality.codec.toNavidromeFormat()
                 mapOf(
@@ -1333,11 +1368,17 @@ class NavidromeProvider(
                 )
             }
         } + request.startPositionSeconds
-            ?.takeIf { it > 0.0 }
+            ?.takeIf { it.isFinite() && it > 0.0 && capabilities.supportsAudioStreamOffset }
             ?.let { mapOf("timeOffset" to it.toInt().toString()) }
             .orEmpty()
 
         return url("stream.view", params)
+    }
+
+    override suspend fun downloadUrl(request: StreamRequest): String {
+        if (!capabilities.supportsDownloads) throw NavidromeException("Navidrome request failed.", 50)
+        return if (request.quality == StreamQuality.Original) url("download.view", mapOf("id" to request.trackId.value))
+        else streamUrl(request.copy(startPositionSeconds = null))
     }
 
     override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
@@ -1345,6 +1386,7 @@ class NavidromeProvider(
             endpoint = if (favorite) "star.view" else "unstar.view",
             params = mapOf("id" to trackId.value),
         )
+        favoritesMutex.withLock { favoriteSnapshot = null }
     }
 
     override suspend fun setArtistFavorite(artistId: ArtistId, favorite: Boolean) {
@@ -1352,6 +1394,7 @@ class NavidromeProvider(
             endpoint = if (favorite) "star.view" else "unstar.view",
             params = mapOf("artistId" to artistId.value),
         )
+        favoritesMutex.withLock { favoriteSnapshot = null }
     }
 
     override suspend fun setAlbumFavorite(albumId: AlbumId, favorite: Boolean) {
@@ -1359,6 +1402,7 @@ class NavidromeProvider(
             endpoint = if (favorite) "star.view" else "unstar.view",
             params = mapOf("albumId" to albumId.value),
         )
+        favoritesMutex.withLock { favoriteSnapshot = null }
     }
 
     override suspend fun setTrackRating(trackId: TrackId, rating: Int?) {
@@ -1407,63 +1451,42 @@ class NavidromeProvider(
             httpClient.download(url, writeChunk = writeChunk)
         }
 
-    private suspend fun similarSongs(
-        endpoint: String,
-        responseKey: String,
-        id: String,
-        count: Int,
-    ): List<Track> =
-        runCatching {
-            val response = get(
-                endpoint = endpoint,
-                params = mapOf(
-                    "id" to id,
-                    "count" to count.coerceAtLeast(1).toString(),
-                ),
-            )
-            response.subsonicResponse()[responseKey]
-                ?.jsonObject
-                ?.arrayValue("song")
-                .orEmpty()
-                .mapNotNull { song ->
-                    (song as? JsonObject)?.toTrack()
-                }
-        }.getOrDefault(emptyList())
+    private suspend fun similarSongs(endpoint: String, responseKey: String, id: String, count: Int): List<Track> =
+        try {
+            get(endpoint, mapOf("id" to id, "count" to count.coerceAtLeast(1).toString()))
+                .subsonicResponse()[responseKey]?.jsonObject?.arrayValue("song").orEmpty()
+                .mapNotNull { (it as? JsonObject)?.toTrack() }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: NavidromeException) {
+            if (error.subsonicErrorCode == 70 || (error is NavidromeHttpException && error.statusCode in listOf(404, 501))) emptyList()
+            else throw error
+        }
 
-    private suspend fun artistRadioFallback(artistId: ArtistId, count: Int): List<Track> =
-        runCatching {
-            artist(artistId).albums
-                .flatMap { album -> album(album.id).tracks }
-                .distinctBy { it.id }
-                .shuffled()
-                .take(count.coerceAtLeast(1))
-        }.getOrDefault(emptyList())
-
-    private suspend fun albumRadioFallback(albumId: AlbumId, count: Int): List<Track> =
-        runCatching {
-            album(albumId).tracks
-                .shuffled()
-                .take(count.coerceAtLeast(1))
-        }.getOrDefault(emptyList())
-
-    private suspend fun trackRadioFallback(trackId: TrackId, count: Int): List<Track> {
-        val seed = runCatching { song(trackId) }.getOrNull() ?: return emptyList()
-        val albumTracks = seed.albumId?.let { albumId ->
-            runCatching { album(albumId).tracks }.getOrDefault(emptyList())
-        }.orEmpty()
-        val artistTracks = seed.artistId?.let { artistId ->
-            runCatching {
-                artist(artistId).albums.flatMap { album -> album(album.id).tracks }
-            }.getOrDefault(emptyList())
-        }.orEmpty()
-
-        return (albumTracks + artistTracks)
-            .distinctBy { it.id }
-            .filterNot { it.id == trackId }
-            .shuffled()
-            .take(count.coerceAtLeast(1))
+    private suspend fun artistRadioFallback(artistId: ArtistId, count: Int, excludedAlbumId: AlbumId? = null): List<Track> {
+        val albums = get("getArtist.view", mapOf("id" to artistId.value))
+            .subsonicResponse()["artist"]?.jsonObject?.arrayValue("album").orEmpty()
+            .mapNotNull { (it as? JsonObject)?.toAlbum() }
+            .filterNot { it.id == excludedAlbumId }.shuffled().take(8)
+        val tracks = mutableListOf<Track>()
+        for (candidate in albums) {
+            tracks += album(candidate.id).tracks
+            if (tracks.size >= count) break
+        }
+        return tracks.distinctBy { it.id }.shuffled().take(count.coerceAtLeast(1))
     }
 
+    private suspend fun albumRadioFallback(albumId: AlbumId, count: Int): List<Track> =
+        album(albumId).tracks.shuffled().take(count.coerceAtLeast(1))
+
+    private suspend fun trackRadioFallback(trackId: TrackId, count: Int): List<Track> {
+        val seed = knownTracks.load()[trackId] ?: song(trackId) ?: return emptyList()
+        val albumTracks = seed.albumId?.let { album(it).tracks }.orEmpty().filterNot { it.id == trackId }
+        val remaining = (count - albumTracks.size).coerceAtLeast(0)
+        val artistTracks = if (remaining > 0) seed.artistId?.let {
+            artistRadioFallback(it, remaining, excludedAlbumId = seed.albumId)
+        }.orEmpty() else emptyList()
+        return (albumTracks + artistTracks).distinctBy { it.id }.filterNot { it.id == trackId }.shuffled().take(count.coerceAtLeast(1))
+    }
     private suspend fun song(trackId: TrackId): Track? {
         val response = get(
             endpoint = "getSong.view",
@@ -1489,7 +1512,7 @@ class NavidromeProvider(
                     .toMap(),
                 loaded = true,
             )
-        } catch (_: Throwable) {
+        } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) {
             OpenSubsonicExtensions(emptyMap(), loaded = false)
         }
 
@@ -1537,20 +1560,8 @@ class NavidromeProvider(
     }
 
     override suspend fun albumInfo(albumId: AlbumId): AlbumInfo? {
-        var lastFailure: Throwable? = null
-        val info = listOf("getAlbumInfo.view", "getAlbumInfo2.view")
-            .firstNotNullOfOrNull { endpoint ->
-                runCatching {
-                    get(
-                        endpoint = endpoint,
-                        params = mapOf("id" to albumId.value),
-                    ).subsonicResponse()["albumInfo"]?.jsonObject
-                }.onFailure { failure ->
-                    lastFailure = failure
-                }.getOrNull()
-            }
-        if (info == null && lastFailure != null) throw lastFailure
-        info ?: return null
+        val info = get("getAlbumInfo2.view", mapOf("id" to albumId.value))
+            .subsonicResponse()["albumInfo"] as? JsonObject ?: return null
         return AlbumInfo(
             notes = info.metadataStringValue("notes"),
             musicBrainzId = info.metadataStringValue("musicBrainzId"),
@@ -1592,7 +1603,13 @@ class NavidromeProvider(
         endpoint: String,
         params: List<Pair<String, String>>,
     ): JsonObject {
-        val body = httpClient.get(url(endpoint, params), headers = customHeaders)
+        val body = if (supportsFormPost) {
+            httpClient.postForm(
+                "${connection.normalizedBaseUrl}/rest/$endpoint",
+                (authParams.toList() + params).toQueryString(),
+                customHeaders,
+            )
+        } else httpClient.get(url(endpoint, params), headers = customHeaders)
         val root = json.parseToJsonElement(body).jsonObject
         val response = root["subsonic-response"]?.jsonObject
             ?: throw NavidromeException("Response was not a Subsonic response.")
@@ -1833,6 +1850,8 @@ class NavidromeProvider(
             artistName = albumArtistName,
             coverArtId = stringValue("coverArt"),
             recentlyAddedAtIso8601 = stringValue("created"),
+            playCount = intValue("playCount"),
+            lastPlayedAtIso8601 = stringValue("played"),
             releaseYear = editionYear,
             originalReleaseYear = explicitOriginalYear ?: legacyYearCandidate,
             favoritedAtIso8601 = stringValue("starred"),
@@ -1911,6 +1930,9 @@ class NavidromeProvider(
             coverArtId = stringValue("coverArt"),
             isSmart = forceSmart || isSmartPlaylistObject(),
             comment = stringValue("comment"),
+            owner = stringValue("owner"),
+            public = booleanValue("public"),
+            canEdit = playlistWriteAllowed && (stringValue("owner")?.let { it == connection.username } ?: true),
         )
 
     private fun JsonObject.toInternetRadioStation(): InternetRadioStation =
@@ -1952,7 +1974,14 @@ class NavidromeProvider(
                 ?: stringValue("lastPlayedAt"),
             musicFolderId = stringValue("musicFolderId"),
             artistCredits = structuredArtistCredits(),
-        )
+        ).also { track ->
+            while (true) {
+                val current = knownTracks.load()
+                val updated = (current - track.id + (track.id to track)).entries
+                    .toList().takeLast(256).associate { it.key to it.value }
+                if (knownTracks.compareAndSet(current, updated)) break
+            }
+        }
 
     private fun JsonObject.structuredArtistCredits(): List<ArtistCredit> =
         arrayValue("artists")
@@ -2090,6 +2119,8 @@ class NavidromeProvider(
 
 
 interface NavidromeHttpClient {
+    suspend fun postForm(url: String, body: String, headers: Map<String, String> = emptyMap()): String =
+        throw UnsupportedOperationException()
     suspend fun get(url: String): String
     suspend fun get(url: String, headers: Map<String, String>): String = get(url)
     suspend fun getResponse(url: String, headers: Map<String, String> = emptyMap()): NavidromeHttpResponse =

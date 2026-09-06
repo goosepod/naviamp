@@ -55,6 +55,8 @@ data class Album(
     val releaseTypes: List<String> = emptyList(),
     val explicitStatus: AlbumExplicitStatus = AlbumExplicitStatus.Unknown,
     val artistCredits: List<ArtistCredit> = emptyList(),
+    val playCount: Int? = null,
+    val lastPlayedAtIso8601: String? = null,
 )
 
 @Serializable
@@ -232,6 +234,9 @@ data class Playlist(
     val coverArtId: String? = null,
     val isSmart: Boolean = false,
     val comment: String? = null,
+    val owner: String? = null,
+    val public: Boolean? = null,
+    val canEdit: Boolean = true,
 )
 
 data class Genre(

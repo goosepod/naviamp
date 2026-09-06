@@ -5,6 +5,8 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.provider.MaximumMediaPageSize
 
 const val LibraryGenreInventoryLimit = 5_000
 
@@ -57,8 +59,8 @@ suspend fun syncLibraryIndex(
     )
 
     val albums = mutableListOf<Album>()
-    var offset = 0
-    while (true) {
+    var request: MediaPageRequest? = MediaPageRequest(limit = albumPageSize.coerceIn(1, MaximumMediaPageSize))
+    while (request != null) {
         onProgress(
             LibrarySyncProgress(
                 phase = LibrarySyncProgressPhase.LoadingAlbums,
@@ -67,7 +69,8 @@ suspend fun syncLibraryIndex(
                 completed = albums.size,
             ),
         )
-        val page = provider.albums(limit = albumPageSize, offset = offset)
+        val albumPage = provider.albumsPage(request)
+        val page = albumPage.items
         if (page.isEmpty()) break
         albums += page
         libraryIndexRepository.upsertLibraryAlbums(sourceId, page)
@@ -79,33 +82,48 @@ suspend fun syncLibraryIndex(
                 completed = albums.size,
             ),
         )
-        if (page.size < albumPageSize) break
-        offset += albumPageSize
+        request = albumPage.nextRequest
     }
 
     var trackCount = 0
     if (includeAlbumTracks) {
-        albums.forEachIndexed { index, album ->
-            onProgress(
-                LibrarySyncProgress(
-                    phase = LibrarySyncProgressPhase.LoadingTracks,
-                    artistCount = artists.size,
-                    albumCount = albums.size,
-                    trackCount = trackCount,
-                    completed = index,
-                    total = albums.size,
-                ),
-            )
-            val details = providerResponseService?.album(provider, album.id) ?: provider.album(album.id)
-            libraryIndexRepository.upsertLibraryAlbums(sourceId, listOf(details.album))
-            libraryIndexRepository.upsertLibraryTracks(sourceId, details.tracks)
-            trackCount += details.tracks.size
+        var tracksPage = provider.libraryTracksPage(MediaPageRequest(limit = MaximumMediaPageSize))
+        if (tracksPage != null) {
+            val seen = mutableSetOf<app.naviamp.domain.TrackId>()
+            while (tracksPage != null) {
+                val tracks = tracksPage.items.filter { seen.add(it.id) }
+                libraryIndexRepository.upsertLibraryTracks(sourceId, tracks)
+                trackCount += tracks.size
+                onProgress(LibrarySyncProgress(LibrarySyncProgressPhase.LoadingTracks,
+                    artists.size, albums.size, trackCount, completed = trackCount))
+                val next = tracksPage.nextRequest
+                if (tracksPage.items.isEmpty() || next == null) break
+                tracksPage = checkNotNull(provider.libraryTracksPage(next))
+            }
+        } else {
+            albums.forEachIndexed { index, album ->
+                onProgress(
+                    LibrarySyncProgress(
+                        phase = LibrarySyncProgressPhase.LoadingTracks,
+                        artistCount = artists.size,
+                        albumCount = albums.size,
+                        trackCount = trackCount,
+                        completed = index,
+                        total = albums.size,
+                    ),
+                )
+                val details = providerResponseService?.album(provider, album.id) ?: provider.album(album.id)
+                libraryIndexRepository.upsertLibraryAlbums(sourceId, listOf(details.album))
+                libraryIndexRepository.upsertLibraryTracks(sourceId, details.tracks)
+                trackCount += details.tracks.size
+            }
         }
     }
 
     // Genre discovery supplements the primary index. A provider-specific genre endpoint failure
     // must not leave an otherwise successful artist/album import marked as incomplete.
     runCatching { refreshLibraryGenreInventory(sourceId, provider, libraryIndexRepository) }
+        .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
 
     libraryIndexRepository.markLibrarySyncCompleted(sourceId)
     onProgress(

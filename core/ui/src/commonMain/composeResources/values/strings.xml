@@ -374,7 +374,8 @@
     <string name="home_favorite_artists">FAVORITE ARTISTS</string>
 
     <string name="search_title">Search</string>
-    <string name="search_tracks_label">Search tracks</string>
+    <string name="search_music_label">Search music</string>
+    <string name="search_searching">Searching...</string>
     <string name="search_clear">Clear search</string>
     <string name="search_no_matches">No matches found.</string>
     <string name="search_artists">Artists</string>
@@ -429,10 +430,10 @@
     <string name="playlist_membership_done">Done</string>
 
     <string name="downloads_offline_title">Downloads</string>
-    <string name="downloads_summary">%1$d files - %2$s of %3$s</string>
+    <string name="downloads_summary">Files: %1$d - %2$s of %3$s</string>
     <string name="downloads_remaining">%1$s remaining - %2$s used</string>
     <string name="downloads_empty">Downloaded tracks will appear here.</string>
-    <string name="offline_ready">Ready for offline playback and Android Auto Downloads browsing.</string>
+    <string name="offline_ready">Ready for offline playback and browsing downloads.</string>
     <string name="offline_not_ready">Download albums, playlists, or tracks before using offline mode.</string>
     <string name="offline_dashboard_title">OFFLINE DASHBOARD</string>
     <string name="offline_downloaded_tracks">Downloaded tracks</string>
@@ -519,6 +520,7 @@
     <string name="playlist_membership_retry">Retry</string>
     <string name="library_jump_loading">Loading %1$s…</string>
     <string name="library_jump_failed">Could not load this letter. Try again.</string>
+    <string name="favorite_artists_sort_title">Sorting</string>
     <string name="favorite_artists_sort_name">Name</string>
     <string name="favorite_artists_sort_favorited">Date favorited</string>
     <string name="favorite_artists_sort_played">Last radio played</string>
@@ -544,4 +546,8 @@
     <string name="home_settings_move_up">Move up</string>
     <string name="home_settings_move_down">Move down</string>
     <string name="home_settings_drag_section">Drag %1$s to reorder</string>
+    <string name="genre_songs_browse">Browse songs</string>
+    <string name="genre_songs_more">Load more songs</string>
+    <string name="genre_songs_failed">Could not load songs. Try again.</string>
+    <string name="genre_songs_empty">No songs matched the selected genres.</string>
 </resources>

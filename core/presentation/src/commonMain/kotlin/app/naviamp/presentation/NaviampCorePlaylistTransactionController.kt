@@ -166,6 +166,7 @@ class NaviampCorePlaylistTransactionController(
                     return
                 }
                 is NaviampPlaylistDetailCommand.Rename -> {
+                    if (!playlist.canEdit) throw UnsupportedOperationException()
                     val name = requireName(command.name)
                     provider.renamePlaylist(playlist.id, name)
                     browseController.refreshAfterMutation("Renamed playlist.")
@@ -173,6 +174,7 @@ class NaviampCorePlaylistTransactionController(
                     return
                 }
                 NaviampPlaylistDetailCommand.Delete -> {
+                    if (!playlist.canEdit) throw UnsupportedOperationException()
                     provider.deletePlaylist(playlist.id)
                     browseController.refreshAfterMutation("Deleted playlist.")
                     clearDeletedSelection(playlist.id)
@@ -192,6 +194,7 @@ class NaviampCorePlaylistTransactionController(
     private suspend fun updateTracks(item: SharedMediaItemUi, requestedTrackIds: List<TrackId>) {
         val provider = providerOrPublish() ?: return
         val playlist = browseController.resolvePlaylist(item)
+        if (!playlist.canEdit) throw UnsupportedOperationException()
         publishStatus("Updating ${playlist.name}...")
         try {
             val currentTrackIds = provider.playlistTracks(playlist.id).map(Track::id)
@@ -228,6 +231,7 @@ class NaviampCorePlaylistTransactionController(
         definition: SmartPlaylistDefinition,
         password: String?,
     ) {
+        if (!item.canEditPlaylist) throw UnsupportedOperationException()
         val provider = smartProvider(password, "update")
         val playlist = browseController.resolvePlaylist(item)
         publishListStatus("Updating ${definition.name}...")

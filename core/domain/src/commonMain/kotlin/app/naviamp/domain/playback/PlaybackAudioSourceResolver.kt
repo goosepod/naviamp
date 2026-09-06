@@ -24,6 +24,16 @@ data class PlaybackAudioSourcePlan(
         get() = localAudio?.quality ?: target.providerStreamRequest.quality
 }
 
+/** Fall back to engine seeking when the server cannot start an audio stream at an offset. */
+fun PlaybackAudioSourcePlan.withAudioStreamOffsetSupport(supported: Boolean): PlaybackAudioSourcePlan {
+    val offset = target.providerStreamRequest.startPositionSeconds ?: return this
+    if (supported) return this
+    return copy(target = target.copy(
+        engineStartPositionSeconds = offset,
+        providerStreamRequest = target.providerStreamRequest.copy(startPositionSeconds = null),
+    ))
+}
+
 data class PlaybackLocalAudio(
     val path: String,
     val uri: String,

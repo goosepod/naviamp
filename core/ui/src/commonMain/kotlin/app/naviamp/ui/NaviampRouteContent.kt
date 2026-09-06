@@ -33,7 +33,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -113,7 +112,7 @@ private fun HomeCollectionSection(
     val sectionTitle = section.localizedTitle()
     val homeSection = section.copy(items = section.items.take(section.homeItemLimit ?: section.items.size))
     if (homeSection.favoriteArtistSort != null) {
-        FavoriteArtistControls(homeSection, colors, actions)
+        FavoriteArtistStatus(homeSection, colors)
         if (homeSection.items.isEmpty()) return
     } else if (homeSection.items.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -157,19 +156,9 @@ private fun HomeCollectionSection(
 }
 
 @Composable
-private fun FavoriteArtistControls(section: SharedHomeCollectionSectionUi, colors: NaviampColors, actions: NaviampHomeActions) {
-    val sort = section.favoriteArtistSort ?: return
+private fun FavoriteArtistStatus(section: SharedHomeCollectionSectionUi, colors: NaviampColors) {
+    if (section.favoriteArtistSort == null) return
     if (section.items.isEmpty()) Text(section.localizedTitle(), color = colors.primaryText)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-        app.naviamp.domain.settings.FavoriteArtistSort.entries.forEach { option ->
-            val label = when (option) {
-                app.naviamp.domain.settings.FavoriteArtistSort.Name -> stringResource(Res.string.favorite_artists_sort_name)
-                app.naviamp.domain.settings.FavoriteArtistSort.DateFavorited -> stringResource(Res.string.favorite_artists_sort_favorited)
-                app.naviamp.domain.settings.FavoriteArtistSort.LastRadioPlayed -> stringResource(Res.string.favorite_artists_sort_played)
-            }
-            FilterChip(selected = sort == option, onClick = { actions.onFavoriteArtistSortChanged(option) }, label = { Text(label) })
-        }
-    }
     val status = when {
         section.favoriteArtistsStatus == app.naviamp.domain.home.FavoriteArtistsStatus.Failed -> Res.string.favorite_artists_failed
         section.favoriteArtistsStatus == app.naviamp.domain.home.FavoriteArtistsStatus.Cached -> Res.string.favorite_artists_cached
@@ -626,7 +615,7 @@ private fun HomeCollectionPageHeader(
     colors: NaviampColors,
     actions: NaviampHomeActions,
 ) {
-    FavoriteArtistControls(page.section, colors, actions)
+    FavoriteArtistStatus(page.section, colors)
     val sectionTitle = page.section.localizedTitle()
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth < HomeCollectionSingleRowHeaderMinWidth) {
@@ -696,6 +685,9 @@ private fun HomeCollectionLayoutButtons(
     colors: NaviampColors,
     actions: NaviampHomeActions,
 ) {
+    page.section.favoriteArtistSort?.let { sort ->
+        FavoriteArtistSortMenu(sort, colors, actions.onFavoriteArtistSortChanged)
+    }
     if (HomeSectionPageLayout.List in page.section.supportedPageLayouts) {
         HomeCollectionLayoutButton(
             label = HomeSectionPageLayout.List.label,
@@ -713,6 +705,42 @@ private fun HomeCollectionLayoutButtons(
         )
     }
 }
+
+@Composable
+internal fun FavoriteArtistSortMenu(
+    sort: app.naviamp.domain.settings.FavoriteArtistSort,
+    colors: NaviampColors,
+    onSortChanged: (app.naviamp.domain.settings.FavoriteArtistSort) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = colors.secondaryText),
+        ) {
+            Text(favoriteArtistSortLabel(sort), fontSize = 11.sp)
+            Icon(NaviampIcons.ChevronDown, contentDescription = stringResource(Res.string.favorite_artists_sort_title),
+                modifier = Modifier.padding(start = 4.dp).size(14.dp))
+        }
+        NaviampDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            app.naviamp.domain.settings.FavoriteArtistSort.entries.forEach { option ->
+                NaviampDropdownMenuItem(label = favoriteArtistSortLabel(option), selected = sort == option) {
+                    expanded = false
+                    onSortChanged(option)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun favoriteArtistSortLabel(sort: app.naviamp.domain.settings.FavoriteArtistSort): String =
+    stringResource(when (sort) {
+        app.naviamp.domain.settings.FavoriteArtistSort.Name -> Res.string.favorite_artists_sort_name
+        app.naviamp.domain.settings.FavoriteArtistSort.DateFavorited -> Res.string.favorite_artists_sort_favorited
+        app.naviamp.domain.settings.FavoriteArtistSort.LastRadioPlayed -> Res.string.favorite_artists_sort_played
+    })
 
 @Composable
 private fun HomeCollectionLayoutButton(
@@ -1174,7 +1202,7 @@ fun NaviampSearchContent(
         NaviampCompactSearchField(
             value = query,
             onValueChange = actions.onQueryChanged,
-            placeholder = stringResource(Res.string.search_tracks_label),
+            placeholder = stringResource(Res.string.search_music_label),
             colors = colors,
             onClear = {
                 actions.onClear()
@@ -1191,7 +1219,7 @@ fun NaviampSearchContent(
                 Text(status, color = colors.secondaryText, fontSize = 12.sp)
             }
             if (screen.searching) {
-                Text("Searching...", color = colors.secondaryText, fontSize = 12.sp)
+                Text(stringResource(Res.string.search_searching), color = colors.secondaryText, fontSize = 12.sp)
             } else if (query.isNotBlank() && results.isEmpty && screen.status == null) {
                 Text(stringResource(Res.string.search_no_matches), color = colors.secondaryText, fontSize = 12.sp)
             }

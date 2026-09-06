@@ -133,6 +133,8 @@ fun createNaviampCoreActions(
             onPlay = { send(NaviampCoreCommand.MixBuilder.Album(NaviampCoreCommand.AlbumAction.Play)) },
         ),
         genreMixActions = SharedGenreMixBuilderActions(
+            onBrowseSongs = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.BrowseSongs)) },
+            onSongSelected = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.PlaySong(it.id))) },
             onQueryChanged = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.ChangeQuery(it))) },
             onSearch = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Search)) },
             onGenreSelected = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Select(it))) },
