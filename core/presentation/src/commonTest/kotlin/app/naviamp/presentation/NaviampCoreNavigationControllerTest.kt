@@ -18,6 +18,26 @@ import kotlin.test.assertTrue
 
 class NaviampCoreNavigationControllerTest {
     @Test
+    fun dockedPlayerSurvivesBrowsingButExplicitCloseAndNarrowNavigationCloseIt() {
+        val store = NaviampCoreStateStore()
+        val controller = controller(NaviampNavigationController(), store)
+        controller.dispatch(NaviampCoreCommand.Navigation.OpenNowPlaying)
+        controller.dispatch(NaviampCoreCommand.Navigation.SetPlayerDocked(true))
+        controller.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Search))
+        assertTrue(store.state.value.shell.shellChrome.nowPlayingOpen)
+        controller.openAlbumDetail()
+        assertTrue(store.state.value.shell.shellChrome.nowPlayingOpen)
+        controller.dispatch(NaviampCoreCommand.Navigation.CloseNowPlaying)
+        assertFalse(store.state.value.shell.shellChrome.nowPlayingOpen)
+        assertFalse(store.state.value.shell.shellChrome.playerDocked)
+        controller.dispatch(NaviampCoreCommand.Navigation.OpenNowPlaying)
+        controller.dispatch(NaviampCoreCommand.Navigation.SetPlayerDocked(true))
+        controller.dispatch(NaviampCoreCommand.Navigation.SetPlayerDocked(false))
+        controller.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Home))
+        assertFalse(store.state.value.shell.shellChrome.nowPlayingOpen)
+    }
+
+    @Test
     fun routeSelectionOwnsShellStateAndClearsTransientProductDetails() {
         val store = NaviampCoreStateStore(
             NaviampCoreState(

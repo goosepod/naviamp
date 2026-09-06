@@ -921,11 +921,13 @@ data class NaviampShellNavigationActions(
     val onRouteSelected: (SharedRoute) -> Unit,
     val onOpenNowPlaying: () -> Unit,
     val onCloseNowPlaying: () -> Unit,
+    val onPlayerDockedChanged: (Boolean) -> Unit = {},
 )
 
 data class NaviampShellChromeUi(
     val selectedRoute: SharedRoute = SharedRoute.Home,
     val nowPlayingOpen: Boolean = false,
+    val playerDocked: Boolean = false,
     val supportsDownloads: Boolean = false,
     val supportsApplicationUpdates: Boolean = false,
     val selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,

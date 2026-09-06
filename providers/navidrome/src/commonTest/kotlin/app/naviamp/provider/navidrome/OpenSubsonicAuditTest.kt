@@ -131,6 +131,41 @@ class OpenSubsonicAuditTest {
         assertFalse(playlist.canEdit)
     }
 
+    @Test fun legacyCreationRoleDoesNotHideOwnedPlaylists() = runTest {
+        val http = Http().apply {
+            responses["getUser.view"] = """"user":{"username":"me","playlistRole":false}"""
+            payload = """"playlists":{"playlist":[{"id":"p","name":"Mine","owner":"me"}]}"""
+        }
+        val p = provider(http)
+        p.validateConnection()
+        assertTrue(p.playlists(20).single().canEdit)
+    }
+
+    @Test fun explicitPlaylistPermissionOverridesOwnershipAndLegacyRole() = runTest {
+        val http = Http().apply {
+            responses["getUser.view"] = """"user":{"username":"me","playlistRole":false}"""
+            payload = """"playlists":{"playlist":[
+                {"id":"shared","name":"Shared editable","owner":"someone","readonly":false},
+                {"id":"locked","name":"Mine locked","owner":"me","readonly":true}
+            ]}"""
+        }
+        val p = provider(http)
+        p.validateConnection()
+        val playlists = p.playlists(20)
+        assertTrue(playlists[0].canEdit)
+        assertFalse(playlists[1].canEdit)
+    }
+
+    @Test fun ownershipFallbackUsesServerAuthenticatedUsername() = runTest {
+        val http = Http().apply {
+            responses["getUser.view"] = """"user":{"username":"Me"}"""
+            payload = """"playlists":{"playlist":[{"id":"p","name":"Mine","owner":"Me"}]}"""
+        }
+        val p = provider(http)
+        p.validateConnection()
+        assertTrue(p.playlists(20).single().canEdit)
+    }
+
     @Test fun errorDocumentsCannotBecomeAudio() {
         for (type in listOf("text/xml", "application/octet-stream", null)) {
             val error = assertFailsWith<NavidromeException> {

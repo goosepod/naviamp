@@ -44,6 +44,8 @@ The Windows package rebuilt successfully and was relaunched. The updated Search 
 
 ## Open findings
 
+Follow-up implementation and validation: [shared player workspace](player-workspace.md). The findings below describe the original audit state; the follow-up addresses row width, equalizer labels, reading/navigation contrast, and the missing Windows accessibility runtime module.
+
 | Priority | Finding and reproduction | Impact / suggested follow-up |
 | --- | --- | --- |
 | Medium | Maximize to 2560 × 1392; inspect an album track list or Home Favorite Artists in List mode. Titles remain far left while durations, menus, and hearts sit near the far right. | Excessive eye and pointer travel makes row associations harder. Introduce a shared maximum readable width or a deliberate wide-screen layout, then test action proximity rather than only containment. |

@@ -159,6 +159,8 @@ The playlist list includes items the user may play, whereas updates require owne
 
 **Recommendation:** retain ownership/visibility, add common per-item action eligibility, and use account-role information where supported. Permission errors must still be handled because rights can change. Avoid turning missing optional account metadata into a connection failure.
 
+**Playlist-dialog correction:** `getUser.playlistRole` describes playlist creation, not permission to edit existing playlists. Using it as a global edit gate hid every playlist from the membership dialog on affected servers. The shared provider now honors the playlist's explicit `readonly` field first and falls back to ownership against the server-returned username when that field is absent. Download-role handling remains separate. Regression coverage includes a false creation role, editable shared playlists, explicitly locked owned playlists, and canonical usernames. See the [user response](https://opensubsonic.netlify.app/docs/responses/user/) and [playlist response](https://opensubsonic.netlify.app/docs/responses/playlist/) contracts.
+
 Sources: [getPlaylists](https://opensubsonic.netlify.app/docs/endpoints/getplaylists/), [updatePlaylist](https://opensubsonic.netlify.app/docs/endpoints/updateplaylist/), [getUser](https://opensubsonic.netlify.app/docs/endpoints/getuser/).
 
 ### 12. Lower priority: repeated complete responses and error-driven fallback work

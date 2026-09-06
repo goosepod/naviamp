@@ -34,6 +34,9 @@ class NaviampCoreNavigationController(
             is NaviampCoreCommand.Navigation.SelectRoute -> selectRoute(navigationCommand.route.toNaviampRoute())
             NaviampCoreCommand.Navigation.OpenNowPlaying -> openNowPlaying()
             NaviampCoreCommand.Navigation.CloseNowPlaying -> setNowPlayingOpen(false)
+            is NaviampCoreCommand.Navigation.SetPlayerDocked -> stateStore.updateShell { shell ->
+                shell.copy(shellChrome = shell.shellChrome.copy(playerDocked = navigationCommand.docked && shell.shellChrome.nowPlayingOpen))
+            }
             NaviampCoreCommand.Navigation.BackFromAlbum -> closeAlbum()
             NaviampCoreCommand.Navigation.BackFromArtist -> closeArtist()
             NaviampCoreCommand.Navigation.BackFromPlaylist -> closePlaylist()
@@ -102,11 +105,11 @@ class NaviampCoreNavigationController(
         stateStore.updateShell { shell ->
             shell.copy(
                 shellChrome = shell.shellChrome.copy(
-                    nowPlayingOpen = false,
+                    nowPlayingOpen = shell.shellChrome.playerDocked && shell.shellChrome.nowPlayingOpen,
                 ),
             )
         }
-        persistNowPlayingOpen(false)
+        persistNowPlayingOpen(stateStore.state.value.shell.shellChrome.nowPlayingOpen)
     }
 
     private fun selectRoute(route: NaviampRoute) {
@@ -117,7 +120,7 @@ class NaviampCoreNavigationController(
             shell.copy(
                 shellChrome = shell.shellChrome.copy(
                     selectedRoute = route.toSharedRoute(),
-                    nowPlayingOpen = false,
+                    nowPlayingOpen = shell.shellChrome.playerDocked && shell.shellChrome.nowPlayingOpen,
                 ),
                 albumDetail = NaviampAlbumDetailScreenUi(),
                 artistDetail = NaviampArtistDetailScreenUi(),
@@ -129,12 +132,12 @@ class NaviampCoreNavigationController(
                 },
             )
         }
-        persistNowPlayingOpen(false)
+        persistNowPlayingOpen(stateStore.state.value.shell.shellChrome.nowPlayingOpen)
     }
 
     private fun setNowPlayingOpen(open: Boolean, persist: Boolean = true) {
         stateStore.updateShell { shell ->
-            shell.copy(shellChrome = shell.shellChrome.copy(nowPlayingOpen = open))
+            shell.copy(shellChrome = shell.shellChrome.copy(nowPlayingOpen = open, playerDocked = open && shell.shellChrome.playerDocked))
         }
         if (persist) persistNowPlayingOpen(open)
     }

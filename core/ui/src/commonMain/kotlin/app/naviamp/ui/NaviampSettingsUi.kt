@@ -822,13 +822,32 @@ private fun AppBackgroundSettings(
     }
 
     if (interfaceSettings.appBackgroundStyle == AppBackgroundStyle.Aurora) {
-        SettingsSectionTitle("Aurora tone", colors)
+        CompactBackgroundSlider(
+            label = stringResource(Res.string.aurora_color_steps),
+            value = interfaceSettings.auroraColorSteps.toFloat(), valueRange = 2f..5f,
+            valueText = stringResource(Res.string.aurora_color_count, interfaceSettings.auroraColorSteps),
+            colors = colors, steps = 2,
+            onValueChange = { onInterfaceSettingsChanged(interfaceSettings.copy(auroraColorSteps = it.roundToInt()).normalized()) },
+        )
+        CompactBackgroundSlider(
+            label = stringResource(Res.string.aurora_gradient_angle),
+            value = interfaceSettings.auroraAngleDegrees.toFloat(), valueRange = 0f..180f,
+            valueText = stringResource(Res.string.aurora_angle_value, interfaceSettings.auroraAngleDegrees),
+            colors = colors,
+            onValueChange = { onInterfaceSettingsChanged(interfaceSettings.copy(auroraAngleDegrees = it.roundToInt()).normalized()) },
+        )
+        SettingsSectionTitle(stringResource(Res.string.aurora_tone), colors)
         AuroraTone.entries.forEach { tone ->
             SelectableSettingsRow(
-                title = tone.label,
+                title = stringResource(when (tone) {
+                    AuroraTone.Light -> Res.string.aurora_tone_light
+                    AuroraTone.Dark -> Res.string.aurora_tone_balanced
+                    AuroraTone.DeepDark -> Res.string.aurora_tone_dark
+                }),
                 subtitle = when (tone) {
-                    AuroraTone.Dark -> "Keep the current deep album-color gradient"
-                    AuroraTone.Light -> "Lift the gradient toward brighter album colors"
+                    AuroraTone.Dark -> stringResource(Res.string.aurora_tone_balanced_description)
+                    AuroraTone.Light -> stringResource(Res.string.aurora_tone_light_description)
+                    AuroraTone.DeepDark -> stringResource(Res.string.aurora_tone_dark_description)
                 },
                 selected = interfaceSettings.auroraTone == tone,
                 colors = colors,
@@ -935,6 +954,7 @@ private fun CompactBackgroundSlider(
     valueText: String,
     colors: NaviampColors,
     onValueChange: (Float) -> Unit,
+    steps: Int = 0,
 ) {
     Column(
         modifier = Modifier
@@ -949,6 +969,7 @@ private fun CompactBackgroundSlider(
             value = value.coerceIn(valueRange.start, valueRange.endInclusive),
             onValueChange = onValueChange,
             valueRange = valueRange,
+            steps = steps,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(26.dp)
@@ -4658,7 +4679,7 @@ fun NaviampDebugPlaybackSettingsSection(
 }
 
 @Composable
-private fun EqualizerCurvePanel(
+internal fun EqualizerCurvePanel(
     colors: NaviampColors,
     equalizer: app.naviamp.domain.playback.EqualizerSettings,
     enabled: Boolean,
@@ -4674,9 +4695,8 @@ private fun EqualizerCurvePanel(
             .coerceIn(MinEqualizerGainDb, MaxEqualizerGainDb)
     }
     fun bandForOffset(x: Float, width: Float): Int {
-        val lastIndex = EqualizerBandFrequencies.lastIndex.coerceAtLeast(1)
-        return ((x.coerceIn(0f, width.coerceAtLeast(1f)) / width.coerceAtLeast(1f)) * lastIndex)
-            .roundToInt()
+        return ((x.coerceIn(0f, width.coerceAtLeast(1f)) / width.coerceAtLeast(1f)) * EqualizerBandFrequencies.size)
+            .toInt()
             .coerceIn(EqualizerBandFrequencies.indices)
     }
     Column(
@@ -4686,13 +4706,15 @@ private fun EqualizerCurvePanel(
             .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Text(stringResource(Res.string.equalizer_gain_axis), color = colors.secondaryText, fontSize = 11.sp)
         Row(modifier = Modifier.fillMaxWidth()) {
             normalized.bandsDb.forEach { gain ->
                 Text(
-                    gain.equalizerGainLabel(),
+                    if (gain % 1f == 0f) gain.toInt().toString() else gain.toDouble().oneDecimalLabel(),
                     color = colors.primaryText,
                     fontSize = 9.sp,
                     maxLines = 1,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -4732,11 +4754,7 @@ private fun EqualizerCurvePanel(
                 strokeWidth = 1.5f,
             )
             val points = normalized.bandsDb.mapIndexed { index, gain ->
-                val x = if (EqualizerBandFrequencies.lastIndex == 0) {
-                    usableWidth / 2f
-                } else {
-                    usableWidth * (index.toFloat() / EqualizerBandFrequencies.lastIndex.toFloat())
-                }
+                val x = usableWidth * ((index + 0.5f) / EqualizerBandFrequencies.size)
                 val y = (
                     verticalInset +
                         ((MaxEqualizerGainDb - gain) / (MaxEqualizerGainDb - MinEqualizerGainDb)) * usableHeight
@@ -4763,14 +4781,16 @@ private fun EqualizerCurvePanel(
         Row(modifier = Modifier.fillMaxWidth()) {
             EqualizerBandFrequencies.forEach { frequency ->
                 Text(
-                    frequency.equalizerFrequencyLabel(),
+                    if (frequency >= 1000) "${frequency / 1000}k" else frequency.toString(),
                     color = colors.secondaryText,
                     fontSize = 9.sp,
                     maxLines = 1,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f),
                 )
             }
         }
+        Text(stringResource(Res.string.equalizer_frequency_axis), color = colors.secondaryText, fontSize = 11.sp)
     }
 }
 

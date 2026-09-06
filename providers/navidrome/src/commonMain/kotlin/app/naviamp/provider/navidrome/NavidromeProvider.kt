@@ -157,7 +157,7 @@ class NavidromeProvider(
     private val favoritesMutex = Mutex()
     private var favoriteSnapshot: Pair<Long, List<JsonObject>>? = null
     private val knownTracks = AtomicReference<Map<TrackId, Track>>(emptyMap())
-    private var playlistWriteAllowed = true
+    private var authenticatedUsername = connection.username
     private var bulkMetadataEnumeration = profile.nativeAuthentication
 
     private suspend fun starredSnapshot(): List<JsonObject> = favoritesMutex.withLock {
@@ -212,7 +212,7 @@ class NavidromeProvider(
                 val user = get("getUser.view", mapOf("username" to connection.username))
                     .subsonicResponse()["user"] as? JsonObject
                 capabilities = capabilities.copy(supportsDownloads = user?.booleanValue("downloadRole") ?: true)
-                playlistWriteAllowed = user?.booleanValue("playlistRole") ?: true
+                authenticatedUsername = user?.stringValue("username")?.takeIf { it.isNotBlank() } ?: connection.username
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { /* Optional account metadata must not prevent a connection. */ }
         }
@@ -1932,7 +1932,10 @@ class NavidromeProvider(
             comment = stringValue("comment"),
             owner = stringValue("owner"),
             public = booleanValue("public"),
-            canEdit = playlistWriteAllowed && (stringValue("owner")?.let { it == connection.username } ?: true),
+            // OpenSubsonic supplies per-playlist edit permission. The legacy user
+            // playlistRole describes creation, not editing existing playlists.
+            canEdit = booleanValue("readonly")?.not()
+                ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true),
         )
 
     private fun JsonObject.toInternetRadioStation(): InternetRadioStation =

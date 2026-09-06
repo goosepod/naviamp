@@ -10,6 +10,30 @@ import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
     @Test
+    fun auroraTonesRoundTripAndKeepExistingSerializedNames() {
+        for (tone in AuroraTone.entries) {
+            val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(auroraTone = tone),
+            ))
+            assertEquals(tone, SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+                .preferences.interfaceSettings.auroraTone)
+        }
+        val existing = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"auroraTone":"Dark"}}}""")
+        assertEquals(AuroraTone.Dark, existing.preferences.interfaceSettings.auroraTone)
+        assertEquals("Balanced", existing.preferences.interfaceSettings.auroraTone.label)
+    }
+
+    @Test
+    fun olderExportsUseAuroraDefaultsAndImportedValuesAreBounded() {
+        val older = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"auroraTone":"Light"}}}""")
+        assertEquals(3, older.preferences.interfaceSettings.auroraColorSteps)
+        assertEquals(45, older.preferences.interfaceSettings.auroraAngleDegrees)
+        val invalid = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"auroraColorSteps":20,"auroraAngleDegrees":-45}}}""")
+        assertEquals(5, invalid.preferences.interfaceSettings.auroraColorSteps)
+        assertEquals(0, invalid.preferences.interfaceSettings.auroraAngleDegrees)
+    }
+
+    @Test
     fun roundTripsPortableSettingsSyncDocument() {
         val document = SettingsSyncDocument(
             updatedAtEpochMillis = 123L,
@@ -49,6 +73,8 @@ class SettingsSyncDocumentTest {
                     showAlbumInformation = false,
                     appBackgroundStyle = AppBackgroundStyle.AlbumBlur,
                     auroraTone = AuroraTone.Light,
+                    auroraColorSteps = 5,
+                    auroraAngleDegrees = 135,
                     albumBlurRadiusDp = 40,
                     singleColorHex = "#123456",
                     homeSectionPresentations = mapOf(
@@ -165,6 +191,8 @@ class SettingsSyncDocumentTest {
         assertFalse(decoded.preferences.interfaceSettings.showAlbumInformation)
         assertEquals(AppBackgroundStyle.AlbumBlur, decoded.preferences.interfaceSettings.appBackgroundStyle)
         assertEquals(AuroraTone.Light, decoded.preferences.interfaceSettings.auroraTone)
+        assertEquals(5, decoded.preferences.interfaceSettings.auroraColorSteps)
+        assertEquals(135, decoded.preferences.interfaceSettings.auroraAngleDegrees)
         assertEquals(40, decoded.preferences.interfaceSettings.albumBlurRadiusDp)
         assertEquals("#123456", decoded.preferences.interfaceSettings.singleColorHex)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showAlbumYear)
@@ -190,6 +218,12 @@ class SettingsSyncDocumentTest {
     fun interfaceBackgroundDefaultsAndNormalizesHexColor() {
         assertEquals(AppBackgroundStyle.Aurora, InterfaceSettings().appBackgroundStyle)
         assertEquals(AuroraTone.Dark, InterfaceSettings().auroraTone)
+        assertEquals(3, InterfaceSettings().auroraColorSteps)
+        assertEquals(45, InterfaceSettings().auroraAngleDegrees)
+        assertEquals(2, InterfaceSettings(auroraColorSteps = 1).normalized().auroraColorSteps)
+        assertEquals(5, InterfaceSettings(auroraColorSteps = 9).normalized().auroraColorSteps)
+        assertEquals(0, InterfaceSettings(auroraAngleDegrees = -1).normalized().auroraAngleDegrees)
+        assertEquals(180, InterfaceSettings(auroraAngleDegrees = 999).normalized().auroraAngleDegrees)
         assertEquals(DefaultAlbumBlurRadiusDp, InterfaceSettings().albumBlurRadiusDp)
         assertEquals(MaxAlbumBlurRadiusDp, InterfaceSettings(albumBlurRadiusDp = 999).normalized().albumBlurRadiusDp)
         assertEquals(MinAlbumBlurRadiusDp, InterfaceSettings(albumBlurRadiusDp = -1).normalized().albumBlurRadiusDp)

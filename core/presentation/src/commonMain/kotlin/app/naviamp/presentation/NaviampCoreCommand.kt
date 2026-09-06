@@ -45,6 +45,7 @@ sealed interface NaviampCoreCommand {
         data class SelectRoute(val route: SharedRoute) : Navigation
         data object OpenNowPlaying : Navigation
         data object CloseNowPlaying : Navigation
+        data class SetPlayerDocked(val docked: Boolean) : Navigation
         data object BackFromAlbum : Navigation
         data object BackFromArtist : Navigation
         data object BackFromPlaylist : Navigation

@@ -20,6 +20,7 @@ data class NaviampPlayerColors(
     val backgroundMid: Color,
     val backgroundEnd: Color,
     val accent: Color,
+    val additionalBackgroundColors: List<Color> = emptyList(),
 ) {
     val backgroundBrush: Brush
         get() = Brush.linearGradient(colors = listOf(backgroundStart, backgroundMid, backgroundEnd))
@@ -37,11 +38,19 @@ data class NaviampPlayerColors(
     fun withAuroraTone(tone: AuroraTone): NaviampPlayerColors =
         when (tone) {
             AuroraTone.Dark -> this
+            AuroraTone.DeepDark -> copy(
+                backgroundStart = backgroundStart.mix(Color.Black, 0.24f),
+                backgroundMid = backgroundMid.mix(Color.Black, 0.30f),
+                backgroundEnd = backgroundEnd.mix(Color.Black, 0.36f),
+                accent = accent.mix(Color.Black, 0.10f),
+                additionalBackgroundColors = additionalBackgroundColors.map { it.mix(Color.Black, 0.30f) },
+            )
             AuroraTone.Light -> copy(
                 backgroundStart = backgroundStart.mix(Color.White, 0.18f),
                 backgroundMid = backgroundMid.mix(Color.White, 0.22f),
                 backgroundEnd = backgroundEnd.mix(Color.White, 0.26f),
                 accent = accent.mix(Color.White, 0.10f),
+                additionalBackgroundColors = additionalBackgroundColors.map { it.mix(Color.White, 0.24f) },
             )
         }
 
@@ -111,6 +120,10 @@ data class NaviampPlayerColors(
                 backgroundMid = middle,
                 backgroundEnd = right,
                 accent = palette.accent.mix(Color.White, 0.08f),
+                additionalBackgroundColors = palette.additionalColors.map {
+                    it.mix(Color.White, 0.02f + lightPresence * 0.16f)
+                        .mix(Color.Black, 0.34f - lightArtwork * 0.08f).mix(colors.background, 0.06f)
+                },
             )
         }
     }
@@ -126,7 +139,12 @@ fun animatedNaviampPlayerColors(
     val backgroundMid by animateColorAsState(target.backgroundMid, animationSpec, label = "playerBackgroundMid")
     val backgroundEnd by animateColorAsState(target.backgroundEnd, animationSpec, label = "playerBackgroundEnd")
     val accent by animateColorAsState(target.accent, animationSpec, label = "playerAccent")
-    return NaviampPlayerColors(backgroundStart, backgroundMid, backgroundEnd, accent)
+    val additional = (0..1).map { index ->
+        val color by animateColorAsState(target.additionalBackgroundColors.getOrElse(index) { target.backgroundMid }, animationSpec,
+            label = "playerBackgroundExtra$index")
+        color
+    }
+    return NaviampPlayerColors(backgroundStart, backgroundMid, backgroundEnd, accent, additional)
 }
 
 fun naviampColorFromHex(value: String): Color? {
@@ -178,6 +196,7 @@ data class NaviampAlbumPalette(
     val secondary: Color,
     val accent: Color,
     val lightSampleRatio: Float = 0f,
+    val additionalColors: List<Color> = emptyList(),
 ) {
     companion object {
         fun fallback(color: Color): NaviampAlbumPalette =
@@ -226,15 +245,24 @@ fun naviampAlbumPalette(samples: Iterable<NaviampRgbSample>): NaviampAlbumPalett
         ?: candidates.getOrNull(1)
         ?: primary
     val accent = candidates
-        .filter { primary.colorDistance(it) > 0.025f || primary.hueDistance(it) > 0.06f }
+        .filter { it != secondary && (primary.colorDistance(it) > 0.025f || primary.hueDistance(it) > 0.06f) }
         .maxByOrNull { it.accentScore(primary) }
         ?: primary
 
+    val selected = mutableListOf(primary, accent, secondary).distinct().toMutableList()
+    val additional = mutableListOf<Color>()
+    repeat(2) {
+        val next = candidates.filter { it !in selected }.maxByOrNull { candidate ->
+            candidate.score() * selected.minOf { it.colorDistance(candidate).toDouble() }
+        }
+        if (next != null) { selected += next; additional += next.color() }
+    }
     return NaviampAlbumPalette(
         primary = primary.color(),
         secondary = secondary.color(),
         accent = accent.color(),
         lightSampleRatio = if (sampleCount == 0) 0f else lightSampleCount.toFloat() / sampleCount,
+        additionalColors = additional,
     )
 }
 

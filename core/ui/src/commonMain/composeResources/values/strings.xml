@@ -1,4 +1,20 @@
 <resources>
+    <string name="aurora_tone">Aurora tone</string>
+    <string name="aurora_tone_light">Light</string>
+    <string name="aurora_tone_balanced">Balanced</string>
+    <string name="aurora_tone_dark">Dark</string>
+    <string name="aurora_tone_light_description">Lift the gradient toward brighter album colors</string>
+    <string name="aurora_tone_balanced_description">Keep the original album-color gradient</string>
+    <string name="aurora_tone_dark_description">Deepen the gradient for a darker background</string>
+    <string name="aurora_color_steps">Aurora color steps</string>
+    <string name="aurora_color_count">%1$d colors</string>
+    <string name="aurora_gradient_angle">Gradient angle</string>
+    <string name="aurora_angle_value">%1$d°</string>
+    <string name="equalizer_gain_axis">Gain (dB)</string>
+    <string name="equalizer_frequency_axis">Frequency (Hz)</string>
+    <string name="player_full_view">Full player</string>
+    <string name="player_split_view">Split view</string>
+    <string name="player_queue">Queue</string>
     <string name="home_navibeat_mixes">NAVIBEAT MIXES</string>
     <string name="settings_title">Settings</string>
     <string name="settings_selected_label">Selected</string>

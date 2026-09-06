@@ -130,6 +130,10 @@ compose.desktop {
             licenseFile.set(rootProject.file("LICENSE"))
             appResourcesRootDir.set(generatedDesktopNativeAppResources)
             modules("java.net.http", "java.sql")
+            if (desktopNativePlatform.get().startsWith("windows-")) {
+                // Compose exposes Windows screen-reader semantics through Java Access Bridge.
+                modules("jdk.accessibility")
+            }
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
 
             windows {
