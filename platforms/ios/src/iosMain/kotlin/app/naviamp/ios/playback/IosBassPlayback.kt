@@ -8,6 +8,7 @@ import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassStreamInfo
+import app.naviamp.domain.playback.planEqualizer
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.playback.BassPlaybackEngineRuntime
 import app.naviamp.domain.playback.AudioMixingMatrix
@@ -359,11 +360,11 @@ class IosBassAudioBackend : BassAudioBackend {
         }
 
     override fun applyEqualizer(stream: BassStreamHandle, bandsDb: List<Float>): Result<Unit> {
+        val info = channelInfo(stream).getOrElse { return Result.failure(it) }
+        val plan = planEqualizer(bandsDb, info.frequency)
         clearEqualizer(stream.uint)
         val effects = mutableListOf<UInt>()
-        bandsDb.take(EqualizerFrequencies.size).forEachIndexed { index, requestedGain ->
-            val gain = requestedGain.coerceIn(-15f, 15f)
-            if (kotlin.math.abs(gain) < 0.05f) return@forEachIndexed
+        plan.forEach { band ->
             val effect = BASS_ChannelSetFX(stream.uint, BASS_FX_DX8_PARAMEQ.toUInt(), 0)
             if (effect == 0u) {
                 effects.forEach { BASS_ChannelRemoveFX(stream.uint, it) }
@@ -371,9 +372,9 @@ class IosBassAudioBackend : BassAudioBackend {
             }
             val configured = memScoped {
                 val parameters = alloc<BASS_DX8_PARAMEQ>()
-                parameters.fCenter = EqualizerFrequencies[index]
-                parameters.fBandwidth = 18f
-                parameters.fGain = gain
+                parameters.fCenter = band.frequencyHz
+                parameters.fBandwidth = band.bandwidthOctaves * 12f // DX8 ABI uses semitones.
+                parameters.fGain = band.gainDb
                 BASS_FXSetParameters(effect, parameters.ptr) != 0
             }
             if (!configured) {
@@ -643,16 +644,3 @@ private val IosBassEndSyncProc = staticCFunction {
         user.asStableRef<IosBassEndSync>().get().fire(channel)
     }
 }
-
-private val EqualizerFrequencies = floatArrayOf(
-    31f,
-    62f,
-    125f,
-    250f,
-    500f,
-    1_000f,
-    2_000f,
-    4_000f,
-    8_000f,
-    16_000f,
-)

@@ -4,7 +4,11 @@
 
 **Started:** 2026-09-04
 
-**Status:** Active
+**Status:** Feature development frozen; v2.4.0 stabilization.
+
+The [v2.4 stabilization checklist](v2.4-stabilization.md) is the current release gate and reconciles
+the later Windows/player-workspace evidence. Historical unchecked items below do not independently
+reopen completed acceptance; genuine remaining checks are listed in that checklist.
 
 **Scope correction:** Television work is not part of this branch. TV devices, remote-specific
 acceptance, and prescribed TV resolutions are not delivery gates. Display-size regression tests

@@ -8,6 +8,7 @@
 #include "bassmix.h"
 
 #if defined(_WIN32) && !defined(__ANDROID__)
+#include "bass_fx.h"
 #include <jawt.h>
 #include <jawt_md.h>
 #include <windows.h>
@@ -38,6 +39,9 @@ struct BassApi {
 
     HMODULE bass = nullptr;
     HMODULE bassmix = nullptr;
+    HMODULE bassfx = nullptr;
+    bool loaded = false;
+    decltype(&::BASS_FX_GetVersion) BASS_FX_GetVersion = nullptr;
     decltype(&::BASS_SetConfig) BASS_SetConfig = nullptr;
     StreamCreateUrlProc BASS_StreamCreateURL = nullptr;
     StreamCreateFileProc BASS_StreamCreateFile = nullptr;
@@ -88,15 +92,19 @@ bool load_symbol(HMODULE module, const char* name, T& target) {
 }
 
 bool load_bass_symbols() {
-    if (bassApi.bass != nullptr && bassApi.bassmix != nullptr) return true;
+    if (bassApi.loaded) return true;
 
     bassApi.bass = GetModuleHandleW(L"bass.dll");
     if (bassApi.bass == nullptr) bassApi.bass = LoadLibraryW(L"bass.dll");
     bassApi.bassmix = GetModuleHandleW(L"bassmix.dll");
     if (bassApi.bassmix == nullptr) bassApi.bassmix = LoadLibraryW(L"bassmix.dll");
     if (bassApi.bass == nullptr || bassApi.bassmix == nullptr) return false;
+    bassApi.bassfx = GetModuleHandleW(L"bass_fx.dll");
+    if (bassApi.bassfx == nullptr) return false; // Loaded by the JVM from the bundled absolute path.
 
     bool ok = true;
+    ok = load_symbol(bassApi.bassfx, "BASS_FX_GetVersion", bassApi.BASS_FX_GetVersion) && ok;
+    if (!ok || HIWORD(bassApi.BASS_FX_GetVersion()) != BASSVERSION) return false;
     ok = load_symbol(bassApi.bass, "BASS_SetConfig", bassApi.BASS_SetConfig) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateURL", bassApi.BASS_StreamCreateURL) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateFile", bassApi.BASS_StreamCreateFile) && ok;
@@ -136,6 +144,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_ChannelRemoveFX", bassApi.BASS_ChannelRemoveFX) && ok;
     ok = load_symbol(bassApi.bass, "BASS_FXSetParameters", bassApi.BASS_FXSetParameters) && ok;
     ok = load_symbol(bassApi.bass, "BASS_PluginLoad", bassApi.BASS_PluginLoad) && ok;
+    bassApi.loaded = ok;
     return ok;
 }
 
@@ -221,10 +230,6 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_PluginLoad bassApi.BASS_PluginLoad
 #endif
 
-constexpr int EQUALIZER_BAND_COUNT = 10;
-const float EQUALIZER_FREQUENCIES[EQUALIZER_BAND_COUNT] = {
-    31.0f, 62.0f, 125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f, 16000.0f
-};
 std::unordered_map<DWORD, std::vector<HFX>> equalizerFxByChannel;
 
 struct DesktopEndSyncRegistration {
@@ -499,42 +504,48 @@ void clear_equalizer(DWORD channel) {
     equalizerFxByChannel.erase(existing);
 }
 
-jboolean apply_equalizer(JNIEnv* env, jint stream, jfloatArray bandsDb) {
+jboolean apply_equalizer(JNIEnv* env, jint stream, jfloatArray parameters) {
     DWORD channel = static_cast<DWORD>(stream);
     if (channel == 0) return JNI_FALSE;
     clear_equalizer(channel);
-    if (bandsDb == nullptr) return JNI_TRUE;
+    if (parameters == nullptr) return JNI_TRUE;
 
-    jsize sourceLength = env->GetArrayLength(bandsDb);
+    jsize sourceLength = env->GetArrayLength(parameters);
     if (sourceLength <= 0) return JNI_TRUE;
-    jsize length = std::min<jsize>(sourceLength, EQUALIZER_BAND_COUNT);
-    std::vector<jfloat> gains(static_cast<size_t>(length), 0.0f);
-    env->GetFloatArrayRegion(bandsDb, 0, length, gains.data());
+    if (sourceLength % 3 != 0) return JNI_FALSE;
+    std::vector<jfloat> values(static_cast<size_t>(sourceLength));
+    env->GetFloatArrayRegion(parameters, 0, sourceLength, values.data());
+    if (env->ExceptionCheck()) return JNI_FALSE;
 
-    std::vector<HFX> created;
-    created.reserve(static_cast<size_t>(length));
-    for (jsize index = 0; index < length; ++index) {
-        float gain = std::max(-15.0f, std::min(15.0f, gains[static_cast<size_t>(index)]));
-        if (std::abs(gain) < 0.05f) continue;
-
+    // Shared Kotlin owns frequencies, gain bounds, flat bands, and Nyquist filtering.
+    // This loop only translates the parameter triples to the platform's native FX ABI.
+    for (jsize index = 0; index < sourceLength; index += 3) {
+#if defined(_WIN32) && !defined(__ANDROID__)
+        HFX fx = BASS_ChannelSetFX(channel, BASS_FX_BFX_PEAKEQ, 0);
+#else
         HFX fx = BASS_ChannelSetFX(channel, BASS_FX_DX8_PARAMEQ, 0);
+#endif
         if (fx == 0) {
             clear_equalizer(channel);
             return JNI_FALSE;
         }
+        // Register immediately so any later native failure removes every partial effect.
+        equalizerFxByChannel[channel].push_back(fx);
+#if defined(_WIN32) && !defined(__ANDROID__)
+        BASS_BFX_PEAKEQ params{};
+        params.lBand = 0;
+        params.lChannel = BASS_BFX_CHANALL;
+        params.fBandwidth = values[index + 1];
+#else
         BASS_DX8_PARAMEQ params{};
-        params.fCenter = EQUALIZER_FREQUENCIES[index];
-        params.fBandwidth = 18.0f;
-        params.fGain = gain;
+        params.fBandwidth = values[index + 1] * 12.0f;
+#endif
+        params.fCenter = values[index];
+        params.fGain = values[index + 2];
         if (!BASS_FXSetParameters(fx, &params)) {
-            BASS_ChannelRemoveFX(channel, fx);
             clear_equalizer(channel);
             return JNI_FALSE;
         }
-        created.push_back(fx);
-    }
-    if (!created.empty()) {
-        equalizerFxByChannel[channel] = created;
     }
     return JNI_TRUE;
 }

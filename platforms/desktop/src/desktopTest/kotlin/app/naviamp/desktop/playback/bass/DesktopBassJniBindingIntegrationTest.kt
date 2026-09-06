@@ -58,7 +58,7 @@ class DesktopBassJniBindingIntegrationTest {
             if (!usesNoSoundIntegrationDevice()) {
                 assertTrue(
                     binding.applyEqualizer(stream, FloatArray(10) { index -> index - 5.0f }),
-                    "BASS core equalizer should process a decode stream without the BASS FX add-on: ${binding.lastErrorCode}",
+                    "BASS equalizer should process all shared bands on a decode stream: ${binding.lastErrorCode}",
                 )
             }
             assertNotNull(binding.lengthBytes(stream))
@@ -82,6 +82,54 @@ class DesktopBassJniBindingIntegrationTest {
             assertTrue(binding.freeStream(mixer))
         } finally {
             binding.free()
+        }
+    }
+
+    @Test
+    fun equalizerProcessesLowAndHighBandsAndClearsReplacedEffects() {
+        if (usesNoSoundIntegrationDevice()) return
+        val binding = requireBinding()
+        assertTrue(binding.initForIntegrationTest())
+        try {
+            for ((index, frequency) in listOf(0 to 31, 1 to 62, 9 to 16_000)) {
+                val baseline = decodedToneRms(binding, frequency, emptyList())
+                val gains = FloatArray(10).also { it[index] = 6f }
+                val boosted = decodedToneRms(binding, frequency, listOf(gains))
+                assertTrue(boosted / baseline in 1.8..2.2, "$frequency Hz should gain 6 dB: ${boosted / baseline}")
+                val replaced = decodedToneRms(binding, frequency, listOf(gains, gains))
+                assertTrue(replaced / baseline in 1.8..2.2, "$frequency Hz must not accumulate old effects")
+                val cleared = decodedToneRms(binding, frequency, listOf(gains, FloatArray(10)))
+                assertEquals(baseline, cleared, 0.00001, "$frequency Hz should return to flat")
+            }
+        } finally {
+            binding.free()
+        }
+    }
+
+    private fun decodedToneRms(binding: DesktopBassJniBinding, frequency: Int, changes: List<FloatArray>): Double {
+        val wav = createSilentWavFile()
+        try {
+            val bytes = wav.readBytes()
+            val pcm = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            for (frame in 0 until 44_100) {
+                val sample = (kotlin.math.sin(2 * Math.PI * frequency * frame / 44_100) * 1600).toInt().toShort()
+                pcm.putShort(44 + frame * 4, sample)
+                pcm.putShort(46 + frame * 4, sample)
+            }
+            wav.writeBytes(bytes)
+            val stream = binding.createFileDecodeStream(wav.absolutePath)
+            assertTrue(stream != 0)
+            try {
+                changes.forEach { assertTrue(binding.applyEqualizer(stream, it), "EQ failed: ${binding.lastErrorCode}") }
+                val samples = FloatArray(44_100 * 2)
+                assertEquals(samples.size, binding.readFloatData(stream, samples))
+                // Ignore the initial filter transient and measure the settled second half.
+                return kotlin.math.sqrt(samples.drop(samples.size / 2).sumOf { it.toDouble() * it } / (samples.size / 2))
+            } finally {
+                binding.freeStream(stream)
+            }
+        } finally {
+            wav.delete()
         }
     }
 

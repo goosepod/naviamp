@@ -4,7 +4,44 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 ## Unreleased
 
-No changes yet.
+Target: **v2.4.0**. Release preparation is in progress.
+
+### Features
+
+- Browse Artists, Albums, and Songs with independent search, alphabetical navigation, fixed controls,
+  and a persistent album catalog for fast repeat visits.
+- Explore expanded artist discographies and Appears On sections.
+- Edit a track's membership in multiple playlists, with playlist creation, permission-aware controls,
+  and immediate updates to playlist lists and details.
+- Add Favorite Artists to Home, including sorting by name, favorite activity, or last artist radio
+  playback; drag Home sections directly in Settings and control their visibility.
+- Keep Now Playing docked beside browsing in wide windows, or switch to a full player. Narrow
+  windows retain the stacked player.
+- Adjust Aurora color count, angle, and tone, and enjoy smoother waveform progress.
+
+### Bug Fixes
+
+- Restore Windows equalizer processing for the 31 Hz, 62 Hz, and high-frequency bands by using
+  the bundled BASS FX peaking equalizer. Shared band parameters remain consistent across hosts.
+- Preserve library navigation and expanded discographies through detail navigation and metadata
+  updates; prevent older requests from replacing newer search and playlist results.
+- Improve OpenSubsonic playlist updates, original downloads, lyrics, permissions, and listen reporting.
+- Keep artwork visible during replacement loads and improve narrow equalizer labels, wide reading
+  surfaces, and text contrast.
+
+### System Settings
+
+- Shared migration 24 adds favorite-artist activity, track artist credits, and persistent album
+  catalog snapshots. It upgrades schema 24 to 25 without resetting application data.
+- New portable appearance and Home preferences participate in settings export/import and sync.
+- Bundle BASS FX 2.4.12.6 for Windows and complete missing Spanish discovery labels.
+
+### Release Notes and Known Limitations
+
+- First-time album indexing may take time on large libraries; subsequent visits use the saved catalog.
+- The iOS artifact remains an unsigned preview. Windows and macOS packages remain unsigned.
+- See [v2.4 release notes](docs/v2.4-release-notes.md) for the prepared release description and
+  [stabilization checklist](docs/v2.4-stabilization.md) for outstanding verification.
 
 ## v2.3.1
 
