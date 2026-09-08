@@ -480,6 +480,7 @@ class NaviampCore private constructor(
                   onSourceChanging = { previousSourceId, newSourceId ->
                     playback.resetForSourceChange(previousSourceId, newSourceId)
                     playlistMembership.reset()
+                    downloads.resetForSourceChange()
                     radio.resetForSourceChange()
                     home.resetForSourceChange()
                     catalog.resetForSourceChange()

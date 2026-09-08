@@ -1,6 +1,10 @@
 package app.naviamp.storage
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.naviamp.domain.*
+import app.naviamp.domain.provider.*
+import kotlin.test.assertContentEquals
+import kotlin.test.assertFailsWith
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioByteStore
@@ -64,6 +68,35 @@ class StorageAudioStoreTest {
     }
 
     @Test
+    fun replacementQuotaAndMidStreamFailuresPreserveExistingBytesAndDatabaseRow() = runBlocking {
+        val path = "/downloads/" + app.naviamp.domain.cache.stableAudioFileName("source", "track", "original") + ".flac"
+        val original = ByteArray(24) { 7 }
+        val files = mutableMapOf(path to original)
+        val bytes = object : AudioByteStore {
+            override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
+                writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
+                var pending = byteArrayOf()
+                check(writeBytes(AudioByteWriter { chunk, count -> pending += chunk.copyOf(count) }))
+                files["/downloads/$fileName"] = pending
+                return StoredAudioBytes("/downloads/$fileName", pending.size.toLong())
+            }
+            override fun deleteAudioBytes(filePath: String) { files.remove(filePath) }
+        }
+        fixture(fileExists = { it in files }, byteStore = bytes).use { fixture ->
+            fixture.insertDownload(path)
+            val before = fixture.store.downloadedTracks("source").single()
+            for (partialFailure in listOf(false, true)) {
+                assertFailsWith<IllegalStateException> {
+                    fixture.store.replaceDownloadedAudioTrack("source", AudioTestProvider(partialFailure), before.track,
+                        StreamQuality.Original, maxDownloadBytes = 32)
+                }
+                assertContentEquals(original, files[path])
+                assertEquals(before, fixture.store.downloadedTracks("source").single())
+            }
+        }
+    }
+
+    @Test
     fun storedDownloadReconstructsPortableTrackMetadata() {
         fixture(fileExists = { true }).use { fixture ->
             fixture.insertDownload("/downloads/owned.flac")
@@ -84,11 +117,12 @@ private fun fixture(
     deleteCache: (String) -> Boolean = { true },
     deleteDownload: (String) -> Boolean = { true },
     protectedTrackIds: () -> Set<String> = { emptySet() },
+    byteStore: AudioByteStore = UnusedAudioByteStore,
 ): StorageAudioStoreFixture {
     val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
     NaviampStorageDatabase.Schema.create(driver)
     val queries = NaviampStorageDatabase(driver).naviampStorageQueries
-    val byteService = AudioByteStoreService(UnusedAudioByteStore, UnusedSharedHttpClient)
+    val byteService = AudioByteStoreService(byteStore, UnusedSharedHttpClient)
     return StorageAudioStoreFixture(
         driver = driver,
         queries = queries,
@@ -175,4 +209,27 @@ private object UnusedSharedHttpClient : SharedHttpClient {
         headers: Map<String, String>,
         writeChunk: suspend (ByteArray, Int) -> Unit,
     ): Boolean = false
+}
+
+private class AudioTestProvider(private val partialFailure: Boolean = false) : MediaProvider {
+    override val id = ProviderId("test")
+    override val displayName = "Test"
+    override val capabilities = ProviderCapabilities(false, false, false, false, false)
+    override suspend fun validateConnection() = ConnectionValidation(null, null)
+    override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
+    override suspend fun album(albumId: AlbumId): AlbumDetails = error("unused")
+    override suspend fun artist(artistId: ArtistId): ArtistDetails = error("unused")
+    override suspend fun artists(limit: Int) = emptyList<Artist>()
+    override suspend fun tracks(limit: Int) = emptyList<Track>()
+    override suspend fun search(query: String, limit: Int) = MediaSearchResults()
+    override suspend fun streamUrl(request: StreamRequest) = "https://example.test/audio"
+    override suspend fun downloadUrl(request: StreamRequest) = streamUrl(request)
+    override fun coverArtUrl(coverArtId: String) = ""
+    override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+        writeChunk: suspend (ByteArray, Int) -> Unit): Boolean {
+        val count = if (partialFailure) 16 else 64
+        writeChunk(ByteArray(count) { 9 }, count)
+        if (partialFailure) error("Connection lost after partial audio")
+        return true
+    }
 }

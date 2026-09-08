@@ -17,6 +17,8 @@ import app.naviamp.domain.cache.planAudioCacheEviction
 import app.naviamp.domain.cache.toStoredAudioQuality
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -79,6 +81,8 @@ class StorageAudioStore(
 ) : AudioCacheRepository<StorageCachedAudioFile, StorageCachedAudioMetadata>,
     DownloadRepository<StorageDownloadedAudioFile, StorageDownloadedTrack>,
     DownloadReplacementRepository<StorageDownloadedAudioFile> {
+
+    private val downloadMutationMutex = Mutex()
 
     override fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0L)
@@ -213,25 +217,29 @@ class StorageAudioStore(
         quality: StreamQuality,
         maxDownloadBytes: Long,
     ): StorageDownloadedAudioFile = withContext(workContext) {
-        downloadedAudioFile(sourceId, track.id)?.let { return@withContext it }
-        val qualityKey = quality.cacheKey()
-        val contentType = quality.downloadContentType(track.audioInfo?.contentType)
-        val stored = downloadAudioByteStoreService.writeProviderAudio(
-            sourceId = sourceId,
-            trackId = track.id,
-            qualityKey = qualityKey,
-            contentType = contentType,
-            provider = provider,
-            streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
-            errorMessage = "Could not download audio track.",
-        )
-        val currentBytes = queries.downloadedAudioSize().executeAsOne()
-        if (currentBytes + stored.sizeBytes > maxDownloadBytes.coerceAtLeast(0L)) {
-            downloadAudioByteStoreService.deleteAudio(stored.filePath)
-            throw IllegalStateException("Download storage limit exceeded.")
+        downloadMutationMutex.withLock {
+            downloadedAudioFile(sourceId, track.id)?.let { return@withLock it }
+            val qualityKey = quality.cacheKey()
+            val contentType = quality.downloadContentType(track.audioInfo?.contentType)
+            val stored = downloadAudioByteStoreService.writeProviderAudio(
+                sourceId = sourceId,
+                trackId = track.id,
+                qualityKey = qualityKey,
+                contentType = contentType,
+                provider = provider,
+                streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
+                errorMessage = "Could not download audio track.",
+                maxBytes = (maxDownloadBytes.coerceAtLeast(0L) - queries.downloadedAudioSize().executeAsOne()).coerceAtLeast(0L),
+                sizeLimitErrorMessage = "Download storage limit exceeded.",
+            )
+            val currentBytes = queries.downloadedAudioSize().executeAsOne()
+            if (currentBytes + stored.sizeBytes > maxDownloadBytes.coerceAtLeast(0L)) {
+                downloadAudioByteStoreService.deleteAudio(stored.filePath)
+                throw IllegalStateException("Download storage limit exceeded.")
+            }
+            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
+            StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
         }
-        upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
-        StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
     }
 
     override suspend fun replaceDownloadedAudioTrack(
@@ -241,36 +249,42 @@ class StorageAudioStore(
         quality: StreamQuality,
         maxDownloadBytes: Long,
     ): StorageDownloadedAudioFile = withContext(workContext) {
-        val qualityKey = quality.cacheKey()
-        val existingRows = queries.selectDownloadedAudio(sourceId).executeAsList()
-            .filter { it.remote_track_id == track.id.value }
-        val contentType = quality.downloadContentType(track.audioInfo?.contentType)
-        val stored = downloadAudioByteStoreService.writeProviderAudio(
-            sourceId = sourceId,
-            trackId = track.id,
-            qualityKey = qualityKey,
-            contentType = contentType,
-            provider = provider,
-            streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
-            errorMessage = "Could not download audio track.",
-        )
-        val nextSize = queries.downloadedAudioSize().executeAsOne() - existingRows.sumOf { it.size_bytes } + stored.sizeBytes
-        if (nextSize > maxDownloadBytes.coerceAtLeast(0L)) {
-            downloadAudioByteStoreService.deleteAudio(stored.filePath)
-            throw IllegalStateException("Download storage limit exceeded.")
+        downloadMutationMutex.withLock {
+            val qualityKey = quality.cacheKey()
+            val existingRows = queries.selectDownloadedAudio(sourceId).executeAsList()
+                .filter { it.remote_track_id == track.id.value }
+            val contentType = quality.downloadContentType(track.audioInfo?.contentType)
+            val stored = downloadAudioByteStoreService.writeProviderAudio(
+                sourceId = sourceId,
+                trackId = track.id,
+                qualityKey = qualityKey,
+                contentType = contentType,
+                provider = provider,
+                streamUrl = provider.downloadUrl(StreamRequest(trackId = track.id, quality = quality)),
+                errorMessage = "Could not download audio track.",
+                maxBytes = (maxDownloadBytes.coerceAtLeast(0L) -
+                    (queries.downloadedAudioSize().executeAsOne() - existingRows.sumOf { it.size_bytes })).coerceAtLeast(0L),
+                sizeLimitErrorMessage = "Download storage limit exceeded.",
+            )
+            val nextSize = queries.downloadedAudioSize().executeAsOne() - existingRows.sumOf { it.size_bytes } + stored.sizeBytes
+            if (nextSize > maxDownloadBytes.coerceAtLeast(0L)) {
+                downloadAudioByteStoreService.deleteAudio(stored.filePath)
+                throw IllegalStateException("Download storage limit exceeded.")
+            }
+            val obsoleteRows = existingRows.filterNot { it.file_path == stored.filePath }
+            if (obsoleteRows.any { row -> downloadedAudioFileExists(row.file_path) && !deleteKnownDownloadFile(row.file_path) }) {
+                downloadAudioByteStoreService.deleteAudio(stored.filePath)
+                throw IllegalStateException("Could not replace downloaded audio safely.")
+            }
+            obsoleteRows.forEach { row ->
+                queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
+            }
+            queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
+            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
+            StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
         }
-        val obsoleteRows = existingRows.filterNot { it.file_path == stored.filePath }
-        if (obsoleteRows.any { row -> downloadedAudioFileExists(row.file_path) && !deleteKnownDownloadFile(row.file_path) }) {
-            downloadAudioByteStoreService.deleteAudio(stored.filePath)
-            throw IllegalStateException("Could not replace downloaded audio safely.")
-        }
-        obsoleteRows.forEach { row ->
-            queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
-        }
-        queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
-        upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
-        StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
     }
+
 
     override fun downloadedTracks(sourceId: String): List<StorageDownloadedTrack> =
         queries.selectDownloadedAudio(sourceId).executeAsList().map { row ->

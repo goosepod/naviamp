@@ -439,3 +439,76 @@ debug/release variant, with zero failures/errors/skips. Architecture and aggrega
 passed. The phone test APK build passed separately (`process-death-build.log`). The app reopened
 on Home. Changes consist only of common/native-boundary tests and this acceptance record; no
 production platform files changed and nothing was published to a remote.
+
+## Download failures while the process stays alive
+
+Common regressions reproduced two source-isolation failures (`download-failure-red.log`): an old
+failed job could retry its track IDs using the newly selected connection, and a late thrown transfer
+failure could overwrite that connection's status. Download jobs now retain their originating source;
+the screen filters jobs by source, rejects cross-source retry, and restores the original source's
+retryable jobs when returning. The shared connection lifecycle clears download selection/snapshots
+on source changes. Transfers already running retain their captured original provider/source.
+
+A shared SQLDelight regression also reproduced loss of an existing file when replacement exceeded
+the download quota (`download-quota-red.log`). The byte-store service now enforces a byte budget
+while writing the temporary file, before the native adapter replaces the target. Storage calculates
+the remaining budget including replacement credit and serializes download writes in its common
+owner so concurrent jobs cannot each spend the same remaining quota. A failed replacement preserves
+both original bytes and its database record. Existing quota messages are reused; no new settings,
+strings, schemas or platform production behavior were introduced.
+
+Regressions include immediate cancel/retry, source switching and returning, oversized/exact-limit
+byte streams, and preservation of original bytes/database metadata after replacement failure.
+The first common verification passed (`download-failure-common.log`); Kotlin reported an incremental
+compiler cache failure and successfully fell back to full compilation. Android assembly similarly
+recovered from that cache issue. These compiler diagnostics are not failed test assertions.
+
+The opt-in phone harness uses `liveDownloadFailures=true` with the three saved providers. It uses
+only previously undownloaded sample tracks and an isolated test directory, keeps a reference download
+whose hash must remain unchanged, interrupts a real transfer after its first chunk, waits for a fresh provider request
+to confirm network loss, reconnects and retries, cancels/retries immediately, forces zero-quota new
+and replacement failures, and switches the common controller to another real saved provider while
+an old-source transfer is held. Retry on the new source must not start a request; returning to the
+original source must permit retry. Any fully buffered transfer that finishes despite network loss
+is recorded separately and followed by a fresh offline request; it is not called a failed transfer.
+
+The final common/platform run passed (`download-failure-verification.log`): 1,701 JVM tests,
+42 Desktop tests, 860 domain and 274 presentation iOS simulator tests plus 4 storage simulator
+tests; Android domain/presentation tests were 860/274 in both debug and release. All had zero
+failures/errors/skips. iOS device compilation, architecture and coverage passed. The final storage
+suite was rerun after extending the preservation test to throw after writing a partial chunk
+(`download-storage-final.log`); it passed. This controlled partial-write failure supplements the
+phone's buffered-transfer observations.
+
+Live setup diagnostics are retained: initial network-registration waits timed out, and the first
+cleanup did not wait long enough for the next provider's restore. The final harness waits for a
+fresh provider request to fail after disabling data/Wi-Fi and for a real read to succeed after
+restoring them. All timed-out passes removed their test files. One later Navidrome switch checkpoint
+timed out; its isolated rerun passed (`download-failure-navidrome-final.log`). The checkpoint is now
+bounded to 30 seconds with sanitized diagnostic state. This does not establish a root cause for
+that intermittent timeout.
+
+Combined live runs also observed DNS/reachability failures immediately after network handover.
+The final harness checks sustained loss with a second failed server request after ten seconds,
+and allows ten seconds of recovery settling followed by another successful read before starting
+the next case. These waits are test setup, not new product retry policy. An earlier failed combined
+run must not be mistaken for a passing acceptance result simply because isolated provider repeats
+passed. All run logs remain in ignored `build/stabilization/`.
+
+The final combined Pixel pass succeeded (`download-failure-settled-phone.log`, `OK (3 tests)`,
+162.248 seconds): all four scenario groups completed for Bandcamp, Jellyfin and Navidrome. Each
+verified reference bytes and database metadata remained unchanged, and each removed its test files.
+All sampled held streams completed from buffered audio after loss; fresh offline downloads failed,
+then succeeded after reconnection. True partial-write failure is established by the controlled
+shared storage regression, not by claiming those buffered responses failed mid-stream.
+
+The phone's Wi-Fi and mobile data toggles were verified restored to 1/1. No isolated
+`acceptance-download-failures-*` directories remained, and the app was reopened. This checkpoint
+changes common production owners only; the Android changes are opt-in tests of real credential,
+network and file effects. Existing user downloads were not selected for mutation. No remote push
+or GitHub publication was performed.
+
+Remaining coverage includes truncated/empty successful server responses, physical disk I/O errors,
+and larger unbuffered audio streams. The observed network handover failures remain recorded; the
+successful final run establishes these scenarios after sustained loss and settled recovery, not
+instant DNS readiness when Wi-Fi is switched on.

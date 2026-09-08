@@ -6,6 +6,15 @@ import android.os.ParcelFileDescriptor
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.presentation.*
+import app.naviamp.ui.NaviampConnectionSettingsUi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.CompletableDeferred
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.presentation.NaviampCorePlaylistMembershipCoordinator
 import app.naviamp.ui.NaviampTrackPlaylistMembershipUi
 import kotlinx.coroutines.delay
@@ -70,18 +79,15 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
                         .maxByOrNull { it.lastConnectedAtEpochMillis ?: it.createdAtEpochMillis }
                     assertNotNull(source, "Missing saved provider connection")
                     stage = "restore"
-                    val provider: MediaProvider = if (providerId == "jellyfin") {
-                        val factory = JellyfinSessionServiceFactory { tls ->
-                            JellyfinSessionService(
-                                KtorJellyfinHttpClient(createDefaultNavidromeKtorClient(tls)),
-                                jellyfinClientIdentity("naviamp-android", "Android"),
-                            )
-                        }
-                        JellyfinProvider(factory.create(source.tlsSettings).restore(source), factory)
-                    } else NavidromeProvider(source.toNavidromeConnection())
+                    val provider = restoreProvider(source)
                     if (InstrumentationRegistry.getArguments().getString("liveProcessDeathPhase") != null) {
                         stage = "process death"
                         checkProcessDeath(storage, source.id, provider, providerId, ::record)
+                        return@use
+                    }
+                    if (InstrumentationRegistry.getArguments().getString("liveDownloadFailures") == "true") {
+                        stage = "download failures"
+                        checkDownloadFailures(storage, source.id, provider, providerId, ::record)
                         return@use
                     }
                     stage = "validate"
@@ -208,9 +214,197 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
             // Provider exception messages can contain authenticated URLs. Report only stage and type.
             val code = (failure as? NavidromeException)?.subsonicErrorCode
             val http = (failure as? NavidromeHttpException)?.statusCode
-            throw AssertionError("$providerId failed at $stage (${failure.javaClass.simpleName}; subsonic=$code http=$http)")
+            val testLine = failure.stackTrace.firstOrNull { it.fileName == "SavedProviderLiveAcceptanceInstrumentedTest.kt" }?.lineNumber
+            throw AssertionError("$providerId failed at $stage (${failure.javaClass.simpleName}; testLine=$testLine subsonic=$code http=$http)")
         }
     }
+    private suspend fun restoreProvider(source: SavedMediaSource): MediaProvider = if (source.providerId == "jellyfin") {
+        val factory = JellyfinSessionServiceFactory { tls -> JellyfinSessionService(
+            KtorJellyfinHttpClient(createDefaultNavidromeKtorClient(tls)),
+            jellyfinClientIdentity("naviamp-android", "Android"),
+        ) }
+        JellyfinProvider(factory.create(source.tlsSettings).restore(source), factory)
+    } else NavidromeProvider(source.toNavidromeConnection())
+
+    private suspend fun checkDownloadFailures(storage: AndroidStorageDependencies, sourceId: String,
+        provider: MediaProvider, providerId: String, record: (String) -> Unit) = coroutineScope {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(
+            instrumentation.uiAutomation.executeShellCommand(command),
+        ).bufferedReader().use { it.readText().trim() }
+        val wifi = shell("settings get global wifi_on") == "1"
+        val data = shell("settings get global mobile_data") == "1"
+        fun restoreNetwork() {
+            shell("svc wifi ${if (wifi) "enable" else "disable"}")
+            shell("svc data ${if (data) "enable" else "disable"}")
+        }
+        suspend fun connected() = withTimeout(45_000) {
+            while (runCatching { withTimeout(5_000) { provider.playlists(1) } }.isFailure) delay(250)
+            // Let Wi-Fi/default-route handover and negative DNS results settle before the next case.
+            delay(10_000)
+            provider.playlists(1)
+        }
+        val tracks = provider.tracksPage(MediaPageRequest(limit = 20)).items.distinctBy { it.id }
+            .filter { storage.downloadedAudioFile(sourceId, it.id) == null }.take(2)
+        assertEquals(2, tracks.size)
+        val original = tracks[0]
+        val target = tracks[1]
+        val directory = File(instrumentation.targetContext.cacheDir, "acceptance-download-failures-$providerId")
+        check(!directory.exists())
+        directory.mkdirs()
+        storage.updateDownloadDirectory(directory)
+        suspend fun download(p: MediaProvider = provider) = storage.downloadAudioTrack(
+            sourceId, p, target, StreamQuality.Original, Long.MAX_VALUE,
+        )
+        fun noPartialFiles() = assertFalse(directory.listFiles().orEmpty().any { it.name.endsWith(".tmp") })
+        try {
+            val saved = storage.downloadAudioTrack(sourceId, provider, original, StreamQuality.Original, Long.MAX_VALUE)
+            record("reference download saved")
+            val originalHash = java.security.MessageDigest.getInstance("SHA-256").digest(File(saved.filePath).readBytes())
+            suspend fun originalIntact() {
+                assertEquals(saved, storage.downloadedAudioFile(sourceId, original.id))
+                kotlin.test.assertContentEquals(originalHash,
+                    java.security.MessageDigest.getInstance("SHA-256").digest(File(saved.filePath).readBytes()))
+            }
+            // Hold a real stream after a partial write while Android tears down its network.
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            var firstChunk = true
+            val cut = object : MediaProvider by provider {
+                override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                    writeChunk: suspend (ByteArray, Int) -> Unit): Boolean =
+                    provider.downloadStream(url, httpClient) { bytes, count ->
+                        writeChunk(bytes, count)
+                        if (firstChunk) { firstChunk = false; entered.complete(Unit); release.await() }
+                    }
+            }
+            val interrupted = async { runCatching { withTimeout(60_000) { download(cut) } } }
+            entered.await()
+            record("partial transfer held; disabling network")
+            shell("svc data disable"); shell("svc wifi disable")
+            // VPN/control networks may remain registered after user data is disabled.
+            // Require a fresh real provider request to fail before releasing the held stream.
+            withTimeout(20_000) {
+                while (runCatching { withTimeout(1_500) { provider.playlists(1) } }.isSuccess) delay(250)
+            }
+            delay(10_000)
+            assertTrue(runCatching { withTimeout(1_500) { provider.playlists(1) } }.isFailure)
+            record("fresh provider requests confirmed sustained network loss")
+            release.complete(Unit)
+            val interruptedResult = interrupted.await()
+            if (interruptedResult.isSuccess) {
+                // A fully buffered response may finish safely even after connectivity disappears.
+                record("mid-transfer network loss completed buffered audio; checking fresh offline request")
+                storage.removeDownloadedAudio(sourceId, target.id)
+                assertTrue(runCatching { withTimeout(5_000) { download() } }.isFailure)
+            } else record("mid-transfer network loss failed as expected")
+            assertNull(storage.downloadedAudioFile(sourceId, target.id))
+            noPartialFiles()
+            originalIntact()
+            restoreNetwork(); connected()
+            assertTrue(download().sizeBytes > 4096)
+            storage.removeDownloadedAudio(sourceId, target.id)
+            record("network failure/reconnect/retry passed; existing file preserved")
+
+            val cancelEntered = CompletableDeferred<Unit>()
+            val cancellable = object : MediaProvider by provider {
+                override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                    writeChunk: suspend (ByteArray, Int) -> Unit): Boolean =
+                    provider.downloadStream(url, httpClient) { bytes, count ->
+                        writeChunk(bytes, count); cancelEntered.complete(Unit); awaitCancellation()
+                    }
+            }
+            val cancelling = async { download(cancellable) }
+            cancelEntered.await()
+            cancelling.cancel()
+            val immediateRetry = async { download() }
+            cancelling.join()
+            assertTrue(immediateRetry.await().sizeBytes > 4096)
+            noPartialFiles(); originalIntact()
+            storage.removeDownloadedAudio(sourceId, target.id)
+            record("cancel/immediate retry passed; existing file preserved")
+
+            assertTrue(runCatching {
+                storage.downloadAudioTrack(sourceId, provider, target, StreamQuality.Original, 0)
+            }.isFailure)
+            assertNull(storage.downloadedAudioFile(sourceId, target.id))
+            assertTrue(runCatching {
+                storage.replaceDownloadedAudioTrack(sourceId, provider, original, StreamQuality.Original, 0)
+            }.isFailure)
+            noPartialFiles(); originalIntact()
+            record("new download and replacement quota failures preserved original bytes and row")
+
+            val otherSource = storage.mediaSources().first { it.providerId != providerId }
+            record("switch restoring second provider")
+            val otherProvider = restoreProvider(otherSource)
+            record("switch second provider restored")
+            val gate = CompletableDeferred<Unit>()
+            val started = CompletableDeferred<Unit>()
+            val old = object : MediaProvider by provider {
+                override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                    writeChunk: suspend (ByteArray, Int) -> Unit): Boolean =
+                    provider.downloadStream(url, httpClient) { bytes, count ->
+                        writeChunk(bytes, count); started.complete(Unit); gate.await()
+                        throw java.io.IOException("Acceptance old-source failure")
+                    }
+            }
+            val services = repositoryNaviampCoreDownloadServices(storage, storage, storage,
+                toCoreDownload = { NaviampCoreDownloadedTrack(it.filePath, it.track, it.sizeBytes, it.qualityKey) },
+                isStoredDownloadAvailable = { File(it.filePath).isFile })
+            val state = NaviampCoreStateStore()
+            fun select(id: String) = state.updateShell { it.copy(
+                connectionSettings = NaviampConnectionSettingsUi(currentSourceId = id),
+                cache = it.cache.copy(settings = it.cache.settings.copy(maxDownloadBytes = Long.MAX_VALUE))) }
+            select(sourceId)
+            var active: MediaProvider = old
+            var requests = 0
+            val controller = NaviampCoreDownloadsController(this, state, { active }, services.storage,
+                NaviampCoreDownloadTransferPort { request, status, update ->
+                    requests++; services.transfer.transfer(request, status, update)
+                }, services.keepDownloaded, NaviampCoreDownloadedPlaybackPort { _, _ -> })
+            val launched = controller.downloadTracks("Acceptance", listOf(target))
+            record("switch transfer launched=$launched")
+            try { withTimeout(30_000) { started.await() } }
+            catch (cause: Exception) {
+                record("switch checkpoint failed; requests=$requests retryable=${state.state.value.shell.downloads.jobs.map { it.canRetry }}")
+                throw cause
+            }
+            record("switch transfer held")
+            val oldJob = state.state.value.shell.downloads.jobs.single().id
+            active = otherProvider; select(otherSource.id); controller.resetForSourceChange()
+            controller.refresh(reconcile = false)
+            val otherStatus = state.state.value.shell.downloads.status
+            gate.complete(Unit)
+            // The second real provider remains selected while the old transfer unwinds.
+            withTimeout(10_000) { while (directory.listFiles().orEmpty().any { it.name.endsWith(".tmp") }) delay(25) }
+            delay(100)
+            assertEquals(otherStatus, state.state.value.shell.downloads.status)
+            assertTrue(state.state.value.shell.downloads.jobs.isEmpty())
+            controller.execute(NaviampCoreCommand.Downloads.RetryJob(oldJob))
+            assertEquals(1, requests)
+            active = provider; select(sourceId); controller.resetForSourceChange()
+            controller.refresh(reconcile = false)
+            assertTrue(state.state.value.shell.downloads.jobs.single().canRetry)
+            controller.execute(NaviampCoreCommand.Downloads.RetryJob(oldJob))
+            withTimeout(45_000) { while (state.state.value.shell.downloads.jobs.isNotEmpty()) delay(50) }
+            assertEquals(2, requests)
+            assertNotNull(storage.downloadedAudioFile(sourceId, target.id))
+            noPartialFiles(); originalIntact()
+            record("live provider switch isolated old job; retry resumed only on original source")
+        } finally {
+            val children = currentCoroutineContext().job.children.toList()
+            children.forEach { it.cancel() }
+            withContext(NonCancellable) {
+                children.joinAll()
+                restoreNetwork()
+                for (track in tracks) storage.removeDownloadedAudio(sourceId, track.id)
+                directory.deleteRecursively()
+                connected()
+            }
+            record("download failure test files removed; network restored")
+        }
+    }
+
     /** Two instrumented processes, with a host ADB force-stop at the explicit checkpoint. */
     private suspend fun checkProcessDeath(
         storage: AndroidStorageDependencies, sourceId: String, provider: MediaProvider,

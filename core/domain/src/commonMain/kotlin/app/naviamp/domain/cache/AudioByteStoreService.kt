@@ -22,6 +22,8 @@ class AudioByteStoreService(
         provider: MediaProvider,
         streamUrl: String,
         errorMessage: String,
+        maxBytes: Long = Long.MAX_VALUE,
+        sizeLimitErrorMessage: String = errorMessage,
     ): StoredAudioBytes {
         val inFlightKey = "$sourceId:${trackId.value}:$qualityKey"
         var ownsWrite = false
@@ -45,6 +47,8 @@ class AudioByteStoreService(
                 provider = provider,
                 streamUrl = streamUrl,
                 errorMessage = errorMessage,
+                maxBytes = maxBytes,
+                sizeLimitErrorMessage = sizeLimitErrorMessage,
             )
         }
         writeResult.complete(result)
@@ -64,13 +68,20 @@ class AudioByteStoreService(
         provider: MediaProvider,
         streamUrl: String,
         errorMessage: String,
+        maxBytes: Long,
+        sizeLimitErrorMessage: String,
     ): StoredAudioBytes =
         store.writeAudioBytes(
             fileName = stableAudioFileName(sourceId, trackId.value, qualityKey) + contentType.audioExtension(),
             errorMessage = errorMessage,
             writeBytes = { writer ->
+                var written = 0L
                 provider.downloadStream(streamUrl, httpClient) { bytes, count ->
+                    if (count.toLong() > maxBytes.coerceAtLeast(0L) - written) {
+                        throw IllegalStateException(sizeLimitErrorMessage)
+                    }
                     writer.write(bytes, count)
+                    written += count
                 }
             },
         ).also { stored ->

@@ -173,6 +173,22 @@ class AudioByteStoreServiceTest {
         assertEquals(1, base.downloadCalls)
     }
 
+    @Test
+    fun audioBudgetRejectsOversizedChunksBeforeWritingAndAllowsExactLimit() = runTest {
+        for (limit in listOf(0L, 5L)) {
+            val store = RecordingAudioByteStore()
+            val service = AudioByteStoreService(store, NoopHttpClient)
+            assertFailsWith<IllegalStateException> {
+                service.writeProviderAudio("source", TrackId("track"), "original", "audio/flac",
+                    RecordingMediaProvider(true), "https://example.test/audio", "failed", maxBytes = limit)
+            }
+            assertTrue(store.bytes.isEmpty())
+        }
+        val service = AudioByteStoreService(RecordingAudioByteStore(), NoopHttpClient)
+        assertEquals(6L, service.writeProviderAudio("source", TrackId("track"), "original", "audio/flac",
+            RecordingMediaProvider(true), "https://example.test/audio", "failed", maxBytes = 6).sizeBytes)
+    }
+
     private class RecordingAudioByteStore(
         private val sizeBytes: Long? = null,
         private val writeDelayMillis: Long = 0,
