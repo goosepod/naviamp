@@ -4,7 +4,7 @@
 
 **Started:** 2026-09-04
 
-**Status:** Active
+**Status:** Stabilization; implementation present, final acceptance in progress
 
 **Scope correction:** Television work is not part of this branch. TV devices, remote-specific
 acceptance, and prescribed TV resolutions are not delivery gates. Display-size regression tests
@@ -15,7 +15,13 @@ behavior, state, navigation, and UI belong in shared Core code. Platform modules
 the smallest unavoidable native integration. Every new user-facing string must be defined in the
 shared string resources and in each maintained translation.
 
-## Windows hands-on feedback (active)
+## Current acceptance
+
+See [stabilization acceptance](stabilization-acceptance.md) for the authoritative current matrix,
+September 8 corrections, and iOS-then-macOS verification. Sections below are dated implementation
+history; older open gates and uncommitted/environment notes may be superseded by later evidence.
+
+## Windows hands-on feedback (September 5 history)
 
 - [x] User confirmed the locally indexed album jump and continuous Home-settings drag scrolling work.
 - [x] Center Library alphabet labels and expand the shared rail from 18dp to 36dp. Make the entire
@@ -220,7 +226,8 @@ coverage. Check an item only after its regression checks pass; record target/too
 
 ### Remaining acceptance gates
 
-This is the current outstanding work; earlier chronological notes below retain historical results.
+This checklist records the September 4 checkpoint. The [current acceptance matrix](stabilization-acceptance.md)
+supersedes it, including later Windows interaction and shared iOS compilation evidence.
 
 - [x] Shared loading-panel, large-discography expansion, and overlapping letter-jump regressions.
 - [x] Navidrome phone Library artwork/loading, independent search, letter navigation, and playlist

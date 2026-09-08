@@ -1,5 +1,8 @@
 # OpenSubsonic API usage audit
 
+Current branch status: [stabilization acceptance](stabilization-acceptance.md). The dated audit
+and validation notes below preserve historical evidence.
+
 Audited 2026-09-05 at commit `c4d9c5160a67ea24324397169301ba58a484a175`.
 
 The findings below record the original source audit. The working tree now implements the corrections in shared Kotlin; source line numbers in the findings refer to the original commit, not the edited files.

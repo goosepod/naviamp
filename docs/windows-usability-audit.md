@@ -1,5 +1,8 @@
 # Windows usability audit — 2026-09-05
 
+Current branch status: [stabilization acceptance](stabilization-acceptance.md). The dated audit
+and validation notes below preserve historical evidence.
+
 ## Result
 
 The packaged Windows app completed the browsing and playback scenarios below without an observed crash or blocked navigation. This is an agent-led usability inspection and functional smoke test, not a study with representative users or an accessibility certification.

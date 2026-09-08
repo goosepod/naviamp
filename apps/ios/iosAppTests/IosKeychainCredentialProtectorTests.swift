@@ -1,7 +1,7 @@
 import XCTest
 
 final class IosKeychainCredentialProtectorTests: XCTestCase {
-    func testProtectRevealAndTamperFailureUseTheRealKeychain() throws {
+    func testProtectRevealReferenceIsolationAndDeletionUseTheRealKeychain() throws {
         let protector = IosKeychainVault()
         let secret = "naviamp-keychain-test-\(UUID().uuidString)"
         let first = try XCTUnwrap(protector.store(secret))
@@ -17,5 +17,10 @@ final class IosKeychainCredentialProtectorTests: XCTestCase {
         XCTAssertEqual(secret, protector.load(first))
         XCTAssertEqual(secret, protector.load(second))
         XCTAssertNil(protector.load("keychain:missing-\(UUID().uuidString)"))
+        XCTAssertNil(protector.load(first + "-altered"))
+
+        protector.remove(first)
+        XCTAssertNil(protector.load(first))
+        XCTAssertEqual(secret, protector.load(second))
     }
 }

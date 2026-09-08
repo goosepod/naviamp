@@ -46,7 +46,13 @@ class NaviampListenReporting {
             state.toPlaybackReportState()?.let { mapped ->
                 current.timelineFailed = !attempt { provider.reportPlaybackState(track.id, mapped, position) }
             }
-        } else if (!current.timeline && !provider.capabilities.supportsPlaybackTimeline && state == PlaybackState.Playing && !newSession) {
+        }
+        // A failed timeline report must fall back in this same observation, even
+        // when the provider still advertises the extension. Legacy sessions already
+        // publish presence when created; retain that single initial report.
+        val needsPresence = current.timelineFailed ||
+            (!current.timeline && !provider.capabilities.supportsPlaybackTimeline && !newSession)
+        if (needsPresence && state == PlaybackState.Playing) {
             attempt { provider.reportNowPlaying(track.id) }
         }
         qualify(current)

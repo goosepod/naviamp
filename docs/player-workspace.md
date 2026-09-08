@@ -1,5 +1,8 @@
 # Shared player workspace
 
+Current branch status: [stabilization acceptance](stabilization-acceptance.md). The dated audit
+and validation notes below preserve historical evidence.
+
 Rollback checkpoint before this feature: `548acc70`, pushed to `origin/feature/library-discovery-playlists`.
 
 ## Behavior

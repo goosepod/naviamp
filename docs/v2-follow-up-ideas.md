@@ -7,6 +7,7 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - `Idea`: Captured for later review.
 - `Investigating`: Actively researching feasibility and scope.
 - `Planned`: Accepted and moved into a concrete implementation plan.
+- `In acceptance`: Implementation exists on a feature branch; release verification remains open.
 - `Implemented`: Shipped and verified.
 - `Rejected`: Deliberately declined, with rationale.
 
@@ -39,7 +40,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Persistent Local Album Index
 
-- **Status:** Planned; approved 2026-09-05 and active on `feature/library-discovery-playlists`.
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
 - **Active plan:** [Persistent album catalog](library-discovery-playlists-plan.md#persistent-album-catalog-active-2026-09-05).
 - **Problem:** The Subsonic `getAlbumList2` API supports alphabetical pages and offsets, but no
   letter-boundary lookup. Display names can differ from server sort keys because of ignored
@@ -60,7 +61,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Switchable Complete Library Views
 
-- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
 - **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#switchable-complete-library-views)
 - **Concept:** Replace the artist-only Library presentation with one shared catalog surface that
   can switch between **Artists**, **Albums**, and **Songs**, matching the complete-library views
@@ -89,7 +90,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Expanded Artist Discography Sections
 
-- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
 - **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#expanded-artist-discography-sections)
 - **Latest shared acceptance:** Expanded appearance results survive album/player navigation and
   metadata updates; changing artists resets the limit. Covered with 125 albums and tracks in the
@@ -117,7 +118,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Track Membership in Playlists
 
-- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
 - **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#track-membership-in-playlists)
 - **Concept:** Use one shared **Add to playlists** editor from Library, search, album/artist detail,
   playlist detail, Home song menus, and current-track/queue menus. Identify existing membership
@@ -152,7 +153,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Favorite Artists Home Section
 
-- **Status:** Planned; active on `feature/library-discovery-playlists`
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
 - **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#favorite-artists-home-section)
 - **Concept:** Add a shared **Favorite Artists** section to Home containing the artists the user has
   favorited, with sort choices for name, date favorited, and date last played.
