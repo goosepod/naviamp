@@ -114,7 +114,7 @@ class NaviampCorePlaylistBrowseController(
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
         runCatching { provider.playlists(playlistLimit) }
             .onSuccess { playlists ->
-                if (generation != listGeneration) return@onSuccess
+                if (generation != listGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 playlistsById = playlists.associateBy(Playlist::id)
                 mediaRegistry.updatePlaylists(playlists)
                 val visiblePlaylists = playlists.filter { it.navibeatMixOrNull() == null }
@@ -139,13 +139,29 @@ class NaviampCorePlaylistBrowseController(
                 }
             }
             .onFailure { cause ->
-                if (generation == listGeneration) {
+                if (generation == listGeneration && providerSource.isCurrent(provider)) {
                     publishListFailure(cause.message ?: "Could not load playlists.")
                 }
             }
     }
 
-    suspend fun refreshAfterConnection() = refresh()
+    fun resetForSourceChange() {
+        listGeneration++
+        detailGeneration++
+        playlistsById = emptyMap()
+        mediaRegistry.updatePlaylists(emptyList())
+        mediaRegistry.updateSelectedPlaylist(null, emptyList())
+        stateStore.updateShell { shell -> shell.copy(
+            playlists = app.naviamp.ui.NaviampPlaylistsScreenUi(sortMode = shell.playlists.sortMode),
+            playlistChoices = emptyList(),
+            playlistDetail = app.naviamp.ui.NaviampPlaylistDetailScreenUi(),
+        ) }
+    }
+
+    suspend fun refreshAfterConnection() {
+        resetForSourceChange()
+        refresh()
+    }
 
     internal suspend fun refreshAfterMutation(status: String) {
         refresh(finalStatus = status)
@@ -246,7 +262,7 @@ class NaviampCorePlaylistBrowseController(
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
         runCatching { provider.playlistTracks(playlist.id) }
             .onSuccess { tracks ->
-                if (generation != detailGeneration) return@onSuccess
+                if (generation != detailGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 val resolvedPlaylist = playlist.copy(trackCount = tracks.size)
                 mediaRegistry.updateSelectedPlaylist(resolvedPlaylist, tracks)
                 val mappedPlaylist = resolvedPlaylist.toSharedMediaItemUi(
@@ -270,7 +286,7 @@ class NaviampCorePlaylistBrowseController(
                 }
             }
             .onFailure { cause ->
-                if (generation == detailGeneration) {
+                if (generation == detailGeneration && providerSource.isCurrent(provider)) {
                     publishDetailFailure(item, cause.message ?: "Playlist failed to load.")
                 }
             }

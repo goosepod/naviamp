@@ -105,7 +105,7 @@ class NaviampCoreCatalogController(
         val update = searchResultsUpdate(normalized) { searchQuery, limit ->
             provider.search(searchQuery, limit)
         }
-        if (generation != searchGeneration) return
+        if (generation != searchGeneration || !providerSource.isCurrent(provider)) return
         publishSearch(update.results, update.status, searching = false, provider = provider)
     }
 
@@ -183,12 +183,24 @@ class NaviampCoreCatalogController(
         }
     }
 
-    suspend fun refreshAfterConnection() {
-        libraryLoads.values.forEach { it.generation++; it.loadedSource = null; it.loadingGeneration = null }
+    fun resetForSourceChange() {
+        clearSearch()
+        jumpGeneration++
+        libraryLoads.values.forEach {
+            it.generation++
+            it.loadedSource = null
+            it.loadingGeneration = null
+            it.completeAlbumCatalog = false
+            it.nextRequest = MediaPageRequest(limit = libraryPageSize)
+        }
         stateStore.updateShell { it.copy(library = app.naviamp.ui.NaviampLibraryScreenUi(selectedView = it.library.selectedView)) }
         mediaRegistry.updateLibraryArtists(emptyList(), true)
         mediaRegistry.updateLibraryAlbums(emptyList(), true)
         mediaRegistry.updateLibraryTracks(emptyList(), true)
+    }
+
+    suspend fun refreshAfterConnection() {
+        resetForSourceChange()
         refreshLibrary()
     }
 
@@ -326,6 +338,7 @@ class NaviampCoreCatalogController(
 
     private fun clearSearch() {
         searchGeneration += 1
+        mediaRegistry.updateSearch(MediaSearchResults())
         updateSearchState { NaviampSearchScreenUi() }
     }
 

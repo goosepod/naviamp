@@ -272,3 +272,51 @@ arguments or logs. These opt-in tests are not enabled by default in unattended d
 The final cancellation-safe harness was rebuilt and rerun: `android-live-cleanup-final.log`
 finished `OK (6 tests)`, with all disposable playlist deletions confirmed. Production changes in
 this checkpoint are confined to provider `commonMain`; no platform production files changed.
+
+## Source-switch race acceptance
+
+The user confirmed Android background playback, lock-screen controls, state synchronization and
+network recovery worked as expected. This is user-verified evidence; the provider(s) covered were
+not separately specified.
+
+Direct ADB testing reproduced a source-isolation bug: Search showed the existing Navidrome Galore
+results and artwork after Settings confirmed connection to JellyDoom. Four new deterministic
+common tests failed before the fix: retained completed search, delayed search success/failure,
+delayed playlist detail, and delayed album detail (`source-switch-red.log`).
+
+The common connection lifecycle now synchronously resets catalog/search, playlist browsing and
+media details when the source changes. Resets invalidate outstanding generations and clear both
+UI state and shared media lookup records. Response guards compare provider ID, cache namespace
+and selected libraries, not object identity: Core may recreate offline-capable provider decorators
+on lookup. This also rejects late failures and avoids reintroducing old artwork/action targets.
+Additional controlled tests cover switching away and back to the same provider, delayed artist
+success/failure, album-index rows/artwork/snapshot isolation, and delayed playlist list outcomes.
+Final verification passed (`source-switch-verification.log`): 1,689 JVM tests and 42 Desktop
+tests, including 267 presentation JVM tests; 265 presentation iOS simulator tests; 265 presentation
+Android debug and 265 release unit tests. All had zero failures/errors/skips. iOS device compilation,
+Android app assembly and architecture verification passed. Aggregate coverage verification passed
+separately (`source-switch-coverage.log`). The final race class contains eight tests, several looping
+over success and failure outcomes; it is part of the shared presentation suite.
+
+The fixed APK was installed in place on the Pixel. Timed direct-ADB checks passed:
+
+- Navidrome album refresh showed **Indexing albums… 400 found**, then Jellyfin Connect was tapped
+  2.123 seconds after Refresh. Search cleared; Library settled on Jellyfin's albums (starting with
+  10 Years Parquet Recordings), and old Navidrome rows did not return.
+- Jellyfin to Bandcamp cleared Search; Bandcamp's own album rows and its Test playlist (31 tracks)
+  rendered without prior-provider content.
+- A Navidrome Galore query was followed by Bandcamp Connect 1.085 seconds after text entry; Search
+  was empty after connection. The reverse Bandcamp Veldt query to NaviDoom Connect took 1.176
+  seconds after text entry, again leaving Search empty.
+- Returning to NaviDoom restored its warm album catalog, starting with Cookie's Favorite Songs,
+  with no stale Bandcamp rows or stuck indexing indicator. Returned to Home with no playback.
+
+Phone timing alone cannot guarantee a particular HTTP response arrived after switching; the common
+race tests explicitly hold responses until after the source changes and establish that ordering.
+One preparatory Bandcamp-to-Navidrome attempt missed Connect because the list reset its scroll
+position; it is not counted as a successful timed switch. The successful repeat used the visible
+second connection. Evidence is in ignored `switch-nav-indexing.png`, `switch-nav-jelly-timing.json`,
+`switch-nav-bandcamp-timing.json`, and `switch-bandcamp-nav-final-timing.json`.
+
+No platform production files changed. No playlist edits or audible playback were started in this
+pass. All source-switch production behavior and regression tests remain common.

@@ -482,6 +482,9 @@ class NaviampCore private constructor(
                     playlistMembership.reset()
                     radio.resetForSourceChange()
                     home.resetForSourceChange()
+                    catalog.resetForSourceChange()
+                    playlistBrowse.resetForSourceChange()
+                    mediaDetails.resetForSourceChange()
                 },
                 onConnected = { sourceId ->
                     scope.launch { providerSessionLifecycle.refreshNow() }

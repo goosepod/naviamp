@@ -101,6 +101,17 @@ class NaviampCoreMediaDetailController(
     private var albumGeneration = 0L
     private var artistGeneration = 0L
 
+    fun resetForSourceChange() {
+        albumGeneration++
+        artistGeneration++
+        mediaRegistry.updateAlbum(null)
+        mediaRegistry.updateArtist(null)
+        stateStore.updateShell { shell -> shell.copy(
+            albumDetail = app.naviamp.ui.NaviampAlbumDetailScreenUi(),
+            artistDetail = app.naviamp.ui.NaviampArtistDetailScreenUi(),
+        ) }
+    }
+
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Media.ItemAction -> when (val itemCommand = command.request.command) {
             is NaviampMediaItemCommand.Album -> if (itemCommand.command == NaviampArtistAlbumCommand.Select) {
@@ -297,7 +308,7 @@ class NaviampCoreMediaDetailController(
         val albumId = AlbumId(item.id)
         runCatching { provider.album(albumId) }
             .onSuccess { detail ->
-                if (generation != albumGeneration) return@onSuccess
+                if (generation != albumGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 val albumArtist = detail.tracks.firstOrNull()?.let { track ->
                     track.artistId?.let { Artist(it, track.artistName) }
                         ?: track.artistName.takeIf(String::isNotBlank)?.let(::nameOnlyArtistCredit)
@@ -324,11 +335,11 @@ class NaviampCoreMediaDetailController(
                 }
                 scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     val info = runCatching { provider.albumInfo(albumId) }.getOrNull() ?: return@launch
-                    if (generation != albumGeneration) return@launch
+                    if (generation != albumGeneration || !providerSource.isCurrent(provider)) return@launch
                     val enrichedDetail = detail.copy(info = info)
                     mediaRegistry.updateAlbum(enrichedDetail)
                     stateStore.updateShell { shell ->
-                        if (generation != albumGeneration) {
+                        if (generation != albumGeneration || !providerSource.isCurrent(provider)) {
                             shell
                         } else {
                             val popularTrackIds = shell.albumDetail.detail?.tracks
@@ -355,7 +366,7 @@ class NaviampCoreMediaDetailController(
                         loadPopularTracks = discovery.popularTracks,
                     ).tracks.mapTo(mutableSetOf()) { track -> track.id.value }
                 }.orEmpty()
-                if (generation != albumGeneration) return@onSuccess
+                if (generation != albumGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 val latestDetail = mediaRegistry.albumDetails
                     ?.takeIf { loaded -> loaded.album.id == detail.album.id }
                     ?: detail
@@ -373,7 +384,7 @@ class NaviampCoreMediaDetailController(
                 }
             }
             .onFailure { cause ->
-                if (generation == albumGeneration) {
+                if (generation == albumGeneration && providerSource.isCurrent(provider)) {
                     publishAlbumFailure(item, cause.message ?: "Could not load album.")
                 }
             }
@@ -405,6 +416,7 @@ class NaviampCoreMediaDetailController(
                 provider.artistDiscography(artist.id)
             }
         }.map { providerDiscography ->
+            if (generation != artistGeneration || !providerSource.isCurrent(provider)) return@map providerDiscography
             val combined = if (nameOnlyCredit || provider.capabilities.supportsArtistDiscography) {
                 providerDiscography
             } else {
@@ -425,7 +437,7 @@ class NaviampCoreMediaDetailController(
         }
             .onSuccess { discography ->
                 val detail = discography.primary
-                if (generation != artistGeneration) return@onSuccess
+                if (generation != artistGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 navigationController.updateActiveArtist(detail.artist)
                 val popular = loadArtistPopularTracksUpdate(
                     sourceId = discovery.sourceId(),
@@ -437,7 +449,7 @@ class NaviampCoreMediaDetailController(
                 } else {
                     app.naviamp.domain.media.SimilarArtistsUpdate(emptyList(), null)
                 }
-                if (generation != artistGeneration) return@onSuccess
+                if (generation != artistGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 mediaRegistry.updateArtist(
                     detail,
                     popular.tracks,
@@ -477,7 +489,7 @@ class NaviampCoreMediaDetailController(
                 }
             }
             .onFailure { cause ->
-                if (generation == artistGeneration) {
+                if (generation == artistGeneration && providerSource.isCurrent(provider)) {
                     publishArtistFailure(item, cause.message ?: "Could not load artist.")
                 }
             }
