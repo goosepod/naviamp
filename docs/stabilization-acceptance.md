@@ -512,3 +512,59 @@ Remaining coverage includes truncated/empty successful server responses, physica
 and larger unbuffered audio streams. The observed network handover failures remain recorded; the
 successful final run establishes these scenarios after sustained loss and settled recovery, not
 instant DNS readiness when Wi-Fi is switched on.
+
+## Download response integrity — 2026-09-08
+
+The next acceptance round explicitly uses the configured download byte budget instead of filling
+physical storage. A shared SQLDelight test represents a fully used default 512 MiB allowance with
+one database row and no filler file. The native phone cases force zero available budget through the
+same storage API; they do not change the user's persisted setting. Physical ENOSPC is deliberately
+not claimed as tested.
+
+The first storage regression (`invalid-audio-red.log`) reproduced an empty successful replacement
+being committed before the zero-size check. Shared `AudioByteStoreService` now rejects empty streams
+and recognizable HTML/XML/JSON response prefixes before the native store commits its temporary file.
+The prefix inspection is bounded to 512 bytes and works across chunk boundaries. Existing download
+failure messages are reused. This is error-document detection, not full audio-format validation.
+
+The first loopback HTTP phone pass (`invalid-audio-phone.log`) failed on all three provider fixtures:
+a response declaring 4,096 bytes but delivering 32 was accepted. The common HTTP transports now
+check channel failure and compare delivered bytes with the declared Content-Length before reporting
+success. The same shared length rule is used by the shared, Navidrome and Jellyfin clients. Encoded
+responses are excluded from this comparison because their declared size describes encoded bytes;
+responses without a declared length cannot prove completeness from byte count alone. Common provider
+transport regressions cover the declared-length mismatch.
+
+The opt-in phone combination `liveSavedProviders=true`, `liveDownloadFailures=true`,
+`liveInvalidAudio=true` uses real saved-provider tracks as disposable reference/retry downloads.
+Bad responses come from an on-device loopback HTTP fixture with tiny bodies and no provider
+credentials. Cases are empty HTTP 200, HTML/XML/JSON mislabeled as audio, truncated declared body,
+and HTTP 503, each tested for a new download and replacement. Assertions require no target record
+for failed new downloads, identical reference hash/database metadata, and no temporary files.
+A normal provider download must still succeed after budget rejection. The harness deletes only its
+own sample rows and isolated files.
+
+No platform production files, settings, strings or schemas changed. Android changes are opt-in
+tests of the real HTTP and filesystem boundary. All production changes are common Kotlin.
+
+Build diagnostics are retained separately: `invalid-audio-verification.log` was invalidated when the
+new transport helper was added during its build; `invalid-audio-final-verification.log` stopped at
+a test dependency alias error, corrected to the existing explicit Ktor mock dependency convention.
+Neither is counted as a completed verification pass.
+
+Final verification passed in `invalid-audio-complete-verification.log` (7m 34s): 1,706 JVM and
+42 Desktop tests; iOS simulator domain 862, storage 4, Navidrome 157 and Jellyfin 25; Android
+domain 862, storage 3, Navidrome 155 and Jellyfin 25 in each debug/release variant. These suites
+had zero failures/errors/skips. Architecture, coverage, common/provider iOS device compilation,
+and Android application/test assembly passed.
+
+The final Pixel pass succeeded (`invalid-audio-phone-verified.log`, `OK (3 tests)`, 44.454 seconds).
+All six bad-response cases passed for both new downloads and replacements for each saved-provider
+fixture; quota rejection and real-provider retry passed for all three. No isolated test directories
+remained afterward, Wi-Fi/mobile data were 1/1, and the app was reopened. No physical storage was
+filled and no persistent settings were changed. Nothing was pushed or published.
+
+Still outside this evidence: physical ENOSPC/other native disk faults, complete codec-level integrity
+validation, and silent truncation without usable length metadata. The loopback cases exercise the
+shared HTTP transport on Android; the provider-specific HTTP clients' new completion behavior is
+covered by common mock-transport tests across targets and successful real-provider downloads.

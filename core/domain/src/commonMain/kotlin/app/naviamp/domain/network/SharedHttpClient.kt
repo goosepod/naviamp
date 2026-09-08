@@ -155,20 +155,22 @@ class KtorSharedHttpClient(
 
                 val channel = response.bodyAsChannel()
                 val buffer = ByteArray(64 * 1024)
+                var receivedBytes = 0L
                 while (!channel.isClosedForRead) {
                     val read = channel.readAvailable(buffer, 0, buffer.size)
                     if (read == -1) break
-                    if (read > 0) writeChunk(buffer, read)
+                    if (read > 0) {
+                        writeChunk(buffer, read)
+                        receivedBytes += read
+                    }
                 }
+                channel.closedCause?.let { throw it }
+                val complete = isHttpDownloadComplete(response.headers[HttpHeaders.ContentLength],
+                    response.headers[HttpHeaders.ContentEncoding], receivedBytes)
                 callRecorder?.invoke(
-                    sharedHttpCall(
-                        url = url,
-                        startedAt = startedAt,
-                        statusCode = statusCode,
-                        errorMessage = null,
-                    ),
+                    sharedHttpCall(url, startedAt, statusCode, if (complete) null else "HTTP $statusCode.")
                 )
-                true
+                complete
             }
         }.getOrElse { error ->
             callRecorder?.invoke(
@@ -233,3 +235,10 @@ private val DefaultSharedHttpHeaders = mapOf(
     HttpHeaders.Accept to "application/json",
     HttpHeaders.UserAgent to NaviampUserAgent,
 )
+
+/** Content-Length describes encoded bytes, so decoded compressed bodies cannot be compared here. */
+fun isHttpDownloadComplete(contentLength: String?, contentEncoding: String?, receivedBytes: Long): Boolean {
+    if (!contentEncoding.isNullOrBlank() && !contentEncoding.equals("identity", ignoreCase = true)) return true
+    val expected = contentLength?.toLongOrNull() ?: return true
+    return expected >= 0 && receivedBytes == expected
+}

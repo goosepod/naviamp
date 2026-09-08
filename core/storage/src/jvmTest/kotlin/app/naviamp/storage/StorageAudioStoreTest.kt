@@ -85,14 +85,38 @@ class StorageAudioStoreTest {
         fixture(fileExists = { it in files }, byteStore = bytes).use { fixture ->
             fixture.insertDownload(path)
             val before = fixture.store.downloadedTracks("source").single()
-            for (partialFailure in listOf(false, true)) {
+            for (failure in listOf("quota", "partial", "empty", "html", "xml", "json")) {
                 assertFailsWith<IllegalStateException> {
-                    fixture.store.replaceDownloadedAudioTrack("source", AudioTestProvider(partialFailure), before.track,
-                        StreamQuality.Original, maxDownloadBytes = 32)
+                    fixture.store.replaceDownloadedAudioTrack("source", AudioTestProvider(failure), before.track,
+                        StreamQuality.Original, maxDownloadBytes = if (failure == "quota") 32 else Long.MAX_VALUE)
                 }
                 assertContentEquals(original, files[path])
                 assertEquals(before, fixture.store.downloadedTracks("source").single())
             }
+        }
+    }
+
+    @Test
+    fun configuredDownloadLimitRejectsNewBytesWithoutAllocatingTheReportedUsage() = runBlocking {
+        val limit = app.naviamp.domain.settings.CacheSettings().maxDownloadBytes
+        fixture(fileExists = { true }, byteStore = object : AudioByteStore {
+            override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
+                writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
+                check(writeBytes(AudioByteWriter { _, _ -> error("Over-budget bytes reached the writer") }))
+                error("Over-budget download committed")
+            }
+            override fun deleteAudioBytes(filePath: String) = Unit
+        }).use { fixture ->
+            // Only database accounting is large; no filler files are allocated.
+            fixture.insertDownload("/downloads/existing.flac", sizeBytes = limit)
+            val target = fixture.store.downloadedTracks("source").single().track.copy(id = TrackId("new"))
+            val failure = assertFailsWith<IllegalStateException> {
+                fixture.store.downloadAudioTrack("source", AudioTestProvider(), target,
+                    StreamQuality.Original, maxDownloadBytes = limit)
+            }
+            assertEquals("Download storage limit exceeded.", failure.message)
+            assertEquals(limit, fixture.queries.downloadedAudioSize().executeAsOne())
+            assertEquals(1, fixture.store.downloadedTracks("source").size)
         }
     }
 
@@ -159,13 +183,13 @@ private class StorageAudioStoreFixture(
         )
     }
 
-    fun insertDownload(path: String) {
+    fun insertDownload(path: String, sizeBytes: Long = 24L) {
         queries.upsertDownloadedAudio(
             source_id = "source",
             remote_track_id = "track",
             quality_key = "original",
             file_path = path,
-            size_bytes = 24L,
+            size_bytes = sizeBytes,
             content_type = "audio/flac",
             title = "Downloaded track",
             artist_id = null,
@@ -211,7 +235,7 @@ private object UnusedSharedHttpClient : SharedHttpClient {
     ): Boolean = false
 }
 
-private class AudioTestProvider(private val partialFailure: Boolean = false) : MediaProvider {
+private class AudioTestProvider(private val failure: String = "quota") : MediaProvider {
     override val id = ProviderId("test")
     override val displayName = "Test"
     override val capabilities = ProviderCapabilities(false, false, false, false, false)
@@ -227,9 +251,21 @@ private class AudioTestProvider(private val partialFailure: Boolean = false) : M
     override fun coverArtUrl(coverArtId: String) = ""
     override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
         writeChunk: suspend (ByteArray, Int) -> Unit): Boolean {
-        val count = if (partialFailure) 16 else 64
+        if (failure == "empty") return true
+        val errorBody = when (failure) {
+            "html" -> "  <!DOCTYPE html><html>Server error</html>"
+            "xml" -> "<?xml version=\"1.0\"?><error/>"
+            "json" -> "{\"error\":\"unavailable\"}"
+            else -> null
+        }
+        if (errorBody != null) {
+            // Split the signature across chunks to exercise incremental validation.
+            for (byte in errorBody.encodeToByteArray()) writeChunk(byteArrayOf(byte), 1)
+            return true
+        }
+        val count = if (failure == "partial") 16 else 64
         writeChunk(ByteArray(count) { 9 }, count)
-        if (partialFailure) error("Connection lost after partial audio")
+        if (failure == "partial") error("Connection lost after partial audio")
         return true
     }
 }

@@ -1,5 +1,6 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.network.isHttpDownloadComplete
 import app.naviamp.domain.network.NaviampUserAgent
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -230,19 +231,23 @@ class KtorNavidromeHttpClient(
                 validateSubsonicMediaResponse(response.headers[HttpHeaders.ContentType], prefix.copyOf(prefixSize))
                 if (prefixSize > 0) writeChunk(prefix, prefixSize)
                 val buffer = ByteArray(64 * 1024)
+                var receivedBytes = prefixSize.toLong()
                 while (!channel.isClosedForRead) {
                     val read = channel.readAvailable(buffer, 0, buffer.size)
                     if (read == -1) break
-                    if (read > 0) writeChunk(buffer, read)
+                    if (read > 0) {
+                        writeChunk(buffer, read)
+                        receivedBytes += read
+                    }
                 }
+                channel.closedCause?.let { throw it }
+                val complete = isHttpDownloadComplete(response.headers[HttpHeaders.ContentLength],
+                    response.headers[HttpHeaders.ContentEncoding], receivedBytes)
                 recordApiCall(
-                    method = HttpMethod.Get.value,
-                    url = url,
-                    startedAt = startedAt,
-                    success = true,
-                    errorMessage = null,
+                    method = HttpMethod.Get.value, url = url, startedAt = startedAt,
+                    success = complete, errorMessage = if (complete) null else "HTTP $statusCode.",
                 )
-                true
+                complete
             }
         }.getOrElse { error ->
             if (error is CancellationException) throw error

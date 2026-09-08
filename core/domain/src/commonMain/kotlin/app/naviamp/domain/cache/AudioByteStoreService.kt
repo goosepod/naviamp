@@ -76,13 +76,21 @@ class AudioByteStoreService(
             errorMessage = errorMessage,
             writeBytes = { writer ->
                 var written = 0L
-                provider.downloadStream(streamUrl, httpClient) { bytes, count ->
+                var prefix = byteArrayOf()
+                val success = provider.downloadStream(streamUrl, httpClient) { bytes, count ->
                     if (count.toLong() > maxBytes.coerceAtLeast(0L) - written) {
                         throw IllegalStateException(sizeLimitErrorMessage)
                     }
+                    if (prefix.size < 512) prefix += bytes.copyOfRange(0, minOf(count, 512 - prefix.size))
                     writer.write(bytes, count)
                     written += count
                 }
+                // Validate before the store commits its temporary file over an existing download.
+                val start = prefix.decodeToString().trimStart('\uFEFF', ' ', '\t', '\r', '\n').lowercase()
+                val errorDocument = listOf("<!doctype html", "<html", "<?xml", "<error", "<subsonic-response", "{", "[")
+                    .any { start.startsWith(it) }
+                if (written == 0L || errorDocument) throw IllegalStateException(errorMessage)
+                success
             },
         ).also { stored ->
             if (stored.sizeBytes <= 0L) {

@@ -266,6 +266,70 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
                 kotlin.test.assertContentEquals(originalHash,
                     java.security.MessageDigest.getInstance("SHA-256").digest(File(saved.filePath).readBytes()))
             }
+            if (InstrumentationRegistry.getArguments().getString("liveInvalidAudio") == "true") {
+                for (scenario in listOf("empty", "html", "xml", "json", "truncated", "http-error")) {
+                    val invalid = object : MediaProvider by provider {
+                        override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                            writeChunk: suspend (ByteArray, Int) -> Unit): Boolean {
+                            val body = when (scenario) {
+                                "empty", "http-error" -> byteArrayOf()
+                                "truncated" -> File(saved.filePath).inputStream().use { input ->
+                                    ByteArray(32).also { check(input.read(it) == it.size) }
+                                }
+                                "html" -> " <!DOCTYPE html><html>Server error</html>".encodeToByteArray()
+                                "xml" -> "<?xml version=\"1.0\"?><error/>".encodeToByteArray()
+                                else -> "{\"error\":\"unavailable\"}".encodeToByteArray()
+                            }
+                            // A loopback HTTP fixture exercises real Android transport and file writes.
+                            // It receives no saved-provider credentials and allocates at most 64 body bytes.
+                            val server = java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))
+                            val port = server.localPort
+                            val responder = kotlin.concurrent.thread(isDaemon = true) {
+                                runCatching {
+                                    server.accept().use { socket ->
+                                        socket.soTimeout = 5000
+                                        val reader = socket.getInputStream().bufferedReader()
+                                        while (!reader.readLine().isNullOrEmpty()) Unit
+                                        val status = if (scenario == "http-error") "503 Unavailable" else "200 OK"
+                                        val length = if (scenario == "truncated") 4096 else body.size
+                                        socket.getOutputStream().apply {
+                                            write("HTTP/1.1 $status\r\nContent-Type: audio/flac\r\nContent-Length: $length\r\nConnection: close\r\n\r\n".encodeToByteArray())
+                                            write(body)
+                                            flush()
+                                        }
+                                    }
+                                }
+                            }
+                            return try {
+                                withTimeout(15000) { httpClient.download("http://127.0.0.1:$port/audio", writeChunk = writeChunk) }
+                            } finally {
+                                server.close()
+                                responder.join(5000)
+                            }
+                        }
+                    }
+                    assertTrue(runCatching { download(invalid) }.isFailure)
+                    assertNull(storage.downloadedAudioFile(sourceId, target.id))
+                    assertTrue(runCatching {
+                        storage.replaceDownloadedAudioTrack(sourceId, invalid, original, StreamQuality.Original, Long.MAX_VALUE)
+                    }.isFailure)
+                    originalIntact(); noPartialFiles()
+                    record("$scenario rejected for new and replacement downloads; reference preserved")
+                }
+                // Exercise the same byte budget supplied by the maximum-download-space setting.
+                // Zero available bytes forces the boundary without allocating filler files.
+                assertTrue(runCatching {
+                    storage.downloadAudioTrack(sourceId, provider, target, StreamQuality.Original, 0)
+                }.isFailure)
+                assertNull(storage.downloadedAudioFile(sourceId, target.id))
+                assertTrue(runCatching {
+                    storage.replaceDownloadedAudioTrack(sourceId, provider, original, StreamQuality.Original, 0)
+                }.isFailure)
+                originalIntact(); noPartialFiles()
+                assertTrue(download().sizeBytes > 4096)
+                record("configured byte-budget rejection and successful retry passed")
+                return@coroutineScope
+            }
             // Hold a real stream after a partial write while Android tears down its network.
             val entered = CompletableDeferred<Unit>()
             val release = CompletableDeferred<Unit>()

@@ -12,6 +12,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class SubsonicDownloadTransportTest {
     @Test
@@ -28,6 +29,17 @@ class SubsonicDownloadTransportTest {
             }
             assertEquals(50, failure.subsonicErrorCode)
             assertEquals(0, writes)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun truncatedDeclaredBodyDoesNotReportSuccess() = runTest {
+        val client = HttpClient(MockEngine {
+            respond(ByteArray(32) { 9 }, HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentLength, "4096"))
+        })
+        try {
+            assertFalse(KtorNavidromeHttpClient(client).download("https://server/rest/download.view", emptyMap()) { _, _ -> })
         } finally { client.close() }
     }
 
