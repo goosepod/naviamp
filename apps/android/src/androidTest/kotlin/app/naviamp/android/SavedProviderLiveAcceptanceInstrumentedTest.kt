@@ -78,6 +78,11 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
                     val source = storage.mediaSources().filter { it.providerId == providerId }
                         .maxByOrNull { it.lastConnectedAtEpochMillis ?: it.createdAtEpochMillis }
                     assertNotNull(source, "Missing saved provider connection")
+                    if (InstrumentationRegistry.getArguments().getString("liveOfflinePhase") != null) {
+                        stage = "offline playback"
+                        checkOfflinePlayback(storage, source, ::record)
+                        return@use
+                    }
                     stage = "restore"
                     val provider = restoreProvider(source)
                     if (InstrumentationRegistry.getArguments().getString("liveProcessDeathPhase") != null) {
@@ -225,6 +230,147 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
         ) }
         JellyfinProvider(factory.create(source.tlsSettings).restore(source), factory)
     } else NavidromeProvider(source.toNavidromeConnection())
+
+    /** Drives the actual Activity's Core and native playback graph across a host force-stop. */
+    private suspend fun checkOfflinePlayback(storage: AndroidStorageDependencies, source: SavedMediaSource,
+        record: (String) -> Unit) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val phase = InstrumentationRegistry.getArguments().getString("liveOfflinePhase")!!
+        val marker = File(context.filesDir, "acceptance-offline-${source.providerId}.json")
+        val directory = File(context.cacheDir, "acceptance-offline-${source.providerId}")
+        fun shell(command: String) = ParcelFileDescriptor.AutoCloseInputStream(
+            instrumentation.uiAutomation.executeShellCommand(command),
+        ).bufferedReader().use { it.readText().trim() }
+        context.startActivity(android.content.Intent(context, MainActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        val core = withContext(kotlinx.coroutines.Dispatchers.Main) { AndroidNaviampApplicationRuntime.get(context).core }
+        suspend fun send(command: NaviampCoreCommand) = withContext(kotlinx.coroutines.Dispatchers.Main) { core.dispatch(command) }
+        suspend fun until(label: String, predicate: () -> Boolean) {
+            record("waiting $label")
+            try { withTimeout(45000) { while (!predicate()) delay(100) } }
+            catch (failure: Throwable) {
+                val now = core.state.value.shell.nowPlaying
+                var safeLabel = now?.stateLabel.orEmpty().replace(Regex("https?://\\S+"), "[URL]")
+                for (secret in listOf(source.token, source.salt, source.nativeToken.orEmpty(), source.username).filter { it.isNotEmpty() }) {
+                    safeLabel = safeLabel.replace(secret, "[redacted]")
+                }
+                record("$label timeout: state=${safeLabel.take(180)} playing=${now?.isPlaying} paused=${now?.isPaused} position=${core.playbackProgress.value.positionSeconds} sourceMatches=${core.state.value.shell.connectionSettings.currentSourceId == source.id}")
+                throw failure
+            }
+        }
+        suspend fun connect(id: String) {
+            val saved = core.state.value.shell.connectionSettings.connection.savedConnections.first { it.id == id }
+            send(NaviampCoreCommand.Connection.ConnectSaved(saved))
+            until("connected") { core.state.value.shell.connectionSettings.let {
+                it.currentSourceId == id && it.connection.connected && !it.connection.isConnecting
+            } }
+        }
+        suspend fun control(action: app.naviamp.ui.NowPlayingPlaybackAction, seek: Double? = null) =
+            send(NaviampCoreCommand.NowPlaying.Playback(app.naviamp.ui.NowPlayingPlaybackActionRequest(action, seek)))
+        if (phase == "prepare") {
+            check(!marker.exists() && !directory.exists())
+            val previous = core.state.value.shell.connectionSettings.currentSourceId
+            val provider = restoreProvider(source)
+            val tracks = provider.tracksPage(MediaPageRequest(limit = 20)).items.distinctBy { it.id }
+                .filter { storage.downloadedAudioFile(source.id, it.id) == null &&
+                    storage.cachedAudioFile(source.id, it.id, StreamQuality.Original) == null }.take(2)
+            assertEquals(2, tracks.size)
+            val metadata = JSONObject().put("source", source.id).put("previous", previous)
+                .put("wifi", shell("settings get global wifi_on")).put("data", shell("settings get global mobile_data"))
+                .put("tracks", org.json.JSONArray(tracks.map { it.id.value }))
+            marker.writeText(metadata.toString())
+            directory.mkdirs(); storage.updateDownloadDirectory(directory)
+            for (track in tracks) storage.downloadAudioTrack(source.id, provider, track, StreamQuality.Original, 500_000_000)
+            connect(source.id)
+            send(NaviampCoreCommand.Downloads.Refresh)
+            until("prepared downloads") { core.state.value.shell.downloads.downloads.count { row -> tracks.any { it.id.value == row.track.id } } == 2 }
+            record("OFFLINE_READY")
+            awaitCancellation()
+        }
+        require(phase == "recover" || phase == "cleanup")
+        val metadata = JSONObject(marker.readText())
+        val ids = metadata.getJSONArray("tracks").let { array -> (0 until array.length()).map { TrackId(array.getString(it)) } }
+        fun restoreNetwork() {
+            shell("svc wifi ${if (metadata.getString("wifi") == "1") "enable" else "disable"}")
+            shell("svc data ${if (metadata.getString("data") == "1") "enable" else "disable"}")
+        }
+        storage.updateDownloadDirectory(directory)
+        try {
+            if (phase == "cleanup") return
+            assertEquals("0", shell("settings get global wifi_on"))
+            // This Pixel retained the global mobile_data value after svc data disable.
+            // A fresh uncached server request below establishes actual loss of reachability.
+            assertTrue(runCatching { withTimeout(5000) { restoreProvider(source).playlists(1) } }.isFailure)
+            assertEquals(source.id, core.state.value.shell.connectionSettings.currentSourceId)
+            until("offline shell ready") { core.state.value.shell.connectionSettings.connection.let {
+                it.connected && !it.restoringConnection && !it.isConnecting
+            } }
+            // The offline callback restores the persisted queue before a user can select a download.
+            delay(500)
+            send(NaviampCoreCommand.Navigation.SelectRoute(app.naviamp.ui.SharedRoute.Downloads))
+            send(NaviampCoreCommand.Downloads.Refresh)
+            until("offline downloads restored") { core.state.value.shell.downloads.downloads.count { row -> ids.any { it.value == row.track.id } } == 2 }
+            val rows = core.state.value.shell.downloads.downloads.filter { row -> ids.any { it.value == row.track.id } }
+            suspend fun select(row: app.naviamp.ui.NaviampDownloadedTrackUi) = send(NaviampCoreCommand.Downloads.TrackAction(
+                app.naviamp.ui.DownloadedTrackActionRequest(row, app.naviamp.ui.DownloadedTrackAction.Select)))
+            select(rows[0])
+            until("offline playing") { core.state.value.shell.nowPlaying?.let { it.id == rows[0].track.id && it.isPlaying && (core.playbackProgress.value.positionSeconds ?: 0.0) > 0.5 } == true }
+            control(app.naviamp.ui.NowPlayingPlaybackAction.Pause)
+            until("paused") { core.state.value.shell.nowPlaying?.isPaused == true }
+            val paused = core.playbackProgress.value.positionSeconds!!
+            delay(700)
+            assertTrue(kotlin.math.abs(core.playbackProgress.value.positionSeconds!! - paused) < 0.3)
+            control(app.naviamp.ui.NowPlayingPlaybackAction.Seek, 10.0)
+            until("paused seek") { core.state.value.shell.nowPlaying?.let { it.isPaused && (core.playbackProgress.value.positionSeconds ?: 0.0) >= 9.5 } == true }
+            control(app.naviamp.ui.NowPlayingPlaybackAction.Resume)
+            until("resumed") { core.state.value.shell.nowPlaying?.let { it.isPlaying && (core.playbackProgress.value.positionSeconds ?: 0.0) > 10.5 } == true }
+            control(app.naviamp.ui.NowPlayingPlaybackAction.Next)
+            until("next downloaded track") { core.state.value.shell.nowPlaying?.let { it.id != rows[0].track.id && it.isPlaying } == true }
+            control(app.naviamp.ui.NowPlayingPlaybackAction.Previous)
+            until("previous downloaded track") { core.state.value.shell.nowPlaying?.let { it.id == rows[0].track.id && it.isPlaying } == true }
+            record("offline fresh launch, play, pause, seek, resume, next and previous passed")
+            control(app.naviamp.ui.NowPlayingPlaybackAction.Stop)
+            val removed = storage.downloadedAudioFile(source.id, TrackId(rows[1].track.id))!!
+            check(File(removed.filePath).parentFile == directory)
+            check(File(removed.filePath).delete())
+            send(NaviampCoreCommand.Downloads.Refresh)
+            until("missing file removed from downloads") { core.state.value.shell.downloads.downloads.none { it.id == rows[1].id } }
+            select(rows[1])
+            until("unavailable status") { core.state.value.shell.downloads.status == "Downloaded track is no longer available." }
+            assertFalse(core.state.value.shell.nowPlaying?.isPlaying == true)
+            record("missing local file reconciled; stale selection reports unavailable")
+            restoreNetwork()
+            withTimeout(60000) { while (runCatching { withTimeout(5000) { restoreProvider(source).playlists(1) } }.isFailure) delay(500) }
+            delay(10000)
+            connect(source.id)
+            val provider = restoreProvider(source)
+            assertTrue(provider.recentlyAddedAlbums(10).isNotEmpty())
+            val track = provider.tracksPage(MediaPageRequest(limit = 20)).items.first { it.id.value == rows[1].track.id }
+            storage.downloadAudioTrack(source.id, provider, track, StreamQuality.Original, 500_000_000)
+            send(NaviampCoreCommand.Downloads.Refresh)
+            until("restored download") { core.state.value.shell.downloads.downloads.any { it.track.id == track.id.value } }
+            select(core.state.value.shell.downloads.downloads.first { it.track.id == track.id.value })
+            until("playback after reconnect") { core.state.value.shell.nowPlaying?.let { it.id == track.id.value && it.isPlaying } == true }
+            record("reconnect, server browse, redownload and app playback passed")
+        } finally {
+            withContext(NonCancellable) {
+                control(app.naviamp.ui.NowPlayingPlaybackAction.Stop)
+                restoreNetwork()
+                for (id in ids) storage.removeDownloadedAudio(source.id, id)
+                directory.deleteRecursively()
+                val previous = metadata.optString("previous")
+                if (previous.isNotBlank() && previous != "null") {
+                    withTimeout(60000) {
+                        while (runCatching { connect(previous) }.isFailure) delay(500)
+                    }
+                }
+                send(NaviampCoreCommand.Downloads.Refresh)
+                marker.delete()
+                record("offline fixtures removed; network and original connection restored")
+            }
+        }
+    }
 
     private suspend fun checkDownloadFailures(storage: AndroidStorageDependencies, sourceId: String,
         provider: MediaProvider, providerId: String, record: (String) -> Unit) = coroutineScope {

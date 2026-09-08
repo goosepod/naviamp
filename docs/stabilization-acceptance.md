@@ -568,3 +568,49 @@ Still outside this evidence: physical ENOSPC/other native disk faults, complete 
 validation, and silent truncation without usable length metadata. The loopback cases exercise the
 shared HTTP transport on Android; the provider-specific HTTP clients' new completion behavior is
 covered by common mock-transport tests across targets and successful real-provider downloads.
+
+## Actual Android app offline playback — 2026-09-08
+
+The opt-in `liveOfflinePhase=prepare|recover|cleanup` harness drives
+`AndroidNaviampApplicationRuntime` and its real Activity/Core/native playback graph. Preparation
+selects the saved provider and downloads two previously undownloaded/uncached sample tracks to an
+isolated directory. A private marker stores only test track/source IDs, prior connection ID and
+network-toggle values. The host ADB script waits for `OFFLINE_READY`, force-stops the package,
+verifies its process disappeared, disables data/Wi-Fi, and starts recovery in a fresh process.
+
+Recovery verifies a fresh known-valid provider request fails, waits until the offline screen is
+available, and reads downloads through the real app graph. Playback commands are the same Core
+commands used by the UI. Position assertions use `core.playbackProgress`, the stream consumed by
+the screen. The sequence checks play/progress, pause/stable position, seeking while paused,
+resume/progress, next, and previous. It then deletes only one test-owned audio file, refreshes the
+list, and requires a stale selection to publish the existing unavailable-download message.
+After reconnection it checks server browsing, redownloads that sample, and plays it in the app.
+Cleanup stops playback, restores connectivity and the prior saved connection, and removes only
+its own download rows, files and marker.
+
+Harness diagnostics are not product failures: the Pixel's global `mobile_data` value stayed at 1
+after `svc data disable`, so the final check uses actual provider unreachability. Initial runs also
+issued commands before offline startup/session restoration completed, then waited for position in
+the static UI snapshot instead of Core's separate progress stream. Those checks were corrected;
+`offline-navidrome-startup-race.log` and `offline-navidrome-progress-assertion.log` preserve the
+sanitized diagnostics. Direct ADB screenshots confirmed real offline playback. A simultaneous
+`uiautomator dump` did not produce a fresh dump while instrumentation owned automation; its stale
+local XML was discarded as evidence. Screenshots used ADB `screencap` instead.
+
+This checkpoint changes only opt-in Android native integration tests and documentation. No new
+product logic or platform production code was introduced.
+
+The final combined pass succeeded (`offline-playback-phone-final.log`): Navidrome 45.511 seconds,
+Jellyfin 55.381 seconds and Bandcamp 38.457 seconds, each `OK (1 test)` in its fresh recovery
+process. All three passed every playback control, missing-file reconciliation/status, reconnect,
+server browse, redownload and actual-app playback check. The host verified force-stop before each
+offline launch. Post-run ADB checks found no `acceptance-offline-*` directories or marker files;
+Wi-Fi/mobile-data settings were 1/1, the previous connection was restored, and the app was reopened.
+Android test assembly passed (`offline-playback-progress-build.log`), as did the architecture guard
+(`offline-playback-architecture.log`). No production fix was needed and the unchanged cross-platform
+production suites were not unnecessarily rerun. Everything remains local; no push/publication.
+
+Limits: this confirms native playback state and advancing position, not a human listening assessment.
+The unavailable case is a missing local download with a stale selection; it does not claim every
+remote-only browsing surface was exercised offline. The test queue and playback history can change
+through normal app playback commands; no user-owned download was selected for deletion.
