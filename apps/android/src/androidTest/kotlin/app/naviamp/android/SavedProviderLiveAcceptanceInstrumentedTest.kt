@@ -1,6 +1,16 @@
 package app.naviamp.android
 
+import android.net.ConnectivityManager
 import android.os.Bundle
+import android.os.ParcelFileDescriptor
+import app.naviamp.domain.Playlist
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.presentation.NaviampCorePlaylistMembershipCoordinator
+import app.naviamp.ui.NaviampTrackPlaylistMembershipUi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.test.assertFalse
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.naviamp.android.playback.AndroidBassJni
@@ -67,7 +77,22 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
                     } else NavidromeProvider(source.toNavidromeConnection())
                     stage = "validate"
                     provider.validateConnection()
+                    if (InstrumentationRegistry.getArguments().getString("liveInterruptionCleanup") == "true") {
+                        val threshold = InstrumentationRegistry.getArguments().getString("liveInterruptionCleanupAfter")!!.toLong()
+                        val owned = provider.playlists(200).filter {
+                            it.name.startsWith("Naviamp interruption ") &&
+                                (it.name.removePrefix("Naviamp interruption ").toLongOrNull() ?: 0L) >= threshold
+                        }
+                        for (item in owned) provider.deletePlaylist(item.id)
+                        record("interruption cleanup deleted=${owned.size}")
+                        return@use
+                    }
                     record("connection passed; downloads=${provider.capabilities.supportsDownloads}")
+                    if (InstrumentationRegistry.getArguments().getString("livePlaylistInterruptions") == "true") {
+                        stage = "interrupted playlist saves"
+                        checkInterruptedSaves(provider, ::record)
+                        return@use
+                    }
                     stage = "album page"
                     val page = provider.albumsPage(MediaPageRequest(limit = 20))
                     assertTrue(page.items.isNotEmpty(), "No albums in selected library")
@@ -177,4 +202,98 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
             throw AssertionError("$providerId failed at $stage (${failure.javaClass.simpleName}; subsonic=$code http=$http)")
         }
     }
+    /** Native network toggles surround the real shared membership controller and provider calls. */
+    private suspend fun checkInterruptedSaves(provider: MediaProvider, record: (String) -> Unit) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(
+            instrumentation.uiAutomation.executeShellCommand(command),
+        ).bufferedReader().use { it.readText().trim() }
+        val wifi = shell("settings get global wifi_on") == "1"
+        val data = shell("settings get global mobile_data") == "1"
+        fun restoreNetwork() {
+            shell("svc wifi ${if (wifi) "enable" else "disable"}")
+            shell("svc data ${if (data) "enable" else "disable"}")
+        }
+        suspend fun awaitConnection() {
+            withTimeout(45_000) {
+                while (runCatching { withTimeout(5_000) { provider.playlists(1) } }.isFailure) delay(500)
+            }
+        }
+        val tracks = provider.tracksPage(MediaPageRequest(limit = 2)).items.distinctBy { it.id }
+        assertTrue(tracks.size >= 2)
+        val target = tracks[0]
+        val other = tracks[1]
+        val playlist = provider.createPlaylist("Naviamp interruption ${System.currentTimeMillis()}", listOf(other.id))
+        try {
+            for (loseResponse in listOf(false, true)) {
+                provider.removeTrackFromPlaylist(playlist.id, target.id)
+                var injecting = true
+                var failedWrite = false
+                val controlled = object : MediaProvider by provider {
+                    override suspend fun playlists(limit: Int): List<Playlist> = listOf(playlist)
+                    override suspend fun playlistTracks(playlistId: String): List<Track> = try {
+                        withTimeoutOrNull(5_000) { provider.playlistTracks(playlistId) }
+                            ?: throw java.io.IOException("Acceptance read timed out")
+                    } catch (cause: Exception) {
+                        record("interruption read failure=${cause.javaClass.simpleName}")
+                        throw cause
+                    }
+                    override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+                        if (!injecting) { provider.addTracksToPlaylist(playlistId, trackIds); return }
+                        if (loseResponse) {
+                            provider.addTracksToPlaylist(playlistId, trackIds)
+                            failedWrite = true
+                            throw java.io.IOException("Acceptance response lost after commit")
+                        }
+                        record("disabling data")
+                        shell("svc data disable")
+                        record("disabling wifi")
+                        shell("svc wifi disable")
+                        val connectivity = instrumentation.targetContext.getSystemService(ConnectivityManager::class.java)
+                        withTimeout(20_000) {
+                            while (connectivity.activeNetwork != null) delay(250)
+                        }
+                        record("no active network confirmed")
+                        val result = runCatching {
+                            withTimeout(5_000) { provider.addTracksToPlaylist(playlistId, trackIds) }
+                        }
+                        record("offline request failed=${result.isFailure} type=${result.exceptionOrNull()?.javaClass?.simpleName}")
+                        failedWrite = result.isFailure
+                        check(failedWrite) { "Offline write unexpectedly succeeded" }
+                        throw java.io.IOException("Acceptance offline write failed")
+                    }
+                }
+                var editor: NaviampTrackPlaylistMembershipUi? = null
+                val coordinator = NaviampCorePlaylistMembershipCoordinator(
+                    { controlled }, { editor }, { editor = it },
+                )
+                coordinator.open(target)
+                record("interruption editor rows=${editor?.rows?.size} loadingFailed=${editor?.loadingFailed} editable=${playlist.canEdit} rows=${editor?.rows?.map { "selected=${it.selected},failed=${it.failed},ruleBased=${it.ruleBased}" }}")
+                coordinator.toggle(playlist.id)
+                try { coordinator.apply() } finally { restoreNetwork() }
+                record("interruption attempted=$failedWrite saved=${editor?.saved} saving=${editor?.saving} failedRows=${editor?.rows?.count { it.failed }}")
+                assertTrue(failedWrite)
+                assertFalse(editor!!.saved)
+                assertFalse(editor!!.saving)
+                assertTrue(editor!!.rows.single().failed)
+                awaitConnection()
+                injecting = false
+                coordinator.retry()
+                if (!editor!!.rows.single().selected) coordinator.toggle(playlist.id)
+                coordinator.apply()
+                record("retry saved=${editor?.saved} failedRows=${editor?.rows?.count { it.failed }}")
+                assertTrue(editor!!.saved)
+                assertEquals(listOf(other.id, target.id), provider.playlistTracks(playlist.id).map { it.id })
+                record("${if (loseResponse) "lost-response" else "real-offline"} failure/reconciliation/retry passed; no duplicates")
+            }
+        } finally {
+            withContext(NonCancellable) {
+                restoreNetwork()
+                awaitConnection()
+                withTimeout(30_000) { provider.deletePlaylist(playlist.id) }
+            }
+            record("interruption playlist deleted; network restored")
+        }
+    }
+
 }

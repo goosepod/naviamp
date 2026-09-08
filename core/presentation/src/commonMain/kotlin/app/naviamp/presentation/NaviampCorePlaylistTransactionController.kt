@@ -14,6 +14,7 @@ import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
+import kotlinx.coroutines.CancellationException
 
 /** Audio-engine boundary used only after Core resolves the complete playback transaction. */
 fun interface NaviampCorePlaylistPlaybackPort {
@@ -193,21 +194,29 @@ class NaviampCorePlaylistTransactionController(
 
     private suspend fun updateTracks(item: SharedMediaItemUi, requestedTrackIds: List<TrackId>) {
         val provider = providerOrPublish() ?: return
+        val generation = browseController.sourceGeneration
+        fun isCurrent() = generation == browseController.sourceGeneration && providerSource.isCurrent(provider)
         val playlist = browseController.resolvePlaylist(item)
         if (!playlist.canEdit) throw UnsupportedOperationException()
         publishStatus("Updating ${playlist.name}...")
         try {
+            // Read again on every attempt: a lost response may follow a successful or partial write.
             val currentTrackIds = provider.playlistTracks(playlist.id).map(Track::id)
+            if (!isCurrent()) throw CancellationException()
             provider.replacePlaylistTracks(
                 playlistId = playlist.id,
                 currentTrackIds = currentTrackIds,
                 trackIds = requestedTrackIds,
             )
+            if (!isCurrent()) throw CancellationException()
             onPlaylistTracksChanged(playlist.id)
+            if (!isCurrent()) throw CancellationException()
             browseController.refreshAfterMutation("Updated playlist.")
-            publishStatus("Updated playlist.")
+            if (isCurrent()) publishStatus("Updated playlist.")
         } catch (cause: Throwable) {
-            publishStatus(cause.message ?: "Could not update playlist.")
+            if (isCurrent() && cause !is CancellationException) {
+                publishStatus(cause.message ?: "Could not update playlist.")
+            }
             throw cause
         }
     }

@@ -24,13 +24,13 @@ live-server performance evidence.
 | Reporting fallback | Common reporter and durable listen submission exist. Three new simulator regressions reproduce missing presence fallback after timeline failure. | Fixed in common code. All eight reporting tests pass in the full 123-test iOS app suite. |
 | Library / album index | Common paging, stale-response guards, deterministic local ordering, atomic persisted snapshot, restart and failure regressions. Pixel and Windows interaction recorded. | iPhone navigation/search/restart and macOS 3,252-album indexing/restart/jump passed. Synthetic 2k/20k snapshot measurements recorded below; live end-to-end latency remains unmeasured. |
 | Discography | Common classification and expansion; 125-album/track UI fixtures. Navidrome fallback depends on indexed credits. | Real large Appears On catalog remains unverified. |
-| Playlist membership | Shared coordinator, bounded reads, occurrence removal, permissions, partial failures, stale-response reconciliation; disposable-playlist Pixel pass. | Both hosts loaded membership and canceled without saving. macOS narrow creation dialog rendered correctly. Native originating-action keyboard focus and live failure cases remain unverified. |
+| Playlist membership | Shared coordinator, bounded reads, occurrence removal, permissions, partial failures, stale-response reconciliation; disposable-playlist Pixel pass. | Both hosts loaded membership and canceled without saving. macOS narrow creation dialog rendered correctly. Native originating-action keyboard focus remains unverified. Interrupted membership saves passed on all three saved Pixel providers below. |
 | Favorite Artists / Home | Common sorting, source-scoped radio activity, settings persistence/sync, shared Home controls; Pixel restart and Windows sorting checks. | iPhone sorting survived restart and was restored; both hosts rendered Home and Favorite Artists. |
 | Player / Aurora | Common workspace/navigation, waveform and normalized portable settings; shared UI and live Windows checks recorded. | iPhone playback/pause and portrait/landscape rendered correctly. macOS full/split/narrow layouts and queue passed. Aurora has automated coverage; exhaustive native control acceptance remains open. |
 | Storage / architecture / translations | September 8 review passed architecture and migration verification plus 1,459 JVM tests. Migration 24 follows main's 23. New keys have English/Spanish parity. | Architecture, migration, aggregate coverage and Android debug/release unit gates passed. Local desktop schema drift repaired directly; no production migration added. Nine Spanish keys missing on main predate this branch. |
 | iOS native | Earlier documents establish shared compilation, not a final native-host pass. | 1,462 Kotlin simulator tests and device compilation passed; signed Keychain XCTest passed. Production simulator app build, strict signature verification, install and iPhone interaction pass completed; see details below. |
 | macOS desktop | Existing common UI and Windows evidence do not establish this host. | 1,680 JVM/Compose tests and 42 native Desktop/app-host tests passed; package verification/staging passed. Packaged-app interaction and warm restart passed; see details below. |
-| Provider interoperability | Fixtures for Navidrome/Jellyfin/legacy/Bandcamp; live Navidrome protocol and Pixel genre/download/playlist checks recorded. | Basic legacy Subsonic Demo interaction passed on iOS; Navidrome LAN browsing passed on macOS. Live Jellyfin/Bandcamp browsing, artwork, streaming/native decode and disposable playlist checks passed on Pixel; adverse-network acceptance remains open. Bandcamp download compatibility correction also passed live verification below. |
+| Provider interoperability | Fixtures for Navidrome/Jellyfin/legacy/Bandcamp; live Navidrome protocol and Pixel genre/download/playlist checks recorded. | Basic legacy Subsonic Demo interaction passed on iOS; Navidrome LAN browsing passed on macOS. Live Jellyfin/Bandcamp browsing, artwork, streaming/native decode and disposable playlist checks passed on Pixel; interrupted membership saves and retries passed on all three providers below; broader adverse-network acceptance remains open. Bandcamp download compatibility correction also passed live verification below. |
 | Accessibility | Shared keyboard/semantics/contrast tests and Windows bridge packaging exist. | Screen-reader usability remains unverified. macOS native text entry could not be driven by automation; shared keyboard tests passed, but native keyboard acceptance remains open. |
 
 ## September 8 evidence
@@ -166,9 +166,9 @@ Android, Windows, Linux and native iOS coverage. This local iOS-then-macOS pass 
 for unavailable platforms. Release notes and an Announcements Discussion are created when the
 release ships; feature-branch stabilization does not publish an announcement.
 
-Remaining acceptance: Windows/Linux native CI; current Android emulator/device coverage; large
+Remaining acceptance: Windows/Linux native CI; broader Android emulator coverage; large
 real Appears On catalog and touch scrolling; native keyboard/focus and screen readers; live
-network-failure scenarios; end-to-end artwork/catalog latency. The branch
+network-failure scenarios beyond the playlist cases below; end-to-end artwork/catalog latency. The branch
 is ready for continued acceptance, not a release-ready declaration.
 
 The full verification workflow is on GitHub. The configured GitHub repository is public, and this
@@ -320,3 +320,70 @@ second connection. Evidence is in ignored `switch-nav-indexing.png`, `switch-nav
 
 No platform production files changed. No playlist edits or audible playback were started in this
 pass. All source-switch production behavior and regression tests remain common.
+
+## Interrupted playlist save acceptance
+
+The shared track editor had a source-isolation defect: a delayed replacement success or failure
+could publish into the connection selected afterward. The new regression failed before the fix
+(`playlist-interruption-red.log`). Track replacement now captures the playlist browsing source
+generation and stable provider identity, checks them after suspended work, and cancels stale
+completion. Switching away and back also invalidates the operation. A switch during the initial
+contents read prevents the write; an already-issued request may still commit on its original
+server, but cannot publish success or failure into the new source. No platform production code
+changed, and no new UI strings or settings were introduced.
+
+Common regressions cover delayed replacement success/failure, switching away and back during the
+initial read, and retry after a committed replacement loses its response. Membership tests cover
+failure before commit and after commit with reconciliation unavailable, retry without duplicate
+adds, and completion after switching while a write is pending. Playlist writes are not placed in
+the durable offline action queue. Membership Retry rereads server contents; if the failed write
+never committed, the user can select the desired membership again and Apply.
+
+The opt-in Android saved-provider harness now accepts `livePlaylistInterruptions=true`. It runs the
+real common membership coordinator with each saved provider, restricts discovery to one disposable
+playlist, disables phone Wi-Fi and mobile data immediately before a real write, and restores the
+original toggle states in cleanup. It separately discards a response after a real successful add
+(test-injected response loss). Both cases check failed-save state, reconciliation, retry and exact
+server contents. This is on-device controller/provider acceptance, not a visual UI automation pass.
+Credentials stay in Android storage and no existing playlists are edited.
+
+Final common/platform verification (`playlist-interruption-final.log`) passed: 1,694 JVM tests,
+42 Desktop tests, 270 presentation iOS simulator tests, and 270 presentation tests in each Android
+debug/release variant, all with zero failures/errors/skips. Aggregate coverage passed. Architecture,
+iOS device compilation and Android app/test assembly passed in `playlist-interruption-platforms.log`.
+Five new common tests were added; several exercise multiple failure outcomes.
+
+The first live harness used a fixed one-second delay after network toggles. Diagnostic runs showed
+writes could still succeed during Android's asynchronous network teardown, so these attempts are
+not counted as offline acceptance. All their disposable playlists were deleted. The harness now
+waits for `ConnectivityManager.activeNetwork` to become null before sending the offline write.
+
+A subsequent harness run exposed a second test timing issue: Jellyfin session validation does not
+prove a fresh request can reach the server after Wi-Fi is enabled. Recovery now waits for an actual
+playlist read to succeed. The one disposable Jellyfin playlist left by that failed cleanup was
+removed in a separate, narrowly filtered cleanup pass (`playlist-interruption-cleanup.log`):
+Bandcamp 0, Jellyfin 1, Navidrome 0 deletions; `OK (3 tests)`. Cleanup selected only names with this
+run's `Naviamp interruption ` prefix and numeric timestamps after 2026-09-08 17:20 UTC.
+
+The corrected Pixel run passed all three providers (`playlist-interruption-phone-verified.log`,
+`OK (3 tests)`). Each confirmed no active network before the real offline add, failed-save state
+without false success, successful recovery and retry with exactly one added occurrence, and the
+same reconciliation after a successful add whose response was deliberately discarded. Each
+provider confirmed deletion of its disposable playlist. Wi-Fi and mobile data were checked as
+restored, and the app was reopened on Home with Nothing Playing.
+
+Reproduce this opt-in pass on the explicitly selected phone after installing the debug app and test
+APKs in place:
+
+```sh
+adb -s 5A131JEA306253 shell am instrument -w -r \
+  -e liveSavedProviders true -e livePlaylistInterruptions true \
+  -e class app.naviamp.android.SavedProviderLiveAcceptanceInstrumentedTest \
+  app.naviamp.android.v2test.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+This pass does not establish atomic rollback for a server request already accepted, process-death
+recovery during a multi-request replacement, or server permission/authentication failures. Precise
+provider-switch ordering was tested with common deferred-response gates; live interruption tests
+exercised the membership coordinator and real providers, without navigating the visual editor.
+All changes remain local; nothing was pushed to GitHub or another remote.

@@ -58,6 +58,9 @@ class NaviampCorePlaylistBrowseController(
     private val playbackProfiles: NaviampCorePlaybackProfileController =
         NaviampCorePlaybackProfileController(stateStore),
 ) : NaviampCoreCommandController {
+    // Mutations capture this separately from ordinary list/detail refresh generations.
+    internal var sourceGeneration = 0L
+        private set
     private var listGeneration = 0L
     private var detailGeneration = 0L
     private var playlistsById = emptyMap<String, Playlist>()
@@ -146,6 +149,7 @@ class NaviampCorePlaylistBrowseController(
     }
 
     fun resetForSourceChange() {
+        sourceGeneration++
         listGeneration++
         detailGeneration++
         playlistsById = emptyMap()

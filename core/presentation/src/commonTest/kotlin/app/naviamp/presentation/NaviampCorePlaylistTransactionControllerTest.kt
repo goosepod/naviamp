@@ -27,6 +27,8 @@ import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.playlistActionRequest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -101,6 +103,71 @@ class NaviampCorePlaylistTransactionControllerTest {
     }
 
     @Test
+    fun delayedReplacementCannotPublishIntoAnotherConnection() = runTest {
+        for (fails in listOf(false, true)) {
+            val fixture = fixture()
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            fixture.provider.beforeReplacement = {
+                entered.complete(Unit)
+                release.await()
+                if (fails) error("Old connection failed")
+            }
+            val job = launch {
+                runCatching { fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+                    playlistItem("playlist-a", "Playlist A"), listOf(trackRow("track-2")),
+                )) }
+            }
+            entered.await()
+            fixture.switchSource(TransactionTestProvider("other"))
+            fixture.browse.resetForSourceChange()
+            val expected = fixture.store.state.value.shell
+            release.complete(Unit)
+            job.join()
+            assertEquals(expected.playlists, fixture.store.state.value.shell.playlists)
+            assertEquals(expected.playlistDetail, fixture.store.state.value.shell.playlistDetail)
+        }
+    }
+
+    @Test
+    fun sourceSwitchDuringReadPreventsWriteIncludingAwayAndBack() = runTest {
+        val fixture = fixture()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        fixture.provider.beforeRead = { entered.complete(Unit); release.await() }
+        val job = launch {
+            runCatching { fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+                playlistItem("playlist-a", "Playlist A"), listOf(trackRow("track-2")),
+            )) }
+        }
+        entered.await()
+        fixture.switchSource(TransactionTestProvider("other"))
+        fixture.browse.resetForSourceChange()
+        fixture.switchSource(fixture.provider)
+        fixture.browse.resetForSourceChange()
+        release.complete(Unit)
+        job.join()
+        assertTrue(fixture.provider.replacementTrackIds.isEmpty())
+        assertNull(fixture.store.state.value.shell.playlistDetail.status)
+    }
+
+    @Test
+    fun retryAfterLostSaveResponseReadsServerStateAndPreservesOccurrences() = runTest {
+        val fixture = fixture()
+        val requested = listOf("track-2", "track-1", "track-2")
+        val command = NaviampCoreCommand.Playlists.UpdateTracks(
+            playlistItem("playlist-a", "Playlist A"), requested.map(::trackRow),
+        )
+        fixture.provider.afterReplacement = { error("Response lost") }
+        assertFailsWith<IllegalStateException> { fixture.controller.execute(command) }
+        assertEquals("Response lost", fixture.store.state.value.shell.playlistDetail.status)
+        fixture.provider.afterReplacement = {}
+        fixture.controller.execute(command)
+        assertEquals(requested, fixture.provider.lastReplacementBaseline.map(TrackId::value))
+        assertEquals(requested, fixture.provider.playlistTracks("playlist-a").map { it.id.value })
+    }
+
+    @Test
     fun renameAndDeleteKeepCoreSelectionConsistent() = runTest {
         val fixture = fixture()
         fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
@@ -161,7 +228,8 @@ class NaviampCorePlaylistTransactionControllerTest {
             store,
             NaviampCoreArtistNavigator { error("Not expected") },
         )
-        val source = NaviampCoreMediaProviderSource { provider }
+        var active: MediaProvider? = provider
+        val source = NaviampCoreMediaProviderSource { active }
         val browse = NaviampCorePlaylistBrowseController(store, source, navigation)
         val effects = TransactionTestEffects()
         val passwords = mutableListOf<String?>()
@@ -204,6 +272,7 @@ class NaviampCorePlaylistTransactionControllerTest {
             effects,
             passwords,
             persistedSessions = { persistedSessions },
+            switchSource = { active = it },
         )
     }
 
@@ -235,6 +304,7 @@ private data class TransactionFixture(
     val effects: TransactionTestEffects,
     val smartPasswords: List<String?>,
     val persistedSessions: () -> Int,
+    val switchSource: (MediaProvider?) -> Unit,
 )
 
 private class TransactionTestEffects :
@@ -262,7 +332,7 @@ private class TransactionTestEffects :
     }
 }
 
-private class TransactionTestProvider : MediaProvider {
+private class TransactionTestProvider(override val cacheNamespace: String = "original") : MediaProvider {
     override val id = ProviderId("transactions")
     override val displayName = "Transactions"
     override val capabilities = ProviderCapabilities(
@@ -292,6 +362,11 @@ private class TransactionTestProvider : MediaProvider {
     val created = mutableListOf<Pair<String, List<TrackId>>>()
     var replacementTrackIds = emptyList<TrackId>()
     var replacementFailure: Throwable? = null
+    var beforeRead: suspend () -> Unit = {}
+    var beforeReplacement: suspend () -> Unit = {}
+    var afterReplacement: suspend () -> Unit = {}
+    var lastReplacementBaseline = emptyList<TrackId>()
+    var storedTracks: List<Track>? = null
     val deleted = mutableListOf<String>()
     val smartCreates = mutableListOf<String>()
     val smartUpdates = mutableListOf<String>()
@@ -304,10 +379,13 @@ private class TransactionTestProvider : MediaProvider {
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()
     override suspend fun playlists(limit: Int) = playlistItems.toList()
-    override suspend fun playlistTracks(playlistId: String) = when (playlistId) {
-        "playlist-a" -> listOf(track("track-1"), track("track-2"), track("track-2"))
+    override suspend fun playlistTracks(playlistId: String): List<Track> {
+        beforeRead()
+        return when (playlistId) {
+        "playlist-a" -> storedTracks ?: listOf(track("track-1"), track("track-2"), track("track-2"))
         "smart" -> listOf(track("smart-track"))
         else -> emptyList()
+        }
     }
 
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
@@ -324,8 +402,12 @@ private class TransactionTestProvider : MediaProvider {
         currentTrackIds: List<TrackId>,
         trackIds: List<TrackId>,
     ) {
+        beforeReplacement()
         replacementFailure?.let { throw it }
+        lastReplacementBaseline = currentTrackIds
         replacementTrackIds = trackIds
+        storedTracks = trackIds.map { track(it.value) }
+        afterReplacement()
     }
 
     override suspend fun renamePlaylist(playlistId: String, name: String) {

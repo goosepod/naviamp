@@ -272,6 +272,79 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun membershipLostWriteResponseAndOfflineReconciliationRetryWithoutDuplicates() = runTest {
+        for (committed in listOf(false, true)) {
+            val base = NowPlayingTestProvider()
+            var offline = false
+            var fail = true
+            val provider = object : MediaProvider by base {
+                override suspend fun playlistTracks(playlistId: String): List<Track> {
+                    if (offline) error("Offline")
+                    return base.playlistTracks(playlistId)
+                }
+                override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+                    if (!fail || committed) base.addTracksToPlaylist(playlistId, trackIds)
+                    if (fail) { offline = true; error("Connection lost") }
+                }
+            }
+            var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            val coordinator = NaviampCorePlaylistMembershipCoordinator({ provider }, { editor }, { editor = it })
+            coordinator.open(nowPlayingTrack("current"))
+            coordinator.toggle("playlist-2")
+            coordinator.apply()
+            assertFalse(editor!!.saved)
+            assertFalse(editor!!.saving)
+            assertTrue(editor!!.rows.last().failed)
+            offline = false
+            fail = false
+            coordinator.retry()
+            if (!editor!!.rows.last().selected) coordinator.toggle("playlist-2")
+            coordinator.apply()
+            assertTrue(editor!!.saved)
+            assertEquals(1, base.playlistTracks("playlist-2").count { it.id.value == "current" })
+            assertEquals(1, base.added.size)
+        }
+    }
+
+    @Test
+    fun membershipCompletionAfterSwitchDoesNotTouchNewEditorOrProvider() = runTest {
+        for (fails in listOf(false, true)) {
+            val base = NowPlayingTestProvider()
+            val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val old = object : MediaProvider by base {
+                override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+                    base.addTracksToPlaylist(playlistId, trackIds)
+                    entered.complete(Unit)
+                    release.await()
+                    if (fails) error("Old response lost")
+                }
+            }
+            val replacement = NowPlayingTestProvider()
+            var active: MediaProvider = old
+            var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            var callbacks = 0
+            val coordinator = NaviampCorePlaylistMembershipCoordinator(
+                { active }, { editor }, { editor = it }, onPlaylistChanged = { callbacks++ },
+            )
+            coordinator.open(nowPlayingTrack("current"))
+            coordinator.toggle("playlist-2")
+            val job = launch { coordinator.apply() }
+            entered.await()
+            coordinator.reset()
+            active = object : MediaProvider by replacement { override val cacheNamespace = "new" }
+            coordinator.open(nowPlayingTrack("current"))
+            val expected = editor
+            release.complete(Unit)
+            job.join()
+            assertEquals(expected, editor)
+            assertEquals(0, callbacks)
+            assertTrue(replacement.added.isEmpty())
+            assertEquals(1, base.added.size)
+        }
+    }
+
+    @Test
     fun membershipLoadingStopsAtOneHundredPlaylists() = runTest {
         val base = NowPlayingTestProvider()
         var reads = 0
