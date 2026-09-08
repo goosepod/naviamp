@@ -149,6 +149,30 @@ class AudioByteStoreServiceTest {
         assertEquals(1, provider.downloadCalls)
     }
 
+    @Test
+    fun cancelledTransferCanBeRetriedWithoutRetainingItsFailedInFlightEntry() = runTest {
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val base = RecordingMediaProvider(downloaded = true)
+        val blocked = object : MediaProvider by base {
+            override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                writeChunk: suspend (ByteArray, Int) -> Unit): Boolean {
+                entered.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        val service = AudioByteStoreService(RecordingAudioByteStore(), NoopHttpClient)
+        suspend fun write(provider: MediaProvider) = service.writeProviderAudio(
+            "source", TrackId("track"), "original", "audio/flac", provider,
+            "https://example.test/audio", "failed",
+        )
+        val job = async { write(blocked) }
+        entered.await()
+        job.cancel()
+        job.join()
+        assertEquals(6L, write(base).sizeBytes)
+        assertEquals(1, base.downloadCalls)
+    }
+
     private class RecordingAudioByteStore(
         private val sizeBytes: Long? = null,
         private val writeDelayMillis: Long = 0,

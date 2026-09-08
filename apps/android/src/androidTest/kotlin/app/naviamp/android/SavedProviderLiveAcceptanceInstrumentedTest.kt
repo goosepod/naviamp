@@ -11,6 +11,10 @@ import app.naviamp.ui.NaviampTrackPlaylistMembershipUi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlinx.coroutines.awaitCancellation
+import org.json.JSONObject
+import app.naviamp.domain.network.SharedHttpClient
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.naviamp.android.playback.AndroidBassJni
@@ -75,6 +79,11 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
                         }
                         JellyfinProvider(factory.create(source.tlsSettings).restore(source), factory)
                     } else NavidromeProvider(source.toNavidromeConnection())
+                    if (InstrumentationRegistry.getArguments().getString("liveProcessDeathPhase") != null) {
+                        stage = "process death"
+                        checkProcessDeath(storage, source.id, provider, providerId, ::record)
+                        return@use
+                    }
                     stage = "validate"
                     provider.validateConnection()
                     if (InstrumentationRegistry.getArguments().getString("liveInterruptionCleanup") == "true") {
@@ -202,6 +211,139 @@ class SavedProviderLiveAcceptanceInstrumentedTest {
             throw AssertionError("$providerId failed at $stage (${failure.javaClass.simpleName}; subsonic=$code http=$http)")
         }
     }
+    /** Two instrumented processes, with a host ADB force-stop at the explicit checkpoint. */
+    private suspend fun checkProcessDeath(
+        storage: AndroidStorageDependencies, sourceId: String, provider: MediaProvider,
+        providerId: String, record: (String) -> Unit,
+    ) {
+        val args = InstrumentationRegistry.getArguments()
+        val phase = args.getString("liveProcessDeathPhase")!!
+        val scenario = args.getString("liveProcessDeathCase")!!
+        require(scenario in setOf("playlist-before", "playlist-after", "download-partial", "download-complete"))
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val marker = File(context.filesDir, "acceptance-death-$providerId-$scenario.json")
+        val directory = File(context.cacheDir, "acceptance-death-$providerId-$scenario")
+        suspend fun checkpoint(): Nothing {
+            record("PROCESS_READY $scenario")
+            awaitCancellation() // Host force-stops the target, so finally blocks cannot simulate recovery.
+        }
+        if (phase == "prepare") {
+            check(!marker.exists()) { "Previous recovery must finish first" }
+            val sample = provider.tracksPage(MediaPageRequest(limit = 20)).items.distinctBy { it.id }
+            val available = sample.filter { storage.downloadedAudioFile(sourceId, it.id) == null }
+            assertTrue(available.size >= 2)
+            val target = available[0]
+            val other = available[1]
+            val metadata = JSONObject().put("source", sourceId).put("target", target.id.value)
+                .put("other", other.id.value)
+            if (scenario.startsWith("playlist")) {
+                val playlist = provider.createPlaylist("Naviamp termination ${System.currentTimeMillis()}", listOf(other.id))
+                metadata.put("playlist", playlist.id)
+                marker.writeText(metadata.toString())
+                val controlled = object : MediaProvider by provider {
+                    override suspend fun playlists(limit: Int) = listOf(playlist)
+                    override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+                        if (scenario == "playlist-after") provider.addTracksToPlaylist(playlistId, trackIds)
+                        checkpoint()
+                    }
+                }
+                var editor: NaviampTrackPlaylistMembershipUi? = null
+                val coordinator = NaviampCorePlaylistMembershipCoordinator({ controlled }, { editor }, { editor = it })
+                coordinator.open(target)
+                coordinator.toggle(playlist.id)
+                coordinator.apply()
+                error("Checkpoint was not reached")
+            } else {
+                check(!directory.exists())
+                directory.mkdirs()
+                storage.updateDownloadDirectory(directory)
+                marker.writeText(metadata.toString())
+                var bytesWritten = 0L
+                val controlled = object : MediaProvider by provider {
+                    override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                        writeChunk: suspend (ByteArray, Int) -> Unit): Boolean =
+                        provider.downloadStream(url, httpClient) { bytes, count ->
+                            writeChunk(bytes, count)
+                            bytesWritten += count
+                            if (scenario == "download-partial" && bytesWritten >= 16_384) checkpoint()
+                        }
+                }
+                storage.downloadAudioTrack(sourceId, controlled, target, StreamQuality.Original, 500_000_000)
+                assertTrue(bytesWritten > 4096)
+                checkpoint()
+            }
+        }
+        require(phase == "recover")
+        check(marker.exists())
+        val metadata = JSONObject(marker.readText())
+        assertEquals(sourceId, metadata.getString("source"))
+        val targetId = TrackId(metadata.getString("target"))
+        val otherId = TrackId(metadata.getString("other"))
+        val target = provider.tracksPage(MediaPageRequest(limit = 20)).items.first { it.id == targetId }
+        if (scenario.startsWith("playlist")) {
+            val playlistId = metadata.getString("playlist")
+            try {
+                val before = provider.playlistTracks(playlistId).map { it.id }
+                assertEquals(if (scenario == "playlist-after") listOf(otherId, targetId) else listOf(otherId), before)
+                val controlled = object : MediaProvider by provider {
+                    override suspend fun playlists(limit: Int) = listOf(Playlist(playlistId, "Acceptance", before.size))
+                }
+                var editor: NaviampTrackPlaylistMembershipUi? = null
+                val coordinator = NaviampCorePlaylistMembershipCoordinator({ controlled }, { editor }, { editor = it })
+                coordinator.open(target)
+                assertEquals(scenario == "playlist-after", editor!!.rows.single().selected)
+                assertFalse(editor!!.saving)
+                if (!editor!!.rows.single().selected) coordinator.toggle(playlistId)
+                coordinator.apply()
+                assertTrue(editor!!.saved)
+                assertEquals(listOf(otherId, targetId), provider.playlistTracks(playlistId).map { it.id })
+                record("$scenario recovery passed; exact contents, no duplicate")
+            } finally {
+                withContext(NonCancellable) { withTimeout(30_000) { provider.deletePlaylist(playlistId) } }
+                marker.delete()
+                record("termination playlist deleted")
+            }
+        } else {
+            storage.updateDownloadDirectory(directory)
+            try {
+                val existing = storage.downloadedAudioFile(sourceId, targetId)
+                if (scenario == "download-partial") {
+                    assertNull(existing)
+                    assertTrue(directory.listFiles().orEmpty().any { it.name.endsWith(".tmp") && it.length() >= 16_384 })
+                } else assertNotNull(existing)
+                var requests = 0
+                val counted = object : MediaProvider by provider {
+                    override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                        writeChunk: suspend (ByteArray, Int) -> Unit): Boolean {
+                        requests++
+                        return provider.downloadStream(url, httpClient, writeChunk)
+                    }
+                }
+                val stored = storage.downloadAudioTrack(sourceId, counted, target, StreamQuality.Original, 500_000_000)
+                assertEquals(if (scenario == "download-partial") 1 else 0, requests)
+                assertTrue(stored.sizeBytes > 4096)
+                assertEquals(stored.sizeBytes, File(stored.filePath).length())
+                assertFalse(directory.listFiles().orEmpty().any { it.name.endsWith(".tmp") })
+                assertEquals(stored, storage.downloadAudioTrack(sourceId, counted, target, StreamQuality.Original, 500_000_000))
+                assertEquals(if (scenario == "download-partial") 1 else 0, requests)
+                val bass = AndroidBassJni.load().getOrThrow()
+                assertTrue(bass.init())
+                try {
+                    val stream = bass.createFileDecodeStream(stored.filePath)
+                    assertTrue(stream != 0)
+                    try { assertTrue(bass.readFloatData(stream, FloatArray(4096)) > 0) }
+                    finally { bass.freeStream(stream) }
+                } finally { bass.free() }
+                record("$scenario recovery passed; requests=$requests; native decode passed")
+            } finally {
+                storage.removeDownloadedAudio(sourceId, targetId)
+                directory.deleteRecursively() // Exclusively this test's isolated directory.
+                marker.delete()
+                record("termination download removed")
+            }
+        }
+    }
+
     /** Native network toggles surround the real shared membership controller and provider calls. */
     private suspend fun checkInterruptedSaves(provider: MediaProvider, record: (String) -> Unit) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()

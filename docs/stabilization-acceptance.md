@@ -387,3 +387,55 @@ recovery during a multi-request replacement, or server permission/authentication
 provider-switch ordering was tested with common deferred-response gates; live interruption tests
 exercised the membership coordinator and real providers, without navigating the visual editor.
 All changes remain local; nothing was pushed to GitHub or another remote.
+
+## Process termination and download recovery
+
+The current download job list and playlist editor draft are in-memory state. Process termination
+loses pending intent; neither is a durable transaction queue. This pass verifies reopening from
+server/persisted contents and explicit retry, not automatic resumption or rollback of an accepted
+server write. A partially written Android audio file remains `.tmp` after force-stop until that
+track is downloaded again; it is not registered as a completed download.
+
+Two common tests were added: a cancelled audio transfer can be retried through the same shared
+byte-store service without retaining a failed in-flight entry, and a fresh membership coordinator
+reconstructs pre-commit or post-commit server state without replaying the old draft or adding a
+duplicate. Both passed with the existing implementation (`process-death-common.log`). No production
+code, settings, strings or schemas changed.
+
+The opt-in saved-provider Android harness supports `liveProcessDeathPhase=prepare|recover` and
+`liveProcessDeathCase=playlist-before|playlist-after|download-partial|download-complete`. Prepare
+writes test-only metadata in private app storage and suspends at an explicit `PROCESS_READY`
+checkpoint. A host ADB runner force-stops the target package, confirms its PID is gone, and starts
+a separate instrumented recovery process. This is real process death; coroutine cleanup cannot
+stand in for it. Test metadata contains only source/track/playlist identifiers, never credentials.
+
+Playlist cases stop immediately before the add reaches the provider or after a real server add
+returns but before the coordinator receives success. Recovery creates a fresh common membership
+owner, checks authoritative contents, applies the desired membership if necessary, verifies exact
+occurrences, and deletes its disposable playlist. Download cases use the real shared SQLDelight
+audio store and Android file adapter, with an isolated test directory and tracks not previously
+downloaded. They stop after at least 16 KiB of partial audio or after the completed file/database
+record exists. Recovery checks row/file state, retries partial transfers, confirms existing complete
+files require zero new network transfers, decodes audio with native BASS, then removes only its
+own download rows/files and marker. Existing user playlists and downloads are preserved.
+
+Physical Pixel results (`process-death-phone.log`): **12/12 force-stop/recovery cases passed**, four
+per provider across NaviDoom/Navidrome, JellyDoom/Jellyfin and Bandcamp. Each prepare run was
+intentionally killed at its checkpoint; each fresh recovery run finished `OK (1 test)`. Partial
+transfers required exactly one new audio request; completed transfers required zero, and recovered
+audio decoded successfully in every case. All six disposable playlists and all six test downloads
+were removed. A final device check found no `acceptance-death-*` markers/directories, and Naviamp
+was reopened. No network settings were changed during this pass.
+
+Remaining limitations: job/draft persistence and automatic resumption are not implemented; a partial
+temporary file can remain if the user never retries that track. These tests do not cover termination
+between individual requests inside a multi-step playlist replacement or between the final audio
+rename and database insertion. They exercise the shared controllers/provider/storage layers inside
+real Android processes, rather than driving the visual editor and Downloads screen through touch.
+
+Final verification passed (`process-death-verification.log`): 1,696 JVM tests, 42 Desktop tests,
+1,130 domain/presentation iOS simulator tests, and 1,130 domain/presentation tests in each Android
+debug/release variant, with zero failures/errors/skips. Architecture and aggregate coverage checks
+passed. The phone test APK build passed separately (`process-death-build.log`). The app reopened
+on Home. Changes consist only of common/native-boundary tests and this acceptance record; no
+production platform files changed and nothing was published to a remote.

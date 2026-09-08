@@ -345,6 +345,29 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun freshMembershipOwnerRecoversCommittedStateWithoutReplayingLostDraft() = runTest {
+        for (committed in listOf(false, true)) {
+            val base = NowPlayingTestProvider()
+            var oldEditor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            val old = NaviampCorePlaylistMembershipCoordinator({ base }, { oldEditor }, { oldEditor = it })
+            old.open(nowPlayingTrack("current"))
+            old.toggle("playlist-2")
+            if (committed) base.addTracksToPlaylist("playlist-2", listOf(TrackId("current")))
+            // A fresh owner has no access to the old draft or in-flight work after process death.
+            var reopened: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            val fresh = NaviampCorePlaylistMembershipCoordinator({ base }, { reopened }, { reopened = it })
+            fresh.open(nowPlayingTrack("current"))
+            assertEquals(committed, reopened!!.rows.last().selected)
+            assertFalse(reopened!!.saved)
+            assertFalse(reopened!!.saving)
+            if (!committed) fresh.toggle("playlist-2")
+            fresh.apply()
+            assertEquals(1, base.playlistTracks("playlist-2").count { it.id.value == "current" })
+            assertEquals(1, base.added.size)
+        }
+    }
+
+    @Test
     fun membershipLoadingStopsAtOneHundredPlaylists() = runTest {
         val base = NowPlayingTestProvider()
         var reads = 0
