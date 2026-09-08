@@ -29,6 +29,7 @@ data class SubsonicProviderProfile(
     val favorites: Boolean,
     val ratings: Boolean,
     val playReporting: Boolean,
+    val originalDownloadsUseStream: Boolean = false,
 )
 
 fun subsonicProviderProfile(providerId: String): SubsonicProviderProfile {

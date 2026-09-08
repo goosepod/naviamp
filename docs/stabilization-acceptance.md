@@ -30,7 +30,7 @@ live-server performance evidence.
 | Storage / architecture / translations | September 8 review passed architecture and migration verification plus 1,459 JVM tests. Migration 24 follows main's 23. New keys have English/Spanish parity. | Architecture, migration, aggregate coverage and Android debug/release unit gates passed. Local desktop schema drift repaired directly; no production migration added. Nine Spanish keys missing on main predate this branch. |
 | iOS native | Earlier documents establish shared compilation, not a final native-host pass. | 1,462 Kotlin simulator tests and device compilation passed; signed Keychain XCTest passed. Production simulator app build, strict signature verification, install and iPhone interaction pass completed; see details below. |
 | macOS desktop | Existing common UI and Windows evidence do not establish this host. | 1,680 JVM/Compose tests and 42 native Desktop/app-host tests passed; package verification/staging passed. Packaged-app interaction and warm restart passed; see details below. |
-| Provider interoperability | Fixtures for Navidrome/Jellyfin/legacy/Bandcamp; live Navidrome protocol and Pixel genre/download/playlist checks recorded. | Basic legacy Subsonic Demo interaction passed on iOS; Navidrome LAN browsing passed on macOS. Live Jellyfin/Bandcamp and adverse-network acceptance remain open. |
+| Provider interoperability | Fixtures for Navidrome/Jellyfin/legacy/Bandcamp; live Navidrome protocol and Pixel genre/download/playlist checks recorded. | Basic legacy Subsonic Demo interaction passed on iOS; Navidrome LAN browsing passed on macOS. Live Jellyfin/Bandcamp browsing, artwork, streaming/native decode and disposable playlist checks passed on Pixel; adverse-network acceptance remains open. Bandcamp download compatibility correction also passed live verification below. |
 | Accessibility | Shared keyboard/semantics/contrast tests and Windows bridge packaging exist. | Screen-reader usability remains unverified. macOS native text entry could not be driven by automation; shared keyboard tests passed, but native keyboard acceptance remains open. |
 
 ## September 8 evidence
@@ -168,10 +168,107 @@ release ships; feature-branch stabilization does not publish an announcement.
 
 Remaining acceptance: Windows/Linux native CI; current Android emulator/device coverage; large
 real Appears On catalog and touch scrolling; native keyboard/focus and screen readers; live
-Jellyfin/Bandcamp and network-failure scenarios; end-to-end artwork/catalog latency. The branch
+network-failure scenarios; end-to-end artwork/catalog latency. The branch
 is ready for continued acceptance, not a release-ready declaration.
 
 The full verification workflow is on GitHub. The configured GitHub repository is public, and this
 feature branch was absent there when checked on September 8. Normal `origin` is private Forgejo.
-Publishing the feature branch to public GitHub needs an explicit publication decision before
-triggering that remaining hosted matrix.
+User decision: keep this branch off GitHub until release readiness. Do not publish it to trigger
+CI. Remaining Windows/Linux verification must use local machines or private runners until then.
+
+## Available acceptance environments
+
+The user has no physical iOS device. Physical-device-only iOS checks (real audio routes,
+interruptions and background/lock-screen behavior) are unavailable and must remain an explicit
+validation limitation; simulator results do not close them.
+
+A connected Pixel 10a running Android 17 is available for native Android acceptance. The largest
+available live library is approximately 25,000 tracks on Navidrome (track count, not album count).
+Use it for catalog scale and responsiveness checks. Smaller Jellyfin and Bandcamp servers are
+available for compatibility testing once their connections are identified/configured; their size
+does not prevent functional provider acceptance but cannot establish large-library performance.
+
+### Connected Pixel native verification
+
+On September 8, built `:apps:android:assembleDebug :apps:android:assembleDebugAndroidTest`,
+updated both existing `.v2test` APKs with `adb install -r` (no data clear/uninstall), and ran only
+`app.naviamp.android.AndroidNativeBoundaryInstrumentedTest` through AndroidJUnitRunner on the
+Pixel 10a / Android 17. All three tests passed: Keystore encryption/reveal/tamper rejection,
+packaged BASS decode/seek/read, and Core 5.1-to-stereo matrix application through native BASS.
+Logs: `build/stabilization/android-device-build.log` and `android-pixel-native.log`.
+This closes the current physical Android native boundary gate, not live UI/provider/lifecycle
+acceptance. Live server tests were not enabled during this run.
+
+### Live saved-provider acceptance on Pixel
+
+Added `SavedProviderLiveAcceptanceInstrumentedTest`, explicitly gated by `liveSavedProviders=true`.
+It restores credentials on-device through Android Keystore-backed storage and uses common provider
+implementations. It prints stages/counts/error types, never credentials or authenticated URLs.
+`livePlaylistWrites=true` enables disposable playlist creation, duplicate-occurrence removal,
+addition and deletion in `finally`; it does not edit existing playlists. `liveCatalogScale=true`
+enables complete Navidrome album enumeration using the actual common `AlbumLibraryIndex` with an
+isolated in-memory snapshot repository. `liveAudioMode=stream` isolates streaming from downloads.
+
+`android-live-streaming.log`: all three provider tests passed against the saved Navidrome, Jellyfin
+and Bandcamp connections. Each passed connection restoration, album page/detail, album-title
+search, artists/detail, playlist reads, sampled artwork, real audio retrieval, native BASS decoding
+and seeking, and disposable playlist create/duplicate-removal/add/delete. Sample audio retrieval
+was 248 ms Navidrome, 964 ms Jellyfin and 793 ms Bandcamp; these single samples are not comparative
+benchmarks. No audible playback/UI lifecycle acceptance is implied by file decoding.
+
+Navidrome's complete catalog contained 3,252 unique albums over 17 pages in 5,352 ms on the Pixel.
+This measures network enumeration plus common sorting/progress work with an in-memory repository;
+it does not measure persisted snapshot writes or rendered frame latency. Earlier download-mode
+runs passed Navidrome and Jellyfin audio download/decode/seek.
+
+Bandcamp's separate `download.view` request returned an error document despite reported download
+permission. Its raw `stream.view` returned valid audio. The new common provider profile flag
+`originalDownloadsUseStream` restores stream-based offline retrieval for Bandcamp only, retaining
+account permission checks and offset stripping. Standard Navidrome/Subsonic still use `download`
+for Original. This means the audio Bandcamp supplies through its streaming API, not a claim of
+lossless purchased-master delivery. The new regression failed before the change; afterward all
+154 Navidrome JVM tests and 156 iOS simulator provider tests passed, with Android and iOS-device
+compilation. Logs: `bandcamp-download-red.log`, `bandcamp-fix-verification.log`.
+
+During direct ADB UI checks, selecting Albums crashed with a missing `album_catalog_snapshot`
+table in the existing v2 Test database. Inspection confirmed version 25, both other branch tables
+present, and only `album_catalog_snapshot` missing. A local-only on-device helper created that one
+table using its canonical migration-24 definition, leaving existing rows and version unchanged.
+No production migration was added. The ignored helper was omitted from the final regular test APK.
+Inspection/repair logs: `android-schema-inspect.log`, `android-schema-repair.log`. Android Studio mirroring was not enabled. The user
+explicitly requested direct ADB control, which is used for all subsequent phone UI checks.
+
+Final installed-build verification (`android-live-final.log`): all six tests passed: three live
+providers plus three Keystore/BASS native tests. Bandcamp's corrected download path retrieved
+1,971,871 bytes and decoded/seeks successfully. All three disposable playlists were deleted.
+The repeat Navidrome album enumeration returned 3,252 albums in 5,164 ms. Android debug/release
+provider unit suites each passed 154 tests; architecture, migration and native-package verification
+passed (`android-final-build.log`).
+
+Direct ADB UI checks after repair and in-place update passed Artists/Albums/Songs switching,
+completed album indexing, G jump to G I R L, warm album browsing after app restart/reinstall,
+native Galore album search, independent Amber song search, restored Galore query, album detail,
+swipe to the last track, and Android Back restoring the filtered result. Cleared both temporary
+queries. No audible playback was started in this UI pass; background/audio-route/interruption
+acceptance remains open. Full Jellyfin/Bandcamp screen-by-screen UI acceptance and adverse-network
+scenarios remain separate from the passing live provider/native-decode checks.
+
+To repeat the live acceptance after building/installing the debug and Android-test APKs in place,
+set `ANDROID_SERIAL` to the intended connected device and run:
+
+```sh
+adb -s "$ANDROID_SERIAL" shell am instrument -w -r \
+  -e liveSavedProviders true -e livePlaylistWrites true -e liveCatalogScale true \
+  -e class app.naviamp.android.SavedProviderLiveAcceptanceInstrumentedTest,app.naviamp.android.AndroidNativeBoundaryInstrumentedTest \
+  app.naviamp.android.v2test.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The live tests choose the most recently connected saved source for each provider and require a
+nonempty library. Omit `livePlaylistWrites` for read-only server checks. Playlist cleanup is bounded
+and runs in a non-cancellable context so a cancelled test still attempts to delete its own playlist.
+A failed remote cleanup must be resolved before calling a run clean. No secrets belong in runner
+arguments or logs. These opt-in tests are not enabled by default in unattended device CI.
+
+The final cancellation-safe harness was rebuilt and rerun: `android-live-cleanup-final.log`
+finished `OK (6 tests)`, with all disposable playlist deletions confirmed. Production changes in
+this checkpoint are confined to provider `commonMain`; no platform production files changed.

@@ -1377,7 +1377,7 @@ class NavidromeProvider(
 
     override suspend fun downloadUrl(request: StreamRequest): String {
         if (!capabilities.supportsDownloads) throw NavidromeException("Navidrome request failed.", 50)
-        return if (request.quality == StreamQuality.Original) url("download.view", mapOf("id" to request.trackId.value))
+        return if (request.quality == StreamQuality.Original && !profile.originalDownloadsUseStream) url("download.view", mapOf("id" to request.trackId.value))
         else streamUrl(request.copy(startPositionSeconds = null))
     }
 

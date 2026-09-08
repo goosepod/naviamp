@@ -127,6 +127,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(kotlin("test"))
+    androidTestImplementation(libs.ktor.client.core)
 }
 
 tasks.register("verifyDebugBassNativePackage") {

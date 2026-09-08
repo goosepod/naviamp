@@ -75,6 +75,19 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun bandcampDownloadsUseItsSupportedRawStreamWithoutPlaybackOffset() = runTest {
+        val provider = NavidromeProvider(
+            connection("https://bandcamp.com/api/subsonic").copy(providerId = ProviderIdBandcamp),
+        )
+        val request = StreamRequest(TrackId("purchase-1"), StreamQuality.Original, startPositionSeconds = 20.0)
+        val url = provider.downloadUrl(request)
+        assertTrue(url.contains("/stream.view?"))
+        assertTrue(url.contains("format=raw"))
+        assertFalse(url.contains("timeOffset"))
+        assertEquals(url, provider.downloadUrl(request.copy(quality = StreamQuality.Transcoded(AudioCodec.Opus, 128))))
+    }
+
+    @Test
     fun streamUrlUsesNormalizedBaseUrl() = runTest {
         val provider = NavidromeProvider(connection("https://music.example.test/"))
 
