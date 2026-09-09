@@ -432,7 +432,7 @@ private fun TelevisionControllersSettings(
             item(key = "pairing-mode") {
                 TelevisionSettingsRow(
                     title = if (connect.pairingActive) "Stop pairing" else "Pair a controller",
-                    subtitle = connect.status ?: if (connect.pairingActive) {
+                    subtitle = connect.displayStatus() ?: if (connect.pairingActive) {
                         "This TV is visible to Naviamp controllers on your local network."
                     } else {
                         "Make this TV visible temporarily to a phone or Desktop on the same network."
@@ -484,7 +484,7 @@ private fun TelevisionControllersSettings(
             item(key = "refresh-targets") {
                 TelevisionSettingsRow(
                     title = "Find Naviamp targets",
-                    subtitle = connect.status ?: "Search this local network for Naviamp devices ready to pair.",
+                    subtitle = connect.displayStatus() ?: "Search this local network for Naviamp devices ready to pair.",
                     value = connect.discoveredTargets.size.takeIf { it > 0 }?.toString(),
                     icon = NaviampIcons.Refresh,
                     colors = colors,

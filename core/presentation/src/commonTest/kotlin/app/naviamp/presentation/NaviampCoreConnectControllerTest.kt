@@ -53,6 +53,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreConnectControllerTest {
     @Test
     fun reconnectResumesAuthorityForActiveTargetButLeavesIdleTargetArmed() {
@@ -759,6 +760,109 @@ class NaviampCoreConnectControllerTest {
 
         assertTrue(store.state.value.shell.connect.discoveredTargets.isEmpty())
         controller.close()
+    }
+
+    @Test
+    fun disconnectedRemoteSelectionBlocksPlaybackButAllowsBrowsingAndExplicitLocalOutput() = runTest {
+        val (controller, store, _) = remoteFixture { error("write failed") }
+        controller.actions.onRemotePlayPause()
+        runCurrent()
+        val select = NaviampCoreCommand.Media.TrackAction(app.naviamp.ui.SharedTrackRowActionRequest(
+            app.naviamp.ui.SharedTrackRowUi("song", "Song", "Artist"), app.naviamp.ui.SharedTrackRowAction.Select))
+        val queue = NaviampCoreCommand.Media.TrackAction(app.naviamp.ui.SharedTrackRowActionRequest(
+            app.naviamp.ui.SharedTrackRowUi("song", "Song", "Artist"), app.naviamp.ui.SharedTrackRowAction.AddToQueue))
+        val resume = NaviampCoreCommand.NowPlaying.Playback(app.naviamp.ui.NowPlayingPlaybackActionRequest(
+            app.naviamp.ui.NowPlayingPlaybackAction.Resume))
+        assertTrue(controller.routeProductCommand(select))
+        assertTrue(controller.routeProductCommand(queue))
+        assertTrue(controller.routeProductCommand(resume))
+        assertFalse(controller.routeProductCommand(NaviampCoreCommand.Media.TrackAction(
+            app.naviamp.ui.SharedTrackRowActionRequest(app.naviamp.ui.SharedTrackRowUi("song", "Song", "Artist"),
+                app.naviamp.ui.SharedTrackRowAction.Download))))
+        assertEquals(app.naviamp.ui.NaviampConnectStatusNotice.RemoteUnavailable, store.state.value.shell.connect.notice)
+        controller.actions.onPlaybackDeviceSelected(null)
+        assertFalse(controller.routeProductCommand(select))
+        controller.close()
+    }
+
+    @Test
+    fun anIdlePeerThatStopsRespondingTriggersReconnect() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val (controller, store, session) = remoteFixture { sent += it }
+        advanceTimeBy(15_001); runCurrent()
+        assertTrue(sent.any { it.message is app.naviamp.domain.connect.NaviampConnectPing })
+        assertEquals(NaviampConnectControllerConnectionStatus.Disconnected, session.state.value.status)
+        assertEquals(app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Reconnecting,
+            store.state.value.shell.connect.playbackDestinationStatus)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusNotice.ConnectionTimedOut, store.state.value.shell.connect.notice)
+        controller.close()
+    }
+
+    @Test
+    fun ordinaryCommandsHaveAcknowledgementDeadlinesEvenWhenThePeerAnswersHeartbeats() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val (controller, store, session) = remoteFixture { sent += it }
+        controller.actions.onRemotePlayPause()
+        runCurrent()
+        advanceTimeBy(5_001); runCurrent()
+        val ping = sent.map { it.message }.filterIsInstance<app.naviamp.domain.connect.NaviampConnectPing>().single()
+        session.receive(app.naviamp.domain.connect.NaviampConnectEnvelope(1, sessionId = "session", sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectPong(ping.sentAtEpochMillis)))
+        advanceTimeBy(5_000); runCurrent()
+        assertEquals(app.naviamp.ui.NaviampConnectStatusNotice.ConnectionTimedOut, store.state.value.shell.connect.notice)
+        assertEquals(app.naviamp.app.NaviampConnectRequestTerminalResult.TimedOut,
+            session.state.value.terminalResults[sent.first().requestId])
+        controller.close()
+    }
+
+    @Test
+    fun aBlockedWriteHasADeadlineAndCannotLeaveTheOutputConnected() = runTest {
+        val (controller, store, session) = remoteFixture { awaitCancellation() }
+        controller.actions.onRemotePlayPause()
+        runCurrent()
+        advanceTimeBy(10_001); runCurrent()
+        assertEquals(NaviampConnectControllerConnectionStatus.Disconnected, session.state.value.status)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusNotice.ConnectionTimedOut, store.state.value.shell.connect.notice)
+        controller.close()
+    }
+
+    @Test
+    fun selectingLocalCancelsHeartbeatAndOldCommandDeadlines() = runTest {
+        val (controller, store, _) = remoteFixture { }
+        controller.actions.onRemotePlayPause()
+        runCurrent()
+        controller.actions.onPlaybackDeviceSelected(null)
+        advanceTimeBy(30_000); runCurrent()
+        assertEquals(app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Local,
+            store.state.value.shell.connect.playbackDestinationStatus)
+        assertNull(store.state.value.shell.connect.notice)
+        controller.close()
+    }
+
+    private fun kotlinx.coroutines.test.TestScope.remoteFixture(
+        send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
+    ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
+        var stored: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = stored
+            override fun write(value: String) { stored = value }
+        })
+        val target = NaviampConnectDevice("tv", "TV", NaviampConnectDeviceRole.Target)
+        trust.upsert(NaviampConnectTrustRecord("trusted-tv", target, "fingerprint", "public-key", 1L))
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback), displayName = "Controller",
+            identity = FakeIdentity, identityVerifier = FakeIdentityVerifier, transport = UnusedTransportFactory,
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
+            newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
+        ))
+        var next = 0
+        val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),
+            NaviampConnectRequestIdFactory { "request-${++next}" })
+        session.connect("session", 1, target, setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls),
+            NaviampConnectTargetSnapshot(0, target, emptySet()))
+        controller.adoptControllerSession(session)
+        return Triple(controller, store, session)
     }
 
     private fun CoroutineScope.targetController(

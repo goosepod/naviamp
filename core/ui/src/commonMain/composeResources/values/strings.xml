@@ -573,4 +573,16 @@
     <string name="genre_songs_more">Load more songs</string>
     <string name="genre_songs_failed">Could not load songs. Try again.</string>
     <string name="genre_songs_empty">No songs matched the selected genres.</string>
+    <string name="tv_library_internet_radio">Internet Radio</string>
+    <string name="tv_library_jump_to_letter">Jump to %1$s</string>
+    <string name="tv_track_actions_hint">Play  •  Actions →</string>
+    <string name="tv_track_actions_title">Track actions</string>
+    <string name="tv_choose_action">Choose an action</string>
+    <string name="tv_back_closes_panel">Back closes this panel</string>
+    <string name="tv_start_radio">Start Radio</string>
+    <string name="tv_track_artist_label">Artist:</string>
+    <string name="tv_track_album_label">Album:</string>
+    <string name="tv_track_title_label">Track:</string>
+    <string name="connect_remote_unavailable">The selected playback device is unavailable. Reconnect or choose another output.</string>
+    <string name="connect_connection_timed_out">The playback device stopped responding. Reconnecting…</string>
 </resources>

@@ -549,4 +549,16 @@
     <string name="mix_include_seeds">Incluir pistas iniciales</string>
     <string name="sonic_path_selected_track">Pista seleccionada</string>
     <string name="sonic_path_find_track">Buscar pista</string>
+    <string name="tv_library_internet_radio">Radio por Internet</string>
+    <string name="tv_library_jump_to_letter">Ir a %1$s</string>
+    <string name="tv_track_actions_hint">Reproducir  •  Acciones →</string>
+    <string name="tv_track_actions_title">Acciones de la canción</string>
+    <string name="tv_choose_action">Elige una acción</string>
+    <string name="tv_back_closes_panel">Atrás cierra este panel</string>
+    <string name="tv_start_radio">Iniciar radio</string>
+    <string name="tv_track_artist_label">Artista:</string>
+    <string name="tv_track_album_label">Álbum:</string>
+    <string name="tv_track_title_label">Canción:</string>
+    <string name="connect_remote_unavailable">El dispositivo de reproducción seleccionado no está disponible. Vuelve a conectarlo o elige otra salida.</string>
+    <string name="connect_connection_timed_out">El dispositivo de reproducción dejó de responder. Reconectando…</string>
 </resources>

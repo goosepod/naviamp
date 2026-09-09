@@ -1285,7 +1285,31 @@ Connect availability has additional topology and fresh-device requirements in
 - Resumed `feature/android-tv` and merged the released v2.4.0 main baseline. The current integration,
   validation, environment, and next-work status is recorded in
   [`android-tv-status-2026-09-09.md`](android-tv-status-2026-09-09.md).
-- Preserved the dedicated TV artist catalog against the new shared multi-view Library model.
-  Television's Artists/Albums/Songs selector and per-view D-pad focus remain follow-up work.
+- Added the shared TV Artists/Albums/Songs presentation, per-view search and viewport retention,
+  stable-identity focus restoration after details, A–Z/loading/empty states, paging, and song
+  playback/queue/radio actions. Selector and toolbar D-pad paths are explicit, and page appends
+  preserve the current grid focus. All behavior remains in Core; new copy is localized in English
+  and Spanish.
+- Added common focus-state tests and direct shared Compose checks for navigation, detail return,
+  track actions, query isolation, delayed/stale jumps, pagination focus, and 720p/1080p/4K layouts.
+  The shared UI/presentation suites pass 646 tests; Android debug assembly, Desktop and iOS
+  Simulator compilation, and the architecture check pass. Physical remote/IME and Google TV
+  acceptance remain open.
 - No Android device was connected for this restart; earlier emulator acceptance remains historical
   evidence, and the physical Google TV preview gates remain open.
+
+- Fixed the September 9 remote-control audit findings in common code. Remote playback intent now
+  survives reconnect/unavailable states without dispatching catalog playback or queue additions to
+  the local player. Explicit local selection remains the way to return playback to this device.
+- TV D-pad reorder mode is invalidated when its queue snapshot changes. Move requests carry the
+  immutable queue they were rendered against, and Core rejects stale positions before mutation;
+  this covers changes that arrive before the next UI frame as well as visible concurrent edits.
+- Controller sessions now probe the authenticated peer every five seconds. Writes, heartbeat
+  responses, and command acknowledgements have ten-second deadlines; failure closes the session
+  and enters existing reconnect handling. Only idempotent requests survive automatic recovery;
+  explicit output selection clears pending retries. New recovery messages are localized in both
+  maintained languages. No persisted setting or platform production file changes were needed.
+- Validation after the remote-control fixes: 193 Core app, 346 presentation, and 307 shared UI
+  JVM tests pass (846 total; no failures, errors, or skips), including nine new regressions.
+  Android debug assembly, Desktop compilation, iOS Simulator ARM64 compilation, and the Core
+  architecture guard pass. Physical remote/network-loss acceptance was not repeated in this pass.

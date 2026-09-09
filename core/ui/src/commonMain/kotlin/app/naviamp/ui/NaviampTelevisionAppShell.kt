@@ -98,8 +98,9 @@ fun NaviampTelevisionAppShell(
         mutableStateOf(televisionSettingsBackgroundRoute(uiState.shellChrome.selectedRoute, SharedRoute.Home))
     }
     var restoreSettingsFocus by remember { mutableStateOf(false) }
-    var libraryFocusedArtistIndex by rememberSaveable { mutableStateOf(0) }
-    var restoreLibraryArtistFocus by rememberSaveable { mutableStateOf(false) }
+    val libraryViewport = androidx.compose.runtime.key(uiState.connectionSettings.currentSourceId) {
+        rememberNaviampTelevisionLibraryState()
+    }
     var contentEntryDestination by remember { mutableStateOf<NaviampTelevisionDestination?>(null) }
     var contentEntryGeneration by remember { mutableStateOf(0) }
     var returnToNowPlayingFromSearch by rememberSaveable { mutableStateOf(false) }
@@ -372,14 +373,7 @@ fun NaviampTelevisionAppShell(
                                         settingsSync = settingsSync,
                                         actions = actions,
                                         syncActions = syncActions,
-                                        libraryFocusedArtistIndex = libraryFocusedArtistIndex,
-                                        restoreLibraryArtistFocus = restoreLibraryArtistFocus,
-                                        onLibraryArtistFocused = {
-                                            libraryFocusedArtistIndex = it
-                                            restoreLibraryArtistFocus = false
-                                        },
-                                        onLibraryArtistOpening = { restoreLibraryArtistFocus = true },
-                                        onLibraryRouteLeaving = { restoreLibraryArtistFocus = false },
+                                        libraryViewport = libraryViewport,
                                         onNavigationActivationSuppressed = { suppressedFocusActivation = it },
                                         topNavigationFocusRequester = navigationFocusRequesters.getValue(
                                             navigationFocusDestination,
@@ -541,11 +535,7 @@ private fun TelevisionConnectedContent(
     settingsSync: NaviampSettingsSyncUi,
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
-    libraryFocusedArtistIndex: Int,
-    restoreLibraryArtistFocus: Boolean,
-    onLibraryArtistFocused: (Int) -> Unit,
-    onLibraryArtistOpening: () -> Unit,
-    onLibraryRouteLeaving: () -> Unit,
+    libraryViewport: NaviampTelevisionLibraryState,
     onNavigationActivationSuppressed: (NaviampTelevisionDestination) -> Unit,
     topNavigationFocusRequester: FocusRequester,
     contentEntryDestination: NaviampTelevisionDestination?,
@@ -611,21 +601,14 @@ private fun TelevisionConnectedContent(
             colors = colors,
             actions = actions.libraryActions,
             mediaActions = televisionMediaActions,
-            initialFocusedArtistIndex = libraryFocusedArtistIndex,
-            restoreArtistFocus = restoreLibraryArtistFocus,
-            onArtistFocused = onLibraryArtistFocused,
-            onOpenArtist = {
-                onLibraryArtistOpening()
-            },
+            viewport = libraryViewport,
             onOpenPlaylists = {
-                onLibraryRouteLeaving()
                 onNavigationActivationSuppressed(
                     naviampTelevisionVisibleOwner(NaviampTelevisionDestination.Playlists),
                 )
                 actions.navigationActions.onRouteSelected(SharedRoute.Playlists)
             },
             onOpenInternetRadio = {
-                onLibraryRouteLeaving()
                 onNavigationActivationSuppressed(NaviampTelevisionDestination.Library)
                 actions.navigationActions.onRouteSelected(SharedRoute.Radio)
             },
@@ -818,7 +801,7 @@ private fun TelevisionFirstRunConnectSetup(
                 )
             }
         }
-        connect.status?.let { Text(it, color = colors.secondaryText, fontSize = 14.sp) }
+        connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 14.sp) }
         if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
             Text(
                 "${connect.pendingControllerName ?: "A controller"} is asking to pair.",

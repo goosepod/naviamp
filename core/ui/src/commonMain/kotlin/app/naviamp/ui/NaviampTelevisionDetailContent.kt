@@ -46,6 +46,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import app.naviamp.ui.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.window.DialogProperties
 
 @Composable
@@ -506,7 +508,7 @@ private fun TelevisionDetailActionButton(
 }
 
 @Composable
-private fun TelevisionTrackRow(
+internal fun TelevisionTrackRow(
     track: SharedTrackRowUi,
     leadingText: String,
     showArtwork: Boolean,
@@ -595,7 +597,7 @@ private fun TelevisionTrackRow(
             )
         }
         Text(
-            "Play  •  Actions →",
+            stringResource(Res.string.tv_track_actions_hint),
             color = colors.mutedText,
             fontSize = 13.sp,
             modifier = Modifier.padding(start = 18.dp),
@@ -639,7 +641,7 @@ private fun TelevisionTrackActionsDialog(
                     .padding(28.dp),
             ) {
                 Text(
-                    "Track actions",
+                    stringResource(Res.string.tv_track_actions_title),
                     color = colors.primaryText,
                     fontSize = 27.sp,
                     fontWeight = FontWeight.Black,
@@ -648,7 +650,11 @@ private fun TelevisionTrackActionsDialog(
                 )
                 televisionTrackActionContextLines(track, artistContext, albumContext).forEach { (label, value) ->
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("$label:", color = colors.mutedText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(when (label) {
+                            "Artist" -> Res.string.tv_track_artist_label
+                            "Album" -> Res.string.tv_track_album_label
+                            else -> Res.string.tv_track_title_label
+                        }), color = colors.mutedText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text(
                             value,
                             color = colors.primaryText,
@@ -658,11 +664,15 @@ private fun TelevisionTrackActionsDialog(
                         )
                     }
                 }
-                Text("Choose an action", color = colors.secondaryText, fontSize = 17.sp)
+                Text(stringResource(Res.string.tv_choose_action), color = colors.secondaryText, fontSize = 17.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
                     televisionTrackSecondaryActions().forEachIndexed { index, action ->
                         TelevisionTextButton(
-                            label = televisionTrackSecondaryActionLabel(action),
+                            label = stringResource(when (action) {
+                                SharedTrackRowAction.PlayNext -> Res.string.action_play_after_current_group
+                                SharedTrackRowAction.AddToQueue -> Res.string.mix_add_to_queue
+                                else -> Res.string.tv_start_radio
+                            }),
                             colors = colors,
                             onClick = { onAction(action) },
                             modifier = Modifier
@@ -671,7 +681,7 @@ private fun TelevisionTrackActionsDialog(
                         )
                     }
                 }
-                Text("Back closes this panel", color = colors.mutedText, fontSize = 14.sp)
+                Text(stringResource(Res.string.tv_back_closes_panel), color = colors.mutedText, fontSize = 14.sp)
             }
         }
     }

@@ -1138,6 +1138,7 @@ data class NowPlayingUi(
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
     val queueCurrentIndex: Int? = null,
+    val queueSnapshot: app.naviamp.domain.queue.PlaybackQueue? = null,
     val queueManagementActionsOnly: Boolean = false,
     /** Enabled only by a session that routes membership commands to its active source. */
     val canEditPlaylistMembership: Boolean = false,

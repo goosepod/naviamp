@@ -500,7 +500,7 @@ private fun NaviampConnectSettingsSection(
             enabled = localDeviceName.trim().isNotEmpty() && localDeviceName.trim() != connect.localDeviceName,
             onClick = { actions.onLocalDeviceNameChanged(localDeviceName) },
         )
-        connect.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+        connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
         if (connect.needsProvisioningCredential) {
             PrimaryButton(
                 "Re-enter source password for TV setup",

@@ -13,7 +13,7 @@ alongside main's library catalogs, playlist membership, Home changes, and player
 Specific integration decisions:
 
 - Keep cached complete artist browsing, with the newer independent Artists/Albums/Songs load state
-  and stale-source rejection. TV currently still renders the artist catalog.
+  and stale-source rejection. The subsequent TV Library implementation is recorded below.
 - Keep immediate radio-seed playback while retaining main's successful-radio artist activity
   tracking and cancellation handling.
 - Keep Connect output selection and remote progress in the new player workspace.
@@ -42,24 +42,49 @@ The authoritative preview exit checklist remains [android-tv-plan.md](android-tv
 The broader topology and fresh-device setup work remains in
 [naviamp-connect-product-plan.md](naviamp-connect-product-plan.md).
 
+## TV Library implementation after the merge
+
+The TV Library now presents the shared Artists, Albums, and Songs catalogs. Each view uses its
+existing Core query, loading, pagination, refresh, and A–Z jump actions. Artists and albums render
+in the TV grid; songs reuse the TV track row and its playback, Play After Current Group, Add to
+Queue, and Start Radio actions. Internet Radio and Playlists remain reachable from the toolbar.
+
+D-pad navigation explicitly connects the selectors, tools, search, A–Z rail, and content. Back
+returns to the active selector. Each view retains its viewport and stable focused item identity
+across detail navigation, and a source change creates fresh viewport state. Appending a page does
+not replay an earlier grid focus request. New copy, including the reused track action panel, has
+English and Spanish resources. All production changes are in `core/ui/commonMain`; no platform
+production files or persisted settings were changed.
+
+Automated coverage exercises selector navigation, detail return after catalog reordering, song
+actions, per-view queries, empty-search keyboard focus, delayed and stale letter jumps, pagination focus, and
+720p/1080p/native-4K/double-density-4K layouts. These shared Compose checks do not replace remote,
+IME, or physical Google TV acceptance.
+
 ## Next development work
 
-1. Bring the TV Library presentation up to main's shared Artists/Albums/Songs selector, including
-   per-view D-pad focus restoration, empty/loading states, and track actions. The merge preserves
-   the existing TV artist view; it does not complete this newer feature's TV presentation.
-2. Finish pairing diagnostics and permission recovery, OLED burn-in behavior, and direct shared
+1. Finish pairing diagnostics and permission recovery, OLED burn-in behavior, and direct shared
    Compose coverage for the remaining TV screens and navigation paths.
-3. Validate sustained gapless/crossfade, ReplayGain, provider reporting, process/network recovery,
+2. Validate sustained gapless/crossfade, ReplayGain, provider reporting, process/network recovery,
    and target-independent playback on representative physical Google TV hardware.
-4. Complete 720p/native-4K focus, waveform/repeat-icon, contrast, accessibility, HDMI/downmix,
+3. Complete 720p/native-4K focus, waveform/repeat-icon, contrast, accessibility, HDMI/downmix,
    CEC, MediaSession/audio focus, and sleep/wake acceptance.
-5. Finish TV banner/icon assets and distribution packaging. Word-level karaoke and broader
+4. Finish TV banner/icon assets and distribution packaging. Word-level karaoke and broader
    Connect/Apple availability remain later work.
 
 Much of the older TV/Connect copy is still hardcoded in shared Kotlin. Before preview release,
 that existing localization debt needs a resource/translation pass under the current AGENTS rules.
 
 ## Validation and environment
+
+After the TV Library implementation, `:core:ui:jvmTest` passes 306 tests and
+`:core:presentation:jvmTest` passes 340 tests (646 total, no failures/errors/skips). Android debug
+assembly, Desktop compilation, iOS Simulator ARM64 compilation, and `verifyCoreFirstArchitecture`
+all pass again. Eleven new tests cover the Library state and shared Compose behavior. Screenshots
+are generated under `core/ui/build/reports/television-library/`; 720p and double-density 4K renders
+were also visually inspected. No physical-device acceptance was performed for this change.
+
+The following broader results record the preceding main merge:
 
 The shared domain, app/Connect runtime, UI, storage, Navidrome, and Jellyfin JVM suites pass.
 Android debug assembly (`:apps:android:assembleDebug`), Desktop host compilation and its platform

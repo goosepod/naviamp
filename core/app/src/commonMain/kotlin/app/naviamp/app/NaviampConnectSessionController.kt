@@ -90,6 +90,8 @@ class NaviampConnectControllerSession(
     private var nextSequence = 0L
     private var lastReceivedSequence = -1L
     private val outboundMutex = Mutex()
+    private val lastPong = MutableStateFlow<Long?>(null)
+    private var heartbeatNonce = 0L
 
     val state: StateFlow<NaviampConnectControllerSessionState> = mutableState.asStateFlow()
 
@@ -161,9 +163,17 @@ class NaviampConnectControllerSession(
         return NaviampConnectCommandSendResult.Sent(request.requestId)
     }
 
+    /** The owner supplies the deadline and closes the native transport when it expires. */
+    suspend fun heartbeat() {
+        val nonce = ++heartbeatNonce
+        sendMessage(NaviampConnectPing(nonce))
+        lastPong.first { it == nonce }
+    }
+
     suspend fun awaitTerminalResult(
         requestId: String,
         timeoutMillis: Long,
+        retainOnTimeout: Boolean = false,
     ): NaviampConnectRequestTerminalResult {
         require(requestId.isNotBlank()) { "A Connect request ID is required." }
         require(timeoutMillis > 0L) { "The Connect request timeout must be positive." }
@@ -173,7 +183,7 @@ class NaviampConnectControllerSession(
         }
         if (completed != null) return completed
         val timeout = NaviampConnectRequestTerminalResult.TimedOut
-        completeRequest(requestId, timeout)
+        completeRequest(requestId, timeout, removePending = !retainOnTimeout)
         return mutableState.value.terminalResults[requestId] ?: timeout
     }
 
@@ -193,6 +203,7 @@ class NaviampConnectControllerSession(
             is NaviampConnectSnapshotMessage -> applySnapshot(message.snapshot)
             is NaviampConnectErrorMessage -> applyError(envelope.responseToRequestId, message)
             is NaviampConnectPing -> sendMessage(NaviampConnectPong(message.sentAtEpochMillis))
+            is NaviampConnectPong -> lastPong.value = message.sentAtEpochMillis
             else -> Unit
         }
     }

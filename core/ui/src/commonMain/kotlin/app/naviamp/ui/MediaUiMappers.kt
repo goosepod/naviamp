@@ -771,6 +771,7 @@ data class NowPlayingQueueActionRequest(
     val queueIndex: Int? = null,
     val destinationQueueIndex: Int? = null,
     val sourceTarget: NowPlayingItemTarget? = null,
+    val expectedQueue: PlaybackQueue? = null,
 )
 
 enum class NowPlayingSleepTimerAction {

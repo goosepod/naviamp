@@ -357,6 +357,40 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
+    fun externalQueueChangesCancelDpadReorderingWithoutChangingTheCurrentSong() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val model = mutableStateOf(NowPlayingUi(
+            id = "current", title = "Current", subtitle = "Artist", stateLabel = "Playing",
+            isPlaying = true, canPlayPause = true, queueCurrentIndex = 0,
+            upNext = listOf(NaviampNowPlayingItemUi("queue:1", "First", "Artist"),
+                NaviampNowPlayingItemUi("queue:2", "Second", "Artist"),
+                NaviampNowPlayingItemUi("queue:3", "Third", "Artist")),
+        ))
+        val queueActions = mutableListOf<NowPlayingQueueActionRequest>()
+        setContent {
+            TelevisionNowPlaying(model.value, null, NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(onPlaybackAction = {}, onDisplayAction = {},
+                    onCurrentTrackAction = {}, onQueueAction = queueActions::add,
+                    onSleepTimerAction = {}, onSelectionAction = {}, onQueueItemAction = {}),
+                onClose = {}, onOpenSettings = {})
+        }
+        mainClock.advanceTimeBy(200)
+        onNodeWithContentDescription("Queue").performClick()
+        mainClock.advanceTimeBy(400)
+        onNodeWithTag("${TelevisionNowPlayingQueueUpcomingTestTagPrefix}0").performKeyInput {
+            pressKey(Key.DirectionLeft)
+        }
+        mainClock.advanceTimeBy(100)
+        assertEquals(1, onAllNodesWithText("MOVING").fetchSemanticsNodes().size)
+        runOnIdle { model.value = model.value.copy(upNext = listOf(
+            NaviampNowPlayingItemUi("queue:1", "Second", "Artist"),
+            NaviampNowPlayingItemUi("queue:2", "Third", "Artist"))) }
+        mainClock.advanceTimeBy(200)
+        assertEquals(0, onAllNodesWithText("MOVING").fetchSemanticsNodes().size)
+        assertTrue(queueActions.isEmpty())
+    }
+
+    @Test
     fun rightOnCurrentQueueItemOpensActionsInsteadOfLeavingTheQueue() = runComposeUiTest {
         mainClock.autoAdvance = false
         setContent {

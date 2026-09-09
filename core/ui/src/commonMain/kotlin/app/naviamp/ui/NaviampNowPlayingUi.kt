@@ -264,13 +264,17 @@ data class NaviampNowPlayingActions(
         )
     }
 
-    fun moveQueueItem(fromIndex: Int, toIndex: Int, item: NaviampNowPlayingItemUi? = null) {
+    fun moveQueueItem(
+        fromIndex: Int, toIndex: Int, item: NaviampNowPlayingItemUi? = null,
+        expectedQueue: app.naviamp.domain.queue.PlaybackQueue? = null,
+    ) {
         onQueueAction(
             NowPlayingQueueActionRequest(
                 action = NowPlayingQueueAction.MoveQueueItem,
                 queueIndex = fromIndex,
                 destinationQueueIndex = toIndex,
                 sourceTarget = item?.actionTarget,
+                expectedQueue = expectedQueue,
             ),
         )
     }

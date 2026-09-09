@@ -29,12 +29,14 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampConnectSessionControllerTest {
     @Test
     fun targetSerializesConcurrentAuthenticatedMessages() = runTest {
@@ -661,6 +663,50 @@ class NaviampConnectSessionControllerTest {
         assertEquals(false, executed)
         val error = assertIs<NaviampConnectErrorMessage>(sent.single().message)
         assertEquals(NaviampConnectErrorCode.SourceMismatch, error.code)
+    }
+
+    @Test
+    fun heartbeatRequiresTheMatchingPongFromTheAuthenticatedSession() = runTest {
+        val sent = mutableListOf<NaviampConnectEnvelope>()
+        val controller = NaviampConnectControllerSession(NaviampConnectSessionTransport { sent += it }, incrementingRequestIds())
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        val first = async { controller.heartbeat() }
+        runCurrent()
+        val nonce = (sent.single().message as app.naviamp.domain.connect.NaviampConnectPing).sentAtEpochMillis
+        controller.receive(NaviampConnectEnvelope(1, sessionId = "wrong", sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectPong(nonce)))
+        controller.receive(NaviampConnectEnvelope(1, sessionId = SessionId, sequence = 0,
+            message = app.naviamp.domain.connect.NaviampConnectPong(nonce - 1)))
+        runCurrent()
+        assertEquals(false, first.isCompleted)
+        controller.receive(NaviampConnectEnvelope(1, sessionId = SessionId, sequence = 1,
+            message = app.naviamp.domain.connect.NaviampConnectPong(nonce)))
+        first.await()
+        val second = async { controller.heartbeat() }
+        runCurrent()
+        assertEquals(false, second.isCompleted)
+        val nextNonce = (sent.last().message as app.naviamp.domain.connect.NaviampConnectPing).sentAtEpochMillis
+        controller.receive(NaviampConnectEnvelope(1, sessionId = SessionId, sequence = 2,
+            message = app.naviamp.domain.connect.NaviampConnectPong(nextNonce)))
+        second.await()
+    }
+
+    @Test
+    fun deadlineRecoveryRetainsOnlyIdempotentCommandsForTheNextSession() = runTest {
+        val sent = mutableListOf<NaviampConnectEnvelope>()
+        val controller = NaviampConnectControllerSession(NaviampConnectSessionTransport { sent += it }, incrementingRequestIds())
+        controller.connect(SessionId, 1, targetDevice(), capabilities(), snapshot(0))
+        val pause = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectPause))
+        val next = assertIs<NaviampConnectCommandSendResult.Sent>(controller.send(NaviampConnectNext))
+        assertEquals(NaviampConnectRequestTerminalResult.TimedOut,
+            controller.awaitTerminalResult(pause.requestId, 100, retainOnTimeout = true))
+        assertEquals(NaviampConnectRequestTerminalResult.TimedOut,
+            controller.awaitTerminalResult(next.requestId, 100, retainOnTimeout = true))
+        controller.disconnect()
+        sent.clear()
+        controller.reconnect("new-session", 1, targetDevice(), capabilities(), snapshot(3))
+        assertEquals(listOf(NaviampConnectPause), sent.map { (it.message as NaviampConnectCommandRequest).command })
+        assertEquals(3L, (sent.single().message as NaviampConnectCommandRequest).expectedRevision)
     }
 
     private fun snapshot(revision: Long) = NaviampConnectTargetSnapshot(

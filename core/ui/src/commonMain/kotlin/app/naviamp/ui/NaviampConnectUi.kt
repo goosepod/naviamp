@@ -1,5 +1,19 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.connect_remote_unavailable
+import app.naviamp.ui.generated.resources.connect_connection_timed_out
+
+enum class NaviampConnectStatusNotice { RemoteUnavailable, ConnectionTimedOut }
+
+@androidx.compose.runtime.Composable
+internal fun NaviampConnectSettingsUi.displayStatus(): String? = when (notice) {
+    NaviampConnectStatusNotice.RemoteUnavailable -> org.jetbrains.compose.resources.stringResource(
+        app.naviamp.ui.generated.resources.Res.string.connect_remote_unavailable)
+    NaviampConnectStatusNotice.ConnectionTimedOut -> org.jetbrains.compose.resources.stringResource(
+        app.naviamp.ui.generated.resources.Res.string.connect_connection_timed_out)
+    null -> status
+}
+
 enum class NaviampConnectUiRole {
     Controller,
     Target,
@@ -57,6 +71,7 @@ data class NaviampConnectSettingsUi(
     val pendingControllerName: String? = null,
     val selectedTargetId: String? = null,
     val status: String? = null,
+    val notice: NaviampConnectStatusNotice? = null,
     val localDeviceName: String = "This device",
     val selectedPlaybackDeviceId: String? = null,
     val selectedPlaybackDeviceName: String? = null,

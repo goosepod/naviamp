@@ -76,6 +76,22 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun aQueueMoveCannotApplyPositionsFromBeforeAnotherControllerChangedTheQueue() = runTest {
+        val fixture = playbackFixture(this)
+        val original = fixture.live.state.value.queue
+        val changed = original.copy(tracks = original.tracks.filterIndexed { index, _ -> index != 2 })
+        fixture.live.updateQueue(changed)
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Queue(NowPlayingQueueActionRequest(
+            NowPlayingQueueAction.MoveQueueItem, queueIndex = 3, destinationQueueIndex = 2, expectedQueue = original,
+        )))
+        assertEquals(changed, fixture.live.state.value.queue)
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Queue(NowPlayingQueueActionRequest(
+            NowPlayingQueueAction.MoveQueueItem, queueIndex = 3, destinationQueueIndex = 2, expectedQueue = changed,
+        )))
+        assertEquals(listOf("one", "two", "five", "four"), fixture.live.state.value.queue.tracks.map { it.id.value })
+    }
+
+    @Test
     fun connectQueueMovementChangesTheSharedQueueBeforeMirroringTheEffect() = runTest {
         val fixture = playbackFixture(this)
 
