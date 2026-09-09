@@ -1,8 +1,33 @@
 # Library branch stabilization acceptance
 
-Updated September 8, 2026. Branch: `feature/library-discovery-playlists`.
-Implementation baseline: `c6b3c648`. The September 8 reporting fix and this acceptance record
-accompany this checkpoint on that baseline; no release is implied.
+Updated September 8, 2026. Released as **v2.4.0 (build 50)** from `57383b00`.
+Development branch: `feature/library-discovery-playlists`; stabilization baseline: `c6b3c648`.
+
+## Release completion
+
+The user authorized the release process after local acceptance. The full tagged release workflow
+passed, closing the Windows/Linux and exact-candidate verification gates. Both repository `main`
+branches were fast-forwarded to the verified release commit; the release tag was pushed to both.
+
+- [Published release and downloads](https://github.com/goosepod/naviamp/releases/tag/v2.4.0)
+- [Successful verification and packaging run](https://github.com/goosepod/naviamp/actions/runs/34299980562)
+- [Announcements discussion](https://github.com/goosepod/naviamp/discussions/11)
+
+Final CI evidence: 1,706 JVM tests; 1,478 Android unit tests per debug/release variant; 42 native
+Desktop tests on each of Windows, Linux and macOS; and 1,489 Kotlin iOS simulator tests, all with
+zero failures or skips. Android emulator acceptance passed three native tests and skipped the four
+opt-in live-provider tests as expected; physical-phone provider evidence remains below. Production
+iOS app build and signed Keychain XCTest also passed.
+
+All five platform packaging jobs passed. The Android APK signature is valid and matches v2.3.1's
+signing identity. Android, Mac and iOS package metadata confirms version 2.4.0/build 50. All desktop
+ZIPs and the iOS IPA passed archive integrity checks; the Mac DMG checksum is valid. The draft's
+11 package/document assets matched the locally verified SHA-256 hashes before publication, and a
+`SHA256SUMS.txt` asset was added. Physical iOS and screen-reader limitations remain documented;
+Mac offline/sleep testing was excluded to preserve the user's connection.
+
+The following sections retain the detailed stabilization history. The release completion above
+supersedes their former pending release gates.
 
 This is the authoritative current acceptance record. The library plan, provider audit, and
 Windows/workspace documents retain their dated implementation history. Their older unchecked
@@ -159,7 +184,7 @@ iOS simulator Kotlin 1,462; native Keychain XCTest 1. All have zero failures/err
 These are platform test executions, not distinct tests. Android unit/package checks do not
 substitute for current Android emulator/device acceptance.
 
-## Release gate
+## Release gate (pre-release history; completed above)
 
 The complete reusable verification matrix remains required before release packaging, including
 Android, Windows, Linux and native iOS coverage. This local iOS-then-macOS pass cannot substitute
@@ -182,8 +207,9 @@ regression passes.
 
 The full verification workflow is on GitHub. The configured GitHub repository is public, and this
 feature branch was absent there when checked on September 8. Normal `origin` is private Forgejo.
-User decision: keep this branch off GitHub until release readiness. Do not publish it to trigger
-CI. Remaining Windows/Linux verification must use local machines or private runners until then.
+Earlier user decision: keep this branch off GitHub until release readiness. After local acceptance,
+the user authorized the release process; the tagged GitHub release matrix then completed the
+Windows/Linux gates as recorded above.
 
 ## Available acceptance environments
 
