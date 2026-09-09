@@ -23,6 +23,24 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Independent Font Sizes for Now Playing and the Rest of the UI
+
+- **Status:** Idea
+- **Concept:** Add two independent font-size settings: one for the Now Playing page and one for
+  the rest of the application, including Home, Settings, Library, album details, and other browse
+  and detail screens. Changing either setting must not change the other area's font size.
+- **Controls:** Consider two sliders or two preset selectors such as **Small / Standard / Large**.
+  Keep the control style and exact size range open for design; Standard should preserve the
+  current typography, and each setting should be independently resettable.
+- **Shared ownership:** Define the settings, scaling rules, and UI in Core for Android, Desktop,
+  iOS, and Television. Include both preferences in shared settings export/import and sync, with
+  Standard defaults for older exports and normalization of imported values.
+- **Acceptance:** Verify independent scaling, long and translated labels, wrapping, readable
+  controls, and keyboard/D-pad focus without clipping or losing actions. Define how app scaling
+  composes with system accessibility font scaling, and clarify which setting owns the mini player
+  and Now Playing's queue/lyrics panels before implementation.
+- **Scope:** Follow-up idea; not added to the active Android TV preview requirements.
+
 ### Trusted-Device Settings Sync and Shared Listening Activity
 
 - **Status:** Idea. Fresh-device setup is active Connect work; ongoing synchronization and history
