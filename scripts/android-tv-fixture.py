@@ -18,10 +18,11 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--burst-seconds', type=float, default=125)
 parser.add_argument('--track-seconds', type=int, default=600)
 parser.add_argument('--tracks', type=int, default=1)
+parser.add_argument('--albums', type=int, default=1)
 parser.add_argument('--unknown-length', action='store_true', help='Omit Content-Length and ranges for finite songs')
 args = parser.parse_args()
-if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 10):
-    parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..10')
+if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 240 and 1 <= args.albums <= args.tracks and args.tracks % args.albums == 0):
+    parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..240, albums must divide track count')
 
 TRACK = dict(id="fixture-track", title="TV lifecycle fixture", artist="Naviamp Test", album="Recovery",
              albumId="fixture-album", artistId="fixture-artist", duration=args.track_seconds, suffix="wav",
@@ -30,6 +31,11 @@ TRACK = dict(id="fixture-track", title="TV lifecycle fixture", artist="Naviamp T
 ALBUM = dict(id="fixture-album", name="Recovery", artist="Naviamp Test", artistId="fixture-artist", songCount=args.tracks, duration=args.track_seconds * args.tracks)
 TRACKS = [dict(TRACK, id="fixture-track" if i == 0 else f"fixture-track-{i+1}",
                title="TV lifecycle fixture" if i == 0 else f"TV lifecycle fixture {i+1}") for i in range(args.tracks)]
+PER_ALBUM = args.tracks // args.albums
+ALBUMS = [dict(ALBUM, id="fixture-album" if i == 0 else f"fixture-album-{i+1}",
+               name=f"Recovery {i+1}", songCount=PER_ALBUM, duration=PER_ALBUM * args.track_seconds) for i in range(args.albums)]
+for i, track in enumerate(TRACKS):
+    track.update(albumId=ALBUMS[i // PER_ALBUM]['id'], album=ALBUMS[i // PER_ALBUM]['name'], track=i % PER_ALBUM + 1)
 RATE = 16000
 PCM = b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
 DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*args.track_seconds, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*args.track_seconds) + PCM*args.track_seconds
@@ -39,6 +45,7 @@ streams = set()
 counts = {}
 reports = []
 bytes_sent = 0
+max_active_streams = 0
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass
@@ -57,7 +64,7 @@ class Handler(BaseHTTPRequestHandler):
                         try: stream.shutdown(socket.SHUT_RDWR)
                         except OSError: pass
                 elif path.endswith('/on'): offline = False
-                payload = dict(offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent)
+                payload = dict(config=dict(tracks=args.tracks, albums=args.albums, trackSeconds=args.track_seconds, burstSeconds=args.burst_seconds), maxActiveStreams=max_active_streams, offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent)
             return self.json(payload)
         action = path.rsplit('/',1)[-1].removesuffix('.view')
         with lock:
@@ -75,12 +82,12 @@ class Handler(BaseHTTPRequestHandler):
         response = dict(status='ok', version='1.16.1', type='fixture', serverVersion='1.0', openSubsonic=False)
         responses = {
             'getMusicFolders': {'musicFolders': {'musicFolder': [dict(id=1,name='Fixture')]}},
-            'getArtists': {'artists': {'index': [dict(name='N',artist=[dict(id='fixture-artist',name='Naviamp Test',albumCount=1)])]}},
-            'getArtist': {'artist': dict(id='fixture-artist',name='Naviamp Test',album=[ALBUM])},
-            'getAlbum': {'album': dict(ALBUM,song=TRACKS)},
-            'getAlbumList2': {'albumList2': {'album': [ALBUM]}},
+            'getArtists': {'artists': {'index': [dict(name='N',artist=[dict(id='fixture-artist',name='Naviamp Test',albumCount=args.albums)])]}},
+            'getArtist': {'artist': dict(id='fixture-artist',name='Naviamp Test',album=ALBUMS)},
+            'getAlbum': {'album': dict(next((album for album in ALBUMS if album['id'] == query.get('id', [''])[0]), ALBUMS[0]), song=[track for track in TRACKS if track['albumId'] == query.get('id', [ALBUMS[0]['id']])[0]])},
+            'getAlbumList2': {'albumList2': {'album': ALBUMS}},
             'getSong': {'song': next((track for track in TRACKS if track['id'] == query.get('id', [''])[0]), TRACKS[0])},
-            'search3': {'searchResult3': {'song':TRACKS, 'album':[ALBUM], 'artist':[]}},
+            'search3': {'searchResult3': {'song':TRACKS, 'album':ALBUMS, 'artist':[]}},
             'getRandomSongs': {'randomSongs': {'song':TRACKS}},
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
@@ -101,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200); self.send_header('Content-Type','application/json')
         self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data)
     def audio(self, live=False):
-        global bytes_sent
+        global bytes_sent, max_active_streams
         start = 0
         unknown = live or args.unknown_length
         if not unknown and self.headers.get('Range','').startswith('bytes='):
@@ -113,7 +120,9 @@ class Handler(BaseHTTPRequestHandler):
         if start: self.send_header('Content-Range',f'bytes {start}-{len(DATA)-1}/{len(DATA)}')
         if not unknown: self.send_header('Content-Length',str(len(DATA)-start))
         self.end_headers()
-        with lock: streams.add(self.connection)
+        with lock:
+            streams.add(self.connection)
+            max_active_streams = max(max_active_streams, len(streams))
         try:
             if live:
                 # WAV's unknown data-size sentinel; stream PCM until the test closes the socket.

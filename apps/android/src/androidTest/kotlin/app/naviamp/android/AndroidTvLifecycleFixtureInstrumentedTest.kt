@@ -17,7 +17,7 @@ class AndroidTvLifecycleFixtureInstrumentedTest {
     }
 }
 
-internal suspend fun prepareTvFixturePlayback(): NaviampCore {
+internal suspend fun prepareTvFixturePlayback(startPlayback: Boolean = true): NaviampCore {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     val core = withContext(Dispatchers.Main) { AndroidNaviampApplicationRuntime.get(context).core }
     check(core.state.value.shell.connectionSettings.currentSourceId == null) {
@@ -44,6 +44,7 @@ internal suspend fun prepareTvFixturePlayback(): NaviampCore {
     withTimeout(60_000) {
         while (core.state.value.shell.library.songs.tracks.isEmpty()) delay(200)
     }
+    if (!startPlayback) return core
     withContext(Dispatchers.Main) {
         core.dispatch(NaviampCoreCommand.Library.TrackAction(SharedTrackRowActionRequest(
             core.state.value.shell.library.songs.tracks.first(), SharedTrackRowAction.Select)))

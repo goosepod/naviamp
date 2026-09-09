@@ -406,13 +406,12 @@ independent navigation graph may be introduced in the Apple TV host.
 - The dedicated full-screen Now Playing, listening-mode transition, queue panel, and smoothly
   scrolling line-synced lyrics and idle dimming/pixel shifting are implemented. Word-level karaoke
   highlighting and other physical TV acceptance remain outstanding parts of the complete lyrics direction.
-- Add shared Compose coverage for Television Home, Library, Search submission and re-entry, the mini
-  player, Internet Radio, Now Playing actions, lyrics rendering, settings movement, and route/detail
-  Back behavior. The 2026-08-28 emulator acceptance sweep covers these implemented paths manually,
-  but existing policy/JVM tests and manual evidence do not replace direct screen-composition
-  coverage.
-- Android TV launcher banner/icon assets remain an M4 distribution requirement; the current
-  manifest work is sufficient for emulator launch but is not the final Google Play TV package.
+- Direct shared Compose coverage now includes Home collections, Library navigation/detail return,
+  Now Playing focus, settings/localization and screen protection. Extend composition coverage for
+  Search submission/re-entry, Internet Radio editing and lyrics workflows. Policy tests and manual
+  emulator evidence do not replace direct coverage of those screen interactions.
+- The Leanback banner and packaged native ABI inventory are implemented and audited. Signed
+  distribution and store-console asset/requirements review remain open.
 
 ### M0: Emulator foundation
 
@@ -448,11 +447,17 @@ independent navigation graph may be introduced in the Apple TV host.
 - [ ] Add word-level karaoke highlighting as a post-preview lyrics enhancement.
 - [ ] Verify audio focus, background-service retention, process restoration, and `MediaSession`
   behavior on physical Google TV hardware.
-- [ ] Verify playback profiles, gapless/crossfade transitions, ReplayGain output, and provider
-  reporting through sustained real playback rather than settings/UI inspection alone.
+- [x] Verify native gapless/crossfade, provider ReplayGain application and exactly-once listen
+  reporting in the three-track emulator runs documented in [the interruption audit](android-tv-interruption-audit.md).
+- [x] Verify saved playback profiles and longer background playback with repeated interruptions
+  and resource sampling in [the soak test](android-tv-soak.md).
+- [ ] Verify acoustic transitions and ReplayGain output levels on physical TV/audio hardware.
 - [x] Cover Connect session, target pairing, retry policy, and interrupted-route recovery in shared
   deterministic tests.
-- [ ] Add Android host process/network recovery tests and complete the physical-TV lifecycle pass.
+- [x] Exercise Android native process termination/restoration, background MediaSession, finite
+  buffer exhaustion/retry, and live-station reconnect on a disposable TV emulator; see the
+  [lifecycle fixture](android-tv-lifecycle-fixture.md) and [interruption audit](android-tv-interruption-audit.md).
+- [ ] Complete the physical-TV lifecycle and real network-transition pass.
 
 #### Shared playback-control visual polish
 
@@ -462,9 +467,10 @@ independent navigation graph may be introduced in the Apple TV host.
   preserving seeking, progress, focus, and accessibility behavior.
 - [x] Share the repeat-state icon set across phone, Desktop, and TV: Repeat All uses the repeat glyph
   with **A**, and Repeat One uses the repeat glyph with **1**. Remove the TV **ALL** treatment.
-- [ ] Complete 720p/native-4K size, selected/focus-state, contrast, accessibility, and representative
-  visual-capture acceptance for both changes. The shared state tests and 1080p emulator exercises
-  are complete. Detailed criteria are tracked in
+- [x] Capture and exercise waveform/repeat controls at 720p and native 4K, including selected/focus
+  state and base-surface text contrast; evidence is in the September 9 progress log.
+- [ ] Complete contrast checks across representative artwork and physical-TV accessibility.
+  Detailed criteria are tracked in
   [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#shared-playback-control-polish).
 
 ### M3: Naviamp Connect
@@ -482,7 +488,9 @@ independent navigation graph may be introduced in the Apple TV host.
   automatic reconnect.
 - [x] Exercise Desktop controller pairing, retained reconnect, control, and detachment against the
   Android TV emulator through the product UI.
-- [ ] Complete Android pairing diagnostics and permission-recovery presentation before the preview.
+- [x] Implement localized pairing diagnostics and permission-recovery presentation with shared
+  tests and native Settings adapter coverage; see the September 9 progress log.
+- [ ] Exercise permission denial, Settings return and retry on physical Android/TV hardware.
 - [ ] Add Apple pairing-management host wiring before general availability.
 - [x] Keep Android TV, Android phone, and Desktop discovery, socket, and secure-key effects as narrow
   host adapters with protocol behavior in Core.
@@ -568,21 +576,27 @@ Connect availability has additional topology and fresh-device requirements in
 - [x] Replace the remaining generic Home collection-page fallback and verify multiple saved-source
   switching on the emulator.
 - [x] Verify controller browse/navigation restoration and product-UI source-mismatch recovery.
-- [ ] Complete Android pairing diagnostics and permission-recovery presentation.
-- [ ] Complete sustained gapless/crossfade, ReplayGain, provider-reporting, process/network recovery,
-  and target-independent playback acceptance.
-- [ ] Complete 720p/native-4K waveform and repeat-icon visual, focus, contrast, accessibility, and
-  OLED burn-in acceptance with representative captures.
+- [x] Implement Android pairing diagnostics and permission-recovery presentation.
+- [ ] Complete physical permission-denial/return/retry acceptance.
+- [x] Complete emulator process restoration, audio-focus interruption, finite/live stream recovery,
+  and short native gapless/crossfade/ReplayGain/listen-report checks.
+- [x] Complete saved-profile background soak and resource-growth checks; see [the soak test](android-tv-soak.md).
+- [ ] Complete physical/target-independent playback acceptance across the supported controller matrix.
+- [x] Capture 720p/native-4K waveform/repeat focus states and Now Playing dimming/pixel shifts.
+  Automated tests and renders are the OLED mitigation evidence; no physical OLED test is a maintainer gate.
+- [ ] Complete artwork-dependent contrast and physical-TV accessibility acceptance.
 - [ ] Pass physical Google TV direct-LAN discovery, audio/HDMI/downmix, CEC, MediaSession/audio focus,
   sleep/wake, process recovery, performance, and Android phone/Desktop controller acceptance.
-- [ ] Validate Google Play TV banner/icon assets, packaging, and store requirements.
+- [x] Add the Leanback banner and audit the release AAB launcher metadata/native ABI inventory.
+- [ ] Validate signed installation and Google Play store-console assets/requirements.
 
 ### M4: Physical-device acceptance
 
 - [ ] Test on representative Google TV hardware.
 - [ ] Verify HDMI stereo, downmix policy, CEC remote behavior, sleep/wake, process recovery, and
   performance.
-- [ ] Validate Google Play TV requirements, banner/icon assets, and release packaging.
+- [x] Implement the TV launcher banner and verify packaged native ABIs.
+- [ ] Validate signed release installation and Google Play store-console requirements/assets.
 - [ ] Decide whether Cast Connect adds enough value after Naviamp Connect is complete. This is a
   post-preview product decision, not a preview release gate.
 
@@ -599,7 +613,7 @@ Connect availability has additional topology and fresh-device requirements in
 | `MediaSession` commands | Required | Required |
 | Naviamp Connect discovery, pairing, provisioning, and remote control | Functional fake/AVD coverage | Required |
 | HDMI/CEC, surround routes, power behavior | Not authoritative | Required |
-| Cast Connect discovery and registration | Not authoritative | Required |
+| Cast Connect discovery and registration | Deferred product decision | Deferred product decision |
 
 ## Open Decisions
 
@@ -1511,3 +1525,18 @@ Connect availability has additional topology and fresh-device requirements in
   Native live-disconnect/reconnect and unknown-length finite-completion tests pass. Shared JVM
   suites pass 1,460 tests; Android app/test builds, Desktop/iOS host compilation and the
   architecture guard pass. Ambiguous unframed finite EOF remains an explicit limitation.
+
+- Extended the synthetic fixture to multiple albums and up to 240 tracks. Added an opt-in real
+  Android background soak that saves six alternating album profiles, traverses 24 tracks, exhausts
+  three interrupted streams, retries explicitly, checks exactly-once listens and samples process
+  memory/descriptors/threads. The final native run passed in 720.543 seconds (712 seconds of
+  background playback): 24 tracks/listens, three recoveries, peak three streams and zero at completion.
+- Warm-window resource changes were +2,568 KiB PSS, +44 KiB native heap, zero descriptors and −2
+  threads, within the documented regression ceilings. Full measurements and reproduction are in
+  [android-tv-soak.md](android-tv-soak.md). This does not claim overnight leak freedom or acoustic
+  acceptance. Android app/test assembly, architecture guard and fixture checks passed; no platform
+  production files changed and no product fix was needed.
+- Reconciled M2/M3/preview/M4 checklists with existing evidence: emulator recovery, pairing-recovery
+  presentation, render checks and banner packaging are marked complete independently of physical
+  device, artwork-contrast and signed/store acceptance. Removed the stale maintainer physical-OLED
+  gate and kept Cast Connect as a deferred product decision.
