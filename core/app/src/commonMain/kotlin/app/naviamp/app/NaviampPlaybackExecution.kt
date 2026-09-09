@@ -54,8 +54,8 @@ class NaviampPlaybackCommandController(
     }
 
     fun pause(): Boolean = when (playback.state.value.playbackState) {
-        PlaybackState.Playing -> executePlayPause(PlaybackPlayPauseCommand.Pause)
-        PlaybackState.Paused -> true
+        // Deliver explicit pause intent even after focus paused the engine, cancelling auto-resume.
+        PlaybackState.Playing, PlaybackState.Paused -> executePlayPause(PlaybackPlayPauseCommand.Pause)
         else -> false
     }
 

@@ -22,7 +22,7 @@ class NaviampPlaybackExecutionTest {
         assertEquals(true, controller.pause())
         playback.updatePlaybackState(PlaybackState.Paused)
         repeat(2) { assertEquals(true, controller.pause()) }
-        assertEquals(1, execution.pauses)
+        assertEquals(3, execution.pauses)
         assertEquals(0, execution.resumes)
         assertEquals(true, controller.play())
         assertEquals(1, execution.resumes)

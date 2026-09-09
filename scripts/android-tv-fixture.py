@@ -4,6 +4,7 @@
 Use adb reverse tcp:18080 tcp:18080. Never forwards traffic to another server.
 GET /_test/off and /_test/on simulate transport loss/recovery; /_test/status is telemetry.
 """
+import argparse
 import json
 import math
 import socket
@@ -13,23 +14,36 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--burst-seconds', type=float, default=125)
+parser.add_argument('--track-seconds', type=int, default=600)
+parser.add_argument('--tracks', type=int, default=1)
+args = parser.parse_args()
+if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 10):
+    parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..10')
+
 TRACK = dict(id="fixture-track", title="TV lifecycle fixture", artist="Naviamp Test", album="Recovery",
-             albumId="fixture-album", artistId="fixture-artist", duration=600, suffix="wav",
-             contentType="audio/wav", bitRate=256, isDir=False, size=19_200_044)
-ALBUM = dict(id="fixture-album", name="Recovery", artist="Naviamp Test", artistId="fixture-artist", songCount=1, duration=600)
+             albumId="fixture-album", artistId="fixture-artist", duration=args.track_seconds, suffix="wav",
+             contentType="audio/wav", bitRate=256, isDir=False,
+             replayGain=dict(trackGain=-6.0, albumGain=-3.0, trackPeak=1.0, albumPeak=1.0), size=32_000 * args.track_seconds + 44)
+ALBUM = dict(id="fixture-album", name="Recovery", artist="Naviamp Test", artistId="fixture-artist", songCount=args.tracks, duration=args.track_seconds * args.tracks)
+TRACKS = [dict(TRACK, id="fixture-track" if i == 0 else f"fixture-track-{i+1}",
+               title="TV lifecycle fixture" if i == 0 else f"TV lifecycle fixture {i+1}") for i in range(args.tracks)]
 RATE = 16000
 PCM = b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
-DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*600, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*600) + PCM*600
+DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*args.track_seconds, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*args.track_seconds) + PCM*args.track_seconds
 lock = threading.Lock()
 offline = False
 streams = set()
 counts = {}
+reports = []
+bytes_sent = 0
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass
     def do_CONNECT(self): self.send_error(403, "Fixture never proxies traffic")
     def do_GET(self):
-        global offline
+        global offline, bytes_sent
         parsed = urlsplit(self.path)
         if parsed.hostname and parsed.hostname not in ('127.0.0.1', 'localhost'):
             self.send_error(403); return
@@ -42,31 +56,36 @@ class Handler(BaseHTTPRequestHandler):
                         try: stream.shutdown(socket.SHUT_RDWR)
                         except OSError: pass
                 elif path.endswith('/on'): offline = False
-                payload = dict(offline=offline, activeStreams=len(streams), requests=dict(counts))
+                payload = dict(offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent)
             return self.json(payload)
         action = path.rsplit('/',1)[-1].removesuffix('.view')
         with lock:
             counts[action] = counts.get(action, 0)+1
             unavailable = offline
         if unavailable: self.send_error(503); return
+        query = parse_qs(parsed.query)
         if action == 'stream': return self.audio()
+        if action == 'scrobble':
+            with lock:
+                for track_id in query.get('id', []):
+                    if track_id in [track['id'] for track in TRACKS]:
+                        reports.append(dict(id=track_id, submission=query.get('submission', ['true'])[0]))
         response = dict(status='ok', version='1.16.1', type='fixture', serverVersion='1.0', openSubsonic=False)
         responses = {
             'getMusicFolders': {'musicFolders': {'musicFolder': [dict(id=1,name='Fixture')]}},
             'getArtists': {'artists': {'index': [dict(name='N',artist=[dict(id='fixture-artist',name='Naviamp Test',albumCount=1)])]}},
             'getArtist': {'artist': dict(id='fixture-artist',name='Naviamp Test',album=[ALBUM])},
-            'getAlbum': {'album': dict(ALBUM,song=[TRACK])},
+            'getAlbum': {'album': dict(ALBUM,song=TRACKS)},
             'getAlbumList2': {'albumList2': {'album': [ALBUM]}},
-            'getSong': {'song': TRACK},
-            'search3': {'searchResult3': {'song':[TRACK], 'album':[ALBUM], 'artist':[]}},
-            'getRandomSongs': {'randomSongs': {'song':[TRACK]}},
+            'getSong': {'song': next((track for track in TRACKS if track['id'] == query.get('id', [''])[0]), TRACKS[0])},
+            'search3': {'searchResult3': {'song':TRACKS, 'album':[ALBUM], 'artist':[]}},
+            'getRandomSongs': {'randomSongs': {'song':TRACKS}},
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
             'getGenres': {'genres': {'genre':[]}},
             'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[]}},
             'getOpenSubsonicExtensions': {'openSubsonicExtensions':[]},
         }
-        query = parse_qs(parsed.query)
         if action == 'getAlbumList2' and int(query.get('offset', ['0'])[0]) > 0:
             responses[action]['albumList2']['album'] = []
         if action == 'search3':
@@ -80,6 +99,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200); self.send_header('Content-Type','application/json')
         self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data)
     def audio(self):
+        global bytes_sent
         start = 0
         if self.headers.get('Range','').startswith('bytes='):
             start = int(self.headers['Range'][6:].split('-')[0] or 0)
@@ -92,7 +112,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             for offset in range(start,len(DATA),8192):
                 self.wfile.write(DATA[offset:offset+8192]); self.wfile.flush()
-                if offset - start >= 4_000_000: time.sleep(0.25)
+                with lock: bytes_sent += len(DATA[offset:offset+8192])
+                if offset - start >= args.burst_seconds * RATE * 2: time.sleep(0.25)
         except (OSError, ConnectionError): pass
         finally:
             with lock: streams.discard(self.connection)

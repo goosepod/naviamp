@@ -1,5 +1,6 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.bass.BassFilePosition
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
@@ -17,6 +18,20 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class CoreBassPlaybackEngineTest {
+    @Test
+    fun truncatedDownloadsNeverPublishFinishedFromSyncOrPolling() = runTest {
+        for (endSync in listOf(false, true)) {
+            val backend = RecordingPlaybackBackend(truncatedDownload = true, emitEndSync = endSync)
+            val engine = CoreBassPlaybackEngine(Result.success(backend), FakeBassPlaybackEngineRuntime)
+            val states = mutableListOf<PlaybackState>()
+            engine.play(this, PlaybackRequest(url = "file:///fixture.wav"), states::add, {})
+            advanceUntilIdle()
+            assertTrue(states.any { it is PlaybackState.Error })
+            assertFalse(PlaybackState.Finished in states)
+            engine.release()
+        }
+    }
+
     @Test
     fun stopPublishesStoppedStateAndUnknownProgress() = runTest {
         val engine = CoreBassPlaybackEngine(
@@ -206,7 +221,24 @@ private class RecordingReleaseBackend : BassAudioBackend {
     override fun freeStream(stream: BassStreamHandle): Result<Unit> = error("Not used")
 }
 
-private class RecordingPlaybackBackend : BassAudioBackend {
+private class RecordingPlaybackBackend(
+    private val truncatedDownload: Boolean = false,
+    private val emitEndSync: Boolean = false,
+) : BassAudioBackend {
+    private var endCallback: ((BassStreamHandle) -> Unit)? = null
+    override fun setEndSync(stream: BassStreamHandle, callback: (BassStreamHandle) -> Unit): Result<Int> {
+        endCallback = callback
+        return Result.success(1)
+    }
+    override fun filePosition(stream: BassStreamHandle, position: BassFilePosition): Long? =
+        if (!truncatedDownload) null else when (position) {
+            BassFilePosition.Download -> 128L
+            BassFilePosition.End -> 1000L
+            BassFilePosition.Size -> 1044L
+            BassFilePosition.Start -> 44L
+            BassFilePosition.Connected -> 0L
+        }
+
     var openedPath: String? = null
     var bufferPolicy: BassPlaybackBufferPolicy? = null
     var playCalls: Int = 0
@@ -254,8 +286,11 @@ private class RecordingPlaybackBackend : BassAudioBackend {
 
     override fun stop(stream: BassStreamHandle): Result<Unit> = Result.success(Unit)
 
-    override fun activeState(stream: BassStreamHandle): Int =
-        if (activeStateCalls++ == 0) BassActiveState.Playing else BassActiveState.Stopped
+    override fun activeState(stream: BassStreamHandle): Int {
+        if (activeStateCalls++ == 0) return BassActiveState.Playing
+        if (emitEndSync) endCallback?.invoke(stream)
+        return BassActiveState.Stopped
+    }
 
     override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> = Result.success(Unit)
 

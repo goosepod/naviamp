@@ -141,6 +141,9 @@ data class BassCreatedPlayback(
     val replayGainFactor: Float,
 )
 
+/** Raw BASS file-position modes; unavailable native values are represented as null. */
+enum class BassFilePosition(val nativeValue: Int) { Download(1), End(2), Start(3), Connected(4), Size(8) }
+
 data class BassPlaybackSnapshot(
     val activeState: Int,
     val sourceActiveState: Int?,
@@ -293,6 +296,8 @@ interface BassAudioBackend {
     ): Double? = positionSeconds(sourceStream.takeIf { it.value != 0 } ?: playbackStream)
 
     fun durationSeconds(stream: BassStreamHandle): Double? = null
+
+    fun filePosition(stream: BassStreamHandle, position: BassFilePosition): Long? = null
 
     fun lengthBytes(stream: BassStreamHandle): Long?
 

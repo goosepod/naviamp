@@ -57,6 +57,7 @@ struct BassApi {
     decltype(&::BASS_ChannelGetPosition) BASS_ChannelGetPosition = nullptr;
     decltype(&::BASS_ChannelBytes2Seconds) BASS_ChannelBytes2Seconds = nullptr;
     decltype(&::BASS_ChannelGetLength) BASS_ChannelGetLength = nullptr;
+    decltype(&::BASS_StreamGetFilePosition) BASS_StreamGetFilePosition = nullptr;
     decltype(&::BASS_ChannelGetData) BASS_ChannelGetData = nullptr;
     decltype(&::BASS_ChannelGetLevelEx) BASS_ChannelGetLevelEx = nullptr;
     decltype(&::BASS_GetVersion) BASS_GetVersion = nullptr;
@@ -120,6 +121,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetPosition", bassApi.BASS_ChannelGetPosition) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelBytes2Seconds", bassApi.BASS_ChannelBytes2Seconds) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetLength", bassApi.BASS_ChannelGetLength) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_StreamGetFilePosition", bassApi.BASS_StreamGetFilePosition) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetData", bassApi.BASS_ChannelGetData) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetLevelEx", bassApi.BASS_ChannelGetLevelEx) && ok;
     ok = load_symbol(bassApi.bass, "BASS_GetVersion", bassApi.BASS_GetVersion) && ok;
@@ -204,6 +206,7 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_ChannelGetPosition bassApi.BASS_ChannelGetPosition
 #define BASS_ChannelBytes2Seconds bassApi.BASS_ChannelBytes2Seconds
 #define BASS_ChannelGetLength bassApi.BASS_ChannelGetLength
+#define BASS_StreamGetFilePosition bassApi.BASS_StreamGetFilePosition
 #define BASS_ChannelGetData bassApi.BASS_ChannelGetData
 #define BASS_ChannelGetLevelEx bassApi.BASS_ChannelGetLevelEx
 #define BASS_GetVersion bassApi.BASS_GetVersion
@@ -1449,4 +1452,20 @@ extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeLoadPlugin(JNIEnv* env, jobject thiz, jstring path) {
     (void)thiz;
     return load_bass_plugin(env, path);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeFilePosition(JNIEnv* env, jobject thiz, jint stream, jint mode) {
+    (void)env;
+    (void)thiz;
+    QWORD position = BASS_StreamGetFilePosition(static_cast<DWORD>(stream), static_cast<DWORD>(mode));
+    return position == static_cast<QWORD>(-1) ? -1 : static_cast<jlong>(position);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFilePosition(JNIEnv* env, jobject thiz, jint stream, jint mode) {
+    (void)env;
+    (void)thiz;
+    QWORD position = BASS_StreamGetFilePosition(static_cast<DWORD>(stream), static_cast<DWORD>(mode));
+    return position == static_cast<QWORD>(-1) ? -1 : static_cast<jlong>(position);
 }

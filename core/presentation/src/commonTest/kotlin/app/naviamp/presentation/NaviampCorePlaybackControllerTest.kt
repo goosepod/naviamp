@@ -561,7 +561,7 @@ class NaviampCorePlaybackControllerTest {
         fixture.effects.observer?.onStateChanged(PlaybackState.Paused)
         runCurrent()
         repeat(2) { fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Pause)) }
-        assertEquals(1, fixture.effects.pauses)
+        assertEquals(3, fixture.effects.pauses)
         assertEquals(0, fixture.effects.resumes)
         fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Resume))
         assertEquals(1, fixture.effects.resumes)

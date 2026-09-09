@@ -2,7 +2,8 @@
 
 This fixture exercises the real Android app, BASS engine, persisted playback session, and
 MediaSession without saved server credentials. It generates a ten-minute WAV and a one-track
-Subsonic catalog. The HTTP server binds only to loopback, never forwards traffic, and does not log
+Subsonic catalog by default. `--burst-seconds`, `--track-seconds`, and `--tracks` configure
+small-buffer outages or multi-track playback. Tracks include synthetic ReplayGain metadata. The HTTP server binds only to loopback, never forwards traffic, and does not log
 URLs or authentication values. An initial audio burst allows native seeking; subsequent bytes
 are paced so the transport can be interrupted.
 
@@ -51,3 +52,6 @@ Always restore `/_test/on` after interruption tests. Stop the fixture and shut d
 emulator when finished. Its overlay is discarded. This does not test physical HDMI/CEC, audio
 focus competition, Wi-Fi reassociation, direct-LAN pairing, signed release installation, or OLED
 hardware behavior.
+
+For automated buffer-exhaustion, focus, and transition checks, see the
+[interruption audit and method selectors](android-tv-interruption-audit.md).

@@ -115,6 +115,8 @@ class DesktopBassJniBinding private constructor(
 
     fun durationSeconds(stream: Int): Double? = nativeDurationSeconds(stream).takeIf { it > 0.0 }
 
+    fun filePosition(stream: Int, mode: Int): Long? = nativeFilePosition(stream, mode).takeIf { it >= 0L }
+
     fun lengthBytes(stream: Int): Long? = nativeLengthBytes(stream).takeIf { it > 0L }
 
     fun streamTags(stream: Int): Array<String> = nativeStreamTags(stream)
@@ -184,6 +186,7 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeAudiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
     private external fun nativeLengthBytes(stream: Int): Long
+    private external fun nativeFilePosition(stream: Int, mode: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
     private external fun nativeWaveformLevels(stream: Int, bucketCount: Int): FloatArray

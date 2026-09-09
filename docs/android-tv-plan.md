@@ -1477,3 +1477,27 @@ Connect availability has additional topology and fresh-device requirements in
   installation, store-console review, physical TV/remote/audio-focus/HDMI/CEC acceptance and direct-LAN
   cross-device pairing remain open. No release was published. Physical OLED acceptance is not
   assigned to the maintainer, who has no OLED hardware.
+
+
+- Buffer-exhaustion and focus hardening: the small-buffer emulator reproduced a finite download
+  being misreported as Finished, erasing its retry cursor. Core now distinguishes incomplete
+  disconnected downloads using BASS byte positions in both native end callbacks and polling.
+  The fixed native test retried near 9.082 seconds after interruption near 7.069 seconds, rather
+  than zero. Complete audio with trailing tags, unavailable counters and unknown lengths have
+  common regression coverage; unknown-length/live native recovery still needs separate acceptance.
+- Extracted Android's focus/duck/resume and wake-lock renewal policy into Core. Repeated transient
+  loss no longer loses resume eligibility, and explicit Pause while focus-paused cancels automatic
+  resume. Resume eligibility is also reused by the existing shared external audio-session owner.
+  Android now contains only AudioManager/PowerManager/SystemClock bindings for this behavior.
+- Native finite-track gapless and three-second crossfade runs each completed three thirty-second
+  tracks, applied provider ReplayGain of −6.0 dB, and submitted exactly one listen per track.
+  A final crossfade repeat backgrounded the Activity during the first track; both subsequent
+  transitions completed with exactly one listen submission per track.
+  AudioManager interruption tests and the repeatable fixture are described in the
+  [interruption audit](android-tv-interruption-audit.md), including each changed platform file's
+  native-boundary justification and the remaining physical-output/unknown-stream limitations.
+- Final interruption validation: 902 domain, 199 app, 356 presentation and 43 Desktop JVM tests
+  pass (1,500 total; no failures/errors/skips). Android debug/test APKs and release AAB build,
+  Desktop and iOS Simulator ARM64 host compilation, and the architecture guard pass. The final
+  native AudioManager test includes duckable loss, transient recovery, explicit-pause cancellation
+  and permanent loss. Release signing and physical-output acceptance remain open.

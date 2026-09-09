@@ -119,3 +119,9 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeLoadPlugin(JN
 
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeLoadPlugin(JNIEnv* env, jobject thiz, jstring path);
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeFilePosition(JNIEnv* env, jobject thiz, jint stream, jint mode);
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFilePosition(JNIEnv* env, jobject thiz, jint stream, jint mode);

@@ -8,180 +8,58 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import app.naviamp.domain.bass.BassAudioBackend
-import app.naviamp.domain.playback.CoreBassPlaybackEngine
-import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackRequest
-import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.PlaybackStreamMetadata
-import kotlinx.coroutines.CoroutineScope
+import app.naviamp.domain.playback.FocusedBassPlaybackEngine
+import app.naviamp.domain.playback.PlaybackFocusChange
+import app.naviamp.domain.playback.PlaybackFocusEffect
+import app.naviamp.domain.playback.PlaybackWakeLockEffect
 
-/** Android audio-focus and wake-lock lifetime around Core's complete BASS playback engine. */
-class AndroidFocusedBassPlaybackEngine(
-    context: Context,
-    bass: BassAudioBackend,
-) : CoreBassPlaybackEngine(
-    backendResult = Result.success(bass),
+/** Android AudioManager/PowerManager bindings; all focus and renewal policy is shared. */
+class AndroidFocusedBassPlaybackEngine(context: Context, bass: BassAudioBackend) : FocusedBassPlaybackEngine(
+    bass = bass,
     runtime = AndroidBassPlaybackEngineRuntime(),
-) {
-    private val appContext = context.applicationContext
-    private val audioManager = appContext.getSystemService(AudioManager::class.java)
-    private var audioFocusRequest: AudioFocusRequest? = null
-    private var playbackActive = false
-    private var pausedForTransientFocusLoss = false
-    private var duckedForFocusLoss = false
-    private val wakeLock: PowerManager.WakeLock by lazy {
-        appContext.getSystemService(PowerManager::class.java).newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "Naviamp:Playback",
-        ).apply { setReferenceCounted(false) }
-    }
-    private var wakeLockAcquiredAtMillis = 0L
+    focus = AndroidPlaybackFocusEffect(context.applicationContext),
+    wakeLock = AndroidPlaybackWakeLockEffect(context.applicationContext),
+)
 
-    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
-        when (change) {
-            AudioManager.AUDIOFOCUS_GAIN -> {
-                if (duckedForFocusLoss) setTransientOutputVolumeFactor(1f)
-                duckedForFocusLoss = false
-                if (pausedForTransientFocusLoss) super.resume()
-                pausedForTransientFocusLoss = false
+private class AndroidPlaybackFocusEffect(context: Context) : PlaybackFocusEffect {
+    private val manager = context.getSystemService(AudioManager::class.java)
+    private var callback: ((PlaybackFocusChange) -> Unit)? = null
+    private val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+        .setOnAudioFocusChangeListener { change ->
+            val translated = when (change) {
+                AudioManager.AUDIOFOCUS_GAIN -> PlaybackFocusChange.Gain
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> PlaybackFocusChange.TransientLoss
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> PlaybackFocusChange.Duck
+                AudioManager.AUDIOFOCUS_LOSS -> PlaybackFocusChange.Loss
+                else -> null
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                pausedForTransientFocusLoss = playbackActive
-                if (playbackActive) super.pause()
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                duckedForFocusLoss = true
-                setTransientOutputVolumeFactor(FocusDuckVolumeFactor)
-            }
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                pausedForTransientFocusLoss = false
-                duckedForFocusLoss = false
-                setTransientOutputVolumeFactor(1f)
-                super.pause()
-                abandonAudioFocus()
-            }
+            translated?.let { callback?.invoke(it) }
         }
-    }
+        .setAcceptsDelayedFocusGain(false)
+        .setWillPauseWhenDucked(false)
+        .build()
 
-    override fun play(
-        scope: CoroutineScope,
-        request: PlaybackRequest,
-        onStateChanged: (PlaybackState) -> Unit,
-        onProgressChanged: (PlaybackProgress) -> Unit,
-        onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
-    ) {
-        if (!requestAudioFocus()) {
-            onStateChanged(PlaybackState.Error("Audio focus is currently held by another app."))
-            return
-        }
-        super.play(
-            scope = scope,
-            request = request,
-            onStateChanged = { state ->
-                applyNativePlaybackLifetime(state)
-                onStateChanged(state)
-            },
-            onProgressChanged = { progress ->
-                renewWakeLockIfNeeded()
-                onProgressChanged(progress)
-            },
-            onMetadataChanged = onMetadataChanged,
-        )
+    override fun request(onChange: (PlaybackFocusChange) -> Unit): Boolean {
+        callback = onChange
+        return manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     }
-
-    override fun pause() {
-        super.pause()
-        clearTransientFocusState()
-        abandonAudioFocus()
-        releaseWakeLock()
-    }
-
-    override fun resume() {
-        if (!requestAudioFocus()) return
-        clearTransientFocusState()
-        super.resume()
-    }
-
-    override fun stop() {
-        super.stop()
-        clearTransientFocusState()
-        abandonAudioFocus()
-        releaseWakeLock()
-    }
-
-    override fun release() {
-        super.release()
-        clearTransientFocusState()
-        abandonAudioFocus()
-        releaseWakeLock()
-    }
-
-    private fun applyNativePlaybackLifetime(state: PlaybackState) {
-        playbackActive = state == PlaybackState.Playing
-        when (state) {
-            PlaybackState.Playing -> acquireWakeLock()
-            PlaybackState.Paused,
-            PlaybackState.Stopped,
-            PlaybackState.Finished,
-            is PlaybackState.Error,
-            -> releaseWakeLock()
-            PlaybackState.Idle,
-            PlaybackState.Loading,
-            -> Unit
-        }
-    }
-
-    private fun requestAudioFocus(): Boolean {
-        val request = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build(),
-            )
-            .setOnAudioFocusChangeListener(focusListener)
-            .setAcceptsDelayedFocusGain(false)
-            .setWillPauseWhenDucked(false)
-            .build()
-            .also { audioFocusRequest = it }
-        return audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-    }
-
-    private fun abandonAudioFocus() {
-        audioFocusRequest?.let(audioManager::abandonAudioFocusRequest)
-    }
-
-    private fun clearTransientFocusState() {
-        pausedForTransientFocusLoss = false
-        if (duckedForFocusLoss) setTransientOutputVolumeFactor(1f)
-        duckedForFocusLoss = false
-    }
-
-    private fun acquireWakeLock() {
-        runCatching {
-            if (!wakeLock.isHeld) {
-                wakeLock.acquire(WakeLockTimeoutMillis)
-                wakeLockAcquiredAtMillis = SystemClock.elapsedRealtime()
-            }
-        }.onFailure { error -> Log.w(Tag, "Could not acquire playback wake lock", error) }
-    }
-
-    private fun releaseWakeLock() {
-        runCatching {
-            if (wakeLock.isHeld) wakeLock.release()
-            wakeLockAcquiredAtMillis = 0L
-        }.onFailure { error -> Log.w(Tag, "Could not release playback wake lock", error) }
-    }
-
-    private fun renewWakeLockIfNeeded() {
-        if (!wakeLock.isHeld) return
-        if (SystemClock.elapsedRealtime() - wakeLockAcquiredAtMillis < WakeLockRenewalMillis) return
-        releaseWakeLock()
-        acquireWakeLock()
-    }
+    override fun abandon() { manager.abandonAudioFocusRequest(request) }
 }
 
-private const val FocusDuckVolumeFactor = 0.25f
-private const val WakeLockTimeoutMillis = 15 * 60 * 1_000L
-private const val WakeLockRenewalMillis = 5 * 60 * 1_000L
-private const val Tag = "NaviampBass"
+private class AndroidPlaybackWakeLockEffect(context: Context) : PlaybackWakeLockEffect {
+    private val lock = context.getSystemService(PowerManager::class.java)
+        .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Naviamp:Playback")
+        .apply { setReferenceCounted(false) }
+    override val isHeld: Boolean get() = lock.isHeld
+    override fun nowMillis() = SystemClock.elapsedRealtime()
+    override fun acquire(timeoutMillis: Long) {
+        runCatching { lock.acquire(timeoutMillis) }
+            .onFailure { Log.w("NaviampBass", "Could not acquire playback wake lock", it) }
+    }
+    override fun release() {
+        runCatching { if (lock.isHeld) lock.release() }
+            .onFailure { Log.w("NaviampBass", "Could not release playback wake lock", it) }
+    }
+}

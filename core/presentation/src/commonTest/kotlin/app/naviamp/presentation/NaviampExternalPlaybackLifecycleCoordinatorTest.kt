@@ -5,13 +5,15 @@ import kotlin.test.assertEquals
 
 class NaviampExternalPlaybackLifecycleCoordinatorTest {
     @Test
-    fun interruptionPausesPlayingTrackAndResumesWhenSystemPermits() {
+    fun repeatedInterruptionPausesPlayingTrackAndResumesOnceWhenSystemPermits() {
         var state = NaviampExternalPlaybackState.Playing
         val commands = mutableListOf<String>()
         val coordinator = coordinator({ state }, commands)
 
         coordinator.interruptionBegan()
         state = NaviampExternalPlaybackState.Paused
+        coordinator.interruptionBegan()
+        coordinator.interruptionEnded(shouldResume = true)
         coordinator.interruptionEnded(shouldResume = true)
 
         assertEquals(listOf("pause", "play"), commands)

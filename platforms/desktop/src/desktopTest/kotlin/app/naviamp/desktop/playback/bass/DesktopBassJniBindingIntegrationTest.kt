@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback.bass
 
+import app.naviamp.domain.bass.BassFilePosition
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.playback.planStereoDownmix
 import java.io.File
@@ -62,6 +63,7 @@ class DesktopBassJniBindingIntegrationTest {
                 )
             }
             assertNotNull(binding.lengthBytes(stream))
+            assertEquals(wav.length(), binding.filePosition(stream, BassFilePosition.Size.nativeValue))
             val buffer = FloatArray(1024)
             assertTrue(binding.readFloatData(stream, buffer) >= 0)
             assertTrue(binding.freeStream(stream))
