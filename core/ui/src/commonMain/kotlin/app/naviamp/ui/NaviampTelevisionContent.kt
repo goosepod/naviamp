@@ -1411,6 +1411,10 @@ internal fun TelevisionNowPlaying(
         }
     }
     val listeningMode = !controlsVisible
+    val screenProtection = rememberTelevisionScreenProtection(
+        active = listeningMode && !queueOpen && queueActionItem == null,
+        interactionSequence = interactionSequence,
+    )
     val listeningCoverArtSize by animateDpAsState(
         targetValue = if (listeningMode) 310.dp else 270.dp,
         animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
@@ -1431,9 +1435,11 @@ internal fun TelevisionNowPlaying(
         animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
         label = "TV listening-mode scrubber padding",
     )
-    Box(
+    TelevisionScreenProtectionSurface(
+        protection = screenProtection,
         modifier = Modifier
             .fillMaxSize()
+            .testTag("television-now-playing-protection")
             .onPreviewKeyEvent { event ->
                 if (!interactive) return@onPreviewKeyEvent false
                 when {

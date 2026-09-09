@@ -91,7 +91,14 @@ honors a smaller shared per-section limit.
   fallback. Hardware media commands remain immediate.
 - Reset the inactivity timer for remote interaction and suspend it while an interaction that needs
   sustained focus is active, including scrubbing and open menus.
-- Account for OLED burn-in before release.
+- Reduce static Now Playing exposure during prolonged listening: after two minutes in listening
+  mode, dim the full presentation to 55% and shift its content through eight positions bounded by
+  8dp each minute, using two-second transitions. After ten minutes, dim to 35%. Keep shifts inside
+  existing content margins. Ordinary remote wake restores brightness and position immediately
+  without also issuing playback actions. Open queue interactions suspend the timer; track and
+  progress updates do not restart it. The navigation preview uses the same passive policy.
+- Validate OLED readability and burn-in mitigation on physical hardware before release; this is
+  application-level mitigation, not a guarantee against panel burn-in.
 
 ### Focus and selection language
 
@@ -397,8 +404,8 @@ independent navigation graph may be introduced in the Apple TV host.
 - The dedicated Internet Radio Stations collection and shared editor are available from Library,
   including remote-friendly play, refresh, create, edit, delete, focus, and Back behavior.
 - The dedicated full-screen Now Playing, listening-mode transition, queue panel, and smoothly
-  scrolling line-synced lyrics are implemented. Word-level karaoke highlighting and final OLED
-  burn-in behavior remain outstanding parts of the complete lyrics direction.
+  scrolling line-synced lyrics and idle dimming/pixel shifting are implemented. Word-level karaoke
+  highlighting and physical OLED acceptance remain outstanding parts of the complete lyrics direction.
 - Add shared Compose coverage for Television Home, Library, Search submission and re-entry, the mini
   player, Internet Radio, Now Playing actions, lyrics rendering, settings movement, and route/detail
   Back behavior. The 2026-08-28 emulator acceptance sweep covers these implemented paths manually,
@@ -437,7 +444,7 @@ independent navigation graph may be introduced in the Apple TV host.
   line-synced Lyrics presentation.
 - [x] Implement and exercise TV queue selection/reordering, repeat/shuffle/favorite, gapless and
   crossfade exclusivity, ReplayGain choices, and sample-rate matching controls.
-- [ ] Add final OLED burn-in behavior before the Android TV preview.
+- [x] Add shared idle dimming and bounded pixel shifting to TV Now Playing; physical OLED acceptance remains open.
 - [ ] Add word-level karaoke highlighting as a post-preview lyrics enhancement.
 - [ ] Verify audio focus, background-service retention, process restoration, and `MediaSession`
   behavior on physical Google TV hardware.
@@ -1342,3 +1349,16 @@ Connect availability has additional topology and fresh-device requirements in
   D-pad recovery actions. Android debug assembly and instrumented-test compilation, Desktop and
   iOS Simulator ARM64 compilation, and the Core architecture guard pass. The two new native
   Settings adapter instrumented tests were compiled but not run without a connected device.
+
+- Added shared Now Playing screen protection for full-screen and navigation-preview listening.
+  It dims after two idle minutes, deepens dimming after ten, and shifts artwork, text, lyrics, and
+  progress within existing margins. Wake resets brightness/position without issuing a playback
+  action, open queue interactions suspend protection, and track changes preserve elapsed exposure.
+  All behavior and rendering live in `core:ui/commonMain`; no host production files, persisted
+  settings, or user-facing strings changed. Navigation chrome and other TV pages are outside this
+  Now Playing mitigation; full-device idle/screen-saver behavior still requires hardware acceptance.
+- Screen-protection validation: all 318 shared UI JVM tests pass, including nine new policy,
+  interaction, preview, and layout tests. Android debug assembly, Desktop compilation, iOS
+  Simulator ARM64 compilation, and the Core architecture guard pass. Reviewed shifted/dimmed
+  720p and 4K captures under `core/ui/build/reports/television-screen-protection/`; artwork,
+  text, and progress stay inside the viewport. Physical OLED acceptance remains open.
