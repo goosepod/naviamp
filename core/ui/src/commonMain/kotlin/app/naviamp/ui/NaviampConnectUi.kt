@@ -3,10 +3,18 @@ package app.naviamp.ui
 import app.naviamp.ui.generated.resources.connect_remote_unavailable
 import app.naviamp.ui.generated.resources.connect_connection_timed_out
 
+enum class NaviampConnectRecoveryProblem { LocalNetworkPermission, DiscoveryUnavailable, AdvertisingUnavailable }
+
+data class NaviampConnectRecoveryUi(
+    val problem: NaviampConnectRecoveryProblem,
+    val canOpenSettings: Boolean = false,
+    val settingsOpenFailed: Boolean = false,
+)
+
 enum class NaviampConnectStatusNotice { RemoteUnavailable, ConnectionTimedOut }
 
 @androidx.compose.runtime.Composable
-internal fun NaviampConnectSettingsUi.displayStatus(): String? = when (notice) {
+internal fun NaviampConnectSettingsUi.displayStatus(): String? = recovery?.description() ?: when (notice) {
     NaviampConnectStatusNotice.RemoteUnavailable -> org.jetbrains.compose.resources.stringResource(
         app.naviamp.ui.generated.resources.Res.string.connect_remote_unavailable)
     NaviampConnectStatusNotice.ConnectionTimedOut -> org.jetbrains.compose.resources.stringResource(
@@ -72,6 +80,7 @@ data class NaviampConnectSettingsUi(
     val selectedTargetId: String? = null,
     val status: String? = null,
     val notice: NaviampConnectStatusNotice? = null,
+    val recovery: NaviampConnectRecoveryUi? = null,
     val localDeviceName: String = "This device",
     val selectedPlaybackDeviceId: String? = null,
     val selectedPlaybackDeviceName: String? = null,
@@ -135,6 +144,8 @@ data class NaviampConnectSettingsActions(
     val onRejectProvisioning: () -> Unit,
     val onDismissSourceMismatchRecovery: () -> Unit,
     val remoteNowPlayingActions: NaviampNowPlayingActions,
+    val onRetryConnection: () -> Unit = {},
+    val onOpenPermissionSettings: () -> Unit = {},
 )
 
 fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {

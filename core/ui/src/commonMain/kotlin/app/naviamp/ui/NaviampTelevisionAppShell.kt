@@ -801,7 +801,12 @@ private fun TelevisionFirstRunConnectSetup(
                 )
             }
         }
-        connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 14.sp) }
+        connect.recovery?.let { recovery ->
+            NaviampConnectRecoveryPanel(recovery, colors, actions.onRetryConnection,
+                actions.onOpenPermissionSettings, television = true)
+        } ?: run {
+            connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 14.sp) }
+        }
         if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
             Text(
                 "${connect.pendingControllerName ?: "A controller"} is asking to pair.",

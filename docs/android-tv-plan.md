@@ -1313,3 +1313,32 @@ Connect availability has additional topology and fresh-device requirements in
   JVM tests pass (846 total; no failures, errors, or skips), including nine new regressions.
   Android debug assembly, Desktop compilation, iOS Simulator ARM64 compilation, and the Core
   architecture guard pass. Physical remote/network-loss acceptance was not repeated in this pass.
+
+- Added contextual Connect recovery in shared Core: permission denial is distinct from unavailable
+  discovery/advertising, including asynchronous native discovery failures. TV setup, TV settings,
+  and standard settings show localized guidance and an explicit retry action. TV recovery buttons
+  have explicit Up/Down focus links.
+- Recovery retries only the failed discovery/advertising operation; it does not close an existing
+  authenticated controller session or change playback destination. Failed target advertisements
+  close their listener and clear the unusable pairing code before a new offer is created.
+- Added an optional shared native-settings effect. Opening system settings does not imply that
+  permission was granted, and a failed launch leaves actionable guidance. Android delegates to its
+  application-details Settings intent and maps NSD permission error 7 / resolution SecurityException
+  into the shared permission state. SDK/target remain 36; a future target-37 runtime permission or
+  system-picker migration remains separate from this recovery UI.
+- Platform diff accountability for this recovery change:
+  - `AndroidNaviampConnectDiscoveryEffect.kt`: translates Android NSD callbacks and SecurityException,
+    and releases the native discovery registration on failure.
+  - `AndroidNaviampConnectPermissionSettingsEffect.kt`: invokes Android's application-details
+    Settings intent with the application-context activity flag and returns native launch failure.
+  - `AndroidNaviampCoreCatalog.kt`: injects that Android Context-backed Settings adapter into the
+    existing shared Connect service composition.
+  No Desktop/iOS production files or persisted settings changed. Both maintained translations
+  include all new UI copy. Physical permission-denial/return/retry acceptance remains open because
+  no Android device or emulator is connected; this does not close the full preview diagnostics gate.
+- Recovery validation: 195 Core app, 349 presentation, and 309 shared UI JVM tests pass (853 total,
+  no failures/errors/skips). Coverage includes asynchronous permission failures, target listener/code
+  cleanup, settings-launch failure, remote-session preservation during discovery retry, and TV
+  D-pad recovery actions. Android debug assembly and instrumented-test compilation, Desktop and
+  iOS Simulator ARM64 compilation, and the Core architecture guard pass. The two new native
+  Settings adapter instrumented tests were compiled but not run without a connected device.

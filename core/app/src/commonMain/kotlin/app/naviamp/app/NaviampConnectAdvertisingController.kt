@@ -13,7 +13,7 @@ sealed interface NaviampConnectAdvertisingStatus {
         val advertisement: NaviampConnectAdvertisement,
         val registeredServiceName: String,
     ) : NaviampConnectAdvertisingStatus
-    data class Failed(val message: String) : NaviampConnectAdvertisingStatus
+    data class Failed(val message: String, val permissionDenied: Boolean = false) : NaviampConnectAdvertisingStatus
 }
 
 data class NaviampConnectRegistrationService(
@@ -36,6 +36,7 @@ sealed interface NaviampConnectAdvertisingStartResult {
 interface NaviampConnectAdvertisingListener {
     fun onServiceRegistered(registeredServiceName: String)
     fun onRegistrationFailed(message: String)
+    fun onPermissionDenied() = onRegistrationFailed("Permission denied")
 }
 
 /** Narrow host effect for native DNS-SD registration and its unavoidable resource lifetime. */
@@ -73,6 +74,7 @@ class NaviampConnectAdvertisingController(
             NaviampConnectAdvertisingStartResult.PermissionDenied -> {
                 mutableState.value = NaviampConnectAdvertisingStatus.Failed(
                     "Local-network permission is required to advertise this Naviamp target.",
+                    permissionDenied = true,
                 )
             }
             is NaviampConnectAdvertisingStartResult.Unavailable -> {
@@ -109,6 +111,11 @@ class NaviampConnectAdvertisingController(
             advertisement = starting.advertisement,
             registeredServiceName = registeredServiceName,
         )
+    }
+
+    override fun onPermissionDenied() {
+        effect.stop()
+        mutableState.value = NaviampConnectAdvertisingStatus.Failed("Permission denied", permissionDenied = true)
     }
 
     override fun onRegistrationFailed(message: String) {

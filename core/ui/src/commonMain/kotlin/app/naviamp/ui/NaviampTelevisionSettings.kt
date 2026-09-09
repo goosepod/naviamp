@@ -428,6 +428,12 @@ private fun TelevisionControllersSettings(
                 modifier = Modifier.focusRequester(firstFocusRequester),
             )
         }
+        connect.recovery?.let { recovery ->
+            item(key = "connect-recovery") {
+                NaviampConnectRecoveryPanel(recovery, colors, actions.onRetryConnection,
+                    actions.onOpenPermissionSettings, television = true)
+            }
+        }
         if (connect.canAdvertise) {
             item(key = "pairing-mode") {
                 TelevisionSettingsRow(

@@ -561,4 +561,10 @@
     <string name="tv_track_title_label">Canción:</string>
     <string name="connect_remote_unavailable">El dispositivo de reproducción seleccionado no está disponible. Vuelve a conectarlo o elige otra salida.</string>
     <string name="connect_connection_timed_out">El dispositivo de reproducción dejó de responder. Reconectando…</string>
+    <string name="connect_recovery_permission">Se denegó el acceso a la red local. En los ajustes del sistema, permite que Naviamp acceda a la red local si ese permiso está disponible. Después, vuelve e inténtalo de nuevo.</string>
+    <string name="connect_recovery_discovery">Naviamp no pudo buscar en la red local. Comprueba que ambos dispositivos estén en la misma red y que la red permita la comunicación entre dispositivos. Después, inténtalo de nuevo.</string>
+    <string name="connect_recovery_advertising">Este dispositivo no pudo anunciarse para el emparejamiento. Comprueba su conexión de red e inténtalo de nuevo.</string>
+    <string name="connect_recovery_settings_failed">No se pudieron abrir los ajustes del sistema. Abre los permisos de Naviamp desde los ajustes del sistema, vuelve e inténtalo de nuevo.</string>
+    <string name="connect_recovery_open_settings">Abrir ajustes del sistema</string>
+    <string name="connect_recovery_retry">Reintentar conexión</string>
 </resources>

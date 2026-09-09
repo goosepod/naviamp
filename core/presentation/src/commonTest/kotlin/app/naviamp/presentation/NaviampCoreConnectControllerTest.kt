@@ -56,6 +56,87 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreConnectControllerTest {
     @Test
+    fun advertisingPermissionRecoveryClosesFailedListenerAndCreatesFreshPairingOffer() = runTest {
+        var denied = true
+        var opens = 0
+        val listeners = mutableListOf<WaitingListener>()
+        val store = NaviampCoreStateStore()
+        var nextId = 0
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities, displayName = "TV",
+            identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
+            transport = object : NaviampConnectTransportFactory {
+                override suspend fun connect(host: String, port: Int) = error("unused")
+                override fun listen(port: Int) = WaitingListener(42424).also { listeners += it }
+            },
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
+            trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
+            advertising = object : NaviampConnectAdvertisingEffect {
+                override fun start(service: NaviampConnectRegistrationService, listener: NaviampConnectAdvertisingListener)
+                    : NaviampConnectAdvertisingStartResult {
+                    if (denied) return NaviampConnectAdvertisingStartResult.PermissionDenied
+                    listener.onServiceRegistered(service.serviceName)
+                    return NaviampConnectAdvertisingStartResult.Started
+                }
+                override fun stop() = Unit
+            },
+            permissionSettings = app.naviamp.app.NaviampConnectPermissionSettingsEffect { opens++; true },
+            newOpaqueId = { "id-${++nextId}" }, newPairingCode = { "123456" },
+            nowEpochMillis = { testScheduler.currentTime },
+        ))
+        controller.actions.onStartPairingMode()
+        runCurrent()
+        assertEquals(app.naviamp.ui.NaviampConnectRecoveryProblem.LocalNetworkPermission, store.state.value.shell.connect.recovery?.problem)
+        assertTrue(listeners.single().closed)
+        assertNull(store.state.value.shell.connect.pairingCode)
+        controller.actions.onOpenPermissionSettings()
+        assertEquals(1, opens)
+        assertNotNull(store.state.value.shell.connect.recovery) // Opening settings does not grant permission.
+        denied = false
+        controller.actions.onRetryConnection()
+        runCurrent()
+        assertNull(store.state.value.shell.connect.recovery)
+        assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        assertEquals(2, listeners.size)
+        controller.close()
+    }
+
+    @Test
+    fun discoveryPermissionRetryPreservesRemoteSessionAndReportsSettingsLaunchFailure() = runTest {
+        val discovery = RecordingDiscoveryEffect()
+        val (controller, store, _) = remoteFixture(discovery,
+            app.naviamp.app.NaviampConnectPermissionSettingsEffect { false }) { }
+        discovery.listener.onPermissionDenied()
+        runCurrent()
+        val selected = store.state.value.shell.connect.selectedPlaybackDeviceId
+        controller.actions.onOpenPermissionSettings()
+        assertEquals(true, store.state.value.shell.connect.recovery?.settingsOpenFailed)
+        val starts = discovery.startCount
+        controller.actions.onRetryConnection()
+        runCurrent()
+        assertEquals(starts + 1, discovery.startCount)
+        assertNull(store.state.value.shell.connect.recovery)
+        assertEquals(selected, store.state.value.shell.connect.selectedPlaybackDeviceId)
+        assertEquals("TV", store.state.value.shell.connect.connectedTargetName)
+        controller.close()
+    }
+
+    @Test
+    fun unavailableDiscoveryHasRetryWithoutPermissionSettings() = runTest {
+        val discovery = RecordingDiscoveryEffect()
+        val (controller, store, _) = remoteFixture(discovery) { }
+        controller.actions.onRefreshTargets()
+        discovery.listener.onDiscoveryFailed("native detail")
+        runCurrent()
+        assertEquals(app.naviamp.ui.NaviampConnectRecoveryProblem.DiscoveryUnavailable, store.state.value.shell.connect.recovery?.problem)
+        assertEquals(false, store.state.value.shell.connect.recovery?.canOpenSettings)
+        controller.actions.onRetryConnection()
+        runCurrent()
+        assertNull(store.state.value.shell.connect.recovery)
+        controller.close()
+    }
+
+    @Test
     fun reconnectResumesAuthorityForActiveTargetButLeavesIdleTargetArmed() {
         val target = NaviampConnectDevice("tv", "Living Room TV", NaviampConnectDeviceRole.Target)
 
@@ -840,6 +921,8 @@ class NaviampCoreConnectControllerTest {
     }
 
     private fun kotlinx.coroutines.test.TestScope.remoteFixture(
+        discovery: NaviampConnectDiscoveryEffect? = null,
+        permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
         send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
     ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
         var stored: String? = null
@@ -854,8 +937,10 @@ class NaviampCoreConnectControllerTest {
             deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback), displayName = "Controller",
             identity = FakeIdentity, identityVerifier = FakeIdentityVerifier, transport = UnusedTransportFactory,
             pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
+            discovery = discovery, permissionSettings = permissionSettings,
             newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
         ))
+        if (discovery != null) controller.actions.onRefreshTargets()
         var next = 0
         val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),
             NaviampConnectRequestIdFactory { "request-${++next}" })

@@ -37,7 +37,8 @@ class AndroidNaviampConnectDiscoveryEffect(context: Context) : NaviampConnectDis
         }
 
         override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-            failDiscovery("Android could not start local target discovery (error $errorCode).")
+            failDiscovery("Android could not start local target discovery (error $errorCode).",
+                permissionDenied = errorCode == AndroidNsdPermissionDenied)
         }
 
         override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
@@ -92,7 +93,11 @@ class AndroidNaviampConnectDiscoveryEffect(context: Context) : NaviampConnectDis
                 service,
                 object : NsdManager.ResolveListener {
                     override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                        finishResolution(null)
+                        if (errorCode == AndroidNsdPermissionDenied) {
+                            failDiscovery("Permission denied", permissionDenied = true)
+                        } else {
+                            finishResolution(null)
+                        }
                     }
 
                     override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
@@ -100,6 +105,8 @@ class AndroidNaviampConnectDiscoveryEffect(context: Context) : NaviampConnectDis
                     }
                 },
             )
+        } catch (_: SecurityException) {
+            failDiscovery("Permission denied", permissionDenied = true)
         } catch (_: RuntimeException) {
             resolving = false
             resolveNextLocked()
@@ -114,11 +121,11 @@ class AndroidNaviampConnectDiscoveryEffect(context: Context) : NaviampConnectDis
     }
 
     @Synchronized
-    private fun failDiscovery(message: String) {
+    private fun failDiscovery(message: String, permissionDenied: Boolean = false) {
         if (!discovering) return
         val currentListener = listener
-        clearLocked()
-        currentListener?.onDiscoveryFailed(message)
+        stop()
+        if (permissionDenied) currentListener?.onPermissionDenied() else currentListener?.onDiscoveryFailed(message)
     }
 
     private fun clearLocked() {
@@ -147,3 +154,7 @@ internal fun NsdServiceInfo.toNaviampConnectResolvedService(): NaviampConnectRes
         )
     }.getOrNull()
 }
+
+// NsdManager.FAILURE_PERMISSION_DENIED (API 37 / T Extensions 22). Keep the native value
+// while compiling against SDK 36; this is an OS error translation, not permission policy.
+private const val AndroidNsdPermissionDenied = 7

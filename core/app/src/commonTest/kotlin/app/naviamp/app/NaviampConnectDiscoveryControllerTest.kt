@@ -108,6 +108,19 @@ class NaviampConnectDiscoveryControllerTest {
         assertEquals(NaviampConnectDiscoveryState(), controller.state.value)
     }
 
+    @Test
+    fun asynchronousPermissionDenialCanBeRetried() {
+        val effect = FakeDiscoveryEffect()
+        val controller = NaviampConnectDiscoveryController(effect, nowEpochMillis = { 1_000 })
+        controller.start()
+        effect.listener.onPermissionDenied()
+        assertEquals(NaviampConnectDiscoveryProblem.PermissionDenied, controller.state.value.problem)
+        assertEquals(1, effect.stopCount)
+        controller.start()
+        assertEquals(NaviampConnectDiscoveryStatus.Discovering, controller.state.value.status)
+        assertEquals(null, controller.state.value.problem)
+    }
+
     private fun service(
         id: String,
         name: String,

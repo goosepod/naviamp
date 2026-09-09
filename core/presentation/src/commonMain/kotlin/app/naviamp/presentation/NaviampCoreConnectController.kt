@@ -105,6 +105,7 @@ data class NaviampCoreConnectServices(
     val pairingHandshakeTimeoutMillis: Long = 30_000L,
     val pairingListenPort: Int = 0,
     val targetCapabilities: Set<NaviampConnectCapability> = emptySet(),
+    val permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
 ) {
     init {
         require(pairingLifetimeMillis > 0) { "The pairing lifetime must be positive." }
@@ -157,6 +158,8 @@ class NaviampCoreConnectController(
     private var authenticatedSession: NaviampConnectAuthenticatedSession? = null
     private var authenticatedSessionJob: Job? = null
     private var heartbeatJob: Job? = null
+    private var advertisingFailure: NaviampConnectAdvertisingStatus.Failed? = null
+    private var settingsOpenFailed = false
     private var notice: app.naviamp.ui.NaviampConnectStatusNotice? = null
     private var targetSession: NaviampConnectTargetSession? = null
     private var targetSnapshotFactory: NaviampCoreConnectTargetSnapshotFactory? = null
@@ -209,6 +212,8 @@ class NaviampCoreConnectController(
 
     val actions = NaviampConnectSettingsActions(
         onStartPairingMode = ::startPairingMode,
+        onRetryConnection = ::retryConnection,
+        onOpenPermissionSettings = ::openPermissionSettings,
         onStopPairingMode = ::stopPairingMode,
         onRefreshTargets = ::refreshTargets,
         onTargetSelected = ::selectTarget,
@@ -329,9 +334,7 @@ class NaviampCoreConnectController(
                                 status = "Ready for a controller on this local network."
                             }
                             is NaviampConnectAdvertisingStatus.Failed -> {
-                                phase = NaviampConnectPairingUiPhase.Failed
-                                status = value.message
-                                closeTargetResources()
+                                handleAdvertisingFailure(value)
                             }
                             NaviampConnectAdvertisingStatus.Idle -> Unit
                             is NaviampConnectAdvertisingStatus.Starting -> Unit
@@ -427,6 +430,8 @@ class NaviampCoreConnectController(
 
     private fun startPairingMode() {
         if (!canPlayRemotely || advertising == null) return
+        advertisingFailure = null
+        settingsOpenFailed = false
         val existingListener = listener
         if (existingListener == null) {
             stopPairingMode()
@@ -460,6 +465,11 @@ class NaviampCoreConnectController(
             )
             targetPairing.start(advertisement, services.newOpaqueId(), code, now)
             advertising.start(advertisement)
+            (advertising.state.value as? NaviampConnectAdvertisingStatus.Failed)?.let {
+                handleAdvertisingFailure(it)
+                publish()
+                return
+            }
             pairingExpiryJob = controllerScope.launch {
                 delay((advertisement.expiresAtEpochMillis - services.nowEpochMillis()).coerceAtLeast(0L))
                 pairingExpiryJob = null
@@ -482,7 +492,10 @@ class NaviampCoreConnectController(
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
-            fail(failure.message ?: "Could not start Naviamp Connect pairing.")
+            handleAdvertisingFailure(NaviampConnectAdvertisingStatus.Failed(
+                failure.message ?: "Could not start Naviamp Connect pairing.",
+            ))
+            publish()
         }
     }
 
@@ -691,6 +704,50 @@ class NaviampCoreConnectController(
         closeTargetResources()
         phase = NaviampConnectPairingUiPhase.Inactive
         status = "Pairing request rejected."
+        publish()
+    }
+
+    private fun handleAdvertisingFailure(failure: NaviampConnectAdvertisingStatus.Failed) {
+        advertisingFailure = failure
+        phase = NaviampConnectPairingUiPhase.Failed
+        status = failure.message
+        closeTargetResources()
+        targetPairing.stop()
+    }
+
+    private fun recoveryProblem(): app.naviamp.ui.NaviampConnectRecoveryProblem? {
+        val problem = discovery?.state?.value?.problem
+        return when {
+            advertisingFailure?.permissionDenied == true || problem is NaviampConnectDiscoveryProblem.PermissionDenied ->
+                app.naviamp.ui.NaviampConnectRecoveryProblem.LocalNetworkPermission
+            advertisingFailure != null -> app.naviamp.ui.NaviampConnectRecoveryProblem.AdvertisingUnavailable
+            problem is NaviampConnectDiscoveryProblem.Failed || problem is NaviampConnectDiscoveryProblem.Unavailable ->
+                app.naviamp.ui.NaviampConnectRecoveryProblem.DiscoveryUnavailable
+            else -> null
+        }
+    }
+
+    private fun openPermissionSettings() {
+        if (recoveryProblem() != app.naviamp.ui.NaviampConnectRecoveryProblem.LocalNetworkPermission) return
+        val effect = services.permissionSettings ?: return
+        settingsOpenFailed = !runCatching { effect.open() }.getOrDefault(false)
+        publish()
+    }
+
+    private fun retryConnection() {
+        settingsOpenFailed = false
+        // Retry only failed native operations. Keep authenticated sessions and playback authority intact.
+        val retryAdvertising = advertisingFailure != null
+        when (discovery?.state?.value?.problem) {
+            is NaviampConnectDiscoveryProblem.PermissionDenied,
+            is NaviampConnectDiscoveryProblem.Unavailable,
+            is NaviampConnectDiscoveryProblem.Failed -> {
+                discovery.stop()
+                discovery.start()
+            }
+            else -> Unit
+        }
+        if (retryAdvertising) startPairingMode()
         publish()
     }
 
@@ -1542,6 +1599,7 @@ class NaviampCoreConnectController(
     }
 
     private fun stopPairingMode() {
+        advertisingFailure = null
         pendingTargetPairing?.reject()
         pendingTargetPairing = null
         closeTargetResources()
@@ -1619,6 +1677,14 @@ class NaviampCoreConnectController(
                     selectedTargetId = selectedTarget?.advertisement?.instanceId,
                     status = effectiveStatus,
                     notice = notice,
+                    recovery = recoveryProblem()?.let { problem ->
+                        app.naviamp.ui.NaviampConnectRecoveryUi(
+                            problem = problem,
+                            canOpenSettings = services.permissionSettings != null &&
+                                problem == app.naviamp.ui.NaviampConnectRecoveryProblem.LocalNetworkPermission,
+                            settingsOpenFailed = settingsOpenFailed,
+                        )
+                    },
                     selectedPlaybackDeviceId = remoteDestination?.device?.trustedDeviceId,
                     selectedPlaybackDeviceName = remoteDestination?.let { selected ->
                         trusts.firstOrNull { it.trustedDeviceId == selected.device.trustedDeviceId }

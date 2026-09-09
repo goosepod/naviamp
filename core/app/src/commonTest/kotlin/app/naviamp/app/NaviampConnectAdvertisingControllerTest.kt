@@ -62,7 +62,20 @@ class NaviampConnectAdvertisingControllerTest {
         controller.start(advertisement())
 
         val failed = assertIs<NaviampConnectAdvertisingStatus.Failed>(controller.state.value)
-        assertTrue(failed.message.contains("permission"))
+        assertTrue(failed.permissionDenied)
+    }
+
+    @Test
+    fun asynchronousPermissionDenialCanBeRetried() {
+        val effect = FakeAdvertisingEffect()
+        val controller = NaviampConnectAdvertisingController(effect, nowEpochMillis = { 1_000 })
+        controller.start(advertisement())
+        effect.listener.onPermissionDenied()
+        assertTrue(assertIs<NaviampConnectAdvertisingStatus.Failed>(controller.state.value).permissionDenied)
+        assertEquals(1, effect.stopCount)
+        controller.start(advertisement())
+        effect.listener.onServiceRegistered("Naviamp Living Room")
+        assertIs<NaviampConnectAdvertisingStatus.Advertising>(controller.state.value)
     }
 
     private fun advertisement(expiresAt: Long = 5_000) = NaviampConnectAdvertisement(

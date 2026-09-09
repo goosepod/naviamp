@@ -231,6 +231,7 @@ class AndroidNaviampCoreCatalog private constructor(
                 ),
                 discovery = AndroidNaviampConnectDiscoveryEffect(appContext).takeUnless { isTelevision },
                 advertising = AndroidNaviampConnectAdvertisingEffect(appContext),
+                permissionSettings = AndroidNaviampConnectPermissionSettingsEffect(appContext),
                 newOpaqueId = { UUID.randomUUID().toString() },
                 newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
                 nowEpochMillis = clock::nowEpochMillis,

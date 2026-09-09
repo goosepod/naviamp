@@ -585,4 +585,10 @@
     <string name="tv_track_title_label">Track:</string>
     <string name="connect_remote_unavailable">The selected playback device is unavailable. Reconnect or choose another output.</string>
     <string name="connect_connection_timed_out">The playback device stopped responding. Reconnecting…</string>
+    <string name="connect_recovery_permission">Local network access was denied. In system settings, allow Naviamp to access the local network if that permission is available, then return and retry.</string>
+    <string name="connect_recovery_discovery">Naviamp could not search the local network. Check that both devices are on the same network and that the network allows devices to communicate, then retry.</string>
+    <string name="connect_recovery_advertising">This device could not make itself available for pairing. Check its network connection, then retry.</string>
+    <string name="connect_recovery_settings_failed">System settings could not be opened. Open Naviamp’s permissions from system settings, then return and retry.</string>
+    <string name="connect_recovery_open_settings">Open system settings</string>
+    <string name="connect_recovery_retry">Retry connection</string>
 </resources>
