@@ -614,3 +614,38 @@ Limits: this confirms native playback state and advancing position, not a human 
 The unavailable case is a missing local download with a stale selection; it does not claim every
 remote-only browsing surface was exercised offline. The test queue and playback history can change
 through normal app playback commands; no user-owned download was selected for deletion.
+
+## macOS online regression — 2026-09-08
+
+Built and staged the current checkout using `-Pnaviamp.bass.platform=macos-arm64
+-Pcompose.desktop.packaging.checkJdkVendor=false verifyCoreFirstArchitecture jvmTest desktopTest
+:apps:desktop:stageLocalTestApp`. `mac-regression-build.log` passed in 50 seconds, including
+1,706 JVM tests and 42 Desktop tests, all with zero failures/errors/skips, and native package
+verification. The exact tested app is `build/local-test/Naviamp.app`, not the installed or older
+release bundles sharing its identifier.
+
+The staged app restored the existing NaviDoom connection, home content and paused queue. Downloads
+initially showed zero files. A single 14 MB Opus/128 kbps test download of Rapper's Delight completed,
+played with advancing position, and paused. This occurred with the Mac online. The user then
+explicitly excluded offline playback and required the connection remain intact: no Mac network
+toggle, sleep, or connectivity-interruption test was performed. Sleep/wake was excluded because it
+could interrupt the connection.
+
+Online streaming of the existing Hi Res Testing playlist passed: Micro Dose displayed FLAC
+48 kHz/24 bit, advanced through 0:09 and 0:45, and Next loaded My Desire. Queue contents updated,
+position advanced on the next track, and pause worked. Full/split player layouts and native window
+zoom/unzoom rendered correctly; the original 1152-by-768 window/split view was restored. The single
+test download was removed through its own menu; Downloads returned to zero files. Playback was left
+paused and the app open on Connections with NaviDoom still selected.
+
+Native keyboard/precise resizing/seek interaction remains limited by the computer-use adapter:
+typing did not populate the search field, paste timed out waiting for clipboard consumption,
+coordinate click/drag returned `noWindowsAvailable`, and the accessibility slider was not settable.
+Accessibility clicks, native zoom and screenshots worked. These are not accepted as evidence of
+product defects or as passing native keyboard/drag/seek tests. Unmodified Space is not a documented
+local playback shortcut, so its lack of effect is not counted as a failed product shortcut.
+
+Jellyfin and Bandcamp were not saved in the Mac app. The user was asked to add them, and their live
+Mac acceptance remains pending login. No credentials were copied from the phone, no saved
+connections/settings were edited, and no network configuration changed. No production changes were
+needed for this pass. All work remains local; no push or GitHub publication.
