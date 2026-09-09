@@ -369,6 +369,7 @@ class NaviampCorePlaybackEngineAdapter(
             val request = if (externalStreamUrl != null) {
                 PlaybackRequest(
                     url = streamUrl,
+                    isLive = true,
                     mediaId = track.id.value,
                     replayGainMode = app.naviamp.domain.playback.ReplayGainMode.Off,
                 )

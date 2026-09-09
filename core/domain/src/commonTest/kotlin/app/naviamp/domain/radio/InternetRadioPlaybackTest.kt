@@ -294,6 +294,7 @@ class InternetRadioPlaybackTest {
             replayGainMode = ReplayGainMode.Track,
         )
 
+        assertEquals(true, requestPlan.request.isLive)
         assertEquals("https://cdn.example/live.mp3", requestPlan.request.url)
         assertEquals("kexp", requestPlan.request.mediaId)
         assertEquals(ReplayGainMode.Off, requestPlan.request.replayGainMode)

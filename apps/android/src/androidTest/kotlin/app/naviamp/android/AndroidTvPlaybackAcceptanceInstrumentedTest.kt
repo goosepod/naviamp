@@ -32,6 +32,46 @@ class AndroidTvPlaybackAcceptanceInstrumentedTest {
         } finally { fixture("on") }
     }
 
+    @Test fun liveDisconnectRetainsStationAndRetryReconnects() = scenario { core ->
+        waitFor("fixture radio catalog") { core.state.value.shell.radio.stations.isNotEmpty() }
+        withContext(Dispatchers.Main) {
+            core.dispatch(NaviampCoreCommand.Radio.StationAction(app.naviamp.ui.StationRowActionRequest(
+                core.state.value.shell.radio.stations.single().item, app.naviamp.ui.StationRowAction.Select)))
+        }
+        waitFor("live playback") {
+            val snapshot = core.externalPlaybackBridge().snapshot()
+            snapshot.state == NaviampExternalPlaybackState.Playing && snapshot.current?.mediaId?.contains("fixture-radio") == true
+        }
+        waitFor("live progress") { (core.playbackProgress.value.positionSeconds ?: 0.0) >= 5.0 }
+        val mediaId = core.externalPlaybackBridge().snapshot().current?.mediaId
+        try {
+            fixture("off")
+            waitFor("live interruption") { core.externalPlaybackBridge().snapshot().state == NaviampExternalPlaybackState.Idle }
+            record("live interrupted: ${core.state.value.shell.nowPlaying?.stateLabel}")
+            assertEquals("BASS playback failed.", core.state.value.shell.nowPlaying?.stateLabel)
+            assertEquals(mediaId, core.externalPlaybackBridge().snapshot().current?.mediaId)
+            fixture("on")
+            withContext(Dispatchers.Main) { core.externalPlaybackBridge().play() }
+            waitFor("live reconnect") { core.externalPlaybackBridge().snapshot().state == NaviampExternalPlaybackState.Playing }
+            assertEquals(mediaId, core.externalPlaybackBridge().snapshot().current?.mediaId)
+            record("live reconnected to same station")
+            withContext(Dispatchers.Main) { core.externalPlaybackBridge().pause() }
+            delay(1500)
+            assertEquals(NaviampExternalPlaybackState.Paused, core.externalPlaybackBridge().snapshot().state)
+        } finally { fixture("on") }
+    }
+
+    @Test fun unknownLengthFiniteTrackCompletesNormally() = scenario { core ->
+        waitFor("unknown-length finite completion") { core.externalPlaybackBridge().snapshot().state == NaviampExternalPlaybackState.Idle }
+        delay(1500)
+        assertNotEquals("BASS playback failed.", core.state.value.shell.nowPlaying?.stateLabel)
+        val reports = org.json.JSONObject(fixture("status")).getJSONArray("reports")
+        val submitted = (0 until reports.length()).map(reports::getJSONObject)
+            .filter { it.getString("submission") == "true" }.map { it.getString("id") }
+        assertEquals(listOf("fixture-track"), submitted)
+        record("unknown-length finite track completed and submitted once")
+    }
+
     @Test fun transientAndPermanentAudioFocusLossRespectUserIntent() = scenario { core ->
         val manager = InstrumentationRegistry.getInstrumentation().targetContext.getSystemService(AudioManager::class.java)
         suspend fun request(gain: Int): AudioFocusRequest {

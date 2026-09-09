@@ -18,6 +18,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--burst-seconds', type=float, default=125)
 parser.add_argument('--track-seconds', type=int, default=600)
 parser.add_argument('--tracks', type=int, default=1)
+parser.add_argument('--unknown-length', action='store_true', help='Omit Content-Length and ranges for finite songs')
 args = parser.parse_args()
 if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 10):
     parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..10')
@@ -65,6 +66,7 @@ class Handler(BaseHTTPRequestHandler):
         if unavailable: self.send_error(503); return
         query = parse_qs(parsed.query)
         if action == 'stream': return self.audio()
+        if action == 'live': return self.audio(live=True)
         if action == 'scrobble':
             with lock:
                 for track_id in query.get('id', []):
@@ -83,7 +85,7 @@ class Handler(BaseHTTPRequestHandler):
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
             'getGenres': {'genres': {'genre':[]}},
-            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[]}},
+            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[dict(id='fixture-radio', name='TV live fixture', streamUrl='http://127.0.0.1:18080/live')]}},
             'getOpenSubsonicExtensions': {'openSubsonicExtensions':[]},
         }
         if action == 'getAlbumList2' and int(query.get('offset', ['0'])[0]) > 0:
@@ -98,18 +100,31 @@ class Handler(BaseHTTPRequestHandler):
         data = json.dumps(value).encode()
         self.send_response(200); self.send_header('Content-Type','application/json')
         self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data)
-    def audio(self):
+    def audio(self, live=False):
         global bytes_sent
         start = 0
-        if self.headers.get('Range','').startswith('bytes='):
+        unknown = live or args.unknown_length
+        if not unknown and self.headers.get('Range','').startswith('bytes='):
             start = int(self.headers['Range'][6:].split('-')[0] or 0)
         if start >= len(DATA): self.send_error(416); return
         self.send_response(206 if start else 200)
-        self.send_header('Content-Type','audio/wav'); self.send_header('Accept-Ranges','bytes')
+        self.send_header('Content-Type','audio/wav')
+        if not unknown: self.send_header('Accept-Ranges','bytes')
         if start: self.send_header('Content-Range',f'bytes {start}-{len(DATA)-1}/{len(DATA)}')
-        self.send_header('Content-Length',str(len(DATA)-start)); self.end_headers()
+        if not unknown: self.send_header('Content-Length',str(len(DATA)-start))
+        self.end_headers()
         with lock: streams.add(self.connection)
         try:
+            if live:
+                # WAV's unknown data-size sentinel; stream PCM until the test closes the socket.
+                header = bytearray(DATA[:44])
+                struct.pack_into('<I', header, 4, 0xffffffff)
+                struct.pack_into('<I', header, 40, 0xffffffff)
+                self.wfile.write(header)
+                while True:
+                    self.wfile.write(PCM); self.wfile.flush()
+                    with lock: bytes_sent += len(PCM)
+                    time.sleep(1)
             for offset in range(start,len(DATA),8192):
                 self.wfile.write(DATA[offset:offset+8192]); self.wfile.flush()
                 with lock: bytes_sent += len(DATA[offset:offset+8192])

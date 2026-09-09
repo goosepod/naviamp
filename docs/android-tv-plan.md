@@ -1501,3 +1501,13 @@ Connect availability has additional topology and fresh-device requirements in
   Desktop and iOS Simulator ARM64 host compilation, and the architecture guard pass. The final
   native AudioManager test includes duckable loss, transient recovery, explicit-pause cancellation
   and permanent loss. Release signing and physical-output acceptance remain open.
+
+- Live-stream recovery: shared playback requests explicitly mark radio as live. Native EOF now
+  produces a retryable error instead of Finished, including when byte counters are unavailable.
+  Explicit Play reconnects the retained station without a seek cursor. Finite unknown-length
+  sources retain normal EOF behavior because length-free, unframed transport cannot reliably
+  distinguish truncation from completion. See the [follow-up audit](android-tv-interruption-audit.md)
+  for the synthetic live/unknown-length fixtures and validation. No platform production code changed.
+  Native live-disconnect/reconnect and unknown-length finite-completion tests pass. Shared JVM
+  suites pass 1,460 tests; Android app/test builds, Desktop/iOS host compilation and the
+  architecture guard pass. Ambiguous unframed finite EOF remains an explicit limitation.

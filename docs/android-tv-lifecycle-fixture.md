@@ -3,7 +3,9 @@
 This fixture exercises the real Android app, BASS engine, persisted playback session, and
 MediaSession without saved server credentials. It generates a ten-minute WAV and a one-track
 Subsonic catalog by default. `--burst-seconds`, `--track-seconds`, and `--tracks` configure
-small-buffer outages or multi-track playback. Tracks include synthetic ReplayGain metadata. The HTTP server binds only to loopback, never forwards traffic, and does not log
+small-buffer outages or multi-track playback. `--unknown-length` omits HTTP length/range headers
+for finite songs. The catalog also includes an endless, paced live radio fixture.
+Tracks include synthetic ReplayGain metadata. The HTTP server binds only to loopback, never forwards traffic, and does not log
 URLs or authentication values. An initial audio burst allows native seeking; subsequent bytes
 are paced so the transport can be interrupted.
 

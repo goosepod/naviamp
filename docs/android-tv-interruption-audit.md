@@ -39,8 +39,9 @@ credentials. No physical device or the other running emulator was modified.
 
 The tests exercise native engine state, queue advancement, focus callbacks and provider requests.
 They do not measure acoustic gap lengths, speaker levels, HDMI downmix, CEC, physical Wi-Fi
-reassociation, or overnight endurance. Unknown-length/live streams and codecs that do not expose
-BASS download positions need separate acceptance. Signed distribution and physical TV acceptance
+reassociation, or overnight endurance. The live/unknown-length follow-up below adds radio
+interruption coverage; ambiguous finite EOF and codecs without native download positions remain
+limited by the available transport evidence. Signed distribution and physical TV acceptance
 remain open; physical OLED testing is not assigned to the maintainer.
 
 ## Build and regression validation
@@ -102,3 +103,38 @@ All playback decisions remain in Core. Each changed platform production file has
 
 Android instrumentation tests exercise real Activity, AudioManager, BASS and storage boundaries.
 The Desktop integration test verifies the native file-size query against a generated WAV.
+
+## Live and unknown-length follow-up
+
+Radio requests now explicitly identify themselves as live in shared `PlaybackRequest`. Both
+Core request owners set this flag, and BASS end callbacks and polling use it: a live stream ending
+is a retryable failure even if native byte counters are unavailable. Explicit Play keeps the same
+station and opens its URL without a saved seek position, reconnecting at the live edge. This does
+not add automatic retry or resume after a user pause/stop. No platform production files changed.
+
+A missing HTTP Content-Length is not sufficient evidence that a song is live or interrupted.
+BASS automatically uses block streaming for unknown lengths, where FILEPOS_END describes its
+buffer rather than the full audio length ([native stream documentation](https://www.un4seen.com/doc/bass/BASS_StreamCreateURL.html)).
+An unframed finite stream with no reliable length or transport completion signal cannot distinguish
+normal EOF from a connection drop. That ambiguous finite case retains normal completion; it is not
+claimed as solved by the radio fix.
+
+The fixture now publishes a synthetic live radio station at `/live` (endless paced PCM with an
+unknown-size WAV header, no HTTP length or ranges). `--unknown-length` omits HTTP length and ranges
+for finite songs. Repeat the opt-in acceptance methods on separate fresh disposable installations:
+
+- Default fixture: `liveDisconnectRetainsStationAndRetryReconnects`.
+- `--unknown-length --track-seconds 30`: `unknownLengthFiniteTrackCompletesNormally`.
+
+The real TV live-disconnect test passed in 22.654 seconds: the buffered stream drained into a
+retryable playback error, the station remained selected, explicit Play reconnected it, and a
+subsequent explicit Pause remained paused. Common tests cover both callback and polling paths,
+finite EOF without counters, radio request classification, and retry without a saved seek position.
+
+Final shared validation passes 905 domain, 199 app and 356 presentation JVM tests (**1,460 total**,
+no failures/errors/skips). Shared Android/JVM/iOS compilation, Android app/test assembly,
+Desktop and iOS Simulator host compilation, and the architecture guard pass.
+
+The final finite unknown-length native test passed in 35.382 seconds: normal completion, no
+playback failure, and exactly one listen submission. The disposable emulator and fixture were
+shut down after verification.

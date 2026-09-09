@@ -33,6 +33,36 @@ class CoreBassPlaybackEngineTest {
     }
 
     @Test
+    fun liveEndNeverAdvancesTheQueueEvenWithoutByteCounters() = runTest {
+        for (endSync in listOf(false, true)) {
+            val backend = RecordingPlaybackBackend(emitEndSync = endSync)
+            val engine = CoreBassPlaybackEngine(Result.success(backend), FakeBassPlaybackEngineRuntime)
+            val states = mutableListOf<PlaybackState>()
+            engine.play(this, PlaybackRequest(url = "file:///fixture.wav", isLive = true), states::add, {})
+            advanceUntilIdle()
+            assertTrue(states.any { it is PlaybackState.Error })
+            assertFalse(PlaybackState.Finished in states)
+            engine.stop()
+            assertEquals(PlaybackState.Stopped, states.last())
+            engine.release()
+        }
+    }
+
+    @Test
+    fun finiteSourcesWithoutCountersStillCompleteNormally() = runTest {
+        for (endSync in listOf(false, true)) {
+            val backend = RecordingPlaybackBackend(emitEndSync = endSync)
+            val engine = CoreBassPlaybackEngine(Result.success(backend), FakeBassPlaybackEngineRuntime)
+            val states = mutableListOf<PlaybackState>()
+            engine.play(this, PlaybackRequest(url = "file:///fixture.wav"), states::add, {})
+            advanceUntilIdle()
+            assertTrue(PlaybackState.Finished in states)
+            assertFalse(states.any { it is PlaybackState.Error })
+            engine.release()
+        }
+    }
+
+    @Test
     fun stopPublishesStoppedStateAndUnknownProgress() = runTest {
         val engine = CoreBassPlaybackEngine(
             backendResult = Result.failure(IllegalStateException("BASS unavailable")),

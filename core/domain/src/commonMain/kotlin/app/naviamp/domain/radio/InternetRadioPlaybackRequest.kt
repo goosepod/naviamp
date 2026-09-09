@@ -15,6 +15,7 @@ fun planInternetRadioPlaybackRequest(
     InternetRadioPlaybackRequestPlan(
         request = PlaybackRequest(
             url = streamUrl,
+            isLive = true,
             mediaId = startPlan.engineMediaId,
             replayGainMode = if (startPlan.replayGainOff) ReplayGainMode.Off else replayGainMode,
         ),

@@ -303,6 +303,8 @@ data class PlaybackRequest(
     val replayGainPreampDb: Float = 0f,
     val replayGain: PlaybackReplayGain? = null,
     val startPositionSeconds: Double? = null,
+    /** A live source has no successful natural end; retry reconnects at the live edge. */
+    val isLive: Boolean = false,
 )
 
 fun PlaybackRequest.downloadFallbackRequest(positionSeconds: Double? = null): PlaybackRequest? =

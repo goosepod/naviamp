@@ -586,7 +586,16 @@ class NaviampCorePlaybackEngineAdapterTest {
         )
         advanceUntilIdle()
 
+        assertEquals(true, engine.request?.isLive)
+        assertEquals(null, engine.request?.startPositionSeconds)
         assertEquals("https://radio.example/live", engine.request?.url)
+        assertEquals("internet-radio:radio-1", engine.request?.mediaId)
+        engine.emitProgress(PlaybackProgress(73.0, null))
+        engine.emitState(PlaybackState.Error("Connection lost"))
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        assertEquals(true, engine.request?.isLive)
+        assertEquals(null, engine.request?.startPositionSeconds)
         assertEquals("internet-radio:radio-1", engine.request?.mediaId)
     }
 
