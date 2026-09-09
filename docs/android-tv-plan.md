@@ -407,9 +407,9 @@ independent navigation graph may be introduced in the Apple TV host.
   scrolling line-synced lyrics and idle dimming/pixel shifting are implemented. Word-level karaoke
   highlighting and other physical TV acceptance remain outstanding parts of the complete lyrics direction.
 - Direct shared Compose coverage now includes Home collections, Library navigation/detail return,
-  Now Playing focus, settings/localization and screen protection. Extend composition coverage for
-  Search submission/re-entry, Internet Radio editing and lyrics workflows. Policy tests and manual
-  emulator evidence do not replace direct coverage of those screen interactions.
+  Now Playing focus, settings/localization, screen protection, Search submission/re-entry, Internet
+  Radio editing, and lyrics timing/scrolling/remote controls. See the
+  [UI workflow and artwork contrast audit](android-tv-ui-acceptance.md) for direct screen coverage.
 - The Leanback banner and packaged native ABI inventory are implemented and audited. Signed
   distribution and store-console asset/requirements review remain open.
 
@@ -469,7 +469,9 @@ independent navigation graph may be introduced in the Apple TV host.
   with **A**, and Repeat One uses the repeat glyph with **1**. Remove the TV **ALL** treatment.
 - [x] Capture and exercise waveform/repeat controls at 720p and native 4K, including selected/focus
   state and base-surface text contrast; evidence is in the September 9 progress log.
-- [ ] Complete contrast checks across representative artwork and physical-TV accessibility.
+- [x] Complete automated artwork contrast checks across synthetic bright/color/pattern extremes at
+  720p and 4K; see the [contrast audit](android-tv-ui-acceptance.md).
+- [ ] Complete physical-TV accessibility acceptance.
   Detailed criteria are tracked in
   [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md#shared-playback-control-polish).
 
@@ -584,7 +586,9 @@ Connect availability has additional topology and fresh-device requirements in
 - [ ] Complete physical/target-independent playback acceptance across the supported controller matrix.
 - [x] Capture 720p/native-4K waveform/repeat focus states and Now Playing dimming/pixel shifts.
   Automated tests and renders are the OLED mitigation evidence; no physical OLED test is a maintainer gate.
-- [ ] Complete artwork-dependent contrast and physical-TV accessibility acceptance.
+- [x] Complete automated Search, radio, and lyrics UI workflow coverage and artwork-dependent contrast
+  checks; see the [UI acceptance audit](android-tv-ui-acceptance.md).
+- [ ] Complete physical-TV accessibility acceptance.
 - [ ] Pass physical Google TV direct-LAN discovery, audio/HDMI/downmix, CEC, MediaSession/audio focus,
   sleep/wake, process recovery, performance, and Android phone/Desktop controller acceptance.
 - [x] Add the Leanback banner and audit the release AAB launcher metadata/native ABI inventory.
@@ -1540,3 +1544,19 @@ Connect availability has additional topology and fresh-device requirements in
   presentation, render checks and banner packaging are marked complete independently of physical
   device, artwork-contrast and signed/store acceptance. Removed the stale maintainer physical-OLED
   gate and kept Cast Connect as a deferred product decision.
+
+
+### September 9, 2026 — Automated UI workflows and artwork contrast
+
+- Added six shared Compose workflow tests covering Search submission/results/re-entry, radio
+  loading/errors and create/edit/delete dialogs, lyric timing/offset/scroll reset, and remote lyric
+  toggling with retained focus.
+- Added nine contrast tests: 4,913 sRGB background samples plus eight rendered bright-white,
+  yellow, checkerboard, and multicolor captures at 720p/4K. Reviewed all eight captures.
+- Added a shared TV reading surface and improved inactive-lyric and played-waveform contrast.
+  Minimum measured text contrast is 4.56405:1 and played waveform contrast is 3.34431:1.
+- Passed all 343 UI and 356 presentation tests, Android debug assembly, Desktop and iOS simulator
+  ARM64 compilation, and the Core-first architecture check. All production changes are common;
+  no platform production adapters changed.
+- Recorded scope, reproduction, and artifacts in [the acceptance audit](android-tv-ui-acceptance.md).
+  Physical-TV accessibility remains open.

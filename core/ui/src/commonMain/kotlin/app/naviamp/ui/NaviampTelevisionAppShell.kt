@@ -222,6 +222,7 @@ fun NaviampTelevisionAppShell(
                 colors = colors,
                 playerColors = backgroundPlayerColors,
             )
+            TelevisionReadingSurface(colors)
             when {
                 connection.restoringConnection && !connection.editingConnection -> TelevisionStatusScreen(
                     title = stringResource(Res.string.tv_restoring_naviamp_tv),

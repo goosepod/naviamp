@@ -88,6 +88,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.onClick as semanticsOnClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -2122,9 +2123,10 @@ private fun TelevisionLyrics(
                     ),
                     label = "TV lyric line emphasis",
                 )
-                val inactiveColor = colors.secondaryText.copy(alpha = 0.58f)
+                val inactiveColor = colors.mutedText
                 Text(
                     line.text,
+                    modifier = Modifier.semantics { selected = active },
                     color = androidx.compose.ui.graphics.lerp(inactiveColor, colors.primaryText, emphasis),
                     fontSize = (21f + 8f * emphasis).sp,
                     lineHeight = (26f + 8f * emphasis).sp,

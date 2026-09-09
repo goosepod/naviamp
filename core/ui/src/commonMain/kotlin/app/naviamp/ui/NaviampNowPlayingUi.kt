@@ -1648,6 +1648,9 @@ private fun currentPlaybackProgress(
     return progress
 }
 
+internal fun waveformPlayedColor(colors: NaviampColors, enabled: Boolean): Color =
+    colors.accent.mix(colors.primaryText, 0.52f).copy(alpha = if (enabled) 0.98f else 0.92f)
+
 @Composable
 internal fun WaveformScrubber(
     amplitudes: List<Float>,
@@ -1664,7 +1667,7 @@ internal fun WaveformScrubber(
     modifier: Modifier = Modifier,
 ) {
     val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
-    val readableAccent = colors.accent.mix(colors.primaryText, 0.48f)
+    val playedColor = waveformPlayedColor(colors, enabled)
     val density = LocalDensity.current
     val targetDrawValue = drawValue().coerceIn(0f, 1f)
     val animatedDrawValue = remember(progressIdentity) { Animatable(targetDrawValue) }
@@ -1775,7 +1778,7 @@ internal fun WaveformScrubber(
             }
             drawBars(colors.primaryText.copy(alpha = if (enabled) 0.34f else 0.16f))
             clipRect(right = waveformPlayedClipWidth(size.width, currentDrawValue)) {
-                drawBars(readableAccent.copy(alpha = if (enabled) 0.98f else 0.92f))
+                drawBars(playedColor)
             }
         }
 
