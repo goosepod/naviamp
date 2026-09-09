@@ -10,6 +10,19 @@ import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
     @Test
+    fun playerWorkspacePreferenceRoundTripsAndOlderExportsDefaultToSplit() {
+        for (layout in WideNowPlayingLayout.entries) {
+            val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(nowPlaying = NowPlayingDisplaySettings(wideLayout = layout)),
+            ))
+            assertEquals(layout, SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+                .preferences.interfaceSettings.nowPlaying.wideLayout)
+        }
+        assertEquals(WideNowPlayingLayout.Split, SettingsSyncJson.decode("""{"preferences":{}}""")
+            .preferences.interfaceSettings.nowPlaying.wideLayout)
+    }
+
+    @Test
     fun auroraTonesRoundTripAndKeepExistingSerializedNames() {
         for (tone in AuroraTone.entries) {
             val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(

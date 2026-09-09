@@ -540,4 +540,13 @@
     <string name="genre_songs_more">Cargar más canciones</string>
     <string name="genre_songs_failed">No se pudieron cargar las canciones. Inténtalo de nuevo.</string>
     <string name="genre_songs_empty">Ninguna canción coincide con los géneros seleccionados.</string>
+    <string name="mix_other_genres">Otros géneros</string>
+    <string name="mix_expand_genre">Expandir %1$s</string>
+    <string name="mix_collapse_genre">Contraer %1$s</string>
+    <string name="mix_selected_seed_tracks">Pistas iniciales seleccionadas</string>
+    <string name="mix_find_seed_tracks">Buscar pistas iniciales</string>
+    <string name="mix_search_results">Resultados de búsqueda</string>
+    <string name="mix_include_seeds">Incluir pistas iniciales</string>
+    <string name="sonic_path_selected_track">Pista seleccionada</string>
+    <string name="sonic_path_find_track">Buscar pista</string>
 </resources>

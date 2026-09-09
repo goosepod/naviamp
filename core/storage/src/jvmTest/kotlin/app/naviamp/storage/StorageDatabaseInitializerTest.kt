@@ -142,7 +142,7 @@ class StorageDatabaseInitializerTest {
     }
 
     @Test
-    fun releaseBaselineDatabaseAddsBranchTables() {
+    fun releaseBaselineDatabaseAddsBranchTablesAndPreservesExistingLibrary() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             NaviampStorageDatabase.Schema.create(driver)
@@ -151,10 +151,25 @@ class StorageDatabaseInitializerTest {
             driver.execute(null, "DROP TABLE library_track_artist_credit", 0)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
             driver.execute(null, "PRAGMA user_version = 24", 0)
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                  username, token, salt, created_at_epoch_millis, selected_music_folder_ids_json)
+                VALUES ('source', 'jellyfin', 'cache', 'Existing server', 'https://example.test',
+                  'user', 'token', 'salt', 1, '["music"]')
+            """.trimIndent(), 0)
+            driver.execute(null, """
+                INSERT INTO library_album(source_id, remote_album_id, title, artist_name,
+                  search_title, search_artist_name, updated_at_epoch_millis, original_release_year)
+                VALUES ('source', 'album', 'Existing album', 'Artist', 'existing album', 'artist', 1, 1977)
+            """.trimIndent(), 0)
 
-            initializeNaviampStorageDatabase(driver)
+            val database = initializeNaviampStorageDatabase(driver)
 
             assertEquals(NaviampStorageSchema.version, driver.userVersion())
+            assertEquals("Existing server", database.naviampStorageQueries.selectMediaSourceById("source").executeAsOne().display_name)
+            assertEquals("[\"music\"]", database.naviampStorageQueries.selectMediaSourceById("source").executeAsOne().selected_music_folder_ids_json)
+            assertEquals(1L, driver.queryLong("SELECT COUNT(*) FROM library_album WHERE remote_album_id = 'album' AND original_release_year = 1977"))
+            assertEquals(1L, driver.queryLong("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'album_catalog_snapshot'"))
             assertEquals(
                 1L,
                 driver.queryLong(

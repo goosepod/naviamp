@@ -2,6 +2,8 @@ package app.naviamp.android.playback
 
 import android.util.Log
 import app.naviamp.domain.bass.BassPluginDiagnostic
+import app.naviamp.domain.playback.planEqualizer
+import app.naviamp.domain.playback.toNativeEqualizerParameters
 
 object AndroidBassJni {
     private const val Tag = "NaviampBass"
@@ -92,7 +94,11 @@ object AndroidBassJni {
 
     fun slideVolume(stream: Int, volume: Float, millis: Int): Boolean = nativeSlideVolume(stream, volume, millis)
 
-    fun applyEqualizer(stream: Int, bandsDb: FloatArray): Boolean = nativeApplyEqualizer(stream, bandsDb)
+    fun applyEqualizer(stream: Int, bandsDb: FloatArray): Boolean {
+        val frequency = nativeChannelInfoFrequency(stream)
+        if (frequency <= 0) return false
+        return nativeApplyEqualizer(stream, planEqualizer(bandsDb.toList(), frequency).toNativeEqualizerParameters())
+    }
 
     fun seek(stream: Int, seconds: Double): Boolean = nativeSeek(stream, seconds)
 

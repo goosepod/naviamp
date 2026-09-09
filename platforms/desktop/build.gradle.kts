@@ -166,7 +166,7 @@ tasks.register("verifyDesktopNativeInputs") {
             "windows-x64" to setOf(
                 "bass", "bass_aac", "bass_mpc", "bass_ssl", "bassalac", "bassape",
                 "bassdsd", "bassflac", "basshls", "bassmidi", "bassmix", "bassopus",
-                "basswebm", "basswma",
+                "basswebm", "basswma", "bass_fx",
             ),
             "linux-x64" to setOf(
                 "bass", "bass_aac", "bass_ac3", "bass_mpc", "bass_spx",
@@ -184,7 +184,7 @@ tasks.register("verifyDesktopNativeInputs") {
             }
             val actualLibraries = vendorDirectory.listFiles()
                 .orEmpty()
-                .filter(File::isFile)
+                .filter { it.isFile && it.extension in setOf("dll", "so", "dylib") }
                 .map(File::getName)
                 .toSet()
             val unexpected = actualLibraries - requiredLibraries.toSet()

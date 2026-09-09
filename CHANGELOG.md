@@ -4,7 +4,12 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 ## Unreleased
 
-No changes yet.
+### Bug Fixes
+
+- Recover the Windows equalizer fix from the v2.4.0 stabilization branch: use bundled BASS FX
+  for low-frequency bands and share equalizer frequency, gain, bandwidth, and sample-rate handling
+  across hosts.
+- Complete the missing Spanish genre and seed-track discovery labels.
 
 ## v2.4.0
 

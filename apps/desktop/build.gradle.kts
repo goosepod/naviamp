@@ -291,6 +291,7 @@ tasks.register("verifyDesktopDistributable") {
         val requiredLibraries = buildList {
             add(desktopLibraryName("bass", platform))
             add(desktopLibraryName("bassmix", platform))
+            if (platform.startsWith("windows-")) add(desktopLibraryName("bass_fx", platform))
             add(desktopLibraryName("bassflac", platform))
             add(desktopLibraryName("bassopus", platform))
             add(desktopLibraryName("naviamp_bass", platform))
