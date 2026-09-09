@@ -49,6 +49,28 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun cancellingSavedConnectionEditsPreservesSessionAndReloadsSavedValues() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val original = fixture.store.state.value.shell.connectionSettings.connection.form
+        val inventory = fixture.port.inventory
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(original.copy(username = "unsaved")))
+
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.CancelForm)
+
+        val state = fixture.store.state.value.shell.connectionSettings.connection
+        assertFalse(state.editingConnection)
+        assertFalse(state.editingSavedConnection)
+        assertTrue(state.connected)
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertEquals(inventory, fixture.port.inventory)
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        assertEquals(original, fixture.store.state.value.shell.connectionSettings.connection.form)
+    }
+
+    @Test
     fun successfulConnectionUsesSharedAttemptPolicyAndPublishesOneSnapshot() = kotlinx.coroutines.test.runTest {
         var connectedNotifications = 0
         val fixture = fixture(onConnected = { connectedNotifications += 1 })

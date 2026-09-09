@@ -129,7 +129,19 @@ fun NaviampConnectionForm(
     val connectFocusRequester = remember { FocusRequester() }
     val focusNext: () -> Unit = { focusManager.moveFocus(FocusDirection.Next) }
 
+    NaviampSystemBackHandler(enabled = onCancel != null && !isConnecting) {
+        onCancel?.invoke()
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        onCancel?.let { cancel ->
+            ConnectionFormTextAction(
+                label = stringResource(Res.string.common_back),
+                colors = colors,
+                enabled = !isConnecting,
+                modifier = Modifier.testTag(ConnectionBackButtonTestTag),
+                onClick = cancel,
+            )
+        }
         if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
             ConnectionErrorCard(connectionStatus)
         }
@@ -419,6 +431,7 @@ fun NaviampConnectionForm(
 }
 
 internal const val ConnectionNameFieldTestTag = "connection-name"
+internal const val ConnectionBackButtonTestTag = "connection-back"
 internal const val ConnectionServerUrlFieldTestTag = "connection-server-url"
 internal const val ConnectionUsernameFieldTestTag = "connection-username"
 internal const val ConnectionPasswordFieldTestTag = "connection-password"

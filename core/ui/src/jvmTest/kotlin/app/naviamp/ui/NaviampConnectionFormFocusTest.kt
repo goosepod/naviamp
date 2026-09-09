@@ -1,5 +1,11 @@
 package app.naviamp.ui
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
@@ -15,6 +21,46 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampConnectionFormFocusTest {
+    @Test
+    fun editedConnectionCanExitByVisibleBackOrSystemBackWithoutConnecting() = runComposeUiTest {
+        val open = mutableStateOf(true)
+        val form = mutableStateOf(ConnectionFormState())
+        val back = NaviampSystemBackDispatcher()
+        var cancellations = 0
+        var connections = 0
+        setContent {
+            CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides back) {
+                if (open.value) NaviampConnectionForm(
+                    form = form.value, colors = NaviampColors.Dark, isReconnect = true,
+                    onFormChanged = { form.value = it }, onConnect = { connections++ },
+                    onCancel = { cancellations++; open.value = false },
+                )
+            }
+        }
+        onNodeWithTag(ConnectionNameFieldTestTag).performTextReplacement("Unsaved edit")
+        onNodeWithTag(ConnectionBackButtonTestTag).assertIsDisplayed()
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        onNodeWithTag(ConnectionNameFieldTestTag).assertDoesNotExist()
+        assertEquals(1, cancellations)
+        assertEquals(0, connections)
+        runOnIdle { open.value = true }
+        onNodeWithTag(ConnectionNameFieldTestTag).assertExists()
+        runOnIdle { requireNotNull(back.currentHandler).invoke() }
+        onNodeWithTag(ConnectionNameFieldTestTag).assertDoesNotExist()
+        assertEquals(2, cancellations)
+        assertEquals(0, connections)
+    }
+
+    @Test
+    fun initialSetupDoesNotOfferAnExitWithoutACancelDestination() = runComposeUiTest {
+        setContent {
+            NaviampConnectionForm(ConnectionFormState(), NaviampColors.Dark, false,
+                onFormChanged = {}, onConnect = {}, onCancel = null)
+        }
+        onNodeWithTag(ConnectionBackButtonTestTag).assertDoesNotExist()
+    }
+
     @Test
     fun imeNextAdvancesThroughRequiredConnectionFields() = runComposeUiTest {
         setContent {
