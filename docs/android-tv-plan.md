@@ -1412,3 +1412,37 @@ Connect availability has additional topology and fresh-device requirements in
   325 UI), plus 87 shared/native UI tests on iOS Simulator. No failures, errors, or skips.
   Android debug assembly, Desktop and iOS Simulator ARM64 host compilation, and the Core-first
   architecture guard all pass. No physical Android TV or OLED testing was required for these checks.
+
+- Interruption/restart hardening (shared Core): a failed stream resolution no longer consumes a
+  restored start position. The engine adapter retains the last valid playing/paused position for
+  an explicit Play retry after reconnection and ignores post-error progress callbacks that could
+  erase it. Stop, natural completion, and deliberate queue-occurrence selection clear that recovery
+  cursor. This does not introduce automatic network retries or unattended playback restarts.
+- Failed session writes no longer advance either shared save throttle. A retry can immediately
+  persist the session once storage is available, and only successful writes advance the interval.
+  Tests cover both save entry points and reconstruct the controller from the durable session.
+- Added regressions for controller transport loss without target playback commands, interrupted
+  listening with one successful provider listen submission after reconnect, and SQLite driver
+  close/reopen preserving source isolation, duplicate occurrences, current index/position, Play Next
+  priority, queue playback profiles, and the Now Playing overlay flag.
+- Added 720p and native-4K interactive waveform/repeat captures and remote activation checks under
+  `core/ui/build/reports/television-controls/`. The repeat label, visual marker, and retained focus
+  agree after activation. Base-surface primary, secondary, and muted text meet 4.5:1 contrast.
+  Reviewed both captures; these supplement the existing listening/dimming/shift captures. They do
+  not close contrast acceptance across arbitrary artwork backdrops or physical-TV accessibility.
+- Packaging audit found a missing launcher banner despite the existing Leanback launcher entry.
+  Added `android:banner` and a 320x180 xhdpi banner using the existing Naviamp mark and brand name.
+  The name is identical in both maintained languages. Editable source: `design/naviamp-tv-banner.svg`;
+  regenerate with `rsvg-convert design/naviamp-tv-banner.svg -o apps/android/src/main/res/drawable-xhdpi/naviamp_tv_banner.png`.
+  Reference: https://developer.android.com/training/tv/get-started/create and
+  https://developer.android.com/docs/quality-guidelines/tv-app-quality.
+  No Android/Desktop/iOS production Kotlin changed; the Android manifest/resource change is native
+  launcher packaging metadata. Store-console assets/review, signed release packaging, real network
+  transitions, OS process killing, audio focus, HDMI/downmix, CEC, and sustained native playback
+  acceptance remain open. Physical OLED testing remains unavailable and is not assigned to the maintainer.
+- Recovery validation: 198 app, 353 presentation, 328 UI, and 50 storage JVM tests pass (929 total;
+  no failures/errors/skips). Android debug assembly, Desktop/iOS Simulator ARM64 compilation, and
+  the Core architecture guard pass. `aapt dump badging` confirms the built v2-test APK's Leanback
+  launcher, optional touchscreen/Leanback requirements, SDK 26 minimum/36 target, application
+  banner, and arm64-v8a/armeabi-v7a/x86/x86_64 libraries. The packaged banner decodes to 320x180.
+  This validates the test APK, not a signed production release or Play Store approval.

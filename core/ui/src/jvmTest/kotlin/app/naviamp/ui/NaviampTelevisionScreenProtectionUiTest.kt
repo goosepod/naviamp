@@ -10,6 +10,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.SemanticsActions
+import kotlin.test.assertTrue
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -20,6 +23,57 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampTelevisionScreenProtectionUiTest {
+    @Test fun interactiveControlsFit720pAndExposeRepeatState() = captureInteractiveControls(1280, 720, 1f)
+    @Test fun interactiveControlsFitNative4kAndExposeRepeatState() = captureInteractiveControls(3840, 2160, 3f)
+
+    @Test fun televisionTextPaletteHasReadableContrastOnItsBaseSurface() {
+        val colors = NaviampColors.Dark
+        for (text in listOf(colors.primaryText, colors.secondaryText, colors.mutedText)) {
+            val ratio = (text.luminance() + 0.05f) / (colors.background.luminance() + 0.05f)
+            assertTrue(ratio >= 4.5f, "TV text contrast: $ratio")
+        }
+    }
+
+    private fun captureInteractiveControls(width: Int, height: Int, density: Float) = runDesktopComposeUiTest(width, height) {
+        mainClock.autoAdvance = false
+        val repeat = mutableStateOf(NaviampRepeatMode.Queue)
+        var commands = 0
+        setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density)) {
+                Box(Modifier.fillMaxSize().background(NaviampColors.Dark.background)) {
+                    TelevisionNowPlaying(
+                        nowPlaying = NowPlayingUi(id = "track", title = "Playback recovery", subtitle = "Naviamp Artist",
+                            stateLabel = "Playing", isPlaying = true, canRepeat = true, repeatMode = repeat.value,
+                            waveform = app.naviamp.domain.waveform.AudioWaveform(List(320) { (it % 17 + 1) / 18f }),
+                            positionSeconds = 73.0, durationSeconds = 180.0),
+                        playbackProgress = null, colors = NaviampColors.Dark,
+                        actions = actions {
+                            if (it.action == NowPlayingPlaybackAction.CycleRepeatMode) {
+                                commands++
+                                repeat.value = NaviampRepeatMode.Track
+                            }
+                        }, onClose = {}, onOpenSettings = {},
+                    )
+                }
+            }
+        }
+        mainClock.advanceTimeBy(300)
+        onNodeWithContentDescription("Repeat all").assertIsDisplayed()
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+            .assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        mainClock.advanceTimeBy(200)
+        assertEquals(1, commands)
+        onNodeWithContentDescription("Repeat one").assertIsDisplayed().assertIsFocused()
+        onNodeWithText("1").assertIsDisplayed()
+        onNodeWithTag(TelevisionNowPlayingScrubberTestTag).assertIsDisplayed()
+        val pixels = onRoot().captureToImage().toPixelMap()
+        val snapshot = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until height) for (x in 0 until width) snapshot.setRGB(x, y, pixels[x, y].toArgb())
+        val output = File("build/reports/television-controls/interactive-${width}x$height.png")
+        output.parentFile.mkdirs()
+        ImageIO.write(snapshot, "png", output)
+    }
+
     @Test fun shiftedListeningLayoutFits720p() = captureShiftedListeningLayout(1280, 720, 1f)
     @Test fun shiftedListeningLayoutFits4k() = captureShiftedListeningLayout(3840, 2160, 3f)
 

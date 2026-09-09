@@ -118,8 +118,9 @@ class NaviampPlaybackSessionController(
         ) {
             return PlaybackSessionSavePlan.None
         }
-        lastSavedAtMillis[request.sourceId] = nowMillis
-        return planAndSave(request)
+        return planAndSave(request).also { plan ->
+            if (plan is PlaybackSessionSavePlan.Save) lastSavedAtMillis[request.sourceId] = nowMillis
+        }
     }
 
     fun save(session: PlaybackSessionSettings?, sourceId: String? = null) {
@@ -148,8 +149,8 @@ class NaviampPlaybackSessionController(
         ) {
             return false
         }
-        lastSavedAtMillis[sourceId] = nowMillis
         save(session, sourceId)
+        lastSavedAtMillis[sourceId] = nowMillis
         return true
     }
 

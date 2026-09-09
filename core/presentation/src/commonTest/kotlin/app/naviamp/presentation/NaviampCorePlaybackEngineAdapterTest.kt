@@ -491,6 +491,63 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun failedRestoredStreamCanRetryAtItsSavedPositionAfterReconnection() = runTest {
+        val provider = FakeCoreMediaProvider()
+        var connected = false
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider.takeIf { connected } },
+            settings = { PlaybackSettings() },
+        )
+        adapter.restoreQueue(PlaybackQueue(listOf(provider.track), 0), 37.0)
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        assertEquals(null, engine.request)
+        connected = true
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        assertEquals(37.0, engine.request?.startPositionSeconds)
+    }
+
+    @Test
+    fun streamFailureRetainsLastPositionButStopAndTrackSelectionClearIt() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this, engine = engine, providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+        )
+        val observedPositions = mutableListOf<Double?>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onProgressChanged(progress: PlaybackProgress) { observedPositions += progress.positionSeconds }
+        })
+        val queue = PlaybackQueue(listOf(provider.track, provider.track), 0)
+        adapter.playQueueSelection(queue, 0)
+        advanceUntilIdle()
+        engine.emitProgress(PlaybackProgress(73.0, 180.0))
+        engine.emitState(PlaybackState.Error("Connection lost"))
+        engine.emitProgress(PlaybackProgress(0.0, 180.0)) // Late teardown callbacks must not erase recovery.
+        assertEquals(73.0, observedPositions.last())
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        assertEquals(73.0, engine.request?.startPositionSeconds)
+        adapter.playQueueSelection(queue, 1) // Same track, different occurrence.
+        advanceUntilIdle()
+        assertEquals(null, engine.request?.startPositionSeconds)
+        engine.emitState(PlaybackState.Finished)
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        assertEquals(null, engine.request?.startPositionSeconds)
+        adapter.stop()
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        assertEquals(null, engine.request?.startPositionSeconds)
+    }
+
+    @Test
     fun restoredQueueWaitsForPlayAndResumesAtTheSavedPosition() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine()

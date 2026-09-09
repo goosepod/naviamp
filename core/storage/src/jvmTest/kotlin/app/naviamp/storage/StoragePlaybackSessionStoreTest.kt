@@ -17,6 +17,35 @@ import kotlin.test.assertTrue
 
 class StoragePlaybackSessionStoreTest {
     @Test
+    fun reopeningTheDatabasePreservesDuplicateOccurrencesCursorAndQueueProfiles() {
+        val directory = java.nio.file.Files.createTempDirectory("naviamp-session-restart").toFile()
+        val url = "jdbc:sqlite:${directory.resolve("session.db").absolutePath}"
+        val session = PlaybackSessionSettings.fromTracks(
+            tracks = listOf(testTrack("duplicate"), testTrack("duplicate"), testTrack("next")),
+            currentIndex = 1, playNextCount = 1, positionSeconds = 73.0,
+            queueGroups = listOf(PlaybackQueueGroup(
+                id = "album", target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album"),
+                label = "Album", startIndex = 0, endIndexExclusive = 3,
+                profile = PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless),
+            )),
+        )!!.copy(nowPlayingOpen = true)
+        try {
+            val first = JdbcSqliteDriver(url)
+            try {
+                NaviampStorageDatabase.Schema.create(first)
+                StoragePlaybackSessionStore(NaviampStorageDatabase(first).naviampStorageQueries, { 42L })
+                    .savePlaybackSession(session, "source")
+            } finally { first.close() }
+            val reopened = JdbcSqliteDriver(url)
+            try {
+                val store = StoragePlaybackSessionStore(NaviampStorageDatabase(reopened).naviampStorageQueries, { 43L })
+                assertEquals(session, store.loadPlaybackSession("source"))
+                assertNull(store.loadPlaybackSession("different-source"))
+            } finally { reopened.close() }
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test
     fun storesRestoresAndDeletesASourceScopedSession() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {

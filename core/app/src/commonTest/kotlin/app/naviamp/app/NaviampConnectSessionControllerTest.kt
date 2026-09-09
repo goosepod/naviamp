@@ -39,6 +39,26 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampConnectSessionControllerTest {
     @Test
+    fun losingTheControllerTransportDoesNotIssuePlaybackCommandsOrStopTheTarget() = runTest {
+        val playing = snapshot(0).let { it.copy(playback = it.playback.copy(state = NaviampConnectPlaybackState.Playing)) }
+        var commands = 0
+        val target = NaviampConnectTargetSession(
+            sessionId = SessionId, protocolVersion = 1, initialSnapshot = playing,
+            transport = NaviampConnectSessionTransport { error("Controller disconnected") },
+            executor = NaviampConnectTargetCommandExecutor { _, current ->
+                commands++
+                NaviampConnectTargetCommandResult.Success(current, changed = false)
+            },
+        )
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            target.publishLocalSnapshot(playing.copy(revision = 1))
+        }
+        assertEquals(NaviampConnectPlaybackState.Playing, target.snapshot().playback.state)
+        assertEquals(1, target.snapshot().revision)
+        assertEquals(0, commands)
+    }
+
+    @Test
     fun targetSerializesConcurrentAuthenticatedMessages() = runTest {
         val firstSendEntered = CompletableDeferred<Unit>()
         val releaseFirstSend = CompletableDeferred<Unit>()
