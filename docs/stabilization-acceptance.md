@@ -649,3 +649,30 @@ Jellyfin and Bandcamp were not saved in the Mac app. The user was asked to add t
 Mac acceptance remains pending login. No credentials were copied from the phone, no saved
 connections/settings were edited, and no network configuration changed. No production changes were
 needed for this pass. All work remains local; no push or GitHub publication.
+
+## macOS Jellyfin and Bandcamp online acceptance — 2026-09-08
+
+After the user added both saved connections to the staged Mac app, the online live pass continued
+on the same verified build. The Mac remained awake and online; no network setting, sleep state,
+credential, library selection or server content was edited. No downloads or playlist writes were
+performed in this continuation.
+
+Bandcamp passed artist/album browsing, album details/artwork, and MP3/256 kbps streaming of
+`~ Ash & Return ~`. Position advanced to 0:49; pause and resume updated the controls correctly.
+Adding `~ Black Soil & Thunder ~` populated eight queued tracks. Next started its first track with
+the correct title/duration, and position advanced to 0:10. Switching to JellyDoom stopped/cleared
+the Bandcamp player and queue before showing the Jellyfin catalog.
+
+Jellyfin passed album browsing and detail/artwork loading. `Govor` streamed as FLAC 44.1 kHz/16 bit
+with advancing position. Adding the album containing `Song 2` populated the queue. Pause/resume
+worked around 0:39/0:40; Next loaded Song 2 with the correct Blur metadata and MP3/320 kbps format,
+advanced to 0:20, and paused. Switching back to Bandcamp cleared Jellyfin playback; the final UI
+showed the Bandcamp album grid with Nothing Playing/Stopped. This restores the selected service
+that was active when the continuation began.
+
+These observations close the pending live Mac login/streaming checks for the two services. No
+product defect or production change was needed. Existing native keyboard/drag/seek automation
+limitations remain as documented above. Evidence is the live computer-use accessibility state and
+observed advancing playback position, not a human audio-quality assessment. No build/test rerun was
+needed because the application binaries and code were unchanged. All documentation remains local;
+no push or GitHub publication.
