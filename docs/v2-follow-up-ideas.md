@@ -29,9 +29,11 @@ Before moving an idea into the active v2 plan or a release branch:
 - **Concept:** Add two independent font-size settings: one for the Now Playing page and one for
   the rest of the application, including Home, Settings, Library, album details, and other browse
   and detail screens. Changing either setting must not change the other area's font size.
-- **Controls:** Consider two sliders or two preset selectors such as **Small / Standard / Large**.
-  Keep the control style and exact size range open for design; Standard should preserve the
-  current typography, and each setting should be independently resettable.
+- **Controls:** Use two independent option selectors matching the existing encoding settings
+  controls: one for Now Playing and one for the rest of the UI. Offer discrete size choices such
+  as **Small / Standard / Large**, not sliders. The exact choices remain open for design;
+  Standard should preserve the current typography, and each setting should be independently
+  resettable.
 - **Shared ownership:** Define the settings, scaling rules, and UI in Core for Android, Desktop,
   iOS, and Television. Include both preferences in shared settings export/import and sync, with
   Standard defaults for older exports and normalization of imported values.
