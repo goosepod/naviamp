@@ -44,6 +44,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.MaterialTheme
@@ -367,13 +368,15 @@ internal fun MiniPlayerIconButton(
             onClick = onClick,
             modifier = Modifier
                 .size(size)
+                .semantics { this.selected = selected }
                 .clip(RoundedCornerShape(size / 2f))
-                .background(if (selected && enabled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
+                .background(if (selected && enabled && icon != NaviampTransportIcons.HeartFilled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = when {
+                    icon == NaviampTransportIcons.HeartFilled -> colors.favorite
                     !enabled -> colors.mutedText
                     else -> colors.primaryText
                 },
@@ -408,25 +411,40 @@ fun SharedBottomNavigationBar(
     selectedRoute: SharedRoute,
     supportsDownloads: Boolean = false,
     onRouteSelected: (SharedRoute) -> Unit,
+    queueSelected: Boolean = false,
+    onQueueSelected: (() -> Unit)? = null,
 ) {
     val bottomRoutes = sharedBottomNavigationRoutes(supportsDownloads)
-    Row(
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
-        // Keep the navigation chrome transparent so the page background remains continuous.
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-    ) {
-        bottomRoutes.forEach { route ->
-            NaviampTooltip(route.label, colors) {
-                IconButton(onClick = { onRouteSelected(route) }, modifier = Modifier.size(42.dp)) {
-                    Icon(
-                        route.icon,
-                        contentDescription = route.label,
-                        tint = if (route == selectedRoute) colors.primaryText else colors.mutedText,
-                        modifier = Modifier.size(21.dp),
-                    )
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val surface = if (onQueueSelected == null && (selectedRoute == SharedRoute.Settings || maxWidth >= 900.dp)) readableSurfaceColor(colors) else Color.Transparent
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            // Narrow navigation keeps the user's selected page background continuous.
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(surface)
+                .padding(vertical = 2.dp),
+        ) {
+            bottomRoutes.forEach { route ->
+                NaviampTooltip(route.label, colors) {
+                    IconButton(onClick = { onRouteSelected(route) }, modifier = Modifier.size(42.dp)) {
+                        Icon(
+                            route.icon,
+                            contentDescription = route.label,
+                            tint = if (!queueSelected && route == selectedRoute) colors.primaryText else colors.mutedText,
+                            modifier = Modifier.size(21.dp),
+                        )
+                    }
+                }
+            }
+            if (onQueueSelected != null) {
+                val label = stringResource(Res.string.player_queue)
+                NaviampTooltip(label, colors) {
+                    IconButton(onClick = onQueueSelected, modifier = Modifier.size(42.dp).semantics { selected = queueSelected }) {
+                        Icon(NaviampIcons.Queue, contentDescription = label,
+                            tint = if (queueSelected) colors.primaryText else colors.mutedText, modifier = Modifier.size(21.dp))
+                    }
                 }
             }
         }
@@ -485,7 +503,7 @@ fun NaviampDropdownMenuItem(
                 Icon(
                     imageVector = it,
                     contentDescription = null,
-                    tint = if (enabled) MenuText else MenuText.copy(alpha = 0.42f),
+                    tint = if (it == NaviampTransportIcons.HeartFilled) NaviampColors.Dark.favorite else if (enabled) MenuText else MenuText.copy(alpha = 0.42f),
                     modifier = Modifier.size(17.dp),
                 )
             }

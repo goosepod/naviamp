@@ -4,10 +4,12 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.media.loadArtistPopularTracksUpdate
+import app.naviamp.domain.media.ArtistDiscographyAppearances
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.media.isNameOnlyArtistCredit
 import app.naviamp.domain.media.loadNameOnlyArtistCreditDetails
 import app.naviamp.domain.media.nameOnlyArtistCredit
+import app.naviamp.domain.media.reconciledAppearances
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
@@ -34,6 +36,11 @@ data class NaviampCoreArtistDiscoveryServices(
     val sourceId: () -> String? = { null },
     val popularTracks: suspend (String, Artist, Int) -> List<ArtistPopularTrackMatch> = { _, _, _ -> emptyList() },
     val similarArtists: suspend (Artist, Int) -> List<SimilarArtistMatch> = { _, _ -> emptyList() },
+    val discographyAppearances: (
+        sourceId: String,
+        artistId: ArtistId,
+        primaryAlbumIds: Set<AlbumId>,
+    ) -> ArtistDiscographyAppearances = { _, _, _ -> ArtistDiscographyAppearances() },
 )
 
 /** Builds provider-backed discovery once for every host; platforms supply only durable storage. */
@@ -74,6 +81,9 @@ fun providerArtistDiscoveryServices(
         sourceId = sourceId,
         popularTracks = popular::popularTracks,
         similarArtists = similar::similarArtists,
+        discographyAppearances = { activeSourceId, artistId, primaryAlbumIds ->
+            libraryIndex.artistDiscographyAppearances(activeSourceId, artistId, primaryAlbumIds)
+        },
     )
 }
 
@@ -90,6 +100,17 @@ class NaviampCoreMediaDetailController(
 ) : NaviampCoreCommandController, NaviampCoreArtistNavigator {
     private var albumGeneration = 0L
     private var artistGeneration = 0L
+
+    fun resetForSourceChange() {
+        albumGeneration++
+        artistGeneration++
+        mediaRegistry.updateAlbum(null)
+        mediaRegistry.updateArtist(null)
+        stateStore.updateShell { shell -> shell.copy(
+            albumDetail = app.naviamp.ui.NaviampAlbumDetailScreenUi(),
+            artistDetail = app.naviamp.ui.NaviampArtistDetailScreenUi(),
+        ) }
+    }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Media.ItemAction -> when (val itemCommand = command.request.command) {
@@ -187,6 +208,8 @@ class NaviampCoreMediaDetailController(
                 shell.artistDetail.copy(
                     detail = details.toSharedArtistDetailUi(
                         coverArtUrl = artistCoverArtUrl,
+                        appearanceAlbums = mediaRegistry.artistAppearanceAlbums,
+                        appearanceTracks = mediaRegistry.artistAppearanceTracks,
                         popularTracks = mediaRegistry.artistPopularTracks,
                         popularTracksStatus = current?.popularTracksStatus,
                         similarArtists = mediaRegistry.artistSimilarArtists,
@@ -214,6 +237,8 @@ class NaviampCoreMediaDetailController(
                 mediaRegistry.artistDetails,
                 mediaRegistry.artistPopularTracks,
                 emptyList(),
+                mediaRegistry.artistAppearanceAlbums,
+                mediaRegistry.artistAppearanceTracks,
             )
             stateStore.updateShell { shell ->
                 shell.copy(
@@ -244,6 +269,8 @@ class NaviampCoreMediaDetailController(
             mediaRegistry.artistDetails,
             mediaRegistry.artistPopularTracks,
             similar.artists,
+            mediaRegistry.artistAppearanceAlbums,
+            mediaRegistry.artistAppearanceTracks,
         )
         stateStore.updateShell { shell ->
             shell.copy(
@@ -281,7 +308,7 @@ class NaviampCoreMediaDetailController(
         val albumId = AlbumId(item.id)
         runCatching { provider.album(albumId) }
             .onSuccess { detail ->
-                if (generation != albumGeneration) return@onSuccess
+                if (generation != albumGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 val albumArtist = detail.tracks.firstOrNull()?.let { track ->
                     track.artistId?.let { Artist(it, track.artistName) }
                         ?: track.artistName.takeIf(String::isNotBlank)?.let(::nameOnlyArtistCredit)
@@ -308,11 +335,11 @@ class NaviampCoreMediaDetailController(
                 }
                 scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     val info = runCatching { provider.albumInfo(albumId) }.getOrNull() ?: return@launch
-                    if (generation != albumGeneration) return@launch
+                    if (generation != albumGeneration || !providerSource.isCurrent(provider)) return@launch
                     val enrichedDetail = detail.copy(info = info)
                     mediaRegistry.updateAlbum(enrichedDetail)
                     stateStore.updateShell { shell ->
-                        if (generation != albumGeneration) {
+                        if (generation != albumGeneration || !providerSource.isCurrent(provider)) {
                             shell
                         } else {
                             val popularTrackIds = shell.albumDetail.detail?.tracks
@@ -339,7 +366,7 @@ class NaviampCoreMediaDetailController(
                         loadPopularTracks = discovery.popularTracks,
                     ).tracks.mapTo(mutableSetOf()) { track -> track.id.value }
                 }.orEmpty()
-                if (generation != albumGeneration) return@onSuccess
+                if (generation != albumGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 val latestDetail = mediaRegistry.albumDetails
                     ?.takeIf { loaded -> loaded.album.id == detail.album.id }
                     ?: detail
@@ -357,7 +384,7 @@ class NaviampCoreMediaDetailController(
                 }
             }
             .onFailure { cause ->
-                if (generation == albumGeneration) {
+                if (generation == albumGeneration && providerSource.isCurrent(provider)) {
                     publishAlbumFailure(item, cause.message ?: "Could not load album.")
                 }
             }
@@ -383,10 +410,34 @@ class NaviampCoreMediaDetailController(
             id?.takeUnless { nameOnlyCredit && it == artist.id.value }?.let(provider::coverArtUrl)
         }
         runCatching {
-            if (nameOnlyCredit) loadNameOnlyArtistCreditDetails(provider, artist) else provider.artist(artist.id)
+            if (nameOnlyCredit) {
+                app.naviamp.domain.media.ArtistDiscography(primary = loadNameOnlyArtistCreditDetails(provider, artist))
+            } else {
+                provider.artistDiscography(artist.id)
+            }
+        }.map { providerDiscography ->
+            if (generation != artistGeneration || !providerSource.isCurrent(provider)) return@map providerDiscography
+            val combined = if (nameOnlyCredit || provider.capabilities.supportsArtistDiscography) {
+                providerDiscography
+            } else {
+                val stored = discovery.sourceId()?.let { sourceId ->
+                    runCatching {
+                        discovery.discographyAppearances(sourceId, artist.id,
+                            providerDiscography.primary.albums.mapTo(mutableSetOf()) { it.id })
+                    }.getOrElse { ArtistDiscographyAppearances(failed = true) }
+                } ?: ArtistDiscographyAppearances()
+                providerDiscography.copy(
+                    appearanceAlbums = stored.albums,
+                    appearanceTracks = stored.tracks,
+                    appearanceLoadFailed = stored.failed,
+                    appearancesTruncated = stored.truncated,
+                )
+            }
+            combined.reconciledAppearances()
         }
-            .onSuccess { detail ->
-                if (generation != artistGeneration) return@onSuccess
+            .onSuccess { discography ->
+                val detail = discography.primary
+                if (generation != artistGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 navigationController.updateActiveArtist(detail.artist)
                 val popular = loadArtistPopularTracksUpdate(
                     sourceId = discovery.sourceId(),
@@ -398,8 +449,14 @@ class NaviampCoreMediaDetailController(
                 } else {
                     app.naviamp.domain.media.SimilarArtistsUpdate(emptyList(), null)
                 }
-                if (generation != artistGeneration) return@onSuccess
-                mediaRegistry.updateArtist(detail, popular.tracks, similar.artists)
+                if (generation != artistGeneration || !providerSource.isCurrent(provider)) return@onSuccess
+                mediaRegistry.updateArtist(
+                    detail,
+                    popular.tracks,
+                    similar.artists,
+                    discography.appearanceAlbums,
+                    discography.appearanceTracks,
+                )
                 stateStore.updateShell { shell ->
                     shell.copy(
                         artistDetail = shell.artistDetail.copy(
@@ -409,6 +466,10 @@ class NaviampCoreMediaDetailController(
                             ),
                             detail = detail.toSharedArtistDetailUi(
                                 coverArtUrl = coverArtUrl,
+                                appearanceAlbums = discography.appearanceAlbums,
+                                appearanceTracks = discography.appearanceTracks,
+                                appearanceLoadFailed = discography.appearanceLoadFailed,
+                                appearancesTruncated = discography.appearancesTruncated,
                                 popularTracks = popular.tracks,
                                 popularTracksStatus = popular.status,
                                 similarArtists = similar.artists,
@@ -428,7 +489,7 @@ class NaviampCoreMediaDetailController(
                 }
             }
             .onFailure { cause ->
-                if (generation == artistGeneration) {
+                if (generation == artistGeneration && providerSource.isCurrent(provider)) {
                     publishArtistFailure(item, cause.message ?: "Could not load artist.")
                 }
             }

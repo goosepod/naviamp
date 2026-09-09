@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.FavoriteArtistActivityRepository
 import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
 import app.naviamp.domain.playback.PlaybackProfile
 import app.naviamp.domain.playback.PlaybackProfileRepository
@@ -38,6 +39,7 @@ import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.withRecentRadioStreams
+import kotlinx.coroutines.CancellationException
 
 fun interface NaviampCoreExternalUriPort {
     fun open(uri: String)
@@ -152,6 +154,9 @@ class NaviampCoreMediaTransactions(
     private val publishNowPlaying: () -> Unit,
     private val openNowPlaying: () -> Unit,
     private val selectRadioSeed: (List<Track>) -> Track? = { tracks -> tracks.randomOrNull() },
+    private val favoriteArtistActivity: FavoriteArtistActivityRepository? = null,
+    private val onFavoriteArtistActivityChanged: () -> Unit = {},
+    private val onAlbumUpdated: (app.naviamp.domain.provider.MediaProvider, Album) -> Unit = { _, _ -> },
 ) : NaviampCoreTrackRadioTransactions {
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
@@ -192,7 +197,7 @@ class NaviampCoreMediaTransactions(
 
     override suspend fun startTrackRadio(seed: Track) {
         val settings = stateStore.state.value.shell.playback.settings
-        startSeededMix(trackRadioRequest(seed, settings.sonicSimilarityEnabled))
+        startSeededMix(trackRadioRequest(seed, settings.sonicSimilarityEnabled)) { recordTrackArtistRadioPlayed(seed) }
     }
 
     override suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
@@ -243,7 +248,7 @@ class NaviampCoreMediaTransactions(
         }
         val seed = selectRadioSeed(popularTracks)
         if (seed != null) {
-            startSeededMix(artistSeededRadioRequest(artist, seed))
+            startSeededMix(artistSeededRadioRequest(artist, seed)) { recordArtistRadioPlayed(artist) }
         } else {
             publish("${artist.name} has no tracks to play.")
         }
@@ -396,16 +401,31 @@ class NaviampCoreMediaTransactions(
 
     suspend fun toggleFavorite(album: Album) {
         val provider = providerOrPublish() ?: return
+        val sourceId = activeSourceId()
         mutate("Album favorites are not supported.", { favoriteAlbumUpdate(provider, album, favoritedAtIso8601()) }) {
+            if (sourceId != activeSourceId()) return@mutate
             registry.updateAlbum(it)
             updateAlbumFavoriteUi(it.id.value, it.favoritedAtIso8601 != null)
+            onAlbumUpdated(provider, it)
         }
     }
 
     suspend fun toggleFavorite(artist: Artist) {
         val provider = providerOrPublish() ?: return
+        val sourceId = activeSourceId()
         mutate("Artist favorites are not supported.", { favoriteArtistUpdate(provider, artist, favoritedAtIso8601()) }) {
+            if (sourceId != activeSourceId()) return@mutate
             registry.updateArtist(it)
+            activeSourceId()?.let { sourceId ->
+                recordFavoriteArtistActivity {
+                    setArtistFavoriteActivity(
+                        sourceId = sourceId,
+                        artist = it,
+                        favorite = it.favoritedAtIso8601 != null,
+                        changedAtIso8601 = favoritedAtIso8601(),
+                    )
+                }
+            }
             updateArtistFavoriteUi(it.id.value, it.favoritedAtIso8601 != null)
         }
     }
@@ -440,15 +460,52 @@ class NaviampCoreMediaTransactions(
         if (uri.isBlank()) publish("Artist link is missing.") else externalUri.open(uri)
     }
 
-    private suspend fun startSeededMix(request: app.naviamp.domain.radio.SeededRadioRequest) {
+    private fun recordArtistRadioPlayed(artist: Artist) {
+        val sourceId = activeSourceId() ?: return
+        recordFavoriteArtistActivity {
+            recordArtistRadioPlayed(
+                sourceId = sourceId,
+                artist = artist,
+                playedAtIso8601 = favoritedAtIso8601(),
+            )
+        }
+    }
+
+    private fun recordTrackArtistRadioPlayed(seed: Track) {
+        val sourceId = activeSourceId() ?: return
+        val artistId = seed.artistId ?: seed.artistCredits.firstNotNullOfOrNull { it.id } ?: return
+        val artistName = seed.artistCredits.firstOrNull { it.id == artistId }?.name ?: seed.artistName
+        recordFavoriteArtistActivity {
+            recordTrackArtistRadioPlayedIfFavorite(
+                sourceId = sourceId,
+                artistId = artistId,
+                artistName = artistName,
+                playedAtIso8601 = favoritedAtIso8601(),
+            )
+        }
+    }
+
+    private inline fun recordFavoriteArtistActivity(block: FavoriteArtistActivityRepository.() -> Unit) {
+        favoriteArtistActivity?.let { repository -> runCatching { repository.block() } }
+        onFavoriteArtistActivityChanged()
+    }
+
+    private fun activeSourceId(): String? =
+        stateStore.state.value.shell.connectionSettings.currentSourceId
+
+    private suspend fun startSeededMix(
+        request: app.naviamp.domain.radio.SeededRadioRequest,
+        onStarted: () -> Unit = {},
+    ) {
         val provider = providerOrPublish() ?: return
+        val sourceId = activeSourceId()
         play(listOf(request.seedTrack))
         publish("Playing ${request.label} while the queue builds.")
         when (val result = seededRadioBuildResult(request, RadioService(provider, tuning = radioTuning()))) {
             is SeededRadioBuildResult.Ready -> {
                 val stillPlayingSeed = playback.state.value.currentTrack?.id == request.seedTrack.id &&
                     playback.state.value.queue.current?.id == request.seedTrack.id
-                if (!stillPlayingSeed) return
+                if (!stillPlayingSeed || sourceId != activeSourceId() || !providerSource.isCurrent(provider)) return
                 val update = queue.replaceGeneratedRadioUpcomingTracks(
                     currentTrack = request.seedTrack,
                     fetchedTracks = result.queue.filterNot { it.id == request.seedTrack.id },
@@ -459,10 +516,15 @@ class NaviampCoreMediaTransactions(
                     publishNowPlaying()
                 }
                 rememberRecentRadio(result.recentRadioStream, result.queue)
+                onStarted()
                 publish("Playing ${request.label}.")
             }
-            is SeededRadioBuildResult.Failed ->
-                publish("Playing ${request.label}; the rest of the queue could not be built.")
+            is SeededRadioBuildResult.Failed -> {
+                if (result.error is CancellationException) throw result.error
+                if (sourceId == activeSourceId() && providerSource.isCurrent(provider)) {
+                    publish("Playing ${request.label}; the rest of the queue could not be built.")
+                }
+            }
         }
     }
 
@@ -531,6 +593,7 @@ class NaviampCoreMediaTransactions(
             val home = shell.home.content
             val artist = shell.artistDetail.detail
             shell.copy(
+                library = shell.library.copy(albums = shell.library.albums.copy(items = shell.library.albums.items.updated())),
                 home = shell.home.copy(content = home.copy(
                     recentlyAddedAlbums = home.recentlyAddedAlbums.updated(),
                     mixAlbums = home.mixAlbums.updated(),
@@ -550,6 +613,7 @@ class NaviampCoreMediaTransactions(
                 artistDetail = shell.artistDetail.copy(detail = artist?.copy(
                     albums = artist.albums.updated(),
                     albumSections = artist.albumSections.map { it.copy(albums = it.albums.updated()) },
+                    appearanceAlbums = artist.appearanceAlbums.updated(),
                 )),
             )
         }
@@ -559,7 +623,9 @@ class NaviampCoreMediaTransactions(
         fun List<SharedMediaItemUi>.updated() = map { if (it.id == id) it.copy(favoriteActive = active) else it }
         stateStore.updateShell { shell -> shell.copy(
             search = shell.search.copy(results = shell.search.results.copy(artists = shell.search.results.artists.updated())),
-            library = shell.library.copy(artists = shell.library.artists.updated()),
+            library = shell.library.copy(
+                artists = shell.library.artists.copy(items = shell.library.artists.items.updated()),
+            ),
             artistDetail = shell.artistDetail.copy(
                 selectedArtist = shell.artistDetail.selectedArtist?.let { if (it.id == id) it.copy(favoriteActive = active) else it },
                 detail = shell.artistDetail.detail?.let { detail ->
@@ -574,13 +640,23 @@ class NaviampCoreMediaTransactions(
             if (it.id == id) it.copy(favoriteActive = active) else it
         }
         stateStore.updateShell { shell -> shell.copy(
+            library = shell.library.copy(
+                songs = shell.library.songs.copy(tracks = shell.library.songs.tracks.updated()),
+            ),
             home = shell.home.copy(content = shell.home.content.copy(
                 recentlyPlayedTracks = shell.home.content.recentlyPlayedTracks.updated(),
                 sonicDiscoveryRows = shell.home.content.sonicDiscoveryRows.map { it.copy(tracks = it.tracks.updated()) },
             )),
             search = shell.search.copy(results = shell.search.results.copy(tracks = shell.search.results.tracks.updated())),
             albumDetail = shell.albumDetail.copy(detail = shell.albumDetail.detail?.let { it.copy(tracks = it.tracks.updated()) }),
-            artistDetail = shell.artistDetail.copy(detail = shell.artistDetail.detail?.let { it.copy(popularTracks = it.popularTracks.updated()) }),
+            artistDetail = shell.artistDetail.copy(
+                detail = shell.artistDetail.detail?.let {
+                    it.copy(
+                        popularTracks = it.popularTracks.updated(),
+                        appearanceTracks = it.appearanceTracks.updated(),
+                    )
+                },
+            ),
             playlistDetail = shell.playlistDetail.copy(detail = shell.playlistDetail.detail?.let { it.copy(tracks = it.tracks.updated()) }),
         ) }
     }

@@ -24,6 +24,8 @@ internal data class NaviampAppBackgroundUi(
     val blurRadiusDp: Int,
     val singleColor: Color,
     val targetPlayerColors: NaviampPlayerColors,
+    val auroraColorSteps: Int = 3,
+    val auroraAngleDegrees: Int = 45,
 )
 
 internal fun naviampAppBackgroundUi(
@@ -45,6 +47,8 @@ internal fun naviampAppBackgroundUi(
         blurRadiusDp = interfaceSettings.albumBlurRadiusDp,
         singleColor = singleColor,
         targetPlayerColors = playerColors,
+        auroraColorSteps = interfaceSettings.auroraColorSteps,
+        auroraAngleDegrees = interfaceSettings.auroraAngleDegrees,
     )
 }
 
@@ -56,10 +60,8 @@ internal fun NaviampAppBackground(
     modifier: Modifier = Modifier,
 ) {
     when (background.style) {
-        AppBackgroundStyle.Aurora -> Box(
-            modifier
-                .fillMaxSize()
-                .background(Brush.linearGradient(playerColors.gradientColors)),
+        AppBackgroundStyle.Aurora -> NaviampAuroraBackground(
+            playerColors, background.auroraColorSteps, background.auroraAngleDegrees, modifier,
         )
         AppBackgroundStyle.AlbumBlur -> NaviampAlbumBlurBackground(
             url = background.coverArtUrl,

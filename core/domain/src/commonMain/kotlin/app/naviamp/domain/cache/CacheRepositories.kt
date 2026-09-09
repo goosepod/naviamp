@@ -9,6 +9,7 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.home.FavoriteArtistActivityRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.popular.ArtistPopularTracksRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
@@ -348,7 +349,9 @@ data class PlaybackSessionRepositoryPerformance(
     val queueRewritten: Boolean? = null,
 )
 
-interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
+interface LocalLibraryIndexRepository : ArtistPopularTracksRepository, FavoriteArtistActivityRepository {
+    val albumCatalog: app.naviamp.domain.library.AlbumCatalogRepository? get() = null
+
     fun mediaSource(sourceId: String): SavedMediaSource?
 
     fun markLibraryScanChecked(sourceId: String, signature: String)
@@ -366,6 +369,14 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
     fun upsertLibraryAlbums(sourceId: String, albums: List<Album>)
 
     fun upsertLibraryTracks(sourceId: String, tracks: List<Track>)
+
+    fun artistDiscographyAppearances(
+        sourceId: String,
+        artistId: ArtistId,
+        primaryAlbumIds: Set<AlbumId>,
+        limit: Long = 500,
+    ): app.naviamp.domain.media.ArtistDiscographyAppearances =
+        app.naviamp.domain.media.ArtistDiscographyAppearances()
 
     fun replaceLibraryGenreInventory(sourceId: String, genres: List<Genre>) = Unit
 

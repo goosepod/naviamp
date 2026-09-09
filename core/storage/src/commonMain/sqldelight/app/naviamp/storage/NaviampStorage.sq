@@ -23,7 +23,6 @@ CREATE TABLE media_source (
   display_name TEXT NOT NULL,
   base_url TEXT NOT NULL,
   username TEXT NOT NULL,
-  password TEXT,
   token TEXT NOT NULL,
   salt TEXT NOT NULL,
   insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0,
@@ -44,7 +43,8 @@ CREATE TABLE media_source (
   provider_identity_version INTEGER NOT NULL DEFAULT 0,
   provider_identity_probe_target_version INTEGER,
   provider_identity_probe_server_version TEXT,
-  selected_music_folder_ids_json TEXT
+  selected_music_folder_ids_json TEXT,
+  password TEXT
 );
 
 CREATE TABLE library_artist (
@@ -52,6 +52,17 @@ CREATE TABLE library_artist (
   remote_artist_id TEXT NOT NULL,
   name TEXT NOT NULL,
   search_name TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_artist_id)
+);
+
+CREATE TABLE favorite_artist_activity (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_artist_id TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  favorited_at_iso8601 TEXT,
+  favorite_active INTEGER NOT NULL DEFAULT 0,
+  last_radio_played_at_iso8601 TEXT,
   updated_at_epoch_millis INTEGER NOT NULL,
   PRIMARY KEY(source_id, remote_artist_id)
 );
@@ -99,6 +110,16 @@ CREATE TABLE library_track (
   album_release_year INTEGER,
   original_release_year INTEGER,
   PRIMARY KEY(source_id, remote_track_id)
+);
+
+CREATE TABLE library_track_artist_credit (
+  source_id TEXT NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  remote_artist_id TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, remote_artist_id),
+  FOREIGN KEY(source_id, remote_track_id)
+    REFERENCES library_track(source_id, remote_track_id) ON DELETE CASCADE
 );
 
 CREATE TABLE genre_ontology_metadata (
@@ -415,6 +436,9 @@ ON library_track(source_id, search_title);
 
 CREATE INDEX library_track_source_artist
 ON library_track(source_id, search_artist_name);
+
+CREATE INDEX library_track_artist_credit_source_artist
+ON library_track_artist_credit(source_id, remote_artist_id);
 
 CREATE INDEX artist_popular_track_artist
 ON artist_popular_track(source_id, remote_artist_id, popular_source, rank);
@@ -791,12 +815,71 @@ INSERT OR REPLACE INTO library_track(
   updated_at_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+clearLibraryTrackArtistCredits:
+DELETE FROM library_track_artist_credit
+WHERE source_id = ?
+AND remote_track_id = ?;
+
+upsertLibraryTrackArtistCredit:
+INSERT OR REPLACE INTO library_track_artist_credit(
+  source_id,
+  remote_track_id,
+  remote_artist_id,
+  artist_name
+) VALUES (?, ?, ?, ?);
+
 selectLibraryArtists:
 SELECT *
 FROM library_artist
 WHERE source_id = ?
 ORDER BY search_name
 LIMIT ? OFFSET ?;
+
+selectFavoriteArtistActivities:
+SELECT *
+FROM favorite_artist_activity
+WHERE source_id = ?
+ORDER BY artist_name COLLATE NOCASE, remote_artist_id;
+
+selectFavoriteArtistActivity:
+SELECT *
+FROM favorite_artist_activity
+WHERE source_id = ?
+AND remote_artist_id = ?
+LIMIT 1;
+
+selectActiveFavoriteArtistActivities:
+SELECT *
+FROM favorite_artist_activity
+WHERE source_id = ?
+AND favorite_active = 1
+ORDER BY artist_name COLLATE NOCASE, remote_artist_id
+LIMIT ?;
+
+deactivateFavoriteArtistActivities:
+UPDATE favorite_artist_activity
+SET favorite_active = 0,
+    updated_at_epoch_millis = ?
+WHERE source_id = ?;
+
+upsertFavoriteArtistActivity:
+INSERT OR REPLACE INTO favorite_artist_activity(
+  source_id,
+  remote_artist_id,
+  artist_name,
+  favorited_at_iso8601,
+  favorite_active,
+  last_radio_played_at_iso8601,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+setFavoriteArtistRadioPlayed:
+UPDATE favorite_artist_activity
+SET artist_name = ?,
+    last_radio_played_at_iso8601 = ?,
+    updated_at_epoch_millis = ?
+WHERE source_id = ?
+AND remote_artist_id = ?;
 
 selectLibraryAlbums:
 SELECT *
@@ -838,6 +921,25 @@ FROM library_track
 WHERE source_id = ?
 AND remote_track_id = ?
 LIMIT 1;
+
+selectLibraryAlbumById:
+SELECT *
+FROM library_album
+WHERE source_id = ?
+AND remote_album_id = ?
+LIMIT 1;
+
+selectLibraryTracksCreditedToArtist:
+SELECT library_track.*
+FROM library_track
+INNER JOIN library_track_artist_credit
+  ON library_track_artist_credit.source_id = library_track.source_id
+  AND library_track_artist_credit.remote_track_id = library_track.remote_track_id
+WHERE library_track.source_id = ?
+AND library_track_artist_credit.remote_artist_id = ?
+AND (library_track.remote_album_id IS NULL OR library_track.remote_album_id NOT IN :primaryAlbumIds)
+ORDER BY library_track.search_album_title, library_track.search_title, library_track.remote_track_id
+LIMIT ?;
 
 selectRandomLibraryTrackForAlbum:
 SELECT *
@@ -1845,3 +1947,24 @@ INSERT OR REPLACE INTO library_genre_inventory_metadata(
   ontology_payload_sha256,
   updated_at_epoch_millis
 ) VALUES (?, ?, ?);
+
+CREATE TABLE album_catalog_snapshot (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  catalog_key TEXT NOT NULL,
+  albums_json TEXT NOT NULL,
+  refreshed_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, catalog_key)
+);
+
+selectAlbumCatalogSnapshot:
+SELECT * FROM album_catalog_snapshot WHERE source_id = ? AND catalog_key = ?;
+
+replaceAlbumCatalogSnapshot:
+INSERT OR REPLACE INTO album_catalog_snapshot(source_id, catalog_key, albums_json, refreshed_at_epoch_millis)
+VALUES (?, ?, ?, ?);
+
+clearAlbumCatalogSnapshots:
+DELETE FROM album_catalog_snapshot;
+
+clearAlbumCatalogSnapshotsForSource:
+DELETE FROM album_catalog_snapshot WHERE source_id = ?;

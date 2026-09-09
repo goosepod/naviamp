@@ -1,5 +1,8 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.settings_favorite_artists
+
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.homeSectionPresentation
@@ -10,9 +13,11 @@ import app.naviamp.domain.settings.withHomeSectionPresentation
 internal data class HomeScreenSectionOption(
     val id: String,
     val title: String,
+    val titleResource: org.jetbrains.compose.resources.StringResource? = null,
 )
 
 internal val HomeScreenSectionOptions = listOf(
+    HomeScreenSectionOption(HomeSectionIds.FavoriteArtists, "", Res.string.settings_favorite_artists),
     HomeScreenSectionOption(HomeSectionIds.MixesForYou, "Mixes for You"),
     HomeScreenSectionOption(HomeSectionIds.NavibeatMixes, "NaviBeat Mixes"),
     HomeScreenSectionOption(HomeSectionIds.RecentRadio, "Recently Played Radio"),

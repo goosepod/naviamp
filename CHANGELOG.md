@@ -6,6 +6,53 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.4.0
+
+This release expands library browsing and artist discovery, adds playlist membership tools and
+Favorite Artists, and introduces a player workspace for wide windows.
+
+### Features
+
+- Switch Library between Artists, Albums, and Songs. Browse a persistent album index with local
+  filtering and reliable alphabet jumps, including after restarting the app.
+- Explore expanded artist discography sections, including appearances where provider metadata or
+  indexed credits support them.
+- Manage a track's playlist membership from song menus or Now Playing, create a playlist, and save
+  membership changes with existing permissions and duplicate occurrences preserved.
+- Browse Favorite Artists and customize Home section visibility, ordering, and layout.
+- Keep Now Playing beside browsing content in wide windows, or switch to a full player layout.
+- Customize Aurora backgrounds with two to five colors and a gradient angle, with preferences
+  preserved through settings export/import and sync.
+- Browse songs matching library genre tags through the shared genre browser.
+
+### Bug Fixes
+
+- Prevent delayed browsing, search, playlist, and detail results from a previous connection from
+  appearing after switching services.
+- Reconcile interrupted playlist saves against current server contents before retrying, preserving
+  ordered track occurrences and avoiding duplicate additions.
+- Enforce the configured download space limit before replacing saved audio. Reject empty responses,
+  recognizable server error documents, and incomplete downloads with a usable Content-Length.
+- Preserve existing downloads when a replacement fails, and keep download retries scoped to their
+  original connection.
+- Restore Bandcamp downloads through its supported streaming endpoint.
+- Correct OpenSubsonic original-audio requests, playlist permissions and editing, album metadata,
+  lyrics fallback, and capability-aware seeking.
+- Fall back to standard listen reporting when playback timeline reporting is unavailable or fails.
+- Improve waveform progress, artwork continuity, narrow-window controls, and Home drag scrolling.
+
+### Release Notes and Known Limitations
+
+- Existing v2.x installations can upgrade in place. Shared database migration 24 adds the new
+  persistence structures without requiring an app-data reset; the album index stores metadata,
+  not downloaded audio.
+- Discography completeness depends on the provider and available library credits. Bandcamp downloads
+  use the audio supplied by its stream endpoint; this does not promise lossless original masters.
+- Interrupted playlist edits and download jobs may require a manual retry after the app is killed.
+- The iOS artifact remains an unsigned preview, tested in the simulator; physical iOS acceptance is
+  unavailable. Windows and macOS packages are not publisher-signed and may show operating-system
+  warnings. Screen-reader usability remains unverified.
+
 ## v2.3.1
 
 This patch prevents Android keyboards from rewriting technical values while a music-server

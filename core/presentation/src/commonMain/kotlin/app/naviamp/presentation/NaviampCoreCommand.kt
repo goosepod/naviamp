@@ -45,6 +45,7 @@ sealed interface NaviampCoreCommand {
         data class SelectRoute(val route: SharedRoute) : Navigation
         data object OpenNowPlaying : Navigation
         data object CloseNowPlaying : Navigation
+        data class SetPlayerDocked(val docked: Boolean) : Navigation
         data object BackFromAlbum : Navigation
         data object BackFromArtist : Navigation
         data object BackFromPlaylist : Navigation
@@ -63,6 +64,7 @@ sealed interface NaviampCoreCommand {
 
     sealed interface Settings : NaviampCoreCommand {
         data class ChangeInterface(val settings: InterfaceSettings) : Settings
+        data class ChangeFavoriteArtistSort(val sort: app.naviamp.domain.settings.FavoriteArtistSort) : Settings
         data class ChangeHomeSectionPageLayout(
             val sectionId: String,
             val layout: HomeSectionPageLayout,
@@ -99,10 +101,12 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Library : NaviampCoreCommand {
+        data class ChangeView(val view: app.naviamp.ui.NaviampLibraryView) : Library
         data class ChangeQuery(val query: String) : Library
         data object Refresh : Library
         data object LoadMore : Library
         data class JumpToLetter(val letter: Char) : Library
+        data class TrackAction(val request: app.naviamp.ui.SharedTrackRowActionRequest) : Library
     }
 
     sealed interface Downloads : NaviampCoreCommand {
@@ -191,6 +195,8 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface GenreAction {
+        data object BrowseSongs : GenreAction
+        data class PlaySong(val id: String) : GenreAction
         data class ChangeQuery(val query: String) : GenreAction
         data object Search : GenreAction
         data class Select(val genre: SharedGenreMixItemUi) : GenreAction
@@ -241,6 +247,11 @@ sealed interface NaviampCoreCommand {
         data class SleepTimer(val request: NowPlayingSleepTimerActionRequest) : NowPlaying
         data class Selection(val request: NowPlayingSelectionActionRequest) : NowPlaying
         data class QueueItem(val request: NowPlayingItemActionRequest) : NowPlaying
+        data class TogglePlaylistMembership(val playlistId: String) : NowPlaying
+        data class CreateMembershipPlaylist(val name: String) : NowPlaying
+        data object RetryPlaylistMembership : NowPlaying
+        data object ApplyPlaylistMembership : NowPlaying
+        data object DismissPlaylistMembership : NowPlaying
     }
 }
 

@@ -20,6 +20,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.home.HomeAlbumYear
+import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
@@ -48,13 +50,17 @@ import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertNotNull
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -70,6 +76,369 @@ class NaviampCoreNowPlayingMediaControllerTest {
 
         assertTrue(result is NaviampCoreImmediateCommandResult.Handled)
         assertFalse(fixture.store.state.value.shell.shellChrome.nowPlayingOpen)
+    }
+
+    @Test
+    fun libraryAndAppearanceMenusOpenMembershipWithoutPlayback() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.store.updateShell { it.copy(nowPlaying = null) }
+        val track = nowPlayingTrack("current")
+        val registry = NaviampCoreMediaRegistry()
+        registry.updateLibraryTracks(listOf(track), true)
+        registry.updateArtist(ArtistDetails(Artist(ArtistId("artist"), "Artist", null), emptyList()),
+            appearanceTracks = listOf(track))
+        val coordinator = NaviampCorePlaylistMembershipCoordinator(
+            { fixture.provider }, { fixture.store.state.value.shell.playlistMembership },
+            { editor -> fixture.store.updateShell { it.copy(playlistMembership = editor) } },
+        )
+        val controller = NaviampCoreTrackActionController(registry, fixture.transactions, coordinator::open)
+        val request = app.naviamp.ui.SharedTrackRowActionRequest(
+            app.naviamp.ui.SharedTrackRowUi("current", "Current", "Artist"),
+            app.naviamp.ui.SharedTrackRowAction.AddToPlaylist,
+        )
+        for (command in listOf(NaviampCoreCommand.Library.TrackAction(request),
+            NaviampCoreCommand.Detail.ArtistPopularTrack(request))) {
+            controller.execute(command)
+            assertEquals("current", fixture.store.state.value.shell.playlistMembership?.trackId)
+            assertNull(fixture.store.state.value.shell.nowPlaying)
+            coordinator.dismiss()
+            assertNull(fixture.store.state.value.shell.playlistMembership)
+        }
+    }
+
+    @Test
+    fun dismissingLoadingEditorRejectsItsLateResponse() = runTest {
+        val base = NowPlayingTestProvider()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val provider = object : MediaProvider by base {
+            override suspend fun playlists(limit: Int): List<Playlist> { gate.await(); return base.playlists(limit) }
+        }
+        var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+        val coordinator = NaviampCorePlaylistMembershipCoordinator({ provider }, { editor }, { editor = it })
+        val opening = launch { coordinator.open(nowPlayingTrack("current")) }
+        runCurrent()
+        assertTrue(editor?.loading == true)
+        coordinator.dismiss()
+        gate.complete(Unit)
+        opening.join()
+        assertNull(editor)
+    }
+
+    @Test
+    fun favoriteUpdatesReachNewLibraryAndAppearanceRegistrySurfaces() {
+        val registry = NaviampCoreMediaRegistry()
+        val album = Album(AlbumId("album"), "Album", "Artist", null, null)
+        val artist = Artist(ArtistId("artist"), "Artist", "before")
+        val track = nowPlayingTrack("appearance")
+        registry.updateLibraryAlbums(listOf(album), true)
+        registry.updateHome(app.naviamp.domain.home.HomeContent(favoriteArtists = listOf(artist)), app.naviamp.domain.sonichome.SonicHomeDiscoveryRows())
+        registry.updateArtist(ArtistDetails(artist, emptyList()), appearanceAlbums = listOf(album), appearanceTracks = listOf(track))
+        registry.updateAlbum(album.copy(favoritedAtIso8601 = "now"))
+        registry.updateTrack(track.copy(favoritedAtIso8601 = "now"))
+        registry.updateArtist(artist.copy(favoritedAtIso8601 = null))
+        assertEquals("now", registry.libraryAlbums.single().favoritedAtIso8601)
+        assertEquals("now", registry.artistAppearanceAlbums.single().favoritedAtIso8601)
+        assertEquals("now", registry.artistAppearanceTracks.single().favoritedAtIso8601)
+        assertNull(registry.home.favoriteArtists.single().favoritedAtIso8601)
+    }
+
+    @Test
+    fun membershipCreationUsesTheEditorsTrackAndPreservesPendingSelections() = runTest {
+        val base = NowPlayingTestProvider()
+        var createdTrack: TrackId? = null
+        val provider = object : MediaProvider by base {
+            override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
+                createdTrack = trackIds.single()
+                return Playlist("new", name, 1)
+            }
+        }
+        var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+        var published: Playlist? = null
+        val coordinator = NaviampCorePlaylistMembershipCoordinator({ provider }, { editor }, { editor = it },
+            onPlaylistCreated = { published = it })
+        coordinator.open(nowPlayingTrack("next"))
+        coordinator.toggle("playlist")
+        coordinator.create("New playlist")
+        assertEquals("new", published?.id)
+        assertEquals(TrackId("next"), createdTrack)
+        assertFalse(editor!!.rows.first().selected)
+        assertTrue(editor!!.rows.last().selected)
+        assertFalse(editor!!.saving)
+    }
+
+    @Test
+    fun cancellingMembershipReadsReleasesLoadingAndDoesNotSwallowCancellation() = runTest {
+        val base = NowPlayingTestProvider()
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val provider = object : MediaProvider by base {
+            override suspend fun playlists(limit: Int): List<Playlist> {
+                entered.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+        val coordinator = NaviampCorePlaylistMembershipCoordinator({ provider }, { editor }, { editor = it })
+        val job = launch { coordinator.open(nowPlayingTrack("current")) }
+        entered.await()
+        job.cancel()
+        job.join()
+        assertTrue(job.isCancelled)
+        assertFalse(editor!!.loading)
+        assertTrue(editor!!.loadingFailed)
+        coordinator.dismiss()
+        assertNull(editor)
+    }
+
+    @Test
+    fun membershipDiscoveryFailureIsRetryableAndSmartPlaylistsAreReadOnly() = runTest {
+        val base = NowPlayingTestProvider()
+        var failing = true
+        var mutations = 0
+        val provider = object : MediaProvider by base {
+            override suspend fun removeTrackFromPlaylist(playlistId: String, trackId: TrackId) { mutations++ }
+            override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) { mutations++ }
+            override suspend fun playlists(limit: Int): List<Playlist> {
+                if (failing) error("offline")
+                return listOf(Playlist("smart", "Smart", 0, isSmart = true), Playlist("playlist", "Playlist", 4), Playlist("deleted", "Deleted", 0))
+            }
+            override suspend fun playlistTracks(playlistId: String): List<Track> {
+                if (playlistId == "deleted") throw NoSuchElementException("deleted")
+                return base.playlistTracks(if (playlistId == "smart") "playlist" else playlistId)
+            }
+        }
+        var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+        val coordinator = NaviampCorePlaylistMembershipCoordinator({ provider }, { editor }, { editor = it })
+        coordinator.open(nowPlayingTrack("current"))
+        assertTrue(editor!!.loadingFailed)
+        assertFalse(editor!!.loading)
+        failing = false
+        coordinator.retry()
+        assertFalse(editor!!.loadingFailed)
+        assertEquals(listOf("smart", "playlist", "deleted"), editor!!.rows.map { it.playlist.id })
+        assertTrue(editor!!.rows.first().selected)
+        assertTrue(editor!!.rows.last().failed)
+        assertTrue(editor!!.rows.first().ruleBased)
+        coordinator.toggle("smart")
+        assertTrue(editor!!.rows.first().selected)
+        // Guard the transaction as well as the UI, even if a caller supplies an invalid edit.
+        editor = editor!!.copy(rows = editor!!.rows.map { if (it.ruleBased) it.copy(selected = false) else it })
+        coordinator.apply()
+        assertEquals(0, mutations)
+    }
+
+    @Test
+    fun membershipPartialFailureRetainsSuccessfulChangesAndAllowsRetry() = runTest {
+        val base = NowPlayingTestProvider()
+        val provider = object : MediaProvider by base {
+            override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+                error("write rejected")
+            }
+        }
+        var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+        val reconciled = mutableMapOf<String, List<Track>>()
+        val coordinator = NaviampCorePlaylistMembershipCoordinator(
+            { provider }, { editor }, { editor = it },
+            onContentsReconciled = { id, tracks -> reconciled[id] = tracks },
+        )
+        coordinator.open(nowPlayingTrack("current"))
+        coordinator.toggle("playlist")
+        coordinator.toggle("playlist-2")
+        coordinator.apply()
+        assertFalse(editor!!.rows.first().selected)
+        assertFalse(editor!!.rows.first().failed)
+        assertTrue(editor!!.rows.last().failed)
+        assertFalse(editor!!.saving)
+        assertFalse(editor!!.saved)
+        assertEquals(setOf("playlist", "playlist-2"), reconciled.keys)
+        assertFalse(reconciled.getValue("playlist").any { it.id.value == "current" })
+        coordinator.retry()
+        assertFalse(editor!!.rows.last().failed)
+        assertFalse(editor!!.rows.first().selected)
+    }
+
+    @Test
+    fun membershipSourceChangeStopsBeforeTheNextMutationAndSaveCannotBeDismissed() = runTest {
+        val base = NowPlayingTestProvider()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var saving = false
+        val provider = object : MediaProvider by base {
+            override suspend fun playlistTracks(playlistId: String): List<Track> {
+                if (saving) { entered.complete(Unit); gate.await() }
+                return base.playlistTracks(playlistId)
+            }
+        }
+        var active: MediaProvider = provider
+        var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+        val coordinator = NaviampCorePlaylistMembershipCoordinator({ active }, { editor }, { editor = it })
+        coordinator.open(nowPlayingTrack("current"))
+        coordinator.toggle("playlist-2")
+        saving = true
+        val job = launch { coordinator.apply() }
+        entered.await()
+        coordinator.dismiss()
+        assertTrue(editor!!.saving)
+        active = object : MediaProvider by base { override val cacheNamespace = "new-source" }
+        editor = null // The shared source lifecycle clears the playback display.
+        gate.complete(Unit)
+        job.join()
+        assertTrue(base.added.isEmpty())
+        assertNull(editor)
+    }
+
+    @Test
+    fun membershipLostWriteResponseAndOfflineReconciliationRetryWithoutDuplicates() = runTest {
+        for (committed in listOf(false, true)) {
+            val base = NowPlayingTestProvider()
+            var offline = false
+            var fail = true
+            val provider = object : MediaProvider by base {
+                override suspend fun playlistTracks(playlistId: String): List<Track> {
+                    if (offline) error("Offline")
+                    return base.playlistTracks(playlistId)
+                }
+                override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+                    if (!fail || committed) base.addTracksToPlaylist(playlistId, trackIds)
+                    if (fail) { offline = true; error("Connection lost") }
+                }
+            }
+            var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            val coordinator = NaviampCorePlaylistMembershipCoordinator({ provider }, { editor }, { editor = it })
+            coordinator.open(nowPlayingTrack("current"))
+            coordinator.toggle("playlist-2")
+            coordinator.apply()
+            assertFalse(editor!!.saved)
+            assertFalse(editor!!.saving)
+            assertTrue(editor!!.rows.last().failed)
+            offline = false
+            fail = false
+            coordinator.retry()
+            if (!editor!!.rows.last().selected) coordinator.toggle("playlist-2")
+            coordinator.apply()
+            assertTrue(editor!!.saved)
+            assertEquals(1, base.playlistTracks("playlist-2").count { it.id.value == "current" })
+            assertEquals(1, base.added.size)
+        }
+    }
+
+    @Test
+    fun membershipCompletionAfterSwitchDoesNotTouchNewEditorOrProvider() = runTest {
+        for (fails in listOf(false, true)) {
+            val base = NowPlayingTestProvider()
+            val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val old = object : MediaProvider by base {
+                override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+                    base.addTracksToPlaylist(playlistId, trackIds)
+                    entered.complete(Unit)
+                    release.await()
+                    if (fails) error("Old response lost")
+                }
+            }
+            val replacement = NowPlayingTestProvider()
+            var active: MediaProvider = old
+            var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            var callbacks = 0
+            val coordinator = NaviampCorePlaylistMembershipCoordinator(
+                { active }, { editor }, { editor = it }, onPlaylistChanged = { callbacks++ },
+            )
+            coordinator.open(nowPlayingTrack("current"))
+            coordinator.toggle("playlist-2")
+            val job = launch { coordinator.apply() }
+            entered.await()
+            coordinator.reset()
+            active = object : MediaProvider by replacement { override val cacheNamespace = "new" }
+            coordinator.open(nowPlayingTrack("current"))
+            val expected = editor
+            release.complete(Unit)
+            job.join()
+            assertEquals(expected, editor)
+            assertEquals(0, callbacks)
+            assertTrue(replacement.added.isEmpty())
+            assertEquals(1, base.added.size)
+        }
+    }
+
+    @Test
+    fun freshMembershipOwnerRecoversCommittedStateWithoutReplayingLostDraft() = runTest {
+        for (committed in listOf(false, true)) {
+            val base = NowPlayingTestProvider()
+            var oldEditor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            val old = NaviampCorePlaylistMembershipCoordinator({ base }, { oldEditor }, { oldEditor = it })
+            old.open(nowPlayingTrack("current"))
+            old.toggle("playlist-2")
+            if (committed) base.addTracksToPlaylist("playlist-2", listOf(TrackId("current")))
+            // A fresh owner has no access to the old draft or in-flight work after process death.
+            var reopened: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+            val fresh = NaviampCorePlaylistMembershipCoordinator({ base }, { reopened }, { reopened = it })
+            fresh.open(nowPlayingTrack("current"))
+            assertEquals(committed, reopened!!.rows.last().selected)
+            assertFalse(reopened!!.saved)
+            assertFalse(reopened!!.saving)
+            if (!committed) fresh.toggle("playlist-2")
+            fresh.apply()
+            assertEquals(1, base.playlistTracks("playlist-2").count { it.id.value == "current" })
+            assertEquals(1, base.added.size)
+        }
+    }
+
+    @Test
+    fun membershipLoadingStopsAtOneHundredPlaylists() = runTest {
+        val base = NowPlayingTestProvider()
+        var reads = 0
+        val provider = object : MediaProvider by base {
+            override suspend fun playlists(limit: Int) = (0 until 101).map { Playlist("p-$it", "Playlist $it", 0) }
+            override suspend fun playlistTracks(playlistId: String): List<Track> { reads++; return emptyList() }
+        }
+        var editor: app.naviamp.ui.NaviampTrackPlaylistMembershipUi? = null
+        val coordinator = NaviampCorePlaylistMembershipCoordinator({ provider }, { editor }, { editor = it })
+        coordinator.open(nowPlayingTrack("current"))
+        assertEquals(100, reads)
+        assertEquals(100, editor!!.rows.size)
+        assertTrue(editor!!.truncated)
+    }
+
+    @Test
+    fun successfulGeneratedRadioRecordsOnlyEligibleArtistActivity() = runTest {
+        val trackFixture = mediaFixture(this)
+        trackFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+
+        trackFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+
+        assertEquals(listOf("source:artist:Artist:now"), trackFixture.artistActivity.trackRadioRecords)
+
+        val unfavoritedFixture = mediaFixture(this)
+        unfavoritedFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertTrue(unfavoritedFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val failedFixture = mediaFixture(this)
+        failedFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+        failedFixture.provider.trackRadioFailure = IllegalStateException("radio failed")
+        failedFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertTrue(failedFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val unidentifiedFixture = mediaFixture(this)
+        unidentifiedFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+        unidentifiedFixture.live.replace(
+            unidentifiedFixture.live.state.value.copy(
+                currentTrack = nowPlayingTrack("current").copy(artistId = null),
+                queue = PlaybackQueue(listOf(nowPlayingTrack("current").copy(artistId = null)), 0),
+            ),
+        )
+        unidentifiedFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertTrue(unidentifiedFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val cancelledFixture = mediaFixture(this)
+        cancelledFixture.artistActivity.favoriteArtistIds += ArtistId("artist")
+        cancelledFixture.provider.trackRadioFailure = CancellationException("cancelled")
+        assertFailsWith<CancellationException> {
+            cancelledFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        }
+        assertTrue(cancelledFixture.artistActivity.trackRadioRecords.isEmpty())
+
+        val artistFixture = mediaFixture(this)
+        artistFixture.transactions.startArtistRadio(Artist(ArtistId("direct"), "Direct"))
+        assertEquals(listOf("source:direct:Direct:now"), artistFixture.artistActivity.artistRadioRecords)
     }
 
     @Test
@@ -111,6 +480,45 @@ class NaviampCoreNowPlayingMediaControllerTest {
         val ui = fixture.store.state.value.shell.nowPlaying
         assertEquals(listOf("one", "station", "two"), ui?.radioStations?.map { it.id })
         assertTrue(ui?.isLive == true)
+    }
+
+    @Test
+    fun currentTrackMembershipEditorAddsAndRemovesAllOccurrencesThenReconciles() = runTest {
+        val fixture = mediaFixture(this)
+
+        fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.AddToPlaylist))
+        val opened = assertNotNull(fixture.store.state.value.shell.playlistMembership)
+        assertEquals(listOf(true, false), opened.rows.map { it.selected })
+
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.TogglePlaylistMembership("playlist"))
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.TogglePlaylistMembership("playlist-2"))
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership)
+
+        val saved = assertNotNull(fixture.store.state.value.shell.playlistMembership)
+        assertTrue(saved.saved)
+        assertEquals(listOf(false, true), saved.rows.map { it.selected })
+        assertEquals(listOf("past", "next"), fixture.provider.playlistContents.getValue("playlist").map { it.id.value })
+        assertEquals(listOf("past", "current"), fixture.provider.playlistContents.getValue("playlist-2").map { it.id.value })
+    }
+
+    @Test
+    fun queueTrackOpensTheSameMembershipEditor() = runTest {
+        val fixture = mediaFixture(this)
+        val next = fixture.store.state.value.shell.nowPlaying!!.upNext.single()
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.QueueItem(
+                NowPlayingItemActionRequest(
+                    item = next,
+                    target = NowPlayingItemTarget.QueueIndex(2),
+                    action = NowPlayingItemAction.AddToPlaylist,
+                ),
+            ),
+        )
+
+        val editor = assertNotNull(fixture.store.state.value.shell.playlistMembership)
+        assertEquals("next", editor.trackId)
+        assertEquals(listOf(true, false), editor.rows.map { it.selected })
     }
 
     @Test
@@ -223,6 +631,18 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun trackRadioPlaybackSurvivesOptionalFavoriteArtistActivityFailure() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.artistActivity.failure = IllegalStateException("favorite artist activity unavailable")
+
+        fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+
+        assertEquals("current", fixture.live.state.value.queue.current?.id?.value)
+        assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
+        assertEquals("Playing current radio.", fixture.store.state.value.overlays.status)
+    }
+
+    @Test
     fun currentTrackArtistAndAlbumLinksCloseNowPlayingAndOpenSharedDetails() = runTest {
         val albumFixture = mediaFixture(this)
         albumFixture.store.updateShell { shell ->
@@ -315,6 +735,8 @@ private data class MediaFixture(
     val controller: NaviampCoreNowPlayingMediaController,
     val visualizers: List<NaviampVisualizer>,
     val downloads: List<String>,
+    val transactions: NaviampCoreMediaTransactions,
+    val artistActivity: RecordingFavoriteArtistActivity,
 )
 
 private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture {
@@ -323,7 +745,10 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
     store.updateShell { shell ->
         shell.copy(
             connectionSettings = NaviampConnectionSettingsUi(currentSourceId = "source"),
-            playlistChoices = listOf(NaviampPlaylistChoiceUi("playlist", "Playlist")),
+            playlistChoices = listOf(
+                NaviampPlaylistChoiceUi("playlist", "Playlist"),
+                NaviampPlaylistChoiceUi("playlist-2", "Second Playlist"),
+            ),
         )
     }
     val tracks = listOf(nowPlayingTrack("past"), nowPlayingTrack("current"), nowPlayingTrack("next"))
@@ -397,6 +822,7 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         NaviampCoreDownloadedPlaybackPort { _, _ -> },
     )
     var recentRadioStreams = emptyList<app.naviamp.domain.settings.RecentRadioStream>()
+    val artistActivity = RecordingFavoriteArtistActivity()
     val generatedRadio = NaviampCoreMediaTransactions(
         stateStore = store,
         busyIndicator = NaviampCoreBusyIndicator(store),
@@ -416,6 +842,7 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         favoritedAtIso8601 = { "now" },
         publishNowPlaying = { presenter.publish() },
         openNowPlaying = {},
+        favoriteArtistActivity = artistActivity,
     )
     val controller = NaviampCoreNowPlayingMediaController(
         stateStore = store,
@@ -438,7 +865,45 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         favoritedAtIso8601 = { "now" },
     )
     presenter.publish()
-    return MediaFixture(store, provider, live, effects, sidecars, presenter, controller, visualizers, downloaded)
+    return MediaFixture(
+        store,
+        provider,
+        live,
+        effects,
+        sidecars,
+        presenter,
+        controller,
+        visualizers,
+        downloaded,
+        generatedRadio,
+        artistActivity,
+    )
+}
+
+private class RecordingFavoriteArtistActivity : HomeLibraryRepository {
+    val favoriteArtistIds = mutableSetOf<ArtistId>()
+    val artistRadioRecords = mutableListOf<String>()
+    val trackRadioRecords = mutableListOf<String>()
+    var failure: Throwable? = null
+
+    override fun albumYears(sourceId: String): List<HomeAlbumYear> = emptyList()
+
+    override fun recordArtistRadioPlayed(sourceId: String, artist: Artist, playedAtIso8601: String) {
+        failure?.let { throw it }
+        artistRadioRecords += "$sourceId:${artist.id.value}:${artist.name}:$playedAtIso8601"
+    }
+
+    override fun recordTrackArtistRadioPlayedIfFavorite(
+        sourceId: String,
+        artistId: ArtistId,
+        artistName: String,
+        playedAtIso8601: String,
+    ): Boolean {
+        failure?.let { throw it }
+        if (artistId !in favoriteArtistIds) return false
+        trackRadioRecords += "$sourceId:${artistId.value}:$artistName:$playedAtIso8601"
+        return true
+    }
 }
 
 private class NowPlayingTestEffects : NaviampCorePlaybackEffectPort {
@@ -484,6 +949,17 @@ private class NowPlayingTestProvider : MediaProvider {
     val added = mutableListOf<String>()
     val favorites = mutableListOf<String>()
     val ratings = mutableListOf<String>()
+    var trackRadioFailure: Throwable? = null
+    var artistRadioFailure: Throwable? = null
+    val playlistContents = mutableMapOf(
+        "playlist" to mutableListOf(
+            nowPlayingTrack("past"),
+            nowPlayingTrack("current"),
+            nowPlayingTrack("current"),
+            nowPlayingTrack("next"),
+        ),
+        "playlist-2" to mutableListOf(nowPlayingTrack("past")),
+    )
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId) = AlbumDetails(
@@ -499,7 +975,7 @@ private class NowPlayingTestProvider : MediaProvider {
     )
     override suspend fun artist(artistId: ArtistId) = ArtistDetails(
         Artist(artistId, if (artistId.value == "david-guetta") "David Guetta" else "Artist"),
-        emptyList(),
+        listOf(album(AlbumId("artist-album")).album),
     )
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
@@ -520,11 +996,30 @@ private class NowPlayingTestProvider : MediaProvider {
     var trackRadioGate: CompletableDeferred<Unit>? = null
     override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
         trackRadioGate?.await()
+        trackRadioFailure?.let { throw it }
         return listOf(nowPlayingTrack("radio"))
+    }
+    override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> {
+        artistRadioFailure?.let { throw it }
+        return listOf(nowPlayingTrack("artist-radio"))
     }
     override suspend fun internetRadioStations() = listOf(InternetRadioStation("station", "Station", "https://radio"))
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         added += "$playlistId:${trackIds.joinToString(",") { it.value }}"
+        playlistContents.getOrPut(playlistId) { mutableListOf() }
+            .addAll(trackIds.map { nowPlayingTrack(it.value) })
+    }
+    override suspend fun playlists(limit: Int) = playlistContents.map { (id, tracks) -> Playlist(id, id, tracks.size) }.take(limit)
+    override suspend fun playlistTracks(playlistId: String) = playlistContents[playlistId].orEmpty()
+    override suspend fun removeTrackFromPlaylist(playlistId: String, trackId: TrackId) {
+        playlistContents[playlistId]?.removeAll { it.id == trackId }
+    }
+    override suspend fun replacePlaylistTracks(
+        playlistId: String,
+        currentTrackIds: List<TrackId>,
+        trackIds: List<TrackId>,
+    ) {
+        playlistContents[playlistId] = trackIds.map { nowPlayingTrack(it.value) }.toMutableList()
     }
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>) = Playlist("created", name, trackIds.size)
     override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) { favorites += "${trackId.value}:$favorite" }

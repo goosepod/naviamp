@@ -26,6 +26,24 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LibrarySyncTest {
+    @Test fun bulkTrackSyncUsesPagesWithoutAlbumDetailRequests() = kotlinx.coroutines.test.runTest {
+        val repository = FakeLibraryIndexRepository()
+        var pages = 0
+        val provider = object : MediaProvider by FakeLibraryProvider() {
+            override suspend fun libraryTracksPage(request: app.naviamp.domain.provider.MediaPageRequest): app.naviamp.domain.provider.MediaPage<Track> {
+                pages++
+                val track = Track(TrackId("t$pages"), "Song", artistName = "Artist", albumTitle = null,
+                    durationSeconds = 60, coverArtId = null, audioInfo = null, replayGain = null)
+                return app.naviamp.domain.provider.MediaPage(listOf(track), request.offset, request.limit,
+                    hasMore = pages == 1, nextContinuationToken = if (pages == 1) "next" else null)
+            }
+            override suspend fun album(albumId: AlbumId): AlbumDetails = error("Bulk sync must not fetch album tracks")
+        }
+        val result = syncLibraryIndex("source", provider, repository, 10, 10, includeAlbumTracks = true)
+        assertEquals(2, pages)
+        assertEquals(2, result.trackCount)
+        assertEquals(2, repository.tracks.size)
+    }
     @Test
     fun syncLibraryIndexPagesArtistsAndAlbums() = kotlinx.coroutines.test.runTest {
         val artists = listOf(artist("one"), artist("two"))

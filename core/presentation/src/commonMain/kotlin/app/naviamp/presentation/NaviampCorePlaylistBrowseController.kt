@@ -58,6 +58,9 @@ class NaviampCorePlaylistBrowseController(
     private val playbackProfiles: NaviampCorePlaybackProfileController =
         NaviampCorePlaybackProfileController(stateStore),
 ) : NaviampCoreCommandController {
+    // Mutations capture this separately from ordinary list/detail refresh generations.
+    internal var sourceGeneration = 0L
+        private set
     private var listGeneration = 0L
     private var detailGeneration = 0L
     private var playlistsById = emptyMap<String, Playlist>()
@@ -114,7 +117,7 @@ class NaviampCorePlaylistBrowseController(
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
         runCatching { provider.playlists(playlistLimit) }
             .onSuccess { playlists ->
-                if (generation != listGeneration) return@onSuccess
+                if (generation != listGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 playlistsById = playlists.associateBy(Playlist::id)
                 mediaRegistry.updatePlaylists(playlists)
                 val visiblePlaylists = playlists.filter { it.navibeatMixOrNull() == null }
@@ -133,21 +136,100 @@ class NaviampCorePlaylistBrowseController(
                         ),
                         playlistChoices = visiblePlaylists
                             .filterNot(Playlist::isSmart)
+                            .filter(Playlist::canEdit)
                             .map(Playlist::toPlaylistChoiceUi),
                     )
                 }
             }
             .onFailure { cause ->
-                if (generation == listGeneration) {
+                if (generation == listGeneration && providerSource.isCurrent(provider)) {
                     publishListFailure(cause.message ?: "Could not load playlists.")
                 }
             }
     }
 
-    suspend fun refreshAfterConnection() = refresh()
+    fun resetForSourceChange() {
+        sourceGeneration++
+        listGeneration++
+        detailGeneration++
+        playlistsById = emptyMap()
+        mediaRegistry.updatePlaylists(emptyList())
+        mediaRegistry.updateSelectedPlaylist(null, emptyList())
+        stateStore.updateShell { shell -> shell.copy(
+            playlists = app.naviamp.ui.NaviampPlaylistsScreenUi(sortMode = shell.playlists.sortMode),
+            playlistChoices = emptyList(),
+            playlistDetail = app.naviamp.ui.NaviampPlaylistDetailScreenUi(),
+        ) }
+    }
+
+    suspend fun refreshAfterConnection() {
+        resetForSourceChange()
+        refresh()
+    }
 
     internal suspend fun refreshAfterMutation(status: String) {
         refresh(finalStatus = status)
+    }
+
+    internal fun publishCreated(playlist: Playlist) {
+        val provider = providerSource.current() ?: return
+        ++listGeneration // A refresh begun before creation must not remove the new playlist.
+        playlistsById = playlistsById + (playlist.id to playlist)
+        mediaRegistry.updatePlaylists(playlistsById.values.toList())
+        val mapped = playlist.toSharedMediaItemUi(coverArtUrl = { id -> id?.let(provider::coverArtUrl) })
+        stateStore.updateShell { shell ->
+            shell.copy(
+                playlists = shell.playlists.copy(
+                    playlists = shell.playlists.playlists.filterNot { it.id == playlist.id } + mapped,
+                    refreshing = false,
+                    status = null,
+                ),
+                playlistChoices = shell.playlistChoices.filterNot { it.id == playlist.id } + playlist.toPlaylistChoiceUi(),
+            )
+        }
+    }
+
+    internal fun reconcileContents(playlistId: String, tracks: List<app.naviamp.domain.Track>) {
+        val provider = providerSource.current() ?: return
+        val selected = stateStore.state.value.shell.playlistDetail.selectedPlaylist
+        val playlist = playlistsById[playlistId]
+            ?: selected?.takeIf { it.id == playlistId }?.let(::resolvePlaylist)
+            ?: return
+        val updated = playlist.copy(trackCount = tracks.size)
+        ++listGeneration // An older list response cannot restore pre-mutation counts.
+        playlistsById = playlistsById + (playlistId to updated)
+        mediaRegistry.updatePlaylists(playlistsById.values.toList())
+        val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
+        val mapped = updated.toSharedMediaItemUi(
+            coverArtUrl = coverArtUrl,
+            tracks = tracks,
+            keepDownloadedActive = playlistId in supplementSource.current().keepDownloadedPlaylistIds,
+        )
+        if (selected?.id == playlistId) {
+            ++detailGeneration // An older detail load cannot restore pre-mutation contents.
+            mediaRegistry.updateSelectedPlaylist(updated, tracks)
+        }
+        stateStore.updateShell { shell ->
+            shell.copy(
+                playlists = shell.playlists.copy(
+                    playlists = shell.playlists.playlists.map {
+                        if (it.id == playlistId) mapped else it
+                    },
+                    refreshing = false,
+                    status = null,
+                ),
+                playlistChoices = shell.playlistChoices.map {
+                    if (it.id == playlistId) updated.toPlaylistChoiceUi() else it
+                },
+                playlistDetail = if (shell.playlistDetail.selectedPlaylist?.id == playlistId) {
+                    shell.playlistDetail.copy(
+                        selectedPlaylist = mapped,
+                        detail = SharedPlaylistDetailUi(mapped, tracks.map { it.toSharedTrackRowUi(coverArtUrl) }),
+                        status = null,
+                    )
+                } else shell.playlistDetail,
+            )
+        }
     }
 
     internal fun resolvePlaylist(item: SharedMediaItemUi): Playlist =
@@ -156,6 +238,7 @@ class NaviampCorePlaylistBrowseController(
             name = item.title,
             trackCount = item.trackCount ?: 0,
             isSmart = item.isSmartPlaylist,
+            canEdit = item.canEditPlaylist,
         )
 
     private suspend fun open(item: SharedMediaItemUi) {
@@ -183,7 +266,7 @@ class NaviampCorePlaylistBrowseController(
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
         runCatching { provider.playlistTracks(playlist.id) }
             .onSuccess { tracks ->
-                if (generation != detailGeneration) return@onSuccess
+                if (generation != detailGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 val resolvedPlaylist = playlist.copy(trackCount = tracks.size)
                 mediaRegistry.updateSelectedPlaylist(resolvedPlaylist, tracks)
                 val mappedPlaylist = resolvedPlaylist.toSharedMediaItemUi(
@@ -207,7 +290,7 @@ class NaviampCorePlaylistBrowseController(
                 }
             }
             .onFailure { cause ->
-                if (generation == detailGeneration) {
+                if (generation == detailGeneration && providerSource.isCurrent(provider)) {
                     publishDetailFailure(item, cause.message ?: "Playlist failed to load.")
                 }
             }

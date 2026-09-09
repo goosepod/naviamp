@@ -28,6 +28,30 @@ import kotlin.test.assertNull
 
 class NaviampCoreStandardMixControllerTest {
     @Test
+    fun genreSongsBrowseAndPlayThroughCoreAndResetWithSelection() = runTest {
+        val base = FakeCoreMediaProvider()
+        val tags = mutableListOf<String>()
+        val provider = object : app.naviamp.domain.provider.MediaProvider by base {
+            override val capabilities = base.capabilities.copy(supportsGenreTrackBrowsing = true)
+            override suspend fun genreTracksPage(genre: String, request: app.naviamp.domain.provider.MediaPageRequest): app.naviamp.domain.provider.MediaPage<Track> {
+                tags += genre
+                return app.naviamp.domain.provider.MediaPage(listOf(track("one"), track("two")), request.offset, request.limit, false)
+            }
+        }
+        val fixture = fixture(provider = provider)
+        fixture.controller.initializeGenre()
+        val genre = fixture.store.state.value.shell.genreMixBuilder.suggestedGenres.first()
+        fixture.controller.execute(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Select(genre)))
+        fixture.controller.execute(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.BrowseSongs))
+        assertEquals(listOf("Ambient"), tags)
+        assertEquals(listOf("one", "two"), fixture.store.state.value.shell.genreMixBuilder.songs.map { it.id })
+        fixture.controller.execute(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.PlaySong("two")))
+        assertEquals(listOf("one,two:1"), fixture.playback.genreSongPlays)
+        fixture.controller.execute(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Remove(genre)))
+        assertEquals(emptyList(), fixture.store.state.value.shell.genreMixBuilder.songs)
+    }
+
+    @Test
     fun artistBuilderOwnsSuggestionsSelectionTracksAndPlaybackIntent() = runTest {
         val fixture = fixture()
         fixture.controller.initializeArtist()
@@ -205,6 +229,7 @@ class NaviampCoreStandardMixControllerTest {
         genreService: GenreMixBuilderService = GenreMixBuilderService {
             listOf(Genre("Ambient"), Genre("Rock"))
         },
+        provider: app.naviamp.domain.provider.MediaProvider? = null,
     ): StandardMixFixture {
         val artistA = Artist(ArtistId("artist-a"), "Artist A")
         val artistB = Artist(ArtistId("artist-b"), "Artist B")
@@ -251,7 +276,7 @@ class NaviampCoreStandardMixControllerTest {
             store,
             NaviampCoreStandardMixController(
                 stateStore = store,
-                providerSource = NaviampCoreMediaProviderSource { null },
+                providerSource = NaviampCoreMediaProviderSource { provider },
                 artistService = { artistService },
                 albumService = { albumService },
                 genreService = { genreService },
@@ -272,6 +297,7 @@ private class StandardMixTestPlayback : NaviampCoreStandardMixPlaybackPort {
     val artistPlays = mutableListOf<String>()
     val albumPlays = mutableListOf<String>()
     var genrePlays = emptyList<String>()
+    val genreSongPlays = mutableListOf<String>()
 
     override suspend fun playArtistMix(artists: List<Artist>, seedTracks: List<Track>) {
         artistPlays += "${artists.joinToString { it.id.value }}:${seedTracks.joinToString { it.id.value }}"
@@ -283,6 +309,9 @@ private class StandardMixTestPlayback : NaviampCoreStandardMixPlaybackPort {
 
     override suspend fun playGenreMix(genres: List<Genre>) {
         genrePlays = genres.map(Genre::name)
+    }
+    override suspend fun playGenreSongs(tracks: List<Track>, startIndex: Int) {
+        genreSongPlays += "${tracks.joinToString(",") { it.id.value }}:$startIndex"
     }
 }
 

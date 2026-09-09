@@ -18,9 +18,13 @@ class NaviampAppBackgroundPolicyTest {
             InterfaceSettings(
                 appBackgroundStyle = AppBackgroundStyle.Aurora,
                 auroraTone = AuroraTone.Light,
+                auroraColorSteps = 5,
+                auroraAngleDegrees = 135,
             ),
         )
 
+        assertEquals(5, background.auroraColorSteps)
+        assertEquals(135, background.auroraAngleDegrees)
         assertEquals(AppBackgroundStyle.Aurora, background.style)
         assertEquals(albumColors.withAuroraTone(AuroraTone.Light), background.targetPlayerColors)
     }

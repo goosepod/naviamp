@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 
 const val DefaultMediaPageSize: Int = 50
 const val MaximumMediaPageSize: Int = 200
+const val MaximumArtistDiscographyItems: Int = 2_000
 
 data class MediaPageRequest(
     val offset: Int = 0,
@@ -30,6 +31,8 @@ data class MediaPage<T>(
     val limit: Int,
     val hasMore: Boolean,
     val nextContinuationToken: String? = null,
+    val totalItemCount: Int? = null,
+    val alphabeticallySortedByTitle: Boolean = false,
 ) {
     val nextRequest: MediaPageRequest?
         get() = if (hasMore) {
@@ -51,6 +54,33 @@ fun <T> MediaPageRequest.toMediaPage(items: List<T>): MediaPage<T> {
         limit = limit,
         hasMore = items.size == limit,
     )
+}
+
+/** Collects a provider catalog through validated pages while enforcing a shared safety bound. */
+suspend fun <T> collectBoundedMediaPages(
+    maximumItems: Int = MaximumArtistDiscographyItems,
+    pageSize: Int = MaximumMediaPageSize,
+    loadPage: suspend (MediaPageRequest) -> MediaPage<T>,
+): List<T> {
+    require(maximumItems > 0) { "Maximum item count must be positive." }
+    require(pageSize in 1..MaximumMediaPageSize) { "Page size is outside the supported range." }
+    val collected = mutableListOf<T>()
+    var request: MediaPageRequest? = MediaPageRequest(limit = minOf(pageSize, maximumItems))
+    val visitedOffsets = mutableSetOf<Int>()
+    while (request != null && collected.size < maximumItems && visitedOffsets.add(request.offset)) {
+        val page = loadPage(request)
+        require(page.offset == request.offset && page.limit == request.limit) {
+            "Provider page metadata must match the requested offset and limit."
+        }
+        val remaining = maximumItems - collected.size
+        collected += page.items.take(remaining)
+        request = if (page.items.isEmpty() || !page.hasMore || collected.size >= maximumItems) {
+            null
+        } else {
+            page.nextRequest?.copy(limit = minOf(pageSize, maximumItems - collected.size))
+        }
+    }
+    return collected
 }
 
 data class MediaPagerState<T>(

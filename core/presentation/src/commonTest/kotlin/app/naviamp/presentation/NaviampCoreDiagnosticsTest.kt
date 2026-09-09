@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampLibraryCatalogUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.SharedMediaItemUi
@@ -18,9 +19,11 @@ class NaviampCoreDiagnosticsTest {
             shell = NaviampAppShellUiState(
                 shellChrome = NaviampShellChromeUi(selectedRoute = SharedRoute.Library),
                 library = NaviampLibraryScreenUi(
-                    artists = listOf(SharedMediaItemUi("artist", "Artist", "")),
-                    query = "art",
-                    syncStatus = NaviampLibrarySyncStatusUi("Indexed", isSyncing = false),
+                    artists = NaviampLibraryCatalogUi(
+                        items = listOf(SharedMediaItemUi("artist", "Artist", "")),
+                        query = "art",
+                        syncStatus = NaviampLibrarySyncStatusUi("Indexed", isSyncing = false),
+                    ),
                 ),
             ),
             provider = FakeCoreMediaProvider(supportsSonicSimilarity = true),

@@ -243,6 +243,8 @@ fun TrackRow(
             hasAlbum = track.hasAlbum,
             hasArtist = track.hasArtist,
             canShowDetails = track.detailSections.isNotEmpty(),
+            playAfterCurrentGroupLabel = stringResource(Res.string.action_play_after_current_group),
+            playImmediatelyNextLabel = stringResource(Res.string.action_play_immediately_next),
         ).mapNotNull { action ->
             when (action.action) {
                 NaviampAction.PlayNext -> if (canAddToQueue) {
@@ -328,7 +330,7 @@ fun TrackRow(
                 NaviampAction.ToggleFavorite -> if (track.canToggleFavorite) {
                     NaviampRowMenuItem(
                         action.label,
-                        action.icon,
+                        if (track.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                         { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.ToggleFavorite)) },
                         action.enabled,
                     )
@@ -385,7 +387,7 @@ internal fun trackNumberLabel(number: Int): String = "${number.coerceAtLeast(1)}
 
 internal fun trackNumberColumnWidth(maxTrackNumber: Int): Dp {
     val digitCount = maxTrackNumber.coerceAtLeast(1).toString().length
-    return (TrackNumberBaseWidthValue + (digitCount - 2).coerceAtLeast(0) * TrackNumberExtraDigitWidthValue).dp
+    return (TrackNumberBaseWidthValue + (digitCount - 1).coerceAtLeast(0) * TrackNumberExtraDigitWidthValue).dp
 }
 
 @Composable
@@ -516,7 +518,7 @@ fun SwipeActionContainer(
                     .padding(horizontal = 14.dp),
             ) {
                 if (offsetX < 0f) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                Icon(action.icon, contentDescription = action.label, tint = Color.White, modifier = Modifier.size(20.dp))
+                Icon(action.icon, contentDescription = action.label, tint = if (action.icon == NaviampTransportIcons.HeartFilled) NaviampColors.Dark.favorite else Color.White, modifier = Modifier.size(20.dp))
                 Text(action.label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 if (offsetX > 0f) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
             }
@@ -795,16 +797,16 @@ fun SharedMediaRow(
         }
         if (item.favoriteActive) {
             Icon(
-                imageVector = NaviampTransportIcons.Heart,
+                imageVector = NaviampTransportIcons.HeartFilled,
                 contentDescription = "Favorite",
-                tint = colors.accent,
+                tint = colors.favorite,
                 modifier = Modifier.size(15.dp),
             )
         }
         val favoriteMenuItem = if (canToggleFavorite) {
             NaviampRowMenuItem(
                 label = if (item.favoriteActive) "Remove favorite" else "Favorite",
-                icon = NaviampTransportIcons.Heart,
+                icon = if (item.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                 onClick = { onFavoriteToggled?.invoke(item) },
             )
         } else {
@@ -830,7 +832,7 @@ fun SharedAlbumGridTile(
     val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
         NaviampRowMenuItem(
             label = if (item.favoriteActive) "Remove favorite" else "Favorite",
-            icon = NaviampTransportIcons.Heart,
+            icon = if (item.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
             onClick = { onFavoriteToggled(item) },
         )
     } else {
@@ -848,9 +850,9 @@ fun SharedAlbumGridTile(
             NaviampCoverArt(item.coverArtUrl, colors, tileSize, 8.dp)
             if (item.favoriteActive) {
                 Icon(
-                    imageVector = NaviampTransportIcons.Heart,
+                    imageVector = NaviampTransportIcons.HeartFilled,
                     contentDescription = "Favorite",
-                    tint = colors.accent,
+                    tint = colors.favorite,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(7.dp)
@@ -1137,6 +1139,27 @@ fun GenreMixBuilderContent(
         }
         (builder.status ?: if (builder.loading) stringResource(Res.string.mix_loading_genres) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        if (builder.canBrowseSongs) {
+            Button(onClick = actions.onBrowseSongs, enabled = !builder.songsLoading &&
+                (!builder.songsOpened || builder.songsHaveMore)) {
+                Text(stringResource(when {
+                    builder.songsLoading -> Res.string.library_loading_songs
+                    builder.songsFailed -> Res.string.playlist_membership_retry
+                    builder.songsOpened -> Res.string.genre_songs_more
+                    else -> Res.string.genre_songs_browse
+                }))
+            }
+        }
+        if (builder.songsFailed) {
+            Text(stringResource(Res.string.genre_songs_failed), color = colors.secondaryText)
+        } else if (builder.songsOpened && !builder.songsLoading && builder.songs.isEmpty() && !builder.songsHaveMore) {
+            Text(stringResource(Res.string.genre_songs_empty), color = colors.secondaryText)
+        }
+        builder.songs.forEach { track ->
+            TrackRow(track, colors, onTrackAction = trackSelectionAction(actions.onSongSelected),
+                canSelect = true, canStartRadio = false, canAddToQueue = false,
+                canDownload = false, canAddToPlaylist = false)
         }
         val browsingOntology = builder.query.isBlank() &&
             (builder.treeRows.isNotEmpty() || builder.unmatchedGenres.isNotEmpty())

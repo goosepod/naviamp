@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.library.AlbumLibraryIndex
 import app.naviamp.app.NaviampKeepDownloadedReconciliationApplication
 import app.naviamp.app.NaviampKeepDownloadedToggleResult
 import app.naviamp.app.NaviampProviderActionController
@@ -46,6 +47,7 @@ fun naviampCoreServiceDefaults(
         artistDiscovery = NaviampCoreArtistDiscoveryServices(),
         sonicHomeDiscovery = libraryIndex?.let(::naviampCoreSonicHomeDiscoverySource),
         libraryIndex = libraryIndex,
+        albumIndex = libraryIndex?.albumCatalog?.let { AlbumLibraryIndex(it, sourceId, clockEpochMillis) },
         externalUri = externalUri,
     ),
     connection = connection,

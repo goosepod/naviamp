@@ -52,14 +52,23 @@ class NaviampCoreDownloadsController(
     private var policies = emptyList<KeepDownloadedCollectionPolicy>()
     private var jobs = emptyList<app.naviamp.domain.cache.DownloadJob>()
     private var snapshotGeneration = 0L
+    private val jobSources = mutableMapOf<String, String>()
     private val runningJobs = mutableMapOf<String, Job>()
     private val jobController = NaviampDownloadJobController(
         jobs = { jobs },
         setJobs = { updated ->
             jobs = updated
+            jobSources.keys.retainAll(updated.map { it.id }.toSet())
             publishJobs()
         },
     )
+
+    fun resetForSourceChange() {
+        snapshotGeneration++
+        downloadedTracks = emptyList()
+        policies = emptyList()
+        stateStore.updateShell { shell -> shell.copy(downloads = app.naviamp.ui.NaviampDownloadsScreenUi()) }
+    }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult =
         if (command is NaviampCoreCommand.Downloads) NaviampCoreImmediateCommandResult.Deferred
@@ -115,6 +124,8 @@ class NaviampCoreDownloadsController(
         }
         val activeProvider = requireNotNull(provider)
         val activeSourceId = requireNotNull(sourceId)
+        jobSources[job.id] = activeSourceId
+        publishJobs()
         val running = scope.launch {
             try {
                 val result = transfer.transfer(
@@ -137,11 +148,11 @@ class NaviampCoreDownloadsController(
                     },
                     onJobUpdate = { update -> jobController.update(job.id, update) },
                 )
-                if (result.refreshDownloads) loadSnapshot(activeSourceId)
+                if (result.refreshDownloads && currentSourceId() == activeSourceId) loadSnapshot(activeSourceId)
             } catch (cause: Throwable) {
                 if (cause is kotlinx.coroutines.CancellationException) throw cause
                 jobController.update(job.id, DownloadJobUpdate.Failed(null, cause.message ?: "Download failed"))
-                publishStatus(cause.message ?: "Could not download $label.")
+                if (currentSourceId() == activeSourceId) publishStatus(cause.message ?: "Could not download $label.")
             } finally {
                 jobController.complete(job.id)
                 runningJobs.remove(job.id)
@@ -291,13 +302,14 @@ class NaviampCoreDownloadsController(
     }
 
     private fun retry(jobId: String) {
-        val retry = jobController.retry(jobId)
+        val retry = jobController.retry(jobId).takeIf { jobSources[jobId] == currentSourceId() }
         if (retry == null) {
             publishStatus("Download job cannot be retried.")
             return
         }
         if (downloadTracks(retry.label, retry.tracks, retry.replaceExisting)) {
             jobController.dismiss(jobId)
+            jobSources.remove(jobId)
         }
     }
 
@@ -306,6 +318,7 @@ class NaviampCoreDownloadsController(
         val snapshot = storage.snapshot(sourceId)
         if (generation != snapshotGeneration || currentSourceId() != sourceId) return false
         downloadedTracks = snapshot.downloads
+        publishJobs()
         reloadPolicies(sourceId)
         val coverArt = providerSource.current()?.let { provider -> { id: String? -> id?.let(provider::coverArtUrl) } }
             ?: { _: String? -> null }
@@ -341,7 +354,7 @@ class NaviampCoreDownloadsController(
 
     private fun publishJobs() {
         stateStore.updateShell { shell ->
-            shell.copy(downloads = shell.downloads.copy(jobs = jobs.map { it.toDownloadJobUi() }))
+            shell.copy(downloads = shell.downloads.copy(jobs = jobs.filter { jobSources[it.id] == currentSourceId() }.map { it.toDownloadJobUi() }))
         }
     }
 

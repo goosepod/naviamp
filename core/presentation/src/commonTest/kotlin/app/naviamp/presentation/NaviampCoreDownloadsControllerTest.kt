@@ -119,6 +119,58 @@ class NaviampCoreDownloadsControllerTest {
     }
 
     @Test
+    fun retryCannotSendOldSourceTracksToTheNewConnection() = runTest {
+        val fixture = fixture(this)
+        fixture.transfer.failNext = true
+        fixture.controller.downloadTracks("old", listOf(downloadTrack("one")))
+        advanceUntilIdle()
+        val id = fixture.store.state.value.shell.downloads.jobs.single().id
+        fixture.store.updateShell { it.copy(connectionSettings = NaviampConnectionSettingsUi(currentSourceId = "other")) }
+        fixture.controller.execute(NaviampCoreCommand.Downloads.RetryJob(id))
+        advanceUntilIdle()
+        assertEquals(1, fixture.transfer.requests.size)
+    }
+
+    @Test
+    fun lateTransferFailureCannotOverwriteNewSourceStatus() = runTest {
+        val fixture = fixture(this)
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        fixture.transfer.beforeTransfer = { entered.complete(Unit); release.await(); error("old failed") }
+        fixture.controller.downloadTracks("old", listOf(downloadTrack("one")))
+        entered.await()
+        fixture.store.updateShell { it.copy(
+            connectionSettings = NaviampConnectionSettingsUi(currentSourceId = "other"),
+            downloads = it.downloads.copy(status = "new source"),
+        ) }
+        fixture.controller.resetForSourceChange()
+        fixture.store.updateShell { it.copy(downloads = it.downloads.copy(status = "new source")) }
+        release.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("new source", fixture.store.state.value.shell.downloads.status)
+        assertTrue(fixture.store.state.value.shell.downloads.jobs.isEmpty())
+        fixture.store.updateShell { it.copy(connectionSettings = NaviampConnectionSettingsUi(currentSourceId = "source")) }
+        fixture.controller.refresh(reconcile = false)
+        assertTrue(fixture.store.state.value.shell.downloads.jobs.single().canRetry)
+    }
+
+    @Test
+    fun cancelThenImmediatelyRetryUsesANewJobAndCompletes() = runTest {
+        val fixture = fixture(this)
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        fixture.transfer.beforeTransfer = { entered.complete(Unit); kotlinx.coroutines.awaitCancellation() }
+        fixture.controller.downloadTracks("selection", listOf(downloadTrack("one")))
+        entered.await()
+        val id = fixture.store.state.value.shell.downloads.jobs.single().id
+        fixture.controller.execute(NaviampCoreCommand.Downloads.CancelJob(id))
+        fixture.transfer.beforeTransfer = {}
+        fixture.controller.execute(NaviampCoreCommand.Downloads.RetryJob(id))
+        advanceUntilIdle()
+        assertEquals(2, fixture.transfer.requests.size)
+        assertTrue(fixture.store.state.value.shell.downloads.jobs.isEmpty())
+    }
+
+    @Test
     fun favoritesPolicyReconciliationAndDownloadLaunchAreOwnedByCore() = runTest {
         val fixture = fixture(this, initialFavoritesPolicy = false)
 
@@ -257,6 +309,7 @@ private class DownloadsTestTransfer(
 ) : NaviampCoreDownloadTransferPort {
     val requests = mutableListOf<NaviampCoreDownloadTransferRequest>()
     var failNext = false
+    var beforeTransfer: suspend () -> Unit = {}
 
     override suspend fun transfer(
         request: NaviampCoreDownloadTransferRequest,
@@ -264,6 +317,7 @@ private class DownloadsTestTransfer(
         onJobUpdate: (DownloadJobUpdate) -> Unit,
     ): NaviampCoreDownloadTransferResult {
         requests += request
+        beforeTransfer()
         onJobUpdate(DownloadJobUpdate.Started)
         if (failNext) {
             failNext = false

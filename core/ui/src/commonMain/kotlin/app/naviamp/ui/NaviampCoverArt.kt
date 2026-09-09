@@ -22,6 +22,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
@@ -58,9 +60,11 @@ fun NaviampCoverArt(
     val targetSidePx = with(LocalDensity.current) {
         ceil(decodeSize.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
     }
-    var image by remember(targetSidePx) { mutableStateOf<ImageBitmap?>(null) }
-    var outgoingImage by remember(targetSidePx) { mutableStateOf<ImageBitmap?>(null) }
-    val incomingAlpha = remember(targetSidePx) { Animatable(1f) }
+    // Keep the displayed bitmap while a new URL or decode size is loading. Resetting this
+    // state by size exposes the placeholder again after the incoming cover has faded in.
+    var image by remember { mutableStateOf<ImageBitmap?>(null) }
+    var outgoingImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    val incomingAlpha = remember { Animatable(1f) }
     LaunchedEffect(url, targetSidePx) {
         if (url == null) {
             // Playback can briefly publish no artwork between adjacent queue items. Do not let that
@@ -126,7 +130,7 @@ fun NaviampExpandedMediaImage(
         ceil(maxOf(maxWidth.toPx(), maxHeight.toPx())).toInt()
             .coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
     }
-    var image by remember(url, targetSidePx) { mutableStateOf<ImageBitmap?>(null) }
+    var image by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(url, targetSidePx) {
         image = url?.let { NaviampCoverArtCache.image(it, targetSidePx) }
     }
@@ -217,6 +221,8 @@ private object NaviampCoverArtCache {
     private val palettes = linkedMapOf<String, List<NaviampRgbSample>>()
     private val mutex = Mutex()
     private val loadPermits = Semaphore(MaxConcurrentLoads)
+    private class PendingLoad(val lock: Mutex = Mutex(), var users: Int = 0)
+    private val pendingLoads = mutableMapOf<String, PendingLoad>()
 
     private suspend fun cachedPlayerColors(url: String, colors: NaviampColors): NaviampPlayerColors =
         mutex.withLock { palettes[url] }
@@ -226,23 +232,44 @@ private object NaviampCoverArtCache {
 
     suspend fun image(url: String, targetSidePx: Int): ImageBitmap? {
         val cacheKey = "$url#$targetSidePx"
-        mutex.withLock { images[cacheKey] }?.let { return it }
-        return loadPermits.withPermit {
-            mutex.withLock { images[cacheKey] }?.let { return@withPermit it }
-            val decoded = withContext(Dispatchers.Default) {
-                runCatching {
-                    platformCoverArtBytes(url)
-                        ?.takeIf { it.isNotEmpty() }
-                        ?.let { decodePlatformCoverArt(it, targetSidePx) }
-                }.getOrNull()
-            } ?: return@withPermit null
-            mutex.withLock {
-                putBounded(images, cacheKey, decoded.image, MaxImages)
-                putBounded(palettes, url, decoded.rgbSamples, MaxPalettes)
+        mutex.withLock { touchImage(cacheKey) }?.let { return it }
+        // Join identical requests before taking a network/decode slot. A cancelled, off-screen
+        // owner releases its lock so a still-visible waiter can finish the request itself.
+        val pending = mutex.withLock {
+            pendingLoads.getOrPut(cacheKey) { PendingLoad() }.also { it.users++ }
+        }
+        try {
+            return pending.lock.withLock {
+                mutex.withLock { touchImage(cacheKey) }?.let { return@withLock it }
+                loadPermits.withPermit {
+                    val decoded = withContext(Dispatchers.Default) {
+                        try {
+                            platformCoverArtBytes(url)
+                                ?.takeIf { it.isNotEmpty() }
+                                ?.let { decodePlatformCoverArt(it, targetSidePx) }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            null
+                        }
+                    } ?: return@withPermit null
+                    mutex.withLock {
+                        putBounded(images, cacheKey, decoded.image, MaxImages)
+                        putBounded(palettes, url, decoded.rgbSamples, MaxPalettes)
+                    }
+                    decoded.image
+                }
             }
-            decoded.image
+        } finally {
+            withContext(NonCancellable) {
+                mutex.withLock {
+                    if (--pending.users == 0) pendingLoads.remove(cacheKey)
+                }
+            }
         }
     }
+
+    private fun touchImage(key: String): ImageBitmap? = images.remove(key)?.also { images[key] = it }
 
     suspend fun playerColors(url: String, colors: NaviampColors): NaviampPlayerColors {
         if (mutex.withLock { palettes[url] } == null) image(url, PaletteCoverArtSidePx)

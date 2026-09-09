@@ -21,4 +21,6 @@ internal fun bandcampProviderProfile(displayName: String): SubsonicProviderProfi
         favorites = false,
         ratings = false,
         playReporting = false,
+        // The beta endpoint returns an error document for download.view; stream.view supplies audio.
+        originalDownloadsUseStream = true,
     )

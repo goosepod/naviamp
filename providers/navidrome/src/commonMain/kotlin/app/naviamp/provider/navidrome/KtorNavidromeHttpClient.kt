@@ -1,5 +1,6 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.network.isHttpDownloadComplete
 import app.naviamp.domain.network.NaviampUserAgent
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -30,6 +31,9 @@ class KtorNavidromeHttpClient(
 
     override suspend fun getResponse(url: String, headers: Map<String, String>): NavidromeHttpResponse =
         request(url = url, method = HttpMethod.Get, headers = headers)
+
+    override suspend fun postForm(url: String, body: String, headers: Map<String, String>): String =
+        request(url, HttpMethod.Post, body, headers, ContentType.Application.FormUrlEncoded).body
 
     override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String =
         postJsonResponse(url, body, headers).body
@@ -64,6 +68,7 @@ class KtorNavidromeHttpClient(
         method: HttpMethod,
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
+        bodyContentType: ContentType = ContentType.Application.Json,
     ): NavidromeHttpResponse {
         val startedAt = navidromeCurrentTimeMillis()
         return runCatching {
@@ -74,7 +79,7 @@ class KtorNavidromeHttpClient(
                     (DefaultNavidromeHeaders + headers).forEach { (name, value) -> append(name, value) }
                 }
                 if (body != null) {
-                    contentType(ContentType.Application.Json)
+                    contentType(bodyContentType)
                     setBody(body)
                 }
             }
@@ -216,20 +221,33 @@ class KtorNavidromeHttpClient(
                 }
 
                 val channel = response.bodyAsChannel()
+                val prefix = ByteArray(4096)
+                var prefixSize = 0
+                while (prefixSize < prefix.size && !channel.isClosedForRead) {
+                    val read = channel.readAvailable(prefix, prefixSize, prefix.size - prefixSize)
+                    if (read == -1) break
+                    prefixSize += read
+                }
+                validateSubsonicMediaResponse(response.headers[HttpHeaders.ContentType], prefix.copyOf(prefixSize))
+                if (prefixSize > 0) writeChunk(prefix, prefixSize)
                 val buffer = ByteArray(64 * 1024)
+                var receivedBytes = prefixSize.toLong()
                 while (!channel.isClosedForRead) {
                     val read = channel.readAvailable(buffer, 0, buffer.size)
                     if (read == -1) break
-                    if (read > 0) writeChunk(buffer, read)
+                    if (read > 0) {
+                        writeChunk(buffer, read)
+                        receivedBytes += read
+                    }
                 }
+                channel.closedCause?.let { throw it }
+                val complete = isHttpDownloadComplete(response.headers[HttpHeaders.ContentLength],
+                    response.headers[HttpHeaders.ContentEncoding], receivedBytes)
                 recordApiCall(
-                    method = HttpMethod.Get.value,
-                    url = url,
-                    startedAt = startedAt,
-                    success = true,
-                    errorMessage = null,
+                    method = HttpMethod.Get.value, url = url, startedAt = startedAt,
+                    success = complete, errorMessage = if (complete) null else "HTTP $statusCode.",
                 )
-                true
+                complete
             }
         }.getOrElse { error ->
             if (error is CancellationException) throw error

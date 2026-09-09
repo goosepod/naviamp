@@ -9,6 +9,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.PlaybackReportState
 import kotlinx.coroutines.test.runTest
@@ -21,6 +22,60 @@ import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 
 class JellyfinProviderTest {
+    @Test
+    fun appearanceQueryFailureKeepsPrimaryDiscographyAvailable() = runTest {
+        val fixture = fixture(responses = mapOf(
+            "/Items/artist?" to """{"Id":"artist","Name":"Artist"}""",
+            "albumArtistIds=artist" to """{"Items":[{"Id":"primary","Name":"Primary"}],"TotalRecordCount":1}""",
+        ))
+        val result = fixture.provider.artistDiscography(ArtistId("artist"))
+        assertEquals("primary", result.primary.albums.single().id.value)
+        assertTrue(result.appearanceLoadFailed)
+        assertTrue(result.appearanceTracks.isEmpty())
+    }
+
+    @Test
+    fun homeFavoriteRequestCollectsFiveHundredArtistsThroughValidPages() = runTest {
+        fun page(start: Int, count: Int): String =
+            """{"Items":[${(start until start + count).joinToString(",") { """{"Id":"artist-$it","Name":"Artist $it"}""" }}],"TotalRecordCount":600}"""
+        val fixture = fixture(responses = mapOf(
+            "startIndex=0" to page(0, 200),
+            "startIndex=200" to page(200, 200),
+            "startIndex=400" to page(400, 100),
+        ))
+        assertEquals(500, fixture.provider.favoriteArtists(500).size)
+        assertEquals(3, fixture.http.requestedUrls.size)
+        assertTrue(fixture.http.requestedUrls.all { "isFavorite=true" in it })
+        assertTrue(fixture.http.requestedUrls.last().contains("limit=100"))
+    }
+
+    @Test
+    fun membershipRemovalDeletesOnlyMatchingOccurrenceIdsWithoutReaddingAnything() = runTest {
+        val fixture = fixture(responses = mapOf("/Playlists/list/Items" to """
+            {"Items":[
+              {"Id":"keep","PlaylistItemId":"entry-keep"},
+              {"Id":"remove","PlaylistItemId":"entry-one"},
+              {"Id":"remove","PlaylistItemId":"entry-two"}
+            ],"TotalRecordCount":3}
+        """.trimIndent()))
+        fixture.provider.removeTrackFromPlaylist("list", TrackId("remove"))
+        val mutation = fixture.http.mutations.single()
+        assertEquals("DELETE", mutation.first)
+        assertTrue("entry-one" in mutation.second && "entry-two" in mutation.second)
+        assertFalse("entry-keep" in mutation.second)
+        assertTrue(fixture.http.jsonPosts.isEmpty())
+    }
+
+    @Test
+    fun missingOccurrenceIdRefusesRemovalBeforeAnyMutation() = runTest {
+        val fixture = fixture(responses = mapOf("/Playlists/list/Items" to
+            """{"Items":[{"Id":"remove"}],"TotalRecordCount":1}"""))
+        assertFailsWith<IllegalArgumentException> {
+            fixture.provider.removeTrackFromPlaylist("list", TrackId("remove"))
+        }
+        assertTrue(fixture.http.mutations.isEmpty())
+    }
+
     @Test
     fun searchUsesSelectedLibraryPaginationAndUrlEncodingAcrossMediaTypes() = runTest {
         val fixture = fixture(
@@ -133,6 +188,63 @@ class JellyfinProviderTest {
         assertEquals(96_000, track.audioInfo?.samplingRateHz)
         assertEquals(listOf("Jazz"), track.genres)
         assertEquals(7, track.playCount)
+    }
+
+    @Test
+    fun artistDiscographySeparatesPrimaryReleasesFromStableIdAppearances() = runTest {
+        val fixture = fixture(
+            responses = linkedMapOf(
+                "/Items/artist-1?" to """{"Id":"artist-1","Name":"Guest Artist"}""",
+                "albumArtistIds=artist-1" to """
+                    {"Items":[{"Id":"primary-album","Name":"Primary","AlbumArtist":"Guest Artist"}],"TotalRecordCount":1}
+                """.trimIndent(),
+                "includeItemTypes=Audio" to """
+                    {"Items":[
+                      {"Id":"primary-track","Name":"Own Song","AlbumId":"primary-album","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]},
+                      {"Id":"guest-track","Name":"Guest Verse","AlbumId":"appearance-album","Album":"Compilation","Artists":["Stage Name"],"ArtistItems":[{"Id":"artist-1","Name":"Stage Name"}]},
+                      {"Id":"unmapped-track","Name":"Unmapped Remix","AlbumId":"appearance-album","Album":"Compilation","Artists":["Guest Artist"],"ArtistItems":[{"Name":"Guest Artist"}]},
+                      {"Id":"standalone-track","Name":"Standalone Feature","Artists":["Guest Artist"],"ArtistItems":[{"Id":"artist-1","Name":"Guest Artist"}]}
+                    ],"TotalRecordCount":4}
+                """.trimIndent(),
+                "/Items/appearance-album?" to """
+                    {"Id":"appearance-album","Name":"Compilation","AlbumArtist":"Various Artists"}
+                """.trimIndent(),
+            ),
+        )
+
+        val discography = fixture.provider.artistDiscography(ArtistId("artist-1"))
+
+        assertEquals(listOf("primary-album"), discography.primary.albums.map { it.id.value })
+        assertEquals(listOf("appearance-album"), discography.appearanceAlbums.map { it.id.value })
+        assertEquals(
+            listOf("guest-track", "unmapped-track", "standalone-track"),
+            discography.appearanceTracks.map { it.id.value },
+        )
+        assertTrue(fixture.http.requestedUrls.any { it.contains("artistIds=artist-1") })
+    }
+
+    @Test
+    fun alphabeticalOffsetsBinarySearchTheServerSortedAlbumAndSongCatalogs() = runTest {
+        val fixture = fixture(
+            responses = linkedMapOf(
+                "includeItemTypes=MusicAlbum&startIndex=0" to
+                    """{"Items":[{"Id":"album-a","Name":"A"}],"TotalRecordCount":4}""",
+                "includeItemTypes=MusicAlbum&startIndex=2" to
+                    """{"Items":[{"Id":"album-m","Name":"M"}],"TotalRecordCount":4}""",
+                "includeItemTypes=MusicAlbum&startIndex=1" to
+                    """{"Items":[{"Id":"album-f","Name":"F"}],"TotalRecordCount":4}""",
+                "includeItemTypes=Audio&startIndex=0" to
+                    """{"Items":[{"Id":"track-a","Name":"A"}],"TotalRecordCount":4}""",
+                "includeItemTypes=Audio&startIndex=2" to
+                    """{"Items":[{"Id":"track-m","Name":"M"}],"TotalRecordCount":4}""",
+                "includeItemTypes=Audio&startIndex=1" to
+                    """{"Items":[{"Id":"track-f","Name":"F"}],"TotalRecordCount":4}""",
+            ),
+        )
+
+        assertEquals(2, fixture.provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Albums, 'M'))
+        assertEquals(2, fixture.provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Tracks, 'M'))
+        assertTrue(fixture.http.requestedUrls.all { "limit=1" in it })
     }
 
     @Test

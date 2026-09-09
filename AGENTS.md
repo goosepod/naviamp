@@ -6,6 +6,12 @@ Every new user-facing string must be defined in the project's string resource fi
 `strings.xml` and each maintained translation. Do not hardcode new UI copy in Kotlin or
 platform-specific source files.
 
+## Settings Export and Import
+
+Every new or changed setting that is usable across platforms must be included in shared settings
+export/import and sync. Verify round-trip preservation, defaults for older exports, and normalization
+of imported values. Keep only genuinely device-specific settings local.
+
 ## Release Announcements
 
 Whenever a new Naviamp release is pushed, create a GitHub Discussion in the **Announcements**

@@ -18,6 +18,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
     val id: ProviderId
@@ -35,7 +36,11 @@ interface MediaProvider {
     suspend fun album(albumId: AlbumId): AlbumDetails
     suspend fun albumInfo(albumId: AlbumId): AlbumInfo? = null
     suspend fun artist(artistId: ArtistId): ArtistDetails
+    suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography =
+        ArtistDiscography(primary = artist(artistId))
     suspend fun artists(limit: Int = 50): List<Artist>
+    suspend fun favoriteArtists(limit: Int = 500): List<Artist> =
+        artists(limit).filter { it.favoritedAtIso8601 != null }
     suspend fun artistsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Artist> =
         if (request.offset == 0) {
             request.toMediaPage(artists(limit = request.limit))
@@ -51,6 +56,8 @@ interface MediaProvider {
     suspend fun tracks(limit: Int = 50): List<Track>
     suspend fun track(trackId: TrackId): Track? =
         tracks(limit = 5_000).firstOrNull { it.id == trackId }
+    /** Bulk metadata enumeration, or null when the provider requires album-detail traversal. */
+    suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun favoriteTracks(limit: Int = 5000): List<Track> =
         tracks(limit).filter { it.favoritedAtIso8601 != null }
     suspend fun tracksPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Track> =
@@ -59,6 +66,8 @@ interface MediaProvider {
         } else {
             request.toMediaPage(emptyList())
         }
+
+    suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int? = null
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
     suspend fun searchArtistsPage(
         query: String,
@@ -111,6 +120,10 @@ interface MediaProvider {
     ) {
         throw UnsupportedOperationException("Playlist track replacement is not supported by $displayName.")
     }
+    /** Removes every occurrence of this identity without rewriting unrelated playlist entries. */
+    suspend fun removeTrackFromPlaylist(playlistId: String, trackId: TrackId) {
+        throw UnsupportedOperationException()
+    }
     suspend fun renamePlaylist(playlistId: String, name: String) {
         throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
     }
@@ -118,6 +131,8 @@ interface MediaProvider {
         throw UnsupportedOperationException("Playlist deletion is not supported by $displayName.")
     }
     suspend fun genres(limit: Int = 50): List<Genre> = emptyList()
+    /** Exact provider genre name, with stable pagination; null means unsupported. */
+    suspend fun genreTracksPage(genre: String, request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun randomSongs(
         limit: Int = 50,
         genre: String? = null,
@@ -153,12 +168,14 @@ interface MediaProvider {
     ): List<SonicPathMatch> = emptyList()
     suspend fun lyrics(trackId: TrackId): Lyrics? = null
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
+    suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) = Unit
     suspend fun reportPlaybackState(
         trackId: TrackId,
         state: PlaybackReportState,
         positionSeconds: Double?,
     ) = Unit
     suspend fun streamUrl(request: StreamRequest): String
+    suspend fun downloadUrl(request: StreamRequest): String = streamUrl(request)
     suspend fun downloadStream(
         url: String,
         httpClient: SharedHttpClient,
@@ -186,6 +203,11 @@ interface MediaProvider {
     }
     fun coverArtUrl(coverArtId: String): String
     fun coverArtUrl(coverArtId: String, size: CoverArtSize): String = coverArtUrl(coverArtId)
+}
+
+enum class AlphabeticalLibraryKind {
+    Albums,
+    Tracks,
 }
 
 enum class PlaybackReportState(val providerValue: String) {
@@ -230,6 +252,12 @@ data class ProviderCapabilities(
     val supportsPlayReporting: Boolean = false,
     val supportsSmartPlaylists: Boolean = false,
     val supportsSonicSimilarity: Boolean = false,
+    val supportsArtistDiscography: Boolean = false,
+    val supportsAudioStreamOffset: Boolean = false,
+    val supportsPlaybackTimeline: Boolean = false,
+    val supportsDownloads: Boolean = true,
+    val supportsListenSubmission: Boolean = false,
+    val supportsGenreTrackBrowsing: Boolean = false,
 )
 
 fun ProviderCapabilities.effectiveStreamingQuality(requested: StreamQuality): StreamQuality =

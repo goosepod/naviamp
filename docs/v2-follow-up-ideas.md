@@ -7,6 +7,7 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - `Idea`: Captured for later review.
 - `Investigating`: Actively researching feasibility and scope.
 - `Planned`: Accepted and moved into a concrete implementation plan.
+- `In acceptance`: Implementation exists on a feature branch; release verification remains open.
 - `Implemented`: Shipped and verified.
 - `Rejected`: Deliberately declined, with rationale.
 
@@ -21,105 +22,6 @@ Before moving an idea into the active v2 plan or a release branch:
 - Record the decision in the main plan or a dedicated issue.
 
 ## Ideas Not Yet Completed
-
-### Switchable Complete Library Views
-
-- **Status:** Requested by a user on 2026-09-04
-- **Concept:** Replace the artist-only Library presentation with one shared catalog surface that
-  can switch between **Artists**, **Albums**, and **Songs**, matching the complete-library views
-  available in other music clients.
-- **Existing foundation:** The shared provider contract, Navidrome provider, and Jellyfin provider
-  already support paged artists, albums, and tracks.
-- [ ] Add a shared Library-view model and action owned by Core, including independent query, paging,
-  refresh, and scroll/focus restoration state for each catalog type.
-- [ ] Populate all three views through the provider-neutral paging contracts and reject stale loads
-  when the source, query, or selected view changes.
-- [ ] Render Artists and Albums with the appropriate collection presentation and Songs with the
-  standard shared track rows and actions.
-- [ ] Make search labels, empty states, sorting or A-Z navigation, load-more behavior, and refresh
-  status describe the active catalog type rather than assuming artists.
-- [ ] Give Television the same selector with deterministic D-pad entry, Back behavior, accessible
-  state labels, and per-view focus restoration; do not create a Television-only library.
-- [ ] Add common controller tests and shared phone, Desktop, iOS, and Television UI coverage,
-  including representative large libraries and 720p, 1080p, and native 4K acceptance.
-
-### Expanded Artist Discography Sections
-
-- **Status:** Idea
-- **Concept:** Expand Artist Detail into a fuller discography like the reference screenshot: show
-  primary releases first, grouped by release type, then a distinct **Appears On** section, followed
-  by **Top Tracks**. Include albums and individual tracks on which the selected artist has a
-  credited appearance without presenting those releases as the artist's own albums.
-- **Existing foundation:** The shared release classifier already supports Albums, EPs, Singles,
-  Live Releases, Compilations, Remixes, Soundtracks, and Other Releases when a provider supplies
-  usable release-type metadata. This work should preserve those sections and add Mixtapes (and
-  other stable types such as DJ mixes, demos, or bootlegs only when provider metadata supports
-  them) rather than infer categories from titles.
-- [ ] Extend the shared release model and classifier with a **Mixtapes** section, map recognized
-  provider values and synonyms, and add common classification and ordering tests.
-- [ ] Define a provider-neutral, source-scoped discography contract that distinguishes primary
-  album-artist releases from releases and tracks where the artist is a contributor.
-- [ ] Implement provider queries where supported and a shared-storage credit index fallback where
-  they are not; match artists by stable source artist ID instead of display name whenever possible.
-- [ ] Specify **Appears On** inclusion and de-duplication rules for featured tracks, compilations,
-  various-artists releases, multiple credited roles, aliases, missing artist IDs, and releases that
-  also qualify for a primary section.
-- [ ] Decide whether an appearance album opens normally with the matching tracks identified, or
-  whether Artist Detail also needs a separate **Appears On Tracks** presentation for isolated
-  credits and singles.
-- [ ] Add Core-owned loading, empty, error, paging, section-order, and navigation behavior so
-  Android, Desktop, iOS, and TV render the same discography; verify TV focus and large libraries.
-
-### Track Membership in Playlists
-
-- **Status:** Requested by a user on 2026-09-04
-- **Concept:** Replace the add-only, single-selection playlist picker with one shared **Edit
-  playlist membership** workflow. From the current track or any queue occurrence, show every
-  editable playlist, identify the playlists that already contain the track, and allow adding to or
-  removing from multiple playlists in one edit.
-- [ ] Define a provider-neutral membership query with source scoping and explicit loading,
-  unavailable, and failure states. Avoid unbounded eager playlist-track requests for large
-  libraries; use a Core-owned bounded loader/cache or an optional provider reverse-membership
-  capability when one exists.
-- [ ] Add one Core-owned editor model and action coordinator reused by current-track and queue-item
-  menus on Android, Desktop, iOS, and Television.
-- [ ] Let the user select and deselect multiple playlists, then apply a diff that adds new
-  memberships and removes old memberships without changing unrelated tracks or their order.
-- [ ] Treat removal as removing every occurrence of the selected media identity unless a later UI
-  explicitly offers occurrence-level removal.
-- [ ] Reconcile the displayed membership with authoritative provider state after mutation. Keep the
-  editor open while loading or saving and report partial failure per playlist without discarding
-  successful changes.
-- [ ] Define behavior for duplicate occurrences, unavailable or deleted playlists, smart playlists,
-  concurrent edits, stale responses, source changes, and empty collections.
-- [ ] When controlling remote playback, enable membership editing only after Connect negotiates an
-  explicit capability and can route the mutation to the playback device's active source. Until
-  then, hide or honestly disable the action rather than exposing a visible no-op.
-- [ ] Verify touch, pointer, keyboard, and TV remote selection, Apply/Cancel, Back, accessibility,
-  and focus restoration to the originating track action.
-
-### Favorite Artists Home Section
-
-- **Status:** Idea
-- **Concept:** Add a shared **Favorite Artists** section to Home containing the artists the user has
-  favorited, with sort choices for name, date favorited, and date last played.
-- **Last-played definition:** Record an artist's last-played timestamp after a successful **Artist
-  Radio** launch, or after a successful track-seeded radio launch when that track's stable artist ID
-  identifies a currently favorited artist. Ordinary track, album, playlist, or queue playback does
-  not update it.
-- [ ] Confirm provider support and local fallback for artist favorite state and favorited-at time;
-  preserve source scoping and deterministic ordering when timestamps are missing or equal. If the
-  provider does not support favoriting of artists, then hide this section from the Home Screen and
-  Settings.
-- [ ] Add the source-scoped artist-radio last-played field/query to shared storage, consolidating any
-  unreleased schema change according to the repository migration rules.
-- [ ] Update the timestamp through the shared radio transaction only after an eligible radio launch
-  succeeds, and cover track-artist attribution, unfavorited artists, failed/cancelled launches, and
-  clock behavior in common tests.
-- [ ] Add Core-owned Home presentation, persisted sort selection, empty/loading/error behavior, and
-  navigation to artist detail; render the same section on Android, Desktop, iOS, and TV.
-- [ ] Verify all three sorts, source switching, favorite/unfavorite changes, restart persistence, and
-  settings-sync classification before release.
 
 ### Trusted-Device Settings Sync and Shared Listening Activity
 
@@ -163,6 +65,160 @@ Before moving an idea into the active v2 plan or a release branch:
   download policy, job persistence, reconciliation, navigation, and user-facing status in Core and
   shared storage. Hosts may supply only connectivity, native storage, background-lifecycle, and
   vehicle-framework effects that cannot live in common Kotlin.
+
+### Jellyfin Quick Connect Sign-In
+
+- **Status:** Idea
+- **Concept:** Support Jellyfin's Quick Connect option as an alternative sign-in flow when adding
+  a Jellyfin source, especially for Television and other devices where typing credentials is awkward.
+- **Investigation:** Verify server support and discovery, authorization/code presentation, polling,
+  expiry, cancellation, denied requests, and how the resulting session enters the existing saved-source
+  and session-renewal flow. Preserve the existing sign-in option when Quick Connect is unavailable.
+- **Shared ownership:** Jellyfin protocol and response interpretation belong in provider `commonMain`;
+  Core owns sign-in state, navigation, scheduling, retry policy, translated UI, and capability decisions.
+  Hosts supply only existing secure credential storage and any necessary native link-opening effect.
+- **Acceptance:** Cover successful authorization, unavailable/disabled support, expiry, cancellation,
+  connection errors, restart/session persistence, and phone, Desktop, iOS, and Television input/focus.
+- **Scope:** Backlog investigation; not added to the active library/discovery/playlists release scope.
+
+### Persistent Local Album Index
+
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
+- **Active plan:** [Persistent album catalog](library-discovery-playlists-plan.md#persistent-album-catalog-active-2026-09-05).
+- **Problem:** The Subsonic `getAlbumList2` API supports alphabetical pages and offsets, but no
+  letter-boundary lookup. Display names can differ from server sort keys because of ignored
+  articles and custom sort tags. Repeated fallback jumps currently fetch preceding pages.
+- **Concept:** Persist lightweight album metadata (source/library identity, album ID, display
+  title, artist, artwork reference, and an explicit sort key). Use one shared ordering for the
+  visible list, local filtering, and indexed letter jumps. This caches metadata, not audio files.
+- **Shared ownership:** Extend the existing Core library-index/storage infrastructure; shared
+  synchronization and provider adapters supply metadata. No host-specific product behavior.
+- **Acceptance:** Initial indexing with progress, useful browsing during indexing, fast warm/restart
+  jumps, deterministic article/punctuation/accent/sort-tag behavior, duplicate titles, additions,
+  renames and removals, interrupted refresh recovery, manual refresh, and source/library isolation.
+  Publish complete refreshes atomically; do not discard a usable index after a failed refresh.
+- **Design constraint:** Choose and apply one explicit sort policy throughout. Do not sort isolated
+  server pages locally and assume they form a globally sorted catalog. Album artwork caching remains
+  separate and still needs the existing live performance acceptance.
+- **Reference:** [OpenSubsonic getAlbumList2 parameters](https://opensubsonic.netlify.app/docs/endpoints/getalbumlist2/).
+
+### Switchable Complete Library Views
+
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#switchable-complete-library-views)
+- **Concept:** Replace the artist-only Library presentation with one shared catalog surface that
+  can switch between **Artists**, **Albums**, and **Songs**, matching the complete-library views
+  available in other music clients.
+- **Existing foundation:** The shared provider contract, Navidrome provider, and Jellyfin provider
+  already support paged artists, albums, and tracks.
+- [x] Add a shared Library-view model and action owned by Core, including independent query, paging,
+  refresh, and scroll restoration state for each catalog type.
+- [x] Add explicit per-view focus restoration and Back-navigation acceptance coverage.
+- [x] Populate all three views through the provider-neutral paging contracts and reject stale loads
+  when the source, query, or selected view changes.
+- [x] Render Artists and Albums with the appropriate collection presentation and Songs with the
+  standard shared track rows and actions.
+- [x] Make search labels, empty states, A-Z navigation, load-more behavior, and refresh status
+  describe the active catalog type rather than assuming artists.
+- [x] Show a translated loading indicator when an Album or Song quick-index letter requires a
+  server-backed page that has not loaded yet. Keep the selected letter visible and prevent
+  duplicate jump requests until the load succeeds or fails.
+- [x] Provide shared keyboard/directional entry, Back behavior, accessible state labels,
+  and per-view focus restoration.
+- [ ] Add shared phone, Desktop, and iOS UI coverage, including representative large
+  libraries. Common controller coverage is in place.
+  Shared Library renders and keyboard checks now pass at 720p/1080p/4K (including 2x-density 4K).
+  Full-host acceptance remains open in the active plan. Television work and TV resolution gates
+  are outside this branch's scope.
+
+### Expanded Artist Discography Sections
+
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#expanded-artist-discography-sections)
+- **Latest shared acceptance:** Expanded appearance results survive album/player navigation and
+  metadata updates; changing artists resets the limit. Covered with 125 albums and tracks in the
+  shared UI regression. Real large-catalog and remaining platform acceptance stay open in the plan.
+- **Concept:** Expand Artist Detail into a fuller discography: show **Top Tracks**, then primary releases grouped
+  by release type, followed by a distinct **Appears On** section. Include
+  albums and individual tracks on which the selected artist has a credited appearance without
+  presenting those releases as the artist's own albums.
+- **Existing foundation:** The shared release classifier supports Albums, EPs, Singles, Live
+  Releases, Compilations, Remixes, Soundtracks, and Other Releases when a provider supplies usable
+  release-type metadata.
+- [x] Extend the shared release model and classifier with a **Mixtapes** section, map recognized
+  provider values and synonyms, and add common classification and ordering tests.
+- [x] Define a provider-neutral, source-scoped discography contract that distinguishes primary
+  album-artist releases from releases and tracks where the artist is a contributor.
+- [x] Complete provider coverage: Jellyfin uses its stable artist-ID query, while providers without
+  a reverse-credit query use a source-scoped shared-storage credit index.
+- [x] Finish Appears On inclusion and de-duplication coverage for compilations, multiple credited
+  roles, aliases, missing artist IDs, and releases that also qualify for a primary section.
+- [x] Present appearance albums normally and list their matching credited tracks directly in
+  **Appears On**, so isolated credits and exact matching tracks remain visible.
+- [x] Add common large-list expansion/navigation and partial-failure UI regressions (125 appearance
+  albums and 125 tracks), including metadata updates preserving expanded results.
+- [ ] Complete remaining large-catalog physical-device acceptance.
+
+### Track Membership in Playlists
+
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#track-membership-in-playlists)
+- **Concept:** Use one shared **Add to playlists** editor from Library, search, album/artist detail,
+  playlist detail, Home song menus, and current-track/queue menus. Identify existing membership
+  and allow adding to or removing from several editable playlists before Save changes. Smart
+  playlists show their existing membership as read-only, with an explanation. Song selection
+  does not require starting playback. Loading is bounded and reports when the list is truncated.
+- **UX reference:** [Finamp's picker](https://github.com/finamp-app/finamp/blob/redesign/lib/components/AddToPlaylistScreen/add_to_playlist_list.dart)
+  shows playlist membership and places New playlist after the list. Naviamp uses that hierarchy
+  with explicit Save changes because its editor batches changes; creating a playlist immediately
+  adds the selected song. Windows feedback and verification are tracked in the active plan.
+- [x] Define a provider-neutral membership query with source scoping and explicit loading,
+  unavailable, and failure states. Avoid unbounded eager playlist-track requests for large
+  libraries; use a Core-owned bounded loader/cache or an optional provider reverse-membership
+  capability when one exists.
+- [x] Add one Core-owned editor model and action coordinator reused by current-track and queue-item
+  menus on Android, Desktop, and iOS.
+- [x] Let the user select and deselect multiple playlists, then apply a diff that adds new
+  memberships and removes old memberships without changing unrelated tracks or their order.
+- [x] Treat removal as removing every occurrence of the selected media identity unless a later UI
+  explicitly offers occurrence-level removal.
+- [x] Reconcile displayed membership with authoritative provider state after mutation. Keep the
+  editor dismissible while loading, prevent dismissal during saving, and report partial failure without discarding
+  successful changes.
+- [x] Handle duplicate occurrences, unavailable or deleted playlists, smart playlists, concurrent
+  authoritative re-reads, stale responses, source changes, empty collections, and a 100-playlist
+  safety bound.
+- [x] When controlling remote playback, enable membership editing only after Connect negotiates an
+  explicit capability and can route the mutation to the playback device's active source. Until
+  then, hide or honestly disable the action rather than exposing a visible no-op.
+- [ ] Verify touch, pointer, and keyboard selection, Save changes/Cancel/Done, Back, accessibility,
+  and focus restoration to the originating track action.
+
+### Favorite Artists Home Section
+
+- **Status:** In acceptance on `feature/library-discovery-playlists`; see the [current matrix](stabilization-acceptance.md).
+- **Active plan:** [`library-discovery-playlists-plan.md`](library-discovery-playlists-plan.md#favorite-artists-home-section)
+- **Concept:** Add a shared **Favorite Artists** section to Home containing the artists the user has
+  favorited, with sort choices for name, date favorited, and date last played.
+- **Last-played definition:** Record an artist's last-played timestamp after a successful **Artist
+  Radio** launch, or after a successful track-seeded radio launch when that track's stable artist ID
+  identifies a currently favorited artist. Ordinary track, album, playlist, or queue playback does
+  not update it.
+- [x] Add bounded native favorite-artist queries for Navidrome and Jellyfin, deterministic name
+  ordering, and a shared Home section that is hidden when artist favorites are unsupported.
+- [x] Add the source-scoped local fallback with a stable first-observed favorite timestamp when the
+  provider omits one or its favorite lookup fails.
+- [x] Add favorited-date and last-played ordering with stable missing/equal timestamp behavior.
+- [x] Add the source-scoped artist-radio last-played field/query to shared storage, consolidating any
+  unreleased schema change according to the repository migration rules.
+- [x] Update the timestamp through the shared radio transaction only after an eligible radio launch
+  succeeds, and cover track-artist attribution, unfavorited artists, failed/cancelled launches, and
+  clock behavior in common tests.
+- [x] Add Core-owned Home presentation, translated labeling, and navigation to Artist Detail.
+- [x] Add persisted sort selection, live favorite refresh, and explicit empty/loading/error behavior.
+- [ ] Complete final Android, Desktop, and iOS rendering acceptance.
+- [ ] Verify all three sorts, source switching, favorite/unfavorite changes, restart persistence,
+  and settings-sync classification before release.
 
 ### Weblate Translation Management
 

@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.home.sortedFavoriteArtists
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -111,6 +112,7 @@ fun Playlist.toSharedMediaItemUi(
         coverArtUrl = coverArtUrl(coverArtId),
         coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
         isSmartPlaylist = isSmart,
+        canEditPlaylist = canEdit,
         keepDownloadedActive = keepDownloadedActive,
     )
 
@@ -223,6 +225,31 @@ fun HomeContent.toSharedHomeUi(
                     visible = presentation.visible,
                     homeLayout = presentation.homeLayout,
                     homeItemLimit = presentation.homeItemLimit,
+                    defaultPageLayout = presentation.pageLayout,
+                ),
+            )
+        }
+
+        if (favoriteArtists.isNotEmpty() || favoriteArtistsStatus != app.naviamp.domain.home.FavoriteArtistsStatus.Unsupported) {
+            val presentation = interfaceSettings.homeSectionPresentation(HomeSectionIds.FavoriteArtists)
+            add(
+                SharedHomeCollectionSectionUi(
+                    id = HomeSectionIds.FavoriteArtists,
+                    title = "",
+                    titleResource = SharedHomeCollectionTitleResource.FavoriteArtists,
+                    favoriteArtistSort = interfaceSettings.favoriteArtistSort,
+                    favoriteArtistsStatus = favoriteArtistsStatus,
+                    items = favoriteArtists
+                        .sortedFavoriteArtists(interfaceSettings.favoriteArtistSort, favoriteArtistLastPlayed)
+                        .map { artist ->
+                            SharedHomeCollectionItemUi(
+                                mediaItem = artist.toSharedMediaItemUi(coverArtUrl, canFavorite = true),
+                                mediaKind = SharedMediaItemKind.Artist,
+                                action = SharedHomeCollectionItemAction.OpenArtist,
+                            )
+                        },
+                    visible = presentation.visible,
+                    homeLayout = presentation.homeLayout,
                     defaultPageLayout = presentation.pageLayout,
                 ),
             )
@@ -1574,6 +1601,10 @@ private fun SharedTrackRowUi.toHomeCollectionMediaItem(): SharedMediaItemUi = Sh
 
 fun ArtistDetails.toSharedArtistDetailUi(
     coverArtUrl: (String?) -> String?,
+    appearanceAlbums: List<Album> = emptyList(),
+    appearanceTracks: List<Track> = emptyList(),
+    appearanceLoadFailed: Boolean = false,
+    appearancesTruncated: Boolean = false,
     popularTracks: List<Track> = emptyList(),
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
@@ -1597,10 +1628,14 @@ fun ArtistDetails.toSharedArtistDetailUi(
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         albumSections = albums.groupedByReleaseSection().map { group ->
             SharedAlbumSectionUi(
-                title = group.section.label,
+                releaseSection = group.section,
                 albums = group.albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
             )
         },
+        appearanceAlbums = appearanceAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        appearanceTracks = appearanceTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
+        appearanceLoadFailed = appearanceLoadFailed,
+        appearancesTruncated = appearancesTruncated,
         localLibraryLabel = artistLocalLibraryLabel(albums.size),
         biography = info?.biography.takeIf { showArtistInformation },
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },

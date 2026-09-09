@@ -4,20 +4,25 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingActionAlbumFavorite
 import app.naviamp.domain.provider.PendingActionArtistFavorite
 import app.naviamp.domain.provider.PendingActionReportNowPlaying
+import app.naviamp.domain.provider.PendingActionSubmitListen
 import app.naviamp.domain.provider.PendingActionTrackFavorite
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.provider.PendingProviderActionSyncResult
 import app.naviamp.domain.provider.replayPendingProviderActions
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Coordinates provider mutations that can be replayed after an offline or failed request. */
 class NaviampProviderActionController(
     private val repository: PendingProviderActionRepository,
     private val applicationStatus: NaviampApplicationStatusController? = null,
 ) {
+    private val replayMutex = Mutex()
     fun enqueueNowPlaying(sourceId: String, trackId: TrackId) {
         repository.enqueuePendingProviderAction(
             sourceId = sourceId,
@@ -38,6 +43,11 @@ class NaviampProviderActionController(
 
     fun offlineCapable(provider: MediaProvider, sourceId: String?): MediaProvider =
         object : MediaProvider by provider {
+            override suspend fun alphabeticalLibraryOffset(
+                kind: AlphabeticalLibraryKind,
+                letter: Char,
+            ): Int? = provider.alphabeticalLibraryOffset(kind, letter)
+
             override suspend fun albumInfo(albumId: AlbumId): AlbumInfo? =
                 provider.albumInfo(albumId)
 
@@ -50,8 +60,24 @@ class NaviampProviderActionController(
             }
 
             override suspend fun reportNowPlaying(trackId: TrackId) {
-                runOrEnqueue(sourceId, PendingActionReportNowPlaying, trackId.value) {
-                    provider.reportNowPlaying(trackId)
+                provider.reportNowPlaying(trackId)
+            }
+
+            override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) {
+                if (sourceId == null) {
+                    provider.submitListen(trackId, startedAtEpochMillis)
+                    return
+                }
+                // Persist before the network effect, so process death/offline playback does not
+                // discard a qualifying listen. The timestamp distinguishes repeated plays.
+                replayMutex.withLock {
+                    val pending = repository.pendingProviderActions(sourceId, Int.MAX_VALUE)
+                    if (pending.none { it.actionType == PendingActionSubmitListen &&
+                            it.entityId == trackId.value && it.longValue == startedAtEpochMillis }) {
+                        repository.enqueuePendingProviderAction(sourceId, PendingActionSubmitListen,
+                            trackId.value, longValue = startedAtEpochMillis)
+                    }
+                    replayPendingProviderActions(sourceId, provider, repository)
                 }
             }
 
@@ -75,7 +101,7 @@ class NaviampProviderActionController(
         }
 
     suspend fun replay(sourceId: String, provider: MediaProvider): PendingProviderActionSyncResult {
-        val result = replayPendingProviderActions(sourceId, provider, repository)
+        val result = replayMutex.withLock { replayPendingProviderActions(sourceId, provider, repository) }
         providerActionSyncStatus(result)?.let { status ->
             applicationStatus?.publish(
                 area = NaviampApplicationStatusArea.ProviderActions,
@@ -99,6 +125,7 @@ class NaviampProviderActionController(
         action: suspend () -> Unit,
     ) {
         runCatching { action() }.onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
             sourceId?.let { activeSourceId ->
                 repository.enqueuePendingProviderAction(
                     sourceId = activeSourceId,

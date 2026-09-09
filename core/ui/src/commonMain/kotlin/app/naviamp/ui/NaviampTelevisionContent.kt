@@ -529,19 +529,19 @@ internal fun TelevisionLibrary(
     var gridFocusGeneration by remember { mutableIntStateOf(0) }
     val focusArtist = { index: Int ->
         gridFocusRequest = TelevisionGridFocusRequest(
-            index.coerceIn(screen.artists.indices),
+            index.coerceIn(screen.artists.items.indices),
             ++gridFocusGeneration,
         )
     }
-    LaunchedEffect(entryFocusGeneration, screen.artists) {
+    LaunchedEffect(entryFocusGeneration, screen.artists.items) {
         entryFocusGeneration?.let { generation ->
-            if (screen.artists.isNotEmpty()) focusArtist(0)
+            if (screen.artists.items.isNotEmpty()) focusArtist(0)
             onEntryFocusHandled(generation)
         }
     }
-    LaunchedEffect(screen.artists, pendingShortcut) {
+    LaunchedEffect(screen.artists.items, pendingShortcut) {
         val shortcut = pendingShortcut ?: return@LaunchedEffect
-        val target = televisionLibraryShortcutTarget(screen.artists.map { it.title }, shortcut) ?: return@LaunchedEffect
+        val target = televisionLibraryShortcutTarget(screen.artists.items.map { it.title }, shortcut) ?: return@LaunchedEffect
         gridFocusRequest = TelevisionGridFocusRequest(target, ++gridFocusGeneration)
         pendingShortcut = null
     }
@@ -571,7 +571,7 @@ internal fun TelevisionLibrary(
                                     playlistsFocusRequester.requestFocus()
                                     true
                                 }
-                                Key.DirectionDown -> if (screen.artists.isNotEmpty()) {
+                                Key.DirectionDown -> if (screen.artists.items.isNotEmpty()) {
                                     focusArtist(0)
                                     true
                                 } else false
@@ -601,7 +601,7 @@ internal fun TelevisionLibrary(
                                     radioFocusRequester.requestFocus()
                                     true
                                 }
-                                Key.DirectionDown -> if (screen.artists.isNotEmpty()) {
+                                Key.DirectionDown -> if (screen.artists.items.isNotEmpty()) {
                                     focusArtist(0)
                                     true
                                 } else {
@@ -630,7 +630,7 @@ internal fun TelevisionLibrary(
                                         playlistsFocusRequester.requestFocus()
                                         true
                                     }
-                                    Key.DirectionDown -> if (screen.artists.isNotEmpty()) {
+                                    Key.DirectionDown -> if (screen.artists.items.isNotEmpty()) {
                                         focusArtist(0)
                                         true
                                     } else {
@@ -642,14 +642,14 @@ internal fun TelevisionLibrary(
                     )
                 }
             }
-            screen.syncStatus.message?.let {
+            screen.artists.syncStatus.message?.let {
                 Text(it, color = colors.secondaryText, fontSize = 15.sp)
             }
-            if (screen.artists.isEmpty()) {
+            if (screen.artists.items.isEmpty()) {
                 Text("No artists are available.", color = colors.secondaryText, fontSize = 20.sp)
             } else {
                 TelevisionMediaGrid(
-                    items = screen.artists.map { artist ->
+                    items = screen.artists.items.map { artist ->
                         TelevisionMediaGridItem(
                             key = "artist:${artist.id}",
                             title = artist.title,
@@ -666,7 +666,7 @@ internal fun TelevisionLibrary(
                     },
                     colors = colors,
                     focusRequest = gridFocusRequest ?: if (
-                        restoreArtistFocus && initialFocusedArtistIndex in screen.artists.indices
+                        restoreArtistFocus && initialFocusedArtistIndex in screen.artists.items.indices
                     ) {
                         TelevisionGridFocusRequest(initialFocusedArtistIndex, -1)
                     } else {
@@ -677,7 +677,7 @@ internal fun TelevisionLibrary(
                         onArtistFocused(it)
                     },
                     onLeftFromFirstColumn = {
-                        val section = televisionLibrarySection(screen.artists[focusedArtistIndex].title)
+                        val section = televisionLibrarySection(screen.artists.items[focusedArtistIndex].title)
                         shortcutFocusRequesters[section]?.requestFocus()
                         Unit
                     },
@@ -688,7 +688,7 @@ internal fun TelevisionLibrary(
                 )
             }
         }
-        if (screen.artists.isNotEmpty()) {
+        if (screen.artists.items.isNotEmpty()) {
             LazyColumn(
                 verticalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
@@ -1790,6 +1790,7 @@ internal fun TelevisionNowPlaying(
                     smoothProgress = nowPlaying.isPlaying,
                     durationSeconds = duration,
                     continuousWaveform = true,
+                    progressIdentity = nowPlaying.id,
                     colors = colors.copy(accent = playerColors.accent),
                     onValueChange = {},
                     onValueChangeFinished = {},

@@ -12,22 +12,12 @@ data class NaviampCoreState(
     val shell: NaviampAppShellUiState = NaviampAppShellUiState(),
     val settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
     val overlays: NaviampCoreOverlayState = NaviampCoreOverlayState(),
-    val viewport: NaviampCoreViewportState = NaviampCoreViewportState(),
 )
 
 data class NaviampCoreOverlayState(
     val statsForNerdsVisible: Boolean = false,
     val status: String? = null,
     val busyMessage: String? = null,
-)
-
-data class NaviampCoreViewportState(
-    val libraryJump: NaviampCoreLibraryJumpRequest? = null,
-)
-
-data class NaviampCoreLibraryJumpRequest(
-    val letter: Char,
-    val generation: Long,
 )
 
 /**

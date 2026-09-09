@@ -6,9 +6,11 @@ import kotlin.jvm.JvmInline
 @JvmInline
 value class ProviderId(val value: String)
 
+@Serializable
 @JvmInline
 value class ArtistId(val value: String)
 
+@Serializable
 @JvmInline
 value class AlbumId(val value: String)
 
@@ -21,6 +23,7 @@ data class Artist(
     val favoritedAtIso8601: String? = null,
 )
 
+@Serializable
 data class ArtistCredit(
     val id: ArtistId?,
     val name: String,
@@ -39,6 +42,7 @@ data class ArtistInfo(
     val largeImageUrl: String?,
 )
 
+@Serializable
 data class Album(
     val id: AlbumId,
     val title: String,
@@ -51,6 +55,8 @@ data class Album(
     val releaseTypes: List<String> = emptyList(),
     val explicitStatus: AlbumExplicitStatus = AlbumExplicitStatus.Unknown,
     val artistCredits: List<ArtistCredit> = emptyList(),
+    val playCount: Int? = null,
+    val lastPlayedAtIso8601: String? = null,
 )
 
 @Serializable
@@ -228,6 +234,9 @@ data class Playlist(
     val coverArtId: String? = null,
     val isSmart: Boolean = false,
     val comment: String? = null,
+    val owner: String? = null,
+    val public: Boolean? = null,
+    val canEdit: Boolean = true,
 )
 
 data class Genre(

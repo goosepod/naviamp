@@ -149,6 +149,86 @@ class AudioByteStoreServiceTest {
         assertEquals(1, provider.downloadCalls)
     }
 
+    @Test
+    fun cancelledTransferCanBeRetriedWithoutRetainingItsFailedInFlightEntry() = runTest {
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val base = RecordingMediaProvider(downloaded = true)
+        val blocked = object : MediaProvider by base {
+            override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                writeChunk: suspend (ByteArray, Int) -> Unit): Boolean {
+                entered.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        val service = AudioByteStoreService(RecordingAudioByteStore(), NoopHttpClient)
+        suspend fun write(provider: MediaProvider) = service.writeProviderAudio(
+            "source", TrackId("track"), "original", "audio/flac", provider,
+            "https://example.test/audio", "failed",
+        )
+        val job = async { write(blocked) }
+        entered.await()
+        job.cancel()
+        job.join()
+        assertEquals(6L, write(base).sizeBytes)
+        assertEquals(1, base.downloadCalls)
+    }
+
+    @Test
+    fun audioBudgetRejectsOversizedChunksBeforeWritingAndAllowsExactLimit() = runTest {
+        for (limit in listOf(0L, 5L)) {
+            val store = RecordingAudioByteStore()
+            val service = AudioByteStoreService(store, NoopHttpClient)
+            assertFailsWith<IllegalStateException> {
+                service.writeProviderAudio("source", TrackId("track"), "original", "audio/flac",
+                    RecordingMediaProvider(true), "https://example.test/audio", "failed", maxBytes = limit)
+            }
+            assertTrue(store.bytes.isEmpty())
+        }
+        val service = AudioByteStoreService(RecordingAudioByteStore(), NoopHttpClient)
+        assertEquals(6L, service.writeProviderAudio("source", TrackId("track"), "original", "audio/flac",
+            RecordingMediaProvider(true), "https://example.test/audio", "failed", maxBytes = 6).sizeBytes)
+    }
+
+    @Test
+    fun downloadCompletionComparesOnlyUnencodedDeclaredLengths() {
+        fun complete(length: String?, encoding: String?, actual: Long) =
+            app.naviamp.domain.network.isHttpDownloadComplete(length, encoding, actual)
+        assertTrue(complete("32", null, 32))
+        assertFalse(complete("4096", null, 32))
+        assertFalse(complete("16", "identity", 32))
+        assertFalse(complete("-1", null, 32))
+        assertTrue(complete(null, null, 32))
+        assertTrue(complete("16", "gzip", 32))
+    }
+
+    @Test
+    fun emptyAndErrorDocumentsFailBeforeTheStoreCommits() = runTest {
+        for (body in listOf("", "  <!DOCTYPE html><html>Error</html>", "<?xml version=\"1.0\"?><error/>", "{\"error\":1}", "[1]")) {
+            var committed = false
+            val store = object : AudioByteStore {
+                override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
+                    writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
+                    check(writeBytes(AudioByteWriter { _, _ -> }))
+                    committed = true
+                    return StoredAudioBytes(fileName, body.length.toLong())
+                }
+                override fun deleteAudioBytes(filePath: String) = Unit
+            }
+            val provider = object : MediaProvider by RecordingMediaProvider(true) {
+                override suspend fun downloadStream(url: String, httpClient: SharedHttpClient,
+                    writeChunk: suspend (ByteArray, Int) -> Unit): Boolean {
+                    for (byte in body.encodeToByteArray()) writeChunk(byteArrayOf(byte), 1)
+                    return true
+                }
+            }
+            assertFailsWith<IllegalStateException> {
+                AudioByteStoreService(store, NoopHttpClient).writeProviderAudio("source", TrackId("track"),
+                    "original", "audio/flac", provider, "https://example.test/audio", "failed")
+            }
+            assertFalse(committed)
+        }
+    }
+
     private class RecordingAudioByteStore(
         private val sizeBytes: Long? = null,
         private val writeDelayMillis: Long = 0,

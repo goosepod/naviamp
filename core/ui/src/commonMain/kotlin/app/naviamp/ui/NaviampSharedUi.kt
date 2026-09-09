@@ -39,15 +39,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveable
+import app.naviamp.domain.settings.WideNowPlayingLayout
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
@@ -172,7 +176,12 @@ fun NaviampSharedAppShell(
     val selectedDownloadLocationId = cache.selectedDownloadLocationId
     val selectedAudioCacheLocationId = cache.selectedAudioCacheLocationId
     val colors = NaviampColors.Dark
+    val baseDensity = LocalDensity.current
     CompositionLocalProvider(
+        LocalDensity provides Density(
+            density = baseDensity.density,
+            fontScale = baseDensity.fontScale * 1.08f,
+        ),
         LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
         LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
     ) {
@@ -245,6 +254,17 @@ fun NaviampSharedAppShell(
         ),
         typography = rememberNaviampTypography(),
     ) {
+        uiState.playlistMembership?.let { membership ->
+            TrackPlaylistMembershipDialog(
+                membership = membership,
+                colors = colors,
+                onToggle = nowPlayingActions.onPlaylistMembershipToggled,
+                onCreate = nowPlayingActions.onMembershipPlaylistCreated,
+                onRetry = nowPlayingActions.onPlaylistMembershipRetried,
+                onApply = nowPlayingActions.onPlaylistMembershipApplied,
+                onDismissRequest = nowPlayingActions.onPlaylistMembershipDismissed,
+            )
+        }
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -268,8 +288,8 @@ fun NaviampSharedAppShell(
                             },
                         )
                         .padding(
-                            horizontal = if (showFullNowPlaying) 0.dp else 12.dp,
-                            vertical = if (showFullNowPlaying) 0.dp else 12.dp,
+                            horizontal = if (showFullNowPlaying || routeUsesOwnScroll) 0.dp else 12.dp,
+                            vertical = if (showFullNowPlaying || routeUsesOwnScroll) 0.dp else 12.dp,
                         ),
                     verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(8.dp),
                 ) {
@@ -525,8 +545,9 @@ internal fun ConnectedContent(
     )
     val nowPlayingPlayerColors = animatedNaviampPlayerColors(appBackground.targetPlayerColors)
     val homeScrollState = rememberScrollState()
-    val libraryListState = rememberLazyListState()
+    val libraryViewportState = rememberNaviampLibraryViewportState()
     val artistDetailScrollState = rememberScrollState()
+    val artistAppearanceState = rememberNaviampArtistAppearanceState(artistDetail.selectedArtist?.id)
     val playlistDetailScrollState = rememberScrollState()
     LaunchedEffect(artistDetail.selectedArtist?.id) {
         artistDetailScrollState.scrollTo(0)
@@ -535,17 +556,7 @@ internal fun ConnectedContent(
         playlistDetailScrollState.scrollTo(0)
     }
 
-    when {
-        nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
-            nowPlaying = nowPlaying,
-            playbackProgress = effectivePlaybackProgress,
-            colors = colors,
-            playerColors = nowPlayingPlayerColors,
-            visualizerBandsProvider = visualizerBandsProvider,
-            selectedVisualizer = selectedVisualizer,
-            actions = nowPlayingActions,
-            displaySettings = interfaceSettings.nowPlaying,
-        )
+    val browseContent: @Composable () -> Unit = { when {
         albumDetail.selectedAlbum != null -> NaviampAlbumDetailContent(
             colors = colors,
             screen = albumDetail,
@@ -563,6 +574,7 @@ internal fun ConnectedContent(
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
             scrollState = artistDetailScrollState,
+            appearanceState = artistAppearanceState,
         )
         playlistDetail.selectedPlaylist != null -> NaviampPlaylistDetailContent(
             colors = colors,
@@ -610,7 +622,7 @@ internal fun ConnectedContent(
                 )
             }
             SharedRoute.Library -> PullToRefreshRoute(
-                isRefreshing = library.syncStatus.isSyncing,
+                isRefreshing = library.selectedCatalog.syncStatus.isSyncing,
                 onRefresh = libraryActions.onRefresh,
             ) {
                 NaviampLibraryContent(
@@ -618,7 +630,7 @@ internal fun ConnectedContent(
                     screen = library,
                     actions = libraryActions,
                     mediaActions = mediaActions,
-                    listState = libraryListState,
+                    viewportState = libraryViewportState,
                 )
             }
             SharedRoute.Search -> NaviampSearchContent(
@@ -777,6 +789,40 @@ internal fun ConnectedContent(
             )
         }
     }
+    }
+    var queueSelected by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(selectedRoute, albumDetail.selectedAlbum?.id, artistDetail.selectedArtist?.id, playlistDetail.selectedPlaylist?.id) {
+        queueSelected = false
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = supportsPlayerWorkspace(maxWidth.value, maxHeight.value)
+        val layout = interfaceSettings.nowPlaying.wideLayout
+        val docked = nowPlayingOpen && nowPlaying != null && wide && layout == WideNowPlayingLayout.Split
+        LaunchedEffect(docked) { actions.navigationActions.onPlayerDockedChanged(docked) }
+        if (nowPlayingOpen && nowPlaying != null) {
+            NaviampPlayerWorkspace(wide, layout, onLayoutChanged = {
+                valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = interfaceSettings.nowPlaying.copy(wideLayout = it)))
+            }, player = { panelLayout ->
+                FullNowPlaying(nowPlaying, effectivePlaybackProgress, colors, nowPlayingPlayerColors,
+                    visualizerBandsProvider, selectedVisualizer, nowPlayingActions, interfaceSettings.nowPlaying, panelLayout)
+            }, browser = {
+                Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        NaviampReadableContent(colors, keepDarkSurface = true) {
+                            if (queueSelected) NaviampQueueContent(nowPlaying, effectivePlaybackProgress, colors, nowPlayingActions)
+                            else browseContent()
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    SharedBottomNavigationBar(colors, selectedRoute, shellChrome.supportsDownloads,
+                        onRouteSelected = { queueSelected = false; actions.navigationActions.onRouteSelected(it) },
+                        queueSelected = queueSelected, onQueueSelected = { queueSelected = true })
+                }
+            })
+        } else {
+            NaviampReadableContent(colors, keepDarkSurface = selectedRoute == SharedRoute.Settings, content = browseContent)
+        }
+    }
     if (saveSonicPathDialogOpen) {
         SaveQueueAsPlaylistDialog(
             colors = colors,
@@ -885,9 +931,11 @@ private fun FullNowPlaying(
     selectedVisualizer: NaviampVisualizer,
     actions: NaviampNowPlayingActions,
     displaySettings: app.naviamp.domain.settings.NowPlayingDisplaySettings,
+    panelLayout: NaviampPlayerPanelLayout = NaviampPlayerPanelLayout.Adaptive,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         NaviampNowPlayingPanel(
+            panelLayout = panelLayout,
             nowPlaying = nowPlaying,
             playbackProgress = playbackProgress,
             colors = colors,

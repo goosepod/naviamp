@@ -15,9 +15,9 @@ class NaviampTrackNumberUiTest {
     @Test
     fun columnWidthIsSharedByEveryRowAndGrowsForLongerLists() {
         assertEquals(18.dp, trackNumberColumnWidth(1))
-        assertEquals(18.dp, trackNumberColumnWidth(99))
-        assertEquals(24.dp, trackNumberColumnWidth(100))
-        assertEquals(30.dp, trackNumberColumnWidth(1000))
+        assertEquals(24.dp, trackNumberColumnWidth(99))
+        assertEquals(30.dp, trackNumberColumnWidth(100))
+        assertEquals(36.dp, trackNumberColumnWidth(1000))
     }
 
     @Test

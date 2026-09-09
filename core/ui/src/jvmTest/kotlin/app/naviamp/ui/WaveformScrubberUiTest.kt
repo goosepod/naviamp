@@ -6,6 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
@@ -21,6 +26,36 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class WaveformScrubberUiTest {
+    @Test
+    fun playedWaveformAdvancesBetweenUpdatesAndStopsWhenPaused() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        val playing = mutableStateOf(true)
+        val position = mutableFloatStateOf(0.2f)
+        setContent {
+            WaveformScrubber(List(40) { 0.7f }, position.floatValue, enabled = true,
+                smoothProgress = playing.value, durationSeconds = 10.0, colors = NaviampColors(),
+                onValueChange = {}, onValueChangeFinished = {},
+                modifier = Modifier.width(200.dp).height(28.dp).testTag("animated-waveform"))
+        }
+        mainClock.advanceTimeByFrame()
+        val node = onNodeWithTag("animated-waveform")
+        fun sample(): Int {
+            val pixels = node.captureToImage().toPixelMap()
+            return pixels[(pixels.width * 0.25f).toInt(), pixels.height / 2].toArgb()
+        }
+        val before = sample()
+        mainClock.advanceTimeBy(1000)
+        kotlin.test.assertNotEquals(before, sample())
+        runOnUiThread { playing.value = false; position.floatValue = 0.3f }
+        mainClock.advanceTimeByFrame()
+        val paused = sample()
+        mainClock.advanceTimeBy(1000)
+        assertEquals(paused, sample())
+        runOnUiThread { position.floatValue = 0.1f }
+        mainClock.advanceTimeByFrame()
+        assertEquals(before, sample())
+    }
+
     @Test
     fun renderedScrubberSeeksToTheClickedQuarterHalfAndThreeQuarterPositions() = runComposeUiTest {
         val finishedFractions = mutableListOf<Float>()

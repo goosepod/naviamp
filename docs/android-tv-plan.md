@@ -1279,3 +1279,13 @@ Connect availability has additional topology and fresh-device requirements in
   later catalog retry reached the target but reported media unavailable because the emulator could
   not resolve the freshly provisioned catalog in this network fixture; it did not regress to a
   source-mismatch failure.
+
+### 2026-09-09
+
+- Resumed `feature/android-tv` and merged the released v2.4.0 main baseline. The current integration,
+  validation, environment, and next-work status is recorded in
+  [`android-tv-status-2026-09-09.md`](android-tv-status-2026-09-09.md).
+- Preserved the dedicated TV artist catalog against the new shared multi-view Library model.
+  Television's Artists/Albums/Songs selector and per-view D-pad focus remain follow-up work.
+- No Android device was connected for this restart; earlier emulator acceptance remains historical
+  evidence, and the physical Google TV preview gates remain open.

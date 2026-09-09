@@ -82,6 +82,7 @@ fun createNaviampCoreActions(
 
     val shell = NaviampAppShellActions(
         navigationActions = NaviampShellNavigationActions(
+            onPlayerDockedChanged = { send(NaviampCoreCommand.Navigation.SetPlayerDocked(it)) },
             onRouteSelected = { send(NaviampCoreCommand.Navigation.SelectRoute(it)) },
             onOpenNowPlaying = { send(NaviampCoreCommand.Navigation.OpenNowPlaying) },
             onCloseNowPlaying = { send(NaviampCoreCommand.Navigation.CloseNowPlaying) },
@@ -135,6 +136,8 @@ fun createNaviampCoreActions(
             onPlay = { send(NaviampCoreCommand.MixBuilder.Album(NaviampCoreCommand.AlbumAction.Play)) },
         ),
         genreMixActions = SharedGenreMixBuilderActions(
+            onBrowseSongs = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.BrowseSongs)) },
+            onSongSelected = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.PlaySong(it.id))) },
             onQueryChanged = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.ChangeQuery(it))) },
             onSearch = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Search)) },
             onGenreSelected = { send(NaviampCoreCommand.MixBuilder.Genre(NaviampCoreCommand.GenreAction.Select(it))) },
@@ -183,10 +186,12 @@ fun createNaviampCoreActions(
             onDeleteAll = { send(NaviampCoreCommand.Downloads.DeleteAll) },
         ),
         libraryActions = NaviampLibraryActions(
+            onViewChanged = { send(NaviampCoreCommand.Library.ChangeView(it)) },
             onQueryChanged = { send(NaviampCoreCommand.Library.ChangeQuery(it)) },
             onRefresh = { send(NaviampCoreCommand.Library.Refresh) },
             onLoadMore = { send(NaviampCoreCommand.Library.LoadMore) },
             onJumpToLetter = { send(NaviampCoreCommand.Library.JumpToLetter(it)) },
+            onTrackAction = { send(NaviampCoreCommand.Library.TrackAction(it)) },
         ),
         playlistsActions = NaviampPlaylistsActions(
             onRefresh = { send(NaviampCoreCommand.Playlists.Refresh) },
@@ -230,6 +235,7 @@ fun createNaviampCoreActions(
             onTrackAction = { send(NaviampCoreCommand.Detail.PlaylistTrack(it)) },
         ),
         homeActions = NaviampHomeActions(
+            onFavoriteArtistSortChanged = { send(NaviampCoreCommand.Settings.ChangeFavoriteArtistSort(it)) },
             onRefresh = { send(NaviampCoreCommand.Home.Refresh) },
             onRecentRadioSelected = { send(NaviampCoreCommand.Home.SelectRecentRadio(it)) },
             onInternetRadioStationSelected = { send(NaviampCoreCommand.Home.SelectInternetRadio(it)) },
@@ -255,6 +261,11 @@ fun createNaviampCoreActions(
             onSleepTimerAction = { send(NaviampCoreCommand.NowPlaying.SleepTimer(it)) },
             onSelectionAction = { send(NaviampCoreCommand.NowPlaying.Selection(it)) },
             onQueueItemAction = { send(NaviampCoreCommand.NowPlaying.QueueItem(it)) },
+            onPlaylistMembershipToggled = { send(NaviampCoreCommand.NowPlaying.TogglePlaylistMembership(it)) },
+            onMembershipPlaylistCreated = { send(NaviampCoreCommand.NowPlaying.CreateMembershipPlaylist(it)) },
+            onPlaylistMembershipRetried = { send(NaviampCoreCommand.NowPlaying.RetryPlaylistMembership) },
+            onPlaylistMembershipApplied = { send(NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership) },
+            onPlaylistMembershipDismissed = { send(NaviampCoreCommand.NowPlaying.DismissPlaylistMembership) },
         ),
         connectActions = connectActions,
     )

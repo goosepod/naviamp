@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.library.AlbumLibraryIndex
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.albummix.AlbumMixBuilderService
@@ -25,6 +26,7 @@ data class NaviampCoreContentServices(
     val externalUri: NaviampCoreExternalUriPort,
     val libraryGenreRefresh: NaviampCoreLibraryGenreRefreshPort = NaviampCoreLibraryGenreRefreshPort { },
     val libraryIndex: LocalLibraryIndexRepository? = null,
+    val albumIndex: AlbumLibraryIndex? = null,
 )
 
 fun interface NaviampCoreLibraryGenreRefreshPort {

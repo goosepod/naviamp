@@ -3,6 +3,16 @@ package app.naviamp.ui
 import app.naviamp.domain.network.NaviampAppVersion
 import app.naviamp.domain.network.NaviampAppBuildNumber
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -11,7 +21,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -111,7 +120,9 @@ import app.naviamp.domain.settings.resolvedBindings
 import app.naviamp.domain.settings.resetBindings
 import app.naviamp.domain.settings.withBinding
 import app.naviamp.domain.settings.homeSectionPresentation
+import app.naviamp.domain.settings.resolvedHomeSectionOrder
 import app.naviamp.domain.settings.withHomeSectionPresentation
+import app.naviamp.domain.settings.withHomeSectionOrder
 import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.LyricsTimingPreference
@@ -266,6 +277,7 @@ fun NaviampSharedSettingsContent(
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf<NaviampSettingsCategory?>(null) }
     val contentScrollState = rememberScrollState()
+    var contentViewport by remember { mutableStateOf(Rect.Zero) }
     LaunchedEffect(selectedCategory) { contentScrollState.scrollTo(0) }
     NaviampSystemBackHandler(enabled = selectedCategory != null) { selectedCategory = null }
     val languagePack = remember(interfaceSettings.language) {
@@ -294,6 +306,7 @@ fun NaviampSharedSettingsContent(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .onGloballyPositioned { contentViewport = it.boundsInRoot() }
                 .verticalScroll(contentScrollState),
         ) {
         selectedCategory?.let { category ->
@@ -336,6 +349,8 @@ fun NaviampSharedSettingsContent(
                 )
                 NaviampSettingsCategory.Experience -> NaviampExperienceSettingsSection(
                     colors = colors,
+                    scrollState = contentScrollState,
+                    viewportBounds = contentViewport,
                     installedVersion = about.version,
                     interfaceSettings = interfaceSettings,
                     playbackSettings = playbackSettings,
@@ -602,6 +617,8 @@ private fun SettingsPlaceholderSection(
 @Composable
 fun NaviampExperienceSettingsSection(
     colors: NaviampColors,
+    scrollState: ScrollState? = null,
+    viewportBounds: Rect = Rect.Zero,
     installedVersion: String,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
@@ -657,6 +674,8 @@ fun NaviampExperienceSettingsSection(
             )
             ExperienceSettingsPage.HomeScreen -> HomeScreenExperienceSettings(
                 colors = colors,
+                scrollState = scrollState,
+                viewportBounds = viewportBounds,
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
@@ -943,14 +962,32 @@ private fun AppBackgroundSettings(
     }
 
     if (interfaceSettings.appBackgroundStyle == AppBackgroundStyle.Aurora) {
-        SettingsSectionTitle("Aurora tone", colors)
+        CompactBackgroundSlider(
+            label = stringResource(Res.string.aurora_color_steps),
+            value = interfaceSettings.auroraColorSteps.toFloat(), valueRange = 2f..5f,
+            valueText = stringResource(Res.string.aurora_color_count, interfaceSettings.auroraColorSteps),
+            colors = colors, steps = 2,
+            onValueChange = { onInterfaceSettingsChanged(interfaceSettings.copy(auroraColorSteps = it.roundToInt()).normalized()) },
+        )
+        CompactBackgroundSlider(
+            label = stringResource(Res.string.aurora_gradient_angle),
+            value = interfaceSettings.auroraAngleDegrees.toFloat(), valueRange = 0f..180f,
+            valueText = stringResource(Res.string.aurora_angle_value, interfaceSettings.auroraAngleDegrees),
+            colors = colors,
+            onValueChange = { onInterfaceSettingsChanged(interfaceSettings.copy(auroraAngleDegrees = it.roundToInt()).normalized()) },
+        )
+        SettingsSectionTitle(stringResource(Res.string.aurora_tone), colors)
         AuroraTone.entries.forEach { tone ->
             SelectableSettingsRow(
-                title = tone.label,
+                title = stringResource(when (tone) {
+                    AuroraTone.Light -> Res.string.aurora_tone_light
+                    AuroraTone.Dark -> Res.string.aurora_tone_balanced
+                    AuroraTone.DeepDark -> Res.string.aurora_tone_dark
+                }),
                 subtitle = when (tone) {
-                    AuroraTone.Light -> "Lift the gradient toward brighter album colors"
-                    AuroraTone.Dark -> "Keep a balanced album-color gradient"
-                    AuroraTone.DeepDark -> "Deepen the gradient for darker rooms"
+                    AuroraTone.Dark -> stringResource(Res.string.aurora_tone_balanced_description)
+                    AuroraTone.Light -> stringResource(Res.string.aurora_tone_light_description)
+                    AuroraTone.DeepDark -> stringResource(Res.string.aurora_tone_dark_description)
                 },
                 selected = interfaceSettings.auroraTone == tone,
                 colors = colors,
@@ -1057,6 +1094,7 @@ private fun CompactBackgroundSlider(
     valueText: String,
     colors: NaviampColors,
     onValueChange: (Float) -> Unit,
+    steps: Int = 0,
 ) {
     Column(
         modifier = Modifier
@@ -1071,6 +1109,7 @@ private fun CompactBackgroundSlider(
             value = value.coerceIn(valueRange.start, valueRange.endInclusive),
             onValueChange = onValueChange,
             valueRange = valueRange,
+            steps = steps,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(26.dp)
@@ -1153,15 +1192,36 @@ private enum class AlbumExperiencePage(val title: String, val subtitle: String) 
 }
 
 @Composable
-private fun HomeScreenExperienceSettings(
+internal fun HomeScreenExperienceSettings(
     colors: NaviampColors,
     interfaceSettings: InterfaceSettings,
+    scrollState: ScrollState? = null,
+    viewportBounds: Rect = Rect.Zero,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
 ) {
     var selectedSectionId by rememberSaveable { mutableStateOf<String?>(null) }
     NaviampSystemBackHandler(enabled = selectedSectionId != null) { selectedSectionId = null }
 
-    val orderedSections = interfaceSettings.orderedHomeScreenSectionOptions()
+    val orderedSections = interfaceSettings
+        .resolvedHomeSectionOrder(HomeScreenSectionOptions.map { it.id })
+        .mapNotNull { id -> HomeScreenSectionOptions.firstOrNull { it.id == id } }
+        .map { section -> section.copy(title = section.titleResource?.let { stringResource(it) } ?: section.title) }
+    if (orderedSections.none { it.id == selectedSectionId }) {
+        HomeSectionOrderSettings(
+            colors = colors,
+            scrollState = scrollState,
+            viewportBounds = viewportBounds,
+            sections = orderedSections,
+            interfaceSettings = interfaceSettings,
+            onSelected = { selectedSectionId = it },
+            onOrderChanged = { sections ->
+                val knownIds = HomeScreenSectionOptions.mapTo(mutableSetOf()) { it.id }
+                val unknownIds = interfaceSettings.homeSectionOrder.filterNot { it in knownIds }
+                onInterfaceSettingsChanged(interfaceSettings.withHomeSectionOrder(sections.map { it.id } + unknownIds))
+            },
+        )
+        return
+    }
 
     HomeScreenSectionPresentationSettings(
         colors = colors,
@@ -1378,33 +1438,7 @@ private fun HomeScreenSectionPresentationSettings(
     onSelectedSectionChanged: (String?) -> Unit,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
 ) {
-    val selectedSection = orderedSections.firstOrNull { it.id == selectedSectionId }
-    if (selectedSection == null) {
-        HomeSectionOrderSettings(
-            colors = colors,
-            interfaceSettings = interfaceSettings,
-            sections = orderedSections,
-            onInterfaceSettingsChanged = onInterfaceSettingsChanged,
-        )
-        SettingsSectionTitle("Section layout", colors)
-        orderedSections.forEach { section ->
-            val presentation = interfaceSettings.homeSectionPresentation(section.id)
-            SettingsRow(
-                title = section.title,
-                subtitle = if (presentation.visible) {
-                    "Choose its Home screen and dedicated-page layouts"
-                } else {
-                    "Hidden from Home"
-                },
-                colors = colors,
-                value = if (presentation.visible) presentation.homeLayout.label else "Hidden",
-            ) {
-                onSelectedSectionChanged(section.id)
-            }
-        }
-        return
-    }
-
+    val selectedSection = orderedSections.firstOrNull { it.id == selectedSectionId } ?: return
     val presentation = interfaceSettings.homeSectionPresentation(selectedSection.id)
     SettingsSubsectionHeader(
         title = selectedSection.title,
@@ -1412,20 +1446,34 @@ private fun HomeScreenSectionPresentationSettings(
         colors = colors,
     ) { onSelectedSectionChanged(null) }
 
-    SettingsCheckboxRow(
-        colors = colors,
-        checked = presentation.visible,
-        label = "Show on Home",
-        subtitle = "Keep this section available in settings while hiding or showing it on Home",
-        onCheckedChange = { visible ->
-            onInterfaceSettingsChanged(
-                interfaceSettings.withHomeSectionPresentation(
-                    selectedSection.id,
-                    presentation.copy(visible = visible),
-                ),
-            )
-        },
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+            .toggleable(value = presentation.visible, role = androidx.compose.ui.semantics.Role.Switch) { visible ->
+                onInterfaceSettingsChanged(interfaceSettings.withHomeSectionPresentation(
+                    selectedSection.id, presentation.copy(visible = visible),
+                ))
+            }
+            .padding(horizontal = SettingsRowHorizontalPadding, vertical = 8.dp),
+    ) {
+        Text(stringResource(Res.string.home_settings_visible), color = colors.primaryText, modifier = Modifier.weight(1f))
+        androidx.compose.material3.Switch(checked = presentation.visible, onCheckedChange = null,
+            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = colors.accent, checkedThumbColor = colors.onAccent))
+    }
+
+    if (selectedSection.id == HomeSectionIds.FavoriteArtists) {
+        SettingsSectionTitle(stringResource(Res.string.favorite_artists_sort_title), colors)
+        app.naviamp.domain.settings.FavoriteArtistSort.entries.forEach { sort ->
+            SelectableSettingsRow(
+                title = favoriteArtistSortLabel(sort),
+                subtitle = "",
+                selected = interfaceSettings.favoriteArtistSort == sort,
+                colors = colors,
+            ) {
+                onInterfaceSettingsChanged(interfaceSettings.copy(favoriteArtistSort = sort))
+            }
+        }
+    }
 
     SettingsSectionTitle("Home screen", colors)
     HomeSectionLayout.entries.forEach { layout ->
@@ -1491,10 +1539,14 @@ private fun HomeScreenSectionPresentationSettings(
 @Composable
 private fun HomeSectionOrderSettings(
     colors: NaviampColors,
-    interfaceSettings: InterfaceSettings,
+    scrollState: ScrollState?,
+    viewportBounds: Rect,
     sections: List<HomeScreenSectionOption>,
-    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+    interfaceSettings: InterfaceSettings,
+    onSelected: (String) -> Unit,
+    onOrderChanged: (List<HomeScreenSectionOption>) -> Unit,
 ) {
+    var pointerY by remember { mutableStateOf(Float.NaN) }
     var draggingId by remember { mutableStateOf<String?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     val rowStepPx = with(LocalDensity.current) { HomeSectionOrderRowStep.toPx() }
@@ -1503,8 +1555,28 @@ private fun HomeSectionOrderSettings(
         (index + (dragOffsetY / rowStepPx).roundToInt()).coerceIn(sections.indices)
     }
 
+    val edge = minOf(with(LocalDensity.current) { 56.dp.toPx() }, viewportBounds.height / 3f)
+    val maximumStep = with(LocalDensity.current) { 14.dp.toPx() }
+    val scrollDelta = when {
+        draggingId == null || pointerY.isNaN() || edge <= 0f -> 0f
+        pointerY < viewportBounds.top + edge -> -maximumStep * ((viewportBounds.top + edge - pointerY) / edge).coerceIn(0f, 1f)
+        pointerY > viewportBounds.bottom - edge -> maximumStep * ((pointerY - viewportBounds.bottom + edge) / edge).coerceIn(0f, 1f)
+        else -> 0f
+    }
+    LaunchedEffect(draggingId, scrollDelta, scrollState) {
+        val scroll = scrollState ?: return@LaunchedEffect
+        if (draggingId == null || scrollDelta == 0f) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+            val consumed = scroll.scrollBy(scrollDelta)
+            if (consumed == 0f) break
+            // Keep the grabbed row under the pointer and include scrolling in its drop position.
+            dragOffsetY += consumed
+        }
+    }
+
     Text(
-        text = "Drag the handle, or touch and hold a row, to reorder Home. Use the eye to show or hide a section.",
+        text = stringResource(Res.string.home_settings_reorder_hint),
         color = colors.secondaryText,
         fontSize = 12.sp,
         modifier = Modifier.padding(horizontal = SettingsRowHorizontalPadding, vertical = 4.dp),
@@ -1517,27 +1589,22 @@ private fun HomeSectionOrderSettings(
                     HomeSectionOrderRow(
                         section = section,
                         colors = colors,
-                        visible = interfaceSettings.homeSectionPresentation(section.id).visible,
                         isDragging = index == draggingIndex,
-                        onVisibilityChanged = { visible ->
-                            onInterfaceSettingsChanged(
-                                interfaceSettings.withHomeScreenSectionVisible(section.id, visible),
-                            )
-                        },
-                        onDragStart = {
+                        visible = interfaceSettings.homeSectionPresentation(section.id).visible,
+                        onSelected = { onSelected(section.id) },
+                        onMoveUp = if (index > 0) { { onOrderChanged(sections.moveItem(index, index - 1)) } } else null,
+                        onMoveDown = if (index < sections.lastIndex) { { onOrderChanged(sections.moveItem(index, index + 1)) } } else null,
+                        onDragStart = { y ->
+                            pointerY = y
                             draggingId = section.id
                             dragOffsetY = 0f
                         },
-                        onDrag = { delta -> dragOffsetY += delta },
+                        onDrag = { delta, y -> dragOffsetY += delta; pointerY = y },
                         onDragEnd = {
-                            val from = draggingIndex
-                            val to = targetIndex
-                            if (from != null && to != null && from != to) {
-                                onInterfaceSettingsChanged(
-                                    interfaceSettings.withOrderedHomeScreenSections(
-                                        sections.moveHomeSectionItem(from, to),
-                                    ),
-                                )
+                            val from = sections.indexOfFirst { it.id == draggingId }
+                            val to = (from + (dragOffsetY / rowStepPx).roundToInt()).coerceIn(sections.indices)
+                            if (from >= 0 && from != to) {
+                                onOrderChanged(sections.moveItem(from, to))
                             }
                             draggingId = null
                             dragOffsetY = 0f
@@ -1576,80 +1643,64 @@ private fun HomeSectionOrderSettings(
 private fun HomeSectionOrderRow(
     section: HomeScreenSectionOption,
     colors: NaviampColors,
-    visible: Boolean,
     isDragging: Boolean,
-    onVisibilityChanged: (Boolean) -> Unit,
-    onDragStart: () -> Unit,
-    onDrag: (Float) -> Unit,
+    visible: Boolean,
+    onSelected: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
+    onDragStart: (Float) -> Unit,
+    onDrag: (Float, Float) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
 ) {
+    var handleCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val currentOnDragStart by rememberUpdatedState(onDragStart)
     val currentOnDrag by rememberUpdatedState(onDrag)
     val currentOnDragEnd by rememberUpdatedState(onDragEnd)
     val currentOnDragCancel by rememberUpdatedState(onDragCancel)
-    val dragModifier = Modifier.pointerInput(section.id) {
-        detectDragGesturesAfterLongPress(
-            onDragStart = { currentOnDragStart() },
-            onDrag = { change, amount ->
-                change.consume()
-                currentOnDrag(amount.y)
-            },
-            onDragEnd = { currentOnDragEnd() },
-            onDragCancel = { currentOnDragCancel() },
-        )
-    }
+    val moveUpLabel = stringResource(Res.string.home_settings_move_up)
+    val moveDownLabel = stringResource(Res.string.home_settings_move_down)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
             .zIndex(if (isDragging) 2f else 0f)
-            .background(
-                if (isDragging) colors.accent.copy(alpha = 0.18f) else Color.Black.copy(alpha = 0.08f),
-                RoundedCornerShape(6.dp),
-            )
-            .then(dragModifier)
-            .padding(horizontal = SettingsRowHorizontalPadding, vertical = 8.dp),
+            .background(if (isDragging) colors.accent.copy(alpha = 0.18f) else Color.Transparent, RoundedCornerShape(6.dp))
+            .clickable(onClick = onSelected)
+            .semantics {
+                customActions = listOfNotNull(
+                    onMoveUp?.let { action -> androidx.compose.ui.semantics.CustomAccessibilityAction(moveUpLabel) { action(); true } },
+                    onMoveDown?.let { action -> androidx.compose.ui.semantics.CustomAccessibilityAction(moveDownLabel) { action(); true } },
+                )
+            }
+            .padding(horizontal = SettingsRowHorizontalPadding, vertical = 6.dp),
     ) {
-        Text(
-            text = section.title,
-            color = colors.primaryText,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(
-            onClick = { onVisibilityChanged(!visible) },
-            modifier = Modifier.size(28.dp),
-        ) {
-            Icon(
-                imageVector = if (visible) NaviampIcons.VisibilityOn else NaviampIcons.VisibilityOff,
-                contentDescription = if (visible) "Hide ${section.title}" else "Show ${section.title}",
-                tint = if (visible) colors.primaryText else colors.secondaryText.copy(alpha = 0.62f),
-                modifier = Modifier.size(20.dp),
-            )
-        }
         Icon(
             imageVector = NaviampTransportIcons.Menu,
-            contentDescription = "Drag ${section.title} to reorder",
+            contentDescription = stringResource(Res.string.home_settings_drag_section, section.title),
             tint = colors.secondaryText,
-            modifier = Modifier
-                .size(28.dp)
+            modifier = Modifier.size(36.dp)
+                .onGloballyPositioned { handleCoordinates = it }
                 .pointerInput(section.id) {
                     detectDragGestures(
-                        onDragStart = { currentOnDragStart() },
+                        onDragStart = { position -> currentOnDragStart(handleCoordinates?.localToRoot(position)?.y ?: Float.NaN) },
                         onDrag = { change, amount ->
+                            val y = handleCoordinates?.localToRoot(change.position)?.y ?: Float.NaN
                             change.consume()
-                            currentOnDrag(amount.y)
+                            currentOnDrag(amount.y, y)
                         },
                         onDragEnd = { currentOnDragEnd() },
                         onDragCancel = { currentOnDragCancel() },
                     )
-                }
-                .padding(5.dp),
+                }.padding(8.dp),
         )
+        Text(section.title, color = if (visible) colors.primaryText else colors.secondaryText,
+            fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (!visible) Text(stringResource(Res.string.home_settings_hidden), color = colors.secondaryText, fontSize = 11.sp)
+        Icon(NaviampIcons.ChevronRight, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(18.dp))
     }
+
 }
 
 private fun homeSectionDragGapOffset(
@@ -4741,7 +4792,7 @@ fun NaviampDebugPlaybackSettingsSection(
 }
 
 @Composable
-private fun EqualizerCurvePanel(
+internal fun EqualizerCurvePanel(
     colors: NaviampColors,
     equalizer: app.naviamp.domain.playback.EqualizerSettings,
     enabled: Boolean,
@@ -4757,9 +4808,8 @@ private fun EqualizerCurvePanel(
             .coerceIn(MinEqualizerGainDb, MaxEqualizerGainDb)
     }
     fun bandForOffset(x: Float, width: Float): Int {
-        val lastIndex = EqualizerBandFrequencies.lastIndex.coerceAtLeast(1)
-        return ((x.coerceIn(0f, width.coerceAtLeast(1f)) / width.coerceAtLeast(1f)) * lastIndex)
-            .roundToInt()
+        return ((x.coerceIn(0f, width.coerceAtLeast(1f)) / width.coerceAtLeast(1f)) * EqualizerBandFrequencies.size)
+            .toInt()
             .coerceIn(EqualizerBandFrequencies.indices)
     }
     Column(
@@ -4769,13 +4819,15 @@ private fun EqualizerCurvePanel(
             .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Text(stringResource(Res.string.equalizer_gain_axis), color = colors.secondaryText, fontSize = 11.sp)
         Row(modifier = Modifier.fillMaxWidth()) {
             normalized.bandsDb.forEach { gain ->
                 Text(
-                    gain.equalizerGainLabel(),
+                    if (gain % 1f == 0f) gain.toInt().toString() else gain.toDouble().oneDecimalLabel(),
                     color = colors.primaryText,
                     fontSize = 9.sp,
                     maxLines = 1,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -4815,11 +4867,7 @@ private fun EqualizerCurvePanel(
                 strokeWidth = 1.5f,
             )
             val points = normalized.bandsDb.mapIndexed { index, gain ->
-                val x = if (EqualizerBandFrequencies.lastIndex == 0) {
-                    usableWidth / 2f
-                } else {
-                    usableWidth * (index.toFloat() / EqualizerBandFrequencies.lastIndex.toFloat())
-                }
+                val x = usableWidth * ((index + 0.5f) / EqualizerBandFrequencies.size)
                 val y = (
                     verticalInset +
                         ((MaxEqualizerGainDb - gain) / (MaxEqualizerGainDb - MinEqualizerGainDb)) * usableHeight
@@ -4846,14 +4894,16 @@ private fun EqualizerCurvePanel(
         Row(modifier = Modifier.fillMaxWidth()) {
             EqualizerBandFrequencies.forEach { frequency ->
                 Text(
-                    frequency.equalizerFrequencyLabel(),
+                    if (frequency >= 1000) "${frequency / 1000}k" else frequency.toString(),
                     color = colors.secondaryText,
                     fontSize = 9.sp,
                     maxLines = 1,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f),
                 )
             }
         }
+        Text(stringResource(Res.string.equalizer_frequency_axis), color = colors.secondaryText, fontSize = 11.sp)
     }
 }
 

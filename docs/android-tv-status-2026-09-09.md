@@ -1,0 +1,102 @@
+# Android TV restart status — 2026-09-09
+
+## Branch and merge
+
+The working branch is `feature/android-tv` (not `jfeature/android-tv`). It started at
+`ca62a933`, with 12 commits not yet on `origin/feature/android-tv`. The merge incorporates
+`main` / `origin/main` at `50c8a935`, the completed v2.4.0 release acceptance baseline.
+Before the merge, the branches had 54 TV-side and 31 main-side commits since their merge base.
+No remote push or release is part of this restart.
+
+The merge resolves 20 conflicted files and retains the TV shell and Connect implementation
+alongside main's library catalogs, playlist membership, Home changes, and player workspace.
+Specific integration decisions:
+
+- Keep cached complete artist browsing, with the newer independent Artists/Albums/Songs load state
+  and stale-source rejection. TV currently still renders the artist catalog.
+- Keep immediate radio-seed playback while retaining main's successful-radio artist activity
+  tracking and cancellation handling.
+- Keep Connect output selection and remote progress in the new player workspace.
+- Share Home section definitions and Aurora settings with TV. Preserve main's newer standard
+  Home settings interaction and localized favorite-artist section title.
+- Keep the released `24.sqm` unchanged. The unshipped Connect password-column addition moves to
+  `25.sqm`, producing schema version 26. Tests cover upgrades from the released version 25 and
+  older schemas, and canonical column order matches migrated databases. No development database
+  was modified.
+
+## Development status
+
+The following is based on the checked-in September 4 acceptance record, not a fresh device run.
+
+| Area | Status |
+| --- | --- |
+| M0: TV host and emulator foundation | Complete |
+| M1: dedicated TV navigation, setup, Home/collections, Library, Search, Playlists, details, Settings, Internet Radio | Complete in recorded emulator acceptance |
+| TV playback, queue controls, artwork, waveform, line-synced lyrics | Implemented; emulator acceptance recorded |
+| Connect pairing, trust, encrypted control, handoff, reconnect, source-mismatch recovery | Implemented and tested for the phone/Desktop-to-TV-emulator preview topology |
+| Android/JVM Connect protocol security gate | Internal v1 review completed September 4 |
+| Physical Google TV and direct-LAN acceptance | Outstanding |
+| General Connect availability and Apple adapters | Outstanding |
+
+The authoritative preview exit checklist remains [android-tv-plan.md](android-tv-plan.md#android-tv-preview-release-gates).
+The broader topology and fresh-device setup work remains in
+[naviamp-connect-product-plan.md](naviamp-connect-product-plan.md).
+
+## Next development work
+
+1. Bring the TV Library presentation up to main's shared Artists/Albums/Songs selector, including
+   per-view D-pad focus restoration, empty/loading states, and track actions. The merge preserves
+   the existing TV artist view; it does not complete this newer feature's TV presentation.
+2. Finish pairing diagnostics and permission recovery, OLED burn-in behavior, and direct shared
+   Compose coverage for the remaining TV screens and navigation paths.
+3. Validate sustained gapless/crossfade, ReplayGain, provider reporting, process/network recovery,
+   and target-independent playback on representative physical Google TV hardware.
+4. Complete 720p/native-4K focus, waveform/repeat-icon, contrast, accessibility, HDMI/downmix,
+   CEC, MediaSession/audio focus, and sleep/wake acceptance.
+5. Finish TV banner/icon assets and distribution packaging. Word-level karaoke and broader
+   Connect/Apple availability remain later work.
+
+Much of the older TV/Connect copy is still hardcoded in shared Kotlin. Before preview release,
+that existing localization debt needs a resource/translation pass under the current AGENTS rules.
+
+## Validation and environment
+
+The shared domain, app/Connect runtime, UI, storage, Navidrome, and Jellyfin JVM suites pass.
+Android debug assembly (`:apps:android:assembleDebug`), Desktop host compilation and its platform
+suite (`:apps:desktop:compileKotlinDesktop :platforms:desktop:desktopTest`), and iOS Simulator ARM64
+host compilation (`:apps:ios:compileKotlinIosSimulatorArm64`) pass.
+
+The final presentation and storage JVM suites, `:core:storage:verifySqlDelightMigration`, and
+`verifyCoreFirstArchitecture` also pass. After correcting the canonical schema ordering, Android,
+Desktop, and iOS Simulator builds were repeated successfully.
+
+| Tested module | Tests passed |
+| --- | ---: |
+| `core/domain` | 888 |
+| `core/app` | 191 |
+| `core/presentation` | 340 |
+| `core/ui` | 295 |
+| `core/storage` | 49 |
+| `providers/navidrome` | 157 |
+| `providers/jellyfin` | 25 |
+| `platforms/desktop` | 42 |
+| **Total** | **1,987** |
+
+No failures, errors, or skipped tests in these suites.
+
+`adb devices -l` returned no connected devices, so this restart does not claim fresh emulator or
+physical-device acceptance.
+
+Before launching a device last used on the old TV branch, inspect its local database. That branch
+also used schema version 25, but its migration 24 added the Connect password rather than main's
+new tables. Such an unreleased development database may need a targeted repair of branch-owned
+schema objects/version state. Do not add a production compatibility migration for that development
+history or reset unrelated user data.
+
+## Platform-diff accountability
+
+No Android, Desktop, or iOS production source file is changed relative to the pre-merge TV head.
+The platform-side changes inherited from main are build scripts and platform tests, which are
+exempt from common-code placement. Merge-specific behavior and UI changes remain in common code.
+The existing TV host adapters and their native boundaries are described in the
+[September 4 branch review](android-tv-connect-branch-review-2026-09-04.md#shared-first-ownership).

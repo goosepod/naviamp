@@ -42,7 +42,19 @@ class NaviampCoreNowPlayingMediaController(
     private val generatedRadio: NaviampCoreTrackRadioTransactions,
     private val favoritedAtIso8601: () -> String,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
+    onPlaylistCreated: (app.naviamp.domain.Playlist) -> Unit = {},
+    onPlaylistContentsReconciled: (String, List<Track>) -> Unit = { _, _ -> },
+    membershipCoordinator: NaviampCorePlaylistMembershipCoordinator? = null,
 ) : NaviampCoreCommandController {
+    private val membership = membershipCoordinator ?: NaviampCorePlaylistMembershipCoordinator(
+        providerSource = providerSource,
+        currentEditor = { stateStore.state.value.shell.playlistMembership },
+        publish = { editor -> stateStore.updateShell { it.copy(playlistMembership = editor) } },
+        onPlaylistChanged = downloads::playlistTracksChanged,
+        onContentsReconciled = onPlaylistContentsReconciled,
+        onPlaylistCreated = onPlaylistCreated,
+    )
+
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Display ->
             if (command.request.action == NowPlayingDisplayAction.Collapse) {
@@ -54,6 +66,11 @@ class NaviampCoreNowPlayingMediaController(
         is NaviampCoreCommand.NowPlaying.CurrentTrack,
         is NaviampCoreCommand.NowPlaying.Selection,
         is NaviampCoreCommand.NowPlaying.QueueItem,
+        is NaviampCoreCommand.NowPlaying.TogglePlaylistMembership,
+        is NaviampCoreCommand.NowPlaying.CreateMembershipPlaylist,
+        NaviampCoreCommand.NowPlaying.RetryPlaylistMembership,
+        NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership,
+        NaviampCoreCommand.NowPlaying.DismissPlaylistMembership,
         -> NaviampCoreImmediateCommandResult.Deferred
         else -> NaviampCoreImmediateCommandResult.Unhandled
     }
@@ -64,6 +81,11 @@ class NaviampCoreNowPlayingMediaController(
             is NaviampCoreCommand.NowPlaying.CurrentTrack -> currentTrack(command.request)
             is NaviampCoreCommand.NowPlaying.Selection -> selection(command.request)
             is NaviampCoreCommand.NowPlaying.QueueItem -> queueItem(command.request)
+            is NaviampCoreCommand.NowPlaying.TogglePlaylistMembership -> membership.toggle(command.playlistId)
+            is NaviampCoreCommand.NowPlaying.CreateMembershipPlaylist -> membership.create(command.name)
+            NaviampCoreCommand.NowPlaying.RetryPlaylistMembership -> membership.retry()
+            NaviampCoreCommand.NowPlaying.ApplyPlaylistMembership -> membership.apply()
+            NaviampCoreCommand.NowPlaying.DismissPlaylistMembership -> membership.dismiss()
             else -> return null
         }
         presenter.publish(playbackController.currentDisplay())
@@ -146,7 +168,8 @@ class NaviampCoreNowPlayingMediaController(
         val track = currentTrackOrPublish() ?: return
         when (request.action) {
             NowPlayingCurrentTrackAction.StartRadio -> generatedRadio.startTrackRadio(track)
-            NowPlayingCurrentTrackAction.AddToPlaylist -> addToPlaylist(track, request.playlistChoice?.id)
+            NowPlayingCurrentTrackAction.AddToPlaylist -> request.playlistChoice?.id?.let { addToPlaylist(track, it) }
+                ?: membership.open(track)
             NowPlayingCurrentTrackAction.CreatePlaylistAndAdd -> createPlaylist(track, request.playlistName)
             NowPlayingCurrentTrackAction.Download -> downloads.downloadTracks(track.title, listOf(track), includeCompletedCount = false)
             NowPlayingCurrentTrackAction.GoToAlbum -> openAlbum(track)
@@ -211,7 +234,9 @@ class NaviampCoreNowPlayingMediaController(
             }
             NowPlayingItemAction.AddToQueue ->
                 track?.let { applyQueueUpdate(queue.appendTracks(listOf(it), "track")) } ?: staleTrack()
-            NowPlayingItemAction.AddToPlaylist -> track?.let { addToPlaylist(it, resolved.playlistChoice?.id) } ?: staleTrack()
+            NowPlayingItemAction.AddToPlaylist -> track?.let { selected ->
+                resolved.playlistChoice?.id?.let { addToPlaylist(selected, it) } ?: membership.open(selected)
+            } ?: staleTrack()
             NowPlayingItemAction.CreatePlaylistAndAdd -> track?.let { createPlaylist(it, resolved.playlistName) } ?: staleTrack()
             NowPlayingItemAction.Download -> track?.let {
                 downloads.downloadTracks(it.title, listOf(it), includeCompletedCount = false)

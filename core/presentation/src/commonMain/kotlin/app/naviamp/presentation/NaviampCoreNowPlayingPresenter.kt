@@ -119,7 +119,10 @@ class NaviampCoreNowPlayingPresenter(
             activeRadioDjId = playbackSettings.activeRadioDjId,
             playlistChoices = shell.playlistChoices,
             playlistActionStatus = display.playlistActionStatus,
-        ).toNowPlayingUi().copy(visualizerFrame = sidecar.visualizerFrame)
+        ).toNowPlayingUi().copy(
+            visualizerFrame = sidecar.visualizerFrame,
+            canEditPlaylistMembership = provider != null,
+        )
         stateStore.updateShell { current -> current.copy(nowPlaying = nowPlaying) }
     }
 }

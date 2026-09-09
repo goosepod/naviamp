@@ -17,6 +17,7 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.media.ArtistDiscographyAppearances
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
@@ -37,6 +38,58 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreMediaDetailControllerTest {
+    @Test
+    fun nativeReverseCreditResultsUseSharedAppearanceReconciliationWithoutStorageFallback() = runTest {
+        var fallbackCalled = false
+        val provider = MediaDetailTestProvider(nativeDiscography = true)
+        val (store, controller) = controller(
+            provider = provider,
+            discographyAppearances = { _, _, _ ->
+                fallbackCalled = true
+                ArtistDiscographyAppearances()
+            },
+        )
+
+        controller.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                mediaItem("artist-a", "Artist A").artistActionRequest(NaviampArtistMediaCommand.Select),
+            ),
+        )
+
+        assertTrue(!fallbackCalled)
+        assertEquals(listOf("Compilation"), store.state.value.shell.artistDetail.detail?.appearanceAlbums?.map { it.title })
+        assertEquals(listOf("Guest Verse"), store.state.value.shell.artistDetail.detail?.appearanceTracks?.map { it.title })
+    }
+
+    @Test
+    fun providerWithoutReverseCreditQueryUsesSourceScopedStorageAppearances() = runTest {
+        var requestedSource: String? = null
+        var requestedPrimaryAlbums = emptySet<AlbumId>()
+        val provider = MediaDetailTestProvider()
+        val (store, controller) = controller(
+            provider = provider,
+            discographyAppearances = { sourceId, _, primaryAlbumIds ->
+                requestedSource = sourceId
+                requestedPrimaryAlbums = primaryAlbumIds
+                ArtistDiscographyAppearances(
+                    albums = listOf(Album(AlbumId("appearance"), "Compilation", "Various Artists", null, null)),
+                    tracks = listOf(track("guest-track", "Guest Verse", AlbumId("appearance"))),
+                )
+            },
+        )
+
+        controller.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                mediaItem("artist-a", "Artist A").artistActionRequest(NaviampArtistMediaCommand.Select),
+            ),
+        )
+
+        assertEquals("source", requestedSource)
+        assertEquals(setOf(AlbumId("album-artist-a")), requestedPrimaryAlbums)
+        assertEquals(listOf("Compilation"), store.state.value.shell.artistDetail.detail?.appearanceAlbums?.map { it.title })
+        assertEquals(listOf("Guest Verse"), store.state.value.shell.artistDetail.detail?.appearanceTracks?.map { it.title })
+    }
+
     @Test
     fun albumSelectionOwnsNavigationLoadingMappingAndCapabilities() = runTest {
         val provider = MediaDetailTestProvider()
@@ -254,6 +307,8 @@ class NaviampCoreMediaDetailControllerTest {
     private fun kotlinx.coroutines.test.TestScope.controller(
         provider: MediaProvider?,
         popularTracksGate: CompletableDeferred<Unit>? = null,
+        discographyAppearances: (String, ArtistId, Set<AlbumId>) -> ArtistDiscographyAppearances =
+            { _, _, _ -> ArtistDiscographyAppearances() },
     ): Pair<NaviampCoreStateStore, MediaDetailControllers> {
         val store = NaviampCoreStateStore()
         lateinit var media: NaviampCoreMediaDetailController
@@ -296,6 +351,7 @@ class NaviampCoreMediaDetailControllerTest {
                         ),
                     )
                 },
+                discographyAppearances = discographyAppearances,
             ),
         )
         return store to MediaDetailControllers(media, navigation)
@@ -314,6 +370,7 @@ private data class MediaDetailControllers(
 private class MediaDetailTestProvider(
     private val firstArtistGate: CompletableDeferred<Unit>? = null,
     private val albumInfoGate: CompletableDeferred<Unit>? = null,
+    private val nativeDiscography: Boolean = false,
 ) : MediaProvider {
     override val id = ProviderId("media-detail")
     override val displayName = "Media detail"
@@ -325,6 +382,7 @@ private class MediaDetailTestProvider(
         supportsTrackRadio = false,
         supportsArtistFavorites = true,
         supportsAlbumFavorites = true,
+        supportsArtistDiscography = nativeDiscography,
     )
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
@@ -349,6 +407,20 @@ private class MediaDetailTestProvider(
             artist = artist,
             albums = listOf(Album(AlbumId("album-${artistId.value}"), "Album", artist.name, null, null)),
             info = ArtistInfo("Artist biography", null, null, "https://info.example/artist.jpg"),
+        )
+    }
+
+    override suspend fun artistDiscography(artistId: ArtistId): app.naviamp.domain.media.ArtistDiscography {
+        val primary = artist(artistId)
+        if (!nativeDiscography) return app.naviamp.domain.media.ArtistDiscography(primary)
+        val primaryAlbum = primary.albums.single()
+        val compilation = Album(AlbumId("appearance"), "Compilation", "Various Artists", null, null)
+        val primaryTrack = track("own-track", "Own Track", primaryAlbum.id)
+        val guestTrack = track("guest-track", "Guest Verse", compilation.id)
+        return app.naviamp.domain.media.ArtistDiscography(
+            primary = primary,
+            appearanceAlbums = listOf(primaryAlbum, compilation, compilation),
+            appearanceTracks = listOf(primaryTrack, guestTrack, guestTrack),
         )
     }
 

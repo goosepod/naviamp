@@ -19,6 +19,10 @@ class NaviampCoreMediaRegistry {
         private set
     var libraryArtists: List<Artist> = emptyList()
         private set
+    var libraryAlbums: List<Album> = emptyList()
+        private set
+    var libraryTracks: List<Track> = emptyList()
+        private set
     var albumDetails: AlbumDetails? = null
         private set
     var artistDetails: ArtistDetails? = null
@@ -26,6 +30,10 @@ class NaviampCoreMediaRegistry {
     var artistPopularTracks: List<Track> = emptyList()
         private set
     var artistSimilarArtists: List<SimilarArtistMatch> = emptyList()
+        private set
+    var artistAppearanceAlbums: List<Album> = emptyList()
+        private set
+    var artistAppearanceTracks: List<Track> = emptyList()
         private set
     var playlists: List<Playlist> = emptyList()
         private set
@@ -49,6 +57,14 @@ class NaviampCoreMediaRegistry {
         libraryArtists = if (replace) artists else (libraryArtists + artists).distinctBy { it.id }
     }
 
+    fun updateLibraryAlbums(albums: List<Album>, replace: Boolean) {
+        libraryAlbums = if (replace) albums else (libraryAlbums + albums).distinctBy { it.id }
+    }
+
+    fun updateLibraryTracks(tracks: List<Track>, replace: Boolean) {
+        libraryTracks = if (replace) tracks else (libraryTracks + tracks).distinctBy { it.id }
+    }
+
     fun updateAlbum(details: AlbumDetails?) {
         albumDetails = details
     }
@@ -57,10 +73,14 @@ class NaviampCoreMediaRegistry {
         details: ArtistDetails?,
         popularTracks: List<Track> = emptyList(),
         similarArtists: List<SimilarArtistMatch> = emptyList(),
+        appearanceAlbums: List<Album> = emptyList(),
+        appearanceTracks: List<Track> = emptyList(),
     ) {
         artistDetails = details
         artistPopularTracks = popularTracks
         artistSimilarArtists = similarArtists
+        artistAppearanceAlbums = appearanceAlbums
+        artistAppearanceTracks = appearanceTracks
     }
 
     fun updatePlaylists(playlists: List<Playlist>) {
@@ -75,13 +95,16 @@ class NaviampCoreMediaRegistry {
     fun album(id: String): Album? = sequenceOf(
         albumDetails?.album,
         artistDetails?.albums?.firstOrNull { it.id.value == id },
+        artistAppearanceAlbums.firstOrNull { it.id.value == id },
         homeAlbums().firstOrNull { it.id.value == id },
         search.albums.firstOrNull { it.id.value == id },
+        libraryAlbums.firstOrNull { it.id.value == id },
     ).filterNotNull().firstOrNull { it.id.value == id }
 
     fun artist(id: String): Artist? = sequenceOf(
         artistDetails?.artist,
         home.artists.firstOrNull { it.id.value == id },
+        home.favoriteArtists.firstOrNull { it.id.value == id },
         search.artists.firstOrNull { it.id.value == id },
         libraryArtists.firstOrNull { it.id.value == id },
     ).filterNotNull().firstOrNull { it.id.value == id }
@@ -97,7 +120,9 @@ class NaviampCoreMediaRegistry {
             search.tracks +
             albumDetails?.tracks.orEmpty() +
             artistPopularTracks +
+            artistAppearanceTracks +
             selectedPlaylistTracks +
+            libraryTracks +
             sonicRows.rows.flatMap { it.tracks }
         ).distinctBy { it.id }
 
@@ -113,13 +138,17 @@ class NaviampCoreMediaRegistry {
         search = search.copy(tracks = search.tracks.replace(track))
         albumDetails = albumDetails?.copy(tracks = albumDetails!!.tracks.replace(track))
         artistPopularTracks = artistPopularTracks.replace(track)
+        artistAppearanceTracks = artistAppearanceTracks.replace(track)
         selectedPlaylistTracks = selectedPlaylistTracks.replace(track)
+        libraryTracks = libraryTracks.replace(track)
         sonicRows = sonicRows.copy(
             rows = sonicRows.rows.map { row -> row.copy(tracks = row.tracks.replace(track)) },
         )
     }
 
     fun updateAlbum(album: Album) {
+        libraryAlbums = libraryAlbums.replace(album)
+        artistAppearanceAlbums = artistAppearanceAlbums.replace(album)
         home = home.copy(
             recentlyAddedAlbums = home.recentlyAddedAlbums.replace(album),
             mixAlbums = home.mixAlbums.replace(album),
@@ -135,7 +164,7 @@ class NaviampCoreMediaRegistry {
     }
 
     fun updateArtist(artist: Artist) {
-        home = home.copy(artists = home.artists.replace(artist))
+        home = home.copy(artists = home.artists.replace(artist), favoriteArtists = home.favoriteArtists.replace(artist))
         search = search.copy(artists = search.artists.replace(artist))
         libraryArtists = libraryArtists.replace(artist)
         artistDetails = artistDetails?.let { it.copy(artist = if (it.artist.id == artist.id) artist else it.artist) }

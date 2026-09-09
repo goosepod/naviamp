@@ -13,8 +13,8 @@ class NaviampHomeSectionSettingsTest {
     fun sharedCatalogContainsEveryHomeSectionInDefaultOrder() {
         val options = InterfaceSettings().orderedHomeScreenSectionOptions()
 
-        assertEquals(17, options.size)
-        assertEquals(HomeSectionIds.MixesForYou, options.first().id)
+        assertEquals(18, options.size)
+        assertEquals(HomeSectionIds.FavoriteArtists, options.first().id)
         assertEquals(HomeSectionIds.Decade, options.last().id)
     }
 

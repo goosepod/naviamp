@@ -451,9 +451,9 @@ private fun PlaylistListRow(
                 keepDownloadedActive = playlist.keepDownloadedActive,
                 canAddToQueue = capabilities.canAddToQueue,
                 canAddToPlaylist = capabilities.canAddToPlaylist,
-                canRename = capabilities.canRename,
-                canEditSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist,
-                canDelete = capabilities.canDelete,
+                canRename = capabilities.canRename && playlist.canEditPlaylist,
+                canEditSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist && playlist.canEditPlaylist,
+                canDelete = capabilities.canDelete && playlist.canEditPlaylist,
             ).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(
@@ -721,7 +721,7 @@ private fun PlaylistDetailContent(
             if (detail.playlist.isSmartPlaylist) {
                 IconButton(
                     onClick = requestSmartPlaylistEdit,
-                    enabled = !smartPlaylistLoading,
+                    enabled = !smartPlaylistLoading && detail.playlist.canEditPlaylist,
                     modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
@@ -764,7 +764,7 @@ private fun PlaylistDetailContent(
                     actions = buildList {
                         add(NaviampDetailAction(stringResource(Res.string.playlists_play), NaviampTransportIcons.Play, onPlayPlaylist, detail.tracks.isNotEmpty()))
                         add(NaviampDetailAction(stringResource(Res.string.playlists_shuffle), NaviampTransportIcons.Shuffle, onShufflePlaylist, detail.tracks.size > 1))
-                        if (detail.playlist.isSmartPlaylist) {
+                        if (detail.playlist.isSmartPlaylist && detail.playlist.canEditPlaylist) {
                             add(
                                 NaviampDetailAction(
                                     editSmartPlaylistLabel,
@@ -773,7 +773,7 @@ private fun PlaylistDetailContent(
                                     enabled = !smartPlaylistLoading,
                                 ),
                             )
-                        } else {
+                        } else if (detail.playlist.canEditPlaylist) {
                             add(NaviampDetailAction(stringResource(Res.string.playlists_rename_title), NaviampIcons.Edit, { renameOpen = true }))
                         }
                         add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_queue), NaviampIcons.Queue, onAddPlaylistToQueue, detail.tracks.isNotEmpty()))
@@ -781,9 +781,9 @@ private fun PlaylistDetailContent(
                         add(NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()))
                         if (!detail.playlist.isSmartPlaylist) {
                             add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_playlist), NaviampIcons.Playlist, { addToPlaylistOpen = true }, detail.tracks.isNotEmpty()))
-                            add(NaviampDetailAction(stringResource(Res.string.playlists_bulk_tools_title), NaviampIcons.Settings, { bulkToolsOpen = true }, detail.tracks.isNotEmpty()))
+                            if (detail.playlist.canEditPlaylist) add(NaviampDetailAction(stringResource(Res.string.playlists_bulk_tools_title), NaviampIcons.Settings, { bulkToolsOpen = true }, detail.tracks.isNotEmpty()))
                         }
-                        add(NaviampDetailAction(stringResource(Res.string.playlists_delete_title), NaviampIcons.Trash, { deleteOpen = true }))
+                        if (detail.playlist.canEditPlaylist) add(NaviampDetailAction(stringResource(Res.string.playlists_delete_title), NaviampIcons.Trash, { deleteOpen = true }))
                     },
                 )
                 smartPlaylistLoadMessage?.let { message ->
@@ -804,7 +804,7 @@ private fun PlaylistDetailContent(
                 .verticalScroll(detailScrollState),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-        if (detail.playlist.isSmartPlaylist) {
+        if (detail.playlist.isSmartPlaylist || !detail.playlist.canEditPlaylist) {
             SmartPlaylistTrackList(
                 colors = colors,
                 tracks = detail.tracks,

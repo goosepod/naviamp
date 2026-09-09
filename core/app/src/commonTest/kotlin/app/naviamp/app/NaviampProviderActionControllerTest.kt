@@ -12,9 +12,10 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.provider.PendingActionReportNowPlaying
+import app.naviamp.domain.provider.PendingActionSubmitListen
 import app.naviamp.domain.provider.PendingActionTrackFavorite
 import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
@@ -31,9 +32,9 @@ class NaviampProviderActionControllerTest {
         val provider = RecordingProvider(failReports = true)
         val controller = NaviampProviderActionController(repository)
 
-        controller.offlineCapable(provider, "source").reportNowPlaying(TrackId("track"))
+        controller.offlineCapable(provider, "source").submitListen(TrackId("track"), 1234L)
 
-        assertEquals(listOf("source:$PendingActionReportNowPlaying:track:null:false"), repository.enqueued)
+        assertEquals(listOf("source:$PendingActionSubmitListen:track:null:false"), repository.enqueued)
     }
 
     @Test
@@ -64,6 +65,18 @@ class NaviampProviderActionControllerTest {
     }
 
     @Test
+    fun offlineCapableProviderForwardsAlphabeticalLibraryOffsets() = runTest {
+        val provider = RecordingProvider(failReports = false)
+        val wrapped = NaviampProviderActionController(RecordingPendingActions())
+            .offlineCapable(provider, "source")
+
+        val offset = wrapped.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Tracks, 'S')
+
+        assertEquals(123, offset)
+        assertEquals(listOf(AlphabeticalLibraryKind.Tracks to 'S'), provider.alphabeticalOffsetRequests)
+    }
+
+    @Test
     fun explicitOfflineActionsUseTheSameGraphOwnedQueuePolicy() {
         val repository = RecordingPendingActions()
         val controller = NaviampProviderActionController(repository)
@@ -73,7 +86,7 @@ class NaviampProviderActionControllerTest {
 
         assertEquals(
             listOf(
-                "source:$PendingActionReportNowPlaying:track:null:false",
+                "source:${app.naviamp.domain.provider.PendingActionReportNowPlaying}:track:null:false",
                 "source:$PendingActionTrackFavorite:track:true:true",
             ),
             repository.enqueued,
@@ -155,6 +168,8 @@ internal class RecordingPendingActions : PendingProviderActionRepository {
         replaceMatchingEntityAction: Boolean,
     ) {
         enqueued += "$sourceId:$actionType:$entityId:$boolValue:$replaceMatchingEntityAction"
+        pending += PendingProviderAction((pending.maxOfOrNull { it.id } ?: 0L) + 1,
+            sourceId, actionType, entityId, boolValue, longValue, createdAtEpochMillis = 0)
     }
 
     override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> =
@@ -175,9 +190,10 @@ internal fun pendingAction(
 ) = PendingProviderAction(
     id = id,
     sourceId = sourceId,
-    actionType = PendingActionReportNowPlaying,
+    actionType = PendingActionSubmitListen,
     entityId = entityId,
     createdAtEpochMillis = 0,
+    longValue = 0,
 )
 
 internal class RecordingProvider(private val failReports: Boolean) : MediaProvider {
@@ -187,6 +203,7 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     val nowPlayingReports = mutableListOf<String>()
     val playlistReplacements = mutableListOf<String>()
     val albumInfoRequests = mutableListOf<String>()
+    val alphabeticalOffsetRequests = mutableListOf<Pair<AlphabeticalLibraryKind, Char>>()
 
     override suspend fun validateConnection(): ConnectionValidation = error("Not used")
     override suspend fun recentlyAddedAlbums(limit: Int): List<Album> = error("Not used")
@@ -198,9 +215,15 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     override suspend fun artist(artistId: ArtistId): ArtistDetails = error("Not used")
     override suspend fun artists(limit: Int): List<Artist> = error("Not used")
     override suspend fun tracks(limit: Int): List<Track> = error("Not used")
+    override suspend fun alphabeticalLibraryOffset(kind: AlphabeticalLibraryKind, letter: Char): Int {
+        alphabeticalOffsetRequests += kind to letter
+        return 123
+    }
     override suspend fun search(query: String, limit: Int): MediaSearchResults = error("Not used")
     override suspend fun streamUrl(request: StreamRequest): String = error("Not used")
     override fun coverArtUrl(coverArtId: String): String = error("Not used")
+
+    override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) = reportNowPlaying(trackId)
 
     override suspend fun reportNowPlaying(trackId: TrackId) {
         if (failReports) error("offline")

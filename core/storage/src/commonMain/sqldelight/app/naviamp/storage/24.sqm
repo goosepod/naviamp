@@ -1,1 +1,31 @@
-ALTER TABLE media_source ADD COLUMN password TEXT;
+CREATE TABLE favorite_artist_activity (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_artist_id TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  favorited_at_iso8601 TEXT,
+  favorite_active INTEGER NOT NULL DEFAULT 0,
+  last_radio_played_at_iso8601 TEXT,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_artist_id)
+);
+
+CREATE TABLE library_track_artist_credit (
+  source_id TEXT NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  remote_artist_id TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, remote_artist_id),
+  FOREIGN KEY(source_id, remote_track_id)
+    REFERENCES library_track(source_id, remote_track_id) ON DELETE CASCADE
+);
+
+CREATE INDEX library_track_artist_credit_source_artist
+ON library_track_artist_credit(source_id, remote_artist_id);
+
+CREATE TABLE album_catalog_snapshot (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  catalog_key TEXT NOT NULL,
+  albums_json TEXT NOT NULL,
+  refreshed_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, catalog_key)
+);

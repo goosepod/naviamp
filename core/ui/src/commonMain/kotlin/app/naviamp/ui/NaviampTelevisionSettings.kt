@@ -618,6 +618,7 @@ private fun TelevisionHomeSectionRow(
     onCommit: () -> Unit,
     firstFocusRequester: FocusRequester?,
 ) {
+    val sectionTitle = section.titleResource?.let { org.jetbrains.compose.resources.stringResource(it) } ?: section.title
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -631,7 +632,7 @@ private fun TelevisionHomeSectionRow(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
             Text(
-                section.title,
+                sectionTitle,
                 color = colors.primaryText,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
@@ -647,7 +648,7 @@ private fun TelevisionHomeSectionRow(
         }
         TelevisionHomeSectionIconButton(
             icon = if (visible) NaviampIcons.VisibilityOn else NaviampIcons.VisibilityOff,
-            contentDescription = if (visible) "Hide ${section.title}" else "Show ${section.title}",
+            contentDescription = if (visible) "Hide ${sectionTitle}" else "Show ${sectionTitle}",
             selected = !visible,
             enabled = controlsEnabled && !moving,
             colors = colors,
@@ -656,7 +657,7 @@ private fun TelevisionHomeSectionRow(
         )
         TelevisionHomeSectionIconButton(
             icon = NaviampIcons.MoveVertical,
-            contentDescription = if (moving) "Set ${section.title} position" else "Move ${section.title}",
+            contentDescription = if (moving) "Set ${sectionTitle} position" else "Move ${sectionTitle}",
             selected = moving,
             enabled = controlsEnabled,
             colors = colors,

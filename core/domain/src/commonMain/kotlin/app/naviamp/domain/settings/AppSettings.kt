@@ -152,6 +152,7 @@ enum class ApplicationUpdateChannel {
 
 @Serializable
 data class InterfaceSettings(
+    val favoriteArtistSort: FavoriteArtistSort = FavoriteArtistSort.Name,
     val language: InterfaceLanguage = InterfaceLanguage.System,
     val checkForUpdates: Boolean = true,
     val applicationUpdateChannel: ApplicationUpdateChannel? = null,
@@ -161,6 +162,8 @@ data class InterfaceSettings(
     val showAlbumInformation: Boolean = true,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,
+    val auroraColorSteps: Int = 3,
+    val auroraAngleDegrees: Int = 45,
     val albumBlurRadiusDp: Int = DefaultAlbumBlurRadiusDp,
     val singleColorHex: String = DefaultSingleColorHex,
     val albumCollectionLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
@@ -173,6 +176,8 @@ data class InterfaceSettings(
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
     fun normalized(): InterfaceSettings = copy(
+        auroraColorSteps = auroraColorSteps.coerceIn(2, 5),
+        auroraAngleDegrees = auroraAngleDegrees.coerceIn(0, 180),
         albumBlurRadiusDp = albumBlurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp),
         singleColorHex = normalizedSingleColorHex(singleColorHex),
         nowPlaying = nowPlaying.normalized(),
@@ -245,7 +250,11 @@ fun InterfaceSettings.resolvedHomeSectionOrder(
 fun InterfaceSettings.withHomeSectionOrder(order: List<String>): InterfaceSettings =
     copy(homeSectionOrder = order).normalized()
 
+@Serializable
+enum class FavoriteArtistSort { Name, DateFavorited, LastRadioPlayed }
+
 object HomeSectionIds {
+    const val FavoriteArtists = "favorite-artists"
     const val MixesForYou = "mixes-for-you"
     const val NavibeatMixes = "navibeat-mixes"
     const val RecentRadio = "recent-radio"
@@ -266,6 +275,7 @@ object HomeSectionIds {
 }
 
 val DefaultHomeSectionOrder = listOf(
+    HomeSectionIds.FavoriteArtists,
     HomeSectionIds.MixesForYou,
     HomeSectionIds.NavibeatMixes,
     HomeSectionIds.RecentRadio,
@@ -295,7 +305,7 @@ enum class AppBackgroundStyle(val label: String) {
 @Serializable
 enum class AuroraTone(val label: String) {
     Light("Light"),
-    // Keep the serialized name "Dark" so existing installations retain the original Aurora look.
+    // Preserve the serialized name and original appearance of existing settings.
     Dark("Balanced"),
     DeepDark("Dark"),
 }
@@ -371,6 +381,7 @@ val PlaylistEditSwipeActions: List<TrackSwipeAction> = listOf(
 
 @Serializable
 data class NowPlayingDisplaySettings(
+    val wideLayout: WideNowPlayingLayout = WideNowPlayingLayout.Split,
     val showAlbumYear: Boolean = true,
     val albumYearPreference: NowPlayingAlbumYearPreference = NowPlayingAlbumYearPreference.Original,
     val showTrackCover: Boolean = false,
@@ -382,6 +393,9 @@ data class NowPlayingDisplaySettings(
 ) {
     fun normalized(): NowPlayingDisplaySettings = this
 }
+
+@Serializable
+enum class WideNowPlayingLayout { Split, Full }
 
 @Serializable
 enum class NowPlayingAlbumYearPreference {

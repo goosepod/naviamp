@@ -107,6 +107,11 @@ class NaviampCoreSettingsController(
             ?: return NaviampCoreImmediateCommandResult.Unhandled
         when (settings) {
             is NaviampCoreCommand.Settings.ChangeInterface -> changeInterface(settings)
+            is NaviampCoreCommand.Settings.ChangeFavoriteArtistSort -> changeInterface(
+                NaviampCoreCommand.Settings.ChangeInterface(
+                    stateStore.state.value.shell.general.interfaceSettings.copy(favoriteArtistSort = settings.sort),
+                ),
+            )
             is NaviampCoreCommand.Settings.ChangeHomeSectionPageLayout -> {
                 val current = stateStore.state.value.shell.general.interfaceSettings
                 val presentation = current.homeSectionPresentation(settings.sectionId)

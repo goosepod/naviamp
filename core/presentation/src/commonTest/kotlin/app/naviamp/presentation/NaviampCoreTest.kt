@@ -46,6 +46,7 @@ import app.naviamp.ui.NaviampArtistDetailActionRequest
 import app.naviamp.ui.NaviampArtistDetailCommand
 import app.naviamp.ui.NaviampMediaItemActionRequest
 import app.naviamp.ui.NaviampMediaItemCommand
+import app.naviamp.ui.NaviampLibraryView
 import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampArtistMediaCommand
@@ -99,7 +100,7 @@ class NaviampCoreTest {
     }
 
     @Test
-    fun failedNowPlayingReportEntersTheSharedPendingActionQueue() = runTest {
+    fun failedNowPlayingReportIsNotReplayedAsStalePresence() = runTest {
         val provider = FakeCoreMediaProvider(
             supportsPlayReporting = true,
             failNowPlayingReports = true,
@@ -137,7 +138,7 @@ class NaviampCoreTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf("source:${app.naviamp.domain.provider.PendingActionReportNowPlaying}:core-track"),
+            emptyList(),
             pending.enqueued,
         )
     }
@@ -191,6 +192,24 @@ class NaviampCoreTest {
         )
 
         assertTrue(core.state.value.shell.shellChrome.nowPlayingOpen)
+        assertEquals(provider.track.id.value, core.state.value.shell.nowPlaying?.id)
+    }
+
+    @Test
+    fun selectingLibrarySongStartsPlaybackFromTheLibraryCatalog() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val effects = FakeCorePlaybackEffects()
+        val core = NaviampCore.create(this, fakeCoreServices(provider, playbackEffects = effects))
+        core.execute(NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Songs))
+        val track = core.state.value.shell.library.songs.tracks.single()
+
+        core.execute(
+            NaviampCoreCommand.Library.TrackAction(
+                SharedTrackRowActionRequest(track, SharedTrackRowAction.Select),
+            ),
+        )
+
+        assertEquals(listOf(provider.track.id), effects.selections.single().tracks.map { it.id })
         assertEquals(provider.track.id.value, core.state.value.shell.nowPlaying?.id)
     }
 
@@ -551,7 +570,7 @@ class NaviampCoreTest {
         advanceUntilIdle()
 
         assertEquals(listOf(provider.playlist.name), core.state.value.shell.home.content.playlists.map { it.title })
-        assertEquals(listOf(provider.artist.name), core.state.value.shell.library.artists.map { it.title })
+        assertEquals(listOf(provider.artist.name), core.state.value.shell.library.artists.items.map { it.title })
         assertEquals(listOf(provider.playlist.name), core.state.value.shell.playlists.playlists.map { it.title })
         assertTrue(core.state.value.shell.playback.sonicSimilarityAvailable)
         assertTrue(core.state.value.shell.capabilities.sonicSimilarity)
@@ -607,6 +626,7 @@ class NaviampCoreTest {
             ),
             NaviampCoreCommand.Home.RecentTrackAction(row),
             NaviampCoreCommand.Media.TrackAction(row),
+            NaviampCoreCommand.Library.TrackAction(row),
             NaviampCoreCommand.Media.ItemAction(
                 NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.ToggleFavorite)),
             ),

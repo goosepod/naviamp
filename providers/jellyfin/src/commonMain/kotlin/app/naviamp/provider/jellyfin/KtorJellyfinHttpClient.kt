@@ -1,5 +1,7 @@
 package app.naviamp.provider.jellyfin
 
+import app.naviamp.domain.network.isHttpDownloadComplete
+import io.ktor.http.HttpHeaders
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsChannel
@@ -50,12 +52,18 @@ class KtorJellyfinHttpClient(
         if (response.status.value !in 200..299) return@execute false
         val channel = response.bodyAsChannel()
         val buffer = ByteArray(64 * 1024)
+        var receivedBytes = 0L
         while (!channel.isClosedForRead) {
             val count = channel.readAvailable(buffer, 0, buffer.size)
             if (count == -1) break
-            if (count > 0) writeChunk(buffer, count)
+            if (count > 0) {
+                writeChunk(buffer, count)
+                receivedBytes += count
+            }
         }
-        true
+        channel.closedCause?.let { throw it }
+        isHttpDownloadComplete(response.headers[HttpHeaders.ContentLength],
+            response.headers[HttpHeaders.ContentEncoding], receivedBytes)
     }
 
     private suspend fun request(

@@ -227,6 +227,7 @@ class NaviampCore private constructor(
                 providerSource,
                 libraryGenreRefresh = services.content.libraryGenreRefresh,
                 libraryIndex = services.content.libraryIndex,
+                albumIndex = services.content.albumIndex,
                 mediaRegistry = mediaRegistry,
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
@@ -241,6 +242,7 @@ class NaviampCore private constructor(
                 services.content.homeLibrary,
                 services.content.sonicHomeDiscovery,
                 mediaRegistry = mediaRegistry,
+                observedAtIso8601 = services.favoritedAtIso8601,
             )
             val settings = NaviampCoreSettingsController(
                 stateStore,
@@ -387,6 +389,17 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 navigation::openNowPlaying,
+                favoriteArtistActivity = services.content.homeLibrary,
+                onFavoriteArtistActivityChanged = { scope.launch { home.refreshAfterConnection() } },
+                onAlbumUpdated = { provider, album -> services.content.albumIndex?.updateAlbum(provider, album) },
+            )
+            val playlistMembership = NaviampCorePlaylistMembershipCoordinator(
+                providerSource = providerSource,
+                currentEditor = { stateStore.state.value.shell.playlistMembership },
+                publish = { editor -> stateStore.updateShell { it.copy(playlistMembership = editor) } },
+                onPlaylistChanged = downloads::playlistTracksChanged,
+                onContentsReconciled = playlistBrowse::reconcileContents,
+                onPlaylistCreated = playlistBrowse::publishCreated,
             )
             val nowPlaying = NaviampCoreNowPlayingMediaController(
                 stateStore,
@@ -406,6 +419,9 @@ class NaviampCore private constructor(
                 mediaTransactions,
                 services.favoritedAtIso8601,
                 mediaRegistry,
+                onPlaylistContentsReconciled = playlistBrowse::reconcileContents,
+                onPlaylistCreated = playlistBrowse::publishCreated,
+                membershipCoordinator = playlistMembership,
             )
             val connectCatalog = NaviampCoreConnectCatalogController(
                 providerSource = providerSource,
@@ -435,6 +451,10 @@ class NaviampCore private constructor(
                     override suspend fun playGenreMix(genres: List<app.naviamp.domain.Genre>) {
                         mediaTransactions.startGenreMix(genres)
                     }
+
+                    override suspend fun playGenreSongs(tracks: List<app.naviamp.domain.Track>, startIndex: Int) {
+                        mediaTransactions.play(tracks, startIndex)
+                    }
                 },
             )
             val sonicBuilders = NaviampCoreSonicBuilderController(
@@ -445,7 +465,7 @@ class NaviampCore private constructor(
                 queue = NaviampCoreSonicQueuePort { tracks, _ -> mediaTransactions.addToQueue(tracks) },
             )
             playback.attachNativePlayback()
-            val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions)
+            val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions, playlistMembership::open)
             val collectionActions = NaviampCoreCollectionActionController(
                 providerSource,
                 mediaRegistry,
@@ -470,10 +490,15 @@ class NaviampCore private constructor(
                 stateStore,
                 services.connection,
                 initialState.connectionInventory,
-                onSourceChanging = { previousSourceId, newSourceId ->
+                  onSourceChanging = { previousSourceId, newSourceId ->
                     playback.resetForSourceChange(previousSourceId, newSourceId)
+                    playlistMembership.reset()
+                    downloads.resetForSourceChange()
                     radio.resetForSourceChange()
                     home.resetForSourceChange()
+                    catalog.resetForSourceChange()
+                    playlistBrowse.resetForSourceChange()
+                    mediaDetails.resetForSourceChange()
                 },
                 onConnected = { sourceId ->
                     scope.launch { providerSessionLifecycle.refreshNow() }

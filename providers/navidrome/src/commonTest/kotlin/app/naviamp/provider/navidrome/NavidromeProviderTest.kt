@@ -11,6 +11,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.PlaybackReportState
@@ -68,9 +69,22 @@ class NavidromeProviderTest {
         assertFalse(provider.capabilities.supportsTrackRatings)
         assertFalse(provider.capabilities.supportsTrackRadio)
         assertEquals(
-            "https://bandcamp.com/api/subsonic/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=purchase-1",
+            "https://bandcamp.com/api/subsonic/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=purchase-1&format=raw",
             url,
         )
+    }
+
+    @Test
+    fun bandcampDownloadsUseItsSupportedRawStreamWithoutPlaybackOffset() = runTest {
+        val provider = NavidromeProvider(
+            connection("https://bandcamp.com/api/subsonic").copy(providerId = ProviderIdBandcamp),
+        )
+        val request = StreamRequest(TrackId("purchase-1"), StreamQuality.Original, startPositionSeconds = 20.0)
+        val url = provider.downloadUrl(request)
+        assertTrue(url.contains("/stream.view?"))
+        assertTrue(url.contains("format=raw"))
+        assertFalse(url.contains("timeOffset"))
+        assertEquals(url, provider.downloadUrl(request.copy(quality = StreamQuality.Transcoded(AudioCodec.Opus, 128))))
     }
 
     @Test
@@ -80,7 +94,7 @@ class NavidromeProviderTest {
         val url = provider.streamUrl(StreamRequest(TrackId("abc123"), StreamQuality.Original))
 
         assertEquals(
-            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=abc123",
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=abc123&format=raw",
             url,
         )
     }
@@ -103,7 +117,7 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun transcodedStreamUrlIncludesTimeOffset() = runTest {
+    fun transcodedStreamUrlOmitsUnadvertisedTimeOffset() = runTest {
         val provider = NavidromeProvider(connection("https://music.example.test"))
 
         val url = provider.streamUrl(
@@ -115,7 +129,7 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=abc123&format=opus&maxBitRate=128&timeOffset=95",
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=abc123&format=opus&maxBitRate=128",
             url,
         )
     }
@@ -322,6 +336,7 @@ class NavidromeProviderTest {
             listOf(
                 "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
                 "https://music.example.test/rest/getOpenSubsonicExtensions.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
+                "https://music.example.test/rest/getUser.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&username=demo",
             ),
             httpClient.urls,
         )
@@ -644,27 +659,20 @@ class NavidromeProviderTest {
         assertEquals("The third studio album by New Order.", info?.notes)
         assertEquals("release-group-1", info?.musicBrainzId)
         assertEquals("https://images.test/large.jpg", info?.largeImageUrl)
-        assertTrue(http.urls.last().contains("/rest/getAlbumInfo.view"))
+        assertTrue(http.urls.last().contains("/rest/getAlbumInfo2.view"))
         assertTrue(http.urls.last().contains("id=album-1"))
     }
 
     @Test
-    fun albumInformationFallsBackToId3Endpoint() = runTest {
-        val http = SequencedHttpClient(
-            listOf(
-                """{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Not supported"}}}""",
-                """{"subsonic-response":{"status":"ok","albumInfo":{"notes":"Fallback album notes."}}}""",
-            ),
-        )
+    fun albumInformationDoesNotReuseId3IdsInDirectoryEndpoint() = runTest {
+        val http = SequencedHttpClient(listOf(
+            """{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Not supported"}}}"""
+        ))
         val provider = NavidromeProvider(connection("https://music.example.test"), http)
-
-        val info = provider.albumInfo(AlbumId("album-1"))
-
-        assertEquals("Fallback album notes.", info?.notes)
-        assertTrue(http.urls.first().contains("/rest/getAlbumInfo.view"))
-        assertTrue(http.urls.last().contains("/rest/getAlbumInfo2.view"))
+        assertFailsWith<NavidromeException> { provider.albumInfo(AlbumId("album-1")) }
+        assertEquals(1, http.urls.size)
+        assertTrue(http.urls.single().contains("/rest/getAlbumInfo2.view"))
     }
-
     @Test
     fun unavailableEmptyAndMalformedAlbumInformationDoNotFailAlbumLoading() = runTest {
         val albumResponse =
@@ -771,6 +779,39 @@ class NavidromeProviderTest {
         assertEquals("Garage Days Re-Revisited", details.albums.last().title)
         assertEquals("Thrash metal band.", details.info?.biography)
         assertEquals("https://images.example.test/large.jpg", details.info?.largeImageUrl)
+    }
+
+    @Test
+    fun artistParticipationsDoNotBecomePrimaryReleasesWhenAlbumArtistIdsDisagree() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = SequencedHttpClient(listOf(
+                """{"subsonic-response":{"status":"ok","artist":{
+                    "id":"selected","name":"Selected artist","album":[
+                        {"id":"own","name":"Own album","artist":"Alias","artistId":"selected"},
+                        {"id":"guest","name":"Guest appearance","artist":"Other","artistId":"other"},
+                        {"id":"collaboration","name":"Joint album","artist":"Other","artistId":"other",
+                         "artists":[{"id":"other","name":"Other"},{"id":"selected","name":"Alias"}]},
+                        {"id":"same-name","name":"Names are not identities","artist":"Selected artist","artistId":"different"},
+                        {"id":"legacy","name":"Legacy album","artist":"Different display name"},
+                        {"id":"partial","name":"Incomplete credit IDs","artist":"Other / Alias",
+                         "artists":[{"id":"other","name":"Other"},{"name":"Alias"}]}
+                    ]
+                }}}""",
+                """{"subsonic-response":{"status":"ok","artistInfo2":{}}}""",
+            )),
+        )
+
+        val discography = provider.artistDiscography(ArtistId("selected"))
+
+        assertEquals(listOf("own", "collaboration", "legacy", "partial"),
+            discography.primary.albums.map { it.id.value })
+        assertEquals(listOf("other", "selected"),
+            discography.primary.albums[1].artistCredits.mapNotNull { it.id?.value })
+        assertEquals("Other", discography.primary.albums[1].artistName,
+            "The scalar display artist may omit a valid secondary album artist supplied in structured credits.")
+        assertFalse(provider.capabilities.supportsArtistDiscography,
+            "Credited appearances still come from the source-scoped shared index.")
     }
 
     @Test
@@ -1110,6 +1151,130 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun nativeAlbumPageIsGloballySortedAcrossSelectedLibraries() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """
+                {
+                  "data": [
+                    {"id":"album-1","name":"(First Album)","albumArtist":"One"},
+                    {"id":"album-2","name":"#Second Album","albumArtist":"Two"}
+                  ],
+                  "total": 401
+                }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("rock", "archive"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val page = provider.albumsPage(MediaPageRequest(offset = 50, limit = 25))
+
+        assertEquals(
+            "https://music.example.test/api/album?_start=50&_end=75&_order=ASC&_sort=name&library_id=rock&library_id=archive",
+            httpClient.getUrls.single(),
+        )
+        assertEquals(listOf("(First Album)", "#Second Album"), page.items.map { it.title })
+        assertEquals(listOf("One", "Two"), page.items.map { it.artistName })
+        assertEquals(401, page.totalItemCount)
+        assertTrue(page.alphabeticallySortedByTitle)
+        assertTrue(page.hasMore)
+    }
+
+    @Test
+    fun nativeSongPageMatchesNavidromesGlobalTitleOrdering() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """
+                [
+                  {"id":"track-1","title":"\"C\" Section","album":"MiClub: The Curriculum","artist":"Canibus"},
+                  {"id":"track-2","title":"#34","album":"Under the Table and Dreaming","artist":"Dave Matthews Band"}
+                ]
+            """.trimIndent(),
+            responseHeaders = mapOf("X-Total-Count" to "23380"),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("1", "2"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val page = provider.tracksPage(MediaPageRequest(limit = 15))
+
+        assertEquals(
+            "https://music.example.test/api/song?_start=0&_end=15&_order=ASC&_sort=title&library_id=1&library_id=2",
+            httpClient.getUrls.single(),
+        )
+        assertEquals(listOf("\"C\" Section", "#34"), page.items.map { it.title })
+        assertEquals(23_380, page.totalItemCount)
+        assertTrue(page.alphabeticallySortedByTitle)
+        assertTrue(page.hasMore)
+    }
+
+    @Test
+    fun nativeCatalogMappingPreservesArtworkAndNativeMetadata() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """
+                [
+                  {"id":"one","name":"Album","title":"Song","albumId":"album",
+                   "duration":200.75,"sampleRate":44100,"libraryId":2,"rating":4,
+                   "starred":true,"starredAt":"2026-09-04T12:00:00Z",
+                   "playDate":"2026-09-03T12:00:00Z","createdAt":"2026-09-01T12:00:00Z"},
+                  {"id":"two","name":"Other","title":"Other","duration":114,
+                   "coverArt":"explicit-cover","starred":false,"starredAt":"2020-01-01T00:00:00Z"}
+                ]
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+        val tracks = provider.tracksPage(MediaPageRequest(limit = 15)).items
+        assertEquals(listOf("mf-one", "explicit-cover"), tracks.map { it.coverArtId })
+        assertEquals(listOf(200, 114), tracks.map { it.durationSeconds })
+        assertEquals(44100, tracks.first().audioInfo?.samplingRateHz)
+        assertEquals("2", tracks.first().musicFolderId)
+        assertEquals(4, tracks.first().userRating)
+        assertEquals("2026-09-04T12:00:00Z", tracks.first().favoritedAtIso8601)
+        assertEquals("2026-09-03T12:00:00Z", tracks.first().lastPlayedAtIso8601)
+        assertNull(tracks.last().favoritedAtIso8601)
+        val albums = provider.albumsPage(MediaPageRequest(limit = 15)).items
+        assertEquals(listOf("al-one", "explicit-cover"), albums.map { it.coverArtId })
+        assertEquals("2026-09-01T12:00:00Z", albums.first().recentlyAddedAtIso8601)
+        assertEquals("2026-09-04T12:00:00Z", albums.first().favoritedAtIso8601)
+        assertNull(albums.last().favoritedAtIso8601)
+    }
+
+    @Test
+    fun alphabeticalOffsetBinarySearchUsesTheNativeGlobalCatalog() = runTest {
+        val httpClient = OffsetNativeHttpClient(total = 8, titles = listOf("#One", "A", "C", "F", "M", "M Two", "Y", "Z"))
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        val offset = provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Tracks, 'M')
+
+        assertEquals(4, offset)
+        assertTrue(httpClient.getUrls.all { "_sort=title" in it })
+    }
+
+    @Test
+    fun albumOffsetKeepsSymbolsBeforeLowercaseAlphabeticalSortKeys() = runTest {
+        val httpClient = OffsetNativeHttpClient(total = 5,
+            titles = listOf("25", "[non-album tracks]", "a", "g", "z"), album = true)
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+        assertEquals(2, provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Albums, 'A'))
+        assertEquals(3, provider.alphabeticalLibraryOffset(AlphabeticalLibraryKind.Albums, 'G'))
+        assertTrue(httpClient.getUrls.all { "_sort=name" in it })
+    }
+
+    @Test
     fun artistPageUsesTheIndexedCatalogWithStableAlphabeticalPaging() = runTest {
         val httpClient = RecordingResponseHttpClient(
             indexedArtistsResponse(
@@ -1185,7 +1350,7 @@ class NavidromeProviderTest {
             ),
             httpClient.urls,
         )
-        assertEquals(listOf("Technique", "Movement"), albums.map { it.title })
+        assertEquals(setOf("Technique", "Movement"), albums.map { it.title }.toSet())
     }
 
     @Test
@@ -1205,7 +1370,9 @@ class NavidromeProviderTest {
                           "songCount": 34,
                           "duration": 25440,
                           "coverArt": "playlist-cover",
-                          "comment": "Generated playlist metadata"
+                          "comment": "Generated playlist metadata",
+                          "rules": null,
+                          "validUntil": null
                         }
                       ]
                     }
@@ -1217,6 +1384,7 @@ class NavidromeProviderTest {
 
         val playlists = provider.playlists()
 
+        assertFalse(playlists.single().isSmart)
         assertEquals("playlist-1", playlists.single().id)
         assertEquals("April 2026 Playlist", playlists.single().name)
         assertEquals(34, playlists.single().trackCount)
@@ -1255,34 +1423,15 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun playlistsScopesRequestsToSelectedMusicFolders() = runTest {
-        val httpClient = SequencedHttpClient(
-            listOf(
-                playlistsResponse("playlist-1", "Classical"),
-                playlistsResponse("playlist-2", "Piano"),
-            ),
-        )
-        val provider = NavidromeProvider(
-            connection = connection("https://music.example.test").copy(
-                selectedMusicFolderIds = listOf("2", "4"),
-            ),
-            httpClient = httpClient,
-        )
-
-        val playlists = provider.playlists(limit = 20)
-
-        assertEquals(
-            listOf(
-                "https://music.example.test/rest/getPlaylists.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&musicFolderId=2",
-                "https://music.example.test/rest/getPlaylists.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&musicFolderId=4",
-            ),
-            httpClient.urls,
-        )
-        assertEquals(listOf("Classical", "Piano"), playlists.map { it.name })
+    fun playlistsAreFetchedOnceAcrossSelectedMusicFolders() = runTest {
+        val http = SequencedHttpClient(listOf(playlistsResponse("playlist-1", "Classical")))
+        val provider = NavidromeProvider(connection("https://music.example.test").copy(selectedMusicFolderIds = listOf("2", "4")), http)
+        assertEquals(listOf("Classical"), provider.playlists(20).map { it.name })
+        assertEquals(1, http.urls.size)
+        assertFalse(http.urls.single().contains("musicFolderId"))
     }
-
     @Test
-    fun playlistTracksScopesRequestAndDropsKnownOutOfScopeEntries() = runTest {
+    fun playlistTracksPreservesAuthoritativeEntriesAcrossFolderSelection() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """
             {
@@ -1323,10 +1472,10 @@ class NavidromeProviderTest {
         val tracks = provider.playlistTracks("playlist-1")
 
         assertEquals(
-            "https://music.example.test/rest/getPlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=playlist-1&musicFolderId=2",
+            "https://music.example.test/rest/getPlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=playlist-1",
             httpClient.urls.single(),
         )
-        assertEquals(listOf("In Scope", "Unknown Scope"), tracks.map { it.title })
+        assertEquals(listOf("In Scope", "Out Of Scope", "Unknown Scope"), tracks.map { it.title })
     }
 
     @Test
@@ -1829,7 +1978,22 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun replacePlaylistTracksRemovesExistingEntriesAndAddsDraftOrder() = runTest {
+    fun membershipRemovalUsesOnlyMatchingIndicesAndNeverReaddsUnrelatedTracks() = runTest {
+        val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"ok","playlist":{"entry":[
+            {"id":"keep","title":"Keep"},{"id":"remove","title":"Remove"},{"id":"remove","title":"Remove"}
+        ]}}}""")
+        val provider = NavidromeProvider(connection("https://music.example.test").copy(selectedMusicFolderIds = listOf("selected")), http)
+        provider.removeTrackFromPlaylist("playlist", TrackId("remove"))
+        assertFalse("musicFolderId" in http.urls.first())
+        val mutation = http.urls.last()
+        assertTrue("songIndexToRemove=1" in mutation && "songIndexToRemove=2" in mutation)
+        assertFalse("songIndexToRemove=0" in mutation)
+        assertFalse("songIdToAdd" in mutation)
+        assertEquals(2, http.urls.size)
+    }
+
+    @Test
+    fun replacePlaylistTracksUsesDedicatedReplacement() = runTest {
         val httpClient = RecordingHttpClient()
         val provider = NavidromeProvider(connection("https://music.example.test"), httpClient)
 
@@ -1840,7 +2004,7 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&songIndexToRemove=0&songIndexToRemove=1&songIndexToRemove=2&songIdToAdd=track-3&songIdToAdd=track-1",
+            "https://music.example.test/rest/createPlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&songId=track-3&songId=track-1",
             httpClient.urls.single(),
         )
     }
@@ -2403,6 +2567,7 @@ class NavidromeProviderTest {
             listOf(
                 "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
                 "https://music.example.test/rest/getOpenSubsonicExtensions.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
+                "https://music.example.test/rest/getUser.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&username=demo",
                 "https://music.example.test/rest/getLyricsBySongId.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-lyrics&enhanced=true",
             ),
             httpClient.urls,
@@ -2417,7 +2582,7 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun reportNowPlayingDoesNothingWhenPlaybackReportExtensionIsMissing() = runTest {
+    fun reportNowPlayingUsesScrobbleWhenPlaybackReportExtensionIsMissing() = runTest {
         val httpClient = RecordingHttpClient()
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
@@ -2426,7 +2591,8 @@ class NavidromeProviderTest {
 
         provider.reportNowPlaying(TrackId("track-1"))
 
-        assertEquals(emptyList(), httpClient.urls)
+        assertTrue(httpClient.urls.single().contains("/scrobble.view?"))
+        assertTrue(httpClient.urls.single().endsWith("&submission=false"))
     }
 
     @Test
@@ -2499,7 +2665,7 @@ class NavidromeProviderTest {
             positionSeconds = 45.25,
         )
 
-        assertEquals(2, httpClient.urls.size)
+        assertEquals(3, httpClient.urls.size)
     }
 
     private fun smartPlaylistDefinition(): SmartPlaylistDefinition =
@@ -2618,6 +2784,7 @@ class NavidromeProviderTest {
 
         override suspend fun get(url: String): String {
             urls += url
+            if ("/getUser.view" in url) return okResponse()
             return responses[index++]
         }
     }
@@ -2686,6 +2853,26 @@ class NavidromeProviderTest {
             body: String,
             headers: Map<String, String>,
         ): NavidromeHttpResponse = NavidromeHttpResponse(putJson(url, body, headers), responseHeaders)
+    }
+
+    private class OffsetNativeHttpClient(
+        private val total: Int,
+        private val titles: List<String>,
+        private val album: Boolean = false,
+    ) : NavidromeHttpClient {
+        val getUrls = mutableListOf<String>()
+
+        override suspend fun get(url: String): String = error("Headers are required")
+
+        override suspend fun getResponse(url: String, headers: Map<String, String>): NavidromeHttpResponse {
+            getUrls += url
+            val offset = url.substringAfter("_start=").substringBefore('&').toInt()
+            return NavidromeHttpResponse(
+                body = if (album) """[{"id":"album-$offset","name":"${titles[offset]}","orderAlbumName":"${titles[offset]}"}]"""
+                    else """[{"id":"track-$offset","title":"${titles[offset]}"}]""",
+                headers = mapOf("X-Total-Count" to total.toString()),
+            )
+        }
     }
 
     private class FailingNativeHttpClient : NavidromeHttpClient {

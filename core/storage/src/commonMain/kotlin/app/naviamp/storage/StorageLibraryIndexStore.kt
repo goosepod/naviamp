@@ -1,5 +1,8 @@
 package app.naviamp.storage
 
+import app.naviamp.domain.library.AlbumCatalogSnapshot
+import app.naviamp.domain.library.AlbumCatalogScope
+import app.naviamp.domain.library.AlbumCatalogRepository
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -7,10 +10,12 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.resolvedArtistCredits
 import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.media.ArtistDiscographyAppearances
 import app.naviamp.domain.library.GenreOntologyGenre
 import app.naviamp.domain.library.GenreOntologyParentRelation
 import app.naviamp.domain.library.LibraryGenreInventoryItem
@@ -27,6 +32,24 @@ class StorageLibraryIndexStore(
     private val mediaSources: StorageMediaSourceStore,
     private val nowMillis: () -> Long,
 ) : LocalLibraryIndexRepository {
+    override val albumCatalog = object : AlbumCatalogRepository {
+        private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+        override fun readAlbumCatalog(scope: AlbumCatalogScope): AlbumCatalogSnapshot? {
+            val row = queries.selectAlbumCatalogSnapshot(scope.sourceId, scope.catalogKey).executeAsOneOrNull() ?: return null
+            return runCatching {
+                AlbumCatalogSnapshot(
+                    json.decodeFromString<List<Album>>(row.albums_json), row.refreshed_at_epoch_millis,
+                )
+            }.getOrNull()
+        }
+
+        override fun replaceAlbumCatalog(scope: AlbumCatalogScope, snapshot: AlbumCatalogSnapshot) {
+            val payload = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(Album.serializer()), snapshot.albums)
+            queries.replaceAlbumCatalogSnapshot(scope.sourceId, scope.catalogKey, payload, snapshot.refreshedAtEpochMillis)
+        }
+    }
+
     override fun mediaSource(sourceId: String) =
         mediaSources.mediaSource(sourceId)
 
@@ -89,6 +112,7 @@ class StorageLibraryIndexStore(
         val now = nowMillis()
         queries.transaction {
             tracks.forEach { track ->
+                queries.clearLibraryTrackArtistCredits(sourceId, track.id.value)
                 queries.upsertLibraryTrack(
                     source_id = sourceId,
                     remote_track_id = track.id.value,
@@ -117,8 +141,49 @@ class StorageLibraryIndexStore(
                     last_played_at_iso8601 = track.lastPlayedAtIso8601,
                     updated_at_epoch_millis = now,
                 )
+                track.resolvedArtistCredits()
+                    .mapNotNull { credit -> credit.id?.let { id -> id to credit.name } }
+                    .distinctBy { (id, _) -> id }
+                    .forEach { (artistId, artistName) ->
+                        queries.upsertLibraryTrackArtistCredit(
+                            source_id = sourceId,
+                            remote_track_id = track.id.value,
+                            remote_artist_id = artistId.value,
+                            artist_name = artistName,
+                        )
+                    }
             }
         }
+    }
+
+    override fun artistDiscographyAppearances(
+        sourceId: String,
+        artistId: ArtistId,
+        primaryAlbumIds: Set<AlbumId>,
+        limit: Long,
+    ): ArtistDiscographyAppearances {
+        val tracks = queries.selectLibraryTracksCreditedToArtist(sourceId, artistId.value, primaryAlbumIds.map { it.value }, limit + 1)
+            .executeAsList()
+            .map { it.toTrack() }
+            .filter { track -> track.albumId == null || track.albumId !in primaryAlbumIds }
+            .distinctBy(Track::id)
+        val albums = tracks.mapNotNull(Track::albumId)
+            .filterNot(primaryAlbumIds::contains)
+            .distinct()
+            .mapNotNull { albumId ->
+                queries.selectLibraryAlbumById(sourceId, albumId.value).executeAsOneOrNull()?.let { row ->
+                    Album(
+                        id = AlbumId(row.remote_album_id),
+                        title = row.title,
+                        artistName = row.artist_name,
+                        coverArtId = row.cover_art_id,
+                        recentlyAddedAtIso8601 = null,
+                        releaseYear = row.release_year?.toInt(),
+                        originalReleaseYear = row.original_release_year?.toInt(),
+                    )
+                }
+            }
+        return ArtistDiscographyAppearances(albums = albums, tracks = tracks.take(limit.toInt()), truncated = tracks.size > limit)
     }
 
     override fun replaceLibraryGenreInventory(sourceId: String, genres: List<app.naviamp.domain.Genre>) {
@@ -233,6 +298,124 @@ class StorageLibraryIndexStore(
     override fun recentlyPlayedLibraryTracks(sourceId: String, limit: Long): List<Track> =
         queries.selectRecentlyPlayedLibraryTracks(sourceId, limit).executeAsList().map { it.toTrack() }
 
+    override fun reconcileFavoriteArtists(
+        sourceId: String,
+        artists: List<Artist>,
+        observedAtIso8601: String,
+        complete: Boolean,
+    ): List<Artist> {
+        val existing = queries.selectFavoriteArtistActivities(sourceId).executeAsList()
+            .associateBy { it.remote_artist_id }
+        val now = nowMillis()
+        queries.transaction {
+            if (complete) queries.deactivateFavoriteArtistActivities(now, sourceId)
+            artists.forEach { artist ->
+                val previous = existing[artist.id.value]
+                val favoritedAt = artist.favoritedAtIso8601
+                    ?.takeUnless { it == "favorite" }
+                    ?: previous?.favorited_at_iso8601
+                    ?: observedAtIso8601
+                queries.upsertFavoriteArtistActivity(
+                    source_id = sourceId,
+                    remote_artist_id = artist.id.value,
+                    artist_name = artist.name,
+                    favorited_at_iso8601 = favoritedAt,
+                    favorite_active = 1,
+                    last_radio_played_at_iso8601 = previous?.last_radio_played_at_iso8601,
+                    updated_at_epoch_millis = now,
+                )
+            }
+        }
+        return artists.map { artist ->
+            val stored = existing[artist.id.value]
+            artist.copy(
+                favoritedAtIso8601 = artist.favoritedAtIso8601
+                    ?.takeUnless { it == "favorite" }
+                    ?: stored?.favorited_at_iso8601
+                    ?: observedAtIso8601,
+            )
+        }
+    }
+
+    override fun locallyKnownFavoriteArtists(sourceId: String, limit: Long): List<Artist> =
+        queries.selectActiveFavoriteArtistActivities(sourceId, limit)
+            .executeAsList()
+            .map { row ->
+                Artist(
+                    id = ArtistId(row.remote_artist_id),
+                    name = row.artist_name,
+                    favoritedAtIso8601 = row.favorited_at_iso8601,
+                )
+            }
+
+    override fun favoriteArtistRadioLastPlayed(sourceId: String): Map<ArtistId, String> =
+        queries.selectFavoriteArtistActivities(sourceId)
+            .executeAsList()
+            .mapNotNull { row ->
+                row.last_radio_played_at_iso8601?.let { ArtistId(row.remote_artist_id) to it }
+            }
+            .toMap()
+
+    override fun setArtistFavoriteActivity(
+        sourceId: String,
+        artist: Artist,
+        favorite: Boolean,
+        changedAtIso8601: String,
+    ) {
+        val previous = queries.selectFavoriteArtistActivity(sourceId, artist.id.value).executeAsOneOrNull()
+        queries.upsertFavoriteArtistActivity(
+            source_id = sourceId,
+            remote_artist_id = artist.id.value,
+            artist_name = artist.name,
+            favorited_at_iso8601 = if (favorite) {
+                artist.favoritedAtIso8601?.takeUnless { it == "favorite" }
+                    ?: previous?.favorited_at_iso8601
+                    ?: changedAtIso8601
+            } else {
+                null
+            },
+            favorite_active = if (favorite) 1 else 0,
+            last_radio_played_at_iso8601 = previous?.last_radio_played_at_iso8601,
+            updated_at_epoch_millis = nowMillis(),
+        )
+    }
+
+    override fun recordArtistRadioPlayed(
+        sourceId: String,
+        artist: Artist,
+        playedAtIso8601: String,
+    ) {
+        val previous = queries.selectFavoriteArtistActivity(sourceId, artist.id.value).executeAsOneOrNull()
+        queries.upsertFavoriteArtistActivity(
+            source_id = sourceId,
+            remote_artist_id = artist.id.value,
+            artist_name = artist.name,
+            favorited_at_iso8601 = previous?.favorited_at_iso8601,
+            favorite_active = previous?.favorite_active ?: 0,
+            last_radio_played_at_iso8601 = playedAtIso8601,
+            updated_at_epoch_millis = nowMillis(),
+        )
+    }
+
+    override fun recordTrackArtistRadioPlayedIfFavorite(
+        sourceId: String,
+        artistId: ArtistId,
+        artistName: String,
+        playedAtIso8601: String,
+    ): Boolean {
+        val activity = queries.selectFavoriteArtistActivity(sourceId, artistId.value).executeAsOneOrNull()
+            ?.takeIf { it.favorite_active == 1L }
+            ?: return false
+        queries.setFavoriteArtistRadioPlayed(
+            artist_name = artistName.ifBlank { activity.artist_name },
+            last_radio_played_at_iso8601 = playedAtIso8601,
+            updated_at_epoch_millis = nowMillis(),
+            source_id = sourceId,
+            remote_artist_id = artistId.value,
+        )
+        return true
+    }
+
     override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? =
         queries.selectRandomLibraryTrackForAlbum(sourceId, albumId.value).executeAsOneOrNull()?.toTrack()
 
@@ -330,6 +513,7 @@ class StorageLibraryIndexStore(
                 queries.clearLibraryGenreInventoryMetadata()
                 queries.clearArtistPopularTracks()
                 queries.clearLibraryTracks()
+                queries.clearAlbumCatalogSnapshots()
                 queries.clearLibraryAlbums()
                 queries.clearLibraryArtists()
             } else {
@@ -337,6 +521,7 @@ class StorageLibraryIndexStore(
                 queries.clearLibraryGenreInventoryMetadataForSource(sourceId)
                 queries.clearArtistPopularTracksForSource(sourceId)
                 queries.clearLibraryForSource(sourceId)
+                queries.clearAlbumCatalogSnapshotsForSource(sourceId)
                 queries.clearLibraryAlbumsForSource(sourceId)
                 queries.clearLibraryArtistsForSource(sourceId)
             }
