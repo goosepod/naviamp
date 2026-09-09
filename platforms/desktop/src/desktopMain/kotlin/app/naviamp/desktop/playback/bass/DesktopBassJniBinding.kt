@@ -1,6 +1,8 @@
 package app.naviamp.desktop.playback.bass
 
 import app.naviamp.domain.bass.BassCodecPluginInventory
+import app.naviamp.domain.playback.planEqualizer
+import app.naviamp.domain.playback.toNativeEqualizerParameters
 import java.io.File
 
 class DesktopBassJniBinding private constructor(
@@ -97,7 +99,11 @@ class DesktopBassJniBinding private constructor(
 
     fun slideVolume(stream: Int, volume: Float, millis: Int): Boolean = nativeSlideVolume(stream, volume, millis)
 
-    fun applyEqualizer(stream: Int, bandsDb: FloatArray): Boolean = nativeApplyEqualizer(stream, bandsDb)
+    fun applyEqualizer(stream: Int, bandsDb: FloatArray): Boolean {
+        val frequency = nativeChannelInfoFrequency(stream)
+        if (frequency <= 0) return false
+        return nativeApplyEqualizer(stream, planEqualizer(bandsDb.toList(), frequency).toNativeEqualizerParameters())
+    }
 
     fun seek(stream: Int, seconds: Double): Boolean = nativeSeek(stream, seconds)
 
@@ -201,6 +207,8 @@ class DesktopBassJniBinding private constructor(
                 if (platform.id.startsWith("windows-")) {
                     System.load(File(directory, platform.libraryName("bass")).absolutePath)
                     System.load(File(directory, platform.libraryName("bassmix")).absolutePath)
+                    // Windows DX8 PARAMEQ cannot represent the shared low-frequency bands.
+                    System.load(File(directory, platform.libraryName("bass_fx")).absolutePath)
                 }
                 System.load(File(directory, platform.libraryName(libraryName)).absolutePath)
                 DesktopBassJniBinding(directory, platform)

@@ -10,6 +10,7 @@ import java.nio.ByteOrder
 import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -66,6 +67,47 @@ class AndroidNativeBoundaryInstrumentedTest {
     }
 
     @Test
+    fun packagedEqualizerProcessesSharedBandsAndClearsReplacedEffects() {
+        val bass = AndroidBassJni.load().getOrThrow()
+        assertTrue(bass.init(), "BASS initialization failed: error=${bass.lastErrorCode}")
+        try {
+            for ((index, frequency) in listOf(0 to 31.0, 1 to 62.0, 9 to 16_000.0)) {
+                val baseline = decodedToneRms(frequency, emptyList())
+                val gains = FloatArray(10).also { it[index] = 6f }
+                val boosted = decodedToneRms(frequency, listOf(gains))
+                assertTrue(boosted / baseline in 1.8..2.2, "$frequency Hz should gain 6 dB: ${boosted / baseline}")
+                val replaced = decodedToneRms(frequency, listOf(gains, gains))
+                assertTrue(replaced / baseline in 1.8..2.2, "$frequency Hz must not accumulate old effects")
+                val cleared = decodedToneRms(frequency, listOf(gains, FloatArray(10)))
+                assertEquals(baseline, cleared, 0.00001, "$frequency Hz should return to flat")
+            }
+        } finally {
+            bass.free()
+        }
+    }
+
+    private fun decodedToneRms(frequency: Double, changes: List<FloatArray>): Double {
+        val bass = AndroidBassJni
+        val wav = File.createTempFile("naviamp-eq-", ".wav")
+        try {
+            wav.writeBytes(testWav(frequencyHz = frequency))
+            val stream = bass.createFileDecodeStream(wav.absolutePath)
+            assertTrue(stream != 0, "BASS failed to open tone: error=${bass.lastErrorCode}")
+            try {
+                changes.forEach { assertTrue(bass.applyEqualizer(stream, it), "EQ failed: error=${bass.lastErrorCode}") }
+                val samples = FloatArray(SampleRate * Channels)
+                assertEquals(samples.size, bass.readFloatData(stream, samples))
+                // Measure settled output after the initial filter transient.
+                return sqrt(samples.drop(samples.size / 2).sumOf { it.toDouble() * it } / (samples.size / 2))
+            } finally {
+                assertTrue(bass.freeStream(stream))
+            }
+        } finally {
+            wav.delete()
+        }
+    }
+
+    @Test
     fun packagedBassMixerAppliesCoreFivePointOneStereoMatrix() {
         val bass = AndroidBassJni.load().getOrThrow()
         assertTrue(bass.init(), "BASS initialization failed: error=${bass.lastErrorCode}")
@@ -95,7 +137,7 @@ class AndroidNativeBoundaryInstrumentedTest {
 private const val SampleRate = 44_100
 private const val Channels = 2
 
-private fun testWav(channels: Int = Channels): ByteArray {
+private fun testWav(channels: Int = Channels, frequencyHz: Double = 440.0): ByteArray {
     val frames = SampleRate
     val dataBytes = frames * channels * 2
     return ByteBuffer.allocate(44 + dataBytes).order(ByteOrder.LITTLE_ENDIAN).apply {
@@ -112,7 +154,7 @@ private fun testWav(channels: Int = Channels): ByteArray {
         put("data".encodeToByteArray())
         putInt(dataBytes)
         repeat(frames) { frame ->
-            val sample = (sin(2.0 * PI * 440.0 * frame / SampleRate) * Short.MAX_VALUE * 0.25).toInt().toShort()
+            val sample = (sin(2.0 * PI * frequencyHz * frame / SampleRate) * Short.MAX_VALUE * 0.25).toInt().toShort()
             repeat(channels) { putShort(sample) }
         }
     }.array()
