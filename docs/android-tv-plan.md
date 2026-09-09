@@ -1375,9 +1375,8 @@ Connect availability has additional topology and fresh-device requirements in
   flag rather than comparing a translated label. Track context labels use resource identifiers.
 - Localized the shared connection form and radio editor used by TV, plus shared Home headings.
   Genre/decade heading values travel as explicit UI data rather than being parsed from English.
-  TV text follows the device locale. The pre-existing shared language preference is not wired to
-  the resource locale; applying that preference across hosts remains separate work. No new TV
-  language picker, setting, or migration was added.
+  The initial localization pass followed the device locale. The follow-up below wires the existing
+  shared language preference across hosts and adds the TV picker without a new setting or migration.
 - Connect status messages carry resource identities and indexed device-name arguments from shared
   presentation into shared UI. Provider-supplied names and diagnostic details retain their original
   text. English/Spanish resource parity and rendered Spanish remote-navigation checks are automated.
@@ -1387,3 +1386,29 @@ Connect availability has additional topology and fresh-device requirements in
   architecture guard pass. Reviewed the Spanish 720p settings-panel capture and exercised remote
   activation, translated plurals, connection fields, and formatted Connect status text. All
   production changes are shared Core code/resources; no platform production files changed.
+
+- The existing shared language preference now applies at `NaviampCoreApp` for both standard and
+  TV layouts. TV Display settings offers System Default, English, and Spanish through the same
+  shared settings action. Selection updates resources in place without re-keying the application.
+  Settings choice rows use stable page/option identities rather than translated labels, preserving
+  remote focus during language changes. Settings titles support two lines for translated copy.
+- Locale selection, duplicate-update suppression, and restoration lifetime are owned in common
+  Core. The native resource adapters are limited to these boundaries:
+  - `core/ui/src/androidMain/kotlin/app/naviamp/ui/AndroidNaviampLocaleEffect.kt` reads/restores Android
+    `LocaleList` and applies the selected native locale list used by Compose.
+  - `core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopNaviampLocaleEffect.kt` reads/restores the JVM
+    `java.util.Locale` default used by Compose Desktop.
+  - `core/ui/src/iosMain/kotlin/app/naviamp/ui/IosNaviampLocaleEffect.kt` applies/restores a volatile
+    Foundation `AppleLanguages` override consumed by `NSLocale.preferredLanguages`; it never writes
+    a persistent native language preference.
+- No setting schema or migration changed. Tests cover each language through shared export/import
+  and store recreation, older exports defaulting to System, and invalid enum values being rejected
+  by the existing import decoder. Native iOS tests verify both language changes and restoration of
+  the original preferred-language list and volatile domain.
+- TV settings now handles Back/Escape in shared code through the existing page-back action.
+  The remote regression checks Spanish and System selection, stable focused choices, long-label
+  truncation, return focus at each settings level, and closing back to the navigation settings icon.
+- Language-preference validation: 1,764 JVM tests pass (893 domain, 195 app, 351 presentation,
+  325 UI), plus 87 shared/native UI tests on iOS Simulator. No failures, errors, or skips.
+  Android debug assembly, Desktop and iOS Simulator ARM64 host compilation, and the Core-first
+  architecture guard all pass. No physical Android TV or OLED testing was required for these checks.

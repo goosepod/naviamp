@@ -12,6 +12,17 @@ import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
     @Test
+    fun languageSurvivesRecreatingTheSettingsCatalog() {
+        val values = MemorySettingsValues()
+        for (language in app.naviamp.domain.settings.InterfaceLanguage.entries) {
+            naviampCoreSettingsValueCatalog(values).storedSettings.saveInterface(
+                InterfaceSettings(language = language),
+            )
+            assertEquals(language, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().language)
+        }
+    }
+
+    @Test
     fun ownsPortableSerializationDefaultsAndNormalization() {
         val values = MemorySettingsValues()
         val catalog = naviampCoreSettingsValueCatalog(values)

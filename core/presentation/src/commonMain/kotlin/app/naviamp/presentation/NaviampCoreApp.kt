@@ -11,6 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import app.naviamp.ui.NaviampLocaleEnvironment
+import app.naviamp.ui.createNaviampLocaleEffect
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.LocalNaviampApplicationSurface
@@ -97,42 +99,44 @@ fun NaviampCoreApp(
             core.maintainProviderSession()
         }
     }
-    CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
-        when (applicationSurface) {
-            NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
-                modifier = modifier,
-                uiState = state.shell,
-                settingsSync = state.settingsSync,
-                playbackProgress = core.playbackProgress,
-                visualizerBandsProvider = visualizerBandsProvider,
-                actions = core.actions.shell,
-                syncActions = core.actions.settingsSync,
-                applicationUpdateChecker = applicationUpdateChecker,
-            )
-            NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
-                modifier = modifier,
-                uiState = state.shell,
-                settingsSync = state.settingsSync,
-                playbackProgress = core.playbackProgress,
-                visualizerBandsProvider = visualizerBandsProvider,
-                actions = core.actions.shell,
-                syncActions = core.actions.settingsSync,
-            )
-        }
-        state.overlays.busyMessage?.let { message ->
-            NaviampBusyDialog(message)
-        }
-        if (state.overlays.statsForNerdsVisible) {
-            LaunchedEffect(core) {
-                while (true) {
-                    delay(1_000)
-                    diagnosticsRefreshTick += 1
-                }
+    NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
+        CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+            when (applicationSurface) {
+                NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
+                    modifier = modifier,
+                    uiState = state.shell,
+                    settingsSync = state.settingsSync,
+                    playbackProgress = core.playbackProgress,
+                    visualizerBandsProvider = visualizerBandsProvider,
+                    actions = core.actions.shell,
+                    syncActions = core.actions.settingsSync,
+                    applicationUpdateChecker = applicationUpdateChecker,
+                )
+                NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
+                    modifier = modifier,
+                    uiState = state.shell,
+                    settingsSync = state.settingsSync,
+                    playbackProgress = core.playbackProgress,
+                    visualizerBandsProvider = visualizerBandsProvider,
+                    actions = core.actions.shell,
+                    syncActions = core.actions.settingsSync,
+                )
             }
-            statsForNerdsPresenter(
-                diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
-                { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
-            )
+            state.overlays.busyMessage?.let { message ->
+                NaviampBusyDialog(message)
+            }
+            if (state.overlays.statsForNerdsVisible) {
+                LaunchedEffect(core) {
+                    while (true) {
+                        delay(1_000)
+                        diagnosticsRefreshTick += 1
+                    }
+                }
+                statsForNerdsPresenter(
+                    diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
+                    { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
+                )
+            }
         }
     }
 }

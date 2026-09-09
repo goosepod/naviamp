@@ -1,4 +1,5 @@
 package app.naviamp.ui
+import app.naviamp.domain.settings.InterfaceLanguage
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.*
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -93,6 +95,7 @@ internal fun televisionSettingsCategories(controllersAvailable: Boolean): List<T
     }
 
 private enum class TelevisionSettingsChoicePage {
+    Language,
     Background,
     AlbumBlurAmount,
     SingleColor,
@@ -175,7 +178,13 @@ internal fun TelevisionSettingsSheet(
             contentAlignment = Alignment.CenterEnd,
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = TelevisionSettingsBackdropDimAlpha)),
+                .background(Color.Black.copy(alpha = TelevisionSettingsBackdropDimAlpha))
+                .onPreviewKeyEvent { event ->
+                    if (event.key == Key.Back || event.key == Key.Escape) {
+                        if (event.type == KeyEventType.KeyUp) dismissOrGoBack()
+                        true
+                    } else false
+                },
         ) {
             Column(
                 modifier = Modifier
@@ -961,6 +970,20 @@ private fun TelevisionDisplaySettings(
     val settings = uiState.general.interfaceSettings
     val nowPlaying = settings.nowPlaying
     TelevisionSettingsList {
+        item(key = "language") {
+            TelevisionSettingsRow(
+                title = stringResource(Res.string.settings_language_title),
+                subtitle = stringResource(Res.string.settings_language_subtitle),
+                value = naviampLanguagePack(settings.language).languageTitle(settings.language),
+                icon = NaviampIcons.Experience,
+                disclosure = true,
+                colors = colors,
+                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.Language) },
+                modifier = Modifier.focusRequester(
+                    if (returnChoice == TelevisionSettingsChoicePage.Language) returnFocusRequester else firstFocusRequester,
+                ),
+            )
+        }
         item(key = "background") {
             TelevisionSettingsRow(
                 stringResource(Res.string.tv_background),
@@ -970,13 +993,9 @@ private fun TelevisionDisplaySettings(
                 disclosure = true,
                 colors = colors,
                 onClick = { onChoiceSelected(TelevisionSettingsChoicePage.Background) },
-                modifier = Modifier.focusRequester(
-                    if (returnChoice == TelevisionSettingsChoicePage.Background) {
-                        returnFocusRequester
-                    } else {
-                        firstFocusRequester
-                    },
-                ),
+                modifier = if (returnChoice == TelevisionSettingsChoicePage.Background) {
+                    Modifier.focusRequester(returnFocusRequester)
+                } else Modifier,
             )
         }
         if (settings.appBackgroundStyle == AppBackgroundStyle.Aurora) {
@@ -1377,7 +1396,8 @@ private fun TelevisionSettingsChoiceList(
 ) {
     val choices = televisionSettingsChoices(page, uiState, actions)
     TelevisionSettingsList {
-        items(choices, key = { it.label }) { choice ->
+        // Option order is fixed within each page; translated labels must never identify focus nodes.
+        itemsIndexed(choices, key = { index, _ -> "${page.name}:$index" }) { index, choice ->
             TelevisionSettingsRow(
                 title = choice.label,
                 subtitle = choice.subtitle,
@@ -1385,7 +1405,7 @@ private fun TelevisionSettingsChoiceList(
                 selected = choice.selected,
                 colors = colors,
                 onClick = choice.onSelected,
-                modifier = if (choice == choices.first()) Modifier.focusRequester(firstFocusRequester) else Modifier,
+                modifier = if (index == 0) Modifier.focusRequester(firstFocusRequester) else Modifier,
             )
         }
     }
@@ -1423,6 +1443,12 @@ private fun televisionSettingsChoices(
         TelevisionSettingsChoicePage.AlbumBlurAmount,
         TelevisionSettingsChoicePage.SingleColor,
         -> emptyList()
+        TelevisionSettingsChoicePage.Language -> InterfaceLanguage.entries.map { value ->
+            val pack = naviampLanguagePack(interfaceSettings.language)
+            TelevisionChoiceUi(pack.languageTitle(value), pack.languageSubtitle(value), value == interfaceSettings.language) {
+                actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(language = value).normalized())
+            }
+        }
         TelevisionSettingsChoicePage.Background -> AppBackgroundStyle.entries.map { value ->
             TelevisionChoiceUi(televisionBackgroundLabel(value), selected = value == interfaceSettings.appBackgroundStyle) {
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(appBackgroundStyle = value))
@@ -1533,7 +1559,7 @@ private fun TelevisionSettingsRow(
             Spacer(Modifier.size(13.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, fontSize = 18.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (subtitle.isNotBlank()) {
                 Text(
                     subtitle,
@@ -1597,6 +1623,7 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
     TelevisionSettingsPage.Root -> stringResource(Res.string.nav_settings)
     is TelevisionSettingsPage.Category -> stringResource(page.category.label)
     is TelevisionSettingsPage.Choice -> when (page.choice) {
+        TelevisionSettingsChoicePage.Language -> stringResource(Res.string.settings_language_title)
         TelevisionSettingsChoicePage.Background -> stringResource(Res.string.tv_background)
         TelevisionSettingsChoicePage.AlbumBlurAmount -> stringResource(Res.string.tv_blur_amount)
         TelevisionSettingsChoicePage.SingleColor -> stringResource(Res.string.tv_single_color)
@@ -1611,6 +1638,7 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
 }
 
 private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): TelevisionSettingsCategory = when (page) {
+    TelevisionSettingsChoicePage.Language,
     TelevisionSettingsChoicePage.Background,
     TelevisionSettingsChoicePage.AlbumBlurAmount,
     TelevisionSettingsChoicePage.SingleColor,

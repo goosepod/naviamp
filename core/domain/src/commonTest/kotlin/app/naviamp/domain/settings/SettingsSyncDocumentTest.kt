@@ -10,6 +10,22 @@ import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
     @Test
+    fun interfaceLanguageRoundTripsMissingValuesDefaultAndUnknownValuesAreRejected() {
+        for (language in InterfaceLanguage.entries) {
+            val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(language = language),
+            ))
+            assertEquals(language, SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+                .preferences.interfaceSettings.language)
+        }
+        assertEquals(InterfaceLanguage.System, SettingsSyncJson.decode("""{"preferences":{}}""")
+            .preferences.interfaceSettings.language)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"language":"FutureLanguage"}}}""")
+        }
+    }
+
+    @Test
     fun playerWorkspacePreferenceRoundTripsAndOlderExportsDefaultToSplit() {
         for (layout in WideNowPlayingLayout.entries) {
             val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
