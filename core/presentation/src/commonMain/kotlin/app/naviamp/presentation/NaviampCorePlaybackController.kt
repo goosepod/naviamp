@@ -125,23 +125,11 @@ class NaviampCorePlaybackController(
         when (command) {
             app.naviamp.domain.connect.NaviampConnectPlay -> when {
                 connectHandoffAwaitingStart -> startConnectHandoff()
-                else -> when (playback.state.value.playbackState) {
-                PlaybackState.Playing -> true
-                PlaybackState.Paused -> commands.executePlayPause(
-                    app.naviamp.domain.playback.PlaybackPlayPauseCommand.Resume,
-                )
-                else -> commands.playPause()
-                }
+                else -> commands.play()
             }
             app.naviamp.domain.connect.NaviampConnectPause -> when {
                 connectHandoffAwaitingStart -> true
-                else -> when (playback.state.value.playbackState) {
-                PlaybackState.Paused -> true
-                PlaybackState.Playing -> commands.executePlayPause(
-                    app.naviamp.domain.playback.PlaybackPlayPauseCommand.Pause,
-                )
-                else -> false
-                }
+                else -> commands.pause()
             }
             app.naviamp.domain.connect.NaviampConnectTogglePlayPause ->
                 if (connectHandoffAwaitingStart) startConnectHandoff() else commands.playPause()
@@ -614,10 +602,10 @@ class NaviampCorePlaybackController(
         val playbackSettings = stateStore.state.value.shell.playback.settings
         when (request.action) {
             NowPlayingPlaybackAction.Stop -> commands.stop()
-            NowPlayingPlaybackAction.Pause,
+            NowPlayingPlaybackAction.Pause -> commands.pause()
             NowPlayingPlaybackAction.Resume,
             NowPlayingPlaybackAction.PlayCurrent,
-            -> if (!commands.playPause()) publishStatus("Nothing is available to play.")
+            -> if (!commands.play()) publishStatus("Nothing is available to play.")
             NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let { seconds ->
                 commands.seek(
                     NaviampPlaybackSeekRequest(

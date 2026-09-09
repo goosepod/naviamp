@@ -1054,22 +1054,22 @@ private class RecordingDiscoveryEffect : NaviampConnectDiscoveryEffect {
     }
 }
 
-private object UnusedTransportFactory : NaviampConnectTransportFactory {
+internal object UnusedTransportFactory : NaviampConnectTransportFactory {
     override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection = error("unused")
     override fun listen(port: Int): NaviampConnectTransportListener = error("unused")
 }
 
-private object FakeIdentity : NaviampConnectDeviceIdentityEffect {
+internal object FakeIdentity : NaviampConnectDeviceIdentityEffect {
     override fun loadOrCreate() = NaviampConnectDeviceIdentity("target-id", "fingerprint", "public-key")
     override fun sign(payload: ByteArray) = byteArrayOf(1)
 }
 
-private object FakeIdentityVerifier : NaviampConnectIdentityVerifier {
+internal object FakeIdentityVerifier : NaviampConnectIdentityVerifier {
     override fun fingerprint(publicKeyBase64: String) = "fingerprint"
     override fun verify(publicKeyBase64: String, payload: ByteArray, signature: ByteArray) = true
 }
 
-private object UnusedPakeFactory : NaviampConnectPakeFactory {
+internal object UnusedPakeFactory : NaviampConnectPakeFactory {
     override fun create(
         pairingSessionId: String,
         protocolVersion: Int,
@@ -1080,7 +1080,7 @@ private object UnusedPakeFactory : NaviampConnectPakeFactory {
     ): NaviampConnectPakeSession = error("unused")
 }
 
-private object UnusedCipherFactory : NaviampConnectAuthenticatedCipherFactory {
+internal object UnusedCipherFactory : NaviampConnectAuthenticatedCipherFactory {
     override fun create(
         sessionSecret: NaviampConnectSessionSecret,
         role: NaviampConnectPakeRole,

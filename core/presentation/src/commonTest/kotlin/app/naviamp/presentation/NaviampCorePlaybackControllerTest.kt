@@ -552,6 +552,22 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun explicitUiAndNativeTransportRequestsKeepTheirRequestedMeaning() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        repeat(2) { fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.PlayCurrent)) }
+        assertEquals(0, fixture.effects.pauses)
+        fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Pause))
+        fixture.effects.observer?.onStateChanged(PlaybackState.Paused)
+        runCurrent()
+        repeat(2) { fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Pause)) }
+        assertEquals(1, fixture.effects.pauses)
+        assertEquals(0, fixture.effects.resumes)
+        fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Resume))
+        assertEquals(1, fixture.effects.resumes)
+    }
+
+    @Test
     fun transportQueueVolumeRepeatAndShuffleAreResolvedByCore() = runTest {
         val fixture = playbackFixture(this)
 

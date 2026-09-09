@@ -64,7 +64,7 @@ fun rememberNaviampCore(
     },
 ): NaviampCore {
     val scope = rememberCoroutineScope()
-    return remember(scope, services, initialState, actionAvailability, onAsyncFailure) {
+    val core = remember(scope, services, initialState, actionAvailability, onAsyncFailure) {
         NaviampCore.create(
             scope = scope,
             services = services,
@@ -73,9 +73,13 @@ fun rememberNaviampCore(
             onAsyncFailure = onAsyncFailure,
         )
     }
+    DisposableEffect(core) {
+        onDispose(core::close)
+    }
+    return core
 }
 
-/** The one product UI entry mounted unchanged by Android, Desktop, iOS, and fake hosts. */
+/** Renders a borrowed Core; its creator owns cleanup, independently of window lifetime. */
 @Composable
 fun NaviampCoreApp(
     core: NaviampCore,
@@ -91,9 +95,6 @@ fun NaviampCoreApp(
 ) {
     val state by core.state.collectAsState()
     var diagnosticsRefreshTick by remember { mutableIntStateOf(0) }
-    DisposableEffect(core) {
-        onDispose(core::close)
-    }
     LaunchedEffect(core, state.shell.connectionSettings.currentSourceId) {
         if (state.shell.connectionSettings.currentSourceId != null) {
             core.maintainProviderSession()

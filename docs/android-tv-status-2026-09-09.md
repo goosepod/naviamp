@@ -1,5 +1,10 @@
 # Android TV restart status — 2026-09-09
 
+> Later work on this branch is recorded in [the TV plan](android-tv-plan.md), including localization,
+> screen protection, recovery, launcher packaging, and the native lifecycle pass. For repeatable
+> emulator recovery checks, see [the local fixture procedure](android-tv-lifecycle-fixture.md).
+> The sections below retain the earlier post-merge audit and its validation baseline.
+
 ## Branch and merge
 
 The working branch is `feature/android-tv` (not `jfeature/android-tv`). It started at

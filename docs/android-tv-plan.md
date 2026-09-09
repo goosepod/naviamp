@@ -1446,3 +1446,34 @@ Connect availability has additional topology and fresh-device requirements in
   launcher, optional touchscreen/Leanback requirements, SDK 26 minimum/36 target, application
   banner, and arm64-v8a/armeabi-v7a/x86/x86_64 libraries. The packaged banner decodes to 320x180.
   This validates the test APK, not a signed production release or Play Store approval.
+
+- Native lifecycle pass (disposable 1080p TV emulator): fixed a shared ownership bug where
+  unmounting `NaviampCoreApp` closed the process-owned Connect controller. The renderer now borrows
+  Core; `rememberNaviampCore`, which creates a composition-owned instance, also owns its cleanup.
+  Regression tests verify borrowed-window removal/remount preserves discovery and owned-composition
+  disposal closes it. Desktop already uses that shared owner; Android's process-owned instance is
+  no longer closed by Activity disposal. No platform production code changed.
+- Native media commands exposed a second shared bug: explicit Play/Pause/Resume actions were routed
+  through toggle behavior. The shared command owner now preserves the requested meaning, including
+  repeated Play while playing/loading and repeated Pause while paused. Connect and local/native
+  transport requests use the same owner. Tests cover the command owner and Core dispatch path.
+- Added a credential-free loopback Subsonic/audio fixture and opt-in real Android runtime setup.
+  Reproduction instructions: [android-tv-lifecycle-fixture.md](android-tv-lifecycle-fixture.md).
+  Actual native checks confirmed background MediaSession Play/Pause, process SIGKILL with a new PID
+  and restoration at 57.743 seconds, force-stop/relaunch at 120.324 seconds, and offline relaunch
+  followed by explicit Play retry at 121.275 seconds (rather than zero). The short mid-stream outage
+  remained buffered; it is not evidence of buffer-exhaustion recovery or physical Wi-Fi transitions.
+- Native boundary coverage passes for BASS decoding/seeking/mixing/EQ, Keystore credentials and
+  identity, PAKE, framed TCP, DNS-SD translation/discovery/registration, and permission-settings
+  delegation. DNS-SD registration initially exceeded the test's five-second deadline under host
+  load. The test now reports callback failures, allows 30 seconds, and always unregisters in
+  `finally`; the four DNS-SD checks passed on rerun.
+- Shared regression validation: 199 app and 356 presentation JVM tests pass, with no failures,
+  errors, or skips. Common Android/iOS Simulator ARM64 compilation and the architecture guard pass.
+  Final Desktop/iOS host compilation and Android release bundle assembly pass. Repeated native
+  Play/Play and Pause/Pause commands also preserve PLAYING and PAUSED respectively on the rebuilt app.
+- Release AAB audit confirms the TV banner and arm64-v8a/armeabi-v7a/x86/x86_64 native libraries.
+  The release signing environment is not configured and the resulting AAB is unsigned. Signed
+  installation, store-console review, physical TV/remote/audio-focus/HDMI/CEC acceptance and direct-LAN
+  cross-device pairing remain open. No release was published. Physical OLED acceptance is not
+  assigned to the maintainer, who has no OLED hardware.

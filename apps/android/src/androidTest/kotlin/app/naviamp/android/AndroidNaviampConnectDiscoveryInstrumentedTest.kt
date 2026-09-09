@@ -43,6 +43,7 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
     @Test
     fun nativeDnsSdRegistrationCanStartAndStop() {
         val registered = CountDownLatch(1)
+        var failure: String? = null
         val effect: NaviampConnectAdvertisingEffect = AndroidNaviampConnectAdvertisingEffect(
             ApplicationProvider.getApplicationContext(),
         )
@@ -54,13 +55,20 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
                     registered.countDown()
                 }
 
-                override fun onRegistrationFailed(message: String) = Unit
+                override fun onRegistrationFailed(message: String) {
+                    failure = message
+                    registered.countDown()
+                }
             },
         )
 
-        assertEquals(NaviampConnectAdvertisingStartResult.Started, result)
-        assertTrue(registered.await(5, TimeUnit.SECONDS), "Android did not confirm DNS-SD registration.")
-        effect.stop()
+        try {
+            assertEquals(NaviampConnectAdvertisingStartResult.Started, result)
+            assertTrue(registered.await(30, TimeUnit.SECONDS), "Android did not confirm DNS-SD registration within 30 seconds.")
+            assertEquals(null, failure, "Android rejected DNS-SD registration: $failure")
+        } finally {
+            effect.stop()
+        }
     }
 
     @Test
