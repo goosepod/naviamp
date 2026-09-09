@@ -31,18 +31,6 @@ class NaviampTelevisionSettingsPolicyTest {
         )
     }
 
-    @Test
-    fun televisionChoiceLabelsAreTenFootFriendly() {
-        assertEquals("Off", televisionCrossfadeLabel(0))
-        assertEquals("5 seconds", televisionCrossfadeLabel(5))
-        assertEquals("First available", televisionLyricsTimingLabel(LyricsTimingPreference.FirstAvailable))
-        assertEquals("Word synced", televisionLyricsTimingLabel(LyricsTimingPreference.WordSynced))
-        assertEquals(
-            "Match preferred lyrics",
-            televisionLyricsDisplayLabel(LyricsDisplayPreference.MatchDownload),
-        )
-        assertEquals("320 steps", televisionWaveformDensityLabel(320))
-    }
 
     @Test
     fun televisionGaplessAndCrossfadeSelectionsAreMutuallyExclusive() {

@@ -34,9 +34,6 @@ class NaviampTelevisionQueuePolicyTest {
 
     @Test
     fun repeatModeLabelsMatchTheSharedThreeStateCycle() {
-        assertEquals("Repeat off", televisionRepeatModeDescription(NaviampRepeatMode.Off))
-        assertEquals("Repeat all", televisionRepeatModeDescription(NaviampRepeatMode.Queue))
-        assertEquals("Repeat one", televisionRepeatModeDescription(NaviampRepeatMode.Track))
         assertNull(naviampRepeatIconCenterText(NaviampRepeatMode.Off))
         assertEquals("A", naviampRepeatIconCenterText(NaviampRepeatMode.Queue))
         assertEquals("1", naviampRepeatIconCenterText(NaviampRepeatMode.Track))

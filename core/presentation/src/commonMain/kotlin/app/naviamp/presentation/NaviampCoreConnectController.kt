@@ -1,4 +1,6 @@
 package app.naviamp.presentation
+import app.naviamp.ui.NaviampConnectStatusMessage
+import app.naviamp.ui.NaviampConnectStatusText
 
 import app.naviamp.app.NaviampConnectAdvertisingController
 import app.naviamp.app.NaviampConnectAdvertisingEffect
@@ -188,7 +190,13 @@ class NaviampCoreConnectController(
     private var automaticReconnectSuppressed = false
     private var enteredCode = ""
     private var phase = NaviampConnectPairingUiPhase.Inactive
+    private var statusMessage: NaviampConnectStatusMessage? = null
+    // Retain diagnostic text for callers; UI uses the typed resource message when available.
     private var status: String? = null
+        set(value) {
+            field = value
+            statusMessage = null
+        }
     private var pendingProvisioning: NaviampConnectOfferConnectionProvisioning? = null
     private var pendingProvisioningSession: NaviampConnectAuthenticatedSession? = null
     private var pendingProvisioningControllerName: String? = null
@@ -252,6 +260,7 @@ class NaviampCoreConnectController(
                 pendingTrustedDeviceId = null
                 playbackDestination.selectLocal()
                 status = "Playback will stay on ${services.trust.selfName() ?: services.displayName}."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PlaybackWillStayOnDevice, listOf(services.trust.selfName() ?: services.displayName))
                 publish()
             }
             return
@@ -265,6 +274,7 @@ class NaviampCoreConnectController(
         runCatching { services.trust.setSelfName(name) }
             .onSuccess {
                 status = "This device is now named ${it ?: services.displayName}."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ThisDeviceIsNowNamedDevice, listOf(it ?: services.displayName))
                 val restartAdvertising = phase == NaviampConnectPairingUiPhase.Advertising
                 if (restartAdvertising) {
                     stopPairingMode()
@@ -296,6 +306,7 @@ class NaviampCoreConnectController(
         services.credentials?.remove(trust.peerDevice.deviceId)
         services.trust.remove(trustedDeviceId)
         status = "Forgot ${trust.visibleDisplayName()}."
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ForgotDevice, listOf(trust.visibleDisplayName()))
         publish()
     }
 
@@ -332,6 +343,7 @@ class NaviampCoreConnectController(
                             is NaviampConnectAdvertisingStatus.Advertising -> {
                                 phase = NaviampConnectPairingUiPhase.Advertising
                                 status = "Ready for a controller on this local network."
+                                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork)
                             }
                             is NaviampConnectAdvertisingStatus.Failed -> {
                                 handleAdvertisingFailure(value)
@@ -411,6 +423,7 @@ class NaviampCoreConnectController(
             val identity = sourceIdentity()
             if (identity == null) {
                 status = "Connect this device to the same music source before editing the TV queue."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectThisDeviceToTheSameMusicSourceBeforeEditingTheTvQueue)
                 publish()
                 return true
             }
@@ -421,6 +434,7 @@ class NaviampCoreConnectController(
         val identity = sourceIdentity()
         if (identity == null) {
             status = "Connect this device to the same music source before playing on the TV."
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectThisDeviceToTheSameMusicSourceBeforePlayingOnTheTv)
             publish()
             return true
         }
@@ -440,6 +454,7 @@ class NaviampCoreConnectController(
         }
         phase = NaviampConnectPairingUiPhase.Starting
         status = "Starting secure pairing…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.StartingSecurePairing)
         val code = services.newPairingCode().filter(Char::isDigit).take(6)
         if (code.length != 6) {
             fail("Could not create a secure six-digit pairing code.")
@@ -530,6 +545,7 @@ class NaviampCoreConnectController(
                     if (resumed) continue
                     phase = NaviampConnectPairingUiPhase.Advertising
                     status = "A trusted reconnect could not be authenticated. Still waiting for a controller."
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ATrustedReconnectCouldNotBeAuthenticatedStillWaitingForAController)
                     publish()
                     continue
                 }
@@ -548,6 +564,7 @@ class NaviampCoreConnectController(
                     if (listener !== boundListener) return
                     phase = NaviampConnectPairingUiPhase.Advertising
                     status = "An incomplete pairing request timed out. Still waiting for a controller."
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.AnIncompletePairingRequestTimedOutStillWaitingForAController)
                     publish()
                     continue
                 }
@@ -558,6 +575,7 @@ class NaviampCoreConnectController(
                         pendingTargetPairing = result.request
                         phase = NaviampConnectPairingUiPhase.AwaitingApproval
                         status = "${result.request.controller.displayName} wants to pair."
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.DeviceWantsToPair, listOf(result.request.controller.displayName))
                         publish()
                         return
                     }
@@ -566,6 +584,7 @@ class NaviampCoreConnectController(
                         if (targetPairing.expireIfNeeded(services.nowEpochMillis())) return
                         phase = NaviampConnectPairingUiPhase.Advertising
                         status = "Pairing request rejected. Still waiting for a controller."
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairingRequestRejectedStillWaitingForAController)
                         publish()
                     }
                 }
@@ -660,10 +679,12 @@ class NaviampCoreConnectController(
                 if (connected) {
                     phase = NaviampConnectPairingUiPhase.Paired
                     status = "Reconnected to ${trust.displayName}."
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReconnectedToDevice, listOf(trust.displayName))
                 } else {
                     result.session.close()
                     phase = NaviampConnectPairingUiPhase.Failed
                     status = "The trusted controller did not start a compatible session."
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TheTrustedControllerDidNotStartACompatibleSession)
                 }
                 publish()
                 connected
@@ -677,6 +698,7 @@ class NaviampCoreConnectController(
         pendingTargetPairing = null
         phase = NaviampConnectPairingUiPhase.Handshaking
         status = "Authenticating ${pending.controller.displayName}…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.AuthenticatingDevice, listOf(pending.controller.displayName))
         publish()
         activePairingHandshake = pending
         pairingHandshakeJob = controllerScope.launch {
@@ -704,6 +726,7 @@ class NaviampCoreConnectController(
         closeTargetResources()
         phase = NaviampConnectPairingUiPhase.Inactive
         status = "Pairing request rejected."
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairingRequestRejected)
         publish()
     }
 
@@ -760,6 +783,7 @@ class NaviampCoreConnectController(
         enteredCode = ""
         phase = NaviampConnectPairingUiPhase.Starting
         status = "Searching this local network…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SearchingThisLocalNetwork)
         discovery.stop()
         discovery.start()
         phase = NaviampConnectPairingUiPhase.Advertising
@@ -773,6 +797,7 @@ class NaviampCoreConnectController(
         val trust = services.trust.load().firstOrNull { it.trustedDeviceId == device.deviceId } ?: return
         if (services.credentials?.contains(trust.peerDevice.deviceId) != true) {
             status = "Pair with ${trust.displayName} once more to enable secure reconnect."
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PairWithDeviceOnceMoreToEnableSecureReconnect, listOf(trust.displayName))
             publish()
             return
         }
@@ -789,6 +814,7 @@ class NaviampCoreConnectController(
         enteredCode = ""
         phase = NaviampConnectPairingUiPhase.Starting
         status = "Looking for ${trust.displayName}… Start pairing mode on the TV if needed."
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.LookingForDeviceStartPairingModeOnTheTvIfNeeded, listOf(trust.displayName))
         discoveryController.start()
         publish()
         attemptPendingTrustedReconnect(discoveryController.state.value.targets)
@@ -813,6 +839,7 @@ class NaviampCoreConnectController(
         phase = NaviampConnectPairingUiPhase.Handshaking
         playbackDestination.connecting(trust.trustedDeviceId)
         status = "Securely reconnecting to ${trust.displayName}…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SecurelyReconnectingToDevice, listOf(trust.displayName))
         publish()
         reconnectJob = controllerScope.launch {
             val runtime = app.naviamp.app.NaviampConnectControllerResumptionRuntime(
@@ -862,17 +889,20 @@ class NaviampCoreConnectController(
                         automaticReconnectRetryJob = null
                         phase = NaviampConnectPairingUiPhase.Paired
                         status = "Reconnected to ${trust.displayName}."
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ReconnectedToDevice, listOf(trust.displayName))
                     } else {
                         result.session.close()
                         playbackDestination.incompatible()
                         phase = NaviampConnectPairingUiPhase.Failed
                         status = "The trusted TV did not start a compatible control session."
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TheTrustedTvDidNotStartACompatibleControlSession)
                     }
                 }
                 is app.naviamp.app.NaviampConnectResumptionResult.Failed -> {
                     playbackDestination.unavailable()
                     phase = NaviampConnectPairingUiPhase.Failed
                     status = "Could not securely reconnect to ${trust.displayName}. Naviamp will retry when the TV is available."
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.CouldNotSecurelyReconnectToDeviceNaviampWillRetryWhenTheTvIsAvailable, listOf(trust.displayName))
                 }
             }
             reconnectJob = null
@@ -893,6 +923,7 @@ class NaviampCoreConnectController(
         enteredCode = ""
         phase = NaviampConnectPairingUiPhase.AwaitingCode
         status = "Enter the six-digit code shown on ${targetUi.displayName}."
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.EnterTheSixDigitCodeShownOnDevice, listOf(targetUi.displayName))
         publish()
     }
 
@@ -916,11 +947,13 @@ class NaviampCoreConnectController(
         val target = selectedTarget ?: return
         if (enteredCode.length != 6) {
             status = "Enter all six digits shown on the TV."
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.EnterAllSixDigitsShownOnTheTv)
             publish()
             return
         }
         phase = NaviampConnectPairingUiPhase.Handshaking
         status = "Authenticating ${target.advertisement.displayName}…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.AuthenticatingDevice, listOf(target.advertisement.displayName))
         val code = enteredCode.toCharArray()
         enteredCode = ""
         publish()
@@ -1002,6 +1035,7 @@ class NaviampCoreConnectController(
                     if (localRole == NaviampConnectDeviceRole.Controller) playbackDestination.incompatible()
                     phase = NaviampConnectPairingUiPhase.Failed
                     status = "The paired device did not start a compatible control session."
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ThePairedDeviceDidNotStartACompatibleControlSession)
                 }
             }
             is NaviampConnectPairingRuntimeResult.Failed -> {
@@ -1053,6 +1087,7 @@ class NaviampCoreConnectController(
                     pendingProvisioningSession = session
                     pendingProvisioningControllerName = session.trust?.peerDevice?.displayName
                     status = "Approve the connection setup request on this TV."
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ApproveTheConnectionSetupRequestOnThisTv)
                     publish()
                     true
                 },
@@ -1262,6 +1297,7 @@ class NaviampCoreConnectController(
         playbackDestination.connecting(trust.trustedDeviceId)
         phase = NaviampConnectPairingUiPhase.Starting
         status = "Looking for ${trust.displayName}…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.LookingForDevice, listOf(trust.displayName))
         discoveryController.start()
         publish()
         attemptPendingTrustedReconnect(discoveryController.state.value.targets)
@@ -1311,6 +1347,7 @@ class NaviampCoreConnectController(
         playbackDestination.selectLocal()
         phase = NaviampConnectPairingUiPhase.Inactive
         status = "Stopped controlling $targetName. The TV will keep playing."
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.StoppedControllingDeviceTheTvWillKeepPlaying, listOf(targetName))
         publish()
     }
 
@@ -1359,6 +1396,7 @@ class NaviampCoreConnectController(
         val trustedDeviceId = playbackDestination.selectedTrustedDeviceId()
         controllerScope.launch {
             status = "Sending this queue to ${connected.state.value.target?.displayName ?: "the TV"}…"
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SendingThisQueueToDevice, listOf(connected.state.value.target?.displayName))
             publish()
             val handoff = if (playing == null) {
                 naviampCoreConnectQueueHandoff(checkNotNull(live), checkNotNull(identity))
@@ -1376,6 +1414,7 @@ class NaviampCoreConnectController(
                     if (completed is app.naviamp.app.NaviampConnectRequestTerminalResult.Acknowledged) {
                         trustedDeviceId?.let(playbackDestination::activatePlaybackAuthority)
                         status = "Queue sent to ${connected.state.value.target?.displayName ?: "the playback device"}."
+                        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.QueueSentToDevice, listOf(connected.state.value.target?.displayName))
                     } else {
                         applyRemoteCommandFailure(
                             completed,
@@ -1393,11 +1432,13 @@ class NaviampCoreConnectController(
         val connected = controllerSession ?: return
         sourceMismatchRecoveryVisible = false
         status = "Preparing this connection for secure TV setup…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PreparingThisConnectionForSecureTvSetup)
         publish()
         controllerScope.launch {
             val editable = runCatching { sessions.currentProvisioningConnection() }.getOrNull()
             if (editable == null) {
                 status = "Connect this device to the server you want to configure on the TV."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectThisDeviceToTheServerYouWantToConfigureOnTheTv)
                 publish()
                 return@launch
             }
@@ -1416,8 +1457,10 @@ class NaviampCoreConnectController(
                             ),
                         )
                     ) {
-                        is app.naviamp.app.NaviampConnectCommandSendResult.Sent ->
+                        is app.naviamp.app.NaviampConnectCommandSendResult.Sent -> {
                             status = "Approve setup on ${connected.state.value.target?.displayName ?: "the TV"}."
+                            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ApproveSetupOnDevice, listOf(connected.state.value.target?.displayName))
+                        }
                         is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> status = result.error.message
                         is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
                             handleControllerWriteFailure(connected, result.result)
@@ -1434,6 +1477,7 @@ class NaviampCoreConnectController(
         val connection = targetConnection ?: return
         val settings = targetSettings ?: return
         status = "Validating ${offer.profile.displayName.ifBlank { offer.profile.serverUrl }}…"
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ValidatingDevice, listOf(offer.profile.displayName.ifBlank { offer.profile.serverUrl }))
         publish()
         controllerScope.launch {
             val connected = connection.provisionConnect(offer.profile.toConnectionFormState())
@@ -1443,9 +1487,11 @@ class NaviampCoreConnectController(
                 pendingProvisioningSession = null
                 pendingProvisioningControllerName = null
                 status = "TV setup completed securely."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TvSetupCompletedSecurely)
                 publishTargetPlaybackSnapshot()
             } else {
                 status = "Could not validate that connection. Check the server and credential, then retry."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry)
             }
             runCatching {
                 requestingSession?.send(
@@ -1465,6 +1511,7 @@ class NaviampCoreConnectController(
         pendingProvisioningSession = null
         pendingProvisioningControllerName = null
         status = "Connection setup request rejected."
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectionSetupRequestRejected)
         publish()
         controllerScope.launch {
             runCatching {
@@ -1495,6 +1542,7 @@ class NaviampCoreConnectController(
                 app.naviamp.domain.connect.NaviampConnectPlaybackState.Playing
             if (wasPlaying && !sendRemoteCommandAndAwait(NaviampConnectPause)) {
                 status = "The TV did not pause, so its queue was left in place."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TheTvDidNotPauseSoItsQueueWasLeftInPlace)
                 publish()
                 return@launch
             }
@@ -1511,8 +1559,10 @@ class NaviampCoreConnectController(
             if (!accepted) {
                 if (wasPlaying) sendRemoteCommand(NaviampConnectPlay)
                 status = "This device could not resolve every track, so the TV kept playback authority."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ThisDeviceCouldNotResolveEveryTrackSoTheTvKeptPlaybackAuthority)
             } else {
                 status = "The TV queue is now playing on this device."
+                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TheTvQueueIsNowPlayingOnThisDevice)
             }
             publish()
         }
@@ -1676,6 +1726,7 @@ class NaviampCoreConnectController(
                     pendingControllerName = pendingTargetPairing?.controller?.displayName,
                     selectedTargetId = selectedTarget?.advertisement?.instanceId,
                     status = effectiveStatus,
+                    statusMessage = statusMessage.takeIf { discovered?.problem == null && effectiveStatus == status },
                     notice = notice,
                     recovery = recoveryProblem()?.let { problem ->
                         app.naviamp.ui.NaviampConnectRecoveryUi(

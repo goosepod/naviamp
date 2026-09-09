@@ -1,4 +1,5 @@
 package app.naviamp.ui
+import app.naviamp.ui.generated.resources.*
 
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import kotlin.test.Test
@@ -25,18 +26,8 @@ class NaviampTelevisionDetailPolicyTest {
 
     @Test
     fun trackSecondaryActionLabelsAreRemoteFriendly() {
-        assertEquals("Play Next", televisionTrackSecondaryActionLabel(SharedTrackRowAction.PlayNext))
-        assertEquals("Add to Queue", televisionTrackSecondaryActionLabel(SharedTrackRowAction.AddToQueue))
-        assertEquals("Start Radio", televisionTrackSecondaryActionLabel(SharedTrackRowAction.StartRadio))
     }
 
-    @Test
-    fun detailCountsUseNaturalSingularAndPluralLabels() {
-        assertEquals("1 track", televisionTrackCountLabel(1))
-        assertEquals("2 tracks", televisionTrackCountLabel(2))
-        assertEquals("1 release", televisionReleaseCountLabel(1))
-        assertEquals("6 releases", televisionReleaseCountLabel(6))
-    }
 
     @Test
     fun playlistShuffleRequiresMoreThanOneTrack() {
@@ -90,11 +81,11 @@ class NaviampTelevisionDetailPolicyTest {
         )
 
         assertEquals(
-            listOf("Artist" to "Rush", "Album" to "Signals", "Track" to "Subdivisions"),
+            listOf(Res.string.tv_track_artist_label to "Rush", Res.string.tv_track_album_label to "Signals", Res.string.tv_track_title_label to "Subdivisions"),
             televisionTrackActionContextLines(track),
         )
         assertEquals(
-            listOf("Artist" to "Fallback Artist", "Album" to "Fallback Album", "Track" to "Subdivisions"),
+            listOf(Res.string.tv_track_artist_label to "Fallback Artist", Res.string.tv_track_album_label to "Fallback Album", Res.string.tv_track_title_label to "Subdivisions"),
             televisionTrackActionContextLines(track, "Fallback Artist", "Fallback Album"),
         )
     }

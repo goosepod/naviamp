@@ -1,4 +1,7 @@
 package app.naviamp.ui
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+import app.naviamp.ui.generated.resources.*
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -155,7 +158,7 @@ internal fun TelevisionHome(
             if (sections.isEmpty()) {
                 item(key = "television-home-empty") {
                     Text(
-                        if (home.refreshing) "Loading your music…" else "Your Home sections are empty.",
+                        if (home.refreshing) stringResource(Res.string.tv_loading_your_music) else stringResource(Res.string.tv_your_home_sections_are_empty),
                         color = colors.secondaryText,
                         fontSize = 20.sp,
                     )
@@ -240,7 +243,7 @@ private fun TelevisionHomeCarousel(
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            section.title,
+            section.localizedTitle(),
             color = colors.primaryText,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
@@ -370,7 +373,7 @@ private fun TelevisionHomeViewAllCard(
                 modifier = Modifier.size(42.dp),
             )
         }
-        TelevisionCardLabels("View all", section.title, colors)
+        TelevisionCardLabels(stringResource(Res.string.tv_view_all), section.localizedTitle(), colors)
     }
 }
 
@@ -410,7 +413,7 @@ internal fun TelevisionHomeCollection(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             TelevisionTextButton(
-                label = "Back",
+                label = stringResource(Res.string.common_back),
                 colors = colors,
                 calmFocus = true,
                 onClick = actions.onCollectionBack,
@@ -427,7 +430,7 @@ internal fun TelevisionHomeCollection(
                     },
             )
             Text(
-                page.section.title,
+                page.section.localizedTitle(),
                 color = colors.primaryText,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black,
@@ -436,10 +439,10 @@ internal fun TelevisionHomeCollection(
                 modifier = Modifier.padding(start = 14.dp),
             )
             Spacer(Modifier.weight(1f))
-            Text("${items.size} items", color = colors.secondaryText, fontSize = 15.sp)
+            Text(pluralStringResource(Res.plurals.tv_item_count, items.size, items.size), color = colors.secondaryText, fontSize = 15.sp)
         }
         if (items.isEmpty()) {
-            Text("This collection is empty.", color = colors.secondaryText, fontSize = 20.sp)
+            Text(stringResource(Res.string.tv_this_collection_is_empty), color = colors.secondaryText, fontSize = 20.sp)
         } else {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val columnCount = televisionHomeCollectionColumnCount(maxWidth)
@@ -556,10 +559,10 @@ internal fun TelevisionInternetRadio(
         modifier = Modifier.fillMaxSize().padding(horizontal = 30.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("Internet Radio", color = colors.primaryText, fontSize = 30.sp, fontWeight = FontWeight.Black)
+            Text(stringResource(Res.string.tv_library_internet_radio), color = colors.primaryText, fontSize = 30.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.weight(1f))
             TelevisionTextButton(
-                "New station",
+                stringResource(Res.string.tv_new_station),
                 colors,
                 calmFocus = true,
                 onClick = { creatingStation = true },
@@ -583,7 +586,7 @@ internal fun TelevisionInternetRadio(
             )
             Box(Modifier.padding(start = 10.dp)) {
                 TelevisionTextButton(
-                    "Refresh",
+                    stringResource(Res.string.library_refresh),
                     colors,
                     enabled = !screen.refreshing,
                     calmFocus = true,
@@ -611,7 +614,7 @@ internal fun TelevisionInternetRadio(
         screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 15.sp) }
         if (stations.isEmpty()) {
             Text(
-                if (screen.refreshing) "Loading internet radio…" else "No internet radio stations are saved.",
+                if (screen.refreshing) stringResource(Res.string.tv_loading_internet_radio) else stringResource(Res.string.tv_no_internet_radio_stations_are_saved),
                 color = colors.secondaryText,
                 fontSize = 20.sp,
             )
@@ -656,15 +659,15 @@ internal fun TelevisionInternetRadio(
                         editingStation = station
                     },
                     modifier = Modifier.focusRequester(editActionFocusRequester),
-                ) { Text("Edit") }
+                ) { Text(stringResource(Res.string.tv_edit)) }
             },
             dismissButton = {
                 Row {
                     TextButton(onClick = {
                         actionStation = null
                         deletingStation = station
-                    }) { Text("Delete") }
-                    TextButton(onClick = { actionStation = null }) { Text("Cancel") }
+                    }) { Text(stringResource(Res.string.common_delete)) }
+                    TextButton(onClick = { actionStation = null }) { Text(stringResource(Res.string.common_cancel)) }
                 }
             },
         )
@@ -692,19 +695,19 @@ internal fun TelevisionInternetRadio(
     deletingStation?.let { station ->
         AlertDialog(
             onDismissRequest = { deletingStation = null },
-            title = { Text("Delete station") },
-            text = { Text("Delete ${station.item.title}? This removes it from the server.") },
+            title = { Text(stringResource(Res.string.tv_delete_station)) },
+            text = { Text(stringResource(Res.string.tv_delete_named_station, station.item.title)) },
             confirmButton = {
                 TextButton(onClick = {
                     deletingStation = null
                     actions.onStationAction(StationRowActionRequest(station.item, StationRowAction.Delete))
-                }) { Text("Delete") }
+                }) { Text(stringResource(Res.string.common_delete)) }
             },
             dismissButton = {
                 TextButton(
                     onClick = { deletingStation = null },
                     modifier = Modifier.focusRequester(cancelDeleteFocusRequester),
-                ) { Text("Cancel") }
+                ) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -761,7 +764,7 @@ private fun TelevisionInternetRadioRow(
             )
             Text(station.streamUrl, color = colors.secondaryText, fontSize = 13.sp, maxLines = 1)
         }
-        Text("Right: actions", color = colors.mutedText, fontSize = 12.sp)
+        Text(stringResource(Res.string.tv_right_actions), color = colors.mutedText, fontSize = 12.sp)
     }
 }
 
@@ -805,11 +808,11 @@ internal fun TelevisionPlaylists(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Playlists", color = colors.primaryText, fontSize = 28.sp, fontWeight = FontWeight.Black)
+            Text(stringResource(Res.string.playlists_title), color = colors.primaryText, fontSize = 28.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.weight(1f))
             SharedPlaylistSortMode.entries.forEach { mode ->
                 TelevisionTextButton(
-                    label = mode.label,
+                    label = televisionPlaylistSortLabel(mode),
                     colors = colors,
                     selected = screen.sortMode == mode,
                     onClick = { actions.onSortModeChanged(mode) },
@@ -817,7 +820,7 @@ internal fun TelevisionPlaylists(
                 )
             }
             TelevisionTextButton(
-                label = if (screen.refreshing) "Refreshing…" else "Refresh",
+                label = if (screen.refreshing) stringResource(Res.string.tv_refreshing) else stringResource(Res.string.library_refresh),
                 colors = colors,
                 onClick = actions.onRefresh,
                 modifier = headerModifier,
@@ -825,7 +828,7 @@ internal fun TelevisionPlaylists(
         }
         screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 15.sp) }
         if (playlists.isEmpty()) {
-            Text("No playlists are available.", color = colors.secondaryText, fontSize = 20.sp)
+            Text(stringResource(Res.string.playlist_membership_empty), color = colors.secondaryText, fontSize = 20.sp)
         } else {
             TelevisionMediaGrid(
                 items = playlists.map { playlist ->
@@ -959,7 +962,7 @@ internal fun TelevisionSearch(
                 OutlinedTextField(
                     value = screen.query,
                     onValueChange = actions.onQueryChanged,
-                    label = { Text("Artists, albums, or tracks") },
+                    label = { Text(stringResource(Res.string.tv_artists_albums_or_tracks)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
@@ -987,7 +990,7 @@ internal fun TelevisionSearch(
                         },
                 )
                 TelevisionTextButton(
-                    label = if (screen.searching) "Searching…" else "Search",
+                    label = if (screen.searching) stringResource(Res.string.tv_searching) else stringResource(Res.string.search_title),
                     colors = colors,
                     calmFocus = true,
                     onClick = submitSearch,
@@ -1606,7 +1609,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             nowPlaying.hasPrevious,
                             NaviampTransportIcons.Previous,
-                            "Previous",
+                            stringResource(Res.string.transport_previous),
                             colors,
                             whiteHighlight = true,
                         ) {
@@ -1615,7 +1618,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             enabled = nowPlaying.canPlayPause,
                             icon = if (nowPlaying.isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
-                            description = if (nowPlaying.isPlaying) "Pause" else "Play",
+                            description = if (nowPlaying.isPlaying) stringResource(Res.string.transport_pause) else stringResource(Res.string.transport_play),
                             colors = colors,
                             size = 64.dp,
                             prominent = true,
@@ -1633,7 +1636,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             nowPlaying.hasNext,
                             NaviampTransportIcons.Next,
-                            "Next",
+                            stringResource(Res.string.transport_next),
                             colors,
                             whiteHighlight = true,
                         ) {
@@ -1648,7 +1651,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             nowPlaying.lyricsAvailable,
                             NaviampTransportIcons.Lyrics,
-                            "Lyrics",
+                            stringResource(Res.string.settings_lyrics_title),
                             colors,
                             size = TelevisionNowPlayingSecondaryButtonSize,
                             iconSize = TelevisionNowPlayingSecondaryIconSize,
@@ -1665,7 +1668,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             enabled = televisionNowPlayingQueueAvailable(nowPlaying),
                             icon = NaviampIcons.Queue,
-                            description = "Queue",
+                            description = stringResource(Res.string.player_queue),
                             colors = colors,
                             size = TelevisionNowPlayingSecondaryButtonSize,
                             iconSize = TelevisionNowPlayingSecondaryIconSize,
@@ -1680,7 +1683,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             nowPlaying.canFavorite,
                             if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
-                            "Favorite",
+                            stringResource(Res.string.tv_favorite),
                             colors,
                             size = TelevisionNowPlayingSecondaryButtonSize,
                             iconSize = TelevisionNowPlayingSecondaryIconSize,
@@ -1707,7 +1710,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             nowPlaying.shuffleEnabled,
                             NaviampTransportIcons.Shuffle,
-                            "Shuffle",
+                            stringResource(Res.string.transport_shuffle),
                             colors,
                             size = TelevisionNowPlayingSecondaryButtonSize,
                             iconSize = TelevisionNowPlayingSecondaryIconSize,
@@ -1719,7 +1722,7 @@ internal fun TelevisionNowPlaying(
                         TelevisionIconButton(
                             true,
                             NaviampIcons.Settings,
-                            "Settings",
+                            stringResource(Res.string.nav_settings),
                             colors,
                             size = TelevisionNowPlayingSecondaryButtonSize,
                             iconSize = TelevisionNowPlayingSecondaryIconSize,
@@ -1802,7 +1805,7 @@ private fun TelevisionNowPlayingQueue(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier.fillMaxHeight()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(
-                if (stationMode) "INTERNET RADIO" else "QUEUE",
+                if (stationMode) stringResource(Res.string.tv_internet_radio) else stringResource(Res.string.tv_queue),
                 color = colors.primaryText,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
@@ -1810,9 +1813,9 @@ private fun TelevisionNowPlayingQueue(
             Spacer(Modifier.weight(1f))
             Text(
                 when {
-                    stationMode -> "Select: play station"
-                    reorder == null -> "Left: move  •  Right: actions"
-                    else -> "Up/Down: move  •  Select/Right: place  •  Back: cancel"
+                    stationMode -> stringResource(Res.string.tv_select_play_station)
+                    reorder == null -> stringResource(Res.string.tv_left_move_right_actions)
+                    else -> stringResource(Res.string.tv_up_down_move_select_right_place_back_cancel)
                 },
                 color = colors.mutedText,
                 fontSize = 13.sp,
@@ -1821,7 +1824,8 @@ private fun TelevisionNowPlayingQueue(
         TelevisionQueueRow(
             item = currentItem,
             colors = colors,
-            label = "NOW PLAYING",
+            label = stringResource(Res.string.tv_now_playing),
+            current = true,
             focusRequester = currentFocusRequester,
             onClick = { onPlay(currentItem) },
             modifier = Modifier
@@ -1856,7 +1860,7 @@ private fun TelevisionNowPlayingQueue(
         ) {
             if (upcoming.isEmpty()) item(key = "empty") {
                 Text(
-                    if (stationMode) "No other Internet Radio stations are saved." else "Nothing else is queued.",
+                    if (stationMode) stringResource(Res.string.tv_no_other_internet_radio_stations_are_saved) else stringResource(Res.string.tv_nothing_else_is_queued),
                     color = colors.secondaryText,
                     fontSize = 15.sp,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
@@ -1872,8 +1876,8 @@ private fun TelevisionNowPlayingQueue(
                     item = item,
                     colors = colors,
                     label = when {
-                        moving -> "MOVING"
-                        item.playNextPriority -> "PLAY NEXT"
+                        moving -> stringResource(Res.string.tv_moving)
+                        item.playNextPriority -> stringResource(Res.string.tv_play_next_uppercase)
                         else -> null
                     },
                     moving = moving,
@@ -1935,6 +1939,7 @@ private fun TelevisionQueueRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     moving: Boolean = false,
+    current: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
@@ -1961,7 +1966,7 @@ private fun TelevisionQueueRow(
                 when {
                     moving -> colors.accent.copy(alpha = 0.52f)
                     focused -> colors.accent.copy(alpha = 0.34f)
-                    label == "NOW PLAYING" -> colors.controlSurface.copy(alpha = 0.82f)
+                    current -> colors.controlSurface.copy(alpha = 0.82f)
                     else -> Color.Black.copy(alpha = 0.22f)
                 },
             )
@@ -1995,9 +2000,9 @@ private fun TelevisionQueueActionsDialog(
 ) {
     val firstActionFocusRequester = remember { FocusRequester() }
     val actions = listOf(
-        NowPlayingItemAction.PlayNext to "Play Next",
-        NowPlayingItemAction.RemoveFromQueue to "Remove",
-        NowPlayingItemAction.StartRadio to "Start Radio",
+        NowPlayingItemAction.PlayNext to stringResource(Res.string.tv_play_next),
+        NowPlayingItemAction.RemoveFromQueue to stringResource(Res.string.mix_remove),
+        NowPlayingItemAction.StartRadio to stringResource(Res.string.tv_start_radio),
     )
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.68f))) {
@@ -2008,7 +2013,7 @@ private fun TelevisionQueueActionsDialog(
                     .background(colors.controlSurface, RoundedCornerShape(18.dp))
                     .padding(28.dp),
             ) {
-                Text("Queue actions", color = colors.primaryText, fontSize = 27.sp, fontWeight = FontWeight.Black)
+                Text(stringResource(Res.string.tv_queue_actions), color = colors.primaryText, fontSize = 27.sp, fontWeight = FontWeight.Black)
                 Text(item.title, color = colors.primaryText, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(item.subtitle, color = colors.secondaryText, fontSize = 16.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
@@ -2023,7 +2028,7 @@ private fun TelevisionQueueActionsDialog(
                         )
                     }
                 }
-                Text("Back closes this panel", color = colors.mutedText, fontSize = 14.sp)
+                Text(stringResource(Res.string.tv_back_closes_panel), color = colors.mutedText, fontSize = 14.sp)
             }
         }
     }
@@ -2094,7 +2099,7 @@ private fun TelevisionLyrics(
             modifier = modifier,
         )
         nowPlaying.lyricsLines.isEmpty() -> Text(
-            "Lyrics are not available.",
+            stringResource(Res.string.tv_lyrics_are_not_available),
             color = colors.secondaryText,
             fontSize = 22.sp,
             modifier = modifier,
@@ -2232,10 +2237,11 @@ internal fun televisionIconButtonUsesLightSurface(
 ): Boolean =
     whiteHighlight && (focused || (selected && !selectedKeepsDarkBackground))
 
+@Composable
 internal fun televisionRepeatModeDescription(mode: NaviampRepeatMode): String = when (mode) {
-    NaviampRepeatMode.Off -> "Repeat off"
-    NaviampRepeatMode.Queue -> "Repeat all"
-    NaviampRepeatMode.Track -> "Repeat one"
+    NaviampRepeatMode.Off -> stringResource(Res.string.tv_repeat_off)
+    NaviampRepeatMode.Queue -> stringResource(Res.string.tv_repeat_all)
+    NaviampRepeatMode.Track -> stringResource(Res.string.tv_repeat_one)
 }
 
 @Composable

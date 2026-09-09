@@ -1,0 +1,54 @@
+package app.naviamp.ui
+
+import androidx.compose.runtime.Composable
+import app.naviamp.ui.generated.resources.*
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+
+/** Resource identity and arguments travel with the shared status rather than parsing diagnostic text. */
+data class NaviampConnectStatusMessage(val text: NaviampConnectStatusText, val arguments: List<String?> = emptyList())
+
+enum class NaviampConnectStatusText(val resource: StringResource) {
+    PlaybackWillStayOnDevice(Res.string.connect_status_playback_will_stay_on_device),
+    ThisDeviceIsNowNamedDevice(Res.string.connect_status_this_device_is_now_named_device),
+    ForgotDevice(Res.string.connect_status_forgot_device),
+    ReadyForAControllerOnThisLocalNetwork(Res.string.connect_status_ready_for_a_controller_on_this_local_network),
+    ConnectThisDeviceToTheSameMusicSourceBeforeEditingTheTvQueue(Res.string.connect_status_connect_this_device_to_the_same_music_source_before_editing_the_tv_queue),
+    ConnectThisDeviceToTheSameMusicSourceBeforePlayingOnTheTv(Res.string.connect_status_connect_this_device_to_the_same_music_source_before_playing_on_the_tv),
+    StartingSecurePairing(Res.string.connect_status_starting_secure_pairing),
+    ATrustedReconnectCouldNotBeAuthenticatedStillWaitingForAController(Res.string.connect_status_a_trusted_reconnect_could_not_be_authenticated_still_waiting_for_a_controller),
+    AnIncompletePairingRequestTimedOutStillWaitingForAController(Res.string.connect_status_an_incomplete_pairing_request_timed_out_still_waiting_for_a_controller),
+    DeviceWantsToPair(Res.string.connect_status_device_wants_to_pair),
+    PairingRequestRejectedStillWaitingForAController(Res.string.connect_status_pairing_request_rejected_still_waiting_for_a_controller),
+    ReconnectedToDevice(Res.string.connect_status_reconnected_to_device),
+    TheTrustedControllerDidNotStartACompatibleSession(Res.string.connect_status_the_trusted_controller_did_not_start_a_compatible_session),
+    AuthenticatingDevice(Res.string.connect_status_authenticating_device),
+    PairingRequestRejected(Res.string.connect_status_pairing_request_rejected),
+    SearchingThisLocalNetwork(Res.string.connect_status_searching_this_local_network),
+    PairWithDeviceOnceMoreToEnableSecureReconnect(Res.string.connect_status_pair_with_device_once_more_to_enable_secure_reconnect),
+    LookingForDeviceStartPairingModeOnTheTvIfNeeded(Res.string.connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed),
+    SecurelyReconnectingToDevice(Res.string.connect_status_securely_reconnecting_to_device),
+    TheTrustedTvDidNotStartACompatibleControlSession(Res.string.connect_status_the_trusted_tv_did_not_start_a_compatible_control_session),
+    CouldNotSecurelyReconnectToDeviceNaviampWillRetryWhenTheTvIsAvailable(Res.string.connect_status_could_not_securely_reconnect_to_device_naviamp_will_retry_when_the_tv_is_available),
+    EnterTheSixDigitCodeShownOnDevice(Res.string.connect_status_enter_the_six_digit_code_shown_on_device),
+    EnterAllSixDigitsShownOnTheTv(Res.string.connect_status_enter_all_six_digits_shown_on_the_tv),
+    ThePairedDeviceDidNotStartACompatibleControlSession(Res.string.connect_status_the_paired_device_did_not_start_a_compatible_control_session),
+    ApproveTheConnectionSetupRequestOnThisTv(Res.string.connect_status_approve_the_connection_setup_request_on_this_tv),
+    LookingForDevice(Res.string.connect_status_looking_for_device),
+    StoppedControllingDeviceTheTvWillKeepPlaying(Res.string.connect_status_stopped_controlling_device_the_tv_will_keep_playing),
+    SendingThisQueueToDevice(Res.string.connect_status_sending_this_queue_to_device),
+    QueueSentToDevice(Res.string.connect_status_queue_sent_to_device),
+    PreparingThisConnectionForSecureTvSetup(Res.string.connect_status_preparing_this_connection_for_secure_tv_setup),
+    ConnectThisDeviceToTheServerYouWantToConfigureOnTheTv(Res.string.connect_status_connect_this_device_to_the_server_you_want_to_configure_on_the_tv),
+    ApproveSetupOnDevice(Res.string.connect_status_approve_setup_on_device),
+    ValidatingDevice(Res.string.connect_status_validating_device),
+    TvSetupCompletedSecurely(Res.string.connect_status_tv_setup_completed_securely),
+    CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry(Res.string.connect_status_could_not_validate_that_connection_check_the_server_and_credential_then_retry),
+    ConnectionSetupRequestRejected(Res.string.connect_status_connection_setup_request_rejected),
+    TheTvDidNotPauseSoItsQueueWasLeftInPlace(Res.string.connect_status_the_tv_did_not_pause_so_its_queue_was_left_in_place),
+    ThisDeviceCouldNotResolveEveryTrackSoTheTvKeptPlaybackAuthority(Res.string.connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority),
+    TheTvQueueIsNowPlayingOnThisDevice(Res.string.connect_status_the_tv_queue_is_now_playing_on_this_device),
+}
+
+@Composable
+internal fun NaviampConnectStatusMessage.localized(): String = stringResource(text.resource, *arguments.map { it ?: stringResource(Res.string.connect_target_default_name) }.toTypedArray())

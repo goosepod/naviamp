@@ -97,6 +97,8 @@ class NaviampCoreConnectControllerTest {
         runCurrent()
         assertNull(store.state.value.shell.connect.recovery)
         assertEquals(NaviampConnectPairingUiPhase.Advertising, store.state.value.shell.connect.pairingPhase)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork,
+            store.state.value.shell.connect.statusMessage?.text)
         assertEquals(2, listeners.size)
         controller.close()
     }

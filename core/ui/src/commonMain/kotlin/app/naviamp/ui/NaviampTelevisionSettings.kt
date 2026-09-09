@@ -1,4 +1,7 @@
 package app.naviamp.ui
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+import app.naviamp.ui.generated.resources.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -70,18 +73,18 @@ import app.naviamp.domain.settings.SampleRateMatching
 import app.naviamp.domain.settings.homeSectionPresentation
 
 internal enum class TelevisionSettingsCategory(
-    val label: String,
-    val subtitle: String,
+    val label: org.jetbrains.compose.resources.StringResource,
+    val subtitle: org.jetbrains.compose.resources.StringResource,
     val icon: ImageVector,
 ) {
-    Sources("Sources", "Servers and music libraries", NaviampIcons.Library),
-    Home("Home", "Sections, visibility, and order", NaviampIcons.Home),
-    Display("Display", "Background and Now Playing", NaviampIcons.Experience),
-    Playback("Playback", "Audio and queue behavior", NaviampTransportIcons.Play),
-    Lyrics("Lyrics", "Sources and synchronization", NaviampTransportIcons.Lyrics),
-    Controllers("Controllers", "Trusted Naviamp remotes", NaviampIcons.Player),
-    Diagnostics("Diagnostics", "Connection and local health", NaviampIcons.Bug),
-    About("About", "Version and build information", NaviampIcons.AppMark),
+    Sources(Res.string.tv_sources, Res.string.tv_servers_and_music_libraries, NaviampIcons.Library),
+    Home(Res.string.home_music_title, Res.string.tv_sections_visibility_and_order, NaviampIcons.Home),
+    Display(Res.string.tv_display, Res.string.tv_background_and_now_playing, NaviampIcons.Experience),
+    Playback(Res.string.settings_category_playback_title, Res.string.tv_audio_and_queue_behavior, NaviampTransportIcons.Play),
+    Lyrics(Res.string.settings_lyrics_title, Res.string.tv_sources_and_synchronization, NaviampTransportIcons.Lyrics),
+    Controllers(Res.string.tv_controllers, Res.string.tv_trusted_naviamp_remotes, NaviampIcons.Player),
+    Diagnostics(Res.string.tv_diagnostics, Res.string.tv_connection_and_local_health, NaviampIcons.Bug),
+    About(Res.string.settings_category_about_title, Res.string.tv_version_and_build_information, NaviampIcons.AppMark),
 }
 
 internal fun televisionSettingsCategories(controllersAvailable: Boolean): List<TelevisionSettingsCategory> =
@@ -270,7 +273,7 @@ private fun TelevisionSettingsHeader(
 }
 
 @Composable
-private fun TelevisionSettingsRoot(
+internal fun TelevisionSettingsRoot(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
     firstFocusRequester: FocusRequester,
@@ -284,8 +287,8 @@ private fun TelevisionSettingsRoot(
     TelevisionSettingsList {
         items(categories, key = { it.name }) { category ->
             TelevisionSettingsRow(
-                title = category.label,
-                subtitle = category.subtitle,
+                title = stringResource(category.label),
+                subtitle = stringResource(category.subtitle),
                 value = televisionSettingsCategoryValue(category, uiState),
                 icon = category.icon,
                 disclosure = true,
@@ -386,7 +389,7 @@ private fun TelevisionControllersSettings(
     firstFocusRequester: FocusRequester,
 ) {
     if (!connect.available || actions == null) {
-        TelevisionSettingsMessage("Naviamp Connect is unavailable on this device.", colors, firstFocusRequester)
+        TelevisionSettingsMessage(stringResource(Res.string.tv_naviamp_connect_is_unavailable_on_this_device), colors, firstFocusRequester)
         return
     }
     var renameOpen by remember { mutableStateOf(false) }
@@ -394,13 +397,13 @@ private fun TelevisionControllersSettings(
     if (renameOpen) {
         AlertDialog(
             onDismissRequest = { renameOpen = false },
-            title = { Text("Name this device") },
+            title = { Text(stringResource(Res.string.tv_name_this_device)) },
             text = {
                 OutlinedTextField(
                     value = deviceName,
                     onValueChange = { if (it.length <= 64) deviceName = it },
                     singleLine = true,
-                    label = { Text("Friendly name") },
+                    label = { Text(stringResource(Res.string.tv_friendly_name)) },
                 )
             },
             confirmButton = {
@@ -410,16 +413,16 @@ private fun TelevisionControllersSettings(
                         actions.onLocalDeviceNameChanged(deviceName)
                         renameOpen = false
                     },
-                ) { Text("Save") }
+                ) { Text(stringResource(Res.string.common_save)) }
             },
-            dismissButton = { TextButton(onClick = { renameOpen = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { renameOpen = false }) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
     TelevisionSettingsList {
         item(key = "device-name") {
             TelevisionSettingsRow(
-                title = "Device name",
-                subtitle = "The name other Naviamp devices see when connecting.",
+                title = stringResource(Res.string.tv_device_name),
+                subtitle = stringResource(Res.string.tv_the_name_other_naviamp_devices_see_when_connecting),
                 value = connect.localDeviceName,
                 icon = NaviampIcons.Player,
                 disclosure = true,
@@ -437,11 +440,11 @@ private fun TelevisionControllersSettings(
         if (connect.canAdvertise) {
             item(key = "pairing-mode") {
                 TelevisionSettingsRow(
-                    title = if (connect.pairingActive) "Stop pairing" else "Pair a controller",
+                    title = if (connect.pairingActive) stringResource(Res.string.tv_stop_pairing) else stringResource(Res.string.tv_pair_a_controller),
                     subtitle = connect.displayStatus() ?: if (connect.pairingActive) {
-                        "This TV is visible to Naviamp controllers on your local network."
+                        stringResource(Res.string.tv_this_tv_is_visible_to_naviamp_controllers_on_your_local_network)
                     } else {
-                        "Make this TV visible temporarily to a phone or Desktop on the same network."
+                        stringResource(Res.string.tv_make_this_tv_visible_temporarily_to_a_phone_or_desktop_on_the_same_network)
                     },
                     value = connect.pairingCode?.let(::formatNaviampConnectPairingCode),
                     icon = NaviampIcons.Player,
@@ -453,9 +456,9 @@ private fun TelevisionControllersSettings(
             if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
                 item(key = "approve-controller") {
                     TelevisionSettingsRow(
-                        title = "Approve ${connect.pendingControllerName ?: "controller"}",
-                        subtitle = "Only approve if you started pairing on this device.",
-                        value = "Approve",
+                        title = stringResource(Res.string.tv_approve_named_controller, connect.pendingControllerName ?: stringResource(Res.string.tv_controller_fallback)),
+                        subtitle = stringResource(Res.string.tv_only_approve_if_you_started_pairing_on_this_device),
+                        value = stringResource(Res.string.tv_approve),
                         icon = NaviampIcons.Player,
                         disclosure = true,
                         colors = colors,
@@ -464,9 +467,9 @@ private fun TelevisionControllersSettings(
                 }
                 item(key = "reject-controller") {
                     TelevisionSettingsRow(
-                        title = "Reject request",
-                        subtitle = "Close this connection without creating trust.",
-                        value = "Reject",
+                        title = stringResource(Res.string.tv_reject_request),
+                        subtitle = stringResource(Res.string.tv_close_this_connection_without_creating_trust),
+                        value = stringResource(Res.string.tv_reject),
                         icon = NaviampIcons.Close,
                         colors = colors,
                         onClick = actions.onRejectController,
@@ -478,9 +481,9 @@ private fun TelevisionControllersSettings(
             connect.connectedTargetName?.let { targetName ->
                 item(key = "stop-controlling") {
                     TelevisionSettingsRow(
-                        title = "Stop controlling $targetName",
-                        subtitle = "Disconnect this controller while playback continues on the target.",
-                        value = "Disconnect",
+                        title = stringResource(Res.string.tv_stop_controlling_named, targetName),
+                        subtitle = stringResource(Res.string.tv_disconnect_this_controller_while_playback_continues_on_the_target),
+                        value = stringResource(Res.string.tv_disconnect),
                         icon = NaviampIcons.Close,
                         colors = colors,
                         onClick = actions.onStopControlling,
@@ -489,8 +492,8 @@ private fun TelevisionControllersSettings(
             }
             item(key = "refresh-targets") {
                 TelevisionSettingsRow(
-                    title = "Find Naviamp targets",
-                    subtitle = connect.displayStatus() ?: "Search this local network for Naviamp devices ready to pair.",
+                    title = stringResource(Res.string.tv_find_naviamp_targets),
+                    subtitle = connect.displayStatus() ?: stringResource(Res.string.tv_search_this_local_network_for_naviamp_devices_ready_to_pair),
                     value = connect.discoveredTargets.size.takeIf { it > 0 }?.toString(),
                     icon = NaviampIcons.Refresh,
                     colors = colors,
@@ -501,7 +504,7 @@ private fun TelevisionControllersSettings(
                 TelevisionSettingsRow(
                     title = target.displayName,
                     subtitle = target.detail,
-                    value = if (target.compatible) "Pair" else "Update required",
+                    value = if (target.compatible) stringResource(Res.string.tv_pair) else stringResource(Res.string.tv_update_required),
                     icon = NaviampIcons.Player,
                     disclosure = target.compatible,
                     enabled = target.compatible,
@@ -513,9 +516,9 @@ private fun TelevisionControllersSettings(
         if (connect.pendingProvisioningConnectionName != null) {
             item(key = "approve-provisioning") {
                 TelevisionSettingsRow(
-                    title = "Set up ${connect.pendingProvisioningConnectionName}",
-                    subtitle = "Requested by ${connect.pendingProvisioningControllerName ?: "a paired controller"}. The TV will validate the server before saving it.",
-                    value = "Approve",
+                    title = stringResource(Res.string.tv_set_up_named_source, connect.pendingProvisioningConnectionName.orEmpty()),
+                    subtitle = stringResource(Res.string.tv_provisioning_requested_by, connect.pendingProvisioningControllerName ?: stringResource(Res.string.tv_paired_controller_fallback)),
+                    value = stringResource(Res.string.tv_approve),
                     icon = NaviampIcons.Library,
                     disclosure = true,
                     colors = colors,
@@ -524,9 +527,9 @@ private fun TelevisionControllersSettings(
             }
             item(key = "reject-provisioning") {
                 TelevisionSettingsRow(
-                    title = "Reject server setup",
-                    subtitle = "Discard the transferred credential without saving a connection.",
-                    value = "Reject",
+                    title = stringResource(Res.string.tv_reject_server_setup),
+                    subtitle = stringResource(Res.string.tv_discard_the_transferred_credential_without_saving_a_connection),
+                    value = stringResource(Res.string.tv_reject),
                     icon = NaviampIcons.Close,
                     colors = colors,
                     onClick = actions.onRejectProvisioning,
@@ -536,8 +539,8 @@ private fun TelevisionControllersSettings(
         items(connect.trustedDevices, key = { "trusted-${it.deviceId}" }) { device ->
             TelevisionSettingsRow(
                 title = device.displayName,
-                subtitle = device.detail,
-                value = if (device.reconnectAvailable) "Reconnect" else "Trusted",
+                subtitle = stringResource(Res.string.tv_paired_device),
+                value = if (device.reconnectAvailable) stringResource(Res.string.common_reconnect) else stringResource(Res.string.tv_trusted),
                 icon = NaviampIcons.Player,
                 enabled = device.reconnectAvailable,
                 disclosure = device.reconnectAvailable,
@@ -646,7 +649,7 @@ private fun TelevisionHomeSectionRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                if (moving) "MOVING — use Up/Down, then press Select or Right" else if (visible) "Visible" else "Hidden",
+                if (moving) stringResource(Res.string.tv_moving_use_up_down_then_press_select_or_right) else if (visible) stringResource(Res.string.home_settings_visible) else stringResource(Res.string.home_settings_hidden),
                 color = if (!visible && !moving) colors.secondaryText.copy(alpha = 0.68f) else colors.secondaryText,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -654,7 +657,7 @@ private fun TelevisionHomeSectionRow(
         }
         TelevisionHomeSectionIconButton(
             icon = if (visible) NaviampIcons.VisibilityOn else NaviampIcons.VisibilityOff,
-            contentDescription = if (visible) "Hide ${sectionTitle}" else "Show ${sectionTitle}",
+            contentDescription = if (visible) stringResource(Res.string.tv_hide_section, sectionTitle) else stringResource(Res.string.tv_show_section, sectionTitle),
             selected = !visible,
             enabled = controlsEnabled && !moving,
             colors = colors,
@@ -663,7 +666,7 @@ private fun TelevisionHomeSectionRow(
         )
         TelevisionHomeSectionIconButton(
             icon = NaviampIcons.MoveVertical,
-            contentDescription = if (moving) "Set ${sectionTitle} position" else "Move ${sectionTitle}",
+            contentDescription = if (moving) stringResource(Res.string.tv_place_section, sectionTitle) else stringResource(Res.string.tv_move_section, sectionTitle),
             selected = moving,
             enabled = controlsEnabled,
             colors = colors,
@@ -735,7 +738,7 @@ private fun TelevisionSourcesSettings(
             TelevisionSettingsRow(
                 title = source.displayName,
                 subtitle = listOf(source.providerId, source.username).filter(String::isNotBlank).joinToString(" • "),
-                value = if (source.current) "Current" else source.selectedLibrarySummary,
+                value = if (source.current) stringResource(Res.string.common_current) else source.selectedLibrarySummary,
                 icon = NaviampIcons.Library,
                 selected = source.current,
                 colors = colors,
@@ -745,8 +748,8 @@ private fun TelevisionSourcesSettings(
         }
         item(key = "edit-current-source") {
             TelevisionSettingsRow(
-                title = "Edit current source",
-                subtitle = "Server, account, and libraries",
+                title = stringResource(Res.string.tv_edit_current_source),
+                subtitle = stringResource(Res.string.tv_server_account_and_libraries),
                 icon = NaviampIcons.Edit,
                 enabled = connection.connected,
                 colors = colors,
@@ -760,8 +763,8 @@ private fun TelevisionSourcesSettings(
         }
         item(key = "add-source") {
             TelevisionSettingsRow(
-                title = "Add source",
-                subtitle = "Connect another media server",
+                title = stringResource(Res.string.tv_add_source),
+                subtitle = stringResource(Res.string.tv_connect_another_media_server),
                 icon = NaviampIcons.Plus,
                 colors = colors,
                 onClick = actions.onNewConnection,
@@ -773,7 +776,7 @@ private fun TelevisionSourcesSettings(
             )
         }
         connection.status?.let { status ->
-            item(key = "source-status") { TelevisionSettingsInfo("Status", status, colors) }
+            item(key = "source-status") { TelevisionSettingsInfo(stringResource(Res.string.tv_status), status, colors) }
         }
     }
 }
@@ -794,9 +797,9 @@ private fun TelevisionPlaybackSettings(
         if (capability.replayGainAvailable) {
             item(key = "replay-gain") {
                 TelevisionSettingsRow(
-                    "ReplayGain",
-                    "Normalize loudness between tracks and albums",
-                    settings.replayGainMode.displayName,
+                    stringResource(Res.string.tv_replaygain),
+                    stringResource(Res.string.tv_normalize_loudness_between_tracks_and_albums),
+                    televisionReplayGainLabel(settings.replayGainMode),
                     NaviampIcons.Experience,
                     disclosure = true,
                     colors = colors,
@@ -814,8 +817,8 @@ private fun TelevisionPlaybackSettings(
         if (capability.gaplessAvailable) {
             item(key = "gapless") {
                 TelevisionSettingsToggleRow(
-                    "Gapless playback",
-                    "Keep continuous albums seamless",
+                    stringResource(Res.string.tv_gapless_playback),
+                    stringResource(Res.string.tv_keep_continuous_albums_seamless),
                     settings.gaplessEnabled,
                     colors,
                     {
@@ -830,8 +833,8 @@ private fun TelevisionPlaybackSettings(
         if (capability.crossfadeAvailable) {
             item(key = "crossfade") {
                 TelevisionSettingsRow(
-                    "Crossfade",
-                    "Blend the end and beginning of tracks",
+                    stringResource(Res.string.settings_crossfade_title),
+                    stringResource(Res.string.tv_blend_the_end_and_beginning_of_tracks),
                     televisionCrossfadeLabel(settings.crossfadeDurationSeconds),
                     NaviampIcons.Experience,
                     disclosure = true,
@@ -847,9 +850,9 @@ private fun TelevisionPlaybackSettings(
         }
         item(key = "sample-rate") {
             TelevisionSettingsRow(
-                "Sample-rate matching",
-                "Adjust the output rate for playback",
-                settings.sampleRateMatching.label,
+                stringResource(Res.string.tv_sample_rate_matching),
+                stringResource(Res.string.tv_adjust_the_output_rate_for_playback),
+                televisionSampleRateLabel(settings.sampleRateMatching),
                 NaviampIcons.Experience,
                 disclosure = true,
                 colors = colors,
@@ -865,8 +868,8 @@ private fun TelevisionPlaybackSettings(
         }
         item(key = "downmix") {
             TelevisionSettingsToggleRow(
-                "Stereo downmix",
-                "Mix multichannel audio to stereo",
+                stringResource(Res.string.tv_stereo_downmix),
+                stringResource(Res.string.tv_mix_multichannel_audio_to_stereo),
                 settings.stereoDownmixEnabled,
                 colors,
                 { actions.onPlaybackSettingsChanged(settings.copy(stereoDownmixEnabled = !settings.stereoDownmixEnabled)) },
@@ -874,8 +877,8 @@ private fun TelevisionPlaybackSettings(
         }
         item(key = "remove-played") {
             TelevisionSettingsToggleRow(
-                "Remove played tracks",
-                "Keep the queue focused on what is next",
+                stringResource(Res.string.tv_remove_played_tracks),
+                stringResource(Res.string.tv_keep_the_queue_focused_on_what_is_next),
                 settings.removePlayedTracksFromQueue,
                 colors,
                 {
@@ -902,8 +905,8 @@ private fun TelevisionLyricsSettings(
     TelevisionSettingsList {
         item(key = "online-lyrics") {
             TelevisionSettingsToggleRow(
-                "Online lyrics",
-                "Use online providers when server and embedded lyrics are unavailable",
+                stringResource(Res.string.tv_online_lyrics),
+                stringResource(Res.string.tv_use_online_providers_when_server_and_embedded_lyrics_are_unavailable),
                 settings.lrclibLyricsEnabled,
                 colors,
                 { actions.onPlaybackSettingsChanged(settings.copy(lrclibLyricsEnabled = !settings.lrclibLyricsEnabled)) },
@@ -912,8 +915,8 @@ private fun TelevisionLyricsSettings(
         }
         item(key = "lyrics-download-timing") {
             TelevisionSettingsRow(
-                "Preferred lyrics",
-                "Timing requested while loading lyrics",
+                stringResource(Res.string.tv_preferred_lyrics),
+                stringResource(Res.string.tv_timing_requested_while_loading_lyrics),
                 televisionLyricsTimingLabel(settings.lyricsTimingPreference),
                 NaviampTransportIcons.Lyrics,
                 disclosure = true,
@@ -928,8 +931,8 @@ private fun TelevisionLyricsSettings(
         }
         item(key = "lyrics-display-timing") {
             TelevisionSettingsRow(
-                "Lyrics display",
-                "Timing used in Now Playing",
+                stringResource(Res.string.tv_lyrics_display),
+                stringResource(Res.string.tv_timing_used_in_now_playing),
                 televisionLyricsDisplayLabel(settings.lyricsDisplayPreference),
                 NaviampTransportIcons.Lyrics,
                 disclosure = true,
@@ -960,9 +963,9 @@ private fun TelevisionDisplaySettings(
     TelevisionSettingsList {
         item(key = "background") {
             TelevisionSettingsRow(
-                "Background",
-                "Choose the living-room backdrop",
-                settings.appBackgroundStyle.label,
+                stringResource(Res.string.tv_background),
+                stringResource(Res.string.tv_choose_the_living_room_backdrop),
+                televisionBackgroundLabel(settings.appBackgroundStyle),
                 NaviampIcons.Experience,
                 disclosure = true,
                 colors = colors,
@@ -979,9 +982,9 @@ private fun TelevisionDisplaySettings(
         if (settings.appBackgroundStyle == AppBackgroundStyle.Aurora) {
             item(key = "aurora-tone") {
                 TelevisionSettingsRow(
-                    "Aurora tone",
-                    "Tune artwork-derived colors for the room",
-                    settings.auroraTone.label,
+                    stringResource(Res.string.aurora_tone),
+                    stringResource(Res.string.tv_tune_artwork_derived_colors_for_the_room),
+                    televisionAuroraToneLabel(settings.auroraTone),
                     NaviampIcons.Experience,
                     disclosure = true,
                     colors = colors,
@@ -997,9 +1000,9 @@ private fun TelevisionDisplaySettings(
         if (settings.appBackgroundStyle == AppBackgroundStyle.AlbumBlur) {
             item(key = "album-blur-amount") {
                 TelevisionSettingsRow(
-                    "Blur amount",
-                    "Adjust how strongly the album artwork is softened",
-                    "${settings.albumBlurRadiusDp}dp",
+                    stringResource(Res.string.tv_blur_amount),
+                    stringResource(Res.string.tv_adjust_how_strongly_the_album_artwork_is_softened),
+                    stringResource(Res.string.tv_blur_value, settings.albumBlurRadiusDp),
                     NaviampIcons.Experience,
                     disclosure = true,
                     colors = colors,
@@ -1015,8 +1018,8 @@ private fun TelevisionDisplaySettings(
         if (settings.appBackgroundStyle == AppBackgroundStyle.SingleColor) {
             item(key = "single-color") {
                 TelevisionSettingsRow(
-                    "Single color",
-                    "Adjust hue, saturation, and brightness",
+                    stringResource(Res.string.tv_single_color),
+                    stringResource(Res.string.tv_adjust_hue_saturation_and_brightness),
                     settings.singleColorHex,
                     NaviampIcons.Experience,
                     disclosure = true,
@@ -1032,8 +1035,8 @@ private fun TelevisionDisplaySettings(
         }
         item(key = "waveform-density") {
             TelevisionSettingsRow(
-                "Waveform density",
-                "Choose the detail level of the Now Playing waveform",
+                stringResource(Res.string.tv_waveform_density),
+                stringResource(Res.string.tv_choose_the_detail_level_of_the_now_playing_waveform),
                 televisionWaveformDensityLabel(uiState.cache.settings.waveformBucketCount),
                 NaviampIcons.Experience,
                 disclosure = true,
@@ -1048,8 +1051,8 @@ private fun TelevisionDisplaySettings(
         }
         item(key = "album-year") {
             TelevisionSettingsToggleRow(
-                "Show album year",
-                "Include release context in Now Playing",
+                stringResource(Res.string.settings_now_playing_show_album_year),
+                stringResource(Res.string.tv_include_release_context_in_now_playing),
                 nowPlaying.showAlbumYear,
                 colors,
                 {
@@ -1061,8 +1064,8 @@ private fun TelevisionDisplaySettings(
         }
         item(key = "audio-info") {
             TelevisionSettingsToggleRow(
-                "Show audio information",
-                "Display codec and playback quality",
+                stringResource(Res.string.tv_show_audio_information),
+                stringResource(Res.string.tv_display_codec_and_playback_quality),
                 nowPlaying.showAudioInfo,
                 colors,
                 {
@@ -1074,8 +1077,8 @@ private fun TelevisionDisplaySettings(
         }
         item(key = "track-cover") {
             TelevisionSettingsToggleRow(
-                "Prefer track artwork",
-                "Use track-specific art when available",
+                stringResource(Res.string.tv_prefer_track_artwork),
+                stringResource(Res.string.tv_use_track_specific_art_when_available),
                 nowPlaying.showTrackCover,
                 colors,
                 {
@@ -1085,6 +1088,7 @@ private fun TelevisionDisplaySettings(
                 },
             )
         }
+
     }
 }
 
@@ -1099,8 +1103,8 @@ private fun TelevisionDiagnosticsSettings(
     TelevisionSettingsList {
         item(key = "stats") {
             TelevisionSettingsRow(
-                "Stats for Nerds",
-                "Playback, connection, and cache details",
+                stringResource(Res.string.tv_stats_for_nerds),
+                stringResource(Res.string.tv_playback_connection_and_cache_details),
                 icon = NaviampIcons.Bug,
                 colors = colors,
                 onClick = actions.onOpenStatsForNerds,
@@ -1109,18 +1113,18 @@ private fun TelevisionDiagnosticsSettings(
         }
         item(key = "refresh-library") {
             TelevisionSettingsRow(
-                "Refresh library",
-                "Reload provider content for this TV",
+                stringResource(Res.string.tv_refresh_library),
+                stringResource(Res.string.tv_reload_provider_content_for_this_tv),
                 icon = NaviampIcons.Refresh,
                 colors = colors,
                 onClick = actions.onRefreshLibrary,
             )
         }
         connection.serverVersion?.let { version ->
-            item(key = "server-version") { TelevisionSettingsInfo("Server version", version, colors) }
+            item(key = "server-version") { TelevisionSettingsInfo(stringResource(Res.string.tv_server_version), version, colors) }
         }
         connection.status?.let { status ->
-            item(key = "connection-status") { TelevisionSettingsInfo("Connection", status, colors) }
+            item(key = "connection-status") { TelevisionSettingsInfo(stringResource(Res.string.tv_connection), status, colors) }
         }
         uiState.cache.diagnostics.sections.forEachIndexed { sectionIndex, section ->
             items(section.rows, key = { row -> "$sectionIndex:${row.first}" }) { row ->
@@ -1141,7 +1145,7 @@ private fun TelevisionAboutSettings(
         item(key = "version") {
             TelevisionSettingsRow(
                 "Naviamp",
-                "Shared music player for every screen",
+                stringResource(Res.string.tv_shared_music_player_for_every_screen),
                 about.version,
                 NaviampIcons.AppMark,
                 colors = colors,
@@ -1150,9 +1154,9 @@ private fun TelevisionAboutSettings(
             )
         }
         if (about.buildNumber.isNotBlank()) {
-            item(key = "build") { TelevisionSettingsInfo("Build", about.buildNumber, colors) }
+            item(key = "build") { TelevisionSettingsInfo(stringResource(Res.string.tv_build), about.buildNumber, colors) }
         }
-        item(key = "libraries") { TelevisionSettingsInfo("Open-source libraries", about.libraries.size.toString(), colors) }
+        item(key = "libraries") { TelevisionSettingsInfo(stringResource(Res.string.tv_open_source_libraries), about.libraries.size.toString(), colors) }
     }
 }
 
@@ -1182,11 +1186,11 @@ private fun TelevisionAlbumBlurAmountSettings(
     TelevisionSettingsList {
         item(key = "blur-slider") {
             TelevisionSettingsSliderRow(
-                label = "Blur amount",
+                label = stringResource(Res.string.tv_blur_amount),
                 value = settings.albumBlurRadiusDp.toFloat(),
                 valueRange = MinAlbumBlurRadiusDp.toFloat()..MaxAlbumBlurRadiusDp.toFloat(),
                 step = 2f,
-                valueText = "${settings.albumBlurRadiusDp}dp",
+                valueText = stringResource(Res.string.tv_blur_value, settings.albumBlurRadiusDp),
                 colors = colors,
                 onValueChange = { value ->
                     actions.onInterfaceSettingsChanged(
@@ -1222,7 +1226,7 @@ private fun TelevisionSingleColorSettings(
         }
         item(key = "color-hue") {
             TelevisionSettingsSliderRow(
-                label = "Hue",
+                label = stringResource(Res.string.tv_hue),
                 value = hsv[0] * 360f,
                 valueRange = 0f..360f,
                 step = 10f,
@@ -1234,7 +1238,7 @@ private fun TelevisionSingleColorSettings(
         }
         item(key = "color-saturation") {
             TelevisionSettingsSliderRow(
-                label = "Saturation",
+                label = stringResource(Res.string.tv_saturation),
                 value = hsv[1] * 100f,
                 valueRange = 0f..100f,
                 step = 5f,
@@ -1245,7 +1249,7 @@ private fun TelevisionSingleColorSettings(
         }
         item(key = "color-brightness") {
             TelevisionSettingsSliderRow(
-                label = "Brightness",
+                label = stringResource(Res.string.tv_brightness),
                 value = hsv[2] * 100f,
                 valueRange = 8f..70f,
                 step = 5f,
@@ -1278,7 +1282,7 @@ private fun TelevisionSettingsColorPreview(
                 .border(1.dp, colors.border, RoundedCornerShape(10.dp)),
         )
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Selected color", color = colors.primaryText, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(Res.string.tv_selected_color), color = colors.primaryText, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Text(hex, color = colors.secondaryText, fontSize = 14.sp)
         }
     }
@@ -1407,6 +1411,7 @@ private fun TelevisionSettingsList(
     )
 }
 
+@Composable
 private fun televisionSettingsChoices(
     page: TelevisionSettingsChoicePage,
     uiState: NaviampAppShellUiState,
@@ -1419,22 +1424,22 @@ private fun televisionSettingsChoices(
         TelevisionSettingsChoicePage.SingleColor,
         -> emptyList()
         TelevisionSettingsChoicePage.Background -> AppBackgroundStyle.entries.map { value ->
-            TelevisionChoiceUi(value.label, selected = value == interfaceSettings.appBackgroundStyle) {
+            TelevisionChoiceUi(televisionBackgroundLabel(value), selected = value == interfaceSettings.appBackgroundStyle) {
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(appBackgroundStyle = value))
             }
         }
         TelevisionSettingsChoicePage.AuroraTone -> AuroraTone.entries.map { value ->
-            TelevisionChoiceUi(value.label, selected = value == interfaceSettings.auroraTone) {
+            TelevisionChoiceUi(televisionAuroraToneLabel(value), selected = value == interfaceSettings.auroraTone) {
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(auroraTone = value))
             }
         }
         TelevisionSettingsChoicePage.ReplayGain -> ReplayGainMode.entries.map { value ->
-            TelevisionChoiceUi(value.displayName, selected = value == playback.replayGainMode) {
+            TelevisionChoiceUi(televisionReplayGainLabel(value), selected = value == playback.replayGainMode) {
                 actions.valueActions.onPlaybackSettingsChanged(playback.copy(replayGainMode = value))
             }
         }
         TelevisionSettingsChoicePage.SampleRateMatching -> SampleRateMatching.entries.map { value ->
-            TelevisionChoiceUi(value.label, value.subtitle, value == playback.sampleRateMatching) {
+            TelevisionChoiceUi(televisionSampleRateLabel(value), televisionSampleRateSubtitle(value), value == playback.sampleRateMatching) {
                 actions.valueActions.onPlaybackSettingsChanged(playback.copy(sampleRateMatching = value))
             }
         }
@@ -1480,7 +1485,7 @@ private fun TelevisionSettingsToggleRow(
     TelevisionSettingsRow(
         title = title,
         subtitle = subtitle,
-        value = if (checked) "On" else "Off",
+        value = if (checked) stringResource(Res.string.tv_on) else stringResource(Res.string.common_off),
         selected = checked,
         colors = colors,
         onClick = onClick,
@@ -1563,6 +1568,7 @@ private fun TelevisionSettingsInfo(label: String, value: String, colors: Naviamp
     }
 }
 
+@Composable
 private fun televisionSettingsCategoryValue(
     category: TelevisionSettingsCategory,
     uiState: NaviampAppShellUiState,
@@ -1572,34 +1578,35 @@ private fun televisionSettingsCategoryValue(
     TelevisionSettingsCategory.Home -> uiState.general.interfaceSettings.let { settings ->
         val sections = settings.televisionHomeSectionOptions()
         val visible = sections.count { settings.homeSectionPresentation(it.id).visible }
-        "$visible of ${sections.size} visible"
+        stringResource(Res.string.tv_sections_visible, visible, sections.size)
     }
-    TelevisionSettingsCategory.Playback -> if (uiState.playback.settings.gaplessEnabled) "Gapless" else null
-    TelevisionSettingsCategory.Lyrics -> if (uiState.playback.settings.lrclibLyricsEnabled) "Online on" else "Server + tags"
+    TelevisionSettingsCategory.Playback -> if (uiState.playback.settings.gaplessEnabled) stringResource(Res.string.settings_gapless_title) else null
+    TelevisionSettingsCategory.Lyrics -> if (uiState.playback.settings.lrclibLyricsEnabled) stringResource(Res.string.tv_online_on) else stringResource(Res.string.tv_server_tags)
     TelevisionSettingsCategory.Controllers -> when {
         uiState.connect.pairingCode != null -> formatNaviampConnectPairingCode(uiState.connect.pairingCode)
-        uiState.connect.trustedDevices.isNotEmpty() -> "${uiState.connect.trustedDevices.size} trusted"
+        uiState.connect.trustedDevices.isNotEmpty() -> pluralStringResource(Res.plurals.tv_trusted_devices_count, uiState.connect.trustedDevices.size, uiState.connect.trustedDevices.size)
         else -> null
     }
-    TelevisionSettingsCategory.Display -> uiState.general.interfaceSettings.appBackgroundStyle.label
+    TelevisionSettingsCategory.Display -> televisionBackgroundLabel(uiState.general.interfaceSettings.appBackgroundStyle)
     TelevisionSettingsCategory.Diagnostics -> uiState.connectionSettings.connection.serverVersion
     TelevisionSettingsCategory.About -> uiState.general.about.version
 }
 
+@Composable
 private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = when (page) {
-    TelevisionSettingsPage.Root -> "Settings"
-    is TelevisionSettingsPage.Category -> page.category.label
+    TelevisionSettingsPage.Root -> stringResource(Res.string.nav_settings)
+    is TelevisionSettingsPage.Category -> stringResource(page.category.label)
     is TelevisionSettingsPage.Choice -> when (page.choice) {
-        TelevisionSettingsChoicePage.Background -> "Background"
-        TelevisionSettingsChoicePage.AlbumBlurAmount -> "Blur amount"
-        TelevisionSettingsChoicePage.SingleColor -> "Single color"
-        TelevisionSettingsChoicePage.AuroraTone -> "Aurora tone"
-        TelevisionSettingsChoicePage.ReplayGain -> "ReplayGain"
-        TelevisionSettingsChoicePage.SampleRateMatching -> "Sample-rate matching"
-        TelevisionSettingsChoicePage.Crossfade -> "Crossfade"
-        TelevisionSettingsChoicePage.WaveformDensity -> "Waveform density"
-        TelevisionSettingsChoicePage.LyricsDownloadTiming -> "Preferred lyrics"
-        TelevisionSettingsChoicePage.LyricsDisplayTiming -> "Lyrics display"
+        TelevisionSettingsChoicePage.Background -> stringResource(Res.string.tv_background)
+        TelevisionSettingsChoicePage.AlbumBlurAmount -> stringResource(Res.string.tv_blur_amount)
+        TelevisionSettingsChoicePage.SingleColor -> stringResource(Res.string.tv_single_color)
+        TelevisionSettingsChoicePage.AuroraTone -> stringResource(Res.string.aurora_tone)
+        TelevisionSettingsChoicePage.ReplayGain -> stringResource(Res.string.tv_replaygain)
+        TelevisionSettingsChoicePage.SampleRateMatching -> stringResource(Res.string.tv_sample_rate_matching)
+        TelevisionSettingsChoicePage.Crossfade -> stringResource(Res.string.settings_crossfade_title)
+        TelevisionSettingsChoicePage.WaveformDensity -> stringResource(Res.string.tv_waveform_density)
+        TelevisionSettingsChoicePage.LyricsDownloadTiming -> stringResource(Res.string.tv_preferred_lyrics)
+        TelevisionSettingsChoicePage.LyricsDisplayTiming -> stringResource(Res.string.tv_lyrics_display)
     }
 }
 
@@ -1619,9 +1626,11 @@ private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): T
     -> TelevisionSettingsCategory.Lyrics
 }
 
-internal fun televisionCrossfadeLabel(seconds: Int): String = if (seconds <= 0) "Off" else "$seconds seconds"
+@Composable
+internal fun televisionCrossfadeLabel(seconds: Int): String = if (seconds <= 0) stringResource(Res.string.common_off) else pluralStringResource(Res.plurals.tv_seconds, seconds, seconds)
 
-internal fun televisionWaveformDensityLabel(bucketCount: Int): String = "$bucketCount steps"
+@Composable
+internal fun televisionWaveformDensityLabel(bucketCount: Int): String = pluralStringResource(Res.plurals.tv_waveform_steps, bucketCount, bucketCount)
 
 internal fun televisionSteppedSettingsValue(
     value: Float,
@@ -1657,18 +1666,20 @@ private val TelevisionWaveformBucketCountOptions = listOf(
     MaxWaveformBucketCount,
 )
 
+@Composable
 internal fun televisionLyricsTimingLabel(value: LyricsTimingPreference): String = when (value) {
-    LyricsTimingPreference.FirstAvailable -> "First available"
-    LyricsTimingPreference.Plain -> "Plain"
-    LyricsTimingPreference.LineSynced -> "Line synced"
-    LyricsTimingPreference.WordSynced -> "Word synced"
+    LyricsTimingPreference.FirstAvailable -> stringResource(Res.string.tv_first_available)
+    LyricsTimingPreference.Plain -> stringResource(Res.string.settings_lyrics_timing_plain)
+    LyricsTimingPreference.LineSynced -> stringResource(Res.string.tv_line_synced)
+    LyricsTimingPreference.WordSynced -> stringResource(Res.string.tv_word_synced)
 }
 
+@Composable
 internal fun televisionLyricsDisplayLabel(value: LyricsDisplayPreference): String = when (value) {
-    LyricsDisplayPreference.MatchDownload -> "Match preferred lyrics"
-    LyricsDisplayPreference.Plain -> "Plain"
-    LyricsDisplayPreference.LineSynced -> "Line synced"
-    LyricsDisplayPreference.WordSynced -> "Word synced"
+    LyricsDisplayPreference.MatchDownload -> stringResource(Res.string.tv_match_preferred_lyrics)
+    LyricsDisplayPreference.Plain -> stringResource(Res.string.settings_lyrics_timing_plain)
+    LyricsDisplayPreference.LineSynced -> stringResource(Res.string.tv_line_synced)
+    LyricsDisplayPreference.WordSynced -> stringResource(Res.string.tv_word_synced)
 }
 
 private val TelevisionSettingsFocusOverflow = 12.dp

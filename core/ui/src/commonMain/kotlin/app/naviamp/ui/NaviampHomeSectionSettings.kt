@@ -1,7 +1,6 @@
 package app.naviamp.ui
+import app.naviamp.ui.generated.resources.*
 
-import app.naviamp.ui.generated.resources.Res
-import app.naviamp.ui.generated.resources.settings_favorite_artists
 
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.InterfaceSettings
@@ -18,23 +17,23 @@ internal data class HomeScreenSectionOption(
 
 internal val HomeScreenSectionOptions = listOf(
     HomeScreenSectionOption(HomeSectionIds.FavoriteArtists, "", Res.string.settings_favorite_artists),
-    HomeScreenSectionOption(HomeSectionIds.MixesForYou, "Mixes for You"),
-    HomeScreenSectionOption(HomeSectionIds.NavibeatMixes, "NaviBeat Mixes"),
-    HomeScreenSectionOption(HomeSectionIds.RecentRadio, "Recently Played Radio"),
-    HomeScreenSectionOption(HomeSectionIds.RecentlyPlayed, "Recently Played"),
-    HomeScreenSectionOption(HomeSectionIds.MixBuilders, "Mix Builders"),
-    HomeScreenSectionOption(HomeSectionIds.MoreLikeRecentPlays, "More Like Recent Plays"),
-    HomeScreenSectionOption(HomeSectionIds.SonicDeepCuts, "Sonic Deep Cuts"),
-    HomeScreenSectionOption(HomeSectionIds.SimilarToStarredTracks, "Similar To Starred Tracks"),
-    HomeScreenSectionOption(HomeSectionIds.RecentlyAdded, "Recently Added Music"),
-    HomeScreenSectionOption(HomeSectionIds.RecentPlaylists, "Recent Playlists"),
-    HomeScreenSectionOption(HomeSectionIds.RecentInternetRadio, "Recent Internet Radio"),
-    HomeScreenSectionOption(HomeSectionIds.Stations, "Stations"),
-    HomeScreenSectionOption(HomeSectionIds.RecentAlbums, "Recent Albums"),
-    HomeScreenSectionOption(HomeSectionIds.FrequentlyPlayedAlbums, "Frequently Played Albums"),
-    HomeScreenSectionOption(HomeSectionIds.RandomAlbums, "Random Albums"),
-    HomeScreenSectionOption(HomeSectionIds.GenreSpotlight, "Genre Spotlight"),
-    HomeScreenSectionOption(HomeSectionIds.Decade, "Decade Spotlight"),
+    HomeScreenSectionOption(HomeSectionIds.MixesForYou, "Mixes for You", Res.string.tv_home_mixes_for_you),
+    HomeScreenSectionOption(HomeSectionIds.NavibeatMixes, "NaviBeat Mixes", Res.string.tv_home_navibeat_mixes),
+    HomeScreenSectionOption(HomeSectionIds.RecentRadio, "Recently Played Radio", Res.string.home_recently_played_radio),
+    HomeScreenSectionOption(HomeSectionIds.RecentlyPlayed, "Recently Played", Res.string.tv_home_recently_played),
+    HomeScreenSectionOption(HomeSectionIds.MixBuilders, "Mix Builders", Res.string.tv_home_mix_builders),
+    HomeScreenSectionOption(HomeSectionIds.MoreLikeRecentPlays, "More Like Recent Plays", Res.string.tv_home_more_like_recent_plays),
+    HomeScreenSectionOption(HomeSectionIds.SonicDeepCuts, "Sonic Deep Cuts", Res.string.tv_home_sonic_deep_cuts),
+    HomeScreenSectionOption(HomeSectionIds.SimilarToStarredTracks, "Similar To Starred Tracks", Res.string.tv_home_similar_to_starred_tracks),
+    HomeScreenSectionOption(HomeSectionIds.RecentlyAdded, "Recently Added Music", Res.string.tv_home_recently_added_music),
+    HomeScreenSectionOption(HomeSectionIds.RecentPlaylists, "Recent Playlists", Res.string.home_recent_playlists),
+    HomeScreenSectionOption(HomeSectionIds.RecentInternetRadio, "Recent Internet Radio", Res.string.home_recent_internet_radio),
+    HomeScreenSectionOption(HomeSectionIds.Stations, "Stations", Res.string.tv_home_stations),
+    HomeScreenSectionOption(HomeSectionIds.RecentAlbums, "Recent Albums", Res.string.home_recent_albums),
+    HomeScreenSectionOption(HomeSectionIds.FrequentlyPlayedAlbums, "Frequently Played Albums", Res.string.home_frequently_played_albums),
+    HomeScreenSectionOption(HomeSectionIds.RandomAlbums, "Random Albums", Res.string.home_random_albums),
+    HomeScreenSectionOption(HomeSectionIds.GenreSpotlight, "Genre Spotlight", Res.string.tv_home_genre_spotlight),
+    HomeScreenSectionOption(HomeSectionIds.Decade, "Decade Spotlight", Res.string.tv_home_decade_spotlight),
 )
 
 internal fun InterfaceSettings.orderedHomeScreenSectionOptions(): List<HomeScreenSectionOption> =

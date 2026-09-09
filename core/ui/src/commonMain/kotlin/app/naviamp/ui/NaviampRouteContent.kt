@@ -1,4 +1,5 @@
 package app.naviamp.ui
+import app.naviamp.ui.generated.resources.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -170,9 +171,16 @@ private fun FavoriteArtistStatus(section: SharedHomeCollectionSectionUi, colors:
 }
 
 @Composable
-private fun SharedHomeCollectionSectionUi.localizedTitle(): String = when (titleResource) {
+internal fun SharedHomeCollectionSectionUi.localizedTitle(): String = when (titleResource) {
     SharedHomeCollectionTitleResource.FavoriteArtists -> stringResource(Res.string.home_favorite_artists)
-    null -> title
+    null -> when {
+        id == app.naviamp.domain.settings.HomeSectionIds.GenreSpotlight && titleArgument != null ->
+            stringResource(Res.string.home_more_in, titleArgument).uppercase()
+        id == app.naviamp.domain.settings.HomeSectionIds.Decade && titleArgument != null ->
+            stringResource(Res.string.home_from_decade, titleArgument).uppercase()
+        else -> HomeScreenSectionOptions.firstOrNull { it.id == id }?.titleResource
+            ?.let { stringResource(it).uppercase() } ?: title
+    }
 }
 
 @Composable

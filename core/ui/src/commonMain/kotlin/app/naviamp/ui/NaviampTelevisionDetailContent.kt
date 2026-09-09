@@ -1,4 +1,6 @@
 package app.naviamp.ui
+import org.jetbrains.compose.resources.pluralStringResource
+import app.naviamp.ui.generated.resources.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +48,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.window.DialogProperties
 
@@ -60,7 +61,7 @@ internal fun TelevisionAlbumDetail(
     val detail = screen.detail
     if (detail == null) {
         TelevisionDetailLoading(
-            title = screen.selectedAlbum?.title ?: "Album",
+            title = screen.selectedAlbum?.title ?: stringResource(Res.string.tv_album),
             status = screen.status,
             colors = colors,
         )
@@ -86,17 +87,17 @@ internal fun TelevisionAlbumDetail(
                 topNavigationFocusRequester = topNavigationFocusRequester,
                 initialActionDownFocusRequester = firstTrackFocusRequester,
                 actions = listOf(
-                    TelevisionHeroAction("Play", NaviampTransportIcons.Play, detail.tracks.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.transport_play), NaviampTransportIcons.Play, detail.tracks.isNotEmpty()) {
                         actions.onAlbumAction(
                             NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.Play(false)),
                         )
                     },
-                    TelevisionHeroAction("Start Radio", NaviampTransportIcons.Radio, detail.tracks.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.tv_start_radio), NaviampTransportIcons.Radio, detail.tracks.isNotEmpty()) {
                         actions.onAlbumAction(
                             NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.StartRadio),
                         )
                     },
-                    TelevisionHeroAction("Add to Queue", NaviampIcons.Queue, detail.tracks.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.mix_add_to_queue), NaviampIcons.Queue, detail.tracks.isNotEmpty()) {
                         actions.onAlbumAction(
                             NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.AddToQueue),
                         )
@@ -105,7 +106,7 @@ internal fun TelevisionAlbumDetail(
             )
         }
         item(key = "album-tracks-heading") {
-            TelevisionDetailSectionHeading("Tracks", colors)
+            TelevisionDetailSectionHeading(stringResource(Res.string.tv_tracks), colors)
         }
         itemsIndexed(detail.tracks, key = { _, track -> track.id }) { index, track ->
             TelevisionTrackRow(
@@ -136,7 +137,7 @@ internal fun TelevisionArtistDetail(
     val detail = screen.detail
     if (detail == null) {
         TelevisionDetailLoading(
-            title = screen.selectedArtist?.title ?: "Artist",
+            title = screen.selectedArtist?.title ?: stringResource(Res.string.tv_artist),
             status = screen.status,
             colors = colors,
         )
@@ -167,7 +168,7 @@ internal fun TelevisionArtistDetail(
                     firstAlbumFocusRequester
                 },
                 actions = listOf(
-                    TelevisionHeroAction("Play", NaviampTransportIcons.Play, detail.albums.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.transport_play), NaviampTransportIcons.Play, detail.albums.isNotEmpty()) {
                         actions.onArtistAction(
                             NaviampArtistDetailActionRequest(
                                 detail.artist,
@@ -175,12 +176,12 @@ internal fun TelevisionArtistDetail(
                             ),
                         )
                     },
-                    TelevisionHeroAction("Start Radio", NaviampTransportIcons.Radio, detail.albums.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.tv_start_radio), NaviampTransportIcons.Radio, detail.albums.isNotEmpty()) {
                         actions.onArtistAction(
                             NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.StartRadio),
                         )
                     },
-                    TelevisionHeroAction("Add to Queue", NaviampIcons.Queue, detail.albums.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.mix_add_to_queue), NaviampIcons.Queue, detail.albums.isNotEmpty()) {
                         actions.onArtistAction(
                             NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.AddToQueue),
                         )
@@ -190,7 +191,7 @@ internal fun TelevisionArtistDetail(
         }
         if (detail.popularTracks.isNotEmpty()) {
             item(key = "popular-tracks-heading") {
-                TelevisionDetailSectionHeading("Popular Tracks", colors)
+                TelevisionDetailSectionHeading(stringResource(Res.string.tv_popular_tracks), colors)
             }
             itemsIndexed(detail.popularTracks, key = { _, track -> "popular:${track.id}" }) { index, track ->
                 TelevisionTrackRow(
@@ -226,7 +227,7 @@ internal fun TelevisionArtistDetail(
         }
         if (detail.albums.isNotEmpty()) {
             item(key = "artist-albums-heading") {
-                TelevisionDetailSectionHeading("Albums", colors)
+                TelevisionDetailSectionHeading(stringResource(Res.string.artist_releases_albums), colors)
             }
             item(key = "artist-albums") {
                 LazyRow(
@@ -293,7 +294,7 @@ internal fun TelevisionPlaylistDetail(
     val detail = screen.detail
     if (detail == null) {
         TelevisionDetailLoading(
-            title = screen.selectedPlaylist?.title ?: "Playlist",
+            title = screen.selectedPlaylist?.title ?: stringResource(Res.string.tv_playlist),
             status = screen.status,
             colors = colors,
         )
@@ -318,7 +319,7 @@ internal fun TelevisionPlaylistDetail(
                 topNavigationFocusRequester = topNavigationFocusRequester,
                 initialActionDownFocusRequester = firstTrackFocusRequester,
                 actions = listOf(
-                    TelevisionHeroAction("Play", NaviampTransportIcons.Play, detail.tracks.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.transport_play), NaviampTransportIcons.Play, detail.tracks.isNotEmpty()) {
                         actions.onPlaylistAction(
                             NaviampPlaylistDetailActionRequest(
                                 playlist,
@@ -327,7 +328,7 @@ internal fun TelevisionPlaylistDetail(
                         )
                     },
                     TelevisionHeroAction(
-                        "Shuffle",
+                        stringResource(Res.string.transport_shuffle),
                         NaviampTransportIcons.Shuffle,
                         televisionPlaylistSupportsShuffle(detail.tracks.size),
                     ) {
@@ -338,7 +339,7 @@ internal fun TelevisionPlaylistDetail(
                             ),
                         )
                     },
-                    TelevisionHeroAction("Add to Queue", NaviampIcons.Queue, detail.tracks.isNotEmpty()) {
+                    TelevisionHeroAction(stringResource(Res.string.mix_add_to_queue), NaviampIcons.Queue, detail.tracks.isNotEmpty()) {
                         actions.onPlaylistAction(
                             NaviampPlaylistDetailActionRequest(playlist, NaviampPlaylistDetailCommand.AddToQueue),
                         )
@@ -347,7 +348,7 @@ internal fun TelevisionPlaylistDetail(
             )
         }
         item(key = "playlist-tracks-heading") {
-            TelevisionDetailSectionHeading("Tracks", colors)
+            TelevisionDetailSectionHeading(stringResource(Res.string.tv_tracks), colors)
         }
         itemsIndexed(detail.tracks, key = { _, track -> track.id }) { index, track ->
             TelevisionTrackRow(
@@ -650,11 +651,7 @@ private fun TelevisionTrackActionsDialog(
                 )
                 televisionTrackActionContextLines(track, artistContext, albumContext).forEach { (label, value) ->
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(stringResource(when (label) {
-                            "Artist" -> Res.string.tv_track_artist_label
-                            "Album" -> Res.string.tv_track_album_label
-                            else -> Res.string.tv_track_title_label
-                        }), color = colors.mutedText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(label), color = colors.mutedText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text(
                             value,
                             color = colors.primaryText,
@@ -695,13 +692,13 @@ internal fun televisionTrackActionContextLines(
     track: SharedTrackRowUi,
     artistContext: String? = null,
     albumContext: String? = null,
-): List<Pair<String, String>> = buildList {
+): List<Pair<org.jetbrains.compose.resources.StringResource, String>> = buildList {
     val artists = artistContext?.takeIf(String::isNotBlank)
         ?: track.artistCredits.joinToString(", ") { it.name }.takeIf(String::isNotBlank)
     val album = albumContext?.takeIf(String::isNotBlank) ?: track.albumTitle?.takeIf(String::isNotBlank)
-    artists?.let { add("Artist" to it) }
-    album?.let { add("Album" to it) }
-    add("Track" to track.title)
+    artists?.let { add(Res.string.tv_track_artist_label to it) }
+    album?.let { add(Res.string.tv_track_album_label to it) }
+    add(Res.string.tv_track_title_label to track.title)
 }
 
 internal fun televisionTrackSecondaryActions(): List<SharedTrackRowAction> = listOf(
@@ -710,16 +707,11 @@ internal fun televisionTrackSecondaryActions(): List<SharedTrackRowAction> = lis
     SharedTrackRowAction.StartRadio,
 )
 
-internal fun televisionTrackSecondaryActionLabel(action: SharedTrackRowAction): String = when (action) {
-    SharedTrackRowAction.PlayNext -> "Play Next"
-    SharedTrackRowAction.AddToQueue -> "Add to Queue"
-    SharedTrackRowAction.StartRadio -> "Start Radio"
-    else -> error("Unsupported Television track action: $action")
-}
+@Composable
+internal fun televisionTrackCountLabel(count: Int): String = pluralStringResource(Res.plurals.tv_track_count, count, count)
 
-internal fun televisionTrackCountLabel(count: Int): String = "$count ${if (count == 1) "track" else "tracks"}"
-
-internal fun televisionReleaseCountLabel(count: Int): String = "$count ${if (count == 1) "release" else "releases"}"
+@Composable
+internal fun televisionReleaseCountLabel(count: Int): String = pluralStringResource(Res.plurals.tv_release_count, count, count)
 
 @Composable
 private fun TelevisionDetailSectionHeading(title: String, colors: NaviampColors) {
@@ -734,7 +726,7 @@ private fun TelevisionDetailLoading(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxSize()) {
         Text(title, color = colors.primaryText, fontSize = 34.sp, fontWeight = FontWeight.Black)
-        Text(status ?: "Loading…", color = colors.secondaryText, fontSize = 19.sp)
+        Text(status ?: stringResource(Res.string.tv_loading), color = colors.secondaryText, fontSize = 19.sp)
     }
 }
 

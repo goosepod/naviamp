@@ -1,4 +1,6 @@
 package app.naviamp.ui
+import org.jetbrains.compose.resources.stringResource
+import app.naviamp.ui.generated.resources.*
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -222,7 +224,7 @@ fun NaviampTelevisionAppShell(
             )
             when {
                 connection.restoringConnection && !connection.editingConnection -> TelevisionStatusScreen(
-                    title = "Restoring Naviamp TV",
+                    title = stringResource(Res.string.tv_restoring_naviamp_tv),
                     message = connection.status.orEmpty(),
                     colors = colors,
                 )
@@ -483,7 +485,7 @@ private fun TelevisionNavigationBar(
         Spacer(Modifier.weight(1f))
         TelevisionNavigationIconButton(
             icon = NaviampIcons.Settings,
-            description = "Settings",
+            description = stringResource(Res.string.nav_settings),
             colors = colors,
             focusRequester = focusRequesters.getValue(NaviampTelevisionDestination.Settings),
             canFocus = navigationFocused || focusDestination == NaviampTelevisionDestination.Settings,
@@ -692,7 +694,7 @@ private fun TelevisionNavigationButton(
             },
     ) {
         Text(
-            text = destination.label,
+            text = televisionDestinationLabel(destination),
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -727,14 +729,14 @@ private fun TelevisionConnectionScreen(
                 .widthIn(max = 820.dp)
                 .align(Alignment.CenterHorizontally),
         ) {
-            Text("Set up Naviamp TV", color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
+            Text(stringResource(Res.string.tv_set_up_naviamp_tv), color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
             Text(
-                "Connect directly from this TV. Pairing a phone or computer will remain optional.",
+                stringResource(Res.string.tv_direct_setup_description),
                 color = colors.secondaryText,
                 fontSize = 18.sp,
             )
             Text(
-                "While typing, choose Next on the TV keyboard to advance. Use Back or Esc to close the keyboard.",
+                stringResource(Res.string.tv_keyboard_navigation_hint),
                 color = colors.mutedText,
                 fontSize = 14.sp,
             )
@@ -779,15 +781,15 @@ private fun TelevisionFirstRunConnectSetup(
             .background(colors.controlSurface.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
             .padding(16.dp),
     ) {
-        Text("Set up from a phone or computer", color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.tv_set_up_from_a_phone_or_computer), color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Text(
-            "Put this TV in pairing mode, find it from Naviamp on the same network, and enter the code shown here.",
+            stringResource(Res.string.tv_put_this_tv_in_pairing_mode_find_it_from_naviamp_on_the_same_network_and_enter),
             color = colors.secondaryText,
             fontSize = 15.sp,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             TelevisionTextButton(
-                label = if (connect.pairingActive) "Stop pairing" else "Show pairing code",
+                label = if (connect.pairingActive) stringResource(Res.string.tv_stop_pairing) else stringResource(Res.string.tv_show_pairing_code),
                 colors = colors,
                 calmFocus = true,
                 onClick = if (connect.pairingActive) actions.onStopPairingMode else actions.onStartPairingMode,
@@ -809,26 +811,25 @@ private fun TelevisionFirstRunConnectSetup(
         }
         if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval) {
             Text(
-                "${connect.pendingControllerName ?: "A controller"} is asking to pair.",
+                stringResource(Res.string.tv_controller_asking_to_pair, connect.pendingControllerName ?: stringResource(Res.string.tv_controller_fallback)),
                 color = colors.primaryText,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TelevisionTextButton("Approve controller", colors, calmFocus = true, onClick = actions.onApproveController)
-                TelevisionTextButton("Reject", colors, calmFocus = true, onClick = actions.onRejectController)
+                TelevisionTextButton(stringResource(Res.string.tv_approve_controller), colors, calmFocus = true, onClick = actions.onApproveController)
+                TelevisionTextButton(stringResource(Res.string.tv_reject), colors, calmFocus = true, onClick = actions.onRejectController)
             }
         }
         connect.pendingProvisioningConnectionName?.let { connectionName ->
             Text(
-                "${connect.pendingProvisioningControllerName ?: "A paired controller"} can set up $connectionName. " +
-                    "The TV will validate it before saving.",
+                stringResource(Res.string.tv_controller_can_set_up, connect.pendingProvisioningControllerName ?: stringResource(Res.string.tv_paired_controller_fallback), connectionName),
                 color = colors.primaryText,
                 fontSize = 16.sp,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TelevisionTextButton("Set up server", colors, calmFocus = true, onClick = actions.onApproveProvisioning)
-                TelevisionTextButton("Reject", colors, calmFocus = true, onClick = actions.onRejectProvisioning)
+                TelevisionTextButton(stringResource(Res.string.tv_set_up_server), colors, calmFocus = true, onClick = actions.onApproveProvisioning)
+                TelevisionTextButton(stringResource(Res.string.tv_reject), colors, calmFocus = true, onClick = actions.onRejectProvisioning)
             }
         }
     }

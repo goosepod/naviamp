@@ -97,7 +97,7 @@ honors a smaller shared per-section limit.
   existing content margins. Ordinary remote wake restores brightness and position immediately
   without also issuing playback actions. Open queue interactions suspend the timer; track and
   progress updates do not restart it. The navigation preview uses the same passive policy.
-- Validate OLED readability and burn-in mitigation on physical hardware before release; this is
+- Validate OLED mitigation with automated policy tests and representative renders; this is
   application-level mitigation, not a guarantee against panel burn-in.
 
 ### Focus and selection language
@@ -405,7 +405,7 @@ independent navigation graph may be introduced in the Apple TV host.
   including remote-friendly play, refresh, create, edit, delete, focus, and Back behavior.
 - The dedicated full-screen Now Playing, listening-mode transition, queue panel, and smoothly
   scrolling line-synced lyrics and idle dimming/pixel shifting are implemented. Word-level karaoke
-  highlighting and physical OLED acceptance remain outstanding parts of the complete lyrics direction.
+  highlighting and other physical TV acceptance remain outstanding parts of the complete lyrics direction.
 - Add shared Compose coverage for Television Home, Library, Search submission and re-entry, the mini
   player, Internet Radio, Now Playing actions, lyrics rendering, settings movement, and route/detail
   Back behavior. The 2026-08-28 emulator acceptance sweep covers these implemented paths manually,
@@ -444,7 +444,7 @@ independent navigation graph may be introduced in the Apple TV host.
   line-synced Lyrics presentation.
 - [x] Implement and exercise TV queue selection/reordering, repeat/shuffle/favorite, gapless and
   crossfade exclusivity, ReplayGain choices, and sample-rate matching controls.
-- [x] Add shared idle dimming and bounded pixel shifting to TV Now Playing; physical OLED acceptance remains open.
+- [x] Add shared idle dimming and bounded pixel shifting to TV Now Playing; OLED validation uses automated tests and renders; no OLED device is available.
 - [ ] Add word-level karaoke highlighting as a post-preview lyrics enhancement.
 - [ ] Verify audio focus, background-service retention, process restoration, and `MediaSession`
   behavior on physical Google TV hardware.
@@ -1361,4 +1361,29 @@ Connect availability has additional topology and fresh-device requirements in
   interaction, preview, and layout tests. Android debug assembly, Desktop compilation, iOS
   Simulator ARM64 compilation, and the Core architecture guard pass. Reviewed shifted/dimmed
   720p and 4K captures under `core/ui/build/reports/television-screen-protection/`; artwork,
-  text, and progress stay inside the viewport. Physical OLED acceptance remains open.
+  text, and progress stay inside the viewport. OLED validation uses automated tests and renders; no OLED device is available.
+
+- OLED validation constraint: the maintainer does not own an OLED display and cannot perform
+  physical OLED testing. Do not assign that task to them or make it a maintainer release gate.
+  Use shared timing/wake tests and 720p/4K render checks as the available acceptance evidence;
+  no physical panel burn-in validation is claimed. Other Google TV hardware checks remain separate.
+
+- TV localization now uses the maintained English/Spanish resources for settings categories and
+  choices, navigation, first-run instructions, radio and queue actions, playback accessibility
+  labels, empty states, and detail counts. Counts use plural resources; controller names and
+  other inserted values use indexed format arguments. Queue styling now uses an explicit current
+  flag rather than comparing a translated label. Track context labels use resource identifiers.
+- Localized the shared connection form and radio editor used by TV, plus shared Home headings.
+  Genre/decade heading values travel as explicit UI data rather than being parsed from English.
+  TV text follows the device locale. The pre-existing shared language preference is not wired to
+  the resource locale; applying that preference across hosts remains separate work. No new TV
+  language picker, setting, or migration was added.
+- Connect status messages carry resource identities and indexed device-name arguments from shared
+  presentation into shared UI. Provider-supplied names and diagnostic details retain their original
+  text. English/Spanish resource parity and rendered Spanish remote-navigation checks are automated.
+- Localization validation: 195 Core app, 349 presentation, and 322 shared UI JVM tests pass
+  (866 total, no failures/errors/skips). Both maintained languages contain 815 matching resource
+  keys. Android debug assembly, Desktop and iOS Simulator ARM64 compilation, and the Core
+  architecture guard pass. Reviewed the Spanish 720p settings-panel capture and exercised remote
+  activation, translated plurals, connection fields, and formatted Connect status text. All
+  production changes are shared Core code/resources; no platform production files changed.

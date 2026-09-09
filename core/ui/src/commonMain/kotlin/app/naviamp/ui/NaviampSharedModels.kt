@@ -608,6 +608,7 @@ data class SharedHomeCollectionSectionUi(
     val title: String,
     val items: List<SharedHomeCollectionItemUi>,
     val titleResource: SharedHomeCollectionTitleResource? = null,
+    val titleArgument: String? = null,
     val favoriteArtistSort: app.naviamp.domain.settings.FavoriteArtistSort? = null,
     val favoriteArtistsStatus: app.naviamp.domain.home.FavoriteArtistsStatus? = null,
     val visible: Boolean = true,

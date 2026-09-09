@@ -214,13 +214,14 @@ fun HomeContent.toSharedHomeUi(
         SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
     }
     val sections = buildList {
-        fun addSection(id: String, title: String, items: List<SharedHomeCollectionItemUi>) {
+        fun addSection(id: String, title: String, items: List<SharedHomeCollectionItemUi>, titleArgument: String? = null) {
             if (items.isEmpty()) return
             val presentation = interfaceSettings.homeSectionPresentation(id)
             add(
                 SharedHomeCollectionSectionUi(
                     id = id,
                     title = title,
+                    titleArgument = titleArgument,
                     items = items,
                     visible = presentation.visible,
                     homeLayout = presentation.homeLayout,
@@ -311,13 +312,13 @@ fun HomeContent.toSharedHomeUi(
                 )
             })
         }
-        fun addAlbums(id: String, title: String, albums: List<Album>) = addSection(id, title, albums.map { album ->
+        fun addAlbums(id: String, title: String, albums: List<Album>, titleArgument: String? = null) = addSection(id, title, albums.map { album ->
             SharedHomeCollectionItemUi(
                 mediaItem = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums),
                 mediaKind = SharedMediaItemKind.Album,
                 action = SharedHomeCollectionItemAction.OpenAlbum,
             )
-        })
+        }, titleArgument = titleArgument)
         addAlbums(HomeSectionIds.RecentlyAdded, "RECENTLY ADDED MUSIC", recentlyAddedAlbums)
         addSection(HomeSectionIds.RecentPlaylists, "RECENT PLAYLISTS", playlists.map { playlist ->
             SharedHomeCollectionItemUi(
@@ -350,8 +351,8 @@ fun HomeContent.toSharedHomeUi(
         addAlbums(HomeSectionIds.RecentAlbums, "RECENT ALBUMS", recentAlbums)
         addAlbums(HomeSectionIds.FrequentlyPlayedAlbums, "FREQUENTLY PLAYED ALBUMS", frequentAlbums)
         addAlbums(HomeSectionIds.RandomAlbums, "RANDOM ALBUMS", randomAlbums)
-        addAlbums(HomeSectionIds.GenreSpotlight, "MORE IN ${genreSpotlight?.name.orEmpty()}", genreSpotlightAlbums)
-        addAlbums(HomeSectionIds.Decade, "FROM THE ${decadeLabel.uppercase()}", decadeAlbums)
+        addAlbums(HomeSectionIds.GenreSpotlight, "MORE IN ${genreSpotlight?.name.orEmpty()}", genreSpotlightAlbums, titleArgument = genreSpotlight?.name.orEmpty())
+        addAlbums(HomeSectionIds.Decade, "FROM THE ${decadeLabel.uppercase()}", decadeAlbums, titleArgument = decadeLabel)
     }
     val order = interfaceSettings.resolvedHomeSectionOrder(sections.map { it.id })
     val orderIndex = order.withIndex().associate { it.value to it.index }
