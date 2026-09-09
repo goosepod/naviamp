@@ -29,9 +29,9 @@ live-server performance evidence.
 | Player / Aurora | Common workspace/navigation, waveform and normalized portable settings; shared UI and live Windows checks recorded. | iPhone playback/pause and portrait/landscape rendered correctly. macOS full/split/narrow layouts and queue passed. Aurora has automated coverage; exhaustive native control acceptance remains open. |
 | Storage / architecture / translations | September 8 review passed architecture and migration verification plus 1,459 JVM tests. Migration 24 follows main's 23. New keys have English/Spanish parity. | Architecture, migration, aggregate coverage and Android debug/release unit gates passed. Local desktop schema drift repaired directly; no production migration added. Nine Spanish keys missing on main predate this branch. |
 | iOS native | Earlier documents establish shared compilation, not a final native-host pass. | 1,462 Kotlin simulator tests and device compilation passed; signed Keychain XCTest passed. Production simulator app build, strict signature verification, install and iPhone interaction pass completed; see details below. |
-| macOS desktop | Existing common UI and Windows evidence do not establish this host. | 1,680 JVM/Compose tests and 42 native Desktop/app-host tests passed; package verification/staging passed. Packaged-app interaction and warm restart passed; see details below. |
-| Provider interoperability | Fixtures for Navidrome/Jellyfin/legacy/Bandcamp; live Navidrome protocol and Pixel genre/download/playlist checks recorded. | Basic legacy Subsonic Demo interaction passed on iOS; Navidrome LAN browsing passed on macOS. Live Jellyfin/Bandcamp browsing, artwork, streaming/native decode and disposable playlist checks passed on Pixel; interrupted membership saves and retries passed on all three providers below; broader adverse-network acceptance remains open. Bandcamp download compatibility correction also passed live verification below. |
-| Accessibility | Shared keyboard/semantics/contrast tests and Windows bridge packaging exist. | Screen-reader usability remains unverified. macOS native text entry could not be driven by automation; shared keyboard tests passed, but native keyboard acceptance remains open. |
+| macOS desktop | Existing common UI and Windows evidence do not establish this host. | Latest run: 1,706 JVM/Compose tests and 42 native Desktop/app-host tests passed; package verification/staging passed. Online playback, provider switching and packaged-app interaction passed. Keyboard shortcuts/text entry, scrubber seeking and drag resizing are user-verified; see details below. |
+| Provider interoperability | Fixtures for Navidrome/Jellyfin/legacy/Bandcamp; live Navidrome protocol and Pixel genre/download/playlist checks recorded. | Basic legacy Subsonic Demo interaction passed on iOS. Navidrome, Jellyfin and Bandcamp online browsing/playback passed on macOS. All three saved Pixel providers passed live browsing, artwork, native decode, playlist interruptions, download failures, quota enforcement, invalid-response rejection and actual-app offline restart/recovery checks below. Bandcamp download compatibility correction passed live verification. |
+| Accessibility | Shared keyboard/semantics/contrast tests and Windows bridge packaging exist. | Shared keyboard tests passed. macOS keyboard shortcuts and text entry are now user-verified after automation limitations. Screen-reader usability and specialized originating-action focus restoration remain unverified. |
 
 ## September 8 evidence
 
@@ -166,10 +166,19 @@ Android, Windows, Linux and native iOS coverage. This local iOS-then-macOS pass 
 for unavailable platforms. Release notes and an Announcements Discussion are created when the
 release ships; feature-branch stabilization does not publish an announcement.
 
-Remaining acceptance: Windows/Linux native CI; broader Android emulator coverage; large
-real Appears On catalog and touch scrolling; native keyboard/focus and screen readers; live
-network-failure scenarios beyond the playlist cases below; end-to-end artwork/catalog latency. The branch
-is ready for continued acceptance, not a release-ready declaration.
+The tested Android and macOS paths support moving to a release candidate: no reproduced,
+unresolved product blocker is recorded in the completed acceptance passes, and the bounded
+stabilization diff review found no new blocker. This is not certification of every platform or path.
+Windows/Linux native verification and the applicable complete release matrix on the exact candidate
+remain required before an all-platform release.
+
+Coverage limitations remain explicit: no physical iOS device; screen-reader usability and specialized
+dialog focus restoration; broader Android emulator coverage; a large real Appears On catalog and
+precise end-to-end artwork/catalog latency. Download limits were tested against the configured quota,
+not by filling the phone; physical disk faults and silent truncation without usable length metadata
+are not covered by that evidence. Mac offline and sleep/wake tests are excluded at the user's request
+to preserve their connection. These limitations do not call for repeating the completed Android/Mac
+regression passes.
 
 The full verification workflow is on GitHub. The configured GitHub repository is public, and this
 feature branch was absent there when checked on September 8. Normal `origin` is private Forgejo.
@@ -676,3 +685,22 @@ limitations remain as documented above. Evidence is the live computer-use access
 observed advancing playback position, not a human audio-quality assessment. No build/test rerun was
 needed because the application binaries and code were unchanged. All documentation remains local;
 no push or GitHub publication.
+
+
+## macOS manual confirmation and stabilization review — 2026-09-08
+
+The user confirmed that the proposed manual checks all work: keyboard shortcuts and text entry,
+seeking with the scrubber, and drag-resizing the window. These are user-verified results, closing
+those specific gaps left by the computer-use adapter. They do not establish screen-reader acceptance
+or every specialized dialog-focus scenario. The earlier automation limitations remain historical
+evidence, not outstanding failures of these controls.
+
+A bounded review of the stabilization changes from `c6b3c648` through `c1f07bbb` found no new release
+blocker. Production corrections remain in common Core/provider code; no Android, Desktop or iOS
+production file changed in that range. The review covered reporting fallback, provider identity and
+stale-result isolation, playlist retry isolation, download quota/replacement preservation, and HTTP
+response completeness. Existing test results and live acceptance support a release candidate for
+the tested paths; Windows/Linux and final candidate verification remain the release gates above.
+
+This checkpoint changes documentation only. No tests were rerun, no app or connection state was
+changed, and nothing was pushed or published to GitHub.
