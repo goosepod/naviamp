@@ -23,6 +23,19 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Split-View Page Background Toggle
+
+- **Status:** Idea
+- **Concept:** Add a setting that toggles split-view page backgrounds between the current dark
+  surface and the user's selected application background. The selected-background option should
+  reuse the existing background preference, without requiring a separate color selection.
+- **Default:** Preserve the current dark surface for existing users and older settings exports.
+- **Shared ownership:** Keep the preference and split-view rendering behavior in Core, and include
+  the setting in shared settings export/import and sync with imported-value normalization.
+- **Acceptance:** Verify both options across split-view browse/detail pages, including text and
+  focus readability over bright colors and artwork backgrounds.
+- **Scope:** Follow-up idea; not added to the active Android TV preview requirements.
+
 ### Independent Font Sizes for Now Playing and the Rest of the UI
 
 - **Status:** Idea
