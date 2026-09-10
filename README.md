@@ -10,6 +10,9 @@ then browse, discover, queue, download, and play from one polished app on deskto
 
 Your music stays with the server you choose. Naviamp brings the player.
 
+[Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
+and share feedback.
+
 <p align="center">
   <img src="readme-assets/screenshots/desktop-now-playing-queue.png" alt="Naviamp desktop Now Playing screen and queue" width="780">
 </p>
