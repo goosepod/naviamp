@@ -33,6 +33,7 @@ constexpr DWORD DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
 constexpr DWORD DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE = 20;
 
 struct BassApi {
+    using SetConfigPtrProc = BOOL(WINAPI*)(DWORD, const void*);
     using StreamCreateUrlProc = HSTREAM(WINAPI*)(const char*, DWORD, DWORD, DOWNLOADPROC*, void*);
     using StreamCreateFileProc = HSTREAM(WINAPI*)(BOOL, const void*, QWORD, QWORD, DWORD);
     using PluginLoadProc = HPLUGIN(WINAPI*)(const char*, DWORD);
@@ -43,6 +44,7 @@ struct BassApi {
     bool loaded = false;
     decltype(&::BASS_FX_GetVersion) BASS_FX_GetVersion = nullptr;
     decltype(&::BASS_SetConfig) BASS_SetConfig = nullptr;
+    SetConfigPtrProc BASS_SetConfigPtr = nullptr;
     StreamCreateUrlProc BASS_StreamCreateURL = nullptr;
     StreamCreateFileProc BASS_StreamCreateFile = nullptr;
     decltype(&::BASS_ChannelGetInfo) BASS_ChannelGetInfo = nullptr;
@@ -107,6 +109,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bassfx, "BASS_FX_GetVersion", bassApi.BASS_FX_GetVersion) && ok;
     if (!ok || HIWORD(bassApi.BASS_FX_GetVersion()) != BASSVERSION) return false;
     ok = load_symbol(bassApi.bass, "BASS_SetConfig", bassApi.BASS_SetConfig) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_SetConfigPtr", bassApi.BASS_SetConfigPtr) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateURL", bassApi.BASS_StreamCreateURL) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateFile", bassApi.BASS_StreamCreateFile) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetInfo", bassApi.BASS_ChannelGetInfo) && ok;
@@ -192,6 +195,7 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 }
 
 #define BASS_SetConfig bassApi.BASS_SetConfig
+#define BASS_SetConfigPtr bassApi.BASS_SetConfigPtr
 #define BASS_StreamCreateURL bassApi.BASS_StreamCreateURL
 #define BASS_StreamCreateFile bassApi.BASS_StreamCreateFile
 #define BASS_ChannelGetInfo bassApi.BASS_ChannelGetInfo

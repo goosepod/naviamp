@@ -19,8 +19,10 @@ import app.naviamp.domain.connect.NaviampConnectTargetPairingState
 import app.naviamp.domain.connect.NaviampConnectTrustRecord
 import app.naviamp.domain.connect.negotiateNaviampConnectProtocol
 import kotlin.io.encoding.Base64
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 sealed interface NaviampConnectPairingRuntimeResult {
     data class Paired(
@@ -91,8 +93,18 @@ class NaviampConnectAuthenticatedSession internal constructor(
 
     private suspend fun sendEnvelopeLocked(envelope: NaviampConnectEnvelope) {
         val packet = NaviampConnectTransportPacket.Encrypted(channel.seal(envelope))
-        connection.send(NaviampConnectTransportPacketCodec.encode(packet))
         nextOutboundSequence += 1
+        try {
+            // Once the channel has consumed a sequence, cancellation must not strand that sequence
+            // between encryption and the transport write. Doing so would make the next producer
+            // reuse it and close the authenticated channel as non-contiguous.
+            withContext(NonCancellable) {
+                connection.send(NaviampConnectTransportPacketCodec.encode(packet))
+            }
+        } catch (failure: Exception) {
+            close()
+            throw failure
+        }
     }
 
     fun nextOutboundSequence(): Long = nextOutboundSequence
