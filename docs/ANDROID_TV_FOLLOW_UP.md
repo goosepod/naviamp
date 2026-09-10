@@ -38,6 +38,28 @@ Windows. Keep the default disabled to preserve normal device power behavior.
 The setting must be persisted and included in settings export, import, and sync. Core owns the
 setting and policy; hosts only apply the narrow operating-system effect.
 
+Physical-device follow-up: during uninterrupted music playback, Android TV entered Ambient Mode,
+continued playing for a while, and later powered off. Treat screen-saver suppression and playback
+wakefulness as separate requirements:
+
+- `FLAG_KEEP_SCREEN_ON` can suppress Android TV Ambient Mode while the Naviamp activity is visible,
+  but Android's TV guidance discourages doing this for ordinary audio unless the app provides its
+  own non-static screen-saver experience.
+- Verify that the Android playback service and native BASS engine hold the appropriate partial CPU
+  wake lock, and a Wi-Fi lock when streaming requires it, only while playback is active. A custom
+  audio engine may not receive the implicit wake behavior provided by Android media players.
+- Android applications cannot override the device's Energy Saver policy. Also distinguish Android
+  device sleep from television power timers and HDMI-CEC behavior, which Naviamp cannot reliably
+  control.
+
+Acceptance criteria:
+
+- Music continues indefinitely through Ambient Mode during a long-duration streaming test.
+- Playback-scoped wake resources are acquired and released with the shared playing state.
+- The optional keep-screen-awake setting clearly describes display behavior and does not promise
+  to override TV hardware, HDMI-CEC, or system Energy Saver settings.
+- Diagnostics identify whether the Naviamp process, Android device, or external display stopped.
+
 ## Android TV waveform height
 
 Status: planned
