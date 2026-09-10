@@ -1430,12 +1430,12 @@ internal fun TelevisionNowPlaying(
         label = "TV listening-mode cover art radius",
     )
     val listeningScrubberHeight by animateDpAsState(
-        targetValue = if (listeningMode) 60.dp else 46.dp,
+        targetValue = if (listeningMode) 38.dp else 30.dp,
         animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
         label = "TV listening-mode scrubber height",
     )
     val listeningScrubberPadding by animateDpAsState(
-        targetValue = if (listeningMode) 9.dp else 5.dp,
+        targetValue = if (listeningMode) 5.dp else 3.dp,
         animationSpec = tween(TelevisionListeningModeTransitionMillis, easing = FastOutSlowInEasing),
         label = "TV listening-mode scrubber padding",
     )
@@ -1568,7 +1568,7 @@ internal fun TelevisionNowPlaying(
                     durationSeconds = duration,
                     continuousWaveform = true,
                     progressIdentity = nowPlaying.id,
-                    colors = colors.copy(accent = playerColors.accent),
+                    colors = televisionWaveformColors(colors, playerColors.accent),
                     onValueChange = {},
                     onValueChangeFinished = {},
                     modifier = Modifier.weight(1f).height(listeningScrubberHeight),
@@ -2099,12 +2099,7 @@ private fun TelevisionLyrics(
             fontSize = 22.sp,
             modifier = modifier,
         )
-        nowPlaying.lyricsLines.isEmpty() -> Text(
-            stringResource(Res.string.tv_lyrics_are_not_available),
-            color = colors.secondaryText,
-            fontSize = 22.sp,
-            modifier = modifier,
-        )
+        nowPlaying.lyricsLines.isEmpty() -> Spacer(modifier)
         else -> LazyColumn(
             state = listState,
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2253,6 +2248,7 @@ internal fun TelevisionTextButton(
     enabled: Boolean = true,
     selected: Boolean = false,
     calmFocus: Boolean = false,
+    fontSize: androidx.compose.ui.unit.TextUnit = 16.sp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2279,7 +2275,7 @@ internal fun TelevisionTextButton(
             ),
         shape = shape,
     ) {
-        Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(label, fontSize = fontSize, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -2322,6 +2318,9 @@ private fun televisionSecondsLabel(seconds: Double?): String {
     val total = seconds?.takeIf { it.isFinite() && it >= 0.0 }?.roundToInt() ?: return "--:--"
     return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
 }
+
+internal fun televisionWaveformColors(colors: NaviampColors, artworkAccent: Color): NaviampColors =
+    colors.copy(accent = artworkAccent.mix(colors.primaryText, 0.70f))
 
 internal fun televisionWakesNowPlayingControls(key: Key): Boolean =
     key == Key.DirectionLeft ||

@@ -73,7 +73,7 @@ fun NaviampTelevisionAppShell(
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
 ) {
-    val colors = NaviampColors.Dark
+    val colors = NaviampTelevisionColors
     val connection = uiState.connectionSettings.connection
     val interfaceSettings = uiState.general.interfaceSettings
     val nowPlaying = uiState.nowPlaying?.withDisplaySettings(interfaceSettings.nowPlaying)
@@ -116,6 +116,7 @@ fun NaviampTelevisionAppShell(
     var observedProvisioningController by remember {
         mutableStateOf(uiState.connect.pendingProvisioningControllerName)
     }
+    var observedConnected by remember { mutableStateOf(connection.connected) }
     LaunchedEffect(nowPlaying?.id) {
         if (nowPlaying == null) nowPlayingPreview = false
     }
@@ -130,6 +131,11 @@ fun NaviampTelevisionAppShell(
         Unit
     }
     LaunchedEffect(connection.connected) {
+        if (connection.connected && !observedConnected) {
+            settingsOpen = false
+            nowPlayingPreview = false
+        }
+        observedConnected = connection.connected
         if (
             connection.connected &&
             !uiState.shellChrome.nowPlayingOpen &&
@@ -342,7 +348,9 @@ fun NaviampTelevisionAppShell(
                                     } else {
                                         nowPlayingPreview = false
                                         actions.navigationActions.onCloseNowPlaying()
-                                        destination.route?.let(actions.navigationActions.onRouteSelected)
+                                        destination.route
+                                            ?.takeIf { televisionNavigationFocusChangesRoute(it, uiState.shellChrome.selectedRoute) }
+                                            ?.let(actions.navigationActions.onRouteSelected)
                                     }
                                 },
                                 onClicked = enterNavigationDestination,
@@ -423,6 +431,11 @@ internal fun televisionSettingsBackgroundRoute(
     selectedRoute: SharedRoute,
     lastVisibleRoute: SharedRoute,
 ): SharedRoute = if (selectedRoute == SharedRoute.Settings) lastVisibleRoute else selectedRoute
+
+internal fun televisionNavigationFocusChangesRoute(
+    focusedRoute: SharedRoute,
+    selectedRoute: SharedRoute,
+): Boolean = focusedRoute != selectedRoute
 
 internal fun televisionSettingsShouldDismissForControllerActivity(
     previousControllerDeviceId: String?,
@@ -570,6 +583,8 @@ private fun TelevisionConnectedContent(
             colors = colors,
             actions = actions.artistDetailActions,
             showAlbumYear = uiState.general.interfaceSettings.nowPlaying.showAlbumYear,
+            albumSortOrder = uiState.general.interfaceSettings.albumSortOrder,
+            groupAlbumsByReleaseType = uiState.general.interfaceSettings.groupAlbumsByReleaseType,
             onAlbumOpening = {
                 onNavigationActivationSuppressed(
                     naviampSelectedTelevisionDestination(uiState.shellChrome.selectedRoute, false, false)

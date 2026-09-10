@@ -40,6 +40,7 @@ class NaviampCoreConnectionController(
     initialInventory: NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(),
     private val onSourceChanging: (previousSourceId: String?, newSourceId: String) -> Unit = { _, _ -> },
     private val onConnected: (String) -> Unit = {},
+    private val onUserConnected: (String) -> Unit = {},
     private val onOfflineRestored: (String) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
@@ -83,7 +84,7 @@ class NaviampCoreConnectionController(
             ?.let { currentId -> inventory.connections.firstOrNull { it.id == currentId } }
             ?: inventory.connections.firstOrNull()
             ?: return
-        connect(NaviampCoreConnectionRequest.Saved(saved.id))
+        connect(NaviampCoreConnectionRequest.Saved(saved.id), userInitiated = false)
     }
 
     /** Validates a one-time setup password through the existing source, without clearing playback/cache. */
@@ -157,6 +158,7 @@ class NaviampCoreConnectionController(
     private suspend fun connect(
         request: NaviampCoreConnectionRequest,
         preserveExistingSession: Boolean = false,
+        userInitiated: Boolean = true,
     ): Boolean {
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
@@ -201,6 +203,7 @@ class NaviampCoreConnectionController(
                 }
                 publishConnection()
                 onConnected(session.sourceId)
+                if (userInitiated) onUserConnected(session.sourceId)
                 connected = true
             }
             .onFailure { cause ->

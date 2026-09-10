@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Tri des albums</string>
+    <string name="tv_album_sort_order_description">Choisir l’ordre des sorties de l’artiste</string>
+    <string name="tv_album_sort_oldest_first">Plus anciens d’abord</string>
+    <string name="tv_album_sort_newest_first">Plus récents d’abord</string>
+    <string name="tv_album_sort_title">Titre</string>
+    <string name="tv_group_albums_by_release_type">Regrouper les albums par type de sortie</string>
+    <string name="tv_group_albums_by_release_type_description">Afficher les albums, EP, singles et autres sorties dans des sections distinctes</string>
     <string name="connect_setup_password_required">Saisissez le mot de passe de votre source pour terminer la configuration. Naviamp le valide et le conserve en toute sécurité pour les prochaines connexions.</string>
     <string name="connect_setup_code_consent">Afficher un code autorise l’appareil qui le saisit à s’associer et à configurer ce téléviseur avec sa source musicale et ses réglages.</string>
     <string name="connect_setup_new_code_required">Affichez un nouveau code sur le téléviseur et associez à nouveau les appareils pour terminer la configuration.</string>

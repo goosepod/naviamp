@@ -42,7 +42,11 @@ class AndroidConnectInitialSetupInstrumentedTest {
         })
         val controller = withContext(Dispatchers.Main) {
             store.updateShell { shell -> shell.copy(general = shell.general.copy(
-                interfaceSettings = shell.general.interfaceSettings.copy(startPlayingOnLaunch = true, groupAlbumsByReleaseType = false))) }
+                interfaceSettings = shell.general.interfaceSettings.copy(
+                    startPlayingOnLaunch = true,
+                    groupAlbumsByReleaseType = false,
+                    albumSortOrder = app.naviamp.domain.settings.AlbumSortOrder.ReleaseYearDescending,
+                ))) }
             NaviampCoreConnectController(scope, store, NaviampCoreConnectServices(
                 deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Setup fixture controller", identity = SetupFixtureIdentity(),
@@ -104,6 +108,10 @@ class AndroidConnectInitialSetupInstrumentedTest {
             assertFalse(target.state.value.shell.general.interfaceSettings.startPlayingOnLaunch,
                 "Device-specific startup behavior must stay local")
             assertFalse(target.state.value.shell.general.interfaceSettings.groupAlbumsByReleaseType)
+            assertEquals(
+                app.naviamp.domain.settings.AlbumSortOrder.ReleaseYearDescending,
+                target.state.value.shell.general.interfaceSettings.albumSortOrder,
+            )
             assertEquals("fixture", source.password)
             assertNull(target.state.value.shell.connect.pendingProvisioningConnectionName)
             val sourceId = assertNotNull(target.state.value.shell.connectionSettings.currentSourceId)

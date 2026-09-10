@@ -4,8 +4,16 @@ import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.InterfaceSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class NaviampTelevisionHomePolicyTest {
+    @Test
+    fun focusingTheAlreadySelectedHomeTabDoesNotCloseTransientHomeContent() {
+        assertFalse(televisionNavigationFocusChangesRoute(SharedRoute.Home, SharedRoute.Home))
+        assertTrue(televisionNavigationFocusChangesRoute(SharedRoute.Library, SharedRoute.Home))
+    }
+
     @Test
     fun preservesEveryVisibleSharedSectionInItsConfiguredOrder() {
         val sections = listOf(

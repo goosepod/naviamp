@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
@@ -21,18 +22,19 @@ import kotlin.test.*
 @OptIn(ExperimentalTestApi::class)
 class NaviampTelevisionArtworkContrastTest {
     @Test fun textAndPlayedWaveformMeetContrastAcrossSrgbArtworkPixels() {
-        val colors = NaviampColors.Dark
+        val colors = NaviampTelevisionColors
         var minimumText = Double.POSITIVE_INFINITY
         var minimumWaveform = Double.POSITIVE_INFINITY
         // Includes opaque white: the worst-case background under this fixed dark reading surface.
         for (r in 0..16) for (g in 0..16) for (b in 0..16) {
             val artwork = Color(r / 16f, g / 16f, b / 16f)
-            val surface = readableSurfaceColor(colors).compositeOver(artwork)
+            val protectedArtwork = Color.Black.copy(alpha = 0.38f).compositeOver(artwork)
+            val surface = televisionReadingSurfaceColor(colors).compositeOver(protectedArtwork)
             for (foreground in listOf(colors.primaryText, colors.secondaryText, colors.mutedText)) {
                 minimumText = min(minimumText, contrast(foreground.compositeOver(surface), surface))
             }
             for (accent in listOf(Color.Black, Color.White, Color.Red, Color.Blue, Color.Green, Color.Yellow, artwork)) {
-                val played = waveformPlayedColor(colors.copy(accent = accent), enabled = false).compositeOver(surface)
+                val played = waveformPlayedColor(televisionWaveformColors(colors, accent), enabled = false).compositeOver(surface)
                 minimumWaveform = min(minimumWaveform, contrast(played, surface))
             }
         }
@@ -68,14 +70,15 @@ class NaviampTelevisionArtworkContrastTest {
                         else -> drawRect(Brush.linearGradient(listOf(Color.Magenta, Color.Yellow, Color.Cyan, Color.Blue)))
                     }
                 }
-                TelevisionReadingSurface(NaviampColors.Dark)
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.38f)))
+                TelevisionReadingSurface(NaviampTelevisionColors)
                 TelevisionNowPlaying(NowPlayingUi(id = pattern, title = "Artwork contrast and readable controls", subtitle = "Artist — long metadata remains readable",
                     stateLabel = "Playing", isPlaying = true, canPlayPause = true, canRepeat = true, repeatMode = NaviampRepeatMode.Queue,
                     lyricsAvailable = true, lyricsVisible = true, positionSeconds = 73.0, durationSeconds = 180.0,
                     lyricsLines = listOf(NaviampLyricLineUi(0, "Previous lyric remains readable"), NaviampLyricLineUi(70000, "Active lyric stands out"),
                         NaviampLyricLineUi(90000, "Upcoming lyric remains readable")),
                     waveform = app.naviamp.domain.waveform.AudioWaveform(List(320) { (it % 17 + 1) / 18f })),
-                    null, NaviampColors.Dark, playerColors = NaviampPlayerColors.fromSingleColor(Color.Black, NaviampColors.Dark),
+                    null, NaviampTelevisionColors, playerColors = NaviampPlayerColors.fromSingleColor(Color.Black, NaviampTelevisionColors),
                     actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}), onClose = {}, onOpenSettings = {})
             }
         } }
@@ -86,7 +89,7 @@ class NaviampTelevisionArtworkContrastTest {
         val pixels = onRoot().captureToImage().toPixelMap()
         // Check a rendered background pixel, not just the mathematical policy.
         val surface = pixels[2, 2]
-        assertTrue(contrast(NaviampColors.Dark.mutedText, surface) >= 4.5)
+        assertTrue(contrast(NaviampTelevisionColors.mutedText, surface) >= 4.5)
         val snapshot = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until height) for (x in 0 until width) snapshot.setRGB(x, y, pixels[x, y].toArgb())
         val output = File("build/reports/television-artwork-contrast/$pattern-${width}x$height.png")

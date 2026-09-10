@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">앨범 정렬</string>
+    <string name="tv_album_sort_order_description">아티스트 발매작의 정렬 방식을 선택하세요</string>
+    <string name="tv_album_sort_oldest_first">오래된 순</string>
+    <string name="tv_album_sort_newest_first">최신 순</string>
+    <string name="tv_album_sort_title">제목</string>
+    <string name="tv_group_albums_by_release_type">발매 유형별로 앨범 그룹화</string>
+    <string name="tv_group_albums_by_release_type_description">앨범, EP, 싱글 및 기타 발매작을 별도 섹션에 표시</string>
     <string name="connect_setup_password_required">설정을 완료하려면 소스 비밀번호를 입력하세요. Naviamp가 비밀번호를 확인하고 향후 연결을 위해 안전하게 저장합니다.</string>
     <string name="connect_setup_code_consent">코드를 표시하면 해당 코드를 입력한 기기가 페어링하고 자신의 음악 소스와 설정으로 이 TV를 설정할 수 있습니다.</string>
     <string name="connect_setup_new_code_required">TV에 새 코드를 표시하고 다시 페어링하여 설정을 완료하세요.</string>

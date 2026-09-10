@@ -73,7 +73,11 @@ class NaviampCoreConnectionControllerTest {
     @Test
     fun successfulConnectionUsesSharedAttemptPolicyAndPublishesOneSnapshot() = kotlinx.coroutines.test.runTest {
         var connectedNotifications = 0
-        val fixture = fixture(onConnected = { connectedNotifications += 1 })
+        var userConnectedNotifications = 0
+        val fixture = fixture(
+            onConnected = { connectedNotifications += 1 },
+            onUserConnected = { userConnectedNotifications += 1 },
+        )
         val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "secret")
         fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form))
 
@@ -90,6 +94,18 @@ class NaviampCoreConnectionControllerTest {
         assertEquals("source-1", state.currentSourceId)
         assertTrue(state.connection.savedConnections.single().current)
         assertEquals(1, connectedNotifications)
+        assertEquals(1, userConnectedNotifications)
+    }
+
+    @Test
+    fun restoringInitialConnectionDoesNotReplaceTheRestoredRoute() = kotlinx.coroutines.test.runTest {
+        var userConnectedNotifications = 0
+        val fixture = fixture(onUserConnected = { userConnectedNotifications += 1 })
+
+        fixture.controller.restoreInitialConnection()
+
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+        assertEquals(0, userConnectedNotifications)
     }
 
     @Test
@@ -422,6 +438,7 @@ class NaviampCoreConnectionControllerTest {
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
         onConnected: (String) -> Unit = {},
+        onUserConnected: (String) -> Unit = {},
         onOfflineRestored: (String) -> Unit = {},
         onSourceChanging: (String?, String) -> Unit = { _, _ -> },
         currentSourceId: String? = "source-1",
@@ -444,6 +461,7 @@ class NaviampCoreConnectionControllerTest {
                 initialInventory = inventory,
                 onSourceChanging = onSourceChanging,
                 onConnected = onConnected,
+                onUserConnected = onUserConnected,
                 onOfflineRestored = onOfflineRestored,
             ),
         )

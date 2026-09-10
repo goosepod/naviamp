@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.settings.AlbumSortOrder
 import androidx.compose.ui.window.Dialog
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.window.DialogProperties
@@ -131,6 +132,8 @@ internal fun TelevisionArtistDetail(
     colors: NaviampColors,
     actions: NaviampArtistDetailActions,
     showAlbumYear: Boolean = true,
+    albumSortOrder: AlbumSortOrder = AlbumSortOrder.ReleaseYearAscending,
+    groupAlbumsByReleaseType: Boolean = true,
     onAlbumOpening: () -> Unit = {},
     topNavigationFocusRequester: FocusRequester,
 ) {
@@ -147,6 +150,10 @@ internal fun TelevisionArtistDetail(
     val firstPopularTrackFocusRequester = remember(detail.artist.id) { FocusRequester() }
     val firstAlbumFocusRequester = remember(detail.artist.id) { FocusRequester() }
     val popularTracksAvailable = detail.popularTracks.isNotEmpty()
+    val albumSections = detail.albumSectionsForDisplay(
+        groupByReleaseType = groupAlbumsByReleaseType,
+        sortOrder = albumSortOrder,
+    )
     LazyColumn(
         state = listState,
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -225,11 +232,11 @@ internal fun TelevisionArtistDetail(
                 )
             }
         }
-        if (detail.albums.isNotEmpty()) {
-            item(key = "artist-albums-heading") {
-                TelevisionDetailSectionHeading(stringResource(Res.string.artist_releases_albums), colors)
+        albumSections.forEachIndexed { sectionIndex, section ->
+            item(key = "artist-albums-heading:${section.releaseSection}") {
+                TelevisionDetailSectionHeading(albumReleaseSectionLabel(section.releaseSection), colors)
             }
-            item(key = "artist-albums") {
+            item(key = "artist-albums:${section.releaseSection}") {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(
@@ -240,7 +247,7 @@ internal fun TelevisionArtistDetail(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    itemsIndexed(detail.albums, key = { _, album -> album.id }) { index, album ->
+                    itemsIndexed(section.albums, key = { _, album -> album.id }) { index, album ->
                         TelevisionFocusableCard(
                             colors = colors,
                             width = TelevisionDetailAlbumCardWidth,
@@ -250,7 +257,7 @@ internal fun TelevisionArtistDetail(
                                     NaviampArtistAlbumActionRequest(album, NaviampArtistAlbumCommand.Select),
                                 )
                             },
-                            modifier = if (index == 0) {
+                            modifier = if (sectionIndex == 0 && index == 0) {
                                 Modifier.focusRequester(firstAlbumFocusRequester)
                             } else {
                                 Modifier

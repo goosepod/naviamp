@@ -135,7 +135,7 @@ class NaviampTelevisionWorkflowTest {
         onNodeWithText("First line").assertDoesNotExist()
         runOnIdle { now.value = now.value.copy(lyricsStatus = null) }
         mainClock.advanceTimeBy(200)
-        onNodeWithText("Lyrics are not available.").assertIsDisplayed()
+        onNodeWithText("Lyrics are not available.").assertDoesNotExist()
         onNodeWithContentDescription("Pause").assertDoesNotExist()
     }
     @Test fun lyricsScrollToPlaybackAndResetForAnotherTrack() = runDesktopComposeUiTest(1280, 720) {

@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">专辑排序</string>
+    <string name="tv_album_sort_order_description">选择艺人发行作品的排序方式</string>
+    <string name="tv_album_sort_oldest_first">最早优先</string>
+    <string name="tv_album_sort_newest_first">最新优先</string>
+    <string name="tv_album_sort_title">标题</string>
+    <string name="tv_group_albums_by_release_type">按发行类型分组专辑</string>
+    <string name="tv_group_albums_by_release_type_description">将专辑、EP、单曲和其他发行作品分别显示</string>
     <string name="connect_setup_password_required">请输入音乐源密码以完成设置。Naviamp 会验证密码并安全保存，供今后连接使用。</string>
     <string name="connect_setup_code_consent">显示代码即允许输入该代码的设备配对，并使用其音乐源和设置配置此电视。</string>
     <string name="connect_setup_new_code_required">请在电视上显示新代码并重新配对，以完成设置。</string>

@@ -2,12 +2,44 @@ package app.naviamp.ui
 import app.naviamp.ui.generated.resources.*
 
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
+import app.naviamp.domain.settings.AlbumSortOrder
+import app.naviamp.domain.media.AlbumReleaseSection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampTelevisionDetailPolicyTest {
+    @Test
+    fun artistReleaseSectionsShareGroupingAndSortingPolicyAcrossSurfaces() {
+        val oldAlbum = SharedMediaItemUi("old", "Zulu", "Artist", releaseYear = 1980)
+        val newAlbum = SharedMediaItemUi("new", "Alpha", "Artist", releaseYear = 2020)
+        val single = SharedMediaItemUi("single", "Single", "Artist", releaseYear = 1990)
+        val detail = SharedArtistDetailUi(
+            artist = SharedMediaItemUi("artist", "Artist", "Artist"),
+            albums = listOf(newAlbum, single, oldAlbum),
+            albumSections = listOf(
+                SharedAlbumSectionUi(AlbumReleaseSection.Albums, listOf(newAlbum, oldAlbum)),
+                SharedAlbumSectionUi(AlbumReleaseSection.Singles, listOf(single)),
+                SharedAlbumSectionUi(AlbumReleaseSection.Other, emptyList()),
+            ),
+        )
+
+        val grouped = detail.albumSectionsForDisplay(
+            groupByReleaseType = true,
+            sortOrder = AlbumSortOrder.ReleaseYearAscending,
+        )
+        assertEquals(listOf(AlbumReleaseSection.Albums, AlbumReleaseSection.Singles), grouped.map { it.releaseSection })
+        assertEquals(listOf("old", "new"), grouped.first().albums.map { it.id })
+
+        val ungrouped = detail.albumSectionsForDisplay(
+            groupByReleaseType = false,
+            sortOrder = AlbumSortOrder.Title,
+        )
+        assertEquals(listOf(AlbumReleaseSection.Albums), ungrouped.map { it.releaseSection })
+        assertEquals(listOf("new", "single", "old"), ungrouped.single().albums.map { it.id })
+    }
+
     @Test
     fun trackSecondaryActionsStaySmallAndExcludePlaylistManagement() {
         val actions = televisionTrackSecondaryActions()

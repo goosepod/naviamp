@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">एल्बम क्रम</string>
+    <string name="tv_album_sort_order_description">कलाकार की रिलीज़ का क्रम चुनें</string>
+    <string name="tv_album_sort_oldest_first">सबसे पुराने पहले</string>
+    <string name="tv_album_sort_newest_first">सबसे नए पहले</string>
+    <string name="tv_album_sort_title">शीर्षक</string>
+    <string name="tv_group_albums_by_release_type">रिलीज़ प्रकार के अनुसार एल्बम समूहित करें</string>
+    <string name="tv_group_albums_by_release_type_description">एल्बम, EP, सिंगल और अन्य रिलीज़ अलग-अलग अनुभागों में दिखाएँ</string>
     <string name="connect_setup_password_required">सेटअप पूरा करने के लिए अपने स्रोत का पासवर्ड दर्ज करें। Naviamp इसे सत्यापित करके भविष्य के कनेक्शन के लिए सुरक्षित रूप से सहेजता है।</string>
     <string name="connect_setup_code_consent">कोड दिखाने से उसे दर्ज करने वाले डिवाइस को पेयर करने और अपने संगीत स्रोत और सेटिंग्स के साथ इस टीवी को सेट अप करने की अनुमति मिलती है।</string>
     <string name="connect_setup_new_code_required">सेटअप पूरा करने के लिए टीवी पर नया कोड दिखाएँ और फिर से पेयर करें।</string>

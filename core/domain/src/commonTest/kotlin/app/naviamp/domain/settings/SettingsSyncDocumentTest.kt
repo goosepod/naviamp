@@ -78,6 +78,24 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
+    fun artistReleasePreferencesRoundTripAndOlderExportsUseSharedDefaults() {
+        val settings = InterfaceSettings(
+            albumSortOrder = AlbumSortOrder.ReleaseYearDescending,
+            groupAlbumsByReleaseType = false,
+        )
+        val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(
+            SettingsSyncDocument(preferences = SettingsSyncPreferences(interfaceSettings = settings)),
+        )).preferences.interfaceSettings
+
+        assertEquals(AlbumSortOrder.ReleaseYearDescending, decoded.albumSortOrder)
+        assertFalse(decoded.groupAlbumsByReleaseType)
+
+        val older = SettingsSyncJson.decode("{}").preferences.interfaceSettings
+        assertEquals(AlbumSortOrder.ReleaseYearAscending, older.albumSortOrder)
+        assertTrue(older.groupAlbumsByReleaseType)
+    }
+
+    @Test
     fun roundTripsPortableSettingsSyncDocument() {
         val document = SettingsSyncDocument(
             updatedAtEpochMillis = 123L,

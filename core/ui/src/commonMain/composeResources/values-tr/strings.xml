@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Albüm sıralaması</string>
+    <string name="tv_album_sort_order_description">Sanatçı yayınlarının sırasını seçin</string>
+    <string name="tv_album_sort_oldest_first">Önce en eskiler</string>
+    <string name="tv_album_sort_newest_first">Önce en yeniler</string>
+    <string name="tv_album_sort_title">Başlık</string>
+    <string name="tv_group_albums_by_release_type">Albümleri yayın türüne göre grupla</string>
+    <string name="tv_group_albums_by_release_type_description">Albümleri, EP’leri, single’ları ve diğer yayınları ayrı bölümlerde göster</string>
     <string name="connect_setup_password_required">Kurulumu tamamlamak için kaynak parolanızı girin. Naviamp parolayı doğrular ve gelecekteki bağlantılar için güvenli şekilde kaydeder.</string>
     <string name="connect_setup_code_consent">Kodun gösterilmesi, kodu giren cihazın eşleşmesine ve bu TV’yi kendi müzik kaynağı ve ayarlarıyla kurmasına izin verir.</string>
     <string name="connect_setup_new_code_required">Kurulumu tamamlamak için TV’de yeni bir kod gösterin ve yeniden eşleştirin.</string>

@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Ordenação de álbuns</string>
+    <string name="tv_album_sort_order_description">Escolha a ordem dos lançamentos do artista</string>
+    <string name="tv_album_sort_oldest_first">Mais antigos primeiro</string>
+    <string name="tv_album_sort_newest_first">Mais recentes primeiro</string>
+    <string name="tv_album_sort_title">Título</string>
+    <string name="tv_group_albums_by_release_type">Agrupar álbuns por tipo de lançamento</string>
+    <string name="tv_group_albums_by_release_type_description">Mostrar álbuns, EPs, singles e outros lançamentos em seções separadas</string>
     <string name="connect_setup_password_required">Digite a senha da sua fonte para concluir a configuração. O Naviamp a valida e salva com segurança para conexões futuras.</string>
     <string name="connect_setup_code_consent">Exibir um código permite que o dispositivo que o digitar se emparelhe e configure esta TV com sua fonte de música e suas configurações.</string>
     <string name="connect_setup_new_code_required">Exiba um novo código na TV e emparelhe novamente para concluir a configuração.</string>

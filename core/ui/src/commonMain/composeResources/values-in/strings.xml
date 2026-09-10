@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Urutan album</string>
+    <string name="tv_album_sort_order_description">Pilih urutan rilisan artis</string>
+    <string name="tv_album_sort_oldest_first">Terlama lebih dulu</string>
+    <string name="tv_album_sort_newest_first">Terbaru lebih dulu</string>
+    <string name="tv_album_sort_title">Judul</string>
+    <string name="tv_group_albums_by_release_type">Kelompokkan album menurut jenis rilisan</string>
+    <string name="tv_group_albums_by_release_type_description">Tampilkan album, EP, singel, dan rilisan lain dalam bagian terpisah</string>
     <string name="connect_setup_password_required">Masukkan kata sandi sumber Anda untuk menyelesaikan penyiapan. Naviamp memvalidasi dan menyimpannya dengan aman untuk koneksi berikutnya.</string>
     <string name="connect_setup_code_consent">Menampilkan kode mengizinkan perangkat yang memasukkannya untuk berpasangan dan menyiapkan TV ini dengan sumber musik dan pengaturannya.</string>
     <string name="connect_setup_new_code_required">Tampilkan kode baru di TV dan pasangkan kembali untuk menyelesaikan penyiapan.</string>

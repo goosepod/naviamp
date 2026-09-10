@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">ترتيب الألبومات</string>
+    <string name="tv_album_sort_order_description">اختر كيفية ترتيب إصدارات الفنان</string>
+    <string name="tv_album_sort_oldest_first">الأقدم أولاً</string>
+    <string name="tv_album_sort_newest_first">الأحدث أولاً</string>
+    <string name="tv_album_sort_title">العنوان</string>
+    <string name="tv_group_albums_by_release_type">تجميع الألبومات حسب نوع الإصدار</string>
+    <string name="tv_group_albums_by_release_type_description">عرض الألبومات والأغاني المطولة والأغاني المنفردة والإصدارات الأخرى في أقسام منفصلة</string>
     <string name="connect_setup_password_required">أدخل كلمة مرور المصدر لإكمال الإعداد. يتحقق Naviamp منها ويحفظها بأمان للاتصالات المستقبلية.</string>
     <string name="connect_setup_code_consent">يسمح عرض الرمز للجهاز الذي يدخله بالاقتران وإعداد هذا التلفزيون باستخدام مصدر الموسيقى والإعدادات الخاصة به.</string>
     <string name="connect_setup_new_code_required">اعرض رمزًا جديدًا على التلفزيون وأعد الاقتران لإكمال الإعداد.</string>

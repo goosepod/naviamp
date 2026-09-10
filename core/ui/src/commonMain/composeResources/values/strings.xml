@@ -1,4 +1,12 @@
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Album sorting</string>
+    <string name="tv_album_sort_order_description">Choose how artist releases are ordered</string>
+    <string name="tv_album_sort_oldest_first">Oldest first</string>
+    <string name="tv_album_sort_newest_first">Newest first</string>
+    <string name="tv_album_sort_title">Title</string>
+    <string name="tv_group_albums_by_release_type">Group albums by release type</string>
+    <string name="tv_group_albums_by_release_type_description">Show albums, EPs, singles, and other releases in separate sections</string>
     <string name="aurora_tone">Aurora tone</string>
     <string name="aurora_tone_light">Light</string>
     <string name="aurora_tone_balanced">Balanced</string>

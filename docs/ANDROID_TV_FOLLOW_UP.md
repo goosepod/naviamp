@@ -210,19 +210,34 @@ This short emulator check does not close the physical Ambient Mode or multi-hour
 
 ## Android TV waveform height
 
-Status: planned
+Status: implemented and validated in shared UI renders and on the Android TV emulator
 
 Reduce the vertical height and perceived thickness of the Now Playing waveform on Android TV. This
 is independent of waveform sampling density: changing its presentation must not reduce waveform
 detail or alter the existing density preference.
 
+September 10 implementation: the Television Now Playing scrubber now uses a 30dp interactive-mode
+height and a 38dp listening-mode height, with correspondingly smaller vertical padding. Waveform
+sampling, cached bucket counts, and the existing density preference are unchanged. Shared UI tests
+and 720p/1080p/4K render fixtures pass, and the 1080p Android TV emulator confirmed the slimmer
+presentation with real fixture playback.
+
 ## Quick Jump readability
 
-Status: planned
+Status: implemented and validated in shared UI renders
 
 Fix the Android TV Quick Jump menu so its entries remain legible, especially the recently added
 Artists, Albums, and Songs destinations. Verify text contrast, focus state, spacing, and truncation
 at typical television viewing distances.
+
+The Library Artists, Albums, and Songs selectors now use larger 18sp bold labels while preserving
+the selected-state border and high-contrast focused surface. The adjacent A-Z jump rail is a
+scrolling list of fixed-height 36dp targets instead of compressing all 27 entries into the available
+height. It uses 16sp bold letters, scrolls the focused entry into view, and swaps to the theme's
+foreground/background contrast pair when focused instead of placing text over the artwork accent.
+Deterministic D-pad and delayed-jump tests cover navigation all the way from A through Z at 720p,
+1080p, native 4K, and double-density 4K. Physical viewing-distance acceptance remains part of the
+broader accessibility gate.
 
 ## Full-screen Now Playing performance
 
@@ -238,9 +253,15 @@ Acceptance criteria:
 - Expensive artwork, background, and waveform work is not restarted on every animation frame.
 - The optimization does not remove the intended motion or visual treatment.
 
+September 10 local investigation: repeated transition capture works on the disposable 1080p TV AVD,
+but its headless graphics stack uses software-rendered Lavapipe/SwANGLE. `gfxinfo` consequently marks
+nearly every frame slow and cannot distinguish product work from emulator GPU emulation. No production
+animation change was made from that non-representative evidence. Keep the physical/profileable-device
+performance acceptance open.
+
 ## Complete Aurora controls
 
-Status: partially implemented
+Status: implemented and validated in shared UI tests
 
 TV Display settings already exposes Dark, Balanced, and Light when Aurora is selected. Reuse that
 existing tone selector and add the missing controls for the existing shared settings:
@@ -251,9 +272,18 @@ existing tone selector and add the missing controls for the existing shared sett
 These controls should edit the same shared Aurora settings used by desktop and retain TV-friendly
 focus, step, and value presentation.
 
+TV Display settings now exposes discrete color-stop choices from 2 through 5 and rotation choices
+from 0 through 180 degrees alongside the existing tone selector. The controls write the existing
+normalized `InterfaceSettings` fields, so export/import, sync, and Connect portable settings retain
+the same ownership and behavior. The Background page keeps all three styles visible, separates the
+selected style's controls with a divider, and updates those controls in place instead of navigating
+away. The TV reading treatment exposes substantially more of the selected Aurora, album-art blur,
+or solid color while retaining tested text contrast. No TV-specific preference or persistence path
+was added.
+
 ## Artist release grouping and sorting
 
-Status: planned
+Status: implemented and validated in shared tests
 
 On Android TV Artist Details, support the same release organization available on desktop:
 
@@ -267,6 +297,25 @@ setup and preserved by settings export, import, and sync.
 The shared `groupAlbumsByReleaseType` and `albumSortOrder` preferences already exist and are part
 of the portable interface-settings snapshot. Complete TV rendering/controls and verify transfer
 and round trips; do not create TV-specific copies of those settings.
+
+Television Artist Details now consumes the same shared display-section policy as the standard
+artist surface. It omits empty release sections, preserves the canonical release-type order, and
+sorts each section by the selected album order. TV Display settings exposes the existing grouping
+toggle and album-sort choices. All new copy is present in every maintained string-resource locale.
+Common tests cover grouped and ungrouped output, empty-section removal, per-section sorting, settings
+export/import defaults and round trips, and the Android Connect setup fixture now asserts both the
+grouping and sort-order transfer.
+
+## Google Assistant artist playback
+
+Status: planned; tracked separately from the current TV UI follow-up fixes
+
+Investigate Android media-assistant integration so a request such as “Hey Google, play Charlotte de
+Witte on Naviamp” resolves to Naviamp instead of a generic movie/web search. The intended behavior is
+to open Naviamp, resolve the requested artist through the active music provider, and start an
+artist-radio session using the same shared artist-radio behavior as an in-app request. This will
+require verifying the Android media-session/service declaration and Assistant command routing while
+keeping artist lookup, ambiguity handling, and radio construction in shared Core.
 
 ## Completed during physical-device testing
 

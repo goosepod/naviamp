@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Orden de álbumes</string>
+    <string name="tv_album_sort_order_description">Elige cómo ordenar los lanzamientos del artista</string>
+    <string name="tv_album_sort_oldest_first">Más antiguos primero</string>
+    <string name="tv_album_sort_newest_first">Más recientes primero</string>
+    <string name="tv_album_sort_title">Título</string>
+    <string name="tv_group_albums_by_release_type">Agrupar álbumes por tipo de lanzamiento</string>
+    <string name="tv_group_albums_by_release_type_description">Mostrar álbumes, EP, sencillos y otros lanzamientos en secciones separadas</string>
     <string name="aurora_tone">Tono de Aurora</string>
     <string name="aurora_tone_light">Claro</string>
     <string name="aurora_tone_balanced">Equilibrado</string>

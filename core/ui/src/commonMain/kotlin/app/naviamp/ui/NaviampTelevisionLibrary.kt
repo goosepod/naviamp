@@ -7,6 +7,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -104,6 +105,7 @@ internal fun TelevisionLibrary(
     val refreshFocus = remember { FocusRequester() }
     val shortcuts = televisionLibraryShortcuts()
     val letterFocus = remember { shortcuts.associateWith { FocusRequester() } }
+    val letterListState = rememberLazyListState()
     val songFocus = remember(ids, view) { ids.associateWith { FocusRequester() } }
     val scope = rememberCoroutineScope()
     var songFocusJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -140,10 +142,18 @@ internal fun TelevisionLibrary(
             }
         } else gridRequest = TelevisionGridFocusRequest(index, ++focusGeneration)
     }
+    fun focusShortcut(index: Int) {
+        val target = index.coerceIn(shortcuts.indices)
+        scope.launch {
+            letterListState.scrollToItem(target)
+            withFrameNanos { }
+            letterFocus.getValue(shortcuts[target]).requestFocus()
+        }
+    }
     fun focusLetter() {
         val index = televisionLibraryRestoreIndex(ids, viewport.focusedId(view)) ?: return
         val letter = app.naviamp.domain.library.libraryTitleLetter(titles[index])
-        letterFocus[letter]?.requestFocus()
+        shortcuts.indexOf(letter).takeIf { it >= 0 }?.let(::focusShortcut)
     }
     val backToSelector = contentFocused || searchFocused || letterFocused
     NaviampSystemBackHandler(enabled = backToSelector) { focusSelector() }
@@ -189,7 +199,7 @@ internal fun TelevisionLibrary(
                     NaviampLibraryView.Songs -> Res.string.library_view_songs
                 })
                 val selectionDescription = stringResource(if (option == view) Res.string.library_view_state_selected else Res.string.library_view_state_not_selected)
-                TelevisionTextButton(label, colors, calmFocus = true, onClick = {
+                TelevisionTextButton(label, colors, calmFocus = true, fontSize = 18.sp, onClick = {
                     if (option != view) {
                         viewport.restoreContent = viewport.focusedId(option) != null
                         actions.onViewChanged(option)
@@ -258,15 +268,15 @@ internal fun TelevisionLibrary(
         )
         NaviampLibraryLoadingStatus(colors, view, catalog)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxHeight().width(28.dp).onFocusChanged {
+            LazyColumn(state = letterListState, modifier = Modifier.fillMaxHeight().width(54.dp).testTag(TelevisionLibraryShortcutRailTestTag).onFocusChanged {
                 letterFocused = it.hasFocus
                 if (it.hasFocus) viewport.restoreContent = false
             }.focusGroup()) {
-                shortcuts.forEachIndexed { index, letter ->
+                itemsIndexed(shortcuts, key = { _, letter -> letter }) { index, letter ->
                     val description = stringResource(Res.string.tv_library_jump_to_letter, letter.toString())
                     var focused by remember { mutableStateOf(false) }
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f).fillMaxWidth()
-                        .background(if (focused) colors.accent else colors.controlSurface, RoundedCornerShape(4.dp))
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.height(36.dp).fillMaxWidth()
+                        .background(if (focused) colors.primaryText else colors.controlSurface, RoundedCornerShape(4.dp))
                         .focusRequester(letterFocus.getValue(letter))
                         .testTag(TelevisionLibraryLetterTagPrefix + letter)
                         .semantics { contentDescription = description }
@@ -275,13 +285,18 @@ internal fun TelevisionLibrary(
                             if (event.type != KeyEventType.KeyDown) false else when (event.key) {
                                 Key.DirectionRight -> { focusContent(); true }
                                 Key.DirectionLeft -> true
-                                Key.DirectionUp -> { if (index == 0) focusSelector() else letterFocus.getValue(shortcuts[index - 1]).requestFocus(); true }
-                                Key.DirectionDown -> { letterFocus.getValue(shortcuts[(index + 1).coerceAtMost(shortcuts.lastIndex)]).requestFocus(); true }
+                                Key.DirectionUp -> { if (index == 0) focusSelector() else focusShortcut(index - 1); true }
+                                Key.DirectionDown -> { focusShortcut(index + 1); true }
                                 Key.Enter, Key.DirectionCenter, Key.Spacebar -> { actions.onJumpToLetter(letter); true }
                                 else -> false
                             }
                         }.clickable { actions.onJumpToLetter(letter) }) {
-                        Text(letter.toString(), color = colors.primaryText, fontSize = 12.sp)
+                        Text(
+                            letter.toString(),
+                            color = if (focused) colors.background else colors.primaryText,
+                            fontSize = 16.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        )
                     }
                 }
             }
@@ -344,4 +359,5 @@ internal const val TelevisionLibraryTestTag = "television-library"
 internal const val TelevisionLibraryViewTagPrefix = "television-library-view:"
 internal const val TelevisionLibraryItemTagPrefix = "television-library-item:"
 internal const val TelevisionLibrarySearchTag = "television-library-search"
+internal const val TelevisionLibraryShortcutRailTestTag = "television-library-shortcut-rail"
 internal const val TelevisionLibraryLetterTagPrefix = "television-library-letter:"

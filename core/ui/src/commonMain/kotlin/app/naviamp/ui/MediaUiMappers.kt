@@ -23,6 +23,7 @@ import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.media.AlbumReleaseSection
 import app.naviamp.domain.navibeat.statusLabel
 import app.naviamp.domain.media.groupedByReleaseSection
 import app.naviamp.domain.lyrics.LyricsTiming
@@ -96,6 +97,21 @@ fun List<SharedMediaItemUi>.sortedForAlbumDisplay(order: AlbumSortOrder): List<S
             compareBy(String.CASE_INSENSITIVE_ORDER, SharedMediaItemUi::title)
                 .thenBy { it.releaseYear ?: Int.MAX_VALUE },
         )
+    }
+
+internal fun SharedArtistDetailUi.albumSectionsForDisplay(
+    groupByReleaseType: Boolean,
+    sortOrder: AlbumSortOrder,
+): List<SharedAlbumSectionUi> =
+    (if (groupByReleaseType) {
+        albumSections
+    } else {
+        listOf(SharedAlbumSectionUi(AlbumReleaseSection.Albums, albums))
+    }).mapNotNull { section ->
+        section.albums
+            .sortedForAlbumDisplay(sortOrder)
+            .takeIf(List<SharedMediaItemUi>::isNotEmpty)
+            ?.let { section.copy(albums = it) }
     }
 
 fun Playlist.toSharedMediaItemUi(

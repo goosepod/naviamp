@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Albumvolgorde</string>
+    <string name="tv_album_sort_order_description">Kies hoe releases van de artiest worden gesorteerd</string>
+    <string name="tv_album_sort_oldest_first">Oudste eerst</string>
+    <string name="tv_album_sort_newest_first">Nieuwste eerst</string>
+    <string name="tv_album_sort_title">Titel</string>
+    <string name="tv_group_albums_by_release_type">Albums groeperen op releasetype</string>
+    <string name="tv_group_albums_by_release_type_description">Albums, EP’s, singles en andere releases in aparte secties tonen</string>
     <string name="connect_setup_password_required">Voer het wachtwoord van je bron in om de installatie te voltooien. Naviamp controleert het en slaat het veilig op voor toekomstige verbindingen.</string>
     <string name="connect_setup_code_consent">Door een code te tonen, mag het apparaat dat deze invoert koppelen en deze tv instellen met zijn muziekbron en instellingen.</string>
     <string name="connect_setup_new_code_required">Toon een nieuwe code op de tv en koppel opnieuw om de installatie te voltooien.</string>

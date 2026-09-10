@@ -65,7 +65,7 @@ import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-private fun albumReleaseSectionLabel(section: AlbumReleaseSection): String = when (section) {
+internal fun albumReleaseSectionLabel(section: AlbumReleaseSection): String = when (section) {
     AlbumReleaseSection.Albums -> stringResource(Res.string.artist_releases_albums)
     AlbumReleaseSection.Eps -> stringResource(Res.string.artist_releases_eps)
     AlbumReleaseSection.Singles -> stringResource(Res.string.artist_releases_singles)
@@ -253,13 +253,10 @@ private fun ArtistDetailContent(
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
     var artistImageOpen by remember(detail.artist.id) { mutableStateOf(false) }
     val similarArtistsVisible = detail.similarArtistsExpanded
-    val visibleAlbumSections = if (groupAlbumsByReleaseType) {
-        detail.albumSections
-    } else {
-        listOf(SharedAlbumSectionUi(AlbumReleaseSection.Albums, detail.albums))
-    }.map { section ->
-        section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
-    }
+    val visibleAlbumSections = detail.albumSectionsForDisplay(
+        groupByReleaseType = groupAlbumsByReleaseType,
+        sortOrder = albumSortOrder,
+    )
     val displayedAlbums = visibleAlbumSections.flatMap { section -> section.albums }
     val albumMenuItems: (SharedMediaItemUi) -> List<NaviampRowMenuItem> = { album ->
         albumRowActions(

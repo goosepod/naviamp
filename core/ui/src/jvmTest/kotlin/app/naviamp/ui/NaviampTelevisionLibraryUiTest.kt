@@ -77,7 +77,13 @@ class NaviampTelevisionLibraryUiTest {
         onNodeWithTag(TelevisionLibrarySearchTag).assertTextContains("")
         onNodeWithTag(viewTag(NaviampLibraryView.Songs)).performClick()
         onNodeWithTag(TelevisionLibrarySearchTag).assertTextContains("missing").performTextClearance()
-        onNodeWithTag(TelevisionLibraryLetterTagPrefix + 'Z').performSemanticsAction(SemanticsActions.RequestFocus)
+        onNodeWithTag(TelevisionLibraryLetterTagPrefix + 'A')
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+        repeat(25) {
+            onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+            waitForIdle()
+        }
+        onNodeWithTag(TelevisionLibraryLetterTagPrefix + 'Z').assertIsDisplayed().assertIsFocused()
             .performKeyInput { pressKey(Key.Enter) }
         runOnIdle {
             assertEquals('Z', requestedLetter)
@@ -148,7 +154,8 @@ class NaviampTelevisionLibraryUiTest {
             .performKeyInput { pressKey(Key.DirectionDown) }
         onNodeWithTag(itemTag("album-0")).assertIsFocused().assertIsDisplayed()
         NaviampLibraryView.entries.forEach { onNodeWithTag(viewTag(it)).assertIsDisplayed() }
-        onNodeWithTag(TelevisionLibraryLetterTagPrefix + 'Z').assertIsDisplayed()
+        onNodeWithTag(TelevisionLibraryShortcutRailTestTag).assertIsDisplayed()
+        onNodeWithTag(TelevisionLibraryLetterTagPrefix + 'A').assertIsDisplayed()
         val pixels = onRoot().captureToImage().toPixelMap()
         val snapshot = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until height) for (x in 0 until width) snapshot.setRGB(x, y, pixels[x, y].toArgb())

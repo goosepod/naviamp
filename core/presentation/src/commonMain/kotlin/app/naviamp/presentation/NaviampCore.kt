@@ -529,6 +529,9 @@ class NaviampCore private constructor(
                     scope.launch { playlistBrowse.refreshAfterConnection() }
                     scope.launch { radio.refreshAfterConnection() }
                 },
+                onUserConnected = {
+                    navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(app.naviamp.ui.SharedRoute.Home))
+                },
                 onOfflineRestored = restoreLocalSession,
             )
             if (initialState.connectionInventory.currentSourceId != null) {

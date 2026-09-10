@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Sortowanie albumów</string>
+    <string name="tv_album_sort_order_description">Wybierz kolejność wydań wykonawcy</string>
+    <string name="tv_album_sort_oldest_first">Najstarsze najpierw</string>
+    <string name="tv_album_sort_newest_first">Najnowsze najpierw</string>
+    <string name="tv_album_sort_title">Tytuł</string>
+    <string name="tv_group_albums_by_release_type">Grupuj albumy według typu wydania</string>
+    <string name="tv_group_albums_by_release_type_description">Pokazuj albumy, EP-ki, single i inne wydania w osobnych sekcjach</string>
     <string name="settings_title">Ustawienia</string>
     <string name="settings_selected_label">Wybrane</string>
     <string name="settings_language_title">Język</string>

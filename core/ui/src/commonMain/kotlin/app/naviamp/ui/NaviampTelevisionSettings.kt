@@ -36,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -68,6 +69,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AuroraTone
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.settings.LyricsDisplayPreference
@@ -106,6 +108,9 @@ private enum class TelevisionSettingsChoicePage {
     AlbumBlurAmount,
     SingleColor,
     AuroraTone,
+    AuroraColorSteps,
+    AuroraAngle,
+    AlbumSortOrder,
     ReplayGain,
     SampleRateMatching,
     Crossfade,
@@ -247,6 +252,12 @@ internal fun TelevisionSettingsSheet(
                         },
                     )
                     is TelevisionSettingsPage.Choice -> when (current.choice) {
+                        TelevisionSettingsChoicePage.Background -> TelevisionBackgroundSettings(
+                            uiState = uiState,
+                            colors = colors,
+                            actions = actions.valueActions,
+                            firstFocusRequester = firstFocusRequester,
+                        )
                         TelevisionSettingsChoicePage.AlbumBlurAmount -> TelevisionAlbumBlurAmountSettings(
                             uiState = uiState,
                             colors = colors,
@@ -1014,59 +1025,32 @@ private fun TelevisionDisplaySettings(
                 } else Modifier,
             )
         }
-        if (settings.appBackgroundStyle == AppBackgroundStyle.Aurora) {
-            item(key = "aurora-tone") {
-                TelevisionSettingsRow(
-                    stringResource(Res.string.aurora_tone),
-                    stringResource(Res.string.tv_tune_artwork_derived_colors_for_the_room),
-                    televisionAuroraToneLabel(settings.auroraTone),
-                    NaviampIcons.Experience,
-                    disclosure = true,
-                    colors = colors,
-                    onClick = { onChoiceSelected(TelevisionSettingsChoicePage.AuroraTone) },
-                    modifier = if (returnChoice == TelevisionSettingsChoicePage.AuroraTone) {
-                        Modifier.focusRequester(returnFocusRequester)
-                    } else {
-                        Modifier
-                    },
-                )
-            }
+        item(key = "album-sort-order") {
+            TelevisionSettingsRow(
+                stringResource(Res.string.tv_album_sort_order),
+                stringResource(Res.string.tv_album_sort_order_description),
+                televisionAlbumSortOrderLabel(settings.albumSortOrder),
+                NaviampIcons.Library,
+                disclosure = true,
+                colors = colors,
+                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.AlbumSortOrder) },
+                modifier = if (returnChoice == TelevisionSettingsChoicePage.AlbumSortOrder) {
+                    Modifier.focusRequester(returnFocusRequester)
+                } else Modifier,
+            )
         }
-        if (settings.appBackgroundStyle == AppBackgroundStyle.AlbumBlur) {
-            item(key = "album-blur-amount") {
-                TelevisionSettingsRow(
-                    stringResource(Res.string.tv_blur_amount),
-                    stringResource(Res.string.tv_adjust_how_strongly_the_album_artwork_is_softened),
-                    stringResource(Res.string.tv_blur_value, settings.albumBlurRadiusDp),
-                    NaviampIcons.Experience,
-                    disclosure = true,
-                    colors = colors,
-                    onClick = { onChoiceSelected(TelevisionSettingsChoicePage.AlbumBlurAmount) },
-                    modifier = if (returnChoice == TelevisionSettingsChoicePage.AlbumBlurAmount) {
-                        Modifier.focusRequester(returnFocusRequester)
-                    } else {
-                        Modifier
-                    },
-                )
-            }
-        }
-        if (settings.appBackgroundStyle == AppBackgroundStyle.SingleColor) {
-            item(key = "single-color") {
-                TelevisionSettingsRow(
-                    stringResource(Res.string.tv_single_color),
-                    stringResource(Res.string.tv_adjust_hue_saturation_and_brightness),
-                    settings.singleColorHex,
-                    NaviampIcons.Experience,
-                    disclosure = true,
-                    colors = colors,
-                    onClick = { onChoiceSelected(TelevisionSettingsChoicePage.SingleColor) },
-                    modifier = if (returnChoice == TelevisionSettingsChoicePage.SingleColor) {
-                        Modifier.focusRequester(returnFocusRequester)
-                    } else {
-                        Modifier
-                    },
-                )
-            }
+        item(key = "album-release-grouping") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.tv_group_albums_by_release_type),
+                stringResource(Res.string.tv_group_albums_by_release_type_description),
+                settings.groupAlbumsByReleaseType,
+                colors,
+                {
+                    actions.onInterfaceSettingsChanged(
+                        settings.copy(groupAlbumsByReleaseType = !settings.groupAlbumsByReleaseType),
+                    )
+                },
+            )
         }
         item(key = "waveform-density") {
             TelevisionSettingsRow(
@@ -1211,6 +1195,148 @@ private fun TelevisionSettingsMessage(
 }
 
 @Composable
+internal fun TelevisionBackgroundSettings(
+    uiState: NaviampAppShellUiState,
+    colors: NaviampColors,
+    actions: NaviampSettingsValueActions,
+    firstFocusRequester: FocusRequester,
+) {
+    val settings = uiState.general.interfaceSettings
+    val selectedColor = naviampColorFromHex(settings.singleColorHex) ?: colors.background
+    val hsv = naviampColorToHsv(selectedColor)
+    val updateColor: (Float, Float, Float) -> Unit = { hue, saturation, brightness ->
+        actions.onInterfaceSettingsChanged(
+            settings.copy(
+                singleColorHex = naviampColorToHex(naviampColorFromHsv(hue, saturation, brightness)),
+            ).normalized(),
+        )
+    }
+    TelevisionSettingsList {
+        itemsIndexed(AppBackgroundStyle.entries, key = { _, style -> "background-style:${style.name}" }) { index, style ->
+            TelevisionSettingsRow(
+                title = televisionBackgroundLabel(style),
+                value = if (settings.appBackgroundStyle == style) "✓" else null,
+                selected = settings.appBackgroundStyle == style,
+                colors = colors,
+                onClick = {
+                    actions.onInterfaceSettingsChanged(settings.copy(appBackgroundStyle = style).normalized())
+                },
+                modifier = if (index == 0) Modifier.focusRequester(firstFocusRequester) else Modifier,
+            )
+        }
+        item(key = "background-options-divider") {
+            HorizontalDivider(
+                color = colors.border.copy(alpha = 0.78f),
+                modifier = Modifier.padding(vertical = 9.dp),
+            )
+        }
+        when (settings.appBackgroundStyle) {
+            AppBackgroundStyle.Aurora -> {
+                items(AuroraTone.entries, key = { tone -> "aurora-tone:${tone.name}" }) { tone ->
+                    TelevisionSettingsRow(
+                        title = televisionAuroraToneLabel(tone),
+                        subtitle = stringResource(when (tone) {
+                            AuroraTone.Dark -> Res.string.aurora_tone_balanced_description
+                            AuroraTone.Light -> Res.string.aurora_tone_light_description
+                            AuroraTone.DeepDark -> Res.string.aurora_tone_dark_description
+                        }),
+                        value = if (settings.auroraTone == tone) "✓" else null,
+                        selected = settings.auroraTone == tone,
+                        colors = colors,
+                        onClick = {
+                            actions.onInterfaceSettingsChanged(settings.copy(auroraTone = tone).normalized())
+                        },
+                    )
+                }
+                item(key = "aurora-color-steps") {
+                    TelevisionSettingsSliderRow(
+                        label = stringResource(Res.string.aurora_color_steps),
+                        value = settings.auroraColorSteps.toFloat(),
+                        valueRange = 2f..5f,
+                        step = 1f,
+                        valueText = stringResource(Res.string.aurora_color_count, settings.auroraColorSteps),
+                        colors = colors,
+                        onValueChange = { value ->
+                            actions.onInterfaceSettingsChanged(
+                                settings.copy(auroraColorSteps = value.toInt()).normalized(),
+                            )
+                        },
+                    )
+                }
+                item(key = "aurora-angle") {
+                    TelevisionSettingsSliderRow(
+                        label = stringResource(Res.string.aurora_gradient_angle),
+                        value = settings.auroraAngleDegrees.toFloat(),
+                        valueRange = 0f..180f,
+                        step = 15f,
+                        valueText = stringResource(Res.string.aurora_angle_value, settings.auroraAngleDegrees),
+                        colors = colors,
+                        onValueChange = { value ->
+                            actions.onInterfaceSettingsChanged(
+                                settings.copy(auroraAngleDegrees = value.toInt()).normalized(),
+                            )
+                        },
+                    )
+                }
+            }
+            AppBackgroundStyle.AlbumBlur -> item(key = "album-blur-amount") {
+                TelevisionSettingsSliderRow(
+                    label = stringResource(Res.string.tv_blur_amount),
+                    value = settings.albumBlurRadiusDp.toFloat(),
+                    valueRange = MinAlbumBlurRadiusDp.toFloat()..MaxAlbumBlurRadiusDp.toFloat(),
+                    step = 2f,
+                    valueText = stringResource(Res.string.tv_blur_value, settings.albumBlurRadiusDp),
+                    colors = colors,
+                    onValueChange = { value ->
+                        actions.onInterfaceSettingsChanged(
+                            settings.copy(albumBlurRadiusDp = value.toInt()).normalized(),
+                        )
+                    },
+                )
+            }
+            AppBackgroundStyle.SingleColor -> {
+                item(key = "color-preview") {
+                    TelevisionSettingsColorPreview(settings.singleColorHex, selectedColor, colors)
+                }
+                item(key = "color-hue") {
+                    TelevisionSettingsSliderRow(
+                        label = stringResource(Res.string.tv_hue),
+                        value = hsv[0] * 360f,
+                        valueRange = 0f..360f,
+                        step = 10f,
+                        valueText = stringResource(Res.string.aurora_angle_value, (hsv[0] * 360f).toInt()),
+                        colors = colors,
+                        onValueChange = { hue -> updateColor(hue / 360f, hsv[1], hsv[2]) },
+                    )
+                }
+                item(key = "color-saturation") {
+                    TelevisionSettingsSliderRow(
+                        label = stringResource(Res.string.tv_saturation),
+                        value = hsv[1] * 100f,
+                        valueRange = 0f..100f,
+                        step = 5f,
+                        valueText = stringResource(Res.string.tv_percentage_value, (hsv[1] * 100f).toInt()),
+                        colors = colors,
+                        onValueChange = { saturation -> updateColor(hsv[0], saturation / 100f, hsv[2]) },
+                    )
+                }
+                item(key = "color-brightness") {
+                    TelevisionSettingsSliderRow(
+                        label = stringResource(Res.string.tv_brightness),
+                        value = hsv[2] * 100f,
+                        valueRange = 8f..70f,
+                        step = 5f,
+                        valueText = stringResource(Res.string.tv_percentage_value, (hsv[2] * 100f).toInt()),
+                        colors = colors,
+                        onValueChange = { brightness -> updateColor(hsv[0], hsv[1], brightness / 100f) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun TelevisionAlbumBlurAmountSettings(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
@@ -1265,7 +1391,7 @@ private fun TelevisionSingleColorSettings(
                 value = hsv[0] * 360f,
                 valueRange = 0f..360f,
                 step = 10f,
-                valueText = "${(hsv[0] * 360f).toInt()}°",
+                valueText = stringResource(Res.string.aurora_angle_value, (hsv[0] * 360f).toInt()),
                 colors = colors,
                 onValueChange = { hue -> updateColor(hue / 360f, hsv[1], hsv[2]) },
                 modifier = Modifier.focusRequester(firstFocusRequester),
@@ -1277,7 +1403,7 @@ private fun TelevisionSingleColorSettings(
                 value = hsv[1] * 100f,
                 valueRange = 0f..100f,
                 step = 5f,
-                valueText = "${(hsv[1] * 100f).toInt()}%",
+                valueText = stringResource(Res.string.tv_percentage_value, (hsv[1] * 100f).toInt()),
                 colors = colors,
                 onValueChange = { saturation -> updateColor(hsv[0], saturation / 100f, hsv[2]) },
             )
@@ -1288,7 +1414,7 @@ private fun TelevisionSingleColorSettings(
                 value = hsv[2] * 100f,
                 valueRange = 8f..70f,
                 step = 5f,
-                valueText = "${(hsv[2] * 100f).toInt()}%",
+                valueText = stringResource(Res.string.tv_percentage_value, (hsv[2] * 100f).toInt()),
                 colors = colors,
                 onValueChange = { brightness -> updateColor(hsv[0], hsv[1], brightness / 100f) },
             )
@@ -1475,6 +1601,34 @@ private fun televisionSettingsChoices(
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(auroraTone = value))
             }
         }
+        TelevisionSettingsChoicePage.AuroraColorSteps -> (2..5).map { value ->
+            TelevisionChoiceUi(
+                stringResource(Res.string.aurora_color_count, value),
+                selected = value == interfaceSettings.auroraColorSteps,
+            ) {
+                actions.valueActions.onInterfaceSettingsChanged(
+                    interfaceSettings.copy(auroraColorSteps = value).normalized(),
+                )
+            }
+        }
+        TelevisionSettingsChoicePage.AuroraAngle -> listOf(0, 30, 45, 60, 90, 120, 135, 150, 180).map { value ->
+            TelevisionChoiceUi(
+                stringResource(Res.string.aurora_angle_value, value),
+                selected = value == interfaceSettings.auroraAngleDegrees,
+            ) {
+                actions.valueActions.onInterfaceSettingsChanged(
+                    interfaceSettings.copy(auroraAngleDegrees = value).normalized(),
+                )
+            }
+        }
+        TelevisionSettingsChoicePage.AlbumSortOrder -> AlbumSortOrder.entries.map { value ->
+            TelevisionChoiceUi(
+                televisionAlbumSortOrderLabel(value),
+                selected = value == interfaceSettings.albumSortOrder,
+            ) {
+                actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(albumSortOrder = value))
+            }
+        }
         TelevisionSettingsChoicePage.ReplayGain -> ReplayGainMode.entries.map { value ->
             TelevisionChoiceUi(televisionReplayGainLabel(value), selected = value == playback.replayGainMode) {
                 actions.valueActions.onPlaybackSettingsChanged(playback.copy(replayGainMode = value))
@@ -1647,6 +1801,9 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
         TelevisionSettingsChoicePage.AlbumBlurAmount -> stringResource(Res.string.tv_blur_amount)
         TelevisionSettingsChoicePage.SingleColor -> stringResource(Res.string.tv_single_color)
         TelevisionSettingsChoicePage.AuroraTone -> stringResource(Res.string.aurora_tone)
+        TelevisionSettingsChoicePage.AuroraColorSteps -> stringResource(Res.string.aurora_color_steps)
+        TelevisionSettingsChoicePage.AuroraAngle -> stringResource(Res.string.aurora_gradient_angle)
+        TelevisionSettingsChoicePage.AlbumSortOrder -> stringResource(Res.string.tv_album_sort_order)
         TelevisionSettingsChoicePage.ReplayGain -> stringResource(Res.string.tv_replaygain)
         TelevisionSettingsChoicePage.SampleRateMatching -> stringResource(Res.string.tv_sample_rate_matching)
         TelevisionSettingsChoicePage.Crossfade -> stringResource(Res.string.settings_crossfade_title)
@@ -1662,6 +1819,9 @@ private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): T
     TelevisionSettingsChoicePage.AlbumBlurAmount,
     TelevisionSettingsChoicePage.SingleColor,
     TelevisionSettingsChoicePage.AuroraTone,
+    TelevisionSettingsChoicePage.AuroraColorSteps,
+    TelevisionSettingsChoicePage.AuroraAngle,
+    TelevisionSettingsChoicePage.AlbumSortOrder,
     TelevisionSettingsChoicePage.WaveformDensity,
     -> TelevisionSettingsCategory.Display
     TelevisionSettingsChoicePage.ReplayGain,
@@ -1678,6 +1838,13 @@ internal fun televisionCrossfadeLabel(seconds: Int): String = if (seconds <= 0) 
 
 @Composable
 internal fun televisionWaveformDensityLabel(bucketCount: Int): String = pluralStringResource(Res.plurals.tv_waveform_steps, bucketCount, bucketCount)
+
+@Composable
+internal fun televisionAlbumSortOrderLabel(order: AlbumSortOrder): String = when (order) {
+    AlbumSortOrder.ReleaseYearAscending -> stringResource(Res.string.tv_album_sort_oldest_first)
+    AlbumSortOrder.ReleaseYearDescending -> stringResource(Res.string.tv_album_sort_newest_first)
+    AlbumSortOrder.Title -> stringResource(Res.string.tv_album_sort_title)
+}
 
 internal fun televisionSteppedSettingsValue(
     value: Float,
