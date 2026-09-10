@@ -9,6 +9,8 @@ import org.jetbrains.compose.resources.stringResource
 data class NaviampConnectStatusMessage(val text: NaviampConnectStatusText, val arguments: List<String?> = emptyList())
 
 enum class NaviampConnectStatusText(val resource: StringResource) {
+    SetupNewCodeRequired(Res.string.connect_setup_new_code_required),
+    SetupPasswordRequired(Res.string.connect_setup_password_required),
     PlaybackWillStayOnDevice(Res.string.connect_status_playback_will_stay_on_device),
     ThisDeviceIsNowNamedDevice(Res.string.connect_status_this_device_is_now_named_device),
     ForgotDevice(Res.string.connect_status_forgot_device),

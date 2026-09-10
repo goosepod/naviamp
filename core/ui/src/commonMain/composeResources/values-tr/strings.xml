@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="connect_setup_password_required">Kurulumu tamamlamak için kaynak parolanızı girin. Naviamp parolayı doğrular ve gelecekteki bağlantılar için güvenli şekilde kaydeder.</string>
+    <string name="connect_setup_code_consent">Kodun gösterilmesi, kodu giren cihazın eşleşmesine ve bu TV’yi kendi müzik kaynağı ve ayarlarıyla kurmasına izin verir.</string>
+    <string name="connect_setup_new_code_required">Kurulumu tamamlamak için TV’de yeni bir kod gösterin ve yeniden eşleştirin.</string>
 </resources>

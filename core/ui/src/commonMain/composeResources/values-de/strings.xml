@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="connect_setup_password_required">Gib das Passwort deiner Quelle ein, um die Einrichtung abzuschließen. Naviamp prüft es und speichert es sicher für künftige Verbindungen.</string>
+    <string name="connect_setup_code_consent">Wenn du einen Code anzeigst, darf das Gerät, das ihn eingibt, sich koppeln und diesen Fernseher mit seiner Musikquelle und seinen Einstellungen einrichten.</string>
+    <string name="connect_setup_new_code_required">Zeige einen neuen Code auf dem Fernseher an und kopple erneut, um die Einrichtung abzuschließen.</string>
 </resources>

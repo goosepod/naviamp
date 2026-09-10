@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="connect_setup_password_required">Voer het wachtwoord van je bron in om de installatie te voltooien. Naviamp controleert het en slaat het veilig op voor toekomstige verbindingen.</string>
+    <string name="connect_setup_code_consent">Door een code te tonen, mag het apparaat dat deze invoert koppelen en deze tv instellen met zijn muziekbron en instellingen.</string>
+    <string name="connect_setup_new_code_required">Toon een nieuwe code op de tv en koppel opnieuw om de installatie te voltooien.</string>
 </resources>

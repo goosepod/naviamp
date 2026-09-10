@@ -131,4 +131,10 @@ class NaviampConnectionController(
             )
         }
     }
+
+    /** Restores the pre-attempt state when auxiliary credential validation is canceled or fails. */
+    fun restore(previous: NaviampConnectionRuntimeState) {
+        mutableState.value = previous
+        applicationStatus?.clear(NaviampApplicationStatusArea.Connection)
+    }
 }

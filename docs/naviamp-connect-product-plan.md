@@ -246,17 +246,17 @@ Ongoing multi-device synchronization and shared history are follow-up work recor
 Fresh-device setup is required for general Connect availability but is not an Android TV preview
 gate; the preview retains the existing explicit provider setup flow.
 
-The [physical-TV follow-up](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup) adds a requirement to
-simplify TV setup into code entry followed by authenticated provisioning without repeated approval.
-That is the intended replacement for the current TV flow; broader fresh-phone/Desktop setup remains
-separate. The existing approval-based implementation and protocol review remain the baseline until
-the combined setup flow is implemented and reviewed.
+The [physical-TV follow-up](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup) now implements code entry
+followed by authenticated initial provisioning on an empty target. Showing the code grants consent
+for that live session; existing-source replacement still needs approval, and trusted reconnect does
+not replay setup. Broader fresh-phone/Desktop onboarding remains separate from this TV flow.
 
-September 10 prerequisite: shared routing now uses the provider's dedicated credential export,
-and Jellyfin preserves/reuses its authenticated password through protected source storage. This
-closes a reusable-credential gap without changing the approval flow. One-time password entry,
-automatic initial provisioning, and their session-scoped consent/recovery tests remain tracked in
-the TV follow-up; the fresh-device checklist below is not complete yet.
+Shared routing uses the active provider's dedicated credential export, and Jellyfin retains its
+validated password through protected source storage. A shared one-time password prompt handles
+older token-only records without opening the general connection editor. Initial source and portable
+settings are applied only after target validation. The protocol document records the revised consent,
+expiry, cancellation, and compatibility boundary. The broader fresh-device checklist below remains
+open where phone/Desktop entry points and general availability are not yet complete.
 
 - [ ] Offer **Set up from another Naviamp device** on a fresh phone or Desktop install and on an
   unconfigured TV.

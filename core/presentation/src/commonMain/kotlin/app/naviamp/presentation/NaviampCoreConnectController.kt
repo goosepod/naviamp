@@ -130,6 +130,7 @@ class NaviampCoreConnectController(
     private val sourceIdentity: () -> NaviampConnectSourceIdentity? = { null },
     private val providerSessions: NaviampCoreProviderSessionPort? = null,
     private val targetConnection: NaviampCoreConnectionController? = null,
+    private val localConnection: NaviampCoreConnectionController? = null,
     private val targetSettings: NaviampCoreSettingsController? = null,
     private val revealTargetNowPlaying: () -> Unit = {},
 ) {
@@ -201,6 +202,16 @@ class NaviampCoreConnectController(
     private var pendingProvisioningSession: NaviampConnectAuthenticatedSession? = null
     private var pendingProvisioningControllerName: String? = null
     private var needsProvisioningCredential = false
+    private var provisioningCredentialSourceId: String? = null
+    private val initialSetupAuthorization = app.naviamp.app.NaviampConnectInitialSetupAuthorization()
+    private var codePairingOfferId: String? = null
+    private var controllerInitialSetupAllowed = false
+    private var controllerSetupNeedsNewCode = false
+    private var controllerProvisioningBusy = false
+    private var controllerProvisioningJob: Job? = null
+    private var controllerProvisioningAttemptId: String? = null
+    private var targetProvisioningJob: Job? = null
+    private var provisioningResult: Pair<String, kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult>>? = null
     private var sourceMismatchRecoveryVisible = false
     private val supportedTargetCapabilities: Set<NaviampConnectCapability> =
         NaviampCoreSupportedConnectTargetCapabilities + if (
@@ -211,6 +222,11 @@ class NaviampCoreConnectController(
             emptySet()
         }
 
+    private fun targetIsEmpty(): Boolean = providerSessions != null &&
+        providerSessions.currentSourceId() == null &&
+        stateStore.state.value.shell.connectionSettings.connection.savedConnections.isEmpty() &&
+        !stateStore.state.value.shell.connectionSettings.connection.isConnecting
+
     private fun localDevice(role: NaviampConnectDeviceRole): NaviampConnectDevice = NaviampConnectDevice(
         deviceId = localIdentity.deviceId,
         displayName = services.trust.selfName() ?: services.displayName,
@@ -219,7 +235,7 @@ class NaviampCoreConnectController(
     )
 
     val actions = NaviampConnectSettingsActions(
-        onStartPairingMode = ::startPairingMode,
+        onStartPairingMode = { startPairingMode(explicitCodeConsent = true) },
         onRetryConnection = ::retryConnection,
         onOpenPermissionSettings = ::openPermissionSettings,
         onStopPairingMode = ::stopPairingMode,
@@ -240,7 +256,18 @@ class NaviampCoreConnectController(
         onStopControlling = ::stopControlling,
         onRemoteHandoffQueue = ::handoffLocalQueue,
         onReceiveRemoteQueue = ::receiveRemoteQueue,
-        onProvisionTarget = ::provisionTarget,
+        onProvisionTarget = { provisionTarget() },
+        onSubmitProvisioningCredential = { password ->
+            if (needsProvisioningCredential && password.isNotBlank()) provisionTarget(password)
+        },
+        onCancelProvisioningCredential = {
+            controllerProvisioningJob?.cancel()
+            controllerProvisioningAttemptId = null
+            controllerProvisioningBusy = false
+            needsProvisioningCredential = false
+            provisioningCredentialSourceId = null
+            publish()
+        },
         onApproveProvisioning = ::approveProvisioning,
         onRejectProvisioning = ::rejectProvisioning,
         onDismissSourceMismatchRecovery = ::dismissSourceMismatchRecovery,
@@ -442,7 +469,7 @@ class NaviampCoreConnectController(
         return true
     }
 
-    private fun startPairingMode() {
+    private fun startPairingMode(explicitCodeConsent: Boolean = false) {
         if (!canPlayRemotely || advertising == null) return
         advertisingFailure = null
         settingsOpenFailed = false
@@ -479,6 +506,11 @@ class NaviampCoreConnectController(
                 expiresAtEpochMillis = now + services.pairingLifetimeMillis,
             )
             targetPairing.start(advertisement, services.newOpaqueId(), code, now)
+            codePairingOfferId = advertisement.instanceId
+            if (explicitCodeConsent) {
+                initialSetupAuthorization.showCode(advertisement.instanceId, advertisement.expiresAtEpochMillis,
+                    targetIsEmpty = targetIsEmpty())
+            }
             advertising.start(advertisement)
             (advertising.state.value as? NaviampConnectAdvertisingStatus.Failed)?.let {
                 handleAdvertisingFailure(it)
@@ -573,6 +605,12 @@ class NaviampCoreConnectController(
                         acceptedPairingConnection = null
                         pendingTargetPairing?.reject()
                         pendingTargetPairing = result.request
+                        if (codePairingOfferId?.let {
+                                initialSetupAuthorization.acceptsCodePairing(it, services.nowEpochMillis())
+                            } == true) {
+                            approveController()
+                            return
+                        }
                         phase = NaviampConnectPairingUiPhase.AwaitingApproval
                         status = "${result.request.controller.displayName} wants to pair."
                         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.DeviceWantsToPair, listOf(result.request.controller.displayName))
@@ -695,6 +733,7 @@ class NaviampCoreConnectController(
 
     private fun approveController() {
         val pending = pendingTargetPairing ?: return
+        val consentOfferId = codePairingOfferId
         pendingTargetPairing = null
         phase = NaviampConnectPairingUiPhase.Handshaking
         status = "Authenticating ${pending.controller.displayName}…"
@@ -716,6 +755,7 @@ class NaviampCoreConnectController(
                     NaviampConnectErrorCode.AuthenticationRequired,
                 ),
                 localRole = NaviampConnectDeviceRole.Target,
+                consentOfferId = consentOfferId,
             )
         }
     }
@@ -770,7 +810,7 @@ class NaviampCoreConnectController(
             }
             else -> Unit
         }
-        if (retryAdvertising) startPairingMode()
+        if (retryAdvertising) startPairingMode(explicitCodeConsent = true)
         publish()
     }
 
@@ -993,6 +1033,7 @@ class NaviampCoreConnectController(
     private suspend fun finishPairing(
         result: NaviampConnectPairingRuntimeResult,
         localRole: NaviampConnectDeviceRole,
+        consentOfferId: String? = null,
     ) {
         when (result) {
             is NaviampConnectPairingRuntimeResult.Paired -> {
@@ -1013,7 +1054,11 @@ class NaviampCoreConnectController(
                     result.resumptionCredential.fill(0)
                 }
                 val connected = when (localRole) {
-                    NaviampConnectDeviceRole.Target -> replaceTargetSession(result.session)
+                    NaviampConnectDeviceRole.Target -> {
+                        consentOfferId?.let { initialSetupAuthorization.paired(it, result.session.sessionId,
+                            targetIsEmpty(), services.nowEpochMillis()) }
+                        replaceTargetSession(result.session)
+                    }
                     NaviampConnectDeviceRole.Controller -> {
                         playbackDestination.select(persistedTrust)
                         playbackDestination.connecting(persistedTrust.trustedDeviceId)
@@ -1045,6 +1090,10 @@ class NaviampCoreConnectController(
             }
         }
         publish()
+        if (localRole == NaviampConnectDeviceRole.Controller &&
+            result is NaviampConnectPairingRuntimeResult.Paired && controllerInitialSetupAllowed) {
+            provisionTarget()
+        }
     }
 
     private suspend fun startTargetSession(session: NaviampConnectAuthenticatedSession): Boolean {
@@ -1069,6 +1118,8 @@ class NaviampCoreConnectController(
                 target = localTargetDevice,
                 capabilities = supportedTargetCapabilities,
                 snapshot = snapshot,
+                initialSetupAllowed = initialSetupAuthorization.permitsSetup(session.sessionId,
+                    targetIsEmpty(), services.nowEpochMillis()),
             ),
         )
         val connectedTarget = NaviampConnectTargetSession(
@@ -1083,13 +1134,22 @@ class NaviampCoreConnectController(
                 stateStore,
                 snapshots,
                 offerProvisioning = { offer ->
-                    pendingProvisioning = offer
-                    pendingProvisioningSession = session
-                    pendingProvisioningControllerName = session.trust?.peerDevice?.displayName
-                    status = "Approve the connection setup request on this TV."
-                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ApproveTheConnectionSetupRequestOnThisTv)
-                    publish()
-                    true
+                    val automatic = offer.initialSetup && initialSetupAuthorization.permitsSetup(
+                        session.sessionId, targetIsEmpty(), services.nowEpochMillis())
+                    if (pendingProvisioning != null || targetProvisioningJob?.isActive == true ||
+                        (offer.initialSetup && !automatic)) {
+                        false
+                    } else {
+                        pendingProvisioning = offer
+                        pendingProvisioningSession = session
+                        pendingProvisioningControllerName = session.trust?.peerDevice?.displayName
+                        if (automatic) approveProvisioning() else {
+                            status = null
+                            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ApproveTheConnectionSetupRequestOnThisTv)
+                            publish()
+                        }
+                        true
+                    }
                 },
                 revealNowPlaying = revealTargetNowPlaying,
             ),
@@ -1139,6 +1199,8 @@ class NaviampCoreConnectController(
             lastReceivedSequence = welcomeEnvelope.sequence,
         )
         authenticatedSession = session
+        controllerInitialSetupAllowed = welcome.initialSetupAllowed &&
+            NaviampConnectCapability.ConnectionProvisioning in welcome.capabilities && welcome.snapshot.sourceIdentity == null
         adoptControllerSession(connectedController)
         authenticatedSessionJob = controllerScope.launch { receiveControllerSession(session, connectedController) }
         val retries = retryableRemoteCommands
@@ -1231,9 +1293,22 @@ class NaviampCoreConnectController(
                     return
                 }
                 if (message is app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult) {
-                    status = message.message
-                    publish()
+                    val pending = provisioningResult
+                    if (pending != null && (message.setupId == pending.first ||
+                            (message.setupId == null && !controllerInitialSetupAllowed))) {
+                        pending.second.complete(message)
+                    }
                     continue
+                }
+                if (message is app.naviamp.domain.connect.NaviampConnectErrorMessage) {
+                    val offer = connectedController.state.value.pendingRequests
+                        .firstOrNull { it.requestId == envelope.responseToRequestId }?.command as? NaviampConnectOfferConnectionProvisioning
+                    val pending = provisioningResult
+                    if (offer != null && pending != null && offer.setupId == pending.first) {
+                        controllerSetupNeedsNewCode = offer.initialSetup
+                        pending.second.complete(app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult(
+                            false, "", pending.first))
+                    }
                 }
                 connectedController.receive(envelope)
                 if (connectedController.state.value.status ==
@@ -1314,6 +1389,19 @@ class NaviampCoreConnectController(
     }
 
     private fun closeAuthenticatedSession() {
+        authenticatedSession?.sessionId?.let(initialSetupAuthorization::sessionClosed)
+        controllerProvisioningJob?.cancel()
+        controllerProvisioningJob = null
+        controllerProvisioningAttemptId = null
+        targetProvisioningJob?.cancel()
+        targetProvisioningJob = null
+        provisioningResult?.second?.cancel()
+        provisioningResult = null
+        controllerProvisioningBusy = false
+        needsProvisioningCredential = false
+        provisioningCredentialSourceId = null
+        controllerInitialSetupAllowed = false
+        controllerSetupNeedsNewCode = false
         heartbeatJob?.cancel()
         heartbeatJob = null
         activeReconnectConnection?.close()
@@ -1427,100 +1515,172 @@ class NaviampCoreConnectController(
         }
     }
 
-    private fun provisionTarget() {
+    private fun provisionTarget(password: String? = null) {
         val sessions = providerSessions ?: return
         val connected = controllerSession ?: return
+        if (controllerProvisioningBusy) return
+        if (controllerSetupNeedsNewCode) {
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SetupNewCodeRequired)
+            publish()
+            return
+        }
+        val sourceId = sessions.currentSourceId()
+        if (sourceId == null) {
+            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectThisDeviceToTheServerYouWantToConfigureOnTheTv)
+            publish()
+            return
+        }
+        if (password != null && sourceId != provisioningCredentialSourceId) return
         sourceMismatchRecoveryVisible = false
-        status = "Preparing this connection for secure TV setup…"
+        controllerProvisioningBusy = true
+        val attemptId = services.newOpaqueId()
+        controllerProvisioningAttemptId = attemptId
+        status = null
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.PreparingThisConnectionForSecureTvSetup)
         publish()
-        controllerScope.launch {
-            val editable = runCatching { sessions.currentProvisioningConnection() }.getOrNull()
-            if (editable == null) {
-                status = "Connect this device to the server you want to configure on the TV."
-                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectThisDeviceToTheServerYouWantToConfigureOnTheTv)
-                publish()
-                return@launch
-            }
-            when (val exported = editable.form.toConnectProvisioningExport()) {
-                is NaviampCoreConnectProvisioningExport.Unsupported -> {
-                    needsProvisioningCredential = exported.credentialUnavailable
-                    status = exported.message
+        controllerProvisioningJob = controllerScope.launch {
+            val pending = services.newOpaqueId() to kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult>()
+            try {
+                if (password != null && localConnection?.updateProvisioningCredential(sourceId, password) != true) {
+                    provisioningFailed()
+                    return@launch
                 }
-                is NaviampCoreConnectProvisioningExport.Ready -> {
-                    needsProvisioningCredential = false
-                    when (
-                        val result = connected.send(
-                            NaviampConnectOfferConnectionProvisioning(
-                                profile = exported.profile,
-                                portableSettings = stateStore.state.value.toConnectPortableSettings(),
-                            ),
-                        )
-                    ) {
-                        is app.naviamp.app.NaviampConnectCommandSendResult.Sent -> {
-                            status = "Approve setup on ${connected.state.value.target?.displayName ?: "the TV"}."
-                            statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ApproveSetupOnDevice, listOf(connected.state.value.target?.displayName))
+                val editable = sessions.currentProvisioningConnection()
+                if (controllerSession !== connected || sessions.currentSourceId() != sourceId) return@launch
+                if (editable == null) {
+                    provisioningFailed()
+                    return@launch
+                }
+                when (val exported = editable.form.toConnectProvisioningExport()) {
+                    is NaviampCoreConnectProvisioningExport.Unsupported -> {
+                        needsProvisioningCredential = exported.credentialUnavailable
+                        provisioningCredentialSourceId = sourceId.takeIf { exported.credentialUnavailable }
+                        status = null
+                        statusMessage = NaviampConnectStatusMessage(if (exported.credentialUnavailable)
+                            NaviampConnectStatusText.SetupPasswordRequired else
+                            NaviampConnectStatusText.CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry)
+                    }
+                    is NaviampCoreConnectProvisioningExport.Ready -> {
+                        needsProvisioningCredential = false
+                        provisioningCredentialSourceId = null
+                        provisioningResult = pending
+                        when (val sent = sendBounded(connected, NaviampConnectOfferConnectionProvisioning(
+                            profile = exported.profile,
+                            portableSettings = stateStore.state.value.toConnectPortableSettings(),
+                            initialSetup = controllerInitialSetupAllowed,
+                            setupId = pending.first,
+                        ))) {
+                            is app.naviamp.app.NaviampConnectCommandSendResult.Sent -> {
+                                statusMessage = NaviampConnectStatusMessage(if (controllerInitialSetupAllowed)
+                                    NaviampConnectStatusText.PreparingThisConnectionForSecureTvSetup else
+                                    NaviampConnectStatusText.ApproveSetupOnDevice,
+                                    listOf(connected.state.value.target?.displayName))
+                                publish()
+                                val result = withTimeoutOrNull(60_000L) { pending.second.await() }
+                                if (controllerSession !== connected) return@launch
+                                if (result?.succeeded == true) {
+                                    controllerInitialSetupAllowed = false
+                                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TvSetupCompletedSecurely)
+                                } else if (controllerSetupNeedsNewCode) {
+                                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SetupNewCodeRequired)
+                                } else {
+                                    provisioningFailed()
+                                    // Revalidation is available for a stale saved password as well as a missing one.
+                                    needsProvisioningCredential = true
+                                    provisioningCredentialSourceId = sourceId
+                                }
+                            }
+                            null, is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> provisioningFailed()
+                            is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
+                                handleControllerWriteFailure(connected, sent.result)
                         }
-                        is app.naviamp.app.NaviampConnectCommandSendResult.Rejected -> status = result.error.message
-                        is app.naviamp.app.NaviampConnectCommandSendResult.Failed ->
-                            handleControllerWriteFailure(connected, result.result)
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (controllerSession === connected) provisioningFailed()
+            } finally {
+                if (provisioningResult === pending) provisioningResult = null
+                pending.second.cancel()
+                if (controllerSession === connected && controllerProvisioningAttemptId == attemptId) {
+                    controllerProvisioningAttemptId = null
+                    controllerProvisioningBusy = false
+                    publish()
+                }
             }
-            publish()
         }
+    }
+
+    private fun provisioningFailed() {
+        status = null
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry)
     }
 
     private fun approveProvisioning() {
         val offer = pendingProvisioning ?: return
-        val requestingSession = pendingProvisioningSession
+        val requestingSession = pendingProvisioningSession ?: return
+        if (requestingSession !== authenticatedSession || targetProvisioningJob?.isActive == true) return
         val connection = targetConnection ?: return
         val settings = targetSettings ?: return
-        status = "Validating ${offer.profile.displayName.ifBlank { offer.profile.serverUrl }}…"
-        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ValidatingDevice, listOf(offer.profile.displayName.ifBlank { offer.profile.serverUrl }))
+        status = null
+        statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ValidatingDevice,
+            listOf(offer.profile.displayName.ifBlank { offer.profile.serverUrl }))
         publish()
-        controllerScope.launch {
-            val connected = connection.provisionConnect(offer.profile.toConnectionFormState())
-            if (connected) {
-                offer.portableSettings?.let(settings::applyConnectPortableSettings)
+        targetProvisioningJob = controllerScope.launch {
+            try {
+                val connected = withTimeoutOrNull(45_000L) {
+                    connection.provisionConnect(offer.profile.toConnectionFormState())
+                } == true
+                if (authenticatedSession !== requestingSession || pendingProvisioning !== offer) return@launch
+                if (connected) {
+                    offer.portableSettings?.let(settings::applyConnectPortableSettings)
+                    initialSetupAuthorization.setupCompleted(requestingSession.sessionId)
+                    statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TvSetupCompletedSecurely)
+                    publishTargetPlaybackSnapshot()
+                } else provisioningFailed()
+                // Failed validation can be retried with a corrected offer during the live code grant.
                 pendingProvisioning = null
                 pendingProvisioningSession = null
                 pendingProvisioningControllerName = null
-                status = "TV setup completed securely."
-                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.TvSetupCompletedSecurely)
-                publishTargetPlaybackSnapshot()
-            } else {
-                status = "Could not validate that connection. Check the server and credential, then retry."
-                statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry)
+                awaitNaviampConnectSocketOperation(controllerScope, 10_000L, requestingSession::close) {
+                    requestingSession.send(app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult(
+                        succeeded = connected, message = "", setupId = offer.setupId,
+                    ))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (authenticatedSession === requestingSession) {
+                    pendingProvisioning = null
+                    pendingProvisioningSession = null
+                    pendingProvisioningControllerName = null
+                    provisioningFailed()
+                }
+            } finally {
+                if (authenticatedSession === requestingSession) publish()
             }
-            runCatching {
-                requestingSession?.send(
-                    app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult(
-                        succeeded = connected,
-                        message = status.orEmpty(),
-                    ),
-                )
-            }
-            publish()
         }
     }
 
     private fun rejectProvisioning() {
-        val requestingSession = pendingProvisioningSession
+        val offer = pendingProvisioning ?: return
+        val requestingSession = pendingProvisioningSession ?: return
+        targetProvisioningJob?.cancel()
+        initialSetupAuthorization.setupCompleted(requestingSession.sessionId)
         pendingProvisioning = null
         pendingProvisioningSession = null
         pendingProvisioningControllerName = null
-        status = "Connection setup request rejected."
+        status = null
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ConnectionSetupRequestRejected)
         publish()
         controllerScope.launch {
             runCatching {
-                requestingSession?.send(
-                    app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult(
-                        succeeded = false,
-                        message = "Connection setup request rejected by the TV.",
-                    ),
-                )
+                awaitNaviampConnectSocketOperation(controllerScope, 10_000L, requestingSession::close) {
+                    requestingSession.send(app.naviamp.domain.connect.NaviampConnectConnectionProvisioningResult(
+                        succeeded = false, message = "", setupId = offer.setupId,
+                    ))
+                }
             }
         }
     }
@@ -1649,6 +1809,9 @@ class NaviampCoreConnectController(
     }
 
     private fun stopPairingMode() {
+        if (pendingProvisioning != null) rejectProvisioning()
+        authenticatedSession?.sessionId?.let(initialSetupAuthorization::sessionClosed)
+        targetProvisioningJob?.cancel()
         advertisingFailure = null
         pendingTargetPairing?.reject()
         pendingTargetPairing = null
@@ -1660,6 +1823,8 @@ class NaviampCoreConnectController(
     }
 
     private fun resetPairingOfferKeepingListener() {
+        initialSetupAuthorization.stopShowingCode()
+        codePairingOfferId = null
         pendingTargetPairing?.reject()
         pendingTargetPairing = null
         advertising?.stop()
@@ -1675,6 +1840,8 @@ class NaviampCoreConnectController(
     }
 
     private fun closeTargetResources() {
+        initialSetupAuthorization.stopShowingCode()
+        codePairingOfferId = null
         advertising?.stop()
         pairingExpiryJob?.cancel()
         pairingExpiryJob = null
@@ -1793,8 +1960,9 @@ class NaviampCoreConnectController(
                         null
                     },
                     needsProvisioningCredential = needsProvisioningCredential,
-                    pendingProvisioningControllerName = pendingProvisioningControllerName,
-                    pendingProvisioningConnectionName = pendingProvisioning?.profile?.displayName
+                    provisioningBusy = controllerProvisioningBusy,
+                    pendingProvisioningControllerName = pendingProvisioningControllerName.takeUnless { pendingProvisioning?.initialSetup == true },
+                    pendingProvisioningConnectionName = pendingProvisioning?.takeUnless { it.initialSetup }?.profile?.displayName
                         ?.ifBlank { pendingProvisioning?.profile?.serverUrl },
                     discoveredTargets = discovered?.targets.orEmpty().map { target ->
                         NaviampConnectDiscoveredTargetUi(

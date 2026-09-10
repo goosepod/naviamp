@@ -922,9 +922,72 @@ class NaviampCoreConnectControllerTest {
         controller.close()
     }
 
+    @Test
+    fun missingSetupCredentialCanBeCancelledAndRetriedWithoutSendingAnOffer() = runTest {
+        val port = SetupSourcePort("")
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        val (controller, store, _) = remoteFixture(providerSessions = port) { sent += it }
+        controller.actions.onProvisionTarget()
+        runCurrent()
+        assertTrue(store.state.value.shell.connect.needsProvisioningCredential)
+        assertFalse(store.state.value.shell.connect.provisioningBusy)
+        assertTrue(sent.isEmpty())
+        controller.actions.onCancelProvisioningCredential()
+        assertFalse(store.state.value.shell.connect.needsProvisioningCredential)
+        controller.actions.onProvisionTarget()
+        runCurrent()
+        assertTrue(store.state.value.shell.connect.needsProvisioningCredential)
+        controller.close()
+    }
+
+    @Test
+    fun provisioningHasOneOutstandingOfferAndATimeoutAllowsRecovery() = runTest {
+        val sent = mutableListOf<app.naviamp.domain.connect.NaviampConnectEnvelope>()
+        lateinit var session: NaviampConnectControllerSession
+        var sequence = 0L
+        val fixture = remoteFixture(providerSessions = SetupSourcePort("secret")) { envelope ->
+            val ping = envelope.message as? app.naviamp.domain.connect.NaviampConnectPing
+            if (ping == null) sent += envelope else session.receive(app.naviamp.domain.connect.NaviampConnectEnvelope(
+                1, "session", ++sequence, message = app.naviamp.domain.connect.NaviampConnectPong(ping.sentAtEpochMillis)))
+        }
+        val (controller, store, connectedSession) = fixture
+        session = connectedSession
+        controller.actions.onProvisionTarget()
+        controller.actions.onProvisionTarget()
+        runCurrent()
+        assertTrue(store.state.value.shell.connect.provisioningBusy)
+        val request = sent.single().message as app.naviamp.domain.connect.NaviampConnectCommandRequest
+        val offer = request.command as app.naviamp.domain.connect.NaviampConnectOfferConnectionProvisioning
+        assertFalse(offer.initialSetup, "An adopted/trusted session has no initial setup grant")
+        assertNotNull(offer.setupId)
+        assertEquals("secret", offer.profile.password)
+        advanceTimeBy(60_001)
+        runCurrent()
+        assertFalse(store.state.value.shell.connect.provisioningBusy)
+        assertTrue(store.state.value.shell.connect.needsProvisioningCredential)
+        controller.close()
+    }
+
+    @Test
+    fun disconnectCancelsCredentialLoadingWithoutPublishingIntoTheClosedSession() = runTest {
+        val port = SetupSourcePort("secret", suspendExport = true)
+        val (controller, store, _) = remoteFixture(providerSessions = port) { error("must not send") }
+        controller.actions.onProvisionTarget()
+        runCurrent()
+        assertTrue(store.state.value.shell.connect.provisioningBusy)
+        controller.actions.onStopControlling()
+        runCurrent()
+        assertTrue(port.cancelled)
+        assertFalse(store.state.value.shell.connect.provisioningBusy)
+        assertFalse(store.state.value.shell.connect.needsProvisioningCredential)
+        assertNull(store.state.value.shell.connect.connectedTargetName)
+        controller.close()
+    }
+
     private fun kotlinx.coroutines.test.TestScope.remoteFixture(
         discovery: NaviampConnectDiscoveryEffect? = null,
         permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
+        providerSessions: NaviampCoreProviderSessionPort? = null,
         send: suspend (app.naviamp.domain.connect.NaviampConnectEnvelope) -> Unit,
     ): Triple<NaviampCoreConnectController, NaviampCoreStateStore, NaviampConnectControllerSession> {
         var stored: String? = null
@@ -941,12 +1004,13 @@ class NaviampCoreConnectControllerTest {
             pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
             discovery = discovery, permissionSettings = permissionSettings,
             newOpaqueId = { "unused" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
-        ))
+        ), providerSessions = providerSessions)
         if (discovery != null) controller.actions.onRefreshTargets()
         var next = 0
         val session = NaviampConnectControllerSession(NaviampConnectSessionTransport(send),
             NaviampConnectRequestIdFactory { "request-${++next}" })
-        session.connect("session", 1, target, setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls),
+        session.connect("session", 1, target, setOf(app.naviamp.domain.connect.NaviampConnectCapability.TransportControls,
+                app.naviamp.domain.connect.NaviampConnectCapability.ConnectionProvisioning),
             NaviampConnectTargetSnapshot(0, target, emptySet()))
         controller.adoptControllerSession(session)
         return Triple(controller, store, session)
@@ -1087,4 +1151,21 @@ internal object UnusedCipherFactory : NaviampConnectAuthenticatedCipherFactory {
         protocolVersion: Int,
         sessionId: String,
     ): NaviampConnectAuthenticatedCipher = error("unused")
+}
+
+private class SetupSourcePort(private val password: String, private val suspendExport: Boolean = false) : NaviampCoreProviderSessionPort {
+    var cancelled = false
+    override fun currentSourceId() = "source"
+    override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection {
+        if (suspendExport) try { awaitCancellation() } finally { cancelled = true }
+        return editableConnection("source")
+    }
+    override suspend fun editableConnection(id: String) = NaviampCoreEditableConnection(
+        app.naviamp.domain.settings.ConnectionFormState(serverUrl = "https://fixture.invalid", username = "fixture", password = password))
+    override suspend fun connect(request: NaviampCoreConnectionRequest, plan: app.naviamp.app.NaviampConnectionAttemptPlan): NaviampCoreConnectedSession = error("unused")
+    override suspend fun deleteConnection(id: String) = NaviampCoreConnectionInventory()
+    override suspend fun smartPlaylistProvider(password: String?) = null
+    override suspend fun refreshActiveSession() = true
+    override suspend fun persistActiveSession() = Unit
+    override suspend fun clearActiveSession() = Unit
 }

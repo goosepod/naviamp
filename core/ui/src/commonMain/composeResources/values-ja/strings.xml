@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="connect_setup_password_required">設定を完了するには、音楽ソースのパスワードを入力してください。Naviampはパスワードを検証し、今後の接続のために安全に保存します。</string>
+    <string name="connect_setup_code_consent">コードを表示すると、そのコードを入力したデバイスとのペアリングと、そのデバイスの音楽ソースおよび設定を使ったテレビのセットアップを許可します。</string>
+    <string name="connect_setup_new_code_required">テレビに新しいコードを表示し、もう一度ペアリングして設定を完了してください。</string>
 </resources>

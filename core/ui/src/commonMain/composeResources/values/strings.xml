@@ -861,4 +861,7 @@
         <item quantity="one">%1$d item</item>
         <item quantity="other">%1$d items</item>
     </plurals>
+    <string name="connect_setup_password_required">Enter your source password to finish setup. Naviamp validates and securely saves it for future connections.</string>
+    <string name="connect_setup_code_consent">Showing a code allows the device that enters it to pair and set up this TV with its music source and settings.</string>
+    <string name="connect_setup_new_code_required">Show a new code on the TV and pair again to finish setup.</string>
 </resources>

@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="connect_setup_password_required">Введіть пароль джерела, щоб завершити налаштування. Naviamp перевірить його та безпечно збереже для майбутніх підключень.</string>
+    <string name="connect_setup_code_consent">Показ коду дозволяє пристрою, на якому його введуть, створити пару та налаштувати цей телевізор зі своїм джерелом музики й налаштуваннями.</string>
+    <string name="connect_setup_new_code_required">Покажіть новий код на телевізорі та повторіть створення пари, щоб завершити налаштування.</string>
 </resources>

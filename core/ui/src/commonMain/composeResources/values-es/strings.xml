@@ -837,4 +837,7 @@
         <item quantity="one">%1$d elemento</item>
         <item quantity="other">%1$d elementos</item>
     </plurals>
+    <string name="connect_setup_password_required">Introduce la contraseña de tu fuente para completar la configuración. Naviamp la valida y la guarda de forma segura para futuras conexiones.</string>
+    <string name="connect_setup_code_consent">Mostrar un código permite al dispositivo que lo introduce emparejarse y configurar este televisor con su fuente de música y ajustes.</string>
+    <string name="connect_setup_new_code_required">Muestra un código nuevo en el televisor y vuelve a emparejarlo para completar la configuración.</string>
 </resources>

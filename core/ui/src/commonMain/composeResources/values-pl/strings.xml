@@ -119,4 +119,7 @@
     <string name="settings_source_delete_content_description">Usuń połączenie</string>
     <string name="settings_source_libraries_prefix">Biblioteki: %1$s</string>
     <string name="settings_local_data_title">Dane lokalne</string>
+    <string name="connect_setup_password_required">Wpisz hasło źródła, aby dokończyć konfigurację. Naviamp sprawdzi je i bezpiecznie zapisze na potrzeby przyszłych połączeń.</string>
+    <string name="connect_setup_code_consent">Wyświetlenie kodu pozwala urządzeniu, które go wpisze, sparować się i skonfigurować ten telewizor ze swoim źródłem muzyki i ustawieniami.</string>
+    <string name="connect_setup_new_code_required">Wyświetl nowy kod na telewizorze i sparuj ponownie, aby dokończyć konfigurację.</string>
 </resources>

@@ -10,6 +10,19 @@ import kotlin.test.assertTrue
 
 class NaviampConnectProtocolTest {
     @Test
+    fun initialSetupAuthorizationAndResultsAreAdditiveAndCorrelated() {
+        val oldWelcome = NaviampConnectWelcome("session", 1, targetDevice(), emptySet(), snapshot(0))
+        val offered = oldWelcome.copy(initialSetupAllowed = true)
+        for (message in listOf(oldWelcome, offered, NaviampConnectConnectionProvisioningResult(true, "", "setup-1"))) {
+            val envelope = NaviampConnectEnvelope(1, "session", 1, message = message)
+            assertEquals(envelope, NaviampConnectWireCodec.decode(NaviampConnectWireCodec.encode(envelope)))
+        }
+        val envelope = NaviampConnectEnvelope(1, "session", 1, message = offered)
+        val legacy = NaviampConnectWireCodec.encode(envelope).replace(",\"initialSetupAllowed\":true", "")
+        assertFalse((NaviampConnectWireCodec.decode(legacy).message as NaviampConnectWelcome).initialSetupAllowed)
+    }
+
+    @Test
     fun deviceCapabilitiesAreIndependentFromTheActiveSessionRole() {
         val capabilities = setOf(
             NaviampConnectDeviceCapability.ControlPlayback,

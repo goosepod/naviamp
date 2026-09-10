@@ -101,6 +101,7 @@ data class NaviampConnectSettingsUi(
     val canProvisionTarget: Boolean = false,
     val sourceMismatchRecovery: NaviampConnectSourceMismatchUi? = null,
     val needsProvisioningCredential: Boolean = false,
+    val provisioningBusy: Boolean = false,
     val pendingProvisioningControllerName: String? = null,
     val pendingProvisioningConnectionName: String? = null,
     val discoveredTargets: List<NaviampConnectDiscoveredTargetUi> = emptyList(),
@@ -145,6 +146,8 @@ data class NaviampConnectSettingsActions(
     val onRejectProvisioning: () -> Unit,
     val onDismissSourceMismatchRecovery: () -> Unit,
     val remoteNowPlayingActions: NaviampNowPlayingActions,
+    val onSubmitProvisioningCredential: (String) -> Unit = {},
+    val onCancelProvisioningCredential: () -> Unit = {},
     val onRetryConnection: () -> Unit = {},
     val onOpenPermissionSettings: () -> Unit = {},
 )

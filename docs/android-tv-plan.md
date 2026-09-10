@@ -1,5 +1,11 @@
 # Naviamp TV Plan
 
+September 10 Connect setup update: the empty-TV flow now completes pairing, validated source
+provisioning, and portable settings after code entry, with a one-time password prompt only when
+needed. The [follow-up acceptance record](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup) contains
+emulator results and the revised session-scoped consent boundary. Earlier approval-flow entries
+below are historical; later source replacement still requires target approval.
+
 ## Purpose
 
 Build a complete, standalone Naviamp Television experience shared by Android TV, Google TV, and a

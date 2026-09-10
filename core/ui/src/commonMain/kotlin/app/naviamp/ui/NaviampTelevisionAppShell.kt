@@ -1,4 +1,6 @@
 package app.naviamp.ui
+
+import app.naviamp.ui.generated.resources.connect_setup_code_consent
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.*
 
@@ -784,7 +786,7 @@ private fun TelevisionFirstRunConnectSetup(
     ) {
         Text(stringResource(Res.string.tv_set_up_from_a_phone_or_computer), color = colors.primaryText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Text(
-            stringResource(Res.string.tv_put_this_tv_in_pairing_mode_find_it_from_naviamp_on_the_same_network_and_enter),
+            stringResource(Res.string.connect_setup_code_consent),
             color = colors.secondaryText,
             fontSize = 15.sp,
         )

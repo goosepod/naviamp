@@ -1,4 +1,6 @@
 package app.naviamp.ui
+
+import app.naviamp.ui.generated.resources.connect_setup_code_consent
 import app.naviamp.domain.settings.InterfaceLanguage
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -450,11 +452,7 @@ private fun TelevisionControllersSettings(
             item(key = "pairing-mode") {
                 TelevisionSettingsRow(
                     title = if (connect.pairingActive) stringResource(Res.string.tv_stop_pairing) else stringResource(Res.string.tv_pair_a_controller),
-                    subtitle = connect.displayStatus() ?: if (connect.pairingActive) {
-                        stringResource(Res.string.tv_this_tv_is_visible_to_naviamp_controllers_on_your_local_network)
-                    } else {
-                        stringResource(Res.string.tv_make_this_tv_visible_temporarily_to_a_phone_or_desktop_on_the_same_network)
-                    },
+                    subtitle = stringResource(Res.string.connect_setup_code_consent),
                     value = connect.pairingCode?.let(::formatNaviampConnectPairingCode),
                     icon = NaviampIcons.Player,
                     selected = connect.pairingActive,

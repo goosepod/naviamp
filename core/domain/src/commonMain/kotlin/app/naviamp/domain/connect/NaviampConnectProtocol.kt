@@ -252,6 +252,8 @@ data class NaviampConnectWelcome(
     val target: NaviampConnectDevice,
     val capabilities: Set<NaviampConnectCapability>,
     val snapshot: NaviampConnectTargetSnapshot,
+    /** This code-authenticated session may perform initial setup of an empty target. */
+    val initialSetupAllowed: Boolean = false,
 ) : NaviampConnectMessage
 
 /** An opaque PAKE exchange payload. A short code is never placed in a wire message. */
@@ -512,6 +514,8 @@ data class NaviampConnectPortableSettings(
 data class NaviampConnectOfferConnectionProvisioning(
     val profile: NaviampConnectProvisioningProfile,
     val portableSettings: NaviampConnectPortableSettings? = null,
+    val initialSetup: Boolean = false,
+    val setupId: String? = null,
 ) : NaviampConnectCommand
 
 @Serializable
@@ -519,6 +523,7 @@ data class NaviampConnectOfferConnectionProvisioning(
 data class NaviampConnectConnectionProvisioningResult(
     val succeeded: Boolean,
     val message: String,
+    val setupId: String? = null,
 ) : NaviampConnectMessage
 
 @Serializable

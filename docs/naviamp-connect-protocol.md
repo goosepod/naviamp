@@ -62,11 +62,21 @@ vectors exist.
 
 ### Protected assets and trust boundary
 
-September 10 status: the approval requirements below describe the current implementation and
-reviewed v1 behavior. The [physical-TV setup follow-up](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup)
-plans a combined code-entry/pairing/provisioning flow without repeated approval. That change is
-not implemented or covered by this approval; revise the consent boundary, threat-model evidence,
-and regression tests together when implementing it.
+September 10 consent update: explicitly choosing **Show pairing code** authorizes one live
+code-authenticated peer to pair. On an empty target, that same action also authorizes initial
+source and portable-settings provisioning in the resulting authenticated session. The UI explains
+this before displaying the code. Background advertisements and trusted reconnects never create this
+authorization. The primitive and durable identity proofs are unchanged; the consent policy is now
+owned by `NaviampConnectInitialSetupAuthorization` in Core.
+
+The grant is bound to the displayed offer and authenticated session, expires at the original code's
+five-minute deadline, and is consumed by successful setup or revoked on session closure/cancellation.
+The target must have no active source, saved connections, or connection attempt when the code is
+shown, when pairing completes, and when automatic provisioning is accepted. A configured target,
+a later source replacement, or an older peer's manual offer still requires explicit target approval.
+Invalid provider credentials leave the source/settings unchanged and permit a corrected offer only
+within the same live grant. After expiry or disconnection, show a new code and pair again for
+automatic initial setup; trust resumption itself cannot refresh the grant.
 
 - The pairing code, PAKE/session roots, resumption credentials, durable private identity keys,
   provider credentials, authenticated commands, authoritative queue/playback state, and transferred
@@ -74,8 +84,16 @@ and regression tests together when implementing it.
 - DNS-SD records, display names, instance IDs, protocol/capability ranges, listening ports, public
   identity keys/fingerprints, and non-secret trust records are public local-network metadata.
 - Pairing establishes trust in one durable peer identity. After pairing, that trusted controller is
-  authorized for every capability the target advertises. Connection provisioning remains a separate
-  explicit target approval because it transfers provider credentials.
+  authorized for every capability the target advertises. Initial provisioning additionally requires
+  the live empty-target grant above; other provisioning requires a separate target approval.
+
+September 10 validation: the shared grant tests cover offer/session identity, configured targets,
+expiry, completion, cancellation, and resumption isolation. The Android TV emulator runs the actual
+Core target and an emulator-restricted synthetic Core controller through password recovery,
+automatic setup, failed-source rollback, trusted reconnect without export, and later manual-approval
+rejection. Separate SQLite/Keystore instrumentation verifies credential persistence. All 1,480
+app/domain/presentation JVM tests and Android/iOS compilation pass; see the
+[TV follow-up evidence](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup).
 
 ### Attacker model and required properties
 
@@ -84,7 +102,7 @@ network who can discover, connect, drop, delay, reorder, replay, alter, and inje
 DNS-SD metadata. It requires:
 
 - the six-digit display code never to cross the wire and each approved PAKE attempt to consume it;
-- the target's visible approval before PAKE work begins;
+- explicit target consent by displaying a live code, or visible per-peer approval, before PAKE work begins;
 - PAKE confirmation plus durable ECDSA proofs binding protocol version, session, ordered identities,
   public keys, fingerprints, and controller/target roles;
 - independent directional AES-256-GCM keys and nonce prefixes, contiguous sequence enforcement,
@@ -138,7 +156,7 @@ The short code shown on the TV must bootstrap a reviewed password-authenticated 
 code is consumed by the pairing operation and is never sent as an ordinary password, serialized in
 protocol messages, logged, or retained in controller state. Pairing additionally requires:
 
-- explicit visible approval on the TV;
+- explicit TV consent to display a live code, or visible per-peer approval;
 - expiring codes and rate-limited attempts;
 - mutual device authentication and explicit key confirmation;
 - channel binding between pairing and the encrypted session;
@@ -163,12 +181,29 @@ still required. The previously evaluated RustCrypto SPAKE2 package is not being 
 Naviamp will not implement a PAKE or other cryptographic primitive itself. Android playback commands
 now remain on the retained authenticated session and run through shared executors and authorization
 policy. Connection provisioning is capability-gated, encrypted inside that retained session, and
-requires explicit target approval. Core excludes local certificate paths and device-only settings,
+requires either the session-bound initial-setup grant or explicit target approval. Core excludes
+local certificate paths and device-only settings,
 validates the offered connection through the normal provider owner before saving or applying
 portable settings, and preserves the existing source if validation fails. Completed provisioning
 requests deliberately cannot be replayed or retained in the request-deduplication cache. The target
 returns an encrypted provisioning result so the controller reports validation success, failure, or
 rejection instead of remaining on the approval prompt.
+
+The additive `welcome.initialSetupAllowed` flag defaults to false for older peers. A new controller
+only automatically offers setup after code pairing with this flag and the provisioning capability;
+resumption does not initiate provisioning. Offers carry `initialSetup` (default false) and a random
+`setupId`; results echo `setupId`. The controller accepts results only for its current pending setup
+on that authenticated session, with an uncorrelated-result fallback only for legacy manual setup.
+There is one outstanding setup per side. Writes are bounded to ten seconds, target validation to
+45 seconds, and controller completion waiting to 60 seconds. Disconnect cancels outstanding work;
+late results cannot update a replacement session. Provisioning is never replayed on reconnect.
+
+Controllers reuse a provider's dedicated reusable-credential export. If the password is absent,
+the shared masked prompt explains its purpose, validates it against the current saved source, and
+lets the provider's existing protected store retain it after successful authentication. Failed or
+cancelled validation restores connection status and leaves playback/cache intact. The password is
+not placed in settings, saved UI state, or diagnostic status. A stale password can be re-entered
+after target validation fails; transport/provider failures also retain the explicit setup retry.
 
 After J-PAKE confirmation, Android and Desktop derive independent controller-to-target and
 target-to-controller AES-256-GCM keys and nonce prefixes from the session root. Core binds protocol
@@ -233,7 +268,8 @@ is active, and discovery alone never enables commands or connection provisioning
    favorites, repeat, shuffle, queue selection, Play Next, reorder, removal, catalog playback, and
    Internet Radio.**
 6. Assisted connection provisioning and same-source atomic queue handoff. **Implemented in shared
-   Core, including explicit target approval, portable-settings filtering, failure rollback, and
+   Core, including session-bound initial setup consent, explicit approval for later replacement,
+   portable-settings filtering, failure rollback, and
    controller-to-target plus target-to-controller transfer.**
 7. Physical Pixel controller to Android TV emulator acceptance, followed by the capability-based
    phone/Desktop controller-and-target matrix and Apple targets.
@@ -241,7 +277,7 @@ is active, and discovery alone never enables commands or connection provisioning
 ## Current test coverage
 
 The common tests cover protocol negotiation, serialization, source matching, snapshot validation,
-code lifetime and rate limiting, explicit TV approval, capability rejection, request deduplication,
+code lifetime and rate limiting, explicit TV consent, capability rejection, request deduplication,
 revision conflicts, stale-snapshot rejection, local target mutations, reconnect retry rules, and
 same-source queue/catalog rejection, atomic queue replacement, source-identity projection, and
 catalog action routing. JVM tests additionally complete matching-code J-PAKE exchanges,
@@ -263,7 +299,8 @@ reliably cross that boundary; both protocol endpoints remained on the actual dev
 settings surfaces compile for
 Android, Desktop/JVM, and iOS Simulator ARM64. Android now injects the real effects: the TV
 Controllers page starts a bound listener, advertises its actual port and identity, displays the
-short code, and requires explicit approval; the standard Android settings page discovers targets
+short code, and now uses explicit code-display consent for initial setup (the earlier September 4
+smoke used separate approval); the standard Android settings page discovers targets
 and accepts the code. A production smoke run verified both screens on the TV emulator and physical
 Pixel 10a. The emulator's NAT topology prevents a physical phone from directly reaching its private
 target address. A test-build endpoint override now bridges only that route, allowing the ordinary

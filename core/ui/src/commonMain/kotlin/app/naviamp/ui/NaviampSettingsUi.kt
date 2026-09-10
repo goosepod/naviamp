@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.connect_setup_password_required
+import app.naviamp.ui.generated.resources.connection_password
 import app.naviamp.domain.network.NaviampAppVersion
 import app.naviamp.domain.network.NaviampAppBuildNumber
 import androidx.compose.foundation.background
@@ -411,10 +413,6 @@ fun NaviampSharedSettingsContent(
                     colors = colors,
                     connect = connect,
                     actions = connectActions,
-                    onRepairProvisioningCredential = {
-                        onEditConnection()
-                        selectedCategory = NaviampSettingsCategory.Source
-                    },
                 )
                 NaviampSettingsCategory.Debugging -> {
                     if (showDebugLogging) {
@@ -475,7 +473,6 @@ private fun NaviampConnectSettingsSection(
     colors: NaviampColors,
     connect: NaviampConnectSettingsUi,
     actions: NaviampConnectSettingsActions?,
-    onRepairProvisioningCredential: () -> Unit,
 ) {
     if (!connect.available || actions == null) {
         SettingsPlaceholderSection(colors, "Naviamp Connect", "Connect is unavailable on this device.")
@@ -507,19 +504,35 @@ private fun NaviampConnectSettingsSection(
             connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
         }
         if (connect.needsProvisioningCredential) {
-            PrimaryButton(
-                "Re-enter source password for TV setup",
-                colors,
-                enabled = true,
-                onClick = onRepairProvisioningCredential,
+            var password by remember { mutableStateOf("") }
+            Text(stringResource(Res.string.connect_setup_password_required), color = colors.secondaryText)
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text(stringResource(Res.string.connection_password)) },
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                singleLine = true,
+                enabled = !connect.provisioningBusy,
+                modifier = Modifier.fillMaxWidth(),
             )
+            PrimaryButton(stringResource(Res.string.common_connect), colors,
+                enabled = password.isNotBlank() && !connect.provisioningBusy,
+                onClick = {
+                    val submitted = password
+                    password = ""
+                    actions.onSubmitProvisioningCredential(submitted)
+                })
+            PrimaryButton(stringResource(Res.string.common_cancel), colors, enabled = true,
+                onClick = { password = ""; actions.onCancelProvisioningCredential() })
         }
         connect.connectedTargetName?.let { targetName ->
             SettingsSectionTitle("Controlling $targetName", colors)
             PrimaryButton(
                 "Set up $targetName with this connection",
                 colors,
-                enabled = connect.canProvisionTarget,
+                enabled = connect.canProvisionTarget && !connect.provisioningBusy,
                 onClick = actions.onProvisionTarget,
             )
             PrimaryButton(

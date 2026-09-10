@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="connect_setup_password_required">请输入音乐源密码以完成设置。Naviamp 会验证密码并安全保存，供今后连接使用。</string>
+    <string name="connect_setup_code_consent">显示代码即允许输入该代码的设备配对，并使用其音乐源和设置配置此电视。</string>
+    <string name="connect_setup_new_code_required">请在电视上显示新代码并重新配对，以完成设置。</string>
 </resources>

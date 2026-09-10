@@ -616,6 +616,7 @@ class NaviampCore private constructor(
                         naviampCoreConnectSourceIdentity(stateStore, providerSource)
                     },
                     providerSessions = services.connection,
+                    localConnection = connection,
                     targetConnection = connection.takeIf { supportsRemotePlayback },
                     targetSettings = settings.takeIf { supportsRemotePlayback },
                     revealTargetNowPlaying = navigation::openNowPlaying,

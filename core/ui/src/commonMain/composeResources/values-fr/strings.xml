@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="connect_setup_password_required">Saisissez le mot de passe de votre source pour terminer la configuration. Naviamp le valide et le conserve en toute sécurité pour les prochaines connexions.</string>
+    <string name="connect_setup_code_consent">Afficher un code autorise l’appareil qui le saisit à s’associer et à configurer ce téléviseur avec sa source musicale et ses réglages.</string>
+    <string name="connect_setup_new_code_required">Affichez un nouveau code sur le téléviseur et associez à nouveau les appareils pour terminer la configuration.</string>
 </resources>

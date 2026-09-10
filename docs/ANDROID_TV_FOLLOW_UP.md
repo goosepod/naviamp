@@ -9,14 +9,13 @@ exit checklist. This file records the physical-device findings and their impleme
 
 ## Initial Connect setup
 
-Status: in progress; reusable-credential export fixed, combined pairing/setup flow planned
+Status: implemented and validated on the Android TV emulator
 
-Current implementation still separates pairing approval and connection-provisioning approval.
-The flow below is the intended replacement, not the behavior covered by the existing
-[v1 protocol review](naviamp-connect-protocol.md). Implement the combined consent/session boundary
-in Core and update its security tests and protocol review before declaring this flow complete.
-Preserve peer identity verification, authenticated credential transfer, failed-validation rollback,
-and explicit pairing-mode entry; code entry must not enable unsolicited provisioning by any peer.
+Explicitly displaying a pairing code authorizes the code-authenticated peer to pair and configure
+an empty target within that live session. Source and portable settings are validated and applied
+without another TV approval. Existing-source replacement still requires approval. The revised
+[protocol consent boundary](naviamp-connect-protocol.md#protected-assets-and-trust-boundary) records
+expiration, cancellation, compatibility, and the separation from trusted reconnect.
 
 The first connection should be a simple pairing flow:
 
@@ -63,16 +62,41 @@ library selection through the shared provider router, and logout removes the act
 test uses a unique synthetic database, deletes it afterward, and performs no provider-network
 requests. Android app and instrumentation APK assembly passed.
 
-Remaining implementation order:
+September 10 combined-flow implementation:
 
-1. Add the one-time missing-password input and validated retention inside the setup flow.
-2. Bind initial setup consent to explicit pairing-mode entry and the code-authenticated peer/session;
-   define expiration, cancellation, failure recovery, and behavior if a source is already configured.
-3. Automatically offer and apply the selected connection and portable settings inside that session,
-   without repeating pairing/provisioning approval. Preserve explicit approval for unrelated later
-   source replacement and ensure trusted reconnect does not replay initial setup.
-4. Update the protocol/consent review and run the combined setup/recovery flow on the TV emulator
-   before claiming the code-entry-to-ready acceptance criteria above are complete.
+- Shared Core UI collects a missing password in a masked, non-saveable field, clears it on submit or
+  cancellation, and explains validated secure retention. All maintained resource translations include
+  the new copy. Existing reusable credentials bypass the prompt.
+- Validation uses the current saved source and provider owner. Failure/cancellation restores the
+  controller's connection state without clearing playback or provider data; successful authentication
+  retains the reusable password through the existing protected provider store.
+- Explicit code display creates an expiring offer; authenticated pairing converts it to a grant for
+  that session only. Active/saved sources and ongoing connection attempts prevent automatic setup.
+  Background advertising, replaced offers, expired codes, cancellation, and trusted resumption do
+  not create or renew a grant. Successful setup consumes it.
+- The controller automatically sends the selected source and portable settings after eligible code
+  pairing. Correlated encrypted results complete the UI flow. Duplicate submissions are suppressed;
+  writes, validation, and result waiting have deadlines, and disconnect cancels pending work.
+- Failed target validation leaves source/settings untouched and supports retry within the live grant.
+  A rejected automatic offer directs the user to show a new code and pair again. Later source changes
+  retain explicit target approval. Trust reconnect never exports credentials or replays provisioning.
+
+No schema migration, new settings preference, or platform production behavior was added. New Android
+instrumentation exercises the real TV Core, NSD/TCP, J-PAKE, Keystore identity, and provider persistence,
+with a synthetic controller restricted to the emulator's exact identity and loopback address.
+
+Combined-flow validation: 206 shared app, 910 domain, and 364 presentation JVM tests pass (1,480
+total, no failures/errors/skips). Android app/instrumentation builds, iOS device and simulator ARM64
+compilation, and `verifyCoreFirstArchitecture` pass. On the disposable 1080p API 36 Android TV
+emulator, `AndroidConnectInitialSetupInstrumentedTest` and
+`AndroidConnectCredentialStorageInstrumentedTest` pass together (two tests, 4.257 seconds). The
+setup scenario exercises actual TV Core with no target approval calls: code entry, missing/invalid
+password, cancellation/retry, unreachable-source rollback, automatic source and album-grouping
+transfer, preservation of device-local startup behavior, trusted reconnect without another credential
+export, and rejection of a later approval-gated setup offer without changing source/settings. The
+second test verifies protected SQLite/Keystore credential retention after reopening storage.
+Visual checks also confirmed the populated home screen after setup and readable code-display consent
+on the fresh-install TV screen. These emulator checks do not close the remaining physical-TV/playback/display gates below.
 
 ## Prevent the screen saver
 

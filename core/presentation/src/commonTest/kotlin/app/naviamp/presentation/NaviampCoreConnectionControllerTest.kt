@@ -380,6 +380,44 @@ class NaviampCoreConnectionControllerTest {
         )
     }
 
+    @Test
+    fun provisioningPasswordValidationKeepsPlaybackAndUsesTheExistingSource() = kotlinx.coroutines.test.runTest {
+        val changed = mutableListOf<String>()
+        val fixture = fixture(onSourceChanging = { _, id -> changed += id })
+        assertTrue(fixture.controller.updateProvisioningCredential("source-1", "replacement"))
+        val (request, plan) = fixture.port.connectRequests.single()
+        val form = request as NaviampCoreConnectionRequest.Form
+        assertEquals("source-1", form.savedConnectionId)
+        assertEquals("replacement", form.form.password)
+        assertFalse(plan.clearExistingPlayback)
+        assertFalse(plan.clearProviderData)
+        assertTrue(changed.isEmpty())
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+        assertEquals("", fixture.store.state.value.shell.connectionSettings.connection.form.password)
+    }
+
+    @Test
+    fun invalidOrCancelledProvisioningPasswordRestoresConnectionState() = kotlinx.coroutines.test.runTest {
+        for (failure in listOf(IllegalArgumentException("invalid password"), kotlinx.coroutines.CancellationException())) {
+            val fixture = fixture(connectFailure = failure)
+            val before = fixture.store.state.value.shell.connectionSettings
+            try {
+                assertFalse(fixture.controller.updateProvisioningCredential("source-1", "replacement"))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                assertTrue(failure is kotlinx.coroutines.CancellationException)
+            }
+            assertEquals(before, fixture.store.state.value.shell.connectionSettings)
+        }
+    }
+
+    @Test
+    fun provisioningPasswordCannotChangeAnotherSourceOrSubmitBlankCredentials() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        assertFalse(fixture.controller.updateProvisioningCredential("other-source", "replacement"))
+        assertFalse(fixture.controller.updateProvisioningCredential("source-1", "  "))
+        assertTrue(fixture.port.connectRequests.isEmpty())
+    }
+
     private fun fixture(
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
@@ -441,6 +479,7 @@ private class FakeProviderSessionPort(
     private val connectFailure: Throwable?,
     private val musicFoldersLoadFailed: Boolean,
 ) : NaviampCoreProviderSessionPort {
+    override fun initialInventory() = inventory
     var inventory = initialInventory
     var refreshCalls = 0
     var activeSessionCleared = false
