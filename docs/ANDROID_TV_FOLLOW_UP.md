@@ -9,7 +9,7 @@ exit checklist. This file records the physical-device findings and their impleme
 
 ## Initial Connect setup
 
-Status: planned
+Status: in progress; reusable-credential export fixed, combined pairing/setup flow planned
 
 Current implementation still separates pairing approval and connection-provisioning approval.
 The flow below is the intended replacement, not the behavior covered by the existing
@@ -36,6 +36,43 @@ Acceptance criteria:
 - Source provisioning happens inside the authenticated Connect session.
 - Reconnecting a trusted controller does not repeat first-run setup.
 - Failure states provide a recovery action instead of a credential-transfer dead end.
+
+September 10 credential-reuse implementation:
+
+- The shared provider-session router now delegates setup export to the active provider's dedicated
+  `currentProvisioningConnection` method. It no longer substitutes the general connection editor,
+  fetches library metadata for an export, or falls back to a different provider's credentials.
+- Jellyfin now passes the password from successful authentication into the existing shared
+  credential-protected source store. Token-only reconnect preserves a previously saved password
+  without submitting it for authentication again. This uses the existing password column and
+  credential protector; no new migration or ordinary settings-sync credential field is introduced.
+- Jellyfin's dedicated setup export reuses the active/saved password without a network request.
+  Clearing, deleting, or switching the active source cannot expose the previous source's password.
+  A rejected login does not replace the saved credential. Older token-only records still require
+  password entry; an access token is never treated as a transferable password.
+- The normal Jellyfin connection editor remains password-empty. The dedicated Connect export is
+  the credential-bearing path, and existing encrypted provisioning remains its consumer.
+
+Validation: 202 shared app, 30 Jellyfin, 157 Navidrome, and 50 storage JVM tests pass (439 total,
+no failures/errors/skips). Android and iOS device/simulator ARM64 compilation and the Core-first
+architecture guard pass. Production changes are limited to Core and Jellyfin `commonMain`.
+The disposable 1080p API 36 Android TV emulator also passed
+`AndroidConnectCredentialStorageInstrumentedTest` (one test, 0.233 seconds): the real SQLite row
+contains a Keystore-protected value, reopening the database preserves the reusable password and
+library selection through the shared provider router, and logout removes the active export. The
+test uses a unique synthetic database, deletes it afterward, and performs no provider-network
+requests. Android app and instrumentation APK assembly passed.
+
+Remaining implementation order:
+
+1. Add the one-time missing-password input and validated retention inside the setup flow.
+2. Bind initial setup consent to explicit pairing-mode entry and the code-authenticated peer/session;
+   define expiration, cancellation, failure recovery, and behavior if a source is already configured.
+3. Automatically offer and apply the selected connection and portable settings inside that session,
+   without repeating pairing/provisioning approval. Preserve explicit approval for unrelated later
+   source replacement and ensure trusted reconnect does not replay initial setup.
+4. Update the protocol/consent review and run the combined setup/recovery flow on the TV emulator
+   before claiming the code-entry-to-ready acceptance criteria above are complete.
 
 ## Prevent the screen saver
 

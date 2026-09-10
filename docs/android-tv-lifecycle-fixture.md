@@ -88,3 +88,19 @@ Ambient Mode, Wi-Fi, and multi-hour acceptance open in [the follow-up](ANDROID_T
 The standalone fixture entry point explicitly returns `Unit`: its shared setup helper returns a
 `NaviampCore`, and inferring that return type for the JUnit method makes AndroidJUnitRunner reject
 the test before setup runs. This signature regression was corrected during September 10 acceptance.
+
+## Connect credential storage check
+
+The following independent test needs an installed app/test APK and an Android TV emulator, but
+does not need the HTTP playback fixture or an empty app installation:
+
+```sh
+adb -s emulator-5556 shell am instrument -w -r \
+  -e class app.naviamp.android.AndroidConnectCredentialStorageInstrumentedTest \
+  app.naviamp.android.v2test.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+It creates and removes its own uniquely named SQLite database with synthetic credentials. It checks
+Keystore protection of the stored password, database close/reopen, Jellyfin setup export through
+the shared provider router without HTTP requests, preservation of selected libraries, and clearing
+the export on logout. It does not pair devices or validate the combined initial-setup UX.

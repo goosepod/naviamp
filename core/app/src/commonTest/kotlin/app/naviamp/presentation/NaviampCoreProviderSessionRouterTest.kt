@@ -9,8 +9,43 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import kotlin.test.assertNull
 
 class NaviampCoreProviderSessionRouterTest {
+    @Test
+    fun provisioningUsesOnlyTheActiveProvidersDedicatedCredentialExport() = runTest {
+        val subsonic = RecordingSessionPort(inventory()).apply {
+            provisioning = NaviampCoreEditableConnection(ConnectionFormState(password = "subsonic-secret"))
+        }
+        val jellyfin = RecordingSessionPort(inventory()).apply {
+            provisioning = NaviampCoreEditableConnection(ConnectionFormState(password = "jellyfin-secret"))
+        }
+        val router = router(subsonic, jellyfin)
+        router.connect(NaviampCoreConnectionRequest.Saved("jellyfin-source"), plan())
+        assertSame(jellyfin.provisioning, router.currentProvisioningConnection())
+        assertEquals(0, subsonic.provisioningCalls)
+        assertEquals(0, jellyfin.editableCalls)
+        router.connect(NaviampCoreConnectionRequest.Saved("subsonic-source"), plan())
+        assertSame(subsonic.provisioning, router.currentProvisioningConnection())
+        assertEquals(0, subsonic.editableCalls)
+        router.clearActiveSession()
+        assertNull(router.currentProvisioningConnection())
+    }
+
+    @Test
+    fun unavailableProvisioningDoesNotFallBackToAnEditorOrAnotherProvider() = runTest {
+        val subsonic = RecordingSessionPort(inventory()).apply {
+            provisioning = NaviampCoreEditableConnection(ConnectionFormState(password = "other-secret"))
+        }
+        val jellyfin = RecordingSessionPort(inventory())
+        val router = router(subsonic, jellyfin)
+        router.connect(NaviampCoreConnectionRequest.Saved("jellyfin-source"), plan())
+        assertNull(router.currentProvisioningConnection())
+        assertEquals(1, jellyfin.provisioningCalls)
+        assertEquals(0, jellyfin.editableCalls)
+        assertEquals(0, subsonic.provisioningCalls)
+    }
+
     @Test
     fun restoresTheActiveSourceFromANonFirstProviderRoute() {
         val base = inventory()
@@ -134,6 +169,9 @@ private class RecordingSessionPort(
     val connections = mutableListOf<String>()
     var refreshCalls = 0
     var persistCalls = 0
+    var editableCalls = 0
+    var provisioningCalls = 0
+    var provisioning: NaviampCoreEditableConnection? = null
     val smartPlaylistPasswords = mutableListOf<String?>()
 
     override fun currentProvider(): MediaProvider = provider
@@ -157,8 +195,15 @@ private class RecordingSessionPort(
         return NaviampCoreConnectedSession(sourceId, sourceId, inventory = inventory)
     }
 
-    override suspend fun editableConnection(id: String): NaviampCoreEditableConnection =
-        NaviampCoreEditableConnection(ConnectionFormState())
+    override suspend fun editableConnection(id: String): NaviampCoreEditableConnection {
+        editableCalls += 1
+        return NaviampCoreEditableConnection(ConnectionFormState())
+    }
+
+    override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? {
+        provisioningCalls += 1
+        return provisioning
+    }
 
     override suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory {
         inventory = inventory.copy(

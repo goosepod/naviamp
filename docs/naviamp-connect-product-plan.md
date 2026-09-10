@@ -252,6 +252,12 @@ That is the intended replacement for the current TV flow; broader fresh-phone/De
 separate. The existing approval-based implementation and protocol review remain the baseline until
 the combined setup flow is implemented and reviewed.
 
+September 10 prerequisite: shared routing now uses the provider's dedicated credential export,
+and Jellyfin preserves/reuses its authenticated password through protected source storage. This
+closes a reusable-credential gap without changing the approval flow. One-time password entry,
+automatic initial provisioning, and their session-scoped consent/recovery tests remain tracked in
+the TV follow-up; the fresh-device checklist below is not complete yet.
+
 - [ ] Offer **Set up from another Naviamp device** on a fresh phone or Desktop install and on an
   unconfigured TV.
 - [ ] Pair and approve through the same trusted-device flow, then transfer the selected provider
