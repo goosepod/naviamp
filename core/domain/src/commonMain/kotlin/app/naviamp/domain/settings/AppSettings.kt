@@ -157,6 +157,7 @@ data class InterfaceSettings(
     val checkForUpdates: Boolean = true,
     val applicationUpdateChannel: ApplicationUpdateChannel? = null,
     val startPlayingOnLaunch: Boolean = false,
+    val keepScreenAwake: Boolean = false,
     val showDesktopTooltips: Boolean = true,
     val showArtistInformation: Boolean = true,
     val showAlbumInformation: Boolean = true,

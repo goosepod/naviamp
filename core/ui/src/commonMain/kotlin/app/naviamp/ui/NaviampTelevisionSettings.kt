@@ -1,5 +1,9 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake_description
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake_failed
+
 import app.naviamp.ui.generated.resources.connect_setup_code_consent
 import app.naviamp.domain.settings.InterfaceLanguage
 import org.jetbrains.compose.resources.pluralStringResource
@@ -967,6 +971,7 @@ private fun TelevisionDisplaySettings(
 ) {
     val settings = uiState.general.interfaceSettings
     val nowPlaying = settings.nowPlaying
+    val screenAwake = LocalNaviampScreenAwakeUi.current
     TelevisionSettingsList {
         item(key = "language") {
             TelevisionSettingsRow(
@@ -981,6 +986,19 @@ private fun TelevisionDisplaySettings(
                     if (returnChoice == TelevisionSettingsChoicePage.Language) returnFocusRequester else firstFocusRequester,
                 ),
             )
+        }
+        if (screenAwake.available) {
+            item(key = "keep-screen-awake") {
+                TelevisionSettingsToggleRow(
+                    title = stringResource(Res.string.settings_keep_screen_awake),
+                    subtitle = stringResource(if (screenAwake.failed) Res.string.settings_keep_screen_awake_failed
+                        else Res.string.settings_keep_screen_awake_description),
+                    checked = settings.keepScreenAwake,
+                    subtitleMaxLines = Int.MAX_VALUE,
+                    colors = colors,
+                    onClick = { actions.onInterfaceSettingsChanged(settings.copy(keepScreenAwake = !settings.keepScreenAwake)) },
+                )
+            }
         }
         item(key = "background") {
             TelevisionSettingsRow(
@@ -1505,10 +1523,12 @@ private fun TelevisionSettingsToggleRow(
     colors: NaviampColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitleMaxLines: Int = 2,
 ) {
     TelevisionSettingsRow(
         title = title,
         subtitle = subtitle,
+        subtitleMaxLines = subtitleMaxLines,
         value = if (checked) stringResource(Res.string.tv_on) else stringResource(Res.string.common_off),
         selected = checked,
         colors = colors,
@@ -1529,6 +1549,7 @@ private fun TelevisionSettingsRow(
     colors: NaviampColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitleMaxLines: Int = 2,
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
@@ -1563,7 +1584,7 @@ private fun TelevisionSettingsRow(
                     subtitle,
                     color = colors.secondaryText,
                     fontSize = 13.sp,
-                    maxLines = 2,
+                    maxLines = subtitleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

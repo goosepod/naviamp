@@ -3,4 +3,7 @@
     <string name="connect_setup_password_required">Masukkan kata sandi sumber Anda untuk menyelesaikan penyiapan. Naviamp memvalidasi dan menyimpannya dengan aman untuk koneksi berikutnya.</string>
     <string name="connect_setup_code_consent">Menampilkan kode mengizinkan perangkat yang memasukkannya untuk berpasangan dan menyiapkan TV ini dengan sumber musik dan pengaturannya.</string>
     <string name="connect_setup_new_code_required">Tampilkan kode baru di TV dan pasangkan kembali untuk menyelesaikan penyiapan.</string>
+    <string name="settings_keep_screen_awake">Biarkan layar menyala</string>
+    <string name="settings_keep_screen_awake_description">Mencegah layar tidur otomatis saat Naviamp terlihat. Tidur sistem, kunci layar, dan pengatur waktu TV mungkin tetap berlaku.</string>
+    <string name="settings_keep_screen_awake_failed">Pencegahan tidur layar tidak dapat diubah. Nonaktifkan lalu aktifkan pengaturan ini untuk mencoba lagi.</string>
 </resources>

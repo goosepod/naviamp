@@ -840,4 +840,7 @@
     <string name="connect_setup_password_required">Introduce la contraseña de tu fuente para completar la configuración. Naviamp la valida y la guarda de forma segura para futuras conexiones.</string>
     <string name="connect_setup_code_consent">Mostrar un código permite al dispositivo que lo introduce emparejarse y configurar este televisor con su fuente de música y ajustes.</string>
     <string name="connect_setup_new_code_required">Muestra un código nuevo en el televisor y vuelve a emparejarlo para completar la configuración.</string>
+    <string name="settings_keep_screen_awake">Mantener la pantalla encendida</string>
+    <string name="settings_keep_screen_awake_description">Evita que la pantalla se apague automáticamente mientras Naviamp esté visible. La suspensión del sistema, los bloqueos y los temporizadores del televisor pueden seguir activos.</string>
+    <string name="settings_keep_screen_awake_failed">No se pudo cambiar la prevención del apagado de pantalla. Desactiva y activa este ajuste para reintentar.</string>
 </resources>

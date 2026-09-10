@@ -70,6 +70,7 @@ class NaviampCoreConnectProvisioningTest {
         val currentInterface = InterfaceSettings(checkForUpdates = true)
         val offeredInterface = InterfaceSettings(
             checkForUpdates = false,
+            keepScreenAwake = true,
             appBackgroundStyle = AppBackgroundStyle.SingleColor,
         )
         val currentPlayback = PlaybackSettings(volumePercent = 77, allowMobileDownloads = false)
@@ -85,6 +86,7 @@ class NaviampCoreConnectProvisioningTest {
 
         assertEquals(AppBackgroundStyle.SingleColor, mergedInterface.appBackgroundStyle)
         assertEquals(true, mergedInterface.checkForUpdates)
+        assertEquals(true, mergedInterface.keepScreenAwake)
         assertEquals(false, mergedPlayback.gaplessEnabled)
         assertEquals(8, mergedPlayback.crossfadeDurationSeconds)
         assertEquals(77, mergedPlayback.volumePercent)

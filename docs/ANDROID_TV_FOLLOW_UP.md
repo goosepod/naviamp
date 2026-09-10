@@ -100,14 +100,57 @@ on the fresh-install TV screen. These emulator checks do not close the remaining
 
 ## Prevent the screen saver
 
-Status: in progress for playback wakefulness; optional display setting planned
+Status: optional display setting implemented; physical playback wakefulness acceptance remains open
 
-Add a shared setting that prevents the screen saver or display sleep while Naviamp is open. Expose
-it on Android TV and on desktop platforms that provide a reliable native inhibition API, including
-Windows. Keep the default disabled to preserve normal device power behavior.
+The shared **Keep screen awake** setting prevents automatic display sleep while Naviamp is visible.
+It defaults to disabled and appears in TV Display settings and the shared Experience settings on
+hosts with a native effect. Enabling it does not override explicit system sleep, screen locks, TV
+power timers, or HDMI-CEC behavior.
 
-The setting must be persisted and included in settings export, import, and sync. Core owns the
-setting and policy; hosts only apply the narrow operating-system effect.
+The setting is persisted and included in settings export, import, sync, and portable Connect setup.
+Older exports default to disabled. Core owns the setting, translated UI, visible-surface lifecycle,
+lease ownership, and failure/retry behavior; hosts only apply the operating-system effect. Losing
+focus retains the lease, while backgrounding/minimizing, disabling the preference, or disposing the
+surface releases it. Display inhibition remains independent of audio playback and CPU wake locks.
+
+Native effects use Android window flags, Windows power-request handles, macOS IOKit assertions,
+X11 screen-saver suspension, and the iOS application idle timer. Wayland currently has no adapter;
+its setting remains preserved in shared settings but the control is hidden. A failed acquisition
+shows shared recovery copy and retries after toggling the setting or returning to the foreground.
+All 17 maintained string-resource locales include the new copy. No database migration is needed.
+
+Native contracts: [Android's visible-window flag](https://developer.android.com/develop/background-work/background-tasks/awake/screen-on),
+[Windows power requests](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-powersetrequest),
+[macOS display-sleep assertion](https://developer.apple.com/documentation/iokit/kiopmassertiontypepreventuseridledisplaysleep),
+and [iOS idle timer](https://developer.apple.com/documentation/uikit/uiapplication/isidletimerdisabled).
+Windows requests include both display and system requirements as required by that native API;
+Core releases the handle when the surface is no longer visible.
+
+
+September 10 display-setting validation: 210 shared app, 911 domain, and 364 presentation JVM
+tests pass (1,485 total, no failures/errors/skips). Android app/instrumentation APK assembly,
+desktop compilation, iOS device/simulator ARM64 compilation, and the Core-first guard pass. The
+guard now explicitly recognizes the three multiplatform lifecycle imports used by this shared
+owner; Android-only `androidx` APIs remain forbidden.
+
+On the disposable 1080p API 36 Android TV emulator, `AndroidScreenAwakeInstrumentedTest` passes
+(two tests, 7.891 seconds). It checks actual window flags through enable/disable, pause while visible,
+background/foreground, Activity recreation, disposal, preexisting-flag preservation, and repeated
+release. The D-pad toggle also applied and released `KEEP_SCREEN_ON` in `dumpsys window`. A final 1080p
+visual check confirmed focused On/Off feedback, preference preservation after app reinstall/restart,
+and the complete explanation without truncation. Reproduction is in
+[the display-setting check](android-tv-lifecycle-fixture.md#optional-display-awake-setting-check).
+Desktop and iOS native adapters have compile validation only; runtime acceptance on those hosts
+and the physical-TV tests below remain open.
+
+Platform production diff accountability:
+
+- `platforms/android/.../display/AndroidScreenAwakeEffect.kt`: Android `Window` flag and main Looper.
+- `apps/android/.../MainActivity.kt`: supplies that Activity's native window effect to Core.
+- `platforms/desktop/.../display/DesktopScreenAwakeEffect.kt`: JNA Win32/IOKit/X11 ABI calls and native resource lifetime.
+- `apps/desktop/.../app/DesktopNaviampCoreHost.kt`: supplies the desktop window's native effect to Core.
+- `apps/ios/.../IosScreenAwakeEffect.kt`: UIKit `UIApplication.idleTimerDisabled`.
+- `apps/ios/.../NaviampIosApplication.kt`: supplies the native idle-timer effect when mounting the UIKit view controller.
 
 Physical-device follow-up: during uninterrupted music playback, Android TV entered Ambient Mode,
 continued playing for a while, and later powered off. Treat screen-saver suppression and playback

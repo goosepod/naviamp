@@ -122,4 +122,7 @@
     <string name="connect_setup_password_required">Wpisz hasło źródła, aby dokończyć konfigurację. Naviamp sprawdzi je i bezpiecznie zapisze na potrzeby przyszłych połączeń.</string>
     <string name="connect_setup_code_consent">Wyświetlenie kodu pozwala urządzeniu, które go wpisze, sparować się i skonfigurować ten telewizor ze swoim źródłem muzyki i ustawieniami.</string>
     <string name="connect_setup_new_code_required">Wyświetl nowy kod na telewizorze i sparuj ponownie, aby dokończyć konfigurację.</string>
+    <string name="settings_keep_screen_awake">Nie wygaszaj ekranu</string>
+    <string name="settings_keep_screen_awake_description">Zapobiega automatycznemu uśpieniu ekranu, gdy Naviamp jest widoczny. Uśpienie systemu, blokady ekranu i wyłączniki czasowe telewizora mogą nadal działać.</string>
+    <string name="settings_keep_screen_awake_failed">Nie można zmienić zapobiegania uśpieniu ekranu. Wyłącz i włącz to ustawienie, aby spróbować ponownie.</string>
 </resources>

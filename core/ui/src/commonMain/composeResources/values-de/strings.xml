@@ -3,4 +3,7 @@
     <string name="connect_setup_password_required">Gib das Passwort deiner Quelle ein, um die Einrichtung abzuschließen. Naviamp prüft es und speichert es sicher für künftige Verbindungen.</string>
     <string name="connect_setup_code_consent">Wenn du einen Code anzeigst, darf das Gerät, das ihn eingibt, sich koppeln und diesen Fernseher mit seiner Musikquelle und seinen Einstellungen einrichten.</string>
     <string name="connect_setup_new_code_required">Zeige einen neuen Code auf dem Fernseher an und kopple erneut, um die Einrichtung abzuschließen.</string>
+    <string name="settings_keep_screen_awake">Bildschirm wach halten</string>
+    <string name="settings_keep_screen_awake_description">Verhindert den automatischen Bildschirmruhezustand, solange Naviamp sichtbar ist. Systemruhe, Bildschirmsperren und TV-Ausschaltzeiten können weiterhin greifen.</string>
+    <string name="settings_keep_screen_awake_failed">Der Bildschirmruhezustand konnte nicht angepasst werden. Schalte diese Einstellung aus und wieder ein, um es erneut zu versuchen.</string>
 </resources>

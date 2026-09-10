@@ -3,4 +3,7 @@
     <string name="connect_setup_password_required">أدخل كلمة مرور المصدر لإكمال الإعداد. يتحقق Naviamp منها ويحفظها بأمان للاتصالات المستقبلية.</string>
     <string name="connect_setup_code_consent">يسمح عرض الرمز للجهاز الذي يدخله بالاقتران وإعداد هذا التلفزيون باستخدام مصدر الموسيقى والإعدادات الخاصة به.</string>
     <string name="connect_setup_new_code_required">اعرض رمزًا جديدًا على التلفزيون وأعد الاقتران لإكمال الإعداد.</string>
+    <string name="settings_keep_screen_awake">إبقاء الشاشة مضاءة</string>
+    <string name="settings_keep_screen_awake_description">يمنع سكون الشاشة التلقائي أثناء ظهور Naviamp. قد يظل سكون النظام وقفل الشاشة ومؤقت طاقة التلفزيون فعالًا.</string>
+    <string name="settings_keep_screen_awake_failed">تعذر تغيير منع سكون الشاشة. أوقف هذا الإعداد ثم شغله لإعادة المحاولة.</string>
 </resources>

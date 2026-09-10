@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
                     core = runtime.core,
                     modifier = Modifier.safeDrawingPadding().imePadding(),
                     applicationSurface = naviampApplicationSurface(),
+                    screenAwakeEffect = remember(window) { AndroidScreenAwakeEffect(window) },
                     applicationUpdateChecker = runtime.applicationUpdateChecker,
                 )
             }

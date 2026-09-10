@@ -66,9 +66,17 @@ tasks.register("verifyCoreFirstArchitecture") {
         val forbiddenCommonImport = Regex(
             """^\s*import\s+(?:android\.|androidx\.(?!compose\.)|java\.|javax\.|sun\.|com\.sun\.|platform\.|kotlinx\.cinterop\.)""",
         )
+        // These lifecycle APIs ship common Kotlin implementations and compile on JVM, Android, and iOS.
+        // Keep this list exact: Android-only androidx APIs remain forbidden in common production code.
+        val sharedLifecycleImports = setOf(
+            "androidx.lifecycle.Lifecycle",
+            "androidx.lifecycle.LifecycleEventObserver",
+            "androidx.lifecycle.compose.LocalLifecycleOwner",
+        )
         commonProductionSources.files.sorted().forEach { source ->
             source.readLines().forEachIndexed { index, line ->
-                if (forbiddenCommonImport.containsMatchIn(line)) {
+                val importedType = line.trim().removePrefix("import ").substringBefore(" as ")
+                if (forbiddenCommonImport.containsMatchIn(line) && importedType !in sharedLifecycleImports) {
                     failures += "${source.relativeTo(projectDir).invariantSeparatorsPath}:${index + 1}: $line"
                 }
             }

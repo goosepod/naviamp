@@ -29,8 +29,9 @@ class NaviampCoreSettingsValueStoreTest {
         val settings = catalog.storedSettings
 
         assertEquals(InterfaceSettings(), settings.loadInterface())
-        settings.saveInterface(InterfaceSettings(albumBlurRadiusDp = 999))
+        settings.saveInterface(InterfaceSettings(albumBlurRadiusDp = 999, keepScreenAwake = true))
         assertEquals(48, settings.loadInterface().albumBlurRadiusDp)
+        assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().keepScreenAwake)
         catalog.savePlayback(PlaybackSettings(crossfadeDurationSeconds = 999))
         assertEquals(999, settings.loadPlayback().crossfadeDurationSeconds)
 

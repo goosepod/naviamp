@@ -9,6 +9,21 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
+    @Test fun keepScreenAwakeRoundTripsAndOlderExportsDefaultOff() {
+        for (enabled in listOf(false, true)) {
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(keepScreenAwake = enabled)), 1L, "test")
+            val imported = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(enabled, imported.keepScreenAwake)
+        }
+        assertFalse(SettingsSyncJson.decode("{}") .preferences.interfaceSettings.keepScreenAwake)
+        assertFalse(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{}}}""")
+            .preferences.interfaceSettings.keepScreenAwake)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"keepScreenAwake":"invalid"}}}""")
+        }
+    }
+
     @Test
     fun interfaceLanguageRoundTripsMissingValuesDefaultAndUnknownValuesAreRejected() {
         for (language in InterfaceLanguage.entries) {

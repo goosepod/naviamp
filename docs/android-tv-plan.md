@@ -6,6 +6,11 @@ needed. The [follow-up acceptance record](ANDROID_TV_FOLLOW_UP.md#initial-connec
 emulator results and the revised session-scoped consent boundary. Earlier approval-flow entries
 below are historical; later source replacement still requires target approval.
 
+September 10 display update: **Keep screen awake** is a default-off shared preference in TV Display
+settings, with common lifecycle/lease policy and native host effects. It participates in settings
+transfer and sync. The [display follow-up](ANDROID_TV_FOLLOW_UP.md#prevent-the-screen-saver) records
+supported hosts and validation; physical multi-hour playback/Ambient Mode acceptance remains open.
+
 ## Purpose
 
 Build a complete, standalone Naviamp Television experience shared by Android TV, Google TV, and a

@@ -46,7 +46,7 @@ class NaviampCoreSettingsSyncControllerTest {
         port.document = SettingsSyncDocument(
             updatedAtEpochMillis = 200L,
             preferences = SettingsSyncPreferences(
-                interfaceSettings = InterfaceSettings(showDesktopTooltips = false),
+                interfaceSettings = InterfaceSettings(showDesktopTooltips = false, keepScreenAwake = true),
             ),
         )
         controller.execute(NaviampCoreCommand.SettingsSync.Import)
@@ -58,6 +58,7 @@ class NaviampCoreSettingsSyncControllerTest {
         assertTrue(store.state.value.settingsSync.autoExportEnabled)
         assertTrue(runtime.autoExportEnabled)
         assertEquals(false, store.state.value.shell.general.interfaceSettings.showDesktopTooltips)
+        assertTrue(store.state.value.shell.general.interfaceSettings.keepScreenAwake)
         assertEquals(snapshot, publishedSnapshot)
     }
 

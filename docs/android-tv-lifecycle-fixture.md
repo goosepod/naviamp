@@ -104,3 +104,27 @@ It creates and removes its own uniquely named SQLite database with synthetic cre
 Keystore protection of the stored password, database close/reopen, Jellyfin setup export through
 the shared provider router without HTTP requests, preservation of selected libraries, and clearing
 the export on logout. It does not pair devices or validate the combined initial-setup UX.
+
+
+## Optional display-awake setting check
+
+On a disposable Android TV emulator with the current app and instrumentation APKs installed, clear
+only the test app and run:
+
+```sh
+adb -s emulator-5556 shell pm clear app.naviamp.android.v2test
+adb -s emulator-5556 shell am instrument -w -r \
+  -e tvLocalFixture true \
+  -e class app.naviamp.android.AndroidScreenAwakeInstrumentedTest \
+  app.naviamp.android.v2test.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+No HTTP fixture is needed. The tests check the real Activity window flag with the shared Core
+preference and mounted lifecycle: disabled by default, enabled while visible, retained when paused
+but visible, released on Stop/background, reacquired on return, preserved across Activity recreation,
+and released on disable/disposal. The adapter test also checks preservation of a preexisting window
+flag and idempotent release of its own flag. The preference is disabled during cleanup.
+
+For a visual check after synthetic fixture setup, open Settings → Display and toggle **Keep screen
+awake** with the D-pad. Confirm readable description and enabled/disabled feedback. This display
+check is separate from CPU wake-lock and physical multi-hour Ambient Mode playback acceptance.

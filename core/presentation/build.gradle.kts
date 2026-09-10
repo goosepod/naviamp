@@ -25,6 +25,7 @@ kotlin {
             api(project(":core:ui"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(compose.runtime)
             implementation(compose.ui)
         }

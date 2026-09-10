@@ -3,4 +3,7 @@
     <string name="connect_setup_password_required">Введіть пароль джерела, щоб завершити налаштування. Naviamp перевірить його та безпечно збереже для майбутніх підключень.</string>
     <string name="connect_setup_code_consent">Показ коду дозволяє пристрою, на якому його введуть, створити пару та налаштувати цей телевізор зі своїм джерелом музики й налаштуваннями.</string>
     <string name="connect_setup_new_code_required">Покажіть новий код на телевізорі та повторіть створення пари, щоб завершити налаштування.</string>
+    <string name="settings_keep_screen_awake">Не вимикати екран</string>
+    <string name="settings_keep_screen_awake_description">Запобігає автоматичному вимкненню екрана, поки Naviamp видимий. Сон системи, блокування екрана й таймери телевізора можуть діяти й надалі.</string>
+    <string name="settings_keep_screen_awake_failed">Не вдалося змінити запобігання вимкненню екрана. Вимкніть і знову ввімкніть цей параметр, щоб повторити спробу.</string>
 </resources>

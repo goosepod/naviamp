@@ -1,5 +1,9 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake_description
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake_failed
+
 import app.naviamp.ui.generated.resources.connect_setup_password_required
 import app.naviamp.ui.generated.resources.connection_password
 import app.naviamp.domain.network.NaviampAppVersion
@@ -816,6 +820,17 @@ fun NaviampExperienceSettingsSection(
                 onInterfaceSettingsChanged(interfaceSettings.copy(startPlayingOnLaunch = enabled))
             },
         )
+        val screenAwake = LocalNaviampScreenAwakeUi.current
+        if (screenAwake.available) {
+            SettingsCheckboxRow(
+                colors = colors,
+                checked = interfaceSettings.keepScreenAwake,
+                label = stringResource(Res.string.settings_keep_screen_awake),
+                subtitle = stringResource(if (screenAwake.failed) Res.string.settings_keep_screen_awake_failed
+                    else Res.string.settings_keep_screen_awake_description),
+                onCheckedChange = { onInterfaceSettingsChanged(interfaceSettings.copy(keepScreenAwake = it)) },
+            )
+        }
         if (showTooltipPreference) {
             SettingsCheckboxRow(
                 colors = colors,

@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import app.naviamp.desktop.platform.desktopGlobalShortcutRegistrar
+import app.naviamp.desktop.platform.desktopScreenAwakeEffect
 import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreHostShortcutEffect
@@ -153,6 +154,7 @@ internal fun DesktopNaviampCoreHost(
         NaviampCoreApp(
             core = core,
             modifier = modifier,
+            screenAwakeEffect = remember(window) { desktopScreenAwakeEffect() },
             applicationUpdateChecker = environment.applicationUpdateChecker,
             statsForNerdsPresenter = { diagnostics, close ->
                 DesktopStatsForNerdsWindow(diagnostics, close)

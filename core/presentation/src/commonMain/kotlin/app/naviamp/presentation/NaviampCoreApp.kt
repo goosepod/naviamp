@@ -85,6 +85,7 @@ fun NaviampCoreApp(
     core: NaviampCore,
     modifier: Modifier = Modifier,
     applicationSurface: NaviampApplicationSurface = NaviampApplicationSurface.Standard,
+    screenAwakeEffect: app.naviamp.app.NaviampScreenAwakeEffect? = null,
     visualizerBandsProvider: () -> List<Float> = {
         core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
     },
@@ -101,42 +102,44 @@ fun NaviampCoreApp(
         }
     }
     NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
-        CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
-            when (applicationSurface) {
-                NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
-                    modifier = modifier,
-                    uiState = state.shell,
-                    settingsSync = state.settingsSync,
-                    playbackProgress = core.playbackProgress,
-                    visualizerBandsProvider = visualizerBandsProvider,
-                    actions = core.actions.shell,
-                    syncActions = core.actions.settingsSync,
-                    applicationUpdateChecker = applicationUpdateChecker,
-                )
-                NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
-                    modifier = modifier,
-                    uiState = state.shell,
-                    settingsSync = state.settingsSync,
-                    playbackProgress = core.playbackProgress,
-                    visualizerBandsProvider = visualizerBandsProvider,
-                    actions = core.actions.shell,
-                    syncActions = core.actions.settingsSync,
-                )
-            }
-            state.overlays.busyMessage?.let { message ->
-                NaviampBusyDialog(message)
-            }
-            if (state.overlays.statsForNerdsVisible) {
-                LaunchedEffect(core) {
-                    while (true) {
-                        delay(1_000)
-                        diagnosticsRefreshTick += 1
-                    }
+        NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
+            CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+                when (applicationSurface) {
+                    NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
+                        modifier = modifier,
+                        uiState = state.shell,
+                        settingsSync = state.settingsSync,
+                        playbackProgress = core.playbackProgress,
+                        visualizerBandsProvider = visualizerBandsProvider,
+                        actions = core.actions.shell,
+                        syncActions = core.actions.settingsSync,
+                        applicationUpdateChecker = applicationUpdateChecker,
+                    )
+                    NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
+                        modifier = modifier,
+                        uiState = state.shell,
+                        settingsSync = state.settingsSync,
+                        playbackProgress = core.playbackProgress,
+                        visualizerBandsProvider = visualizerBandsProvider,
+                        actions = core.actions.shell,
+                        syncActions = core.actions.settingsSync,
+                    )
                 }
-                statsForNerdsPresenter(
-                    diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
-                    { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
-                )
+                state.overlays.busyMessage?.let { message ->
+                    NaviampBusyDialog(message)
+                }
+                if (state.overlays.statsForNerdsVisible) {
+                    LaunchedEffect(core) {
+                        while (true) {
+                            delay(1_000)
+                            diagnosticsRefreshTick += 1
+                        }
+                    }
+                    statsForNerdsPresenter(
+                        diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
+                        { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
+                    )
+                }
             }
         }
     }

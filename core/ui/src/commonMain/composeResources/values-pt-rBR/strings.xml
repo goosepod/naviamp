@@ -3,4 +3,7 @@
     <string name="connect_setup_password_required">Digite a senha da sua fonte para concluir a configuração. O Naviamp a valida e salva com segurança para conexões futuras.</string>
     <string name="connect_setup_code_consent">Exibir um código permite que o dispositivo que o digitar se emparelhe e configure esta TV com sua fonte de música e suas configurações.</string>
     <string name="connect_setup_new_code_required">Exiba um novo código na TV e emparelhe novamente para concluir a configuração.</string>
+    <string name="settings_keep_screen_awake">Manter a tela ligada</string>
+    <string name="settings_keep_screen_awake_description">Impede que a tela desligue automaticamente enquanto o Naviamp estiver visível. Suspensão do sistema, bloqueios e temporizadores da TV ainda podem ser aplicados.</string>
+    <string name="settings_keep_screen_awake_failed">Não foi possível alterar a prevenção do desligamento da tela. Desative e ative esta opção para tentar novamente.</string>
 </resources>
