@@ -4,6 +4,9 @@
 > screen protection, recovery, launcher packaging, and the native lifecycle pass. For repeatable
 > emulator recovery checks, see [the local fixture procedure](android-tv-lifecycle-fixture.md).
 > The sections below retain the earlier post-merge audit and its validation baseline.
+> For the subsequent physical Android 14 TV findings and September 10 wake-lock recovery work,
+> use [Android TV follow-up](ANDROID_TV_FOLLOW_UP.md). The historical "Next development work"
+> below is not the current backlog; use the TV plan's preview checklist and that follow-up together.
 
 ## Branch and merge
 

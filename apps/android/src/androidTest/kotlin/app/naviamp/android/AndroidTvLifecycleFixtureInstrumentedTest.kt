@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 /** Opt-in setup for an empty disposable emulator and scripts/android-tv-fixture.py. */
 class AndroidTvLifecycleFixtureInstrumentedTest {
-    @Test fun preparePlayback() = runBlocking {
+    @Test fun preparePlayback(): Unit = runBlocking {
         assumeTrue(InstrumentationRegistry.getArguments().getString("tvLocalFixture") == "true")
         prepareTvFixturePlayback()
     }

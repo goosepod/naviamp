@@ -4,9 +4,19 @@ This document tracks issues and product improvements found while testing the And
 physical Android 14 TV device. Unless explicitly marked complete, these are requirements for later
 work rather than implementations on the current branch.
 
+The [TV preview checklist](android-tv-plan.md#android-tv-preview-release-gates) remains the release
+exit checklist. This file records the physical-device findings and their implementation status.
+
 ## Initial Connect setup
 
 Status: planned
+
+Current implementation still separates pairing approval and connection-provisioning approval.
+The flow below is the intended replacement, not the behavior covered by the existing
+[v1 protocol review](naviamp-connect-protocol.md). Implement the combined consent/session boundary
+in Core and update its security tests and protocol review before declaring this flow complete.
+Preserve peer identity verification, authenticated credential transfer, failed-validation rollback,
+and explicit pairing-mode entry; code entry must not enable unsolicited provisioning by any peer.
 
 The first connection should be a simple pairing flow:
 
@@ -29,7 +39,7 @@ Acceptance criteria:
 
 ## Prevent the screen saver
 
-Status: planned
+Status: in progress for playback wakefulness; optional display setting planned
 
 Add a shared setting that prevents the screen saver or display sleep while Naviamp is open. Expose
 it on Android TV and on desktop platforms that provide a reliable native inhibition API, including
@@ -45,9 +55,10 @@ wakefulness as separate requirements:
 - `FLAG_KEEP_SCREEN_ON` can suppress Android TV Ambient Mode while the Naviamp activity is visible,
   but Android's TV guidance discourages doing this for ordinary audio unless the app provides its
   own non-static screen-saver experience.
-- Verify that the Android playback service and native BASS engine hold the appropriate partial CPU
-  wake lock, and a Wi-Fi lock when streaming requires it, only while playback is active. A custom
-  audio engine may not receive the implicit wake behavior provided by Android media players.
+- Android already binds `PowerManager.PARTIAL_WAKE_LOCK` through `PlaybackWakeLockEffect`.
+  `PlaybackFocusController` owns its fifteen-minute lease and five-minute progress-driven renewal.
+  Verify that this existing binding remains effective through Ambient Mode and real stream stalls.
+  Investigate whether streaming needs a Wi-Fi lock; no Wi-Fi lock is currently implemented.
 - Android applications cannot override the device's Energy Saver policy. Also distinguish Android
   device sleep from television power timers and HDMI-CEC behavior, which Naviamp cannot reliably
   control.
@@ -59,6 +70,39 @@ Acceptance criteria:
 - The optional keep-screen-awake setting clearly describes display behavior and does not promise
   to override TV hardware, HDMI-CEC, or system Energy Saver settings.
 - Diagnostics identify whether the Naviamp process, Android device, or external display stopped.
+
+September 10 implementation: Core now reacquires a missing/expired lease on progress while still
+playing, including recovery from an unsuccessful native acquisition. Explicit pause/stop clears
+the playing intent immediately so late progress cannot reacquire the lock before the engine's
+state callback arrives. Non-playing progress does not renew or reacquire a lease. This closes a
+specific recovery gap; it does not establish the cause of the physical TV shutdown.
+
+Remaining acceptance: capture process/service state, CPU wake-lock ownership, network availability,
+device power state, and playback progress before and after Ambient Mode during a multi-hour run.
+Separate app/process termination from device sleep and external display/CEC power-off. The existing
+[712-second background soak](android-tv-soak.md) is useful short-run evidence, not overnight or
+physical-device wakefulness acceptance. Progress-driven recovery cannot itself wake an already
+suspended process, so verify timely renewal on hardware as well as recovery in common tests.
+
+The September 10 emulator check also exposed stale external playback state after Stop: the shared
+engine adapter invalidated native callbacks before they could publish Stopped. The adapter now
+publishes its stopped state and unknown progress directly after the native stop effect, while
+continuing to reject callbacks from the superseded playback generation.
+
+Common regression validation: 909 domain and 358 presentation JVM tests pass, with no failures,
+errors, or skips. Four new wakefulness tests failed against the previous controller, and the new
+stop-publication test reproduced Playing being retained after Stop before its fix. All production
+changes in this slice are in Core `commonMain`; no platform production adapters, settings schemas,
+or user-facing strings changed.
+
+Android TV emulator acceptance (September 10): a disposable `Television_1080p` API 36 ARM64
+instance passed the corrected fixture setup test and the real BASS/PowerManager/MediaSession
+smoke check. Playback remained active after Home, pause released `Naviamp:Playback`, resume
+reacquired it, and Stop published `STOPPED` with no playback wake lock held. Paused native positions
+advanced from 67.318 to 72.975 seconds across the resume interval on the same fixture track.
+Android app/test APK assembly, shared JVM compilation, iOS device/simulator ARM64 compilation,
+and `verifyCoreFirstArchitecture` passed. See [the reproduction procedure](android-tv-lifecycle-fixture.md#playback-wake-lock-smoke-check).
+This short emulator check does not close the physical Ambient Mode or multi-hour acceptance above.
 
 ## Android TV waveform height
 
@@ -92,13 +136,13 @@ Acceptance criteria:
 
 ## Complete Aurora controls
 
-Status: planned
+Status: partially implemented
 
-Expose the shared Aurora controls in Android TV settings:
+TV Display settings already exposes Dark, Balanced, and Light when Aurora is selected. Reuse that
+existing tone selector and add the missing controls for the existing shared settings:
 
-- Color-stop count
-- Gradient rotation
-- Dark, Balanced/Normal, and Light tone choices
+- Color-stop count (`auroraColorSteps`)
+- Gradient rotation (`auroraAngleDegrees`)
 
 These controls should edit the same shared Aurora settings used by desktop and retain TV-friendly
 focus, step, and value presentation.
@@ -115,6 +159,10 @@ On Android TV Artist Details, support the same release organization available on
 
 Grouping and sort order are shared preferences. They must be transferred during controller-to-TV
 setup and preserved by settings export, import, and sync.
+
+The shared `groupAlbumsByReleaseType` and `albumSortOrder` preferences already exist and are part
+of the portable interface-settings snapshot. Complete TV rendering/controls and verify transfer
+and round trips; do not create TV-specific copies of those settings.
 
 ## Completed during physical-device testing
 

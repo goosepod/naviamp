@@ -59,3 +59,32 @@ For automated buffer-exhaustion, focus, and transition checks, see the
 [interruption audit and method selectors](android-tv-interruption-audit.md).
 
 For the longer saved-profile/background/resource acceptance run, see [the TV soak test](android-tv-soak.md).
+
+## Playback wake-lock smoke check
+
+After the fixture setup and Activity launch above, use the same disposable emulator serial:
+
+```sh
+adb -s emulator-5556 shell input keyevent KEYCODE_HOME
+adb -s emulator-5556 shell dumpsys power
+adb -s emulator-5556 shell dumpsys media_session
+adb -s emulator-5556 shell cmd media_session dispatch pause
+adb -s emulator-5556 shell dumpsys power
+adb -s emulator-5556 shell cmd media_session dispatch play
+adb -s emulator-5556 shell dumpsys power
+```
+
+Wait for MediaSession state changes before evaluating the power dump. In its active `Wake Locks`
+section, `PARTIAL_WAKE_LOCK 'Naviamp:Playback'` must be present during background playback, absent
+after pause, and present again after Play. Check that the native playback position advances between
+observations and that pause/resume preserves the same fixture track. Stop playback at the end and
+verify the lock is released. This smoke check exercises Android PowerManager, the real BASS engine,
+and MediaSession delegation; it does not force lease expiration or prove physical-TV sleep behavior.
+
+The common `PlaybackFocusControllerTest` separately simulates a native lease expiring after delayed
+progress, unsuccessful acquisition, and late progress following explicit pause/stop. Keep physical
+Ambient Mode, Wi-Fi, and multi-hour acceptance open in [the follow-up](ANDROID_TV_FOLLOW_UP.md).
+
+The standalone fixture entry point explicitly returns `Unit`: its shared setup helper returns a
+`NaviampCore`, and inferring that return type for the JUnit method makes AndroidJUnitRunner reject
+the test before setup runs. This signature regression was corrected during September 10 acceptance.

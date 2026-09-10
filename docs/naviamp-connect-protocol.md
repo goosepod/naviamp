@@ -62,6 +62,12 @@ vectors exist.
 
 ### Protected assets and trust boundary
 
+September 10 status: the approval requirements below describe the current implementation and
+reviewed v1 behavior. The [physical-TV setup follow-up](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup)
+plans a combined code-entry/pairing/provisioning flow without repeated approval. That change is
+not implemented or covered by this approval; revise the consent boundary, threat-model evidence,
+and regression tests together when implementing it.
+
 - The pairing code, PAKE/session roots, resumption credentials, durable private identity keys,
   provider credentials, authenticated commands, authoritative queue/playback state, and transferred
   library metadata are protected assets.

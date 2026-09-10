@@ -246,6 +246,12 @@ Ongoing multi-device synchronization and shared history are follow-up work recor
 Fresh-device setup is required for general Connect availability but is not an Android TV preview
 gate; the preview retains the existing explicit provider setup flow.
 
+The [physical-TV follow-up](ANDROID_TV_FOLLOW_UP.md#initial-connect-setup) adds a requirement to
+simplify TV setup into code entry followed by authenticated provisioning without repeated approval.
+That is the intended replacement for the current TV flow; broader fresh-phone/Desktop setup remains
+separate. The existing approval-based implementation and protocol review remain the baseline until
+the combined setup flow is implemented and reviewed.
+
 - [ ] Offer **Set up from another Naviamp device** on a fresh phone or Desktop install and on an
   unconfigured TV.
 - [ ] Pair and approve through the same trusted-device flow, then transfer the selected provider
@@ -272,9 +278,12 @@ because every host must consume one shared visual/state decision.
   state, seek feedback, focus, and accessibility semantics.
 - [x] Verify the dense waveform with changing progress and light/dark artwork at 1080p on the TV
   emulator.
-- [ ] Verify 720p and native 4K plus sparse, missing, and changing waveform data before the preview.
+- [x] Capture 720p and native-4K waveform/repeat focus states; see the
+  [TV preview checklist](android-tv-plan.md#android-tv-preview-release-gates).
+- [ ] Complete sparse, missing, and changing waveform-data acceptance before the preview.
 - [x] Add shared waveform/repeat state and policy tests.
-- [ ] Add representative TV visual acceptance captures before the preview.
+- [x] Add representative TV visual acceptance captures; see the
+  [UI workflow and artwork-contrast audit](android-tv-ui-acceptance.md).
 
 ### Repeat icons on every device
 
@@ -287,6 +296,8 @@ because every host must consume one shared visual/state decision.
   state mapping in tests.
 - [ ] Verify Off/All/One at every supported control size, including TV focus/selected states,
   contrast, and accessibility labels before the preview.
+  Automated TV focus and artwork-contrast evidence is recorded in the TV plan and UI audit;
+  physical accessibility and the complete cross-device size matrix remain open.
 
 ## Implementation Order
 

@@ -55,7 +55,7 @@ class PlaybackFocusControllerTest {
         assertEquals(0, f.resumes)
     }
 
-    @Test fun renewsFiniteLeaseOnlyWhileHeld() {
+    @Test fun renewsFiniteLeaseWhilePlaying() {
         val f = Fixture()
         f.start()
         f.wake.now = 299_999
@@ -69,6 +69,62 @@ class PlaybackFocusControllerTest {
         f.wake.now = 900_000
         f.controller.onProgress()
         assertEquals(2, f.wake.acquisitions)
+    }
+
+    @Test fun progressReacquiresExpiredLeaseWithoutAnotherPlayingState() {
+        val f = Fixture()
+        f.start()
+        // Model native timeout after progress delivery was suspended past the lease deadline.
+        f.wake.now = 900_001
+        f.wake.isHeld = false
+        f.controller.onProgress()
+        assertTrue(f.wake.isHeld)
+        assertEquals(2, f.wake.acquisitions)
+        f.wake.now += 299_999
+        f.controller.onProgress()
+        assertEquals(2, f.wake.acquisitions)
+        f.wake.now += 1
+        f.controller.onProgress()
+        assertEquals(3, f.wake.acquisitions)
+    }
+
+    @Test fun progressRetriesAnUnsuccessfulNativeAcquisition() {
+        val f = Fixture()
+        f.wake.granted = false
+        f.start()
+        assertFalse(f.wake.isHeld)
+        f.wake.granted = true
+        f.controller.onProgress()
+        assertTrue(f.wake.isHeld)
+        assertEquals(2, f.wake.acquisitions)
+    }
+
+    @Test fun lateProgressCannotReacquireAfterExplicitPauseOrStop() {
+        val f = Fixture()
+        f.start()
+        // The user action precedes the asynchronous engine state publication.
+        f.controller.userPausedOrStopped()
+        f.controller.onProgress()
+        assertFalse(f.wake.isHeld)
+        assertEquals(1, f.wake.acquisitions)
+        f.change(PlaybackFocusChange.TransientLoss)
+        f.change(PlaybackFocusChange.Gain)
+        assertEquals(0, f.resumes)
+    }
+
+    @Test fun nonPlayingProgressDoesNotAcquireOrRenewLease() {
+        for (state in listOf(PlaybackState.Idle, PlaybackState.Loading, PlaybackState.Paused,
+            PlaybackState.Stopped, PlaybackState.Finished, PlaybackState.Error("offline"))) {
+            val f = Fixture()
+            f.start()
+            f.controller.onPlaybackState(state)
+            f.wake.now = 300_000
+            f.controller.onProgress()
+            assertEquals(1, f.wake.acquisitions, "$state must not renew")
+            f.wake.isHeld = false
+            f.controller.onProgress()
+            assertFalse(f.wake.isHeld, "$state must not reacquire")
+        }
     }
 
     private class Fixture {
@@ -93,11 +149,12 @@ class PlaybackFocusControllerTest {
     }
     private class Wake : PlaybackWakeLockEffect {
         override var isHeld = false
+        var granted = true
         var now = 0L
         var timeout = 0L
         var acquisitions = 0
         override fun nowMillis() = now
-        override fun acquire(timeoutMillis: Long) { isHeld = true; timeout = timeoutMillis; acquisitions++ }
+        override fun acquire(timeoutMillis: Long) { isHeld = granted; timeout = timeoutMillis; acquisitions++ }
         override fun release() { isHeld = false }
     }
 }

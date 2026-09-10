@@ -572,6 +572,11 @@ This is the authoritative exit checklist for publishing the Android TV preview. 
 Connect availability has additional topology and fresh-device requirements in
 [`naviamp-connect-product-plan.md`](naviamp-connect-product-plan.md).
 
+Physical Android 14 TV testing subsequently found setup friction, overnight playback/display power
+issues, Quick Jump readability, transition performance, waveform height, and missing TV controls.
+Track their current implementation and acceptance in [Android TV follow-up](ANDROID_TV_FOLLOW_UP.md).
+The emulator and automated checks below do not close those physical-device findings.
+
 - [x] Approve the Android/JVM version-1 Connect protocol, pairing threat model, cryptographic/key
   lifecycle, replay protection, and playback-authority design. The review found and fixed replayed
   resume-offer key/nonce reuse before approval.

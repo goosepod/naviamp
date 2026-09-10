@@ -63,6 +63,38 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun explicitStopPublishesStoppedAndRejectsLateEngineCallbacks() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this, engine = engine, providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+        )
+        val states = mutableListOf<PlaybackState>()
+        val progress = mutableListOf<PlaybackProgress>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onProgressChanged(value: PlaybackProgress) { progress += value }
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+        })
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        assertEquals(PlaybackState.Playing, states.last())
+
+        adapter.stop()
+
+        assertEquals(PlaybackState.Stopped, states.last())
+        assertEquals(PlaybackProgress.Unknown, progress.last())
+        val stoppedStates = states.toList()
+        val stoppedProgress = progress.toList()
+        engine.emitState(PlaybackState.Playing)
+        engine.emitProgress(PlaybackProgress(25.0, 180.0))
+        engine.emitState(PlaybackState.Stopped)
+        assertEquals(stoppedStates, states)
+        assertEquals(stoppedProgress, progress)
+    }
+
+    @Test
     fun downloadedPlaybackPublishesItsEffectiveQualityAndPreparesDownloadedNext() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine().apply {

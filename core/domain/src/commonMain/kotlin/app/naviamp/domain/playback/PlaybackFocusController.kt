@@ -35,6 +35,7 @@ class PlaybackFocusController(
     }
 
     fun userPausedOrStopped() {
+        playing = false
         clearTransientState()
         focus.abandon()
         wakeLock.release()
@@ -51,7 +52,12 @@ class PlaybackFocusController(
     }
 
     fun onProgress() {
-        if (wakeLock.isHeld && wakeLock.nowMillis() - acquiredAtMillis >= WakeLockRenewalMillis) {
+        if (!playing) return
+        // Native leases may expire while progress delivery is delayed. Recover without requiring
+        // another Playing publication, but never let late progress undo an explicit pause/stop.
+        if (!wakeLock.isHeld) {
+            acquireWakeLock()
+        } else if (wakeLock.nowMillis() - acquiredAtMillis >= WakeLockRenewalMillis) {
             wakeLock.release()
             acquireWakeLock()
         }

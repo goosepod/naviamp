@@ -8,6 +8,7 @@ import app.naviamp.domain.playback.AudioPrefetchCompletionLedger
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackLocalAudio
@@ -205,6 +206,10 @@ class NaviampCorePlaybackEngineAdapter(
         engine.stop()
         playbackState = PlaybackState.Stopped
         publishPlaybackSource(PlaybackSource.Unknown, null)
+        // Stop invalidates the old engine callbacks above; publish the terminal state ourselves
+        // so Core and native media sessions cannot retain the previous Playing/Paused state.
+        observer?.onProgressChanged(PlaybackProgress.Unknown)
+        observer?.onStateChanged(playbackState)
     }
 
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
