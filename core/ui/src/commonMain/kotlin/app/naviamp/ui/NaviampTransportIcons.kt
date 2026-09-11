@@ -42,14 +42,35 @@ object NaviampTransportIcons {
             curveTo(8.4f, 7.5f, 10.2f, 9.2f, 12f, 12f)
             curveTo(13.8f, 14.8f, 15.6f, 16.5f, 17.8f, 16.5f)
             lineTo(20.5f, 16.5f)
+        }
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(18.1f, 14.1f)
             lineTo(20.5f, 16.5f)
             lineTo(18.1f, 18.9f)
+        }
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(3.5f, 16.5f)
             lineTo(6.2f, 16.5f)
             curveTo(8.4f, 16.5f, 10.2f, 14.8f, 12f, 12f)
             curveTo(13.8f, 9.2f, 15.6f, 7.5f, 17.8f, 7.5f)
             lineTo(20.5f, 7.5f)
+        }
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(18.1f, 5.1f)
             lineTo(20.5f, 7.5f)
             lineTo(18.1f, 9.9f)
@@ -100,17 +121,17 @@ object NaviampTransportIcons {
         viewportWidth = Viewport,
         viewportHeight = Viewport,
     ).apply {
-        path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 2f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        ) {
-            moveTo(6f, 5f)
-            lineTo(6f, 19f)
-            moveTo(19f, 5f)
-            lineTo(9f, 12f)
-            lineTo(19f, 19f)
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(5f, 5f)
+            lineTo(7f, 5f)
+            lineTo(7f, 19f)
+            lineTo(5f, 19f)
+            close()
+        }
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(18.5f, 4.8f)
+            lineTo(8.5f, 12f)
+            lineTo(18.5f, 19.2f)
             close()
         }
     }.build()
@@ -122,17 +143,17 @@ object NaviampTransportIcons {
         viewportWidth = Viewport,
         viewportHeight = Viewport,
     ).apply {
-        path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 2f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        ) {
-            moveTo(18f, 5f)
-            lineTo(18f, 19f)
-            moveTo(5f, 5f)
-            lineTo(15f, 12f)
-            lineTo(5f, 19f)
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(17f, 5f)
+            lineTo(19f, 5f)
+            lineTo(19f, 19f)
+            lineTo(17f, 19f)
+            close()
+        }
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(5.5f, 4.8f)
+            lineTo(15.5f, 12f)
+            lineTo(5.5f, 19.2f)
             close()
         }
     }.build()
@@ -312,13 +333,34 @@ object NaviampTransportIcons {
             moveTo(17f, 2.8f)
             lineTo(20.5f, 6.3f)
             lineTo(17f, 9.8f)
+        }
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(3.5f, 10f)
             lineTo(3.5f, 8.3f)
             curveTo(3.5f, 7.2f, 4.4f, 6.3f, 5.5f, 6.3f)
             lineTo(20.5f, 6.3f)
+        }
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(7f, 21.2f)
             lineTo(3.5f, 17.7f)
             lineTo(7f, 14.2f)
+        }
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(20.5f, 14f)
             lineTo(20.5f, 15.7f)
             curveTo(20.5f, 16.8f, 19.6f, 17.7f, 18.5f, 17.7f)

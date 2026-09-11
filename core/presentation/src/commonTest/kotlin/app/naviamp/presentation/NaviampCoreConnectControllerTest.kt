@@ -197,7 +197,7 @@ class NaviampCoreConnectControllerTest {
     }
 
     @Test
-    fun dualCapabilityDeviceListensAndDiscoversWithPerSessionRoles() {
+    fun dualCapabilityDeviceListensWithoutSelectingARemotePlaybackTarget() {
         var storedTrust: String? = null
         val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
             override fun read() = storedTrust
@@ -265,6 +265,12 @@ class NaviampCoreConnectControllerTest {
         )
 
         assertEquals(1, listenCount)
+        assertEquals(0, discovery.startCount)
+        assertEquals(
+            app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Local,
+            store.state.value.shell.connect.playbackDestinationStatus,
+        )
+        controller.actions.onPlaybackDeviceSelected("trusted-peer")
         assertEquals(1, discovery.startCount)
         assertEquals(
             deviceCapabilities,
@@ -343,7 +349,7 @@ class NaviampCoreConnectControllerTest {
     }
 
     @Test
-    fun trustedControllerStartsDiscoveryAutomatically() {
+    fun trustedControllerStaysLocalUntilTheUserSelectsAPlaybackDevice() {
         var storedTrust: String? = null
         val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
             override fun read() = storedTrust
@@ -383,6 +389,12 @@ class NaviampCoreConnectControllerTest {
             ),
         )
 
+        assertEquals(0, discovery.startCount)
+        assertEquals(
+            app.naviamp.ui.NaviampConnectPlaybackDestinationUiStatus.Local,
+            store.state.value.shell.connect.playbackDestinationStatus,
+        )
+        controller.actions.onPlaybackDeviceSelected("trusted-tv")
         assertEquals(1, discovery.startCount)
         assertTrue(store.state.value.shell.connect.status.orEmpty().contains("Looking for Living Room TV"))
         controller.actions.onRefreshTargets()
@@ -439,6 +451,7 @@ class NaviampCoreConnectControllerTest {
                 pairingHandshakeTimeoutMillis = 100L,
             ),
         )
+        controller.actions.onPlaybackDeviceSelected("trusted-tv")
         discovery.listener.onServiceResolved(
             NaviampConnectResolvedService(
                 serviceName = "Living Room",

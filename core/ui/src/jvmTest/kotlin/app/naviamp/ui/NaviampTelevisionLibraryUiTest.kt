@@ -65,18 +65,12 @@ class NaviampTelevisionLibraryUiTest {
         onNodeWithTag(itemTag("album-1")).assertIsFocused()
     }
 
-    @Test fun queriesEmptyStatesAndPendingJumpsStayScopedToTheSelectedView() = runDesktopComposeUiTest(1280, 720) {
+    @Test fun pendingJumpsStayScopedToTheSelectedView() = runDesktopComposeUiTest(1280, 720) {
         val screen = mutableStateOf(screen().copy(selectedView = NaviampLibraryView.Songs))
         var requestedLetter: Char? = null
         var loads = 0
         setContent { LibraryFixture(screen, rememberNaviampTelevisionLibraryState(),
             onLoadMore = { loads++ }, onJump = { requestedLetter = it }) }
-        onNodeWithTag(TelevisionLibrarySearchTag).performTextInput("missing")
-        onNodeWithText("No library songs match.").assertIsDisplayed()
-        onNodeWithTag(viewTag(NaviampLibraryView.Albums)).performClick()
-        onNodeWithTag(TelevisionLibrarySearchTag).assertTextContains("")
-        onNodeWithTag(viewTag(NaviampLibraryView.Songs)).performClick()
-        onNodeWithTag(TelevisionLibrarySearchTag).assertTextContains("missing").performTextClearance()
         onNodeWithTag(TelevisionLibraryLetterTagPrefix + 'A')
             .performSemanticsAction(SemanticsActions.RequestFocus)
         repeat(25) {
@@ -121,19 +115,6 @@ class NaviampTelevisionLibraryUiTest {
         onNodeWithTag(itemTag("album-1")).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
         onNodeWithTag(itemTag("album-2")).assertIsFocused()
-    }
-
-    @Test fun anEmptySearchAfterBrowsingKeepsKeyboardFocusInTheSearchField() = runDesktopComposeUiTest(1280, 720) {
-        val screen = mutableStateOf(screen().copy(selectedView = NaviampLibraryView.Songs))
-        setContent { LibraryFixture(screen, rememberNaviampTelevisionLibraryState()) }
-        onNodeWithTag(viewTag(NaviampLibraryView.Songs)).performSemanticsAction(SemanticsActions.RequestFocus)
-            .performKeyInput { pressKey(Key.DirectionDown) }
-        onNodeWithTag(itemTag("song-0")).assertIsFocused().performKeyInput { pressKey(Key.DirectionUp) }
-        onNodeWithTag(TelevisionLibrarySearchTag).assertIsFocused().performTextInput("missing")
-        onNodeWithText("No library songs match.").assertIsDisplayed()
-        onNodeWithTag(TelevisionLibrarySearchTag).assertIsFocused().performTextClearance()
-        onNodeWithTag(TelevisionLibrarySearchTag).assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
-        onNodeWithTag(itemTag("song-0")).assertIsFocused()
     }
 
     @Test fun libraryAt720p() = checkSize(1280, 720)
@@ -187,7 +168,7 @@ class NaviampTelevisionLibraryUiTest {
                     NaviampLibraryView.Songs -> value.copy(songs = value.songs.copy(query = query))
                 }
             }, onRefresh = {}, onLoadMore = onLoadMore, onJumpToLetter = onJump, onTrackAction = onTrack,
-        ), NaviampMediaActions({}, onMedia), viewport, {}, {}, FocusRequester())
+        ), NaviampMediaActions({}, onMedia), viewport, FocusRequester())
         }
     }
 

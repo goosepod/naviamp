@@ -338,14 +338,6 @@ class NaviampCoreConnectController(
     }
 
     init {
-        if (canControl) {
-            services.trust.load()
-                .firstOrNull { trust ->
-                    trust.peerDevice.canActAs(NaviampConnectDeviceRole.Target) &&
-                        services.credentials?.contains(trust.peerDevice.deviceId) == true
-                }
-                ?.let(playbackDestination::select)
-        }
         publish()
         discovery?.let { controller ->
             controllerScope.launch {
@@ -384,7 +376,6 @@ class NaviampCoreConnectController(
             }
         }
         if (canPlayRemotely) ensureTrustedTargetListener()
-        if (canControl) beginAutomaticTrustedReconnect()
     }
 
     fun close() {

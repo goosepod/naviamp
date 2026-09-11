@@ -101,7 +101,8 @@ class NaviampTelevisionWorkflowTest {
         var refreshes = 0
         val saves = mutableListOf<NaviampInternetRadioStationEditUi>()
         setContent { TelevisionInternetRadio(screen.value, NaviampColors.Dark,
-            NaviampInternetRadioActions({ refreshes++; screen.value = screen.value.copy(refreshing = true) }, {}, saves::add), remember { FocusRequester() }) }
+            NaviampInternetRadioActions({ refreshes++; screen.value = screen.value.copy(refreshing = true) }, {}, saves::add),
+            remember { FocusRequester() }, entryFocusGeneration = 1) }
         onNodeWithText("New station").assertIsFocused()
         onNodeWithText("Refresh").performClick()
         assertEquals(1, refreshes)

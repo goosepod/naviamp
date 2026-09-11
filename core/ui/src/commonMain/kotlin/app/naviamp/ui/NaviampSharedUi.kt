@@ -808,7 +808,12 @@ internal fun ConnectedContent(
             }, browser = {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
-                        NaviampReadableContent(colors, keepDarkSurface = true) {
+                        NaviampReadableContent(
+                            colors,
+                            keepDarkSurface = true,
+                            surfaceOpacity = interfaceSettings.nowPlaying
+                                .splitPaneBackgroundOpacityPercent / 100f,
+                        ) {
                             if (queueSelected) NaviampQueueContent(nowPlaying, effectivePlaybackProgress, colors, nowPlayingActions)
                             else browseContent()
                         }
@@ -816,7 +821,8 @@ internal fun ConnectedContent(
                     Spacer(Modifier.height(12.dp))
                     SharedBottomNavigationBar(colors, selectedRoute, shellChrome.supportsDownloads,
                         onRouteSelected = { queueSelected = false; actions.navigationActions.onRouteSelected(it) },
-                        queueSelected = queueSelected, onQueueSelected = { queueSelected = true })
+                        queueSelected = queueSelected, onQueueSelected = { queueSelected = true },
+                        bottomPadding = 4.dp)
                 }
             })
         } else {

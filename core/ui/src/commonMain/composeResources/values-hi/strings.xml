@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">स्क्रीन चालू रखें</string>
     <string name="settings_keep_screen_awake_description">Naviamp दिखाई देने पर स्क्रीन को अपने आप स्लीप होने से रोकता है। सिस्टम स्लीप, स्क्रीन लॉक और टीवी पावर टाइमर फिर भी लागू हो सकते हैं।</string>
     <string name="settings_keep_screen_awake_failed">स्क्रीन स्लीप रोकने की सेटिंग बदली नहीं जा सकी। फिर से कोशिश करने के लिए इसे बंद करके चालू करें।</string>
+    <string name="settings_now_playing_split_background_opacity">स्प्लिट व्यू पृष्ठभूमि की अपारदर्शिता</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">प्लेबैक डिवाइस: %1$s</string>
 </resources>

@@ -38,6 +38,7 @@ import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyEqualizer
 import app.naviamp.domain.bass.bassErrorMessage
+import app.naviamp.domain.bass.bassPlaybackFailureReason
 import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassStreamActiveStateLabel
@@ -209,6 +210,7 @@ open class CoreBassPlaybackEngine(
             var retriedAfterBassReset = false
             var activeRequest = request
             var triedFallback = false
+            var lastFailureReason: PlaybackFailureReason? = null
             try {
                 while (execution.isCurrent(currentPlaybackId)) {
                     try {
@@ -291,6 +293,7 @@ open class CoreBassPlaybackEngine(
                         }
                         break
                     } catch (exception: Throwable) {
+                        lastFailureReason = bassPlaybackFailureReason(bass.lastErrorCode)
                         createdPlayback?.let { freeCreatedPlayback(bass, it) }
                         createdPlayback = null
                         if (
@@ -324,7 +327,7 @@ open class CoreBassPlaybackEngine(
                 if (execution.isCurrent(currentPlaybackId) && job?.isCancelled != true) {
                     val message = exception.message ?: "BASS playback failed."
                     lastError = message
-                    onStateChanged(PlaybackState.Error(message))
+                    onStateChanged(PlaybackState.Error(message, lastFailureReason))
                 }
             } finally {
                 if (execution.isCurrent(currentPlaybackId)) {

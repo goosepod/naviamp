@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Не вимикати екран</string>
     <string name="settings_keep_screen_awake_description">Запобігає автоматичному вимкненню екрана, поки Naviamp видимий. Сон системи, блокування екрана й таймери телевізора можуть діяти й надалі.</string>
     <string name="settings_keep_screen_awake_failed">Не вдалося змінити запобігання вимкненню екрана. Вимкніть і знову ввімкніть цей параметр, щоб повторити спробу.</string>
+    <string name="settings_now_playing_split_background_opacity">Непрозорість тла розділеного перегляду</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Пристрій відтворення: %1$s</string>
 </resources>

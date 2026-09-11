@@ -39,6 +39,7 @@ internal fun televisionDestinationLabel(value: NaviampTelevisionDestination): St
     NaviampTelevisionDestination.Home -> stringResource(Res.string.home_music_title)
     NaviampTelevisionDestination.Library -> stringResource(Res.string.library_title)
     NaviampTelevisionDestination.Playlists -> stringResource(Res.string.playlists_title)
+    NaviampTelevisionDestination.Radio -> stringResource(Res.string.tv_library_internet_radio)
     NaviampTelevisionDestination.Search -> stringResource(Res.string.search_title)
     NaviampTelevisionDestination.NowPlaying -> stringResource(Res.string.tv_now_playing_uppercase)
     NaviampTelevisionDestination.Settings -> stringResource(Res.string.nav_settings)

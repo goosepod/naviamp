@@ -365,14 +365,18 @@ fun NaviampNowPlayingPanel(
         }
 
         if (wideLayout && panelLayout == NaviampPlayerPanelLayout.Full) {
-            val largeArtSize = minOf(maxWidth * 0.48f - 48.dp, maxHeight - 310.dp).coerceAtLeast(150.dp)
+            val largeArtSize = minOf(
+                maxWidth * 0.385f - NowPlayingArtShadowMargin * 2,
+                maxHeight - FullNowPlayingControlsReserve,
+            ).coerceAtLeast(210.dp)
+            val largeTypographyScale = fullNowPlayingTypographyScale(largeArtSize)
             val artCenter = with(LocalDensity.current) { (largeArtSize / 2 + NowPlayingArtShadowMargin).roundToPx() }
             Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)
+                    Column(Modifier.weight(0.82f)
                         .alignBy { artCenter }
                         .testTag("full-art-controls").verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.testTag("full-album-art")) {
                             NowPlayingArtSurface(
@@ -391,6 +395,8 @@ fun NaviampNowPlayingPanel(
                             nowPlaying, playbackProgress, colors, visualizerColors, actions, selectedVisualizer,
                             displaySettings, openPlaylistMembership, { saveQueueDialogOpen = true },
                             mobileLayout = true, showProgress = false, showIdentity = false,
+                            showCollapse = false,
+                            matchVolumeToTransportWidth = true,
                             modifier = Modifier.width(largeArtSize),
                         )
                     }
@@ -398,14 +404,22 @@ fun NaviampNowPlayingPanel(
                         LyricsPanel(nowPlaying, playbackProgress, colors,
                             onSeek = actions::seek, onOffsetChanged = actions::changeLyricsOffset,
                             onDisplayTimingSelected = actions::selectLyricsDisplayTiming,
-                            modifier = Modifier.weight(1f).alignBy { artCenter }.fillMaxHeight().padding(24.dp).testTag("full-lyrics"),
+                            modifier = Modifier
+                                .weight(1.18f)
+                                .alignBy { artCenter }
+                                .fillMaxHeight()
+                                .padding(start = 12.dp, end = 24.dp, bottom = 24.dp)
+                                .testTag("full-lyrics"),
                             largePresentation = true)
                     } else NowPlayingDetails(
-                        nowPlaying, playbackProgress, colors, visualizerColors, actions, selectedVisualizer,
-                        displaySettings, openPlaylistMembership, { saveQueueDialogOpen = true },
-                        mobileLayout = true, showProgress = false, largePresentation = true, showControls = false,
-                        modifier = Modifier.weight(1f).alignBy { it.measuredHeight / 2 }
-                            .verticalScroll(rememberScrollState()).padding(24.dp).testTag("full-track-info"),
+                            nowPlaying, playbackProgress, colors, visualizerColors, actions, selectedVisualizer,
+                            displaySettings, openPlaylistMembership, { saveQueueDialogOpen = true },
+                            mobileLayout = true, showProgress = false, largePresentation = true, showControls = false,
+                        largePresentationScale = largeTypographyScale,
+                        modifier = Modifier.weight(1.18f).alignBy { it.measuredHeight / 2 }
+                            .verticalScroll(rememberScrollState())
+                            .padding(start = 12.dp, end = 24.dp)
+                            .testTag("full-track-info"),
                     )
                 }
                 NowPlayingProgressRow(nowPlaying, playbackProgress,
@@ -453,6 +467,7 @@ fun NaviampNowPlayingPanel(
                         onOpenPlaylistDialog = openPlaylistMembership,
                         onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                         compactLayout = viewportMaxHeight < 640.dp,
+                        matchVolumeToTransportWidth = true,
                         availableHeight = (wideDetailsHeight - WideNowPlayingDetailsTopPadding)
                             .coerceAtLeast(WideNowPlayingDetailsMinHeight - WideNowPlayingDetailsTopPadding),
                         modifier = Modifier
@@ -559,6 +574,7 @@ fun NaviampNowPlayingPanel(
                             onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                             compactLayout = true,
                             showCollapse = panelLayout != NaviampPlayerPanelLayout.Standalone,
+                            matchVolumeToTransportWidth = panelLayout == NaviampPlayerPanelLayout.Standalone,
                             availableHeight = compactDetailsHeight,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -619,6 +635,7 @@ fun NaviampNowPlayingPanel(
                         mobileLayout = true,
                         compactSizing = compactWidthSizing,
                         showCollapse = panelLayout != NaviampPlayerPanelLayout.Standalone,
+                        matchVolumeToTransportWidth = panelLayout == NaviampPlayerPanelLayout.Standalone,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(viewportHeight / 2)
@@ -779,9 +796,11 @@ private fun NowPlayingDetails(
     modifier: Modifier = Modifier,
     showProgress: Boolean = true,
     largePresentation: Boolean = false,
+    largePresentationScale: Float = 1f,
     showCollapse: Boolean = true,
     showIdentity: Boolean = true,
     showControls: Boolean = true,
+    matchVolumeToTransportWidth: Boolean = false,
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
@@ -803,9 +822,17 @@ private fun NowPlayingDetails(
     val compactMetadataRow = compactLayout && !mobileLayout
     val controlColors = colors.copy(accent = playerColors.accent)
     val useLargeSizing = mobileLayout && !compactSizing
-    val titleFontSize = if (largePresentation) 38 else if (useLargeSizing) 19 else 15
-    val titleTextHeight = if (largePresentation) with(LocalDensity.current) { 48.sp.toDp() } else if (useLargeSizing) 23.dp else 18.dp
-    val metadataFontSize = if (largePresentation) 26 else if (useLargeSizing) 16 else 13
+    val effectiveLargePresentationScale = largePresentationScale.coerceIn(1f, FullNowPlayingTypographyMaxScale)
+    val titleFontSize = if (largePresentation) {
+        (26f * effectiveLargePresentationScale).roundToInt()
+    } else if (useLargeSizing) 19 else 15
+    val titleTextHeight = if (largePresentation) {
+        with(LocalDensity.current) { (36f * effectiveLargePresentationScale).sp.toDp() }
+    } else if (useLargeSizing) 23.dp else 18.dp
+    val metadataFontSize = if (largePresentation) {
+        (18f * effectiveLargePresentationScale).roundToInt()
+    } else if (useLargeSizing) 16 else 13
+    val largeIdentitySpacing = 8.dp * effectiveLargePresentationScale
     // Leave room for descenders and honor the user's font scale. Converting the
     // font size's raw numeric value directly to dp clips glyphs such as g, p,
     // and y on Android because scaled text can be taller than its fixed box.
@@ -823,6 +850,8 @@ private fun NowPlayingDetails(
     val transportIconSize = if (useLargeSizing) 25.dp else 20.dp
     val prominentTransportButtonSize = if (useLargeSizing) 56.dp else 44.dp
     val prominentTransportIconSize = if (useLargeSizing) 30.dp else 24.dp
+    val transportClusterWidth = secondaryTransportButtonSize * 2 +
+        transportButtonSize * 2 + prominentTransportButtonSize + 32.dp
 
     LaunchedEffect(nowPlaying.volumePercent) {
         if (!isChangingVolume) {
@@ -845,9 +874,9 @@ private fun NowPlayingDetails(
             },
         ),
     ) {
-        nowPlaying.remoteOutputDeviceName?.let { deviceName ->
+        nowPlaying.selectedRemotePlaybackOutputName()?.let { deviceName ->
             Text(
-                text = "Playing back on $deviceName",
+                text = stringResource(Res.string.now_playing_playback_device, deviceName),
                 color = colors.onAccent,
                 fontSize = if (useLargeSizing) 13.sp else 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -873,7 +902,9 @@ private fun NowPlayingDetails(
         if (showTrackIdentity) {
                 Column(
                     horizontalAlignment = if (largePresentation) Alignment.Start else Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(if (largePresentation) 16.dp else if (mobileLayout) 2.dp else 1.dp),
+                    verticalArrangement = Arrangement.spacedBy(
+                        if (largePresentation) largeIdentitySpacing else if (mobileLayout) 2.dp else 1.dp,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = if (mobileLayout) 1.dp else 0.dp),
@@ -997,6 +1028,7 @@ private fun NowPlayingDetails(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .testTag("now-playing-transport-row")
                     .padding(
                         top = if (mobileLayout) 0.dp else 6.dp,
                         bottom = if (mobileLayout) 0.dp else 4.dp,
@@ -1072,6 +1104,7 @@ private fun NowPlayingDetails(
                         actions.changeVolume((it * 100).toInt().coerceIn(0, 100))
                     },
                     colors = controlColors,
+                    trackWidth = transportClusterWidth.takeIf { matchVolumeToTransportWidth },
                 )
             }
 
@@ -1083,6 +1116,7 @@ private fun NowPlayingDetails(
                 modifier = Modifier
                     .fillMaxWidth()
                     .requiredHeight(if (mobileLayout) 46.dp else 44.dp)
+                    .testTag("now-playing-bottom-actions")
                     .padding(horizontal = if (pinBottomActions) 8.dp else 0.dp),
             ) {
                 val bottomActionButtonSize = 33.dp
@@ -1317,6 +1351,11 @@ private fun NowPlayingDetails(
         )
     }
 }
+
+internal fun NowPlayingUi.selectedRemotePlaybackOutputName(): String? =
+    remoteOutputDeviceName ?: playbackOutputs
+        .firstOrNull { output -> output.selected && output.deviceId != null }
+        ?.displayName
 
 internal fun nowPlayingActionMenuEnabled(nowPlaying: NowPlayingUi): Boolean =
     nowPlaying.menuEnabled || nowPlaying.remoteOutputDeviceName != null || nowPlaying.playbackOutputs.isNotEmpty()
@@ -1907,6 +1946,7 @@ private fun VolumeRow(
     isChangingVolume: (Boolean) -> Unit,
     onValueChanged: (Float) -> Unit,
     colors: NaviampColors,
+    trackWidth: Dp? = null,
 ) {
     var widthPx by remember { mutableFloatStateOf(1f) }
     val density = LocalDensity.current
@@ -1917,12 +1957,15 @@ private fun VolumeRow(
         onValueChanged(((x - thumbRadiusPx) / trackWidth).coerceIn(0f, 1f))
     }
 
+    val rowModifier = if (trackWidth == null) {
+        Modifier.fillMaxWidth().padding(horizontal = 14.dp)
+    } else {
+        Modifier.width(trackWidth + 25.dp)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 42.dp),
+        modifier = rowModifier,
     ) {
         Icon(
             imageVector = NaviampTransportIcons.Volume,
@@ -1931,9 +1974,9 @@ private fun VolumeRow(
             modifier = Modifier.size(17.dp),
         )
         Canvas(
-            modifier = Modifier
-                .weight(1f)
-                .height(18.dp)
+            modifier = (if (trackWidth == null) Modifier.weight(1f) else Modifier.width(trackWidth))
+                .height(24.dp)
+                .testTag("now-playing-volume-slider")
                 .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(widthPx, thumbRadiusPx) {
                     detectTapGestures { offset ->
@@ -1964,14 +2007,14 @@ private fun VolumeRow(
                 color = colors.primaryText.copy(alpha = 0.24f),
                 start = Offset(startX, centerY),
                 end = Offset(trackEndX, centerY),
-                strokeWidth = 4f,
+                strokeWidth = 5f,
                 cap = StrokeCap.Round,
             )
             drawLine(
                 color = volumeColor,
                 start = Offset(startX, centerY),
                 end = Offset(endX, centerY),
-                strokeWidth = 4f,
+                strokeWidth = 5f,
                 cap = StrokeCap.Round,
             )
             drawCircle(
@@ -1994,6 +2037,8 @@ private fun VolumeRow(
 }
 
 private val NowPlayingArtShadowMargin = 12.dp
+private val FullNowPlayingControlsReserve = 236.dp
+private const val FullNowPlayingTypographyMaxScale = 1.35f
 private val CompactNowPlayingStackBreakpoint = 640.dp
 private val CompactNowPlayingStackGap = 3.dp
 private val CompactNowPlayingDetailsMinHeight = 132.dp
@@ -2002,6 +2047,13 @@ private val WideNowPlayingDetailsMinHeight = 232.dp
 private val WideNowPlayingDetailsTopPadding = 8.dp
 private const val LyricsActiveLineTargetIndex = 2
 private val VolumeThumbRadius = 6.dp
+
+internal fun fullNowPlayingTypographyScale(artSize: Dp): Float =
+    (
+        1f +
+            ((artSize.value - 330f).coerceAtLeast(0f) / 420f) *
+            (FullNowPlayingTypographyMaxScale - 1f)
+        ).coerceIn(1f, FullNowPlayingTypographyMaxScale)
 
 internal fun waveformVisibleBarCount(amplitudeCount: Int): Int = amplitudeCount.coerceAtLeast(0)
 

@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Garder l’écran allumé</string>
     <string name="settings_keep_screen_awake_description">Empêche la veille automatique de l’écran lorsque Naviamp est visible. La veille du système, le verrouillage et les minuteries du téléviseur peuvent toujours s’appliquer.</string>
     <string name="settings_keep_screen_awake_failed">Impossible de modifier la prévention de la veille de l’écran. Désactivez puis réactivez ce réglage pour réessayer.</string>
+    <string name="settings_now_playing_split_background_opacity">Opacité de l’arrière-plan de la vue fractionnée</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Appareil de lecture : %1$s</string>
 </resources>

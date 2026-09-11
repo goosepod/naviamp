@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Scherm aanhouden</string>
     <string name="settings_keep_screen_awake_description">Voorkomt automatische schermslaap zolang Naviamp zichtbaar is. Systeemslaap, schermvergrendeling en tv-timers kunnen nog steeds actief zijn.</string>
     <string name="settings_keep_screen_awake_failed">Het voorkomen van schermslaap kon niet worden gewijzigd. Zet deze instelling uit en weer aan om opnieuw te proberen.</string>
+    <string name="settings_now_playing_split_background_opacity">Dekking van achtergrond in gesplitste weergave</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Afspeelapparaat: %1$s</string>
 </resources>

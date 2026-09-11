@@ -321,7 +321,7 @@ class InternetRadioPlaybackTest {
             setErrorStatus = { calls += "status:$it" },
         )
 
-        assertEquals(listOf("state:Error(message=Stream failed)", "status:Stream failed"), calls)
+        assertEquals(listOf("state:Error(message=Stream failed, reason=null)", "status:Stream failed"), calls)
     }
 
     @Test

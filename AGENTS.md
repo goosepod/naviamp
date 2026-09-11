@@ -18,6 +18,29 @@ Whenever a new Naviamp release is pushed, create a GitHub Discussion in the **An
 category that explains what is new, what changed, important fixes, and any upgrade or compatibility
 notes. Feature branches and other unreleased work do not receive release announcements.
 
+Release notes must compare the release with the previous public release, not narrate development on
+the release branch. When a platform or feature is shipping for the first time, describe it as one
+complete new capability. Do not list fixes, refinements, or redesigns made before that capability was
+ever publicly available; those are implementation history, not user-visible release changes.
+
+Order the announcement by product significance rather than by recency, commit count, or the amount
+of implementation work. Major launches such as a new platform or a new multi-device capability lead
+the title, summary, and highlights. Improvements and bug fixes to already released functionality
+come afterward. Before publication, verify every improvement or fix was observable in the previous
+public version; otherwise fold it into the description of the new feature or omit it.
+
+## Repository and Issue Workflow
+
+Follow [`docs/development-workflow.md`](docs/development-workflow.md). The project is preparing to
+make GitHub the primary repository, but Forgejo remains primary until the project owner explicitly
+declares the cutover complete. Do not change remotes, publish branches, migrate issues, or alter
+release automation merely because the transition is documented.
+
+After the cutover, use a GitHub issue and a dedicated short-lived branch for each feature, bug fix,
+or meaningful update. Merge completed work into `main` through a linked pull request, use milestones
+to select release scope, and cut a short-lived release branch from an accepted `main` commit for
+final stabilization. The project owner mirrors releases back to Forgejo manually.
+
 ## Core Is the Product
 
 These are hard architecture requirements, not preferences. Naviamp is one shared application with

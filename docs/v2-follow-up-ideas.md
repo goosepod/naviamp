@@ -82,6 +82,61 @@ Before moving an idea into the active v2 plan or a release branch:
   focus readability over bright colors and artwork backgrounds.
 - **Scope:** Follow-up idea; not added to the active Android TV preview requirements.
 
+### Library-Page Source Library Selection
+
+- **Status:** Idea
+- **Concept:** Move the existing server-library selection workflow into the Library page. A user
+  should be able to choose which libraries or music folders Naviamp displays while they are already
+  browsing the Library, instead of opening Settings, editing the active connection, and changing the
+  same selection there.
+- **Behavior:** Preserve the existing provider capability, selection semantics, validation, and
+  persistence. This is a relocation of the current functionality, not a second independent library
+  filter. The Library page becomes the primary place to change the active source's visible
+  libraries; remove or redirect the connection-editor control so the two locations cannot drift.
+- **UX questions:** Choose a discoverable Library-header action and define the empty, single-library,
+  multi-library, loading, unavailable, and provider-without-library-selection states. Make it clear
+  that the selection affects the current music source and may trigger a catalog refresh.
+- **Shared ownership:** Core owns available-library state, selected IDs, validation, persistence,
+  refresh orchestration, and the shared picker UI. Providers continue to expose their existing
+  library/music-folder capability. Hosts should not duplicate this workflow.
+- **Acceptance:** Verify initial loading, one and many selections, rejecting an invalid empty
+  selection where required, save/cancel, provider errors, source changes, persistence across restart,
+  settings export/import and sync, catalog refresh, and consistent Android, Desktop, iOS, and
+  Television behavior.
+
+### Karaoke-Style Word-by-Word Lyrics
+
+- **Status:** Idea
+- **Reference:** User-supplied video `VID_20260911_221119_997.mp4` (2026-09-11), demonstrating the
+  desired large-screen lyric presentation and word progression.
+- **Concept:** Refine word-synchronized lyrics, especially in the expanded Now Playing layout, into
+  a smooth karaoke-style reading experience. Keep several lyric lines visible beside the artwork,
+  with a strong active line and enough surrounding context to anticipate what comes next.
+- **Highlight behavior:** Render the active line brighter and heavier than surrounding lines. Within
+  it, use each word's start and end timestamps to continuously fill that word's glyphs from muted to
+  bright. The fill moves left to right for the English reference: a word sung for four seconds takes
+  the full four seconds to fill, so the visible fraction tracks `(position - word start) / word
+  duration` instead of using a fixed animation or switching the entire word on at once. Upcoming
+  words remain muted and completed words remain bright. Preserve natural wrapping; for
+  right-to-left scripts, confirm whether the fill should follow visual reading direction during
+  design acceptance.
+- **Motion:** Advance the lyric stack smoothly as the active line changes; do not snap or visibly
+  re-layout the text on each word. Keep the active region stable while previous lines fade and future
+  lines remain visible at progressively lower emphasis. Seeking and lyric-offset changes must update
+  the active line and word immediately without leaving stale highlighting behind.
+- **Fallbacks:** Use the existing line-level presentation when only line timestamps are available,
+  and the plain-text presentation when lyrics have no timing. Missing, duplicate, zero-length, or
+  overlapping word ranges need deterministic shared handling rather than guessed host-specific
+  animation.
+- **Shared ownership:** Core owns timestamp normalization, active-word calculation, progress,
+  scrolling targets, reduced-motion policy, and shared Compose rendering for all platforms and
+  screen sizes. Hosts may provide only unavoidable platform timing or accessibility effects.
+- **Acceptance:** Cover exact word boundaries; short words; words held for three, four, or more
+  seconds; continuous proportional progress across a word's rendered glyphs; completed/upcoming word
+  colors; wrapped lines; punctuation; repeated lyrics; instrumental gaps; seeking forward/backward;
+  pause/resume; playback-speed or clock corrections; lyric offsets; right-to-left text; reduced
+  motion; and stable 60 fps behavior on representative phones, televisions, and desktop windows.
+
 ### Independent Font Sizes for Now Playing and the Rest of the UI
 
 - **Status:** Idea

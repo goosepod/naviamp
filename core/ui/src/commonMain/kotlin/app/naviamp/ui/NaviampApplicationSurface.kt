@@ -20,6 +20,7 @@ enum class NaviampTelevisionDestination(
     Home("Home", SharedRoute.Home),
     Library("Library", SharedRoute.Library),
     Playlists("Playlists", SharedRoute.Playlists),
+    Radio("Radio", SharedRoute.Radio),
     Search("Search", SharedRoute.Search),
     NowPlaying("Now Playing", null),
     Settings("Settings", SharedRoute.Settings),
@@ -30,6 +31,8 @@ fun naviampTelevisionDestinations(nowPlayingAvailable: Boolean = false): List<Na
         add(NaviampTelevisionDestination.Home)
         if (nowPlayingAvailable) add(NaviampTelevisionDestination.NowPlaying)
         add(NaviampTelevisionDestination.Library)
+        add(NaviampTelevisionDestination.Playlists)
+        add(NaviampTelevisionDestination.Radio)
         add(NaviampTelevisionDestination.Search)
     }
 
@@ -39,7 +42,6 @@ fun naviampSelectedTelevisionDestination(
     nowPlayingPreview: Boolean = false,
 ): NaviampTelevisionDestination? {
     if (nowPlayingOpen || nowPlayingPreview) return NaviampTelevisionDestination.NowPlaying
-    if (selectedRoute == SharedRoute.Radio) return NaviampTelevisionDestination.Library
     return NaviampTelevisionDestination.entries.firstOrNull { it.route == selectedRoute }
 }
 
@@ -61,10 +63,7 @@ fun naviampTelevisionNavigationFocusDestination(
 
 fun naviampTelevisionVisibleOwner(
     destination: NaviampTelevisionDestination,
-): NaviampTelevisionDestination = when (destination) {
-    NaviampTelevisionDestination.Playlists -> NaviampTelevisionDestination.Library
-    else -> destination
-}
+): NaviampTelevisionDestination = destination
 
 fun naviampTelevisionBackRoute(
     selectedRoute: SharedRoute,

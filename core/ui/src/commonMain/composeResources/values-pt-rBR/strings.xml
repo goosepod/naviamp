@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Manter a tela ligada</string>
     <string name="settings_keep_screen_awake_description">Impede que a tela desligue automaticamente enquanto o Naviamp estiver visível. Suspensão do sistema, bloqueios e temporizadores da TV ainda podem ser aplicados.</string>
     <string name="settings_keep_screen_awake_failed">Não foi possível alterar a prevenção do desligamento da tela. Desative e ative esta opção para tentar novamente.</string>
+    <string name="settings_now_playing_split_background_opacity">Opacidade do fundo da visualização dividida</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Dispositivo de reprodução: %1$s</string>
 </resources>

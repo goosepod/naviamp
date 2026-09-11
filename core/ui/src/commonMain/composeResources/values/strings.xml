@@ -875,4 +875,7 @@
     <string name="settings_keep_screen_awake">Keep screen awake</string>
     <string name="settings_keep_screen_awake_description">Prevent automatic display sleep while Naviamp is visible. System sleep, screen locks, and TV power timers may still apply.</string>
     <string name="settings_keep_screen_awake_failed">Could not change display sleep prevention. Turn this setting off and on to retry.</string>
+    <string name="settings_now_playing_split_background_opacity">Split-view background opacity</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Playback device: %1$s</string>
 </resources>

@@ -78,12 +78,19 @@ fun bassErrorMessage(code: Int): String =
         44 -> "codec unavailable"
         45 -> "ended"
         46 -> "device busy"
-        47 -> "unsupported protocol"
+        47 -> "unstreamable file"
         48 -> "unsupported protocol"
         49 -> "access denied"
         50 -> "SSL unavailable"
         -1 -> "unknown BASS error"
         else -> "BASS error $code"
+    }
+
+fun bassPlaybackFailureReason(code: Int?): app.naviamp.domain.playback.PlaybackFailureReason? =
+    when (code) {
+        47 -> app.naviamp.domain.playback.PlaybackFailureReason.UnstreamableNetworkSource
+        41, 44 -> app.naviamp.domain.playback.PlaybackFailureReason.UnsupportedFormat
+        else -> null
     }
 
 fun BassAudioBackend.bassFailureMessage(prefix: String): String =

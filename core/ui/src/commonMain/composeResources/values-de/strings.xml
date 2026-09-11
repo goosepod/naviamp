@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Bildschirm wach halten</string>
     <string name="settings_keep_screen_awake_description">Verhindert den automatischen Bildschirmruhezustand, solange Naviamp sichtbar ist. Systemruhe, Bildschirmsperren und TV-Ausschaltzeiten können weiterhin greifen.</string>
     <string name="settings_keep_screen_awake_failed">Der Bildschirmruhezustand konnte nicht angepasst werden. Schalte diese Einstellung aus und wieder ein, um es erneut zu versuchen.</string>
+    <string name="settings_now_playing_split_background_opacity">Deckkraft des Hintergrunds der geteilten Ansicht</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Wiedergabegerät: %1$s</string>
 </resources>

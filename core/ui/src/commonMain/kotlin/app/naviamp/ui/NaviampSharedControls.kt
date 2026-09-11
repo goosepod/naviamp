@@ -43,6 +43,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -413,9 +414,10 @@ fun SharedBottomNavigationBar(
     onRouteSelected: (SharedRoute) -> Unit,
     queueSelected: Boolean = false,
     onQueueSelected: (() -> Unit)? = null,
+    bottomPadding: Dp = 0.dp,
 ) {
     val bottomRoutes = sharedBottomNavigationRoutes(supportsDownloads)
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = bottomPadding)) {
         val surface = if (onQueueSelected == null && (selectedRoute == SharedRoute.Settings || maxWidth >= 900.dp)) readableSurfaceColor(colors) else Color.Transparent
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -424,6 +426,7 @@ fun SharedBottomNavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(surface)
+                .testTag("bottom-navigation-row")
                 .padding(vertical = 2.dp),
         ) {
             bottomRoutes.forEach { route ->

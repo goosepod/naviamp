@@ -383,6 +383,7 @@ val PlaylistEditSwipeActions: List<TrackSwipeAction> = listOf(
 @Serializable
 data class NowPlayingDisplaySettings(
     val wideLayout: WideNowPlayingLayout = WideNowPlayingLayout.Split,
+    val splitPaneBackgroundOpacityPercent: Int = DefaultSplitPaneBackgroundOpacityPercent,
     val showAlbumYear: Boolean = true,
     val albumYearPreference: NowPlayingAlbumYearPreference = NowPlayingAlbumYearPreference.Original,
     val showTrackCover: Boolean = false,
@@ -392,8 +393,12 @@ data class NowPlayingDisplaySettings(
     val scrollArtistName: Boolean = false,
     val scrollAlbumName: Boolean = false,
 ) {
-    fun normalized(): NowPlayingDisplaySettings = this
+    fun normalized(): NowPlayingDisplaySettings = copy(
+        splitPaneBackgroundOpacityPercent = splitPaneBackgroundOpacityPercent.coerceIn(0, 100),
+    )
 }
+
+const val DefaultSplitPaneBackgroundOpacityPercent = 88
 
 @Serializable
 enum class WideNowPlayingLayout { Split, Full }

@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Biarkan layar menyala</string>
     <string name="settings_keep_screen_awake_description">Mencegah layar tidur otomatis saat Naviamp terlihat. Tidur sistem, kunci layar, dan pengatur waktu TV mungkin tetap berlaku.</string>
     <string name="settings_keep_screen_awake_failed">Pencegahan tidur layar tidak dapat diubah. Nonaktifkan lalu aktifkan pengaturan ini untuk mencoba lagi.</string>
+    <string name="settings_now_playing_split_background_opacity">Opasitas latar belakang tampilan terbagi</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Perangkat pemutaran: %1$s</string>
 </resources>

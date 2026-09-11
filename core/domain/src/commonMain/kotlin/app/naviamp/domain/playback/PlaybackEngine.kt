@@ -438,7 +438,13 @@ sealed interface PlaybackState {
 
     data class Error(
         val message: String,
+        val reason: PlaybackFailureReason? = null,
     ) : PlaybackState
+}
+
+enum class PlaybackFailureReason {
+    UnstreamableNetworkSource,
+    UnsupportedFormat,
 }
 
 fun PlaybackState.label(): String =

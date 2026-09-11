@@ -96,6 +96,7 @@ class NaviampConnectNowPlayingActionsTest {
             )
 
         assertNull(decorated.remoteOutputDeviceName)
+        assertEquals("Living room", decorated.selectedRemotePlaybackOutputName())
         assertEquals("living-room-trust", decorated.playbackOutputs.single { it.selected }.deviceId)
     }
 

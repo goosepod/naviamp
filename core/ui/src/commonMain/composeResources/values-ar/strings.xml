@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">إبقاء الشاشة مضاءة</string>
     <string name="settings_keep_screen_awake_description">يمنع سكون الشاشة التلقائي أثناء ظهور Naviamp. قد يظل سكون النظام وقفل الشاشة ومؤقت طاقة التلفزيون فعالًا.</string>
     <string name="settings_keep_screen_awake_failed">تعذر تغيير منع سكون الشاشة. أوقف هذا الإعداد ثم شغله لإعادة المحاولة.</string>
+    <string name="settings_now_playing_split_background_opacity">عتامة خلفية العرض المنقسم</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">جهاز التشغيل: %1$s</string>
 </resources>

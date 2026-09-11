@@ -19,6 +19,28 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class CoreBassPlaybackEngineTest {
     @Test
+    fun classifiesUnstreamableNativeUrlFailuresForCoreRecovery() = runTest {
+        val engine = CoreBassPlaybackEngine(
+            backendResult = Result.success(UnstreamableUrlPlaybackBackend()),
+            runtime = FakeBassPlaybackEngineRuntime,
+        )
+        val states = mutableListOf<PlaybackState>()
+
+        engine.play(
+            scope = this,
+            request = PlaybackRequest(url = "https://example.test/sample.m4a", mediaId = "sample"),
+            onStateChanged = states::add,
+            onProgressChanged = {},
+        )
+        advanceUntilIdle()
+
+        assertEquals(
+            PlaybackFailureReason.UnstreamableNetworkSource,
+            (states.last() as PlaybackState.Error).reason,
+        )
+    }
+
+    @Test
     fun truncatedDownloadsNeverPublishFinishedFromSyncOrPolling() = runTest {
         for (endSync in listOf(false, true)) {
             val backend = RecordingPlaybackBackend(truncatedDownload = true, emitEndSync = endSync)
@@ -234,6 +256,22 @@ private object FakeBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
     override fun nowEpochMillis(): Long = 1_000L
 
     override fun <T> withPreparedPlaybackLock(block: () -> T): T = block()
+}
+
+private class UnstreamableUrlPlaybackBackend : BassAudioBackend {
+    override val lastErrorCode: Int = 47
+
+    override fun init(): Result<Unit> = Result.success(Unit)
+    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> = Result.success(Unit)
+    override fun configureInternetStreams(): Result<Unit> = Result.success(Unit)
+    override fun free(): Result<Unit> = Result.success(Unit)
+    override fun createUrlStream(url: String): Result<BassStreamHandle> =
+        Result.failure(IllegalStateException("BASS URL stream creation failed: unstreamable file"))
+    override fun createFileDecodeStream(path: String): Result<BassStreamHandle> = error("Not used")
+    override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> = error("Not used")
+    override fun lengthBytes(stream: BassStreamHandle): Long? = null
+    override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> = Result.success(0)
+    override fun freeStream(stream: BassStreamHandle): Result<Unit> = Result.success(Unit)
 }
 
 private class RecordingReleaseBackend : BassAudioBackend {

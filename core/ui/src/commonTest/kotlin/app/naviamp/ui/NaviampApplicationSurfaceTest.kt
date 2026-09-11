@@ -15,6 +15,8 @@ class NaviampApplicationSurfaceTest {
             listOf(
                 NaviampTelevisionDestination.Home,
                 NaviampTelevisionDestination.Library,
+                NaviampTelevisionDestination.Playlists,
+                NaviampTelevisionDestination.Radio,
                 NaviampTelevisionDestination.Search,
             ),
             naviampTelevisionDestinations(),
@@ -24,6 +26,8 @@ class NaviampApplicationSurfaceTest {
                 NaviampTelevisionDestination.Home,
                 NaviampTelevisionDestination.NowPlaying,
                 NaviampTelevisionDestination.Library,
+                NaviampTelevisionDestination.Playlists,
+                NaviampTelevisionDestination.Radio,
                 NaviampTelevisionDestination.Search,
             ),
             naviampTelevisionDestinations(nowPlayingAvailable = true),
@@ -49,7 +53,7 @@ class NaviampApplicationSurfaceTest {
             ),
         )
         assertEquals(
-            NaviampTelevisionDestination.Library,
+            NaviampTelevisionDestination.Radio,
             naviampSelectedTelevisionDestination(SharedRoute.Radio, nowPlayingOpen = false),
         )
     }
@@ -71,7 +75,7 @@ class NaviampApplicationSurfaceTest {
     fun televisionNavigationRestoresTheVisibleOwnerOfTheCurrentPage() {
         val destinations = naviampTelevisionDestinations(nowPlayingAvailable = true)
         assertEquals(
-            NaviampTelevisionDestination.Library,
+            NaviampTelevisionDestination.Playlists,
             naviampTelevisionVisibleOwner(NaviampTelevisionDestination.Playlists),
         )
         assertEquals(
@@ -83,7 +87,7 @@ class NaviampApplicationSurfaceTest {
             ),
         )
         assertEquals(
-            NaviampTelevisionDestination.Library,
+            NaviampTelevisionDestination.Playlists,
             naviampTelevisionNavigationFocusDestination(
                 selected = NaviampTelevisionDestination.Playlists,
                 settingsSelected = false,

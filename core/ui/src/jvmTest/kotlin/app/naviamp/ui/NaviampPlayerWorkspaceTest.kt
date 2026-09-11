@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
@@ -32,6 +33,39 @@ class NaviampPlayerWorkspaceTest {
         assertEquals(Color.Magenta.toArgb(), onNodeWithTag("docked-player").captureToImage().toPixelMap()[10, 10].toArgb())
         onNodeWithText("Full player").performClick()
         assertEquals(Color.Magenta.toArgb(), onNodeWithTag("full-player").captureToImage().toPixelMap()[10, 10].toArgb())
+    }
+
+    @Test fun splitBrowserPaneLeavesSpaceAtWindowEdge() = runDesktopComposeUiTest(1000, 640) {
+        setContent {
+            Box(Modifier.fillMaxSize().background(Color.Magenta)) {
+                NaviampPlayerWorkspace(true, WideNowPlayingLayout.Split, {}, player = {}, browser = {
+                    Box(Modifier.fillMaxSize().background(Color.Black))
+                })
+            }
+        }
+        val pixels = onRoot().captureToImage().toPixelMap()
+        assertEquals(Color.Magenta.toArgb(), pixels[995, 320].toArgb())
+        assertEquals(Color.Black.toArgb(), pixels[980, 320].toArgb())
+    }
+
+    @Test fun readableSurfaceSupportsTransparentAndOpaqueBackgrounds() = runDesktopComposeUiTest(1000, 200) {
+        val opacity = mutableStateOf(0f)
+        setContent {
+            Box(Modifier.fillMaxSize().background(Color.Magenta)) {
+                NaviampReadableContent(
+                    NaviampColors.Dark,
+                    keepDarkSurface = true,
+                    surfaceOpacity = opacity.value,
+                ) {}
+            }
+        }
+        assertEquals(Color.Magenta.toArgb(), onRoot().captureToImage().toPixelMap()[500, 100].toArgb())
+        opacity.value = 1f
+        waitForIdle()
+        assertEquals(
+            NaviampColors.Dark.background.toArgb(),
+            onRoot().captureToImage().toPixelMap()[500, 100].toArgb(),
+        )
     }
 
     @Test fun dockedPlayerHasNoCollapseButton() = checkDockedPlayer(800)
@@ -96,21 +130,20 @@ class NaviampPlayerWorkspaceTest {
         }
         onNodeWithText("A song with a long title").assertIsDisplayed()
         onNodeWithText("An artist").assertIsDisplayed()
-        onNodeWithContentDescription("Collapse player").assertIsDisplayed()
+        onNodeWithContentDescription("Collapse player").assertDoesNotExist()
         val position = onNodeWithText("0:30").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         assertTrue(position.top > 600f, "Progress must sit across the bottom")
         val title = onNodeWithText("A song with a long title").fetchSemanticsNode().boundsInRoot
         val artist = onNodeWithText("An artist").fetchSemanticsNode().boundsInRoot
         val album = onNodeWithText("An album").fetchSemanticsNode().boundsInRoot
-        assertTrue(title.left >= 640f)
+        val artBounds = onNodeWithTag("full-album-art").fetchSemanticsNode().boundsInRoot
+        assertTrue(title.left > artBounds.right, "Track identity must sit to the right of the artwork")
         assertEquals(title.left, artist.left, 1f)
         assertEquals(title.left, album.left, 1f)
-        assertTrue(artist.top - title.bottom >= 12f)
-        assertTrue(album.top - artist.bottom >= 12f)
-        val artBounds = onNodeWithTag("full-album-art").fetchSemanticsNode().boundsInRoot
+        assertTrue(artist.top - title.bottom >= 6f)
+        assertTrue(album.top - artist.bottom >= 6f)
         val infoBounds = onNodeWithTag("full-track-info").fetchSemanticsNode().boundsInRoot
         assertEquals(artBounds.center.y, infoBounds.center.y, 1f, "Track info must center on the artwork")
-        assertTrue(onNodeWithContentDescription("Collapse player").fetchSemanticsNode().boundsInRoot.right < 640f)
         val pixels = onRoot().captureToImage().toPixelMap()
         val output = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until pixels.height) for (x in 0 until pixels.width) output.setRGB(x, y, pixels[x, y].toArgb())
@@ -120,21 +153,222 @@ class NaviampPlayerWorkspaceTest {
         onNodeWithContentDescription("Show lyrics").performClick()
         onNodeWithText("A song with a long title").assertDoesNotExist()
         onNodeWithTag("full-art-controls").assertIsDisplayed()
-        assertEquals(artBounds, onNodeWithTag("full-album-art").fetchSemanticsNode().boundsInRoot)
-        assertTrue(onNodeWithTag("full-lyrics").assertIsDisplayed().fetchSemanticsNode().boundsInRoot.left >= 640f)
+        val lyricsArtBounds = onNodeWithTag("full-album-art").fetchSemanticsNode().boundsInRoot
+        assertEquals(artBounds.width, lyricsArtBounds.width, 1f)
+        assertEquals(artBounds.height, lyricsArtBounds.height, 4f)
+        assertEquals(artBounds.left, lyricsArtBounds.left, 1f)
+        val lyricsBounds = onNodeWithTag("full-lyrics").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue(lyricsBounds.left > artBounds.right)
+        assertEquals(lyricsArtBounds.top, lyricsBounds.top, 2f)
         onNodeWithText("A lyric on the right").assertIsDisplayed()
         for ((line, fontSize) in listOf("A lyric on the right" to 40f, "Next lyric" to 36f)) {
             val layouts = mutableListOf<TextLayoutResult>()
             onNodeWithText(line).assertIsDisplayed().performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertEquals(fontSize, layouts.single().layoutInput.style.fontSize.value)
-            assertFalse(layouts.single().hasVisualOverflow)
+            assertFalse(layouts.single().hasVisualOverflow, "$line must fit without clipping")
         }
         onNodeWithContentDescription("Hide lyrics").performClick()
         onNodeWithText("A song with a long title").assertIsDisplayed()
     }
 
+    @Test fun fullPlayerTransportControlsReceivePointerInput() = runDesktopComposeUiTest(1280, 720) {
+        val actions = mutableListOf<NowPlayingPlaybackAction>()
+        setContent {
+            NaviampNowPlayingPanel(
+                NowPlayingUi(
+                    id = "song",
+                    title = "Song",
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    hasPrevious = true,
+                    hasNext = true,
+                    volumePercent = 50,
+                ),
+                colors = NaviampColors(),
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { actions += it.action },
+                    onDisplayAction = {},
+                    onCurrentTrackAction = {},
+                    onQueueAction = {},
+                    onSleepTimerAction = {},
+                    onSelectionAction = {},
+                    onQueueItemAction = {},
+                ),
+                panelLayout = NaviampPlayerPanelLayout.Full,
+            )
+        }
+        onNodeWithContentDescription("Previous").performMouseInput { click() }
+        onNodeWithContentDescription("Pause").performMouseInput { click() }
+        onNodeWithContentDescription("Next").performMouseInput { click() }
+        assertEquals(
+            listOf(
+                NowPlayingPlaybackAction.Previous,
+                NowPlayingPlaybackAction.Pause,
+                NowPlayingPlaybackAction.Next,
+            ),
+            actions,
+        )
+    }
+
+    @Test fun fullPlayerUsesDesktopScaleAtMacWindowSize() = runDesktopComposeUiTest(945, 565) {
+        setContent {
+            NaviampNowPlayingPanel(
+                nowPlaying = NowPlayingUi(
+                    id = "song",
+                    title = "Dismantle the Hologram",
+                    subtitle = "Path of Silence",
+                    stateLabel = "Paused",
+                    albumLine = "Ancestral Light (2022)",
+                    durationSeconds = 574.0,
+                    positionSeconds = 101.0,
+                    audioInfo = "FLAC  44.1 / 16",
+                    shuffleEnabled = true,
+                    hasPrevious = true,
+                    hasNext = true,
+                    canRepeat = true,
+                    canChangeVolume = true,
+                ),
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                displaySettings = app.naviamp.domain.settings.NowPlayingDisplaySettings(scrollTrackTitle = false),
+                panelLayout = NaviampPlayerPanelLayout.Full,
+            )
+        }
+
+        val art = onNodeWithTag("full-album-art").fetchSemanticsNode().boundsInRoot
+        val info = onNodeWithTag("full-track-info").fetchSemanticsNode().boundsInRoot
+        val title = onNodeWithText("Dismantle the Hologram").fetchSemanticsNode().boundsInRoot
+        val volume = onNodeWithTag("now-playing-volume-slider").fetchSemanticsNode().boundsInRoot
+        val transport = onNodeWithTag("now-playing-transport-row").fetchSemanticsNode().boundsInRoot
+        assertTrue(art.width >= 340f, "Artwork must remain prominent: $art")
+        assertTrue(title.left > art.right, "Track identity must not overlap artwork: art=$art title=$title")
+        assertTrue(title.left - art.right <= 16f, "Artwork-to-identity gap must stay compact")
+        assertEquals(transport.width, volume.width, 1f, "Volume track must match the transport cluster")
+        onNodeWithContentDescription("Collapse player").assertDoesNotExist()
+
+        for ((label, expectedSize) in listOf(
+            "Dismantle the Hologram" to 26f,
+            "Path of Silence" to 18f,
+            "Ancestral Light (2022)" to 18f,
+        )) {
+            val layouts = mutableListOf<TextLayoutResult>()
+            onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            val layout = layouts.single()
+            assertEquals(expectedSize, layout.layoutInput.style.fontSize.value)
+            assertTrue(layout.size.width <= info.width, "$label must fit the information pane")
+        }
+
+        val previous = onNodeWithContentDescription("Previous").fetchSemanticsNode().boundsInRoot
+        val next = onNodeWithContentDescription("Next").fetchSemanticsNode().boundsInRoot
+        val repeat = onNodeWithContentDescription("Repeat off").fetchSemanticsNode().boundsInRoot
+        assertTrue(previous.right < next.left)
+        assertTrue(next.right < repeat.left)
+
+        val pixels = onRoot().captureToImage().toPixelMap()
+        val output = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) output.setRGB(x, y, pixels[x, y].toArgb())
+        val file = File("build/reports/player-workspace/full-player-945x565.png")
+        file.parentFile.mkdirs()
+        ImageIO.write(output, "png", file)
+    }
+
+    @Test fun fullPlayerArtworkGrowsWhileIdentityStaysAttached() = runDesktopComposeUiTest(1678, 924) {
+        setContent {
+            NaviampNowPlayingPanel(
+                nowPlaying = NowPlayingUi(
+                    id = "song",
+                    title = "Dismantle the Hologram",
+                    subtitle = "Path of Silence",
+                    stateLabel = "Paused",
+                    albumLine = "Ancestral Light (2022)",
+                    durationSeconds = 574.0,
+                    positionSeconds = 101.0,
+                    audioInfo = "FLAC  44.1 / 16",
+                    shuffleEnabled = true,
+                    hasPrevious = true,
+                    hasNext = true,
+                    canRepeat = true,
+                    canChangeVolume = true,
+                ),
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                displaySettings = app.naviamp.domain.settings.NowPlayingDisplaySettings(scrollTrackTitle = false),
+                panelLayout = NaviampPlayerPanelLayout.Full,
+            )
+        }
+
+        val art = onNodeWithTag("full-album-art").fetchSemanticsNode().boundsInRoot
+        val title = onNodeWithText("Dismantle the Hologram").fetchSemanticsNode().boundsInRoot
+        val artist = onNodeWithText("Path of Silence").fetchSemanticsNode().boundsInRoot
+        val album = onNodeWithText("Ancestral Light (2022)").fetchSemanticsNode().boundsInRoot
+        assertTrue(art.width >= 630f, "Artwork must grow with the expanded viewport: $art")
+        assertTrue(title.left > art.right, "Track identity must not overlap artwork: art=$art title=$title")
+        assertTrue(title.left - art.right <= 16f, "Track identity must remain attached to artwork: art=$art title=$title")
+        assertTrue(artist.top - title.bottom >= 9f)
+        assertTrue(album.top - artist.bottom >= 9f)
+        for ((label, expectedSize) in listOf(
+            "Dismantle the Hologram" to 32f,
+            "Path of Silence" to 22f,
+            "Ancestral Light (2022)" to 22f,
+        )) {
+            val layouts = mutableListOf<TextLayoutResult>()
+            onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            assertEquals(expectedSize, layouts.single().layoutInput.style.fontSize.value)
+        }
+
+        val pixels = onRoot().captureToImage().toPixelMap()
+        val output = BufferedImage(pixels.width, pixels.height, BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) output.setRGB(x, y, pixels[x, y].toArgb())
+        val file = File("build/reports/player-workspace/full-player-1678x924.png")
+        file.parentFile.mkdirs()
+        ImageIO.write(output, "png", file)
+    }
+
     @Test fun workspaceAt720p() = checkWorkspace(1280, 720)
     @Test fun workspaceAt1440p() = checkWorkspace(2560, 1440)
+
+    @Test fun splitPlayerAndBrowserBottomIconsShareABaseline() = runDesktopComposeUiTest(1280, 720) {
+        setContent {
+            NaviampPlayerWorkspace(
+                wide = true,
+                layout = WideNowPlayingLayout.Split,
+                onLayoutChanged = {},
+                player = { panelLayout ->
+                    NaviampNowPlayingPanel(
+                        nowPlaying = NowPlayingUi(
+                            id = "song",
+                            title = "Song",
+                            subtitle = "Artist",
+                            stateLabel = "Paused",
+                        ),
+                        colors = NaviampColors.Dark,
+                        actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                        panelLayout = panelLayout,
+                    )
+                },
+                browser = {
+                    Column(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f))
+                        SharedBottomNavigationBar(
+                            colors = NaviampColors.Dark,
+                            selectedRoute = SharedRoute.Home,
+                            onRouteSelected = {},
+                            onQueueSelected = {},
+                            bottomPadding = 4.dp,
+                        )
+                    }
+                },
+            )
+        }
+
+        val playerActions = onNodeWithTag("now-playing-bottom-actions").fetchSemanticsNode().boundsInRoot
+        val browserNavigation = onNodeWithTag("bottom-navigation-row").fetchSemanticsNode().boundsInRoot
+        assertEquals(playerActions.center.y, browserNavigation.center.y, 1f)
+        val transport = onNodeWithTag("now-playing-transport-row").fetchSemanticsNode().boundsInRoot
+        val volume = onNodeWithTag("now-playing-volume-slider").fetchSemanticsNode().boundsInRoot
+        assertEquals(transport.width, volume.width, 1f, "Split-player volume track must match transport")
+    }
 
     private fun checkWorkspace(width: Int, height: Int) = runDesktopComposeUiTest(width, height) {
         val mode = mutableStateOf(WideNowPlayingLayout.Split)
@@ -152,7 +386,8 @@ class NaviampPlayerWorkspaceTest {
         }
         val player = onNodeWithTag("docked-player").fetchSemanticsNode().boundsInRoot
         val browser = onNodeWithTag("browser-pane").fetchSemanticsNode().boundsInRoot
-        assertEquals(player.width * 2f, browser.width, 1f)
+        assertEquals(player.right, browser.left, 1f)
+        assertEquals(width.toFloat() - 12f, browser.right, 1f)
         onNodeWithContentDescription("Queue").performClick()
         onNodeWithText("Queue contents").assertIsDisplayed()
         onNodeWithContentDescription("Library").performClick()

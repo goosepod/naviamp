@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Ekranı açık tut</string>
     <string name="settings_keep_screen_awake_description">Naviamp görünürken ekranın otomatik uykuya geçmesini önler. Sistem uykusu, ekran kilitleri ve TV zamanlayıcıları yine de devreye girebilir.</string>
     <string name="settings_keep_screen_awake_failed">Ekran uykusunu önleme ayarı değiştirilemedi. Yeniden denemek için bu ayarı kapatıp açın.</string>
+    <string name="settings_now_playing_split_background_opacity">Bölünmüş görünüm arka plan opaklığı</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Oynatma cihazı: %1$s</string>
 </resources>

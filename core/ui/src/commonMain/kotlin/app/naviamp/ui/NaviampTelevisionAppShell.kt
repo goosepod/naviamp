@@ -15,6 +15,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,9 +27,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,6 +57,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -250,11 +256,9 @@ fun NaviampTelevisionAppShell(
                     val artistDetailOpen = uiState.artistDetail.selectedArtist != null
                     val playlistDetailOpen = uiState.playlistDetail.selectedPlaylist != null
                     val homeCollectionOpen = uiState.home.collectionPage != null
-                    val internetRadioOpen = uiState.shellChrome.selectedRoute == SharedRoute.Radio
                     NaviampSystemBackHandler(
                         enabled = returnToNowPlayingFromSearch || nowPlayingPreview ||
                             albumDetailOpen || artistDetailOpen || playlistDetailOpen || homeCollectionOpen ||
-                            internetRadioOpen ||
                             (!transientContentOpen && !navigationFocused),
                     ) {
                         if (
@@ -277,7 +281,6 @@ fun NaviampTelevisionAppShell(
                                 artistDetailOpen -> actions.artistDetailActions.onBack()
                                 playlistDetailOpen -> actions.playlistDetailActions.onBack()
                                 homeCollectionOpen -> actions.homeActions.onCollectionBack()
-                                internetRadioOpen -> actions.navigationActions.onRouteSelected(SharedRoute.Library)
                                 else -> focusNavigation()
                             }
                         }
@@ -462,23 +465,31 @@ private fun TelevisionNavigationBar(
             .background(Color.Black.copy(alpha = 0.34f))
             .padding(horizontal = 28.dp, vertical = 14.dp),
     ) {
-        Text(
-            text = "Naviamp",
-            color = colors.primaryText,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Black,
-            maxLines = 1,
-            modifier = Modifier.padding(end = 14.dp),
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.requiredSize(44.dp).background(Color.Black, CircleShape),
         ) {
-            destinations.forEach { destination ->
+            Image(
+                painter = naviampAppIconPainter(),
+                contentDescription = null,
+                modifier = Modifier.size(38.dp),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .weight(1f)
+                .clipToBounds(),
+        ) {
+            items(
+                items = destinations,
+                key = { it.name },
+            ) { destination ->
                 TelevisionNavigationButton(
                     destination = destination,
                     colors = colors,
                     modifier = Modifier
-                        .widthIn(min = 128.dp)
                         .focusRequester(focusRequesters.getValue(destination))
                         .focusProperties {
                             canFocus = navigationFocused ||
@@ -490,7 +501,6 @@ private fun TelevisionNavigationBar(
                 )
             }
         }
-        Spacer(Modifier.weight(1f))
         TelevisionNavigationIconButton(
             icon = NaviampIcons.Settings,
             description = stringResource(Res.string.nav_settings),
@@ -614,16 +624,6 @@ private fun TelevisionConnectedContent(
             actions = actions.libraryActions,
             mediaActions = televisionMediaActions,
             viewport = libraryViewport,
-            onOpenPlaylists = {
-                onNavigationActivationSuppressed(
-                    naviampTelevisionVisibleOwner(NaviampTelevisionDestination.Playlists),
-                )
-                actions.navigationActions.onRouteSelected(SharedRoute.Playlists)
-            },
-            onOpenInternetRadio = {
-                onNavigationActivationSuppressed(NaviampTelevisionDestination.Library)
-                actions.navigationActions.onRouteSelected(SharedRoute.Radio)
-            },
             topNavigationFocusRequester = topNavigationFocusRequester,
             entryFocusGeneration = contentEntryGeneration.takeIf {
                 contentEntryDestination == NaviampTelevisionDestination.Library
@@ -656,6 +656,10 @@ private fun TelevisionConnectedContent(
             colors = colors,
             actions = actions.radioActions,
             topNavigationFocusRequester = topNavigationFocusRequester,
+            entryFocusGeneration = contentEntryGeneration.takeIf {
+                contentEntryDestination == NaviampTelevisionDestination.Radio
+            },
+            onEntryFocusHandled = onContentEntryHandled,
         )
         else -> ConnectedContent(
             colors = colors,

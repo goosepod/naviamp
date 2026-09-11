@@ -226,12 +226,15 @@ jobs:
 
       - name: Prepare release notes
         run: |
-          if [ -f CHANGELOG.md ]; then
+          release_notes_file=".github/releases/${GITHUB_REF_NAME}.md"
+          if [ -f "$release_notes_file" ]; then
+            cp "$release_notes_file" "$RUNNER_TEMP/release-notes.md"
+          elif [ -f CHANGELOG.md ]; then
             awk -v tag="${GITHUB_REF_NAME}" '
               $0 == "## " tag { release = 1; public = 1; print; print ""; next }
               release && /^## / { exit }
               release && $0 == "### Features" { public = 1; print; next }
-              release && $0 == "### Bug Fixes" { public = 1; print; next }
+              release && $0 ~ /^### (Highlights|Improvements|Bug [Ff]ixes|Upgrade [Nn]otes|Known [Ii]ssues)$/ { public = 1; print; next }
               release && $0 ~ /^### (Alpha Notes|Beta Notes|Release Candidate Notes|Release Notes) and Known Limitations$/ { public = 1; print; next }
               release && /^### / { public = 0; next }
               release && public { print }
@@ -244,7 +247,7 @@ jobs:
             {
               echo "Naviamp ${GITHUB_REF_NAME}"
               echo
-              echo "See CHANGELOG.md and the tagged commit for release details."
+              echo "Release notes are unavailable. See CHANGELOG.md and the tagged commit for details."
             } > "$RUNNER_TEMP/release-notes.md"
           fi
 

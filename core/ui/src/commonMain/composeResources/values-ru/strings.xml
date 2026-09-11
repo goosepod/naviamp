@@ -14,4 +14,7 @@
     <string name="settings_keep_screen_awake">Не выключать экран</string>
     <string name="settings_keep_screen_awake_description">Предотвращает автоматическое отключение экрана, пока Naviamp виден. Сон системы, блокировка экрана и таймеры телевизора могут продолжать действовать.</string>
     <string name="settings_keep_screen_awake_failed">Не удалось изменить предотвращение отключения экрана. Выключите и снова включите этот параметр для повтора.</string>
+    <string name="settings_now_playing_split_background_opacity">Непрозрачность фона в режиме разделённого экрана</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Устройство воспроизведения: %1$s</string>
 </resources>

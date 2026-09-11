@@ -133,4 +133,7 @@
     <string name="settings_keep_screen_awake">Nie wygaszaj ekranu</string>
     <string name="settings_keep_screen_awake_description">Zapobiega automatycznemu uśpieniu ekranu, gdy Naviamp jest widoczny. Uśpienie systemu, blokady ekranu i wyłączniki czasowe telewizora mogą nadal działać.</string>
     <string name="settings_keep_screen_awake_failed">Nie można zmienić zapobiegania uśpieniu ekranu. Wyłącz i włącz to ustawienie, aby spróbować ponownie.</string>
+    <string name="settings_now_playing_split_background_opacity">Krycie tła widoku podzielonego</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Urządzenie odtwarzające: %1$s</string>
 </resources>

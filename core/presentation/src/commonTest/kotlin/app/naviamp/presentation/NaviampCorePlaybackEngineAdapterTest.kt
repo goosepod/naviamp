@@ -63,6 +63,158 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun unsupportedProviderFormatIsRetriedAsACompatibleServerTranscode() = runTest {
+        val provider = FakeCoreMediaProvider(supportsStreamingTranscode = true)
+        val engine = RecordingPlaybackEngine()
+        val states = mutableListOf<PlaybackState>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+        )
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+        })
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        engine.emitState(
+            PlaybackState.Error(
+                message = "BASS URL stream creation failed: unsupported file format",
+                reason = app.naviamp.domain.playback.PlaybackFailureReason.UnsupportedFormat,
+            ),
+        )
+        advanceUntilIdle()
+
+        assertEquals(2, engine.requests.size)
+        assertEquals(
+            StreamQuality.Transcoded(AudioCodec.Mp3, 320),
+            provider.streamRequests.last().quality,
+        )
+        assertEquals(PlaybackSource.ProviderStream, adapter.playbackSource)
+        assertTrue(states.none { it is PlaybackState.Error })
+        assertEquals(PlaybackState.Playing, states.last())
+    }
+
+    @Test
+    fun unstreamableProviderTrackIsCachedAndRetriedFromItsLocalFile() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val cachedTracks = mutableListOf<TrackId>()
+        val states = mutableListOf<PlaybackState>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+            cacheAudio = { _, _, track, _ ->
+                cachedTracks += track.id
+                PlaybackLocalAudio(
+                    path = "/cache/${track.id.value}.m4a",
+                    uri = "file:///cache/${track.id.value}.m4a",
+                    quality = StreamQuality.Original,
+                )
+            },
+        )
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+        })
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        engine.emitState(
+            PlaybackState.Error(
+                message = "BASS URL stream creation failed: unstreamable file",
+                reason = app.naviamp.domain.playback.PlaybackFailureReason.UnstreamableNetworkSource,
+            ),
+        )
+        advanceUntilIdle()
+
+        assertEquals(listOf(provider.track.id), cachedTracks)
+        assertEquals(
+            listOf("https://example.test/core-track", "file:///cache/core-track.m4a"),
+            engine.requests.map(PlaybackRequest::url),
+        )
+        assertEquals(PlaybackSource.CachedFile, adapter.playbackSource)
+        assertTrue(states.none { it is PlaybackState.Error })
+        assertEquals(PlaybackState.Playing, states.last())
+    }
+
+    @Test
+    fun failedUnstreamableRecoveryPublishesOriginalErrorWithoutRetrying() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val states = mutableListOf<PlaybackState>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+            cacheAudio = { _, _, _, _ -> null },
+        )
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+        })
+        val error = PlaybackState.Error(
+            message = "BASS URL stream creation failed: unstreamable file",
+            reason = app.naviamp.domain.playback.PlaybackFailureReason.UnstreamableNetworkSource,
+        )
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        engine.emitState(error)
+        advanceUntilIdle()
+
+        assertEquals(1, engine.requests.size)
+        assertEquals(error, states.last())
+    }
+
+    @Test
+    fun stoppingPlaybackCancelsAnUnstreamableRecoveryDownload() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val cacheStarted = CompletableDeferred<Unit>()
+        val finishCache = CompletableDeferred<Unit>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+            cacheAudio = { _, _, track, _ ->
+                cacheStarted.complete(Unit)
+                finishCache.await()
+                PlaybackLocalAudio("/cache/${track.id.value}.m4a", "file:///cache/${track.id.value}.m4a")
+            },
+        )
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        engine.emitState(
+            PlaybackState.Error(
+                message = "unstreamable",
+                reason = app.naviamp.domain.playback.PlaybackFailureReason.UnstreamableNetworkSource,
+            ),
+        )
+        cacheStarted.await()
+        adapter.stop()
+        finishCache.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, engine.requests.size)
+    }
+
+    @Test
     fun explicitStopPublishesStoppedAndRejectsLateEngineCallbacks() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine()
@@ -1081,6 +1233,7 @@ private class RecordingPlaybackEngine :
     override val prefersOriginalStream = true
     override val supportsVisualizer = true
     var request: PlaybackRequest? = null
+    val requests = mutableListOf<PlaybackRequest>()
     var preparedRequest: PlaybackRequest? = null
     var appliedVolume = -1
     var emittedProgress = PlaybackProgress(12.0, 180.0)
@@ -1103,6 +1256,7 @@ private class RecordingPlaybackEngine :
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
         this.request = request
+        requests += request
         events += "play:${request.mediaId}"
         stateCallback = onStateChanged
         onStateChanged(PlaybackState.Playing)

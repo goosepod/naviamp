@@ -851,4 +851,7 @@
     <string name="settings_keep_screen_awake">Mantener la pantalla encendida</string>
     <string name="settings_keep_screen_awake_description">Evita que la pantalla se apague automáticamente mientras Naviamp esté visible. La suspensión del sistema, los bloqueos y los temporizadores del televisor pueden seguir activos.</string>
     <string name="settings_keep_screen_awake_failed">No se pudo cambiar la prevención del apagado de pantalla. Desactiva y activa este ajuste para reintentar.</string>
+    <string name="settings_now_playing_split_background_opacity">Opacidad del fondo de vista dividida</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Dispositivo de reproducción: %1$s</string>
 </resources>

@@ -520,6 +520,8 @@ internal fun TelevisionInternetRadio(
     colors: NaviampColors,
     actions: NaviampInternetRadioActions,
     topNavigationFocusRequester: FocusRequester,
+    entryFocusGeneration: Int? = null,
+    onEntryFocusHandled: (Int) -> Unit = {},
 ) {
     val stations = screen.stations.sortedBy { it.item.title.lowercase() }
     val newFocusRequester = remember { FocusRequester() }
@@ -529,17 +531,16 @@ internal fun TelevisionInternetRadio(
     val stationFocusRequesters = remember(stations.map { it.item.id }) {
         List(stations.size) { FocusRequester() }
     }
-    var initialFocusAssigned by remember { mutableStateOf(false) }
     var actionStation by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
     var editingStation by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
     var deletingStation by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
     var creatingStation by remember { mutableStateOf(false) }
 
-    LaunchedEffect(stations, initialFocusAssigned) {
-        if (!initialFocusAssigned) {
+    LaunchedEffect(entryFocusGeneration, stations) {
+        entryFocusGeneration?.let { generation ->
             withFrameNanos { }
             (stationFocusRequesters.firstOrNull() ?: newFocusRequester).requestFocus()
-            initialFocusAssigned = true
+            onEntryFocusHandled(generation)
         }
     }
     LaunchedEffect(actionStation) {
@@ -846,7 +847,6 @@ internal fun TelevisionPlaylists(
                     )
                 },
                 colors = colors,
-                focusFirstItem = true,
                 focusRequest = gridFocusRequest,
                 onUpFromFirstRow = {
                     topNavigationFocusRequester.requestFocus()

@@ -1,9 +1,9 @@
 package app.naviamp.ui
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +19,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.*
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -86,27 +84,17 @@ internal fun TelevisionLibrary(
     actions: NaviampLibraryActions,
     mediaActions: NaviampMediaActions,
     viewport: NaviampTelevisionLibraryState,
-    onOpenPlaylists: () -> Unit,
-    onOpenInternetRadio: () -> Unit,
     topNavigationFocusRequester: FocusRequester,
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
     val view = screen.selectedView
     val catalog = screen.selectedCatalog
-    val query = catalog.query.trim()
-    val items = remember(catalog.items, query) { catalog.items.filter {
-        query.isEmpty() || it.title.contains(query, true) || it.subtitle.contains(query, true) || it.meta.contains(query, true)
-    } }
-    val tracks = remember(catalog.tracks, query) { catalog.tracks.filter {
-        query.isEmpty() || it.title.contains(query, true) || it.subtitle.contains(query, true)
-    } }
+    val items = catalog.items
+    val tracks = catalog.tracks
     val ids = if (view == NaviampLibraryView.Songs) tracks.map { it.id } else items.map { it.id }
     val titles = if (view == NaviampLibraryView.Songs) tracks.map { it.title } else items.map { it.title }
     val selectors = remember { NaviampLibraryView.entries.associateWith { FocusRequester() } }
-    val searchFocus = remember { FocusRequester() }
-    val radioFocus = remember { FocusRequester() }
-    val playlistsFocus = remember { FocusRequester() }
     val refreshFocus = remember { FocusRequester() }
     val shortcuts = televisionLibraryShortcuts()
     val letterFocus = remember { shortcuts.associateWith { FocusRequester() } }
@@ -123,26 +111,37 @@ internal fun TelevisionLibrary(
             shortcutFocusJob?.cancel()
         }
     }
-    val keyboard = LocalSoftwareKeyboardController.current
     var gridRequest by remember(view) { mutableStateOf<TelevisionGridFocusRequest?>(null) }
     var focusGeneration by remember { mutableIntStateOf(0) }
     var contentFocused by remember { mutableStateOf(false) }
-    var searchFocused by remember { mutableStateOf(false) }
     var letterFocused by remember { mutableStateOf(false) }
+    var backKeyInProgress by remember { mutableStateOf(false) }
 
     fun focusSelector() {
-        keyboard?.hide()
         viewport.restoreContent = false
         selectors.getValue(view).requestFocus()
     }
     fun focusContent(index: Int? = televisionLibraryRestoreIndex(ids, viewport.focusedId(view))) {
         if (index == null || index !in ids.indices) return
         songFocusJob?.cancel()
-        keyboard?.hide()
         if (view == NaviampLibraryView.Songs) {
             val id = ids[index]
+            if (currentSongFocus[id]?.requestFocus() == true) return
             songFocusJob = scope.launch {
-                viewport.lists.listState(view).scrollToItem(index)
+                val listState = viewport.lists.listState(view)
+                val focusedIndex = currentIds.indexOf(viewport.focusedId(view))
+                if (focusedIndex >= 0 && kotlin.math.abs(index - focusedIndex) == 1) {
+                    val visibleItems = listState.layoutInfo.visibleItemsInfo
+                    val focusedItemSize = visibleItems.firstOrNull { it.index == focusedIndex }?.size
+                        ?: visibleItems.firstOrNull()?.size
+                        ?: 0
+                    if (focusedItemSize > 0) {
+                        val direction = if (index > focusedIndex) 1f else -1f
+                        listState.animateScrollBy(focusedItemSize * 1.1f * direction)
+                    }
+                } else {
+                    listState.scrollToItem(index)
+                }
                 repeat(5) {
                     withFrameNanos { }
                     if (id !in currentIds) return@launch
@@ -171,8 +170,11 @@ internal fun TelevisionLibrary(
         val letter = app.naviamp.domain.library.libraryTitleLetter(titles[index])
         shortcuts.indexOf(letter).takeIf { it >= 0 }?.let(::focusShortcut)
     }
-    val backToSelector = contentFocused || searchFocused || letterFocused
-    NaviampSystemBackHandler(enabled = backToSelector) { focusSelector() }
+    val backToSelector = contentFocused || letterFocused
+    NaviampSystemBackHandler(enabled = backToSelector) {
+        backKeyInProgress = false
+        focusSelector()
+    }
 
     LaunchedEffect(view, ids.isNotEmpty()) {
         if (viewport.restoreContent) {
@@ -201,10 +203,19 @@ internal fun TelevisionLibrary(
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize().testTag(TelevisionLibraryTestTag).onPreviewKeyEvent { event ->
-            if (event.type == KeyEventType.KeyDown && (event.key == Key.Back || event.key == Key.Escape) && backToSelector) {
-                focusSelector()
-                true
-            } else false
+            if (event.key != Key.Back && event.key != Key.Escape) return@onPreviewKeyEvent false
+            when {
+                event.type == KeyEventType.KeyDown && backToSelector -> {
+                    backKeyInProgress = true
+                    true
+                }
+                event.type == KeyEventType.KeyUp && backKeyInProgress -> {
+                    backKeyInProgress = false
+                    focusSelector()
+                    true
+                }
+                else -> false
+            }
         },
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -221,18 +232,17 @@ internal fun TelevisionLibrary(
                         actions.onViewChanged(option)
                     }
                 }, modifier = Modifier
-                    .then(if (option == view) Modifier.border(2.dp, colors.accent, RoundedCornerShape(10.dp)) else Modifier)
                     .focusRequester(selectors.getValue(option))
                     .testTag(TelevisionLibraryViewTagPrefix + option.name)
                     .semantics { selected = option == view; role = Role.Tab; stateDescription = selectionDescription }
                     .onFocusChanged { if (it.isFocused) viewport.restoreContent = false }
                     .onPreviewKeyEvent { event ->
                         if (event.type != KeyEventType.KeyDown) false else when (event.key) {
-                            Key.DirectionDown -> { if (ids.isEmpty()) searchFocus.requestFocus() else focusContent(); true }
+                            Key.DirectionDown -> { focusContent(); true }
                             Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
                             Key.DirectionRight -> {
                                 if (index < NaviampLibraryView.entries.lastIndex) selectors.getValue(NaviampLibraryView.entries[index + 1]).requestFocus()
-                                else radioFocus.requestFocus()
+                                else refreshFocus.requestFocus()
                                 true
                             }
                             Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.entries[(index - 1).coerceAtLeast(0)]).requestFocus(); true }
@@ -241,47 +251,19 @@ internal fun TelevisionLibrary(
                     })
             }
             Spacer(Modifier.weight(1f))
-            fun toolModifier(requester: FocusRequester, left: FocusRequester, right: FocusRequester) = Modifier
-                .focusRequester(requester).onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) false else when (event.key) {
-                        Key.DirectionLeft -> { left.requestFocus(); true }
-                        Key.DirectionRight -> { right.requestFocus(); true }
-                        Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
-                        Key.DirectionDown -> { searchFocus.requestFocus(); true }
-                        else -> false
-                    }
+            val refreshModifier = Modifier.focusRequester(refreshFocus).onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) false else when (event.key) {
+                    Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.Songs).requestFocus(); true }
+                    Key.DirectionRight -> true
+                    Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
+                    Key.DirectionDown -> { focusContent(); true }
+                    else -> false
                 }
-            TelevisionTextButton(stringResource(Res.string.tv_library_internet_radio), colors, onClick = onOpenInternetRadio,
-                modifier = toolModifier(radioFocus, selectors.getValue(NaviampLibraryView.Songs), playlistsFocus))
-            TelevisionTextButton(stringResource(Res.string.nav_playlists), colors, onClick = onOpenPlaylists,
-                modifier = toolModifier(playlistsFocus, radioFocus, if (catalog.syncStatus.isSyncing) playlistsFocus else refreshFocus))
+            }
             TelevisionTextButton(stringResource(Res.string.library_refresh), colors,
                 enabled = !catalog.syncStatus.isSyncing, onClick = actions.onRefresh,
-                modifier = toolModifier(refreshFocus, playlistsFocus, refreshFocus))
+                modifier = refreshModifier)
         }
-        val searchLabel = stringResource(when (view) {
-            NaviampLibraryView.Artists -> Res.string.library_search_artists
-            NaviampLibraryView.Albums -> Res.string.library_search_albums
-            NaviampLibraryView.Songs -> Res.string.library_search_songs
-        })
-        OutlinedTextField(
-            value = catalog.query,
-            onValueChange = actions.onQueryChanged,
-            label = { Text(searchLabel) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().focusRequester(searchFocus).testTag(TelevisionLibrarySearchTag)
-                .onFocusChanged {
-                    searchFocused = it.isFocused
-                    if (it.isFocused) viewport.restoreContent = false
-                }
-                .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) false else when (event.key) {
-                        Key.DirectionUp -> { focusSelector(); true }
-                        Key.DirectionDown -> { focusContent(); true }
-                        else -> false
-                    }
-                },
-        )
         NaviampLibraryLoadingStatus(colors, view, catalog)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(state = letterListState, modifier = Modifier.fillMaxHeight().width(54.dp).testTag(TelevisionLibraryShortcutRailTestTag).onFocusChanged {
@@ -320,14 +302,18 @@ internal fun TelevisionLibrary(
                 if (ids.isEmpty()) {
                     if (!catalog.syncStatus.isSyncing && catalog.pendingJump == null) Text(
                         stringResource(when (view) {
-                            NaviampLibraryView.Artists -> if (query.isEmpty()) Res.string.library_no_artists else Res.string.library_no_artist_matches
-                            NaviampLibraryView.Albums -> if (query.isEmpty()) Res.string.library_no_albums else Res.string.library_no_album_matches
-                            NaviampLibraryView.Songs -> if (query.isEmpty()) Res.string.library_no_songs else Res.string.library_no_song_matches
+                            NaviampLibraryView.Artists -> Res.string.library_no_artists
+                            NaviampLibraryView.Albums -> Res.string.library_no_albums
+                            NaviampLibraryView.Songs -> Res.string.library_no_songs
                         }), color = colors.secondaryText, fontSize = 20.sp,
                     )
                 } else key(view) {
                     if (view == NaviampLibraryView.Songs) {
-                        LazyColumn(state = viewport.lists.listState(view), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyColumn(
+                            state = viewport.lists.listState(view),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 32.dp),
+                        ) {
                             itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
                                 TelevisionTrackRow(track, (index + 1).toString(), true, colors,
                                     onAction = { actions.onTrackAction(SharedTrackRowActionRequest(track, it)) },
@@ -336,7 +322,7 @@ internal fun TelevisionLibrary(
                                         .onFocusChanged { if (it.isFocused) viewport.record(view, track.id) }
                                         .onPreviewKeyEvent { event ->
                                             if (event.type != KeyEventType.KeyDown) false else when (event.key) {
-                                                Key.DirectionUp -> { if (index == 0) searchFocus.requestFocus() else focusContent(index - 1); true }
+                                                Key.DirectionUp -> { if (index == 0) focusSelector() else focusContent(index - 1); true }
                                                 Key.DirectionDown -> { if (index < tracks.lastIndex) focusContent(index + 1) else actions.onLoadMore(); true }
                                                 Key.DirectionLeft -> { focusLetter(); true }
                                                 else -> false
@@ -361,7 +347,7 @@ internal fun TelevisionLibrary(
                         gridState = viewport.grid(view),
                         onItemFocused = { viewport.record(view, items[it].id) },
                         onLeftFromFirstColumn = ::focusLetter,
-                        onUpFromFirstRow = { searchFocus.requestFocus() },
+                        onUpFromFirstRow = ::focusSelector,
                         onEndReached = { if (!catalog.syncStatus.isSyncing) actions.onLoadMore() },
                         itemTagPrefix = TelevisionLibraryItemTagPrefix,
                     )
@@ -374,6 +360,5 @@ internal fun TelevisionLibrary(
 internal const val TelevisionLibraryTestTag = "television-library"
 internal const val TelevisionLibraryViewTagPrefix = "television-library-view:"
 internal const val TelevisionLibraryItemTagPrefix = "television-library-item:"
-internal const val TelevisionLibrarySearchTag = "television-library-search"
 internal const val TelevisionLibraryShortcutRailTestTag = "television-library-shortcut-rail"
 internal const val TelevisionLibraryLetterTagPrefix = "television-library-letter:"
