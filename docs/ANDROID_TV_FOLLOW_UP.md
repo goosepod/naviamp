@@ -288,6 +288,27 @@ nearly every frame slow and cannot distinguish product work from emulator GPU em
 animation change was made from that non-representative evidence. Keep the physical/profileable-device
 performance acceptance open.
 
+## Now Playing settings survive track changes
+
+Status: planned
+
+When the settings screen opened from Android TV Now Playing is visible, advancing to the next song
+currently closes that settings screen. A playback-state or current-track update must not reset the
+user's active overlay, navigation position, focus, or in-progress setting interaction. Playback
+should continue and update in the background until the user explicitly dismisses settings.
+
+Investigate whether the settings overlay or its remembered navigation state is keyed to the current
+track, artwork, or reconstructed Now Playing presentation model. Overlay lifetime belongs to the
+shared application/navigation state rather than media identity.
+
+Acceptance criteria:
+
+- Automatic and user-requested track changes do not close Now Playing settings.
+- Playback metadata may update behind the settings screen without stealing focus.
+- The selected settings subsection, scroll position, focus, and uncommitted interaction remain
+  stable across a track transition.
+- Settings close only through an explicit Back, Close, or completed navigation action.
+
 ## Complete Aurora controls
 
 Status: implemented and validated in shared UI tests
