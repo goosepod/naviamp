@@ -224,7 +224,7 @@ presentation with real fixture playback.
 
 ## Quick Jump readability
 
-Status: implemented and validated in shared UI renders
+Status: readability implemented and validated; D-pad scrolling regression diagnosed, fix planned
 
 Fix the Android TV Quick Jump menu so its entries remain legible, especially the recently added
 Artists, Albums, and Songs destinations. Verify text contrast, focus state, spacing, and truncation
@@ -238,6 +238,35 @@ foreground/background contrast pair when focused instead of placing text over th
 Deterministic D-pad and delayed-jump tests cover navigation all the way from A through Z at 720p,
 1080p, native 4K, and double-density 4K. Physical viewing-distance acceptance remains part of the
 broader accessibility gate.
+
+September 10 physical-device follow-up: the larger rail is readable, but moving down from A exposes
+a two-stage scroll on every subsequent selection. Focus moves to the correct letter, the selected
+letter first jumps to the top of the rail, and Compose then moves it back to roughly the third visible
+position. This repeats for each D-pad Down press.
+
+The competing movements are in the shared `TelevisionLibrary` quick-jump focus path. Its
+`focusShortcut` function unconditionally calls `letterListState.scrollToItem(target)`, which places
+even an already visible adjacent target at the start of the viewport. It then waits one frame and
+calls that target's `FocusRequester.requestFocus()`. Focus-driven bring-into-view performs a second
+viewport adjustment, producing the visible top-then-back jump. The first move can appear correct
+because the rail begins at its natural scroll boundary.
+
+Planned correction: do not issue a programmatic list scroll when the requested adjacent letter is
+already composed and visible; request focus directly and let the rail make at most one bring-into-view
+adjustment. Retain a single controlled scroll-and-focus path only for a target that is genuinely
+outside the composed/visible window, such as restoring the letter for a distant catalog item. Keep
+this behavior in shared Core UI rather than adding an Android TV host workaround.
+
+Regression acceptance:
+
+- Repeated D-pad Up/Down moves focus exactly one letter without an intermediate top-of-viewport jump.
+- A visible adjacent target does not change the rail's scroll position before focus bring-into-view.
+- Crossing the viewport edge and restoring a distant letter perform one stable scroll and leave the
+  requested letter focused.
+- A through Z, boundary clamping, selection, delayed server-backed jumps, and the existing
+  720p/1080p/4K layouts continue to work.
+- Confirm the corrected motion on the physical TV; an idle-only focus assertion is insufficient
+  because it cannot observe the transient first scroll.
 
 ## Full-screen Now Playing performance
 

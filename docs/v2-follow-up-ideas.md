@@ -23,6 +23,52 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ## Ideas Not Yet Completed
 
+### Swipe to Cycle Visualizers
+
+- **Status:** Idea
+- **Concept:** When a visualizer is present, allow a horizontal swipe directly on the visualizer
+  surface to move through the ordered list of available visualizers without opening settings.
+  Swiping right moves down/forward one entry in the list; swiping left moves up/back one entry.
+- **Wraparound:** Navigation wraps in both directions. Swiping right on the final visualizer selects
+  the first, and swiping left on the first selects the final visualizer.
+- **Shared ownership:** Core owns the ordered visualizer list, next/previous selection policy,
+  wraparound, persisted selection, and gesture intent. Hosts may translate native pointer or touch
+  input only where a shared Compose gesture cannot be used.
+- **Interaction details to settle:** Require a deliberate horizontal gesture threshold, ignore
+  primarily vertical movement, and avoid stealing input from Now Playing controls, waveform seeking,
+  system-edge navigation, or accessibility actions. Decide whether trackpad horizontal gestures and
+  mouse drag should invoke the same action on Desktop.
+- **Acceptance:** Verify both directions, wraparound at each end, a one-item list, unavailable or
+  disabled visualizers, rapid/repeated swipes, persistence, and consistent behavior on every surface
+  that displays the visualizer. A single accepted swipe must advance exactly one entry.
+
+### Intent-Locked Row Swipe Gestures
+
+- **Status:** Idea
+- **Problem:** A slightly diagonal vertical scroll can currently begin a left/right swipe animation
+  on swipe-enabled rows such as queue items. The shared `SwipeActionContainer` commits an action only
+  after 72dp, but its content starts moving as soon as Compose recognizes a horizontal drag, so an
+  ordinary list scroll can produce distracting lateral movement or accidentally win the gesture.
+- **Chosen direction:** Add a short movement dead zone and directional intent lock instead of a time
+  delay. Keep the row stationary until horizontal travel reaches approximately 20–24dp and is clearly
+  dominant, initially targeting at least 1.5 times the accumulated vertical travel. If vertical
+  movement wins first, permanently yield that pointer gesture to list scrolling. Once horizontal
+  intent wins, retain the lock for the remainder of that gesture so small vertical variation does not
+  cancel an intentional swipe.
+- **Commit behavior:** Preserve a separate, larger action threshold (currently 72dp). Crossing the
+  intent threshold may reveal and animate the action, but releasing before the commit threshold must
+  return the row to rest without invoking it. Do not add a fixed time delay initially; it would make
+  deliberate swipes feel slower without reliably distinguishing diagonal scrolling.
+- **Shared ownership:** Implement the arbitration once in the Core UI swipe container so queue,
+  library, related-track, download, and playlist-editor rows behave consistently. Reuse the same
+  directional-lock policy for swipe-to-cycle visualizers if that idea is implemented, while allowing
+  the visualizer and row actions to keep their own commit thresholds.
+- **Acceptance:** Cover vertical and diagonal list scrolling without lateral row movement, deliberate
+  swipes in both directions, release between intent and commit thresholds, cancellation, direction
+  reversal, unavailable directions, rapid repeated input, and representative phone touchscreens.
+  Tune the proposed distance and ratio on physical devices before treating their initial values as
+  final accessibility constants.
+
 ### Split-View Page Background Toggle
 
 - **Status:** Idea
