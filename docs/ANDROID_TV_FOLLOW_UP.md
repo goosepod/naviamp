@@ -100,7 +100,7 @@ on the fresh-install TV screen. These emulator checks do not close the remaining
 
 ## Prevent the screen saver
 
-Status: optional display setting implemented; physical playback wakefulness acceptance remains open
+Status: accepted on physical Android TV; automated and emulator validation also pass
 
 The shared **Keep screen awake** setting prevents automatic display sleep while Naviamp is visible.
 It defaults to disabled and appears in TV Display settings and the shared Experience settings on
@@ -141,7 +141,7 @@ visual check confirmed focused On/Off feedback, preference preservation after ap
 and the complete explanation without truncation. Reproduction is in
 [the display-setting check](android-tv-lifecycle-fixture.md#optional-display-awake-setting-check).
 Desktop and iOS native adapters have compile validation only; runtime acceptance on those hosts
-and the physical-TV tests below remain open.
+remains open.
 
 Platform production diff accountability:
 
@@ -152,9 +152,9 @@ Platform production diff accountability:
 - `apps/ios/.../IosScreenAwakeEffect.kt`: UIKit `UIApplication.idleTimerDisabled`.
 - `apps/ios/.../NaviampIosApplication.kt`: supplies the native idle-timer effect when mounting the UIKit view controller.
 
-Physical-device follow-up: during uninterrupted music playback, Android TV entered Ambient Mode,
-continued playing for a while, and later powered off. Treat screen-saver suppression and playback
-wakefulness as separate requirements:
+Earlier physical-device testing without display inhibition entered Ambient Mode, continued playing
+for a while, and later powered off. The accepted product path is the explicit **Keep screen awake**
+setting; the underlying display and playback wake resources remain separate:
 
 - `FLAG_KEEP_SCREEN_ON` can suppress Android TV Ambient Mode while the Naviamp activity is visible,
   but Android's TV guidance discourages doing this for ordinary audio unless the app provides its
@@ -169,7 +169,8 @@ wakefulness as separate requirements:
 
 Acceptance criteria:
 
-- Music continues indefinitely through Ambient Mode during a long-duration streaming test.
+- With **Keep screen awake** enabled, a playlist continues for an extended physical-device run
+  without Ambient Mode, automatic display sleep, or device power-off.
 - Playback-scoped wake resources are acquired and released with the shared playing state.
 - The optional keep-screen-awake setting clearly describes display behavior and does not promise
   to override TV hardware, HDMI-CEC, or system Energy Saver settings.
@@ -181,12 +182,13 @@ the playing intent immediately so late progress cannot reacquire the lock before
 state callback arrives. Non-playing progress does not renew or reacquire a lease. This closes a
 specific recovery gap; it does not establish the cause of the physical TV shutdown.
 
-Remaining acceptance: capture process/service state, CPU wake-lock ownership, network availability,
-device power state, and playback progress before and after Ambient Mode during a multi-hour run.
-Separate app/process termination from device sleep and external display/CEC power-off. The existing
-[712-second background soak](android-tv-soak.md) is useful short-run evidence, not overnight or
-physical-device wakefulness acceptance. Progress-driven recovery cannot itself wake an already
-suspended process, so verify timely renewal on hardware as well as recovery in common tests.
+Physical Android TV acceptance (September 11): with **Keep screen awake** enabled, the maintainer
+started a playlist and left it playing for well over one hour. Playback continued, the screen saver
+never appeared, and the device remained powered on. Together with the automated lease tests,
+Android window-flag instrumentation, and emulator playback checks below, this passes the Android TV
+display-awake and sustained-playback acceptance gate. Playback through Ambient Mode with the setting
+disabled and Wi-Fi-lock investigation are optional diagnostics, not remaining acceptance requirements
+for this feature.
 
 The September 10 emulator check also exposed stale external playback state after Stop: the shared
 engine adapter invalidated native callbacks before they could publish Stopped. The adapter now
@@ -206,7 +208,8 @@ reacquired it, and Stop published `STOPPED` with no playback wake lock held. Pau
 advanced from 67.318 to 72.975 seconds across the resume interval on the same fixture track.
 Android app/test APK assembly, shared JVM compilation, iOS device/simulator ARM64 compilation,
 and `verifyCoreFirstArchitecture` passed. See [the reproduction procedure](android-tv-lifecycle-fixture.md#playback-wake-lock-smoke-check).
-This short emulator check does not close the physical Ambient Mode or multi-hour acceptance above.
+This short emulator check did not by itself close physical acceptance; the later physical run above
+does.
 
 ## Android TV waveform height
 

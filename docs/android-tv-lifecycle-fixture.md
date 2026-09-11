@@ -82,8 +82,9 @@ verify the lock is released. This smoke check exercises Android PowerManager, th
 and MediaSession delegation; it does not force lease expiration or prove physical-TV sleep behavior.
 
 The common `PlaybackFocusControllerTest` separately simulates a native lease expiring after delayed
-progress, unsuccessful acquisition, and late progress following explicit pause/stop. Keep physical
-Ambient Mode, Wi-Fi, and multi-hour acceptance open in [the follow-up](ANDROID_TV_FOLLOW_UP.md).
+progress, unsuccessful acquisition, and late progress following explicit pause/stop. The physical
+multi-hour **Keep screen awake** acceptance passed on September 11; the result and optional
+Ambient Mode/Wi-Fi diagnostics are recorded in [the follow-up](ANDROID_TV_FOLLOW_UP.md).
 
 The standalone fixture entry point explicitly returns `Unit`: its shared setup helper returns a
 `NaviampCore`, and inferring that return type for the JUnit method makes AndroidJUnitRunner reject
