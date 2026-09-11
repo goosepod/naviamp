@@ -1,18 +1,13 @@
 # Naviamp Development Workflow
 
-## Repository transition
+## Canonical repository
 
-Naviamp plans to make the public GitHub repository the primary repository and source of truth.
-Forgejo is currently the primary remote and GitHub is its public mirror; that remains true until the
-project owner explicitly completes the cutover. After the cutover:
+GitHub became Naviamp's primary repository and source of truth on 2026-09-11. GitHub is canonical
+for source, issues, pull requests, checks, tags, and releases. Forgejo is a secondary mirror that the
+project owner updates manually after accepted GitHub changes and releases.
 
-- GitHub is the canonical home for source, issues, pull requests, continuous integration, tags, and
-  releases.
-- Forgejo is a secondary mirror maintained manually by the project owner.
-- Contributors and automation must not treat Forgejo as an independent place to merge changes or
-  publish releases.
-- Changing Git remotes, branch protection, CI secrets, or release automation is a separate cutover
-  operation and must not be inferred from this plan.
+Do not merge independent work, create canonical tags, or publish releases on Forgejo. A divergent
+Forgejo ref is an error to investigate, never a reason to force or delete remote history.
 
 ## Work tracking
 
@@ -76,10 +71,11 @@ complete pull request rather than assembling a release from an undocumented coll
 ## Release notes and Discord announcements
 
 Create `.github/releases/vX.Y.Z.md` from [`.github/RELEASE_TEMPLATE.md`](../.github/RELEASE_TEMPLATE.md)
-for the GitHub Release body. The tag workflow uses that versioned file verbatim when it exists and
-falls back to the matching `CHANGELOG.md` section for older releases. The project's Discord
-**announcements** channel receives new GitHub releases through a webhook, so the same release body
-must work as both the detailed GitHub page and a compact Discord announcement.
+for the GitHub Release body. The tag workflow uses that versioned file verbatim when it exists. If
+it is absent, GitHub generates a draft from labeled merged pull requests before the workflow uses
+the matching `CHANGELOG.md` section as a compatibility fallback. The project's Discord
+**announcements** channel receives published GitHub releases through a webhook, so the same release
+body must work as both the detailed GitHub page and a compact Discord announcement.
 
 - Begin with a plain-language summary followed by no more than three highlights. The beginning must
   remain useful if a notification surface shows only part of the body.
@@ -108,26 +104,44 @@ shorter editorial introduction, but it should link back to the release rather th
 different list of changes. The Discord webhook is notification delivery, not a third changelog that
 must be edited separately.
 
+## Manual Forgejo mirror
+
+Run from a clean clone whose `origin` is GitHub and whose `forgejo` remote is the secondary server:
+
+```shell
+git fetch origin --prune --tags
+git push forgejo origin/main:refs/heads/main
+git push forgejo --tags
+```
+
+Push an accepted release branch explicitly only while it is active:
+
+```shell
+git push forgejo origin/release/X.Y.Z:refs/heads/release/X.Y.Z
+```
+
+Never use `--mirror`, `--force`, `--force-with-lease`, or remote pruning/deletion against Forgejo.
+Normal non-fast-forward rejection prevents overwriting newer Forgejo work. Compare retained refs
+after each mirror and investigate any mismatch.
+
 ## Hotfixes
 
 For an urgent fix to an already published version, branch from the affected release tag, verify and
 release the smallest safe patch, and merge the same fix back into `main`. Use a GitHub issue,
 milestone, pull request, release notes, and Announcement just as for a normal release.
 
-## Cutover checklist
+## Cutover record
 
-- [ ] Declare the GitHub cutover date and freeze writes to Forgejo during the final synchronization.
-- [ ] Verify that all branches and tags intended to be retained exist on GitHub.
-- [ ] Make GitHub the default development remote and update contributor documentation.
-- [ ] Configure branch protection and required checks for `main` and active release branches.
-- [ ] Verify issue templates, pull-request templates, labels, milestones, and permissions.
-- [ ] Update the tag workflow to populate the new release format from accepted issue and pull-request
-      metadata, then verify the resulting draft on both GitHub and the Discord announcements webhook.
-- [ ] Verify release secrets and the tag-driven release workflow without copying secrets into the
-      repository.
-- [ ] Decide whether GitHub issue numbers become the permanent work identifiers in branch names and
-      documentation.
-- [ ] Document the exact manual Forgejo mirror commands and confirm that mirroring cannot overwrite
-      newer GitHub work.
-- [ ] Mark historical documentation that calls Forgejo canonical as historical rather than silently
-      rewriting past acceptance records.
+- [x] Declared the GitHub cutover on 2026-09-11 and froze Forgejo writes for final synchronization.
+- [x] Verified all retained release tags and branches; the active Android TV branch is tracked by
+      GitHub issue #17 and its GitHub pull request.
+- [x] Made GitHub the default development remote and updated contributor documentation.
+- [x] Configured a GitHub ruleset for `main` and `release/*` requiring pull requests and all six
+      cross-platform checks while blocking deletion and non-fast-forward updates.
+- [x] Verified templates, release labels, the v2.5.0 milestone, permissions, signing secrets,
+      webhooks, and the Announcements Discussion category.
+- [x] Added labeled pull-request release-note generation while retaining curated versioned notes.
+- [x] Adopted GitHub issue numbers as permanent work identifiers.
+- [x] Documented and exercised non-forcing manual Forgejo mirroring.
+- [x] Marked current planning references to Forgejo's former role as historical while preserving
+      dated acceptance records.

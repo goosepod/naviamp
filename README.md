@@ -177,6 +177,12 @@ The complete test matrix is documented in [Testing Naviamp](docs/testing.md). Th
 architecture and platform boundaries are documented in the
 [Naviamp 2.0 cross-platform plan](docs/v2-cross-platform-plan.md).
 
+## Contributing
+
+GitHub is Naviamp's source of truth. Open or choose a GitHub issue before starting a meaningful
+change, use a short-lived issue branch, and submit the result through a linked pull request. See the
+[development workflow](docs/development-workflow.md) for branch, verification, and release rules.
+
 ## Project layout
 
 ```text

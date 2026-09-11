@@ -356,7 +356,7 @@ Before moving an idea into the active v2 plan or a release branch:
 
 ### Weblate Translation Management
 
-- **Status:** Investigating
+- **Status:** Active
 - **Concept:** Use Weblate as Naviamp's source of truth for community translations, with repository synchronization keeping the shared localization resources and translator-facing strings aligned.
 - **Hosting opportunity:** Apply for Weblate's gratis Libre plan for Naviamp as a public libre project. The advertised Libre plan has the same limits as Weblate's 160k plan and is intended specifically for public projects that benefit from Weblate support.
 - **Eligibility assessment (2026-08-05):** Do not start the 14-day trial yet.
@@ -364,11 +364,11 @@ Before moving an idea into the active v2 plan or a release branch:
   - Development began on 2026-05-08, so the project reaches Weblate's minimum three-month activity threshold on 2026-08-08. Commit activity is substantial, but the current single-contributor history may still receive discretionary review under the "reasonable number of contributions" requirement.
   - The README does not yet mention Weblate. Add a translation section and Weblate link during trial setup, before requesting approval.
   - Naviamp bundles proprietary, non-commercial BASS binaries. Ask Weblate whether this separately licensed playback dependency is compatible with its Libre-project requirement; do not imply that the complete dependency chain is FLOSS.
-  - Forgejo is the canonical repository and GitHub is a one-way public mirror. Define a reviewed path for Weblate translation commits to return to Forgejo without making GitHub an independent source of truth.
-- **Next decision:** Reassess after 2026-08-08. The README and in-app BASS disclosures are now present; start the trial only when the repository write-back workflow and catalog validation are ready to complete within the 14-day approval window.
+  - Historical note: Forgejo was canonical when this assessment was written. GitHub became canonical on 2026-09-11; Weblate now submits GitHub pull requests that pass the same required checks as other changes.
+- **Current workflow:** Weblate writes to a dedicated GitHub translation branch and submits pull requests to the canonical repository. Accepted translation commits reach Forgejo only through the normal manual mirror.
 - **Shared-architecture requirement:** Keep translatable product strings and locale behavior in shared resources wherever possible. Android, Desktop, and iOS hosts should contribute only genuinely platform-owned text such as operating-system permission descriptions or packaging metadata, and should not develop independent translation catalogs for shared UI.
 - **Questions to answer:**
-  - Should Weblate write to a dedicated GitHub translation branch for manual import into Forgejo, or can a project-owned bridge safely submit changes to the canonical repository?
+  - Which review cadence should be used for Weblate's dedicated GitHub translation pull requests?
   - Which locales, plural rules, placeholders, markup, screenshots, glossary terms, contributor credit, review thresholds, and stale-string policies should be configured before inviting translators?
   - How will CI validate placeholder compatibility, locale completeness, encoding, fallback behavior, and compilation across Android, Desktop, and iOS?
 - **Implementation output:** Confirm Libre-plan eligibility, create the Weblate project and component configuration, document translator and maintainer workflows, import the existing catalogs, add automated validation, and verify a complete translation round trip from Weblate through review to all three clients.
