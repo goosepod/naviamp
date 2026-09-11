@@ -2,6 +2,7 @@ changelog:
   exclude:
     labels:
       - documentation
+      - Not user-facing
   categories:
     - title: Features
       labels:
