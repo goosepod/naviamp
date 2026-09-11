@@ -20,12 +20,25 @@ Describe the problem clearly.
 
 What did you expect to happen?
 
+## Scope and acceptance criteria
+
+Describe the corrected behavior and important cases that must not regress.
+
+- [ ] The reported behavior is corrected
+- [ ] Relevant neighboring behavior does not regress
+
 ## Environment
 
 - Naviamp version:
 - Platform: macOS / Windows / Linux / Android
 - Server: Navidrome / OpenSubsonic-compatible server
 - Server version, if known:
+
+## Regression information
+
+- Last version known to work, if any:
+- Frequency: always / intermittent / once
+- Workaround, if any:
 
 ## Logs or screenshots
 

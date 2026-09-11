@@ -1,0 +1,24 @@
+changelog:
+  exclude:
+    labels:
+      - documentation
+      - Not user-facing
+  categories:
+    - title: Features
+      labels:
+        - Feature
+    - title: Improvements
+      labels:
+        - Improvement
+    - title: Bug fixes
+      labels:
+        - Bug fix
+    - title: Upgrade notes
+      labels:
+        - Upgrade note
+    - title: Known issues
+      labels:
+        - Known issue
+    - title: Other changes
+      labels:
+        - "*"

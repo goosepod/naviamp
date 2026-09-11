@@ -18,6 +18,24 @@ Whenever a new Naviamp release is pushed, create a GitHub Discussion in the **An
 category that explains what is new, what changed, important fixes, and any upgrade or compatibility
 notes. Feature branches and other unreleased work do not receive release announcements.
 
+Release notes must compare the release with the previous public release, not narrate development on
+the release branch. A platform or feature shipping for the first time is one complete new
+capability; prerelease implementation fixes are not separate public changes.
+
+Order announcements by product significance. Major launches lead the title, summary, and
+highlights. Improvements and fixes to previously released behavior follow.
+
+## Repository and Issue Workflow
+
+Follow [`docs/development-workflow.md`](docs/development-workflow.md). GitHub is Naviamp's canonical
+home for source, issues, pull requests, checks, tags, and releases. Forgejo is a manually maintained
+secondary mirror and must not be used to merge changes or publish releases.
+
+Use a GitHub issue and a dedicated short-lived branch for each feature, bug fix, or meaningful
+update. Merge completed work into `main` through a linked pull request, use milestones to select
+release scope, and cut a short-lived release branch from an accepted `main` commit for final
+stabilization.
+
 ## Core Is the Product
 
 These are hard architecture requirements, not preferences. Naviamp is one shared application with
