@@ -112,7 +112,6 @@ fun NaviampTelevisionAppShell(
     var observedControllerDeviceId by remember {
         mutableStateOf(uiState.connect.connectedControllerDeviceId)
     }
-    var observedNowPlayingId by remember { mutableStateOf(nowPlaying?.id) }
     var observedProvisioningController by remember {
         mutableStateOf(uiState.connect.pendingProvisioningControllerName)
     }
@@ -179,24 +178,20 @@ fun NaviampTelevisionAppShell(
             settingsBackgroundRoute = uiState.shellChrome.selectedRoute
         }
     }
+    // Playback and media-identity changes must leave the active settings page and focus intact.
     LaunchedEffect(
         uiState.connect.connectedControllerDeviceId,
-        nowPlaying?.id,
         uiState.connect.pendingProvisioningControllerName,
     ) {
         val connectedControllerDeviceId = uiState.connect.connectedControllerDeviceId
-        val nowPlayingId = nowPlaying?.id
         val provisioningController = uiState.connect.pendingProvisioningControllerName
         val dismiss = televisionSettingsShouldDismissForControllerActivity(
             previousControllerDeviceId = observedControllerDeviceId,
             controllerDeviceId = connectedControllerDeviceId,
-            previousNowPlayingId = observedNowPlayingId,
-            nowPlayingId = nowPlayingId,
             previousProvisioningController = observedProvisioningController,
             provisioningController = provisioningController,
         )
         observedControllerDeviceId = connectedControllerDeviceId
-        observedNowPlayingId = nowPlayingId
         observedProvisioningController = provisioningController
         if (settingsOpen && dismiss) {
             settingsOpen = false
@@ -440,13 +435,10 @@ internal fun televisionNavigationFocusChangesRoute(
 internal fun televisionSettingsShouldDismissForControllerActivity(
     previousControllerDeviceId: String?,
     controllerDeviceId: String?,
-    previousNowPlayingId: String?,
-    nowPlayingId: String?,
     previousProvisioningController: String?,
     provisioningController: String?,
 ): Boolean =
     (controllerDeviceId != null && controllerDeviceId != previousControllerDeviceId) ||
-        (nowPlayingId != null && nowPlayingId != previousNowPlayingId) ||
         (previousProvisioningController != null && provisioningController == null)
 
 @Composable

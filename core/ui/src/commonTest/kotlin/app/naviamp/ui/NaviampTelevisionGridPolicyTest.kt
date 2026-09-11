@@ -64,6 +64,14 @@ class NaviampTelevisionGridPolicyTest {
     }
 
     @Test
+    fun libraryShortcutScrollsOnlyWhenTheTargetIsNotVisible() {
+        assertFalse(televisionLibraryShortcutRequiresScroll(targetIndex = 4, visibleItemIndices = 2..6))
+        assertFalse(televisionLibraryShortcutRequiresScroll(targetIndex = 2, visibleItemIndices = 2..6))
+        assertTrue(televisionLibraryShortcutRequiresScroll(targetIndex = 7, visibleItemIndices = 2..6))
+        assertTrue(televisionLibraryShortcutRequiresScroll(targetIndex = 0, visibleItemIndices = emptyList()))
+    }
+
+    @Test
     fun libraryShortcutTargetsTheRequestedOrNextAvailableSection() {
         val titles = listOf("2Pac", "Air", "Can", "Massive Attack")
 

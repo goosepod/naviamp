@@ -74,6 +74,11 @@ internal fun rememberNaviampTelevisionLibraryState(): NaviampTelevisionLibrarySt
 internal fun televisionLibraryRestoreIndex(ids: List<String>, focusedId: String?): Int? =
     if (ids.isEmpty()) null else ids.indexOf(focusedId).takeIf { it >= 0 } ?: 0
 
+internal fun televisionLibraryShortcutRequiresScroll(
+    targetIndex: Int,
+    visibleItemIndices: Iterable<Int>,
+): Boolean = targetIndex !in visibleItemIndices
+
 @Composable
 internal fun TelevisionLibrary(
     screen: NaviampLibraryScreenUi,
@@ -109,10 +114,14 @@ internal fun TelevisionLibrary(
     val songFocus = remember(ids, view) { ids.associateWith { FocusRequester() } }
     val scope = rememberCoroutineScope()
     var songFocusJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var shortcutFocusJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val currentSongFocus by rememberUpdatedState(songFocus)
     val currentIds by rememberUpdatedState(ids)
     DisposableEffect(view, viewport) {
-        onDispose { songFocusJob?.cancel() }
+        onDispose {
+            songFocusJob?.cancel()
+            shortcutFocusJob?.cancel()
+        }
     }
     val keyboard = LocalSoftwareKeyboardController.current
     var gridRequest by remember(view) { mutableStateOf<TelevisionGridFocusRequest?>(null) }
@@ -143,11 +152,18 @@ internal fun TelevisionLibrary(
         } else gridRequest = TelevisionGridFocusRequest(index, ++focusGeneration)
     }
     fun focusShortcut(index: Int) {
+        if (shortcutFocusJob?.isActive == true) return
         val target = index.coerceIn(shortcuts.indices)
-        scope.launch {
-            letterListState.scrollToItem(target)
-            withFrameNanos { }
-            letterFocus.getValue(shortcuts[target]).requestFocus()
+        val requester = letterFocus.getValue(shortcuts[target])
+        val visibleIndices = letterListState.layoutInfo.visibleItemsInfo.map { it.index }
+        if (!televisionLibraryShortcutRequiresScroll(target, visibleIndices)) {
+            requester.requestFocus()
+        } else {
+            shortcutFocusJob = scope.launch {
+                letterListState.scrollToItem(target)
+                withFrameNanos { }
+                requester.requestFocus()
+            }
         }
     }
     fun focusLetter() {

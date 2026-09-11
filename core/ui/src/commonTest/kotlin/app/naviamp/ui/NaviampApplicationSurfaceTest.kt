@@ -113,13 +113,19 @@ class NaviampApplicationSurfaceTest {
     }
 
     @Test
-    fun televisionSettingsDismissForControllerTakeoverPlaybackOrCompletedSetup() {
+    fun televisionSettingsDismissalIsLimitedToControllerOrSetupTransitions() {
         assertTrue(
             televisionSettingsShouldDismissForControllerActivity(
                 previousControllerDeviceId = null,
                 controllerDeviceId = "phone",
-                previousNowPlayingId = null,
-                nowPlayingId = null,
+                previousProvisioningController = null,
+                provisioningController = null,
+            ),
+        )
+        assertFalse(
+            televisionSettingsShouldDismissForControllerActivity(
+                previousControllerDeviceId = "phone",
+                controllerDeviceId = "phone",
                 previousProvisioningController = null,
                 provisioningController = null,
             ),
@@ -128,18 +134,6 @@ class NaviampApplicationSurfaceTest {
             televisionSettingsShouldDismissForControllerActivity(
                 previousControllerDeviceId = "phone",
                 controllerDeviceId = "phone",
-                previousNowPlayingId = null,
-                nowPlayingId = "track-1",
-                previousProvisioningController = null,
-                provisioningController = null,
-            ),
-        )
-        assertTrue(
-            televisionSettingsShouldDismissForControllerActivity(
-                previousControllerDeviceId = "phone",
-                controllerDeviceId = "phone",
-                previousNowPlayingId = null,
-                nowPlayingId = null,
                 previousProvisioningController = "Pixel",
                 provisioningController = null,
             ),
@@ -148,8 +142,6 @@ class NaviampApplicationSurfaceTest {
             televisionSettingsShouldDismissForControllerActivity(
                 previousControllerDeviceId = "phone",
                 controllerDeviceId = "phone",
-                previousNowPlayingId = "track-1",
-                nowPlayingId = "track-1",
                 previousProvisioningController = null,
                 provisioningController = null,
             ),

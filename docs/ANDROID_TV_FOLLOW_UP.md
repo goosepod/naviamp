@@ -224,7 +224,7 @@ presentation with real fixture playback.
 
 ## Quick Jump readability
 
-Status: readability implemented and validated; D-pad scrolling regression diagnosed, fix planned
+Status: readability and D-pad scrolling corrections validated on the Android TV emulator; physical motion validation remains open
 
 Fix the Android TV Quick Jump menu so its entries remain legible, especially the recently added
 Artists, Albums, and Songs destinations. Verify text contrast, focus state, spacing, and truncation
@@ -256,6 +256,20 @@ already composed and visible; request focus directly and let the rail make at mo
 adjustment. Retain a single controlled scroll-and-focus path only for a target that is genuinely
 outside the composed/visible window, such as restoring the letter for a distant catalog item. Keep
 this behavior in shared Core UI rather than adding an Android TV host workaround.
+
+September 11 implementation: `TelevisionLibrary` now requests focus directly for a composed,
+visible shortcut and reserves `scrollToItem` for an off-screen target. The deferred off-screen path
+admits only one active focus job so held D-pad input cannot queue competing scroll requests. Shared
+policy tests cover visible boundary items, off-screen targets, and the empty pre-layout state. The
+full shared UI JVM suite passes (349 tests, no failures/errors/skips), as do Android and iOS device/
+simulator ARM64 compilation and the Core-first architecture guard. Physical-TV motion validation
+remains open.
+
+Android TV emulator acceptance (September 11): the updated debug build on the 1080p API 36 ARM64
+AVD advanced the focused shortcut from D through M, crossing the visible window while leaving the
+requested letter focused with stable surrounding context. A 10-fps frame capture of the adjacent
+D-to-E move showed no intermediate jump that placed E at the top of the viewport. Physical-TV
+validation remains open because emulator capture does not establish viewing-distance motion quality.
 
 Regression acceptance:
 
@@ -290,16 +304,27 @@ performance acceptance open.
 
 ## Now Playing settings survive track changes
 
-Status: planned
+Status: implemented in shared Core and validated on the Android TV emulator; physical-TV validation remains open
 
-When the settings screen opened from Android TV Now Playing is visible, advancing to the next song
-currently closes that settings screen. A playback-state or current-track update must not reset the
+When the settings screen opened from Android TV Now Playing was visible, advancing to the next song
+closed that settings screen. A playback-state or current-track update must not reset the
 user's active overlay, navigation position, focus, or in-progress setting interaction. Playback
 should continue and update in the background until the user explicitly dismisses settings.
 
 Investigate whether the settings overlay or its remembered navigation state is keyed to the current
 track, artwork, or reconstructed Now Playing presentation model. Overlay lifetime belongs to the
 shared application/navigation state rather than media identity.
+
+September 11 implementation: the settings dismissal effect no longer observes media identity, and
+a track change is no longer classified as controller activity. The existing automatic handling for
+a newly connected controller and completed provisioning remains intact. Because the settings sheet
+stays in the same composition, its page, return focus, list state, and in-progress local interaction
+survive playback-state recomposition.
+
+Android TV emulator acceptance (September 11): with playback active, a media Next command advanced
+from “Save My Soul” to “Someone New” while the root settings sheet remained open. After entering the
+Display subsection, another Next command advanced to “Big Dipper” while Display remained open and
+focus stayed on **Keep screen awake**. Physical-TV validation remains open.
 
 Acceptance criteria:
 
