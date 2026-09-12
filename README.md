@@ -10,6 +10,9 @@ then browse, discover, queue, download, and play from one polished app on deskto
 
 Your music stays with the server you choose. Naviamp brings the player.
 
+[Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
+and share feedback.
+
 <p align="center">
   <img src="readme-assets/screenshots/desktop-now-playing-queue.png" alt="Naviamp desktop Now Playing screen and queue" width="780">
 </p>
@@ -112,7 +115,8 @@ preview is also available for users who can provide their own signing.
 Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
 Windows and macOS desktop packages are not publisher-signed and may show an operating-system
 warning. Windows installers install only for the current user and do not require administrator
-permission. See the [Naviamp 2.4 release notes](docs/v2.4-release-notes.md) for upgrade details and
+permission. See the [Naviamp 2.4 release notes](https://github.com/goosepod/naviamp/releases/tag/v2.4.0)
+for upgrade details and
 [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
 
 If an older machine-wide Windows release is already installed, uninstall that copy once before
@@ -171,8 +175,8 @@ make android-debug
 - Windows and Linux standalone/installer targets must run on their respective operating systems.
 
 The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared
-architecture and platform boundaries are documented in the
-[Naviamp 2.0 cross-platform plan](docs/v2-cross-platform-plan.md).
+architecture and platform boundaries are documented in
+[ADR 0001: Shared Runtime and Thin Platform Hosts](docs/architecture/0001-shared-runtime-thin-hosts.md).
 
 ## Contributing
 
