@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runComposeUiTest
@@ -18,6 +19,7 @@ import app.naviamp.domain.settings.PlaylistEditSwipeActions
 import app.naviamp.domain.settings.TrackSwipeSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPlaylistEditorTest {
@@ -56,6 +58,75 @@ class NaviampPlaylistEditorTest {
         assertEquals(1, playlistDragTargetIndex(fromIndex = 3, dragOffsetY = -90f, rowStepPx = 44f, lastIndex = 5))
         assertEquals(44f, playlistDragGapOffset(rowIndex = 1, fromIndex = 3, targetIndex = 1, rowStepPx = 44f))
         assertEquals(44f, playlistDragGapOffset(rowIndex = 2, fromIndex = 3, targetIndex = 1, rowStepPx = 44f))
+    }
+
+    @Test
+    fun editablePlaylistRowsKeepBothMetadataLinesVisibleAtLargeFontScale() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(
+                    density = 1f,
+                    fontScale = 2f,
+                ),
+            ) {
+                StandardPlaylistManagementList(
+                    colors = NaviampColors(),
+                    initialTracks = listOf(
+                        SharedTrackRowUi(id = "with-artist", title = "Track with artist", subtitle = "Visible Artist"),
+                    ),
+                    onTrackSelected = {},
+                    onSave = {},
+                )
+            }
+        }
+
+        val titleBounds = onNodeWithText("Track with artist", useUnmergedTree = true)
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val artistBounds = onNodeWithText("Visible Artist", useUnmergedTree = true)
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue(artistBounds.center.y > titleBounds.center.y)
+    }
+
+    @Test
+    fun smartAndEditablePlaylistRowsShareArtistAndMissingMetadataPolicy() = runComposeUiTest {
+        setContent {
+            Column {
+                StandardPlaylistManagementList(
+                    colors = NaviampColors(),
+                    initialTracks = listOf(
+                        SharedTrackRowUi(id = "standard", title = "Standard track", subtitle = "Standard Artist"),
+                        SharedTrackRowUi(id = "standard-missing", title = "Standard missing artist", subtitle = ""),
+                    ),
+                    onTrackSelected = {},
+                    onSave = {},
+                )
+                SmartPlaylistTrackList(
+                    colors = NaviampColors(),
+                    tracks = listOf(
+                        SharedTrackRowUi(id = "smart", title = "Smart track", subtitle = "Smart Artist"),
+                        SharedTrackRowUi(id = "smart-missing", title = "Smart missing artist", subtitle = ""),
+                    ),
+                    onTrackSelected = {},
+                )
+            }
+        }
+
+        onNodeWithText("Standard Artist").assertIsDisplayed()
+        onNodeWithText("Smart Artist").assertIsDisplayed()
+        onNodeWithText("Standard missing artist").assertIsDisplayed()
+        onNodeWithText("Smart missing artist").assertIsDisplayed()
+    }
+
+    @Test
+    fun editablePlaylistRowStepAccountsForScaledTitleAndArtistLines() {
+        assertEquals(52f, playlistManagementRowStepPx(density = 1f, fontScale = 1f))
+        assertEquals(68f, playlistManagementRowStepPx(density = 1f, fontScale = 2f))
+    }
+
+    @Test
+    fun playlistRowsOmitMissingArtistMetadataInsteadOfRenderingABlankLine() {
+        assertEquals("Artist", playlistTrackSubtitle(SharedTrackRowUi("artist", "Track", " Artist ")))
+        assertEquals(null, playlistTrackSubtitle(SharedTrackRowUi("missing", "Track", "   ")))
     }
 
     @Test

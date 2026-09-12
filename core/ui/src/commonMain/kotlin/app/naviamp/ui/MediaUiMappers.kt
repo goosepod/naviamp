@@ -459,7 +459,7 @@ fun Track.toSharedTrackRowUi(
     SharedTrackRowUi(
         id = id.value,
         title = title,
-        subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
+        subtitle = sharedTrackSubtitle(),
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         durationLabel = durationSeconds?.durationLabel().orEmpty(),
         ratingLabel = compactFavoriteRatingLabel(),
@@ -493,7 +493,7 @@ fun Track.toNowPlayingItemUi(coverArtUrl: (String?) -> String?): NaviampNowPlayi
     NaviampNowPlayingItemUi(
         id = id.value,
         title = title,
-        subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
+        subtitle = sharedTrackSubtitle(),
         meta = durationSeconds?.durationLabel().orEmpty(),
         coverArtUrl = coverArtUrl(coverArtId),
         favoriteActive = favoritedAtIso8601 != null,
@@ -501,6 +501,12 @@ fun Track.toNowPlayingItemUi(coverArtUrl: (String?) -> String?): NaviampNowPlayi
         hasArtist = resolvedArtistCredits().any { it.id != null },
         artistCredits = toSharedArtistCreditUis(),
     )
+
+private fun Track.sharedTrackSubtitle(): String =
+    listOf(artistName, albumTitle.orEmpty())
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .joinToString(" - ")
 
 fun Track.toNowPlayingItemUi(
     id: String,
