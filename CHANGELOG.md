@@ -398,7 +398,7 @@ This alpha expands Naviamp beyond Navidrome with shared Subsonic, Jellyfin, and 
 - Bandcamp's current beta serves collection audio as MP3 256 kbps and does not reliably apply playlist track reordering; Naviamp blocks reorder mutations for that provider.
 - Provider features are shown only where the current capability profile supports them. Jellyfin does not expose Navidrome smart playlists or sonic-analysis features, and its favorite state is separate from Naviamp's star/rating action.
 - Generic Subsonic compatibility still needs broader testing against additional non-Navidrome server implementations and legacy authentication configurations.
-- Windows, Linux, physical-iPhone, large-library, and long-running multi-provider acceptance remain limited; the detailed remaining matrix is recorded in `docs/provider-expansion-discovery.md`.
+- Windows, Linux, physical-iPhone, large-library, and long-running multi-provider acceptance remain limited; continuing provider compatibility work is tracked in [GitHub issue #37](https://github.com/goosepod/naviamp/issues/37).
 - Windows and macOS builds are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
 - The iOS IPA is unsigned and requires testers to sign it with their own Apple identity before sideloading.
 
