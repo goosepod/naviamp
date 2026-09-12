@@ -1,7 +1,7 @@
 # OpenSubsonic API usage audit
 
-Current branch status: [stabilization acceptance](stabilization-acceptance.md). The dated audit
-and validation notes below preserve historical evidence.
+This maintained record documents the provider behavior decisions and source evidence behind
+Naviamp's OpenSubsonic implementation. Update it when those protocol decisions change.
 
 Audited 2026-09-05 at commit `c4d9c5160a67ea24324397169301ba58a484a175`.
 
