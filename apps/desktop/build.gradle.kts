@@ -96,7 +96,10 @@ compose.desktop {
         when {
             desktopNativePlatform.get().startsWith("windows-") -> {
                 val renderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
-                    .orElse("DEFAULT")
+                    // Skiko's Direct3D backend can spin a render thread at one full logical core
+                    // while an otherwise static window is visible. OpenGL preserves GPU rendering
+                    // and lets the Windows event loop sleep between actual frame invalidations.
+                    .orElse("OPENGL")
                     .get()
                     .trim()
                 if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {

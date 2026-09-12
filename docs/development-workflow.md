@@ -33,16 +33,18 @@ packaging, security, and user documentation must remain tracked.
 ## Release flow
 
 1. Select completed work with a GitHub milestone and confirm it is merged into `main`.
-2. Cut `release/<version>` from the accepted `main` commit for focused stabilization.
-3. Limit that branch to release blockers, documentation, versioning, and packaging fixes, each linked
+2. Add appropriate automated performance and regression tests for every release-scoped change, and
+   require those tests to pass before creating the release tag.
+3. Cut `release/<version>` from the accepted `main` commit for focused stabilization.
+4. Limit that branch to release blockers, documentation, versioning, and packaging fixes, each linked
    to an issue and pull request when substantive.
-4. Merge each release fix back into `main` immediately, or fix `main` first and cherry-pick it.
-5. Run the complete release verification matrix against the release branch.
-6. Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`.
-7. Tag the accepted commit. The tag workflow builds all artifacts and creates a draft GitHub Release.
-8. Review and publish the draft, then create an Announcements Discussion linking to the release.
-9. Close the milestone when its shipped state is accurate.
-10. Mirror the accepted commits and tags to Forgejo using the procedure below.
+5. Merge each release fix back into `main` immediately, or fix `main` first and cherry-pick it.
+6. Run the complete release verification matrix against the release branch.
+7. Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`.
+8. Tag the accepted commit. The tag workflow builds all artifacts and creates a draft GitHub Release.
+9. Review and publish the draft, then create an Announcements Discussion linking to the release.
+10. Close the milestone when its shipped state is accurate.
+11. Mirror the accepted commits and tags to Forgejo using the procedure below.
 
 Release notes compare against the previous public release, lead with product significance, and link
 substantive changes to accepted GitHub issues and pull requests. First-time capabilities are described

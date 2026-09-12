@@ -6,6 +6,7 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 ### Bug Fixes
 
+- Stop the Windows desktop renderer from consuming a full logical CPU core while the app is idle.
 - Recover the Windows equalizer fix from the v2.4.0 stabilization branch: use bundled BASS FX
   for low-frequency bands and share equalizer frequency, gain, bandwidth, and sample-rate handling
   across hosts.

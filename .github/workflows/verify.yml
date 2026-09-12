@@ -176,6 +176,10 @@ jobs:
         shell: powershell
         run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest
 
+      - name: Verify packaged Windows idle CPU
+        shell: powershell
+        run: .\scripts\windows-idle-cpu.ps1
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
