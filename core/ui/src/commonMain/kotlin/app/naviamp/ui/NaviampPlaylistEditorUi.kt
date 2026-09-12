@@ -102,6 +102,18 @@ private data class PlaylistManagementEntry(
     val track: SharedTrackRowUi,
 )
 
+internal fun playlistManagementRowStepPx(
+    density: Float,
+    fontScale: Float,
+): Float = maxOf(
+    PlaylistManagementMinimumRowStep.value * density,
+    (PlaylistTrackTitleLineHeight.value + PlaylistTrackSubtitleLineHeight.value) * density * fontScale +
+        PlaylistManagementVerticalPadding.value * 2f * density,
+)
+
+internal fun playlistTrackSubtitle(track: SharedTrackRowUi): String? =
+    track.subtitle.trim().takeIf(String::isNotEmpty)
+
 @Composable
 fun StandardPlaylistEditorDialog(
     colors: NaviampColors,
@@ -182,23 +194,7 @@ fun StandardPlaylistEditorDialog(
                                         width = trackNumberWidth,
                                         color = colors.mutedText,
                                     )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            track.title,
-                                            color = colors.primaryText,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Text(
-                                            track.subtitle,
-                                            color = colors.secondaryText,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
+                                    PlaylistTrackIdentity(track = track, colors = colors, modifier = Modifier.weight(1f))
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -288,7 +284,7 @@ fun StandardPlaylistManagementList(
     val autoScrollEdgePx = with(density) { PlaylistDragAutoScrollEdge.toPx() }
     val minimumAutoScrollPx = with(density) { PlaylistDragMinimumAutoScroll.toPx() }
     val maximumAutoScrollPx = with(density) { PlaylistDragMaximumAutoScroll.toPx() }
-    val rowStepPx = with(density) { PlaylistManagementRowStep.toPx() }
+    val rowStepPx = playlistManagementRowStepPx(density.density, density.fontScale)
     val trackNumberWidth = trackNumberColumnWidth(entries.size)
     val dragTargetIndex = draggingIndex?.let { fromIndex ->
         playlistDragTargetIndex(fromIndex, dragOffsetY, rowStepPx, entries.lastIndex)
@@ -417,6 +413,7 @@ fun StandardPlaylistManagementList(
                             track = entry.track,
                             index = index,
                             trackNumberWidth = trackNumberWidth,
+                            rowStepPx = rowStepPx,
                             modifier = swipeModifier,
                             isDragging = isDragging,
                             dragEnabled = !saving,
@@ -489,23 +486,7 @@ fun SmartPlaylistTrackList(
                     width = trackNumberWidth,
                     color = colors.mutedText,
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        track.title,
-                        color = colors.primaryText,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        track.subtitle,
-                        color = colors.secondaryText,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                PlaylistTrackIdentity(track = track, colors = colors, modifier = Modifier.weight(1f))
                 Text(track.meta, color = colors.mutedText, fontSize = 11.sp)
             }
         }
@@ -518,6 +499,7 @@ private fun PlaylistManagementTrackRow(
     track: SharedTrackRowUi,
     index: Int,
     trackNumberWidth: Dp,
+    rowStepPx: Float,
     modifier: Modifier,
     isDragging: Boolean,
     dragEnabled: Boolean,
@@ -534,7 +516,7 @@ private fun PlaylistManagementTrackRow(
             .zIndex(if (isDragging) 1f else 0f)
             .background(if (isDragging) colors.accent.copy(alpha = 0.18f) else Color.Transparent)
             .clickable(onClick = onTrackSelected)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = PlaylistManagementVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -543,23 +525,7 @@ private fun PlaylistManagementTrackRow(
             width = trackNumberWidth,
             color = colors.mutedText,
         )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                track.title,
-                color = colors.primaryText,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                track.subtitle,
-                color = colors.secondaryText,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        PlaylistTrackIdentity(track = track, colors = colors, modifier = Modifier.weight(1f))
         Text(track.meta, color = colors.mutedText, fontSize = 11.sp)
         Icon(
             NaviampTransportIcons.Menu,
@@ -581,7 +547,7 @@ private fun PlaylistManagementTrackRow(
                                         ?: Float.NaN
                                     onDrag(dragAmount.y, pointerY)
                                 },
-                                onDragEnd = { onDragEnd(PlaylistManagementRowStep.toPx()) },
+                                onDragEnd = { onDragEnd(rowStepPx) },
                                 onDragCancel = onDragCancel,
                             )
                         }
@@ -594,7 +560,39 @@ private fun PlaylistManagementTrackRow(
     }
 }
 
-private val PlaylistManagementRowStep = 52.dp
+@Composable
+private fun PlaylistTrackIdentity(
+    track: SharedTrackRowUi,
+    colors: NaviampColors,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            track.title,
+            color = colors.primaryText,
+            fontSize = 13.sp,
+            lineHeight = PlaylistTrackTitleLineHeight,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        playlistTrackSubtitle(track)?.let { subtitle ->
+            Text(
+                subtitle,
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+                lineHeight = PlaylistTrackSubtitleLineHeight,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+private val PlaylistManagementMinimumRowStep = 52.dp
+private val PlaylistManagementVerticalPadding = 4.dp
+private val PlaylistTrackTitleLineHeight = 16.sp
+private val PlaylistTrackSubtitleLineHeight = 14.sp
 private val PlaylistDragAutoScrollEdge = 72.dp
 private val PlaylistDragMinimumAutoScroll = 3.dp
 private val PlaylistDragMaximumAutoScroll = 16.dp
