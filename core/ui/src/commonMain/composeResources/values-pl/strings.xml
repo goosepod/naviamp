@@ -119,4 +119,12 @@
     <string name="settings_source_delete_content_description">Usuń połączenie</string>
     <string name="settings_source_libraries_prefix">Biblioteki: %1$s</string>
     <string name="settings_local_data_title">Dane lokalne</string>
+    <string name="smart_playlist_field_album_date_added">Data dodania albumu</string>
+    <string name="smart_playlist_field_album_date_modified">Data modyfikacji albumu</string>
+    <string name="smart_playlist_field_album_duration">Czas trwania albumu</string>
+    <string name="smart_playlist_field_album_song_count">Liczba utworów w albumie</string>
+    <string name="smart_playlist_field_album_size">Rozmiar albumu</string>
+    <string name="smart_playlist_refresh_delay">Interwał odświeżania</string>
+    <string name="smart_playlist_refresh_delay_hint">Opcjonalnie. Przykłady: 12h, 1d lub 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Użyj prawidłowego czasu, np. 12h, 1d lub 1w.</string>
 </resources>
