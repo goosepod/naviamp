@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_now_playing_split_background_opacity">분할 보기 배경 불투명도</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="smart_playlist_field_album_date_added">앨범 추가 날짜</string>
     <string name="smart_playlist_field_album_date_modified">앨범 수정 날짜</string>
     <string name="smart_playlist_field_album_duration">앨범 재생 시간</string>

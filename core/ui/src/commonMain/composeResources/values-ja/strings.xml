@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_now_playing_split_background_opacity">分割表示の背景の不透明度</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="smart_playlist_field_album_date_added">アルバム追加日</string>
     <string name="smart_playlist_field_album_date_modified">アルバム更新日</string>
     <string name="smart_playlist_field_album_duration">アルバムの長さ</string>
