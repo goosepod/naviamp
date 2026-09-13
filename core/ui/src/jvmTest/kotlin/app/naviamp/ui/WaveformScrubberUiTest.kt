@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.toPixelMap
@@ -13,6 +14,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.center
@@ -21,6 +23,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.right
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -60,7 +63,9 @@ class WaveformScrubberUiTest {
     fun renderedScrubberSeeksToTheClickedQuarterHalfAndThreeQuarterPositions() = runComposeUiTest {
         val finishedFractions = mutableListOf<Float>()
         setContent {
-            ScrubberTestRow(onFinished = finishedFractions::add)
+            CompositionLocalProvider(LocalDensity provides Density(1.25f)) {
+                ScrubberTestRow(onFinished = finishedFractions::add)
+            }
         }
 
         listOf(0.25f, 0.5f, 0.75f).forEach { fraction ->
@@ -75,6 +80,45 @@ class WaveformScrubberUiTest {
             assertEquals(0.25f, finishedFractions[0], absoluteTolerance = 0.01f)
             assertEquals(0.5f, finishedFractions[1], absoluteTolerance = 0.01f)
             assertEquals(0.75f, finishedFractions[2], absoluteTolerance = 0.01f)
+        }
+    }
+
+    @Test
+    fun renderedScrubberUsesTheNewTrackDurationAfterTrackChange() = runComposeUiTest {
+        val trackId = mutableStateOf("first")
+        val durationSeconds = mutableStateOf(100.0)
+        val finishedSeconds = mutableListOf<Double>()
+        setContent {
+            val renderedDuration = durationSeconds.value
+            WaveformScrubber(
+                amplitudes = listOf(0.2f, 0.8f, 0.4f),
+                value = 0f,
+                enabled = true,
+                durationSeconds = renderedDuration,
+                progressIdentity = trackId.value,
+                colors = NaviampColors(),
+                onValueChange = {},
+                onValueChangeFinished = { fraction -> finishedSeconds += fraction * renderedDuration },
+                modifier = Modifier.width(200.dp).height(28.dp).testTag("transitioning-waveform"),
+            )
+        }
+
+        onNodeWithTag("transitioning-waveform").performTouchInput {
+            down(center)
+            up()
+        }
+        runOnIdle {
+            trackId.value = "second"
+            durationSeconds.value = 200.0
+        }
+        waitForIdle()
+        onNodeWithTag("transitioning-waveform").performTouchInput {
+            down(center)
+            up()
+        }
+
+        runOnIdle {
+            assertEquals(listOf(50.0, 100.0), finishedSeconds.map { kotlin.math.round(it * 10) / 10 })
         }
     }
 }

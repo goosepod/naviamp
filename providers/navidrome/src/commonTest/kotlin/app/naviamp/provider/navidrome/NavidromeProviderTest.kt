@@ -1823,6 +1823,41 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun navidrome064SmartPlaylistFieldsAndRefreshDelaySurviveNativeRoundTrip() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """
+            {
+              "data": {
+                "id": "smart-1",
+                "name": "Daily Albums",
+                "rules": {
+                  "all": [
+                    { "inTheLast": { "albumdateadded": 30 } },
+                    { "gt": { "albumsongcount": 4 } }
+                  ],
+                  "sort": "-albumdateadded,album,discnumber,tracknumber",
+                  "refreshDelay": "1d12h"
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        val definition = provider.smartPlaylistDefinition("smart-1")
+        provider.updateSmartPlaylist("smart-1", definition)
+
+        assertEquals("1d12h", definition.refreshDelay)
+        assertEquals(
+            """{"name":"Daily Albums","rules":{"all":[{"inTheLast":{"albumdateadded":30}},{"gt":{"albumsongcount":4}}],"sort":"-albumdateadded,album,discnumber,tracknumber","refreshDelay":"1d12h"}}""",
+            httpClient.putBodies.single(),
+        )
+    }
+
+    @Test
     fun smartPlaylistDefinitionHidesInjectedSelectedMusicFolderScope() = runTest {
         val httpClient = RecordingNativeHttpClient(
             """

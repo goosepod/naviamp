@@ -7,7 +7,12 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderIdentityProbeState
+import app.naviamp.domain.playback.PlaybackProfile
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.settings.SavedInternetRadioStation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -74,7 +79,31 @@ class StorageProviderIdentityMigrationStoreTest {
                 coverArtId = oldCover, audioInfo = null, replayGain = null,
                 artistCredits = listOf(ArtistCredit(ArtistId(oldArtist), "Artist")),
             )
-            catalog.playbackSessions.savePlaybackSession(PlaybackSessionSettings.fromTracks(listOf(track), 0), source.id)
+            val albumTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, oldAlbum)
+            val queueGroup = PlaybackQueueGroup(
+                id = "Album:$oldAlbum:after:0",
+                target = albumTarget,
+                label = "Album",
+                startIndex = 0,
+                endIndexExclusive = 1,
+                profile = PlaybackProfile(),
+            )
+            catalog.playbackSessions.savePlaybackSession(
+                PlaybackSessionSettings.fromTracks(listOf(track), 0, queueGroups = listOf(queueGroup))?.copy(
+                    internetRadioStation = SavedInternetRadioStation(
+                        id = oldPlaylist,
+                        name = "Station",
+                        streamUrl = "https://radio.example/stream",
+                        sourceId = source.id,
+                    ),
+                ),
+                source.id,
+            )
+            queries.upsertFavoriteArtistActivity(
+                source.id, oldArtist, "Artist", "2026-01-01T00:00:00Z", 1L, "2026-01-02T00:00:00Z", 2L,
+            )
+            queries.upsertPlaybackProfile(source.id, "Album", oldAlbum, "Gapless", null, "Album", 2L)
+            queries.replaceAlbumCatalogSnapshot(source.id, "all", "[{\"id\":\"$oldAlbum\"}]", 2L)
             queries.upsertPlaybackHistory(
                 source.id, oldTrack, "Track", oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover,
                 "flac", null, "audio/flac", null, null, null, null, 1L,
@@ -86,8 +115,9 @@ class StorageProviderIdentityMigrationStoreTest {
             val probeState = ProviderIdentityProbeState(1L, "0.63.2 (old-build)")
             catalog.mediaSources.recordProviderIdentityProbeState(source.id, probeState)
             assertEquals(probeState, catalog.mediaSources.providerIdentityProbeState(source.id))
+            queries.markProviderIdentityVersion(1L, source.id)
 
-            val result = catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 1L, transform)
+            val result = catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 2L, transform)
 
             assertTrue(result.migrated)
             assertTrue(result.transformedReferences > 0)
@@ -101,8 +131,15 @@ class StorageProviderIdentityMigrationStoreTest {
             assertEquals("new-cover", download.cover_art_id)
             assertEquals(listOf("new-track"), queries.selectKeepDownloadedTrackIds(source.id, "playlist", "new-playlist").executeAsList())
             assertEquals(listOf("new-track"), queries.selectManagedKeepDownloadedTrackIds(source.id).executeAsList())
-            assertEquals("new-track", catalog.playbackSessions.loadPlaybackSession(source.id)?.tracks?.single()?.id)
-            assertEquals("new-artist", catalog.playbackSessions.loadPlaybackSession(source.id)?.tracks?.single()?.artistId)
+            val playbackSession = catalog.playbackSessions.loadPlaybackSession(source.id)
+            assertEquals("new-track", playbackSession?.tracks?.single()?.id)
+            assertEquals("new-artist", playbackSession?.tracks?.single()?.artistId)
+            assertEquals("new-album", playbackSession?.queueGroups?.single()?.target?.id)
+            assertEquals("Album:new-album:after:0", playbackSession?.queueGroups?.single()?.id)
+            assertEquals("new-playlist", playbackSession?.internetRadioStation?.id)
+            assertEquals("new-artist", queries.selectFavoriteArtistActivities(source.id).executeAsOne().remote_artist_id)
+            assertEquals("Gapless", queries.selectPlaybackProfile(source.id, "Album", "new-album").executeAsOne().transition_mode)
+            assertNull(queries.selectAlbumCatalogSnapshot(source.id, "all").executeAsOneOrNull())
             assertEquals("new-track", queries.selectPlaybackHistory(source.id, 1L).executeAsOne().remote_track_id)
             assertEquals("new-track", queries.selectPendingProviderActions(source.id, 1L).executeAsOne().entity_id)
             assertEquals(0L, queries.responseCacheCount().executeAsOne())
@@ -110,7 +147,7 @@ class StorageProviderIdentityMigrationStoreTest {
             assertNull(catalog.mediaSources.mediaSource(source.id)?.lastLibraryScanSignature)
             assertNull(catalog.mediaSources.providerIdentityProbeState(source.id))
 
-            assertFalse(catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 1L, transform).migrated)
+            assertFalse(catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 2L, transform).migrated)
         } finally {
             driver.close()
         }

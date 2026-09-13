@@ -25,6 +25,16 @@ capability; prerelease implementation fixes are not separate public changes.
 Order announcements by product significance. Major launches lead the title, summary, and
 highlights. Improvements and fixes to previously released behavior follow.
 
+## In-App Release Changelog
+
+Before tagging every Naviamp release, update the shared changelog shown on the About page. Its
+entries must describe that release's public changes compared with the previous public release and
+must use the same product-significance ordering as the release notes.
+
+Update the changelog regression test to assert the new release's important entries, and verify the
+changelog renders in the About UI. GitHub release notes and the Announcements discussion do not
+replace this requirement. An outdated or unverified in-app changelog blocks the release tag.
+
 ## Repository and Issue Workflow
 
 Follow [`docs/development-workflow.md`](docs/development-workflow.md). GitHub is Naviamp's canonical
@@ -35,6 +45,17 @@ Use a GitHub issue and a dedicated short-lived branch for each feature, bug fix,
 update. Merge completed work into `main` through a linked pull request, use milestones to select
 release scope, and cut a short-lived release branch from an accepted `main` commit for final
 stabilization.
+
+## GitHub CLI Authentication on Windows
+
+This Windows workspace stores GitHub CLI credentials in Windows Credential Manager. The workspace
+sandbox cannot read that keyring, so a sandboxed `gh auth status` or authenticated `gh` command may
+falsely report that the token is invalid.
+
+Run every authenticated `gh` command in the Windows credential context outside the workspace
+sandbox. Before initiating any login flow, verify the existing credential there with an
+authenticated API request such as `gh api user`. Never replace or refresh the credential solely
+because a sandboxed authentication check failed.
 
 ## Core Is the Product
 

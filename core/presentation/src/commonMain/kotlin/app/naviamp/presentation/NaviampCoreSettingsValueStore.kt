@@ -3,12 +3,16 @@ package app.naviamp.presentation
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.ProviderIdentitySettingsMigrationRepository
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.radio.MaxRecentRadioStreams
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.normalized
+import app.naviamp.domain.settings.migratedProviderIdentities
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -38,6 +42,50 @@ fun naviampCoreSettingsValueCatalog(
     }
     return naviampCoreSettingsValueCatalogWithoutMigration(values, json)
 }
+
+/** Shared migration for provider-defined IDs stored in portable JSON settings. */
+fun naviampCoreProviderIdentitySettingsMigrationRepository(
+    values: NaviampCoreSettingsValueStore,
+    json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
+): ProviderIdentitySettingsMigrationRepository = object : ProviderIdentitySettingsMigrationRepository {
+    override fun providerIdentitySettingsVersion(sourceId: String): Long? =
+        readProviderIdentitySettingsVersions(values, json)[sourceId]
+
+    override fun migrateProviderIdentitySettings(
+        sourceId: String,
+        targetVersion: Long,
+        transform: (String) -> String,
+    ): Boolean {
+        val installed = readProviderIdentitySettingsVersions(values, json)
+        if ((installed[sourceId] ?: 0L) >= targetVersion) return false
+
+        val recentRadio = read(values, json, KeyRecentRadio, emptyList<RecentRadioStream>())
+            .map { it.migratedProviderIdentities(sourceId, transform) }
+        val recentInternetRadio = read(values, json, KeyRecentInternetRadio, emptyList<SavedInternetRadioStation>())
+            .map { it.migratedProviderIdentities(sourceId, transform) }
+        write(values, json, KeyRecentRadio, recentRadio)
+        write(values, json, KeyRecentInternetRadio, recentInternetRadio)
+        values.write(
+            KeyProviderIdentityVersions,
+            json.encodeToString(
+                MapSerializer(String.serializer(), Long.serializer()),
+                installed + (sourceId to targetVersion),
+            ),
+        )
+        return true
+    }
+}
+
+private fun readProviderIdentitySettingsVersions(
+    values: NaviampCoreSettingsValueStore,
+    json: Json,
+): Map<String, Long> = values.read(KeyProviderIdentityVersions)
+    ?.let { encoded ->
+        runCatching {
+            json.decodeFromString(MapSerializer(String.serializer(), Long.serializer()), encoded)
+        }.getOrNull()
+    }
+    .orEmpty()
 
 /** Internal construction seam used by migration to avoid recursively re-entering migration. */
 internal fun naviampCoreSettingsValueCatalogWithoutMigration(
@@ -98,3 +146,4 @@ internal const val KeyRecentRadio = "naviamp.recentRadio"
 internal const val KeyRecentInternetRadio = "naviamp.recentInternetRadio"
 internal const val KeySyncRuntime = "naviamp.syncRuntime"
 internal const val KeyRecentPlaylists = "naviamp.recentPlaylists"
+internal const val KeyProviderIdentityVersions = "naviamp.providerIdentityVersions"

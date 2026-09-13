@@ -25,6 +25,7 @@ import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.createNaviampCore
 import app.naviamp.presentation.externalPlaybackBridge
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
+import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampNowEpochMillis
@@ -136,6 +137,7 @@ class NaviampIosApplication(
                 providerMediaSourceRepository = repositories.mediaSources,
                 nowEpochMillis = ::naviampNowEpochMillis,
             ),
+            identitySettingsMigrations = naviampCoreProviderIdentitySettingsMigrationRepository(settingsValueStore),
         ),
         additionalRoutes = listOf(
             NaviampCoreProviderSessionRoute(

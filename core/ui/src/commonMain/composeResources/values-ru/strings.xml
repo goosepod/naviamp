@@ -17,4 +17,12 @@
     <string name="settings_now_playing_split_background_opacity">Непрозрачность фона в режиме разделённого экрана</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="now_playing_playback_device">Устройство воспроизведения: %1$s</string>
+    <string name="smart_playlist_field_album_date_added">Дата добавления альбома</string>
+    <string name="smart_playlist_field_album_date_modified">Дата изменения альбома</string>
+    <string name="smart_playlist_field_album_duration">Длительность альбома</string>
+    <string name="smart_playlist_field_album_song_count">Количество треков в альбоме</string>
+    <string name="smart_playlist_field_album_size">Размер альбома</string>
+    <string name="smart_playlist_refresh_delay">Интервал обновления</string>
+    <string name="smart_playlist_refresh_delay_hint">Необязательно. Примеры: 12h, 1d или 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Укажите допустимую длительность, например 12h, 1d или 1w.</string>
 </resources>

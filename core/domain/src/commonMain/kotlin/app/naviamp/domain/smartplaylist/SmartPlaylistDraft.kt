@@ -11,6 +11,7 @@ data class SmartPlaylistDraft(
     val limit: Int = 100,
     val isPublic: Boolean = false,
     val selectedLibraryIds: List<String>? = null,
+    val refreshDelay: String = "",
 ) {
     fun toDefinition(): SmartPlaylistDefinition {
         val validConditions = conditions.mapNotNull { it.toRuleOrNull() }
@@ -28,6 +29,7 @@ data class SmartPlaylistDraft(
             limitPercent = limit.takeIf { limitMode == SmartPlaylistLimitMode.Percent },
             isPublic = isPublic,
             libraryIds = selectedLibraryIds,
+            refreshDelay = refreshDelay.trim().takeIf { it.isNotEmpty() },
         )
     }
 
@@ -59,6 +61,7 @@ data class SmartPlaylistDraft(
                 limit = definition.limitPercent ?: definition.limit ?: 100,
                 isPublic = definition.isPublic ?: false,
                 selectedLibraryIds = definition.libraryIds,
+                refreshDelay = definition.refreshDelay.orEmpty(),
             )
         }
     }
@@ -441,6 +444,36 @@ object SmartPlaylistFieldCatalog {
         SmartPlaylistFieldOption(SmartPlaylistFields.AlbumLastPlayed, "Album Last Played", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.AlbumDateLoved, "Album Date Favorited", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.AlbumDateRated, "Album Date Rated", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumDateAdded,
+            SmartPlaylistFields.AlbumDateAdded,
+            SmartPlaylistValueType.Date,
+            dateOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumDateModified,
+            SmartPlaylistFields.AlbumDateModified,
+            SmartPlaylistValueType.Date,
+            dateOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumDuration,
+            SmartPlaylistFields.AlbumDuration,
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumSongCount,
+            SmartPlaylistFields.AlbumSongCount,
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumSize,
+            SmartPlaylistFields.AlbumSize,
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
         SmartPlaylistFieldOption(SmartPlaylistFields.ArtistLastPlayed, "Artist Last Played", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.ArtistDateLoved, "Artist Date Favorited", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.ArtistDateRated, "Artist Date Rated", SmartPlaylistValueType.Date, dateOperators),

@@ -221,4 +221,34 @@ class SmartPlaylistDefinitionTest {
 
         assertEquals(true, value)
     }
+
+    @Test
+    fun refreshDelayRoundTripsFromNestedNativeRulesWithoutNormalization() {
+        val definition = SmartPlaylistDefinition.fromNspJson(
+            """
+            {
+              "name": "Daily Albums",
+              "rules": {
+                "all": [{ "inTheLast": { "albumdateadded": 30 } }],
+                "sort": "-albumdateadded,album,discnumber,tracknumber",
+                "refreshDelay": "1.0d12h"
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("1.0d12h", definition.refreshDelay)
+        assertEquals("1.0d12h", definition.toRulesJsonElement()["refreshDelay"]?.jsonPrimitive?.content)
+        assertEquals(SmartPlaylistFields.AlbumDateAdded, (definition.rules.single() as SmartPlaylistCondition).field)
+    }
+
+    @Test
+    fun refreshDelayValidationMatchesNavidromeDurationExtensions() {
+        listOf("0", "+0", "12h", "1d", "1w", "1d12h", "1.5d", "500ms", ".5h").forEach { value ->
+            assertEquals(true, SmartPlaylistRefreshDelay.isValid(value), value)
+        }
+        listOf("", "-1h", "1 day", ".5d", "1.d", "1x", "1d 12h").forEach { value ->
+            assertEquals(false, SmartPlaylistRefreshDelay.isValid(value), value)
+        }
+    }
 }

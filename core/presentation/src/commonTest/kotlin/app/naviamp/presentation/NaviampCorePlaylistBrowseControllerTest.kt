@@ -159,6 +159,7 @@ class NaviampCorePlaylistBrowseControllerTest {
         val state = store.state.value.shell.playlistDetail
         assertEquals("Playlist A", state.selectedPlaylist?.title)
         assertEquals(listOf("Track 1", "Track 2"), state.detail?.tracks?.map { it.title })
+        assertEquals(listOf("Artist - Album", "Artist - Album"), state.detail?.tracks?.map { it.subtitle })
         assertEquals(2, state.detail?.playlist?.trackCount)
         assertEquals("Connected.", state.status)
     }

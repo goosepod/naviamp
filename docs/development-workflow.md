@@ -47,23 +47,19 @@ integration branch, large late merge conflicts, and fixes that exist only in one
 
 ## Release flow
 
-1. Select the completed issues intended for the release with a GitHub milestone.
-2. Confirm that every selected issue is merged into `main`, satisfies its acceptance criteria, and
-   has appropriate release-note material.
-3. Cut `release/<version>` from the exact accepted `main` commit when the release enters its focused
-   stabilization and platform-testing period.
-4. Allow only release blockers, documentation, versioning, and packaging fixes onto the release
-   branch. Give each substantive release fix an issue and pull request.
-5. Merge every release-branch fix back into `main` immediately, or apply the fix to `main` first and
-   cherry-pick it into the release branch, so the lines cannot drift.
-6. Run the full release verification matrix and required device/platform acceptance against the
-   release branch.
-7. Tag the accepted release commit, publish all artifacts as one GitHub Release, and create the
-   required GitHub Discussion in the **Announcements** category.
-8. Close the milestone and update or close its included issues only when their shipped state is
-   accurately represented.
-9. Mirror the resulting commits and tags back to Forgejo manually. The GitHub release remains the
-   canonical published release.
+1. Select completed work with a GitHub milestone and confirm it is merged into `main`.
+2. Add appropriate automated performance and regression tests for every release-scoped change, and
+   require those tests to pass before creating the release tag.
+3. Cut `release/<version>` from the accepted `main` commit for focused stabilization.
+4. Limit that branch to release blockers, documentation, versioning, and packaging fixes, each linked
+   to an issue and pull request when substantive.
+5. Merge each release fix back into `main` immediately, or fix `main` first and cherry-pick it.
+6. Run the complete release verification matrix against the release branch.
+7. Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`.
+8. Tag the accepted commit. The tag workflow builds all artifacts and creates a draft GitHub Release.
+9. Review and publish the draft, then create an Announcements Discussion linking to the release.
+10. Close the milestone when its shipped state is accurate.
+11. Mirror the accepted commits and tags to Forgejo using the procedure below.
 
 If an issue must be removed after the release branch is cut, prefer fixing or reverting that issue's
 complete pull request rather than assembling a release from an undocumented collection of commits.

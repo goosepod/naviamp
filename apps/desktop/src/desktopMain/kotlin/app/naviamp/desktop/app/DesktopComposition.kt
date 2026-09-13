@@ -35,6 +35,7 @@ import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.migrateLegacyNaviampPlaybackSession
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
+import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.toShellCapabilitiesUi
@@ -130,6 +131,7 @@ internal class DesktopComposition private constructor(
             val sessions = desktopCoreProviderSessionPort(
                 storage = storage.mediaSources,
                 cacheMaintenanceRepository = storage.maintenance,
+                identitySettingsMigrations = naviampCoreProviderIdentitySettingsMigrationRepository(settingsValues),
                 nowEpochMillis = nowEpochMillis,
             )
             val sharedHttpClient = KtorSharedHttpClient()

@@ -895,6 +895,8 @@ data class SavedInternetRadioStation(
     val name: String,
     val streamUrl: String,
     val homePageUrl: String? = null,
+    /** The media source that owns this provider-defined station ID. Null identifies legacy data. */
+    val sourceId: String? = null,
 ) {
     fun toStation(): InternetRadioStation =
         InternetRadioStation(
@@ -905,12 +907,13 @@ data class SavedInternetRadioStation(
         )
 
     companion object {
-        fun fromStation(station: InternetRadioStation): SavedInternetRadioStation =
+        fun fromStation(station: InternetRadioStation, sourceId: String? = null): SavedInternetRadioStation =
             SavedInternetRadioStation(
                 id = station.id,
                 name = station.name,
                 streamUrl = station.streamUrl,
                 homePageUrl = station.homePageUrl,
+                sourceId = sourceId,
             )
     }
 }

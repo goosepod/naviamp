@@ -841,6 +841,10 @@ FROM favorite_artist_activity
 WHERE source_id = ?
 ORDER BY artist_name COLLATE NOCASE, remote_artist_id;
 
+deleteFavoriteArtistActivitiesForIdentityMigration:
+DELETE FROM favorite_artist_activity
+WHERE source_id = ?;
+
 selectFavoriteArtistActivity:
 SELECT *
 FROM favorite_artist_activity
@@ -1799,9 +1803,23 @@ FROM playback_session_queue
 WHERE source_id = ?
 ORDER BY queue_index;
 
+updatePlaybackSessionStateIdentityPayloads:
+UPDATE playback_session_state
+SET queue_groups_payload = ?, internet_radio_payload = ?
+WHERE source_id = ?;
+
 updateLegacyPlaybackSessionPayload:
 UPDATE playback_session
 SET payload = ?
+WHERE source_id = ?;
+
+selectPlaybackProfilesForIdentityMigration:
+SELECT *
+FROM playback_profile
+WHERE source_id = ?;
+
+deletePlaybackProfilesForIdentityMigration:
+DELETE FROM playback_profile
 WHERE source_id = ?;
 
 updatePlaybackHistoryIdentity:

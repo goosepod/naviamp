@@ -95,10 +95,10 @@ object NavidromeCanonicalId {
     private const val LegacyHexLength = 32
     private const val LegacyUuidLength = 36
     private const val Base62Alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    private val CompositePrefixes = setOf("mf-", "al-", "ar-")
+    private val CompositePrefixes = setOf("mf-", "al-", "ar-", "pl-", "ra-")
 }
 
-internal const val NavidromeCanonicalIdentityVersion = 1L
+internal const val NavidromeCanonicalIdentityVersion = 2L
 
 /** Provider-common interpretation of Navidrome's canonical-ID rollout signal. */
 enum class NavidromeCanonicalIdMigrationSupport {

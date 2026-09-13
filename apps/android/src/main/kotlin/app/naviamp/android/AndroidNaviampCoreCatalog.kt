@@ -24,6 +24,7 @@ import app.naviamp.presentation.NaviampCoreHomeDateSource
 import app.naviamp.presentation.NaviampCoreMobileNetworkPort
 import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
+import app.naviamp.presentation.naviampCoreProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
@@ -70,13 +71,18 @@ class AndroidNaviampCoreCatalog private constructor(
             val appContext = context.applicationContext
             val clock = NaviampClock(System::currentTimeMillis)
             val platformSettings = AndroidSettingsStore(appContext)
-            val settingsCatalog = naviampCoreSettingsValueCatalog(AndroidCoreSettingsValueStore(appContext))
+            val settingsValues = AndroidCoreSettingsValueStore(appContext)
+            val settingsCatalog = naviampCoreSettingsValueCatalog(settingsValues)
             var cacheSettings = settingsCatalog.storedSettings.loadCache()
             val storage = AndroidStorageDependencies(appContext)
             cacheSettings.customDownloadDirectory?.let(::File)?.let(storage::updateDownloadDirectory)
             cacheSettings.customAudioCacheDirectory?.let(::File)?.let(storage::updateAudioCacheDirectory)
             storage.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
-            val sessions = androidCoreProviderSessionPort(storage, clock)
+            val sessions = androidCoreProviderSessionPort(
+                storage = storage,
+                clock = clock,
+                identitySettingsMigrations = naviampCoreProviderIdentitySettingsMigrationRepository(settingsValues),
+            )
             setAndroidPlatformCoverArtByteLoader { url ->
                 runCatching {
                     val provider = sessions.currentProvider()

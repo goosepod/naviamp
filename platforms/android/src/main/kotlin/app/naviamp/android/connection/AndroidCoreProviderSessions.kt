@@ -3,6 +3,7 @@ package app.naviamp.android
 import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.app.NaviampClock
 import app.naviamp.domain.provider.ProviderIdJellyfin
+import app.naviamp.domain.settings.ProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.NaviampCoreProviderSessionPort
 import app.naviamp.presentation.NaviampCoreProviderSessionRoute
 import app.naviamp.provider.jellyfin.JellyfinCoreProviderSessionPort
@@ -20,6 +21,7 @@ import app.naviamp.provider.navidrome.subsonicFamilyProviderSessionRouter
 fun androidCoreProviderSessionPort(
     storage: AndroidStorageDependencies,
     clock: NaviampClock,
+    identitySettingsMigrations: ProviderIdentitySettingsMigrationRepository,
 ): NaviampCoreProviderSessionPort {
     val jellyfinServices = androidJellyfinSessionServices()
     return subsonicFamilyProviderSessionRouter(
@@ -37,6 +39,7 @@ fun androidCoreProviderSessionPort(
             applyTlsDefaults = { connection ->
                 AndroidPlaybackTls.applyDefaults(connection.tlsSettings)
             },
+            identitySettingsMigrations = identitySettingsMigrations,
         ),
         additionalRoutes = listOf(
             NaviampCoreProviderSessionRoute(

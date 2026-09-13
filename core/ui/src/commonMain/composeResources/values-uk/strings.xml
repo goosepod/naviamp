@@ -17,4 +17,12 @@
     <string name="settings_now_playing_split_background_opacity">Непрозорість тла розділеного перегляду</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="now_playing_playback_device">Пристрій відтворення: %1$s</string>
+    <string name="smart_playlist_field_album_date_added">Дата додавання альбому</string>
+    <string name="smart_playlist_field_album_date_modified">Дата зміни альбому</string>
+    <string name="smart_playlist_field_album_duration">Тривалість альбому</string>
+    <string name="smart_playlist_field_album_song_count">Кількість композицій в альбомі</string>
+    <string name="smart_playlist_field_album_size">Розмір альбому</string>
+    <string name="smart_playlist_refresh_delay">Інтервал оновлення</string>
+    <string name="smart_playlist_refresh_delay_hint">Необов’язково. Приклади: 12h, 1d або 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Вкажіть дійсну тривалість, наприклад 12h, 1d або 1w.</string>
 </resources>

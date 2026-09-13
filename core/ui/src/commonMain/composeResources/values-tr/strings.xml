@@ -17,4 +17,12 @@
     <string name="settings_now_playing_split_background_opacity">Bölünmüş görünüm arka plan opaklığı</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="now_playing_playback_device">Oynatma cihazı: %1$s</string>
+    <string name="smart_playlist_field_album_date_added">Albüm eklenme tarihi</string>
+    <string name="smart_playlist_field_album_date_modified">Albüm değiştirilme tarihi</string>
+    <string name="smart_playlist_field_album_duration">Albüm süresi</string>
+    <string name="smart_playlist_field_album_song_count">Albüm şarkı sayısı</string>
+    <string name="smart_playlist_field_album_size">Albüm boyutu</string>
+    <string name="smart_playlist_refresh_delay">Yenileme aralığı</string>
+    <string name="smart_playlist_refresh_delay_hint">İsteğe bağlı. Örnekler: 12h, 1d veya 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">12h, 1d veya 1w gibi geçerli bir süre kullanın.</string>
 </resources>

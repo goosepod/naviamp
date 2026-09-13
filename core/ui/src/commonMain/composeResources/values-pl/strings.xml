@@ -136,4 +136,12 @@
     <string name="settings_now_playing_split_background_opacity">Krycie tła widoku podzielonego</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="now_playing_playback_device">Urządzenie odtwarzające: %1$s</string>
+    <string name="smart_playlist_field_album_date_added">Data dodania albumu</string>
+    <string name="smart_playlist_field_album_date_modified">Data modyfikacji albumu</string>
+    <string name="smart_playlist_field_album_duration">Czas trwania albumu</string>
+    <string name="smart_playlist_field_album_song_count">Liczba utworów w albumie</string>
+    <string name="smart_playlist_field_album_size">Rozmiar albumu</string>
+    <string name="smart_playlist_refresh_delay">Interwał odświeżania</string>
+    <string name="smart_playlist_refresh_delay_hint">Opcjonalnie. Przykłady: 12h, 1d lub 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Użyj prawidłowego czasu, np. 12h, 1d lub 1w.</string>
 </resources>

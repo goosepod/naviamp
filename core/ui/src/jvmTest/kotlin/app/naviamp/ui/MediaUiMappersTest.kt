@@ -457,6 +457,7 @@ class MediaUiMappersTest {
 
         val ui = track.toSharedTrackRowUi(coverArtUrl = { null })
 
+        assertEquals("Artist - Album", ui.subtitle)
         assertTrue(ui.favoriteActive)
         assertTrue(ui.canToggleFavorite)
         assertTrue(ui.hasAlbum)
