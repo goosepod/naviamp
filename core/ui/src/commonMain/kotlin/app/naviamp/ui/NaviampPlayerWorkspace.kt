@@ -56,7 +56,9 @@ internal fun NaviampPlayerWorkspace(
         } else {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 Box(Modifier.weight(1f).fillMaxHeight().testTag("docked-player")) { player(NaviampPlayerPanelLayout.Standalone) }
-                Box(Modifier.weight(2f).fillMaxHeight().testTag("browser-pane")) { browser() }
+                Box(
+                    Modifier.weight(2f).fillMaxHeight().padding(end = 12.dp).testTag("browser-pane"),
+                ) { browser() }
             }
         }
     }
