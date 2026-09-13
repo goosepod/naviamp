@@ -56,6 +56,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1592,7 +1593,8 @@ internal fun WaveformScrubber(
 ) {
     val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
     val readableAccent = colors.accent.mix(colors.primaryText, 0.48f)
-    val density = LocalDensity.current
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
     val targetDrawValue = drawValue().coerceIn(0f, 1f)
     val animatedDrawValue = remember(progressIdentity) { Animatable(targetDrawValue) }
     LaunchedEffect(targetDrawValue, smoothProgress, durationSeconds, progressIdentity) {
@@ -1631,21 +1633,18 @@ internal fun WaveformScrubber(
                     }
                 }
             }
-            .pointerInput(enabled, density) {
+            .pointerInput(enabled, progressIdentity) {
                 if (!enabled) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     fun fractionForX(x: Float): Float =
                         waveformSeekFraction(
                             x = x,
-                            width = waveformPointerInteractionWidth(
-                                layoutWidthPx = size.width.toFloat(),
-                                density = density.density,
-                            ),
+                            width = size.width,
                         )
 
                     var latestValue = fractionForX(down.position.x)
-                    onValueChange(latestValue)
+                    currentOnValueChange(latestValue)
                     down.consume()
 
                     while (true) {
@@ -1654,9 +1653,9 @@ internal fun WaveformScrubber(
                         latestValue = fractionForX(change.position.x)
                         change.consume()
                         if (!change.pressed) break
-                        onValueChange(latestValue)
+                        currentOnValueChange(latestValue)
                     }
-                    onValueChangeFinished(latestValue)
+                    currentOnValueChangeFinished(latestValue)
                 }
             },
     ) {
