@@ -54,6 +54,69 @@ Provider capabilities differ. Naviamp gracefully hides or falls back from server
 instead of leaving non-working controls on screen. Sonic features require a server that advertises
 compatible similarity support, and smart-playlist editing remains provider-specific.
 
+## Playback format support
+
+Naviamp plays the common formats below directly with BASS or the operating system's native codecs.
+`Compatibility` means Naviamp ships a decoder for that platform, but the format is not yet part of
+the fully tested cross-platform release contract. A dash means Naviamp does not currently promise
+that format on that platform; a Navidrome server may still make it playable by transcoding it to a
+supported format.
+
+| Audio format or stream | Android | macOS | Windows | Linux | iOS |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| MP3, MP2, and MP1 | Yes | Yes | Yes | Yes | Yes |
+| Ogg Vorbis | Yes | Yes | Yes | Yes | Yes |
+| WAV | Yes | Yes | Yes | Yes | Yes |
+| AIFF | Yes | Yes | Yes | Yes | Yes |
+| FLAC and Ogg FLAC | Yes | Yes | Yes | Yes | Yes |
+| Opus | Yes | Yes | Yes | Yes | Yes |
+| AAC and AAC in M4A/MP4 | Yes | Yes (system codec) | Yes | Yes | Yes (system codec) |
+| ALAC in M4A/MP4 | Yes | Yes (system codec) | Yes | Yes | Yes (system codec) |
+| Monkey's Audio (`.ape`) | Compatibility | Compatibility | Compatibility | Compatibility | Compatibility |
+| DSD (`.dsf`, `.dff`) | Compatibility | Compatibility | Compatibility | Compatibility | Compatibility |
+| Musepack (`.mpc`) | Compatibility | Compatibility | Compatibility | Compatibility | Compatibility |
+| WebM and Matroska audio | Compatibility | Compatibility | Compatibility | Compatibility | Compatibility |
+| WavPack (`.wv`) | Compatibility | Compatibility | — | Compatibility | Compatibility |
+| AC-3 (`.ac3`) | Compatibility | — | — | Compatibility | — |
+| HLS streams and playlists | Compatibility | Compatibility | Compatibility | Compatibility | Compatibility |
+| MIDI, Speex, and WMA | — | — | — | — | — |
+
+Format support describes direct Naviamp playback, including downloaded originals. Transcoded
+streams and downloads use the format produced by the server. MIDI is not advertised even where a
+decoder is packaged because Naviamp does not ship the soundfont required for reliable playback.
+
+## Naviamp and Navidrome feature support
+
+Most app behavior is shared across every release platform. Server-backed features depend on the
+connected account's permissions and on the capabilities the server advertises; Naviamp removes
+controls that the active server cannot fulfill.
+
+| Capability | Naviamp support | Navidrome or server requirement |
+| --- | --- | --- |
+| Browse and search artists, albums, tracks, genres, favorites, recent music, and random picks | Yes | Standard Subsonic/OpenSubsonic library APIs |
+| Browse every credited artist and follow artist links from a track | Yes | Rich artist-credit metadata when supplied by the server |
+| Select and combine music libraries | Yes | Multiple music folders exposed by the server |
+| Create, rename, reorder, edit, and delete regular playlists | Yes | Playlist write permission |
+| Save the current queue or a generated mix as a playlist | Yes | Playlist write permission |
+| Create and edit native smart playlists | Navidrome enhancement | Navidrome native API; includes nested rules, multiple sorts, limits, NSP JSON import, and preview against the synced library |
+| Stream original-quality audio | Yes | A directly supported source format, or server transcoding |
+| Stream at a selected transcoded quality | Yes | Server transcoding support |
+| Download originals or transcoded copies for offline listening | Yes | Download permission; transcoded downloads require server support |
+| Favorite tracks, albums, and artists | Yes | Server favorite/star APIs |
+| Rate tracks from one to five stars | Yes | Server rating support |
+| Display plain, time-synced, and enhanced lyrics | Server-dependent | Legacy lyrics or the OpenSubsonic `songLyrics` extension; enhanced lyrics use version 2 |
+| Build artist, album, genre, and track radio queues | Yes | Generated-radio endpoints |
+| Sonic Mix, Sonic Path, related tracks, and sonic autoplay | Navidrome enhancement | Server advertises the OpenSubsonic `sonicSimilarity` extension and has similarity data |
+| Report plays and update listening history | Yes | Scrobbling support; falls back to the standard Subsonic endpoint |
+| Report precise playback position and completion | Navidrome enhancement | OpenSubsonic `playbackReport` extension |
+| Resume a transcoded stream from a server-side offset | Navidrome enhancement | OpenSubsonic `transcodeOffset` extension |
+| Browse, create, edit, delete, and play internet radio stations | Yes | Internet-radio station APIs for saved stations |
+| Authenticate with a renewable native session token | Navidrome enhancement | Navidrome native authentication; standard token-and-salt authentication remains available |
+| Gapless playback, crossfade, ReplayGain, equalizer, sample-rate matching, and downmixing | Yes | Performed locally by Naviamp's BASS playback engine |
+| Waveform seeking, audio metadata, lyrics timing, and visualizers | Yes | Performed locally; metadata and lyrics depend on the source |
+| Android Auto | Android only | Android host and a connected media-capable vehicle or head unit |
+| Podcasts, server chat, public shares, and jukebox control | Not currently supported | — |
+
 ## Screenshots
 
 <table>
@@ -109,14 +172,14 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 
 ## Platforms and downloads
 
-Naviamp 2.4 is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA
-preview is also available for users who can provide their own signing.
+Naviamp is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA is
+also available for users who can provide their own signing.
 
 Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
 Windows and macOS desktop packages are not publisher-signed and may show an operating-system
 warning. Windows installers install only for the current user and do not require administrator
-permission. See the [Naviamp 2.4.1 release notes](https://github.com/goosepod/naviamp/releases/tag/v2.4.1)
-for upgrade details and
+permission. See the [latest Naviamp release notes](https://github.com/goosepod/naviamp/releases/latest)
+for current upgrade details and
 [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
 
 If an older machine-wide Windows release is already installed, uninstall that copy once before
