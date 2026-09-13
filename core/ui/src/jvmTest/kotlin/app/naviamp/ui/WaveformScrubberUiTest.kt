@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.toPixelMap
@@ -13,6 +14,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.center
@@ -21,6 +23,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.right
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -60,7 +63,9 @@ class WaveformScrubberUiTest {
     fun renderedScrubberSeeksToTheClickedQuarterHalfAndThreeQuarterPositions() = runComposeUiTest {
         val finishedFractions = mutableListOf<Float>()
         setContent {
-            ScrubberTestRow(onFinished = finishedFractions::add)
+            CompositionLocalProvider(LocalDensity provides Density(1.25f)) {
+                ScrubberTestRow(onFinished = finishedFractions::add)
+            }
         }
 
         listOf(0.25f, 0.5f, 0.75f).forEach { fraction ->

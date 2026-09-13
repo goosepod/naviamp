@@ -1592,7 +1592,6 @@ internal fun WaveformScrubber(
 ) {
     val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
     val readableAccent = colors.accent.mix(colors.primaryText, 0.48f)
-    val density = LocalDensity.current
     val targetDrawValue = drawValue().coerceIn(0f, 1f)
     val animatedDrawValue = remember(progressIdentity) { Animatable(targetDrawValue) }
     LaunchedEffect(targetDrawValue, smoothProgress, durationSeconds, progressIdentity) {
@@ -1631,17 +1630,14 @@ internal fun WaveformScrubber(
                     }
                 }
             }
-            .pointerInput(enabled, density) {
+            .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     fun fractionForX(x: Float): Float =
                         waveformSeekFraction(
                             x = x,
-                            width = waveformPointerInteractionWidth(
-                                layoutWidthPx = size.width.toFloat(),
-                                density = density.density,
-                            ),
+                            width = size.width,
                         )
 
                     var latestValue = fractionForX(down.position.x)

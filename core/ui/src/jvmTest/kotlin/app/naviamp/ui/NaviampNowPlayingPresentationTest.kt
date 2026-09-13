@@ -32,15 +32,6 @@ class NaviampNowPlayingPresentationTest {
     }
 
     @Test
-    fun desktopWaveformWidthUsesLogicalPointerCoordinatesOnScaledDisplays() {
-        assertEquals(
-            196f,
-            waveformPointerInteractionWidth(layoutWidthPx = 208.25f, density = 1.0625f),
-            absoluteTolerance = 0.01f,
-        )
-    }
-
-    @Test
     fun lyricsTimingSelectorExposesOnlyModesSupportedByLoadedLyrics() {
         assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.Plain, LyricsTiming.WordSynced))
         assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.LineSynced, LyricsTiming.WordSynced))
