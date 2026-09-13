@@ -23,6 +23,23 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
+    fun splitPaneOpacityRoundTripsDefaultsAndNormalizes() {
+        val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
+            interfaceSettings = InterfaceSettings(
+                nowPlaying = NowPlayingDisplaySettings(splitPaneBackgroundOpacityPercent = 42),
+            ),
+        ))
+        assertEquals(42, SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+            .preferences.interfaceSettings.nowPlaying.splitPaneBackgroundOpacityPercent)
+        assertEquals(DefaultSplitPaneBackgroundOpacityPercent, SettingsSyncJson.decode("{}")
+            .preferences.interfaceSettings.nowPlaying.splitPaneBackgroundOpacityPercent)
+        assertEquals(0, NowPlayingDisplaySettings(splitPaneBackgroundOpacityPercent = -1)
+            .normalized().splitPaneBackgroundOpacityPercent)
+        assertEquals(100, NowPlayingDisplaySettings(splitPaneBackgroundOpacityPercent = 101)
+            .normalized().splitPaneBackgroundOpacityPercent)
+    }
+
+    @Test
     fun auroraTonesRoundTripAndKeepExistingSerializedNames() {
         for (tone in AuroraTone.entries) {
             val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(

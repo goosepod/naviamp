@@ -1805,6 +1805,19 @@ private fun NowPlayingDisplaySettings(
             onCheckedChange = { enabled -> update { it.copy(showVolumeBar = enabled) } },
         )
     }
+    CompactBackgroundSlider(
+        label = stringResource(Res.string.settings_now_playing_split_background_opacity),
+        value = settings.splitPaneBackgroundOpacityPercent.toFloat(),
+        valueRange = 0f..100f,
+        valueText = stringResource(
+            Res.string.settings_now_playing_split_background_opacity_value,
+            settings.splitPaneBackgroundOpacityPercent,
+        ),
+        colors = colors,
+        onValueChange = { opacity ->
+            update { it.copy(splitPaneBackgroundOpacityPercent = opacity.roundToInt()) }
+        },
+    )
 
     SettingsCheckboxRow(
         colors = colors,

@@ -713,7 +713,12 @@ private fun ConnectedContent(
             }, browser = {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
-                        NaviampReadableContent(colors, keepDarkSurface = true) {
+                        NaviampReadableContent(
+                            colors,
+                            keepDarkSurface = true,
+                            surfaceOpacity = interfaceSettings.nowPlaying
+                                .splitPaneBackgroundOpacityPercent / 100f,
+                        ) {
                             if (queueSelected) NaviampQueueContent(nowPlaying, playbackProgress, colors, nowPlayingActions)
                             else browseContent()
                         }

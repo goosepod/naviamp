@@ -566,4 +566,6 @@
     <string name="genre_songs_more">Load more songs</string>
     <string name="genre_songs_failed">Could not load songs. Try again.</string>
     <string name="genre_songs_empty">No songs matched the selected genres.</string>
+    <string name="settings_now_playing_split_background_opacity">Split-view background opacity</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
 </resources>

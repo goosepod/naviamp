@@ -4,6 +4,7 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.radio.MaxRecentRadioStreams
 import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.SavedTrack
 import kotlin.test.Test
@@ -18,8 +19,12 @@ class NaviampCoreSettingsValueStoreTest {
         val settings = catalog.storedSettings
 
         assertEquals(InterfaceSettings(), settings.loadInterface())
-        settings.saveInterface(InterfaceSettings(albumBlurRadiusDp = 999))
+        settings.saveInterface(InterfaceSettings(
+            albumBlurRadiusDp = 999,
+            nowPlaying = NowPlayingDisplaySettings(splitPaneBackgroundOpacityPercent = 42),
+        ))
         assertEquals(48, settings.loadInterface().albumBlurRadiusDp)
+        assertEquals(42, settings.loadInterface().nowPlaying.splitPaneBackgroundOpacityPercent)
         catalog.savePlayback(PlaybackSettings(crossfadeDurationSeconds = 999))
         assertEquals(999, settings.loadPlayback().crossfadeDurationSeconds)
 

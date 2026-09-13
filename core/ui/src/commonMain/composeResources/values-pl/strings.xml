@@ -119,4 +119,6 @@
     <string name="settings_source_delete_content_description">Usuń połączenie</string>
     <string name="settings_source_libraries_prefix">Biblioteki: %1$s</string>
     <string name="settings_local_data_title">Dane lokalne</string>
+    <string name="settings_now_playing_split_background_opacity">Krycie tła widoku podzielonego</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
 </resources>

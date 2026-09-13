@@ -1,3 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_now_playing_split_background_opacity">स्प्लिट व्यू पृष्ठभूमि की अपारदर्शिता</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
 </resources>

@@ -541,4 +541,6 @@
     <string name="mix_include_seeds">Incluir pistas iniciales</string>
     <string name="sonic_path_selected_track">Pista seleccionada</string>
     <string name="sonic_path_find_track">Buscar pista</string>
+    <string name="settings_now_playing_split_background_opacity">Opacidad del fondo de vista dividida</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
 </resources>

@@ -47,6 +47,26 @@ class NaviampPlayerWorkspaceTest {
         assertEquals(Color.Black.toArgb(), pixels[980, 320].toArgb())
     }
 
+    @Test fun readableSurfaceSupportsTransparentAndOpaqueBackgrounds() = runDesktopComposeUiTest(1000, 200) {
+        val opacity = mutableStateOf(0f)
+        setContent {
+            Box(Modifier.fillMaxSize().background(Color.Magenta)) {
+                NaviampReadableContent(
+                    NaviampColors.Dark,
+                    keepDarkSurface = true,
+                    surfaceOpacity = opacity.value,
+                ) {}
+            }
+        }
+        assertEquals(Color.Magenta.toArgb(), onRoot().captureToImage().toPixelMap()[500, 100].toArgb())
+        opacity.value = 1f
+        waitForIdle()
+        assertEquals(
+            NaviampColors.Dark.background.toArgb(),
+            onRoot().captureToImage().toPixelMap()[500, 100].toArgb(),
+        )
+    }
+
     @Test fun dockedPlayerHasNoCollapseButton() = checkDockedPlayer(800)
     @Test fun compactDockedPlayerHasNoCollapseButton() = checkDockedPlayer(480)
 
