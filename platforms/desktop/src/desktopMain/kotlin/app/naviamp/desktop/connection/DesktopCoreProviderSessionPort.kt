@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.ProviderIdJellyfin
+import app.naviamp.domain.settings.ProviderIdentitySettingsMigrationRepository
 import app.naviamp.presentation.NaviampCoreProviderSessionPort
 import app.naviamp.presentation.NaviampCoreProviderSessionRoute
 import app.naviamp.provider.jellyfin.JellyfinCoreProviderSessionPort
@@ -29,6 +30,7 @@ typealias DesktopCoreProviderSessionPort = NavidromeCoreProviderSessionPort
 fun desktopCoreProviderSessionPort(
     storage: StorageMediaSourceStore,
     cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
+    identitySettingsMigrations: ProviderIdentitySettingsMigrationRepository,
     nowEpochMillis: () -> Long = DesktopSystemClock::nowEpochMillis,
 ): NaviampCoreProviderSessionPort {
     val jellyfinServices = desktopJellyfinSessionServices()
@@ -42,6 +44,7 @@ fun desktopCoreProviderSessionPort(
                 nowEpochMillis = nowEpochMillis,
             ),
             applyTlsDefaults = ::applyDesktopNavidromeTlsDefaults,
+            identitySettingsMigrations = identitySettingsMigrations,
         ),
         additionalRoutes = listOf(
             NaviampCoreProviderSessionRoute(

@@ -38,6 +38,14 @@ class NavidromeCanonicalIdTest {
             "al-0aZ8vPOn4jcLgReUJu3nBG_revision",
             NavidromeCanonicalId.migrate("al-bdlbRXwqlTrUYWaYnATlLf_revision"),
         )
+        assertEquals(
+            "pl-0aZ8vPOn4jcLgReUJu3nBG_revision",
+            NavidromeCanonicalId.migrate("pl-bdlbRXwqlTrUYWaYnATlLf_revision"),
+        )
+        assertEquals(
+            "ra-0aZ8vPOn4jcLgReUJu3nBG_revision",
+            NavidromeCanonicalId.migrate("ra-bdlbRXwqlTrUYWaYnATlLf_revision"),
+        )
     }
 
 }
