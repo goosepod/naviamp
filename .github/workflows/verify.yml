@@ -3,9 +3,6 @@ name: Verify
 on:
   workflow_call:
   pull_request:
-  push:
-    branches:
-      - "**"
 
 permissions:
   contents: read
@@ -19,26 +16,74 @@ env:
   TZ: America/Los_Angeles
 
 jobs:
+  changes:
+    name: Classify verification scope
+    runs-on: ubuntu-latest
+    outputs:
+      run_full: ${{ steps.classify.outputs.run_full }}
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          run_full=true
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            run_full=false
+            while IFS= read -r path; do
+              case "$path" in
+                *.md|docs/*|readme-assets/*) ;;
+                *) run_full=true; break ;;
+              esac
+            done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          fi
+          echo "run_full=$run_full" >> "$GITHUB_OUTPUT"
+
   shared-android:
     name: Shared and Android tests
+    needs: changes
+    if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Require successful change classification
+        if: needs.changes.result != 'success'
+        run: exit 1
+
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate documentation-only changes
+        if: needs.changes.outputs.run_full == 'false'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: git diff --check "$BASE_SHA" "$HEAD_SHA"
 
       - name: Set up JDK
+        if: needs.changes.outputs.run_full == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
+        if: needs.changes.outputs.run_full == 'true'
         uses: android-actions/setup-android@v4
 
       - name: Install Android build packages
+        if: needs.changes.outputs.run_full == 'true'
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
 
       - name: Run shared and Android unit tests
+        if: needs.changes.outputs.run_full == 'true'
         run: >
           ./gradlew
           -Pkotlin.native.enableKlibsCrossCompilation=false
@@ -49,15 +94,17 @@ jobs:
           :apps:android:verifyDebugBassNativePackage
 
       - name: Configure headless ALSA output for coverage aggregation
+        if: needs.changes.outputs.run_full == 'true'
         run: |
           printf '%s\n' 'pcm.!default { type null }' > "$RUNNER_TEMP/naviamp-asound.conf"
           echo "ALSA_CONFIG_PATH=$RUNNER_TEMP/naviamp-asound.conf" >> "$GITHUB_ENV"
 
       - name: Verify and publish JVM coverage reports
+        if: needs.changes.outputs.run_full == 'true'
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :koverVerify :koverHtmlReport :koverXmlReport
 
       - name: Upload test and coverage reports
-        if: always()
+        if: always() && needs.changes.result == 'success' && needs.changes.outputs.run_full == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: shared-android-test-reports
@@ -68,6 +115,8 @@ jobs:
 
   desktop-macos:
     name: Desktop native tests (macOS)
+    needs: changes
+    if: needs.changes.outputs.run_full == 'true'
     runs-on: macos-latest
     steps:
       - name: Check out repository
@@ -92,6 +141,8 @@ jobs:
 
   android-device:
     name: Android emulator native tests
+    needs: changes
+    if: needs.changes.outputs.run_full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -161,6 +212,8 @@ jobs:
 
   desktop-windows:
     name: Desktop native tests (Windows)
+    needs: changes
+    if: needs.changes.outputs.run_full == 'true'
     runs-on: windows-latest
     steps:
       - name: Check out repository
@@ -190,6 +243,8 @@ jobs:
 
   desktop-linux:
     name: Desktop native tests (Linux)
+    needs: changes
+    if: needs.changes.outputs.run_full == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -222,6 +277,8 @@ jobs:
 
   ios:
     name: iOS simulator tests
+    needs: changes
+    if: needs.changes.outputs.run_full == 'true'
     runs-on: macos-latest
     steps:
       - name: Check out repository
