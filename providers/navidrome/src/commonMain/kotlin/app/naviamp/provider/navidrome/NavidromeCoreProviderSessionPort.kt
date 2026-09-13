@@ -16,6 +16,7 @@ import app.naviamp.domain.provider.providerDescriptor
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.ProviderIdentitySettingsMigrationRepository
 import app.naviamp.domain.settings.connectionFormMusicFolders
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
@@ -59,6 +60,7 @@ class NavidromeCoreProviderSessionPort(
     private val validateProvider: suspend (NavidromeProvider) -> ConnectionValidation = { it.validateConnection() },
     private val canonicalIdMigrationSupport: (NavidromeProvider) -> NavidromeCanonicalIdMigrationSupport =
         { provider -> provider.canonicalIdMigrationSupport() },
+    private val identitySettingsMigrations: ProviderIdentitySettingsMigrationRepository? = null,
 ) : NaviampCoreProviderSessionPort {
     private val initialSessionSource = initialSource?.takeIf(SavedMediaSource::supportsSubsonicSession)
     private var provider: NavidromeProvider? = initialSessionSource?.toNavidromeConnection()?.let { connection ->
@@ -206,7 +208,11 @@ class NavidromeCoreProviderSessionPort(
     ) {
         if (!subsonicProviderProfile(activeProvider.id.value).canonicalIdMigration) return
         val migrations = mediaSources as? ProviderIdentityMigrationRepository ?: return
-        if ((migrations.providerIdentityVersion(sourceId) ?: 0L) >= NavidromeCanonicalIdentityVersion) return
+        val storageVersion = migrations.providerIdentityVersion(sourceId) ?: 0L
+        val settingsVersion = identitySettingsMigrations
+            ?.let { it.providerIdentitySettingsVersion(sourceId) ?: 0L }
+            ?: NavidromeCanonicalIdentityVersion
+        if (storageVersion >= NavidromeCanonicalIdentityVersion && settingsVersion >= NavidromeCanonicalIdentityVersion) return
         val serverVersion = knownServerVersion ?: validateProvider(activeProvider).serverVersion
         val normalizedServerVersion = serverVersion?.trim().orEmpty()
         val previousProbe = migrations.providerIdentityProbeState(sourceId)
@@ -216,12 +222,19 @@ class NavidromeCoreProviderSessionPort(
             previousProbe.serverVersion == normalizedServerVersion
         ) return
         when (canonicalIdMigrationSupport(activeProvider)) {
-            NavidromeCanonicalIdMigrationSupport.Confirmed -> migrations.migrateProviderIdentities(
-                sourceId = sourceId,
-                providerId = activeProvider.id.value,
-                targetVersion = NavidromeCanonicalIdentityVersion,
-                transform = NavidromeCanonicalId::migrate,
-            )
+            NavidromeCanonicalIdMigrationSupport.Confirmed -> {
+                migrations.migrateProviderIdentities(
+                    sourceId = sourceId,
+                    providerId = activeProvider.id.value,
+                    targetVersion = NavidromeCanonicalIdentityVersion,
+                    transform = NavidromeCanonicalId::migrate,
+                )
+                identitySettingsMigrations?.migrateProviderIdentitySettings(
+                    sourceId = sourceId,
+                    targetVersion = NavidromeCanonicalIdentityVersion,
+                    transform = NavidromeCanonicalId::migrate,
+                )
+            }
             NavidromeCanonicalIdMigrationSupport.Unsupported,
             -> if (normalizedServerVersion.isNotEmpty()) {
                 migrations.recordProviderIdentityProbeState(

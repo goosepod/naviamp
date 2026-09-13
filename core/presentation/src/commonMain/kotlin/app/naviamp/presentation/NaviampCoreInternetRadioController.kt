@@ -23,6 +23,7 @@ interface NaviampCoreInternetRadioRecentsPort {
 fun naviampCoreInternetRadioRecentsPort(
     load: () -> List<SavedInternetRadioStation>,
     persist: (List<SavedInternetRadioStation>) -> Unit,
+    sourceId: () -> String? = { null },
     onChanged: () -> Unit = {},
 ): NaviampCoreInternetRadioRecentsPort = object : NaviampCoreInternetRadioRecentsPort {
     private var recentStations = load().map(SavedInternetRadioStation::toStation)
@@ -32,8 +33,9 @@ fun naviampCoreInternetRadioRecentsPort(
 
     override suspend fun record(station: InternetRadioStation): List<InternetRadioStation> =
         recentSavedInternetRadioStationsWith(
-            current().map(SavedInternetRadioStation::fromStation),
+            load(),
             station,
+            sourceId = sourceId(),
         ).also(persist).also { onChanged() }.map(SavedInternetRadioStation::toStation).also { updated ->
             recentStations = updated
         }

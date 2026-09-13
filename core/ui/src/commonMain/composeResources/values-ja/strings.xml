@@ -2,4 +2,12 @@
 <resources>
     <string name="settings_now_playing_split_background_opacity">分割表示の背景の不透明度</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="smart_playlist_field_album_date_added">アルバム追加日</string>
+    <string name="smart_playlist_field_album_date_modified">アルバム更新日</string>
+    <string name="smart_playlist_field_album_duration">アルバムの長さ</string>
+    <string name="smart_playlist_field_album_song_count">アルバムの曲数</string>
+    <string name="smart_playlist_field_album_size">アルバムサイズ</string>
+    <string name="smart_playlist_refresh_delay">更新間隔</string>
+    <string name="smart_playlist_refresh_delay_hint">省略可能。例: 12h、1d、1w。</string>
+    <string name="smart_playlist_refresh_delay_invalid">12h、1d、1w などの有効な期間を入力してください。</string>
 </resources>

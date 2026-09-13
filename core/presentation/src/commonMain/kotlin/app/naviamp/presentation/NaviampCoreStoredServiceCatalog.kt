@@ -115,6 +115,7 @@ fun naviampCoreStoredServiceCatalog(
     val internetRadioRecents = naviampCoreInternetRadioRecentsPort(
         load = settings.loadRecentInternetRadioStations,
         persist = settings.saveRecentInternetRadioStations,
+        sourceId = sourceId,
     )
     val sync = NaviampCoreSettingsSyncServices(
         controller = NaviampSettingsSyncController(

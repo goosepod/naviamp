@@ -169,6 +169,14 @@ class SettingsSyncDocumentTest {
                         ),
                     ),
                 ),
+                recentInternetRadioStations = listOf(
+                    SavedInternetRadioStation(
+                        id = "radio-1",
+                        name = "Radio",
+                        streamUrl = "https://radio.example/stream",
+                        sourceId = "goosepod",
+                    ),
+                ),
             ),
         )
 
@@ -196,6 +204,7 @@ class SettingsSyncDocumentTest {
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertEquals("goosepod", decoded.preferences.recentRadioStreams.single().sourceId)
         assertEquals("track-1", decoded.preferences.recentRadioStreams.single().sessionTracks.single().id)
+        assertEquals("goosepod", decoded.preferences.recentInternetRadioStations.single().sourceId)
         assertTrue(decoded.preferences.interfaceSettings.checkForUpdates)
         assertEquals(ApplicationUpdateChannel.Beta, decoded.preferences.interfaceSettings.applicationUpdateChannel)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)

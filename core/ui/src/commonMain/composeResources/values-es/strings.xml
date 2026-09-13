@@ -543,4 +543,12 @@
     <string name="sonic_path_find_track">Buscar pista</string>
     <string name="settings_now_playing_split_background_opacity">Opacidad del fondo de vista dividida</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="smart_playlist_field_album_date_added">Fecha de adición del álbum</string>
+    <string name="smart_playlist_field_album_date_modified">Fecha de modificación del álbum</string>
+    <string name="smart_playlist_field_album_duration">Duración del álbum</string>
+    <string name="smart_playlist_field_album_song_count">Número de canciones del álbum</string>
+    <string name="smart_playlist_field_album_size">Tamaño del álbum</string>
+    <string name="smart_playlist_refresh_delay">Intervalo de actualización</string>
+    <string name="smart_playlist_refresh_delay_hint">Opcional. Ejemplos: 12h, 1d o 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Usa una duración válida como 12h, 1d o 1w.</string>
 </resources>

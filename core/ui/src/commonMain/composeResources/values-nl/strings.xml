@@ -2,4 +2,12 @@
 <resources>
     <string name="settings_now_playing_split_background_opacity">Dekking van achtergrond in gesplitste weergave</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="smart_playlist_field_album_date_added">Datum album toegevoegd</string>
+    <string name="smart_playlist_field_album_date_modified">Datum album gewijzigd</string>
+    <string name="smart_playlist_field_album_duration">Albumduur</string>
+    <string name="smart_playlist_field_album_song_count">Aantal nummers op album</string>
+    <string name="smart_playlist_field_album_size">Albumgrootte</string>
+    <string name="smart_playlist_refresh_delay">Vernieuwingsinterval</string>
+    <string name="smart_playlist_refresh_delay_hint">Optioneel. Voorbeelden: 12h, 1d of 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Gebruik een geldige duur zoals 12h, 1d of 1w.</string>
 </resources>

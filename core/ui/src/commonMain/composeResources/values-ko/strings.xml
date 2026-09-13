@@ -2,4 +2,12 @@
 <resources>
     <string name="settings_now_playing_split_background_opacity">분할 보기 배경 불투명도</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="smart_playlist_field_album_date_added">앨범 추가 날짜</string>
+    <string name="smart_playlist_field_album_date_modified">앨범 수정 날짜</string>
+    <string name="smart_playlist_field_album_duration">앨범 재생 시간</string>
+    <string name="smart_playlist_field_album_song_count">앨범 곡 수</string>
+    <string name="smart_playlist_field_album_size">앨범 크기</string>
+    <string name="smart_playlist_refresh_delay">새로 고침 간격</string>
+    <string name="smart_playlist_refresh_delay_hint">선택 사항. 예: 12h, 1d 또는 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">12h, 1d 또는 1w와 같은 올바른 기간을 입력하세요.</string>
 </resources>

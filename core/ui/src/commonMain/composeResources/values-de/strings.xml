@@ -2,4 +2,12 @@
 <resources>
     <string name="settings_now_playing_split_background_opacity">Deckkraft des Hintergrunds der geteilten Ansicht</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="smart_playlist_field_album_date_added">Album hinzugefügt</string>
+    <string name="smart_playlist_field_album_date_modified">Album geändert</string>
+    <string name="smart_playlist_field_album_duration">Albumdauer</string>
+    <string name="smart_playlist_field_album_song_count">Titelanzahl des Albums</string>
+    <string name="smart_playlist_field_album_size">Albumgröße</string>
+    <string name="smart_playlist_refresh_delay">Aktualisierungsintervall</string>
+    <string name="smart_playlist_refresh_delay_hint">Optional. Beispiele: 12h, 1d oder 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Gib eine gültige Dauer wie 12h, 1d oder 1w ein.</string>
 </resources>
