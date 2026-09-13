@@ -25,6 +25,16 @@ capability; prerelease implementation fixes are not separate public changes.
 Order announcements by product significance. Major launches lead the title, summary, and
 highlights. Improvements and fixes to previously released behavior follow.
 
+## In-App Release Changelog
+
+Before tagging every Naviamp release, update the shared changelog shown on the About page. Its
+entries must describe that release's public changes compared with the previous public release and
+must use the same product-significance ordering as the release notes.
+
+Update the changelog regression test to assert the new release's important entries, and verify the
+changelog renders in the About UI. GitHub release notes and the Announcements discussion do not
+replace this requirement. An outdated or unverified in-app changelog blocks the release tag.
+
 ## Repository and Issue Workflow
 
 Follow [`docs/development-workflow.md`](docs/development-workflow.md). GitHub is Naviamp's canonical
