@@ -1,3 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="smart_playlist_field_album_date_added">专辑添加日期</string>
+    <string name="smart_playlist_field_album_date_modified">专辑修改日期</string>
+    <string name="smart_playlist_field_album_duration">专辑时长</string>
+    <string name="smart_playlist_field_album_song_count">专辑歌曲数</string>
+    <string name="smart_playlist_field_album_size">专辑大小</string>
+    <string name="smart_playlist_refresh_delay">刷新间隔</string>
+    <string name="smart_playlist_refresh_delay_hint">可选。示例：12h、1d 或 1w。</string>
+    <string name="smart_playlist_refresh_delay_invalid">请输入有效时长，例如 12h、1d 或 1w。</string>
 </resources>

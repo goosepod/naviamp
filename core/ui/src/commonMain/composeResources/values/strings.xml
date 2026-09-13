@@ -514,6 +514,14 @@
     <string name="playlists_edit_smart">Edit smart playlist</string>
     <string name="playlists_update">Update</string>
     <string name="playlists_load_smart_failed">Could not load smart playlist rules.</string>
+    <string name="smart_playlist_field_album_date_added">Album Date Added</string>
+    <string name="smart_playlist_field_album_date_modified">Album Date Modified</string>
+    <string name="smart_playlist_field_album_duration">Album Duration</string>
+    <string name="smart_playlist_field_album_song_count">Album Song Count</string>
+    <string name="smart_playlist_field_album_size">Album Size</string>
+    <string name="smart_playlist_refresh_delay">Refresh delay</string>
+    <string name="smart_playlist_refresh_delay_hint">Optional. Examples: 12h, 1d, or 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Use a valid duration such as 12h, 1d, or 1w.</string>
     <string name="playlists_bulk_tools_title">Playlist bulk tools</string>
     <string name="playlists_bulk_count">%1$d tracks - %2$d unique</string>
     <string name="playlists_copy_suffix">%1$s Copy</string>

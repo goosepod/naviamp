@@ -78,6 +78,34 @@ class NaviampSmartPlaylistLibraryUiTest {
         onNodeWithText("Dream Pop").performClick()
         onNodeWithTag(SmartPlaylistGenreValueTestTag).assertTextContains("Dream Pop")
     }
+
+    @Test
+    fun navidrome064FieldAndRefreshDelayValidationAreVisible() = runComposeUiTest {
+        val albumDateAdded = SmartPlaylistFieldCatalog.fields.first {
+            it.field == SmartPlaylistFields.AlbumDateAdded
+        }
+        setContent {
+            SmartPlaylistBuilderDialog(
+                colors = NaviampColors(),
+                initialDraft = SmartPlaylistDraft(
+                    conditions = listOf(
+                        SmartPlaylistConditionDraft(
+                            field = albumDateAdded,
+                            operator = SmartPlaylistOperator.InTheLast,
+                            value = "30",
+                        ),
+                    ),
+                    refreshDelay = "tomorrow",
+                ),
+                onDismissRequest = {},
+                onSave = {},
+            )
+        }
+
+        onNodeWithText("Album Date Added").assertExists()
+        onNodeWithText("Refresh delay").assertExists()
+        onNodeWithText("Use a valid duration such as 12h, 1d, or 1w.").assertExists()
+    }
 }
 
 private fun testLibraries() = listOf(

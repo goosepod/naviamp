@@ -48,6 +48,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistLimitMode
 import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
 import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistPreview
+import app.naviamp.domain.smartplaylist.SmartPlaylistRefreshDelay
 import app.naviamp.domain.smartplaylist.SmartPlaylistSortDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
@@ -56,9 +57,12 @@ import app.naviamp.domain.smartplaylist.smartPlaylistGenreSuggestions
 import app.naviamp.domain.smartplaylist.updated
 import app.naviamp.domain.smartplaylist.valueLabel
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SmartPlaylistBuilderDialog(
@@ -634,11 +638,11 @@ private fun SmartPlaylistCustomControls(
             ) {
                 SmartPlaylistDropdown(
                     label = "Field",
-                    value = sort.field.label,
+                    value = smartPlaylistFieldLabel(sort.field),
                     colors = colors,
                     options = SmartPlaylistFieldCatalog.sortableFields
                         .smartPlaylistMenuOrder(CommonSmartPlaylistSortFields)
-                        .map { it.label to it },
+                        .map { smartPlaylistFieldLabel(it) to it },
                     onSelected = { field ->
                         onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
                     },
@@ -675,6 +679,25 @@ private fun SmartPlaylistCustomControls(
             label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
             colors = colors,
         )
+        SmartPlaylistTextField(
+            value = draft.refreshDelay,
+            onValueChange = { onDraftChange(draft.copy(refreshDelay = it)) },
+            label = stringResource(Res.string.smart_playlist_refresh_delay),
+            colors = colors,
+        )
+        val refreshDelayValid = draft.refreshDelay.isBlank() ||
+            SmartPlaylistRefreshDelay.isValid(draft.refreshDelay.trim())
+        Text(
+            stringResource(
+                if (refreshDelayValid) {
+                    Res.string.smart_playlist_refresh_delay_hint
+                } else {
+                    Res.string.smart_playlist_refresh_delay_invalid
+                },
+            ),
+            color = if (refreshDelayValid) colors.secondaryText else colors.favorite,
+            fontSize = 12.sp,
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = draft.isPublic,
@@ -707,11 +730,11 @@ private fun SmartPlaylistRuleControls(
     ) {
         SmartPlaylistDropdown(
             label = "Field",
-            value = condition.field.label,
+            value = smartPlaylistFieldLabel(condition.field),
             colors = colors,
             options = SmartPlaylistFieldCatalog.fields
                 .smartPlaylistMenuOrder(CommonSmartPlaylistRuleFields)
-                .map { it.label to it },
+                .map { smartPlaylistFieldLabel(it) to it },
             onSelected = { field ->
                 onConditionChange(
                     condition.copy(
@@ -1094,6 +1117,16 @@ private fun List<SmartPlaylistFieldOption>.smartPlaylistMenuOrder(commonFields: 
             if (index == -1) Int.MAX_VALUE else index
         }.thenBy { option -> option.label.lowercase() },
     )
+
+@Composable
+private fun smartPlaylistFieldLabel(option: SmartPlaylistFieldOption): String = when (option.field) {
+    SmartPlaylistFields.AlbumDateAdded -> stringResource(Res.string.smart_playlist_field_album_date_added)
+    SmartPlaylistFields.AlbumDateModified -> stringResource(Res.string.smart_playlist_field_album_date_modified)
+    SmartPlaylistFields.AlbumDuration -> stringResource(Res.string.smart_playlist_field_album_duration)
+    SmartPlaylistFields.AlbumSongCount -> stringResource(Res.string.smart_playlist_field_album_song_count)
+    SmartPlaylistFields.AlbumSize -> stringResource(Res.string.smart_playlist_field_album_size)
+    else -> option.label
+}
 
 internal fun Throwable.requiresSmartPlaylistPassword(): Boolean {
     val message = message.orEmpty()

@@ -1,3 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="smart_playlist_field_album_date_added">تاريخ إضافة الألبوم</string>
+    <string name="smart_playlist_field_album_date_modified">تاريخ تعديل الألبوم</string>
+    <string name="smart_playlist_field_album_duration">مدة الألبوم</string>
+    <string name="smart_playlist_field_album_song_count">عدد أغاني الألبوم</string>
+    <string name="smart_playlist_field_album_size">حجم الألبوم</string>
+    <string name="smart_playlist_refresh_delay">فاصل التحديث</string>
+    <string name="smart_playlist_refresh_delay_hint">اختياري. أمثلة: 12h أو 1d أو 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">استخدم مدة صالحة مثل 12h أو 1d أو 1w.</string>
 </resources>

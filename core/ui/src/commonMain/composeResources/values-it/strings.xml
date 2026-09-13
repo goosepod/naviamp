@@ -1,3 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="smart_playlist_field_album_date_added">Data di aggiunta dell’album</string>
+    <string name="smart_playlist_field_album_date_modified">Data di modifica dell’album</string>
+    <string name="smart_playlist_field_album_duration">Durata dell’album</string>
+    <string name="smart_playlist_field_album_song_count">Numero di brani dell’album</string>
+    <string name="smart_playlist_field_album_size">Dimensione dell’album</string>
+    <string name="smart_playlist_refresh_delay">Intervallo di aggiornamento</string>
+    <string name="smart_playlist_refresh_delay_hint">Facoltativo. Esempi: 12h, 1d o 1w.</string>
+    <string name="smart_playlist_refresh_delay_invalid">Usa una durata valida come 12h, 1d o 1w.</string>
 </resources>

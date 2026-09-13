@@ -1,3 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="smart_playlist_field_album_date_added">एल्बम जोड़े जाने की तारीख</string>
+    <string name="smart_playlist_field_album_date_modified">एल्बम संशोधन तारीख</string>
+    <string name="smart_playlist_field_album_duration">एल्बम अवधि</string>
+    <string name="smart_playlist_field_album_song_count">एल्बम गीत संख्या</string>
+    <string name="smart_playlist_field_album_size">एल्बम आकार</string>
+    <string name="smart_playlist_refresh_delay">रीफ़्रेश अंतराल</string>
+    <string name="smart_playlist_refresh_delay_hint">वैकल्पिक। उदाहरण: 12h, 1d या 1w।</string>
+    <string name="smart_playlist_refresh_delay_invalid">12h, 1d या 1w जैसी मान्य अवधि दर्ज करें।</string>
 </resources>

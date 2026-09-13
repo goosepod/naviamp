@@ -32,6 +32,7 @@ data class SmartPlaylistDefinition(
     val limitPercent: Int? = null,
     val isPublic: Boolean? = null,
     val libraryIds: List<String>? = null,
+    val refreshDelay: String? = null,
 ) {
     init {
         require(name.isNotBlank()) { "Smart playlist name is required." }
@@ -42,6 +43,9 @@ data class SmartPlaylistDefinition(
         }
         require(limit == null || limitPercent == null) {
             "Smart playlist can use limit or limitPercent, not both."
+        }
+        require(refreshDelay == null || SmartPlaylistRefreshDelay.isValid(refreshDelay)) {
+            "Smart playlist refreshDelay must be a valid non-negative duration."
         }
     }
 
@@ -61,6 +65,7 @@ data class SmartPlaylistDefinition(
         if (sort.isNotEmpty()) put("sort", sort.joinToString(",") { it.toNavidromeSortValue() })
         limit?.let { put("limit", it) }
         limitPercent?.let { put("limitPercent", it) }
+        refreshDelay?.let { put("refreshDelay", it) }
     }
 
     fun toNspJson(): String = SmartPlaylistJson.encodeToString(JsonObject.serializer(), toJsonElement())
@@ -96,6 +101,7 @@ data class SmartPlaylistDefinition(
                 limit = rulesRoot.longValue("limit")?.toInt(),
                 limitPercent = rulesRoot.longValue("limitPercent")?.toInt(),
                 isPublic = root.booleanValue("public"),
+                refreshDelay = rulesRoot.stringValue("refreshDelay") ?: root.stringValue("refreshDelay"),
             )
         }
     }
@@ -243,6 +249,11 @@ object SmartPlaylistFields {
     const val AlbumLastPlayed = "albumlastplayed"
     const val AlbumDateLoved = "albumdateloved"
     const val AlbumDateRated = "albumdaterated"
+    const val AlbumDateAdded = "albumdateadded"
+    const val AlbumDateModified = "albumdatemodified"
+    const val AlbumDuration = "albumduration"
+    const val AlbumSongCount = "albumsongcount"
+    const val AlbumSize = "albumsize"
     const val ArtistRating = "artistrating"
     const val ArtistLoved = "artistloved"
     const val ArtistPlayCount = "artistplaycount"
@@ -268,6 +279,38 @@ object SmartPlaylistFields {
     const val ReplayGainTrackPeak = "rgtrackpeak"
     const val LibraryId = "library_id"
     const val Random = "random"
+}
+
+object SmartPlaylistRefreshDelay {
+    private val token = Regex(
+        "(?:(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:ns|us|µs|μs|ms|s|m|h)|\\d+(?:\\.\\d+)?[dw])",
+    )
+    private val unitNanoseconds = mapOf(
+        "ns" to 1.0,
+        "us" to 1_000.0,
+        "µs" to 1_000.0,
+        "μs" to 1_000.0,
+        "ms" to 1_000_000.0,
+        "s" to 1_000_000_000.0,
+        "m" to 60_000_000_000.0,
+        "h" to 3_600_000_000_000.0,
+        "d" to 86_400_000_000_000.0,
+        "w" to 604_800_000_000_000.0,
+    )
+
+    fun isValid(value: String): Boolean {
+        val unsigned = value.removePrefix("+")
+        if (unsigned == "0") return true
+        if (unsigned.isEmpty() || unsigned.startsWith('-')) return false
+        val matches = token.findAll(unsigned).toList()
+        if (matches.isEmpty() || matches.joinToString("") { it.value } != unsigned) return false
+        val totalNanoseconds = matches.sumOf { match ->
+            val unit = match.value.takeLastWhile { !it.isDigit() && it != '.' }
+            val number = match.value.dropLast(unit.length).toDoubleOrNull() ?: return false
+            number * requireNotNull(unitNanoseconds[unit])
+        }
+        return totalNanoseconds.isFinite() && totalNanoseconds in 0.0..Long.MAX_VALUE.toDouble()
+    }
 }
 
 data class SmartPlaylistTemplate(
