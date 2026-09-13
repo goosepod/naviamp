@@ -34,6 +34,39 @@ class NaviampPlayerWorkspaceTest {
         assertEquals(Color.Magenta.toArgb(), onNodeWithTag("full-player").captureToImage().toPixelMap()[10, 10].toArgb())
     }
 
+    @Test fun splitBrowserPaneLeavesSpaceAtWindowEdge() = runDesktopComposeUiTest(1000, 640) {
+        setContent {
+            Box(Modifier.fillMaxSize().background(Color.Magenta)) {
+                NaviampPlayerWorkspace(true, WideNowPlayingLayout.Split, {}, player = {}, browser = {
+                    Box(Modifier.fillMaxSize().background(Color.Black))
+                })
+            }
+        }
+        val pixels = onRoot().captureToImage().toPixelMap()
+        assertEquals(Color.Magenta.toArgb(), pixels[995, 320].toArgb())
+        assertEquals(Color.Black.toArgb(), pixels[980, 320].toArgb())
+    }
+
+    @Test fun readableSurfaceSupportsTransparentAndOpaqueBackgrounds() = runDesktopComposeUiTest(1000, 200) {
+        val opacity = mutableStateOf(0f)
+        setContent {
+            Box(Modifier.fillMaxSize().background(Color.Magenta)) {
+                NaviampReadableContent(
+                    NaviampColors.Dark,
+                    keepDarkSurface = true,
+                    surfaceOpacity = opacity.value,
+                ) {}
+            }
+        }
+        assertEquals(Color.Magenta.toArgb(), onRoot().captureToImage().toPixelMap()[500, 100].toArgb())
+        opacity.value = 1f
+        waitForIdle()
+        assertEquals(
+            NaviampColors.Dark.background.toArgb(),
+            onRoot().captureToImage().toPixelMap()[500, 100].toArgb(),
+        )
+    }
+
     @Test fun dockedPlayerHasNoCollapseButton() = checkDockedPlayer(800)
     @Test fun compactDockedPlayerHasNoCollapseButton() = checkDockedPlayer(480)
 
@@ -152,7 +185,8 @@ class NaviampPlayerWorkspaceTest {
         }
         val player = onNodeWithTag("docked-player").fetchSemanticsNode().boundsInRoot
         val browser = onNodeWithTag("browser-pane").fetchSemanticsNode().boundsInRoot
-        assertEquals(player.width * 2f, browser.width, 1f)
+        assertEquals(player.right, browser.left, 1f)
+        assertEquals(width.toFloat() - 12f, browser.right, 1f)
         onNodeWithContentDescription("Queue").performClick()
         onNodeWithText("Queue contents").assertIsDisplayed()
         onNodeWithContentDescription("Library").performClick()

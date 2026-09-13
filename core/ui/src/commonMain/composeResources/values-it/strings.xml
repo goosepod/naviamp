@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_now_playing_split_background_opacity">Opacità dello sfondo della vista divisa</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="smart_playlist_field_album_date_added">Data di aggiunta dell’album</string>
     <string name="smart_playlist_field_album_date_modified">Data di modifica dell’album</string>
     <string name="smart_playlist_field_album_duration">Durata dell’album</string>

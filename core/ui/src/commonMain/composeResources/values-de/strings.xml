@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_now_playing_split_background_opacity">Deckkraft des Hintergrunds der geteilten Ansicht</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="smart_playlist_field_album_date_added">Album hinzugefügt</string>
     <string name="smart_playlist_field_album_date_modified">Album geändert</string>
     <string name="smart_playlist_field_album_duration">Albumdauer</string>

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_now_playing_split_background_opacity">Непрозорість тла розділеного перегляду</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="smart_playlist_field_album_date_added">Дата додавання альбому</string>
     <string name="smart_playlist_field_album_date_modified">Дата зміни альбому</string>
     <string name="smart_playlist_field_album_duration">Тривалість альбому</string>
