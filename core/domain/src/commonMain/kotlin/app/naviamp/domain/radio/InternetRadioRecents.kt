@@ -44,7 +44,8 @@ fun recentSavedInternetRadioStationsWith(
     recentStations: List<SavedInternetRadioStation>,
     station: InternetRadioStation,
     limit: Int = MaxRecentInternetRadioStations,
+    sourceId: String? = null,
 ): List<SavedInternetRadioStation> {
-    val saved = SavedInternetRadioStation.fromStation(station)
-    return (listOf(saved) + recentStations.filterNot { it.id == saved.id }).take(limit)
+    val saved = SavedInternetRadioStation.fromStation(station, sourceId)
+    return (listOf(saved) + recentStations.filterNot { it.id == saved.id && it.sourceId == saved.sourceId }).take(limit)
 }

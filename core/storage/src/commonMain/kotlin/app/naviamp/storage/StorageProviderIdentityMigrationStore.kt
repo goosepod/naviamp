@@ -1,9 +1,11 @@
 package app.naviamp.storage
 
 import app.naviamp.domain.cache.ProviderIdentityMigrationResult
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.settings.PlaybackSessionSettings
-import app.naviamp.domain.settings.SavedArtistCredit
+import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.SavedTrack
+import app.naviamp.domain.settings.migratedProviderIdentities
 import kotlinx.serialization.json.Json
 
 /** Executes a provider-declared remote-ID format transition as one shared storage transaction. */
@@ -32,6 +34,10 @@ internal class StorageProviderIdentityMigrationStore(
             queries.clearLibraryAlbumsForSource(sourceId)
             queries.clearLibraryArtistsForSource(sourceId)
             queries.resetMediaSourceLibraryScan(sourceId)
+            queries.clearAlbumCatalogSnapshotsForSource(sourceId)
+
+            migrateFavoriteArtistActivities(sourceId, ::migrate)
+            migratePlaybackProfiles(sourceId, ::migrate)
 
             val cachedAudioRows = queries.selectCachedAudioTrackIdsForIdentityMigration(sourceId).executeAsList()
             val cachedAudioKeys = cachedAudioRows.map { it.remote_track_id to it.quality_key }.toSet()
@@ -165,7 +171,7 @@ internal class StorageProviderIdentityMigrationStore(
     private fun migratePlaybackSession(sourceId: String, migrate: (String) -> String) {
         queries.selectPlaybackSessionQueueForIdentityMigration(sourceId).executeAsList().forEach { row ->
             val track = runCatching { json.decodeFromString<SavedTrack>(row.payload) }.getOrNull() ?: return@forEach
-            val migrated = track.migrateIds(migrate)
+            val migrated = track.migratedProviderIdentities(migrate)
             queries.updatePlaybackSessionQueueIdentity(
                 remote_track_id = migrated.id,
                 payload = json.encodeToString(migrated),
@@ -173,23 +179,66 @@ internal class StorageProviderIdentityMigrationStore(
                 queue_index = row.queue_index,
             )
         }
+        queries.selectPlaybackSessionState(sourceId).executeAsOneOrNull()?.let { state ->
+            val groups = state.queue_groups_payload?.let { payload ->
+                runCatching { json.decodeFromString<List<PlaybackQueueGroup>>(payload) }.getOrNull()
+            }
+            val radio = state.internet_radio_payload?.let { payload ->
+                runCatching { json.decodeFromString<SavedInternetRadioStation>(payload) }.getOrNull()
+            }
+            if (groups != null || radio != null) {
+                queries.updatePlaybackSessionStateIdentityPayloads(
+                    queue_groups_payload = groups?.map { it.migratedProviderIdentities(migrate) }
+                        ?.let { json.encodeToString(it) }
+                        ?: state.queue_groups_payload,
+                    internet_radio_payload = radio?.migratedProviderIdentities(migrate)
+                        ?.let { json.encodeToString(it) }
+                        ?: state.internet_radio_payload,
+                    source_id = sourceId,
+                )
+            }
+        }
         val legacy = queries.selectPlaybackSession(sourceId).executeAsOneOrNull() ?: return
         val session = runCatching { json.decodeFromString<PlaybackSessionSettings>(legacy) }.getOrNull() ?: return
         queries.updateLegacyPlaybackSessionPayload(
-            json.encodeToString(session.copy(tracks = session.tracks.map { it.migrateIds(migrate) })),
+            json.encodeToString(session.migratedProviderIdentities(migrate)),
             sourceId,
         )
     }
 
-    private fun SavedTrack.migrateIds(migrate: (String) -> String): SavedTrack = copy(
-        id = migrate(id),
-        artistId = artistId?.let(migrate),
-        albumId = albumId?.let(migrate),
-        coverArtId = coverArtId?.let(migrate),
-        artistCredits = artistCredits.map { credit ->
-            SavedArtistCredit(id = credit.id?.let(migrate), name = credit.name)
-        },
-    )
+    private fun migrateFavoriteArtistActivities(sourceId: String, migrate: (String) -> String) {
+        val activities = queries.selectFavoriteArtistActivities(sourceId).executeAsList()
+            .sortedBy { it.updated_at_epoch_millis }
+        queries.deleteFavoriteArtistActivitiesForIdentityMigration(sourceId)
+        activities.forEach { row ->
+            queries.upsertFavoriteArtistActivity(
+                source_id = sourceId,
+                remote_artist_id = migrate(row.remote_artist_id),
+                artist_name = row.artist_name,
+                favorited_at_iso8601 = row.favorited_at_iso8601,
+                favorite_active = row.favorite_active,
+                last_radio_played_at_iso8601 = row.last_radio_played_at_iso8601,
+                updated_at_epoch_millis = row.updated_at_epoch_millis,
+            )
+        }
+    }
+
+    private fun migratePlaybackProfiles(sourceId: String, migrate: (String) -> String) {
+        val profiles = queries.selectPlaybackProfilesForIdentityMigration(sourceId).executeAsList()
+            .sortedBy { it.updated_at_epoch_millis }
+        queries.deletePlaybackProfilesForIdentityMigration(sourceId)
+        profiles.forEach { row ->
+            queries.upsertPlaybackProfile(
+                source_id = sourceId,
+                target_type = row.target_type,
+                target_id = migrate(row.target_id),
+                transition_mode = row.transition_mode,
+                crossfade_duration_seconds = row.crossfade_duration_seconds,
+                replay_gain_mode = row.replay_gain_mode,
+                updated_at_epoch_millis = row.updated_at_epoch_millis,
+            )
+        }
+    }
 
     private fun unchanged() = ProviderIdentityMigrationResult(migrated = false)
 }
