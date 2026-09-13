@@ -413,4 +413,42 @@ class SmartPlaylistDraftTest {
         assertEquals(SmartPlaylistMatch.Any, restored.match)
         assertEquals(original.rules, restored.rules)
     }
+
+    @Test
+    fun navidrome064AlbumFieldsAndRefreshDelayRoundTripThroughEditorDraft() {
+        val newFields = listOf(
+            SmartPlaylistFields.AlbumDateAdded,
+            SmartPlaylistFields.AlbumDateModified,
+            SmartPlaylistFields.AlbumDuration,
+            SmartPlaylistFields.AlbumSongCount,
+            SmartPlaylistFields.AlbumSize,
+        )
+        val options = newFields.map { field -> SmartPlaylistFieldCatalog.fields.first { it.field == field } }
+        assertEquals(listOf(SmartPlaylistValueType.Date, SmartPlaylistValueType.Date), options.take(2).map { it.valueType })
+        assertEquals(List(3) { SmartPlaylistValueType.Integer }, options.drop(2).map { it.valueType })
+        assertEquals(true, options.all { it.sortable })
+
+        val original = SmartPlaylistDefinition(
+            name = "Large recent albums",
+            rules = listOf(
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.InTheLast,
+                    SmartPlaylistFields.AlbumDateAdded,
+                    SmartPlaylistValue.Number(30),
+                ),
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.GreaterThan,
+                    SmartPlaylistFields.AlbumSize,
+                    SmartPlaylistValue.Number(1_000_000),
+                ),
+            ),
+            sort = listOf(SmartPlaylistSort(SmartPlaylistFields.AlbumDateModified, descending = true)),
+            refreshDelay = "1w",
+        )
+
+        val restored = SmartPlaylistDraft.fromDefinition(original).toDefinition()
+        assertEquals(original.rules, restored.rules)
+        assertEquals(original.sort, restored.sort)
+        assertEquals("1w", restored.refreshDelay)
+    }
 }

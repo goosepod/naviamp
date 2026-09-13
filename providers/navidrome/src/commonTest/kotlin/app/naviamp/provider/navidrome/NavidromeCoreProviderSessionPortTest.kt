@@ -12,6 +12,7 @@ import app.naviamp.domain.provider.ProviderIdNavidrome
 import app.naviamp.domain.provider.ProviderIdSubsonic
 import app.naviamp.domain.provider.ProviderIdBandcamp
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.ProviderIdentitySettingsMigrationRepository
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.presentation.NaviampCoreConnectionRequest
@@ -208,7 +209,7 @@ class NavidromeCoreProviderSessionPortTest {
             NaviampConnectionAttemptPlan(true, false, false, false),
         )
 
-        assertEquals(1L, repository.migratedIdentityVersion)
+        assertEquals(2L, repository.migratedIdentityVersion)
         assertEquals(
             "3LyqmwQBm5IRqlVjNYASwb",
             repository.identityTransform?.invoke("zzzzzzzzzzzzzzzzzzzzzz"),
@@ -229,7 +230,29 @@ class NavidromeCoreProviderSessionPortTest {
 
         assertFalse(port.refreshActiveSession())
 
-        assertEquals(1L, repository.migratedIdentityVersion)
+        assertEquals(2L, repository.migratedIdentityVersion)
+    }
+
+    @Test
+    fun settingsMigrationRunsWhenSqlIdentityVersionIsAlreadyCurrent() = runTest {
+        val repository = TestMediaSourceRepository(savedSource()).apply { migratedIdentityVersion = 2L }
+        val settings = TestIdentitySettingsMigrationRepository()
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"), "custom-build")
+            },
+            canonicalIdMigrationSupport = { NavidromeCanonicalIdMigrationSupport.Confirmed },
+            identitySettingsMigrations = settings,
+        )
+
+        port.connect(
+            NaviampCoreConnectionRequest.Saved("source-1"),
+            NaviampConnectionAttemptPlan(true, false, false, false),
+        )
+
+        assertEquals(2L, settings.version)
+        assertEquals("3LyqmwQBm5IRqlVjNYASwb", settings.transform?.invoke("zzzzzzzzzzzzzzzzzzzzzz"))
     }
 
     @Test
@@ -251,12 +274,12 @@ class NavidromeCoreProviderSessionPortTest {
         port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
         port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
         assertEquals(1, supportChecks)
-        assertEquals(ProviderIdentityProbeState(1L, serverVersion), repository.probeState)
+        assertEquals(ProviderIdentityProbeState(2L, serverVersion), repository.probeState)
 
         serverVersion = "0.63.3 (new-build)"
         port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
         assertEquals(2, supportChecks)
-        assertEquals(ProviderIdentityProbeState(1L, serverVersion), repository.probeState)
+        assertEquals(ProviderIdentityProbeState(2L, serverVersion), repository.probeState)
     }
 
     @Test
@@ -358,4 +381,21 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
         return ProviderIdentityMigrationResult(migrated = true)
     }
 
+}
+
+private class TestIdentitySettingsMigrationRepository : ProviderIdentitySettingsMigrationRepository {
+    var version: Long? = null
+    var transform: ((String) -> String)? = null
+
+    override fun providerIdentitySettingsVersion(sourceId: String): Long? = version
+
+    override fun migrateProviderIdentitySettings(
+        sourceId: String,
+        targetVersion: Long,
+        transform: (String) -> String,
+    ): Boolean {
+        version = targetVersion
+        this.transform = transform
+        return true
+    }
 }
