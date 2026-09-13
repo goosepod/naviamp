@@ -36,6 +36,17 @@ update. Merge completed work into `main` through a linked pull request, use mile
 release scope, and cut a short-lived release branch from an accepted `main` commit for final
 stabilization.
 
+## GitHub CLI Authentication on Windows
+
+This Windows workspace stores GitHub CLI credentials in Windows Credential Manager. The workspace
+sandbox cannot read that keyring, so a sandboxed `gh auth status` or authenticated `gh` command may
+falsely report that the token is invalid.
+
+Run every authenticated `gh` command in the Windows credential context outside the workspace
+sandbox. Before initiating any login flow, verify the existing credential there with an
+authenticated API request such as `gh api user`. Never replace or refresh the credential solely
+because a sandboxed authentication check failed.
+
 ## Core Is the Product
 
 These are hard architecture requirements, not preferences. Naviamp is one shared application with
