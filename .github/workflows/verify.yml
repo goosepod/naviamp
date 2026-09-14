@@ -2,6 +2,12 @@ name: Verify
 
 on:
   workflow_call:
+    inputs:
+      source_ref:
+        description: Source ref to verify when rebuilding an existing release tag
+        type: string
+        required: false
+        default: ''
   pull_request:
 
 permissions:
@@ -25,6 +31,7 @@ jobs:
       - name: Check out repository history
         uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.source_ref || github.ref }}
           fetch-depth: 0
 
       - name: Classify changed paths
@@ -58,6 +65,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.source_ref || github.ref }}
           fetch-depth: 0
 
       - name: Validate documentation-only changes
@@ -77,6 +85,8 @@ jobs:
       - name: Set up Android SDK
         if: needs.changes.outputs.run_full == 'true'
         uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
       - name: Install Android build packages
         if: needs.changes.outputs.run_full == 'true'
@@ -122,6 +132,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -149,6 +161,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -158,6 +172,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
       - name: Create test emulator
         run: |
@@ -219,6 +235,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -250,6 +268,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -284,6 +304,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -293,6 +315,8 @@ jobs:
 
       - name: Set up Android SDK for Gradle configuration
         uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
       - name: Compile device targets and run all simulator tests
         run: >
