@@ -12,23 +12,38 @@ Forgejo ref is an error to investigate, never a reason to force or delete remote
 ## Work tracking
 
 - Create a GitHub issue for every feature, bug fix, or meaningful update before implementation.
-- Record the problem, intended behavior, scope, acceptance criteria, platform impact, and evidence.
-- Assign applicable release-note labels: Feature, Improvement, Bug fix, Upgrade note, or Known issue.
-- Use GitHub milestones to express intended release scope.
-- Link each pull request to its issue with a closing keyword when merging should close the issue.
+- Document the problem, intended behavior, scope, acceptance criteria, platform impact, and relevant
+  evidence in the issue. Keep design decisions and material scope changes in the issue so it remains
+  the durable record of the work.
+- Assign each issue and pull request a release-note category when applicable: Feature, Improvement,
+  Bug fix, Upgrade note, or Known issue. A change may contribute to more than one section, but its
+  public description should not be duplicated unnecessarily.
+- Use GitHub milestones to identify the issues proposed for a particular release. An issue being in a
+  milestone expresses release intent, not permission to ship incomplete work.
+- Link pull requests to their issue. Use GitHub's closing keywords when merging the pull request
+  should close the issue automatically.
 
-Small repository-only maintenance may use a lightweight issue, but released behavior, dependencies,
-packaging, security, and user documentation must remain tracked.
+Small repository-only maintenance changes may use a lightweight issue, but should still be tracked
+when they affect released behavior, dependencies, packaging, security, or user documentation.
 
 ## Branches and pull requests
 
-- Use a dedicated short-lived branch such as `feature/<issue>-<slug>`, `fix/<issue>-<slug>`, or
-  `chore/<issue>-<slug>`.
-- Keep the branch limited to its issue and open a linked pull request against `main`.
-- Merge only complete, reviewed work after all required GitHub checks and proportionate manual tests
-  pass. Keep `main` releasable.
-- Prefer squash merging unless preserving multiple commits has genuine diagnostic value.
-- Delete merged issue branches; GitHub issues and pull requests retain the durable record.
+- Give each issue its own short-lived branch, normally named `feature/<issue>-<slug>`,
+  `fix/<issue>-<slug>`, or `chore/<issue>-<slug>`.
+- Keep a branch limited to its issue. If implementation uncovers unrelated work, create and link a
+  separate issue instead of silently expanding the branch.
+- Open a pull request against `main`, link the issue, and keep the issue's acceptance criteria and
+  the pull request's verification results current.
+- Merge only complete, reviewed work whose required automated checks and proportionate manual tests
+  pass. Incomplete features should remain on their issue branch unless they are safely disabled by a
+  deliberate feature flag.
+- Prefer squash merging for a focused issue branch unless preserving multiple commits adds genuine
+  diagnostic or historical value.
+- Delete merged issue branches after their pull requests land. Git history and the linked issue keep
+  the durable record.
+
+`main` should remain releasable. Integrating completed work continuously avoids a long-lived release
+integration branch, large late merge conflicts, and fixes that exist only in one release line.
 
 ## Release flow
 
@@ -46,9 +61,44 @@ packaging, security, and user documentation must remain tracked.
 10. Close the milestone when its shipped state is accurate.
 11. Mirror the accepted commits and tags to Forgejo using the procedure below.
 
-Release notes compare against the previous public release, lead with product significance, and link
-substantive changes to accepted GitHub issues and pull requests. First-time capabilities are described
-as complete additions rather than lists of prerelease fixes.
+If an issue must be removed after the release branch is cut, prefer fixing or reverting that issue's
+complete pull request rather than assembling a release from an undocumented collection of commits.
+
+## Release notes and Discord announcements
+
+Create `.github/releases/vX.Y.Z.md` from [`.github/RELEASE_TEMPLATE.md`](../.github/RELEASE_TEMPLATE.md)
+for the GitHub Release body. The tag workflow uses that versioned file verbatim when it exists. If
+it is absent, GitHub generates a draft from labeled merged pull requests before the workflow uses
+the matching `CHANGELOG.md` section as a compatibility fallback. The project's Discord
+**announcements** channel receives published GitHub releases through a webhook, so the same release
+body must work as both the detailed GitHub page and a compact Discord announcement.
+
+- Begin with a plain-language summary followed by no more than three highlights. The beginning must
+  remain useful if a notification surface shows only part of the body.
+- Write from the perspective of someone upgrading from the previous public release. Development-only
+  iterations are not release changes and should not appear in the published notes.
+- Describe a platform or feature that has never shipped before as one cohesive new addition. Do not
+  split its prerelease focus fixes, layout adjustments, navigation changes, or other acceptance work
+  into public improvement and bug-fix bullets.
+- Rank content by product importance. New platforms and major capabilities lead; polish and fixes to
+  previously released behavior follow.
+- Group the complete notes under Features, Improvements, Bug fixes, Upgrade notes, and Known issues.
+  Omit an empty Features, Improvements, or Bug fixes section. State explicitly when there are no
+  special upgrade steps or no new known issues.
+- Keep bullets concise and independently understandable. Avoid tables, deep nesting, raw issue-title
+  dumps, and internal implementation language.
+- Do not use emoji.
+- Link each substantive change to its GitHub issue and pull request. Prefer those durable records to
+  individual commit links because they contain the rationale, acceptance criteria, verification, and
+  complete commit history.
+- Add a GitHub comparison link for the complete commit-level changelog. Link an individual commit
+  only when that exact commit is important to understand or audit.
+- Use absolute GitHub URLs so links continue to work after the release body is forwarded to Discord.
+
+The GitHub Release is the canonical announcement record. The required GitHub Discussion may use a
+shorter editorial introduction, but it should link back to the release rather than maintain a
+different list of changes. The Discord webhook is notification delivery, not a third changelog that
+must be edited separately.
 
 ## Manual Forgejo mirror
 
@@ -67,23 +117,27 @@ git push forgejo origin/release/X.Y.Z:refs/heads/release/X.Y.Z
 ```
 
 Never use `--mirror`, `--force`, `--force-with-lease`, or remote pruning/deletion against Forgejo.
-Normal non-fast-forward rejection is the safety check that prevents overwriting newer Forgejo work.
-Compare retained refs after each mirror and investigate any mismatch.
+Normal non-fast-forward rejection prevents overwriting newer Forgejo work. Compare retained refs
+after each mirror and investigate any mismatch.
 
 ## Hotfixes
 
-Branch from the affected release tag, verify and release the smallest safe patch, and merge the same
-fix back into `main`. Use a GitHub issue, milestone, pull request, release notes, and Announcement as
-for a normal release.
+For an urgent fix to an already published version, branch from the affected release tag, verify and
+release the smallest safe patch, and merge the same fix back into `main`. Use a GitHub issue,
+milestone, pull request, release notes, and Announcement just as for a normal release.
 
 ## Cutover record
 
-- GitHub/Forgejo `main` and all retained release tags matched at the write freeze.
-- Forgejo had no open issues, pull requests, or releases requiring migration.
-- GitHub issue and pull-request templates, release labels, milestone support, signing secrets,
-  Actions permissions, release webhook, and Announcements category were verified.
-- GitHub rules require pull requests and the cross-platform verification checks on `main` and active
-  `release/*` branches; force pushes and deletion are blocked.
-- Forgejo CI definitions were removed from the canonical repository.
-- GitHub issue numbers are the permanent work identifiers used in branch names and documentation.
-- Historical documents retain dated Forgejo references as historical evidence.
+- [x] Declared the GitHub cutover on 2026-09-11 and froze Forgejo writes for final synchronization.
+- [x] Verified all retained release tags and branches; the active Android TV branch is tracked by
+      GitHub issue #17 and its GitHub pull request.
+- [x] Made GitHub the default development remote and updated contributor documentation.
+- [x] Configured a GitHub ruleset for `main` and `release/*` requiring pull requests and all six
+      cross-platform checks while blocking deletion and non-fast-forward updates.
+- [x] Verified templates, release labels, the v2.5.0 milestone, permissions, signing secrets,
+      webhooks, and the Announcements Discussion category.
+- [x] Added labeled pull-request release-note generation while retaining curated versioned notes.
+- [x] Adopted GitHub issue numbers as permanent work identifiers.
+- [x] Documented and exercised non-forcing manual Forgejo mirroring.
+- [x] Marked current planning references to Forgejo's former role as historical while preserving
+      dated acceptance records.

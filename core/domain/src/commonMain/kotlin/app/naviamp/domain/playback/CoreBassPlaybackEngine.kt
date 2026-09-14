@@ -30,6 +30,7 @@ import app.naviamp.domain.playback.BassPlaybackStartPolicy
 import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
 import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
 import app.naviamp.domain.playback.PlaybackStreamStateReset
+import app.naviamp.domain.bass.BassFilePosition
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassStreamHandle
@@ -37,6 +38,7 @@ import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyEqualizer
 import app.naviamp.domain.bass.bassErrorMessage
+import app.naviamp.domain.bass.bassPlaybackFailureReason
 import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassStreamActiveStateLabel
@@ -147,6 +149,7 @@ open class CoreBassPlaybackEngine(
     private var preparedReplayGainAdjustment: PlaybackReplayGainAdjustment? = null
     private var preparedError: String? = null
     private var preparedNextGeneration: Long = 0L
+    private var interruptedPlaybackId: Int? = null
     private var endSyncCallbacks: MutableMap<Int, Int> = mutableMapOf()
     private var crossfadeDurationSeconds: Int = 0
     private var crossfadeActive: Boolean = false
@@ -207,6 +210,7 @@ open class CoreBassPlaybackEngine(
             var retriedAfterBassReset = false
             var activeRequest = request
             var triedFallback = false
+            var lastFailureReason: PlaybackFailureReason? = null
             try {
                 while (execution.isCurrent(currentPlaybackId)) {
                     try {
@@ -230,7 +234,7 @@ open class CoreBassPlaybackEngine(
                         stream = playbackHandle
                         currentSourceStream = createdPlayback.sourceHandle
                         currentReplayGainAdjustment = createdPlayback.replayGainAdjustment
-                        attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged)
+                        val endState = attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged, activeRequest.isLive)
                         createdPlayback = null
                         applyOutputVolume(bass)
                         applyEqualizer(bass)
@@ -263,13 +267,16 @@ open class CoreBassPlaybackEngine(
                                 playbackHandle = playbackHandle,
                                 sourceHandle = currentSourceStream,
                             )
+                            if (interruptedPlaybackId == currentPlaybackId) break
                             val update = planBassPlaybackPollingUpdate(
                                 snapshot = snapshot,
                                 previous = pollingState,
                                 policy = pollingPolicy,
                             )
                             pollingState = update.state
-                            update.playbackState?.let(onStateChanged)
+                            update.playbackState?.let { state ->
+                                onStateChanged(if (state == PlaybackState.Finished) endState() else state)
+                            }
                             update.progress?.let { progress ->
                                 lastProgress = progress
                                 onProgressChanged(progress)
@@ -282,10 +289,11 @@ open class CoreBassPlaybackEngine(
                         }
 
                         if (pollingPolicy.finishWhenPollingStops && execution.isCurrent(currentPlaybackId)) {
-                            onStateChanged(PlaybackState.Finished)
+                            onStateChanged(endState())
                         }
                         break
                     } catch (exception: Throwable) {
+                        lastFailureReason = bassPlaybackFailureReason(bass.lastErrorCode)
                         createdPlayback?.let { freeCreatedPlayback(bass, it) }
                         createdPlayback = null
                         if (
@@ -319,7 +327,7 @@ open class CoreBassPlaybackEngine(
                 if (execution.isCurrent(currentPlaybackId) && job?.isCancelled != true) {
                     val message = exception.message ?: "BASS playback failed."
                     lastError = message
-                    onStateChanged(PlaybackState.Error(message))
+                    onStateChanged(PlaybackState.Error(message, lastFailureReason))
                 }
             } finally {
                 if (execution.isCurrent(currentPlaybackId)) {
@@ -473,7 +481,7 @@ open class CoreBassPlaybackEngine(
                         playbackDecode = true,
                     ).getOrThrow()
                     crossfadeActive = prepared.crossfadeActive
-                    attachEndSync(bass, prepared.sourceHandle, execution.currentPlaybackId)
+                    attachEndSync(bass, prepared.sourceHandle, execution.currentPlaybackId, isLive = request.isLive)
                     preparedBassPlaybackSucceeded(
                         preparedHandle = prepared.sourceHandle,
                         request = request,
@@ -692,7 +700,7 @@ open class CoreBassPlaybackEngine(
         currentReplayGainAdjustment = update.replayGainAdjustment
         applyEqualizer(bass)
         crossfadeActive = false
-        attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged)
+        val endState = attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged, request.isLive)
         applyPreparedReset(update.preparedReset)
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
@@ -704,13 +712,16 @@ open class CoreBassPlaybackEngine(
                         playbackHandle = stream,
                         sourceHandle = currentSourceStream,
                     )
+                    if (interruptedPlaybackId == currentPlaybackId) break
                     val update = planBassPlaybackPollingUpdate(
                         snapshot = snapshot,
                         previous = pollingState,
                         policy = pollingPolicy,
                     )
                     pollingState = update.state
-                    update.playbackState?.let(onStateChanged)
+                    update.playbackState?.let { state ->
+                        onStateChanged(if (state == PlaybackState.Finished) endState() else state)
+                    }
                     update.progress?.let { progress ->
                         lastProgress = progress
                         onProgressChanged(progress)
@@ -723,7 +734,7 @@ open class CoreBassPlaybackEngine(
                 }
 
                 if (pollingPolicy.finishWhenPollingStops && execution.isCurrent(currentPlaybackId)) {
-                    onStateChanged(PlaybackState.Finished)
+                    onStateChanged(endState())
                 }
             } catch (exception: Throwable) {
                 if (execution.isCurrent(currentPlaybackId) && job?.isCancelled != true) {
@@ -776,14 +787,36 @@ open class CoreBassPlaybackEngine(
         source: Int,
         currentPlaybackId: Int,
         stateCallback: ((PlaybackState) -> Unit)? = null,
-    ) {
+        isLive: Boolean = false,
+    ): () -> PlaybackState {
+        val handle = BassStreamHandle(source)
+        // Capture before a truncated download can change the native end estimate. Byte counts,
+        // rather than duration estimates, avoid misclassifying valid VBR audio as interrupted.
+        val fileSize = bass.filePosition(handle, BassFilePosition.Size)
+        val audioEnd = bass.filePosition(handle, BassFilePosition.End)
+        var failure: PlaybackState.Error? = null
+        val endState = {
+            failure ?: bassStreamEndState(
+                isLive = isLive,
+                fileSizeBytes = fileSize,
+                audioEndBytes = audioEnd,
+                downloadedBytes = bass.filePosition(handle, BassFilePosition.Download),
+                connected = bass.filePosition(handle, BassFilePosition.Connected),
+            )
+        }
         bass.setEndSync(source) { channel ->
-            if (channel.value == source && execution.isCurrent(currentPlaybackId)) {
-                (stateCallback ?: execution.callbacks?.onStateChanged)?.invoke(PlaybackState.Finished)
+            if (channel.value == source && source == currentSourceStream && execution.isCurrent(currentPlaybackId)) {
+                val state = endState()
+                if (state is PlaybackState.Error) {
+                    failure = state
+                    interruptedPlaybackId = currentPlaybackId
+                }
+                (stateCallback ?: execution.callbacks?.onStateChanged)?.invoke(state)
             }
         }
             .onSuccess { endSyncCallbacks[source] = it }
             .onFailure { lastError = it.message }
+        return endState
     }
 
     private fun applyOutputVolume(bass: BassAudioBackend) {

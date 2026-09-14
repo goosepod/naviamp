@@ -46,6 +46,19 @@ class NaviampPlaybackCommandController(
     private val execution: NaviampPlaybackExecution,
     private val playback: NaviampLivePlaybackController,
 ) {
+    /** Explicit transport requests must never toggle an already satisfied state. */
+    fun play(): Boolean = when (playback.state.value.playbackState) {
+        PlaybackState.Playing, PlaybackState.Loading -> true
+        PlaybackState.Paused -> executePlayPause(PlaybackPlayPauseCommand.Resume)
+        else -> playPause()
+    }
+
+    fun pause(): Boolean = when (playback.state.value.playbackState) {
+        // Deliver explicit pause intent even after focus paused the engine, cancelling auto-resume.
+        PlaybackState.Playing, PlaybackState.Paused -> executePlayPause(PlaybackPlayPauseCommand.Pause)
+        else -> false
+    }
+
     fun playPause(
         hasPlaybackTarget: Boolean = playback.state.value.hasPlaybackTarget,
         startOrRestore: (() -> Boolean)? = null,

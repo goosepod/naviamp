@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Ordenação de álbuns</string>
+    <string name="tv_album_sort_order_description">Escolha a ordem dos lançamentos do artista</string>
+    <string name="tv_album_sort_oldest_first">Mais antigos primeiro</string>
+    <string name="tv_album_sort_newest_first">Mais recentes primeiro</string>
+    <string name="tv_album_sort_title">Título</string>
+    <string name="tv_group_albums_by_release_type">Agrupar álbuns por tipo de lançamento</string>
+    <string name="tv_group_albums_by_release_type_description">Mostrar álbuns, EPs, singles e outros lançamentos em seções separadas</string>
+    <string name="connect_setup_password_required">Digite a senha da sua fonte para concluir a configuração. O Naviamp a valida e salva com segurança para conexões futuras.</string>
+    <string name="connect_setup_code_consent">Exibir um código permite que o dispositivo que o digitar se emparelhe e configure este dispositivo com sua fonte de música e suas configurações.</string>
+    <string name="connect_setup_new_code_required">Exiba um novo código na TV e emparelhe novamente para concluir a configuração.</string>
+    <string name="settings_keep_screen_awake">Manter a tela ligada</string>
+    <string name="settings_keep_screen_awake_description">Impede que a tela desligue automaticamente enquanto o Naviamp estiver visível. Suspensão do sistema, bloqueios e temporizadores da TV ainda podem ser aplicados.</string>
+    <string name="settings_keep_screen_awake_failed">Não foi possível alterar a prevenção do desligamento da tela. Desative e ative esta opção para tentar novamente.</string>
     <string name="settings_now_playing_split_background_opacity">Opacidade do fundo da visualização dividida</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Dispositivo de reprodução: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Data de adição do álbum</string>
     <string name="smart_playlist_field_album_date_modified">Data de modificação do álbum</string>
     <string name="smart_playlist_field_album_duration">Duração do álbum</string>
@@ -10,4 +25,7 @@
     <string name="smart_playlist_refresh_delay">Intervalo de atualização</string>
     <string name="smart_playlist_refresh_delay_hint">Opcional. Exemplos: 12h, 1d ou 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Use uma duração válida, como 12h, 1d ou 1w.</string>
+    <string name="connect_pairing_code">Código de pareamento</string>
+    <string name="connect_devices_description">Controle e emparelhe dispositivos Naviamp nesta rede</string>
+    <string name="connect_setup_timed_out">O tempo de configuração do dispositivo esgotou. Verifique o dispositivo de reprodução e tente novamente.</string>
 </resources>

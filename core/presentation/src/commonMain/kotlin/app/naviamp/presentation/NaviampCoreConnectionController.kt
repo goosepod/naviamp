@@ -40,6 +40,7 @@ class NaviampCoreConnectionController(
     initialInventory: NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(),
     private val onSourceChanging: (previousSourceId: String?, newSourceId: String) -> Unit = { _, _ -> },
     private val onConnected: (String) -> Unit = {},
+    private val onUserConnected: (String) -> Unit = {},
     private val onOfflineRestored: (String) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
@@ -83,7 +84,37 @@ class NaviampCoreConnectionController(
             ?.let { currentId -> inventory.connections.firstOrNull { it.id == currentId } }
             ?: inventory.connections.firstOrNull()
             ?: return
-        connect(NaviampCoreConnectionRequest.Saved(saved.id))
+        connect(NaviampCoreConnectionRequest.Saved(saved.id), userInitiated = false)
+    }
+
+    /** Validates a one-time setup password through the existing source, without clearing playback/cache. */
+    internal suspend fun updateProvisioningCredential(sourceId: String, password: String): Boolean {
+        if (password.isBlank() || sessionPort.currentSourceId() != sourceId) return false
+        val editable = sessionPort.currentProvisioningConnection() ?: return false
+        if (sessionPort.currentSourceId() != sourceId) return false
+        return connect(
+            NaviampCoreConnectionRequest.Form(editable.form.copy(password = password), sourceId),
+            preserveExistingSession = true,
+        )
+    }
+
+    /** Validates and commits an encrypted Connect offer through the normal provider-session owner. */
+    internal suspend fun provisionConnect(form: ConnectionFormState): Boolean {
+        val active = inventory.currentSourceId
+            ?.let { currentId -> inventory.connections.firstOrNull { it.id == currentId } }
+        if (
+            connection.state.value.connected &&
+            active != null &&
+            active.providerId == form.providerId &&
+            active.serverUrl.trim().trimEnd('/').equals(
+                form.serverUrl.trim().trimEnd('/'),
+                ignoreCase = true,
+            ) &&
+            active.username == form.username.trim()
+        ) {
+            return true
+        }
+        return connect(NaviampCoreConnectionRequest.Form(form))
     }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
@@ -124,21 +155,30 @@ class NaviampCoreConnectionController(
         return NaviampCoreCommandResult.Completed
     }
 
-    private suspend fun connect(request: NaviampCoreConnectionRequest) {
+    private suspend fun connect(
+        request: NaviampCoreConnectionRequest,
+        preserveExistingSession: Boolean = false,
+        userInitiated: Boolean = true,
+    ): Boolean {
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
                 form = request.form,
                 hasSavedConnectionForLogin = request.savedConnectionId != null,
             )?.let { error ->
-                connection.failed(error)
-                publishConnection()
-                return
+                if (!preserveExistingSession) {
+                    connection.failed(error)
+                    publishConnection()
+                }
+                return false
             }
         }
-        val plan = connection.begin(restoreSavedSession = request is NaviampCoreConnectionRequest.Saved)
-            ?: return
+        val previousStatus = stateStore.state.value.shell.connectionSettings.connection.status
+        val previousConnection = connection.state.value
+        val plan = connection.begin(restoreSavedSession = preserveExistingSession || request is NaviampCoreConnectionRequest.Saved)
+            ?: return false
         val previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         publishConnection()
+        var connected = false
         runCatching { sessionPort.connect(request, plan) }
             .onSuccess { session ->
                 if (previousSourceId != session.sourceId || plan.clearExistingPlayback) {
@@ -163,10 +203,24 @@ class NaviampCoreConnectionController(
                 }
                 publishConnection()
                 onConnected(session.sourceId)
+                if (userInitiated) onUserConnected(session.sourceId)
+                connected = true
             }
             .onFailure { cause ->
+                if (cause is kotlinx.coroutines.CancellationException || preserveExistingSession) {
+                    connection.restore(previousConnection)
+                    publishConnection()
+                    stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+                        connection = shell.connectionSettings.connection.copy(status = previousStatus))) }
+                    if (cause is kotlinx.coroutines.CancellationException) throw cause
+                    return@onFailure
+                }
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
                 if (savedSourceId != null && connectionFailureAllowsOfflineRestoration(cause)) {
+                    if (previousSourceId != savedSourceId || plan.clearExistingPlayback) {
+                        onSourceChanging(previousSourceId, savedSourceId)
+                    }
+                    inventory = inventory.copy(currentSourceId = savedSourceId)
                     connection.offline(
                         sourceId = savedSourceId,
                         status = "Offline. Downloaded music remains available.",
@@ -178,6 +232,7 @@ class NaviampCoreConnectionController(
                     publishConnection()
                 }
             }
+        return connected
     }
 
     private suspend fun edit(id: String) {

@@ -23,6 +23,9 @@ class NaviampPlaybackQueueCommandController(
     fun moveToNext(index: Int): PlaybackQueueMutationUpdate =
         apply(queue.moveToNext(index))
 
+    fun moveUpcoming(fromIndex: Int, toIndex: Int): PlaybackQueueMutationUpdate =
+        apply(queue.moveUpcoming(fromIndex, toIndex))
+
     fun removeAt(index: Int): PlaybackQueueMutationUpdate =
         apply(queue.removeAt(index))
 

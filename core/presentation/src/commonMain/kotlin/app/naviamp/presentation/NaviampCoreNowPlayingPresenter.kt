@@ -72,7 +72,10 @@ class NaviampCoreNowPlayingPresenter(
             playbackEngineName = effects.capabilities.engineName,
             capabilities = capabilities,
             nowPlayingTrack = track,
-            nowPlayingWaveform = sidecar.waveform.takeIf { shell.cache.settings.waveformsEnabled },
+            nowPlayingWaveform = sidecar.waveformForTrack(
+                trackId = track?.id,
+                enabled = shell.cache.settings.waveformsEnabled,
+            ),
             nowPlayingAudioTags = sidecar.audioTags,
             nowPlayingLyrics = sidecar.lyrics,
             nowPlayingLyricsAvailableTiming = sidecar.lyricsAvailableTiming,
@@ -123,3 +126,8 @@ class NaviampCoreNowPlayingPresenter(
         stateStore.updateShell { current -> current.copy(nowPlaying = nowPlaying) }
     }
 }
+
+internal fun NaviampCoreNowPlayingSidecars.waveformForTrack(
+    trackId: app.naviamp.domain.TrackId?,
+    enabled: Boolean,
+) = waveform.takeIf { enabled && this.trackId == trackId }

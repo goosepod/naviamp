@@ -23,4 +23,5 @@ apps/desktop/vendor/mpv/*/mpv
 apps/desktop/vendor/mpv/*/mpv.exe
 apps/desktop/bin/
 /platforms/desktop/bin/
+/tools/genre-ontology/bin/
 /assets/

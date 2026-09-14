@@ -17,6 +17,17 @@ import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
     @Test
+    fun languageSurvivesRecreatingTheSettingsCatalog() {
+        val values = MemorySettingsValues()
+        for (language in app.naviamp.domain.settings.InterfaceLanguage.entries) {
+            naviampCoreSettingsValueCatalog(values).storedSettings.saveInterface(
+                InterfaceSettings(language = language),
+            )
+            assertEquals(language, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().language)
+        }
+    }
+
+    @Test
     fun ownsPortableSerializationDefaultsAndNormalization() {
         val values = MemorySettingsValues()
         val catalog = naviampCoreSettingsValueCatalog(values)
@@ -25,9 +36,11 @@ class NaviampCoreSettingsValueStoreTest {
         assertEquals(InterfaceSettings(), settings.loadInterface())
         settings.saveInterface(InterfaceSettings(
             albumBlurRadiusDp = 999,
+            keepScreenAwake = true,
             nowPlaying = NowPlayingDisplaySettings(splitPaneBackgroundOpacityPercent = 42),
         ))
         assertEquals(48, settings.loadInterface().albumBlurRadiusDp)
+        assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().keepScreenAwake)
         assertEquals(42, settings.loadInterface().nowPlaying.splitPaneBackgroundOpacityPercent)
         catalog.savePlayback(PlaybackSettings(crossfadeDurationSeconds = 999))
         assertEquals(999, settings.loadPlayback().crossfadeDurationSeconds)

@@ -32,8 +32,8 @@ internal fun auroraGradientEndpoints(size: Size, angleDegrees: Int): Pair<Offset
 }
 
 @Composable
-internal fun NaviampAuroraBackground(colors: NaviampPlayerColors, steps: Int, angleDegrees: Int) {
-    Box(Modifier.fillMaxSize().drawWithCache {
+internal fun NaviampAuroraBackground(colors: NaviampPlayerColors, steps: Int, angleDegrees: Int, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize().drawWithCache {
         val (start, end) = auroraGradientEndpoints(size, angleDegrees)
         val brush = Brush.linearGradient(colors.auroraColors(steps), start = start, end = end)
         onDrawBehind { drawRect(brush) }

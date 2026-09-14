@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback.bass
 
+import app.naviamp.domain.bass.BassFilePosition
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassPluginDiagnostic
@@ -282,6 +283,9 @@ class DesktopBassAudioBackend(
 
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         bass.durationSeconds(stream.value)
+
+    override fun filePosition(stream: BassStreamHandle, position: BassFilePosition): Long? =
+        bass.filePosition(stream.value, position.nativeValue)
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =
         bass.lengthBytes(stream.value)

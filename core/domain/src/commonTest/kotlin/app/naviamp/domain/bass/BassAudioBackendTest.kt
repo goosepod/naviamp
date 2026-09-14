@@ -62,8 +62,27 @@ class BassAudioBackendTest {
     fun formatsBassErrorCodes() {
         assertEquals("no error", bassErrorMessage(0))
         assertEquals("connection timed out", bassErrorMessage(40))
+        assertEquals("unstreamable file", bassErrorMessage(47))
+        assertEquals("unsupported protocol", bassErrorMessage(48))
         assertEquals("unknown BASS error", bassErrorMessage(-1))
         assertEquals("BASS error 999", bassErrorMessage(999))
+    }
+
+    @Test
+    fun classifiesRecoverablePlaybackFailures() {
+        assertEquals(
+            app.naviamp.domain.playback.PlaybackFailureReason.UnsupportedFormat,
+            bassPlaybackFailureReason(41),
+        )
+        assertEquals(
+            app.naviamp.domain.playback.PlaybackFailureReason.UnsupportedFormat,
+            bassPlaybackFailureReason(44),
+        )
+        assertEquals(
+            app.naviamp.domain.playback.PlaybackFailureReason.UnstreamableNetworkSource,
+            bassPlaybackFailureReason(47),
+        )
+        assertEquals(null, bassPlaybackFailureReason(40))
     }
 
     @Test

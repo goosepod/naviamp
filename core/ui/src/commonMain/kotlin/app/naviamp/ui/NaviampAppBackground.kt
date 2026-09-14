@@ -12,8 +12,71 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.DefaultSingleColorHex
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.MaxAlbumBlurRadiusDp
 import app.naviamp.domain.settings.MinAlbumBlurRadiusDp
+
+internal data class NaviampAppBackgroundUi(
+    val style: AppBackgroundStyle,
+    val coverArtUrl: String?,
+    val blurRadiusDp: Int,
+    val singleColor: Color,
+    val targetPlayerColors: NaviampPlayerColors,
+    val auroraColorSteps: Int = 3,
+    val auroraAngleDegrees: Int = 45,
+)
+
+internal fun naviampAppBackgroundUi(
+    interfaceSettings: InterfaceSettings,
+    coverArtUrl: String?,
+    albumPlayerColors: NaviampPlayerColors,
+    colors: NaviampColors,
+): NaviampAppBackgroundUi {
+    val singleColor = naviampColorFromHex(interfaceSettings.singleColorHex)
+        ?: naviampColorFromHex(DefaultSingleColorHex)!!
+    val playerColors = when (interfaceSettings.appBackgroundStyle) {
+        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleColor, colors)
+        AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
+        AppBackgroundStyle.AlbumBlur -> albumPlayerColors
+    }
+    return NaviampAppBackgroundUi(
+        style = interfaceSettings.appBackgroundStyle,
+        coverArtUrl = coverArtUrl,
+        blurRadiusDp = interfaceSettings.albumBlurRadiusDp,
+        singleColor = singleColor,
+        targetPlayerColors = playerColors,
+        auroraColorSteps = interfaceSettings.auroraColorSteps,
+        auroraAngleDegrees = interfaceSettings.auroraAngleDegrees,
+    )
+}
+
+@Composable
+internal fun NaviampAppBackground(
+    background: NaviampAppBackgroundUi,
+    colors: NaviampColors,
+    playerColors: NaviampPlayerColors,
+    modifier: Modifier = Modifier,
+) {
+    when (background.style) {
+        AppBackgroundStyle.Aurora -> NaviampAuroraBackground(
+            playerColors, background.auroraColorSteps, background.auroraAngleDegrees, modifier,
+        )
+        AppBackgroundStyle.AlbumBlur -> NaviampAlbumBlurBackground(
+            url = background.coverArtUrl,
+            colors = colors,
+            playerColors = playerColors,
+            blurRadiusDp = background.blurRadiusDp,
+            modifier = modifier,
+        )
+        AppBackgroundStyle.SingleColor -> Box(
+            modifier
+                .fillMaxSize()
+                .background(background.singleColor),
+        )
+    }
+}
 
 @Composable
 fun NaviampAlbumBlurBackground(

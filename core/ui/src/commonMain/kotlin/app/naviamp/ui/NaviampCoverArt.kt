@@ -1,6 +1,6 @@
 package app.naviamp.ui
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -53,31 +54,67 @@ fun NaviampCoverArt(
     colors: NaviampColors,
     size: Dp,
     cornerRadius: Dp,
+    modifier: Modifier = Modifier,
+    decodeSize: Dp = size,
 ) {
     val targetSidePx = with(LocalDensity.current) {
-        ceil(size.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
+        ceil(decodeSize.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
     }
     // Keep the displayed bitmap while a new URL or decode size is loading. Resetting this
     // state by size exposes the placeholder again after the incoming cover has faded in.
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
+    var outgoingImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    val incomingAlpha = remember { Animatable(1f) }
     LaunchedEffect(url, targetSidePx) {
-        image = url?.let { NaviampCoverArtCache.image(it, targetSidePx) }
+        if (url == null) {
+            // Playback can briefly publish no artwork between adjacent queue items. Do not let that
+            // transient state expose the placeholder in the middle of a song transition.
+            delay(CurrentMediaEmptyGraceMillis)
+            image = null
+            outgoingImage = null
+            incomingAlpha.snapTo(1f)
+            return@LaunchedEffect
+        }
+        val loadedImage = NaviampCoverArtCache.image(url, targetSidePx)
+        if (loadedImage == null) {
+            image = null
+            outgoingImage = null
+            incomingAlpha.snapTo(1f)
+            return@LaunchedEffect
+        }
+        if (loadedImage == image) return@LaunchedEffect
+        outgoingImage = image
+        image = loadedImage
+        if (outgoingImage == null) {
+            incomingAlpha.snapTo(1f)
+        } else {
+            incomingAlpha.snapTo(0f)
+            incomingAlpha.animateTo(1f, tween(CoverArtTransitionMillis))
+            outgoingImage = null
+        }
     }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(cornerRadius))
             .background(colors.albumArtPlaceholder),
     ) {
-        Crossfade(image, animationSpec = tween(180), label = "Cover art fade") { target ->
-            target?.let {
-                Image(
-                    bitmap = it,
-                    contentDescription = "Album art",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+        outgoingImage?.let {
+            Image(
+                bitmap = it,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        image?.let {
+            Image(
+                bitmap = it,
+                contentDescription = "Album art",
+                contentScale = ContentScale.Crop,
+                alpha = incomingAlpha.value,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
@@ -134,17 +171,35 @@ fun rememberNaviampCoverArtPlayerColors(
     url: String?,
     colors: NaviampColors,
 ): NaviampPlayerColors {
-    var playerColors by remember(url, colors) {
+    var playerColors by remember(colors) {
         mutableStateOf(NaviampPlayerColors.fallback(colors))
     }
     LaunchedEffect(url, colors) {
         playerColors = if (url == null) {
+            delay(CurrentMediaEmptyGraceMillis)
             NaviampPlayerColors.fallback(colors)
         } else {
             NaviampCoverArtCache.playerColors(url, colors)
         }
     }
     return playerColors
+}
+
+@Composable
+internal fun PreloadNaviampNowPlayingArtwork(nowPlaying: NowPlayingUi?) {
+    val upcomingUrls = remember(nowPlaying?.id, nowPlaying?.upNext) {
+        nowPlaying?.upNext
+            .orEmpty()
+            .asSequence()
+            .filter { it.id != nowPlaying?.id }
+            .mapNotNull { it.coverArtUrl }
+            .distinct()
+            .take(2)
+            .toList()
+    }
+    LaunchedEffect(upcomingUrls) {
+        preloadNaviampCoverArt(upcomingUrls)
+    }
 }
 
 internal suspend fun preloadNaviampCoverArt(urls: Iterable<String>) {
@@ -232,6 +287,9 @@ private object NaviampCoverArtCache {
         while (map.size > maximum) map.remove(map.keys.first())
     }
 }
+
+private const val CoverArtTransitionMillis = 280
+private const val CurrentMediaEmptyGraceMillis = 750L
 
 private const val MinCoverArtSidePx = 128
 private const val MaxCoverArtSidePx = 1024

@@ -318,6 +318,37 @@ class PlaybackQueueTest {
         assertEquals(track("3"), queue.current)
     }
 
+    @Test
+    fun moveUpcomingUsesOccurrenceIndexesAndKeepsCurrentPinned() {
+        val firstDuplicate = track("duplicate").copy(title = "First occurrence")
+        val secondDuplicate = track("duplicate").copy(title = "Second occurrence")
+        val queue = PlaybackQueue(
+            tracks = listOf(track("history"), track("current"), firstDuplicate, track("middle"), secondDuplicate),
+            currentIndex = 1,
+            playNextCount = 1,
+        ).moveUpcoming(fromIndex = 4, toIndex = 2)
+
+        assertEquals(
+            listOf(track("history"), track("current"), secondDuplicate, firstDuplicate, track("middle")),
+            queue.tracks,
+        )
+        assertEquals(track("current"), queue.current)
+        assertEquals(1, queue.currentIndex)
+        assertEquals(1, queue.playNextCount)
+    }
+
+    @Test
+    fun moveUpcomingRejectsCurrentHistoryAndOutOfBoundsPositions() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("history"), track("current"), track("next")),
+            currentIndex = 1,
+        )
+
+        assertEquals(queue, queue.moveUpcoming(fromIndex = 1, toIndex = 2))
+        assertEquals(queue, queue.moveUpcoming(fromIndex = 0, toIndex = 2))
+        assertEquals(queue, queue.moveUpcoming(fromIndex = 2, toIndex = 3))
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

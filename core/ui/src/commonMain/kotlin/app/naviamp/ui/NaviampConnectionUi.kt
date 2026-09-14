@@ -1,4 +1,6 @@
 package app.naviamp.ui
+import org.jetbrains.compose.resources.stringResource
+import app.naviamp.ui.generated.resources.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,12 +45,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,7 +97,7 @@ internal fun RestoringConnectionCard(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text("Restoring connection", color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.connection_restoring_connection), color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Text(status, color = colors.secondaryText, fontSize = 13.sp)
     }
 }
@@ -100,6 +114,8 @@ fun NaviampConnectionForm(
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
     capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
+    allowLocalFileInputs: Boolean = true,
+    allowFallbackUrls: Boolean = true,
     modifier: Modifier = Modifier,
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
@@ -107,12 +123,29 @@ fun NaviampConnectionForm(
     onCancel: (() -> Unit)?,
 ) {
     var advancedVisible by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val softwareKeyboardController = LocalSoftwareKeyboardController.current
+    val advancedFocusRequester = remember { FocusRequester() }
+    val connectFocusRequester = remember { FocusRequester() }
+    val focusNext: () -> Unit = { focusManager.moveFocus(FocusDirection.Next) }
 
+    NaviampSystemBackHandler(enabled = onCancel != null && !isConnecting) {
+        onCancel?.invoke()
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        onCancel?.let { cancel ->
+            ConnectionFormTextAction(
+                label = stringResource(Res.string.common_back),
+                colors = colors,
+                enabled = !isConnecting,
+                modifier = Modifier.testTag(ConnectionBackButtonTestTag),
+                onClick = cancel,
+            )
+        }
         if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
             ConnectionErrorCard(connectionStatus)
         }
-        SettingsSectionTitle("Connection Details", colors)
+        SettingsSectionTitle(stringResource(Res.string.connection_connection_details), colors)
         ProviderSelector(
             selectedProviderId = form.providerId,
             colors = colors,
@@ -126,14 +159,14 @@ fun NaviampConnectionForm(
         )
         if (isReconnect) {
             Text(
-                "Saved credentials loaded. Leave password blank to reuse them.",
+                stringResource(Res.string.connection_saved_credentials_loaded_leave_password_blank_to_reuse_them),
                 color = colors.mutedText,
                 fontSize = 11.sp,
             )
         }
-        onImportSettingsSyncFile?.let { importSettings ->
+        onImportSettingsSyncFile?.takeIf { allowLocalFileInputs }?.let { importSettings ->
             ConnectionFormTextAction(
-                label = "Import provider settings",
+                label = stringResource(Res.string.settings_sync_import_provider),
                 colors = colors,
                 enabled = !isConnecting,
                 onClick = importSettings,
@@ -145,42 +178,66 @@ fun NaviampConnectionForm(
         NaviampTextField(
             value = form.displayName,
             onValueChange = { onFormChanged(form.copy(displayName = it)) },
-            label = "Connection name (optional)",
+            label = stringResource(Res.string.connection_connection_name_optional),
             colors = colors,
+            imeAction = ImeAction.Next,
+            onImeAction = focusNext,
+            modifier = Modifier.testTag(ConnectionNameFieldTestTag),
         )
         NaviampTextField(
             value = form.serverUrl,
             onValueChange = { onFormChanged(form.copy(serverUrl = it)) },
-            label = "Server URL",
+            label = stringResource(Res.string.connection_server_url),
             colors = colors,
             inputKind = NaviampTextInputKind.Url,
+            imeAction = ImeAction.Next,
+            onImeAction = focusNext,
+            modifier = Modifier.testTag(ConnectionServerUrlFieldTestTag),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             NaviampTextField(
                 value = form.username,
                 onValueChange = { onFormChanged(form.copy(username = it)) },
-                label = "Username",
+                label = stringResource(Res.string.connection_username),
                 colors = colors,
                 inputKind = NaviampTextInputKind.Technical,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag(ConnectionUsernameFieldTestTag),
+                imeAction = ImeAction.Next,
+                onImeAction = focusNext,
             )
             NaviampTextField(
                 value = form.password,
                 onValueChange = { onFormChanged(form.copy(password = it)) },
-                label = "Password",
+                label = stringResource(Res.string.connection_password),
                 colors = colors,
                 isPassword = true,
                 forceFloatingLabel = isReconnect,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag(ConnectionPasswordFieldTestTag),
+                imeAction = ImeAction.Done,
+                onImeAction = {
+                    softwareKeyboardController?.hide()
+                    connectFocusRequester.requestFocus()
+                },
             )
         }
         ConnectionFormTextAction(
-            label = if (advancedVisible) "Hide Advanced" else "Show Advanced",
+            label = if (advancedVisible) stringResource(Res.string.connection_hide_advanced) else stringResource(Res.string.connection_show_advanced),
             colors = colors,
+            modifier = Modifier
+                .focusRequester(advancedFocusRequester)
+                .onPreviewKeyEvent { event ->
+                    if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                        connectFocusRequester.requestFocus()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                .testTag(ConnectionAdvancedActionTestTag),
             onClick = { advancedVisible = !advancedVisible },
         )
         if (advancedVisible) {
-            SettingsSectionTitle("Libraries", colors)
+            SettingsSectionTitle(stringResource(Res.string.settings_about_libraries_title), colors)
             MusicFolderMultiSelect(
                 selectedIds = form.selectedMusicFolderIds,
                 availableFolders = availableMusicFolders,
@@ -190,7 +247,9 @@ fun NaviampConnectionForm(
                     onFormChanged(form.copy(selectedMusicFolderIds = ids))
                 },
             )
-            if (capabilities.insecureServerVerification || capabilities.customServerCertificates) {
+            val customServerCertificatesVisible = allowLocalFileInputs && capabilities.customServerCertificates
+            val clientCertificatesVisible = allowLocalFileInputs && capabilities.clientCertificates
+            if (capabilities.insecureServerVerification || customServerCertificatesVisible) {
                 SettingsSectionTitle("TLS", colors)
             }
             if (capabilities.insecureServerVerification) {
@@ -203,79 +262,81 @@ fun NaviampConnectionForm(
                         checked = form.skipTlsVerification,
                         onCheckedChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
                     )
-                    Text("Skip TLS certificate verification", color = colors.secondaryText, fontSize = 13.sp)
+                    Text(stringResource(Res.string.connection_skip_tls_certificate_verification), color = colors.secondaryText, fontSize = 13.sp)
                 }
             }
-            if (capabilities.customServerCertificates) {
+            if (customServerCertificatesVisible) {
                 NaviampTextField(
                     value = form.customCertificatePath,
                     onValueChange = { onFormChanged(form.copy(customCertificatePath = it)) },
-                    label = "Trusted certificate or CA file",
+                    label = stringResource(Res.string.connection_trusted_certificate_or_ca_file),
                     colors = colors,
                     enabled = !form.skipTlsVerification,
                     inputKind = NaviampTextInputKind.Technical,
                 )
             }
-            if (capabilities.clientCertificates) {
+            if (clientCertificatesVisible) {
                 SettingsSectionTitle("mTLS", colors)
                 NaviampTextField(
                     value = form.clientCertificatePath,
                     onValueChange = { onFormChanged(form.copy(clientCertificatePath = it)) },
-                    label = "Client certificate PKCS12 file",
+                    label = stringResource(Res.string.connection_client_certificate_pkcs12_file),
                     colors = colors,
                     inputKind = NaviampTextInputKind.Technical,
                 )
                 NaviampTextField(
                     value = form.clientCertificatePassword,
                     onValueChange = { onFormChanged(form.copy(clientCertificatePassword = it)) },
-                    label = "Client certificate password",
+                    label = stringResource(Res.string.connection_client_certificate_password),
                     colors = colors,
                     isPassword = true,
                 )
             }
-            SettingsSectionTitle("Fallback URLs", colors)
-            form.secondaryUrls.forEachIndexed { index, entry ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    NaviampTextField(
-                        value = entry.url,
-                        onValueChange = { value ->
-                            onFormChanged(form.copy(
-                                secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(url = value)),
-                            ))
-                        },
-                        label = "URL",
-                        colors = colors,
-                        inputKind = NaviampTextInputKind.Url,
-                        modifier = Modifier.weight(1f),
-                    )
-                    NaviampTextField(
-                        value = entry.label,
-                        onValueChange = { value ->
-                            onFormChanged(form.copy(
-                                secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(label = value)),
-                            ))
-                        },
-                        label = "Label",
-                        colors = colors,
-                        modifier = Modifier.weight(0.65f),
-                    )
-                    TextButton(
-                        onClick = {
-                            onFormChanged(form.copy(secondaryUrls = form.secondaryUrls.removeAt(index)))
-                        },
-                    ) {
-                        Text("Remove", color = colors.secondaryText)
+            if (allowFallbackUrls) {
+                SettingsSectionTitle(stringResource(Res.string.connection_fallback_urls), colors)
+                form.secondaryUrls.forEachIndexed { index, entry ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        NaviampTextField(
+                            value = entry.url,
+                            onValueChange = { value ->
+                                onFormChanged(form.copy(
+                                    secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(url = value)),
+                                ))
+                            },
+                            label = "URL",
+                            colors = colors,
+                            inputKind = NaviampTextInputKind.Url,
+                            modifier = Modifier.weight(1f),
+                        )
+                        NaviampTextField(
+                            value = entry.label,
+                            onValueChange = { value ->
+                                onFormChanged(form.copy(
+                                    secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(label = value)),
+                                ))
+                            },
+                            label = stringResource(Res.string.connection_label),
+                            colors = colors,
+                            modifier = Modifier.weight(0.65f),
+                        )
+                        TextButton(
+                            onClick = {
+                                onFormChanged(form.copy(secondaryUrls = form.secondaryUrls.removeAt(index)))
+                            },
+                        ) {
+                            Text(stringResource(Res.string.mix_remove), color = colors.secondaryText)
+                        }
                     }
                 }
+                ConnectionFormTextAction(
+                    label = stringResource(Res.string.connection_add_fallback_url),
+                    colors = colors,
+                    onClick = {
+                        onFormChanged(form.copy(secondaryUrls = form.secondaryUrls + ConnectionFormSecondaryUrl()))
+                    },
+                )
             }
-            ConnectionFormTextAction(
-                label = "Add fallback URL",
-                colors = colors,
-                onClick = {
-                    onFormChanged(form.copy(secondaryUrls = form.secondaryUrls + ConnectionFormSecondaryUrl()))
-                },
-            )
-            SettingsSectionTitle("Headers", colors)
+            SettingsSectionTitle(stringResource(Res.string.connection_headers), colors)
             form.customHeaders.forEachIndexed { index, header ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -286,7 +347,7 @@ fun NaviampConnectionForm(
                                     customHeaders = form.customHeaders.updateAt(index, header.copy(name = value)),
                                 ))
                             },
-                            label = "Header name",
+                            label = stringResource(Res.string.connection_header_name),
                             colors = colors,
                             inputKind = NaviampTextInputKind.Technical,
                             modifier = Modifier.weight(1f),
@@ -298,7 +359,7 @@ fun NaviampConnectionForm(
                                     customHeaders = form.customHeaders.updateAt(index, header.copy(value = value)),
                                 ))
                             },
-                            label = "Header value",
+                            label = stringResource(Res.string.connection_header_value),
                             colors = colors,
                             isPassword = header.valueIsSecret,
                             inputKind = NaviampTextInputKind.Technical,
@@ -309,7 +370,7 @@ fun NaviampConnectionForm(
                                 onFormChanged(form.copy(customHeaders = form.customHeaders.removeAt(index)))
                             },
                         ) {
-                            Text("Remove", color = colors.secondaryText)
+                            Text(stringResource(Res.string.mix_remove), color = colors.secondaryText)
                         }
                     }
                     Row(
@@ -324,12 +385,12 @@ fun NaviampConnectionForm(
                                 ))
                             },
                         )
-                        Text("Treat value as secret; do not sync it", color = colors.secondaryText, fontSize = 12.sp)
+                        Text(stringResource(Res.string.connection_treat_value_as_secret_do_not_sync_it), color = colors.secondaryText, fontSize = 12.sp)
                     }
                 }
             }
             ConnectionFormTextAction(
-                label = "Add header",
+                label = stringResource(Res.string.connection_add_header),
                 colors = colors,
                 onClick = {
                     onFormChanged(form.copy(customHeaders = form.customHeaders + ConnectionFormHeader()))
@@ -344,19 +405,38 @@ fun NaviampConnectionForm(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PrimaryButton(
-                label = if (isConnecting) "Connecting" else if (isReconnect) "Save and connect" else "Connect",
+                label = if (isConnecting) stringResource(Res.string.common_connecting) else if (isReconnect) stringResource(Res.string.connection_save_and_connect) else stringResource(Res.string.common_connect),
                 colors = colors,
                 enabled = !isConnecting,
+                modifier = Modifier
+                    .focusRequester(connectFocusRequester)
+                    .onPreviewKeyEvent { event ->
+                        if (!advancedVisible && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                            advancedFocusRequester.requestFocus()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    .testTag(ConnectionConnectButtonTestTag),
                 onClick = onConnect,
             )
             onCancel?.let {
                 TextButton(enabled = !isConnecting, onClick = it) {
-                    Text("Cancel", color = colors.secondaryText)
+                    Text(stringResource(Res.string.common_cancel), color = colors.secondaryText)
                 }
             }
         }
     }
 }
+
+internal const val ConnectionNameFieldTestTag = "connection-name"
+internal const val ConnectionBackButtonTestTag = "connection-back"
+internal const val ConnectionServerUrlFieldTestTag = "connection-server-url"
+internal const val ConnectionUsernameFieldTestTag = "connection-username"
+internal const val ConnectionPasswordFieldTestTag = "connection-password"
+internal const val ConnectionAdvancedActionTestTag = "connection-advanced-action"
+internal const val ConnectionConnectButtonTestTag = "connection-connect"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -434,7 +514,7 @@ private fun ProviderSelectionTile(
             maxLines = 1,
         )
         if (provider.availability == ProviderAvailability.ComingSoon) {
-            Text("Coming soon", color = colors.mutedText, fontSize = 10.sp, maxLines = 1)
+            Text(stringResource(Res.string.connection_coming_soon), color = colors.mutedText, fontSize = 10.sp, maxLines = 1)
         }
     }
 }
@@ -457,7 +537,7 @@ private fun ConnectionErrorCard(message: String) {
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Text(
-            text = "Connection error",
+            text = stringResource(Res.string.connection_connection_error),
             color = MaterialTheme.colorScheme.onErrorContainer,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
@@ -475,6 +555,7 @@ private fun ConnectionFormTextAction(
     label: String,
     colors: NaviampColors,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     TextButton(
@@ -486,6 +567,7 @@ private fun ConnectionFormTextAction(
             disabledContentColor = colors.secondaryText.copy(alpha = 0.78f),
             disabledContainerColor = colors.controlSurface.copy(alpha = 0.18f),
         ),
+        modifier = modifier,
     ) {
         Text(label, fontWeight = FontWeight.SemiBold)
     }
@@ -517,7 +599,7 @@ private fun MusicFolderMultiSelect(
     }
     if (choices.isEmpty()) {
         Text(
-            "Connect or enter credentials to load available libraries.",
+            stringResource(Res.string.connection_connect_or_enter_credentials_to_load_available_libraries),
             color = colors.secondaryText,
             fontSize = 12.sp,
         )
@@ -555,7 +637,7 @@ private fun MusicFolderMultiSelect(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = if (folder.defaultSelected) "Default library" else "ID: ${folder.id}",
+                        text = if (folder.defaultSelected) stringResource(Res.string.connection_default_library) else stringResource(Res.string.connection_library_id, folder.id),
                         color = colors.mutedText,
                         fontSize = 11.sp,
                         maxLines = 1,

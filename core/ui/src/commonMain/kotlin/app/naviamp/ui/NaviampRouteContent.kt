@@ -1,6 +1,8 @@
 package app.naviamp.ui
+import app.naviamp.ui.generated.resources.*
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
@@ -169,9 +171,16 @@ private fun FavoriteArtistStatus(section: SharedHomeCollectionSectionUi, colors:
 }
 
 @Composable
-private fun SharedHomeCollectionSectionUi.localizedTitle(): String = when (titleResource) {
+internal fun SharedHomeCollectionSectionUi.localizedTitle(): String = when (titleResource) {
     SharedHomeCollectionTitleResource.FavoriteArtists -> stringResource(Res.string.home_favorite_artists)
-    null -> title
+    null -> when {
+        id == app.naviamp.domain.settings.HomeSectionIds.GenreSpotlight && titleArgument != null ->
+            stringResource(Res.string.home_more_in, titleArgument).uppercase()
+        id == app.naviamp.domain.settings.HomeSectionIds.Decade && titleArgument != null ->
+            stringResource(Res.string.home_from_decade, titleArgument).uppercase()
+        else -> HomeScreenSectionOptions.firstOrNull { it.id == id }?.titleResource
+            ?.let { stringResource(it).uppercase() } ?: title
+    }
 }
 
 @Composable
@@ -186,7 +195,25 @@ private fun HomeCollectionCarousel(
     val sectionTitle = section.localizedTitle()
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val itemStride = with(LocalDensity.current) { HomeCollectionCarouselItemStride.roundToPx() }
+    val density = LocalDensity.current
+    val itemStride = with(density) { HomeCollectionCarouselItemStride.roundToPx() }
+    val itemWidth = with(density) { HomeCollectionCarouselCardWidth.roundToPx() }
+    val television = LocalNaviampApplicationSurface.current == NaviampApplicationSurface.Television
+    var focusedItemIndex by remember(section.id) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(television, focusedItemIndex) {
+        val index = focusedItemIndex ?: return@LaunchedEffect
+        if (!television) return@LaunchedEffect
+        scrollState.animateScrollTo(
+            homeCarouselFocusedItemScrollTarget(
+                current = scrollState.value,
+                viewport = scrollState.viewportSize,
+                itemIndex = index,
+                itemWidth = itemWidth,
+                itemStride = itemStride,
+                maximum = scrollState.maxValue,
+            ),
+        )
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -242,11 +269,13 @@ private fun HomeCollectionCarousel(
                 .horizontalScroll(scrollState)
                 .padding(end = trailingSpace),
         ) {
-            section.items.forEach { item ->
+            section.items.forEachIndexed { index, item ->
                 HomeCollectionGridCard(
                     item = item,
                     colors = colors,
                     width = HomeCollectionCarouselCardWidth,
+                    televisionFocus = television,
+                    onFocused = { focusedItemIndex = index },
                     onClick = { onItemSelected(item) },
                     menuItems = homeCollectionMenuItems(item, actions, mediaActions, includeFavorite = true),
                 )
@@ -278,6 +307,22 @@ internal fun homeCarouselScrollTarget(
     }
     return target.coerceIn(0, maximum)
 }
+
+internal fun homeCarouselFocusedItemScrollTarget(
+    current: Int,
+    viewport: Int,
+    itemIndex: Int,
+    itemWidth: Int,
+    itemStride: Int,
+    maximum: Int,
+): Int {
+    if (itemWidth <= 0 || itemStride <= 0 || viewport <= 0 || maximum <= 0) return 0
+    val target = (itemIndex.coerceAtLeast(0) - TelevisionCarouselFocusAnchorIndex)
+        .coerceAtLeast(0) * itemStride
+    return target.coerceIn(0, maximum)
+}
+
+private const val TelevisionCarouselFocusAnchorIndex = 2
 
 @Composable
 private fun HomeCollectionSectionTitle(
@@ -333,12 +378,29 @@ private fun HomeCollectionGridCard(
     width: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
+    televisionFocus: Boolean = false,
+    onFocused: () -> Unit = {},
 ) {
+    var focused by remember(item.mediaItem.id) { mutableStateOf(false) }
+    val shape = RoundedCornerShape(7.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier
             .width(width)
-            .clip(RoundedCornerShape(7.dp))
+            .onFocusChanged { focusState ->
+                focused = focusState.isFocused
+                if (focusState.isFocused) onFocused()
+            }
+            .clip(shape)
+            .then(
+                if (televisionFocus && focused) {
+                    Modifier
+                        .background(colors.accent.copy(alpha = 0.18f))
+                        .border(3.dp, colors.accent, shape)
+                } else {
+                    Modifier
+                },
+            )
             .clickable(onClick = onClick)
             .padding(bottom = 4.dp),
     ) {
@@ -371,14 +433,16 @@ private fun HomeCollectionGridCard(
 }
 
 @Composable
-private fun HomeCollectionArtwork(
+internal fun HomeCollectionArtwork(
     item: SharedHomeCollectionItemUi,
     colors: NaviampColors,
     size: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
 ) {
     val artwork = when (item.artwork) {
         SharedHomeCollectionArtwork.CoverArt -> {
-            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, 7.dp)
+            val cornerRadius = if (item.mediaKind == SharedMediaItemKind.Artist) size / 2 else 7.dp
+            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, cornerRadius, modifier)
             return
         }
         SharedHomeCollectionArtwork.NavibeatGenerated -> navibeatMixArtwork(item.artworkKey.orEmpty())
@@ -386,7 +450,7 @@ private fun HomeCollectionArtwork(
     }
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(7.dp))
             .background(Brush.linearGradient(artwork.colors)),
@@ -446,7 +510,7 @@ private fun stationArtwork(id: String): NavibeatMixArtwork = when {
     else -> NavibeatMixArtwork(NaviampTransportIcons.Radio, listOf(Color(0xFF20BFA9), Color(0xFF2374C6)))
 }
 
-private fun dispatchHomeCollectionItem(
+internal fun dispatchHomeCollectionItem(
     item: SharedHomeCollectionItemUi,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,

@@ -26,4 +26,44 @@ class NaviampSharedUiLayoutTest {
             ),
         )
     }
+
+    @Test
+    fun disconnectedSettingsKeepsItsBoundedOwnedScroll() {
+        assertTrue(
+            sharedRouteUsesOwnScroll(
+                connected = false,
+                editingConnection = false,
+                selectedRoute = SharedRoute.Settings,
+            ),
+        )
+        assertFalse(
+            sharedRouteUsesOwnScroll(
+                connected = false,
+                editingConnection = false,
+                selectedRoute = SharedRoute.Home,
+            ),
+        )
+    }
+
+    @Test
+    fun remoteNowPlayingRemainsAvailableWithoutALocalProviderConnection() {
+        assertTrue(
+            sharedCanShowNowPlaying(
+                connected = false,
+                remoteNowPlayingAvailable = true,
+            ),
+        )
+        assertTrue(
+            sharedCanShowNowPlaying(
+                connected = true,
+                remoteNowPlayingAvailable = false,
+            ),
+        )
+        assertFalse(
+            sharedCanShowNowPlaying(
+                connected = false,
+                remoteNowPlayingAvailable = false,
+            ),
+        )
+    }
 }

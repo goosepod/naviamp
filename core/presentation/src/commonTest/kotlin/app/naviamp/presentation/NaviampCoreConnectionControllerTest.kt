@@ -49,9 +49,35 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun cancellingSavedConnectionEditsPreservesSessionAndReloadsSavedValues() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        val original = fixture.store.state.value.shell.connectionSettings.connection.form
+        val inventory = fixture.port.inventory
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(original.copy(username = "unsaved")))
+
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.CancelForm)
+
+        val state = fixture.store.state.value.shell.connectionSettings.connection
+        assertFalse(state.editingConnection)
+        assertFalse(state.editingSavedConnection)
+        assertTrue(state.connected)
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertEquals(inventory, fixture.port.inventory)
+        fixture.controller.execute(NaviampCoreCommand.Connection.EditCurrent)
+        assertEquals(original, fixture.store.state.value.shell.connectionSettings.connection.form)
+    }
+
+    @Test
     fun successfulConnectionUsesSharedAttemptPolicyAndPublishesOneSnapshot() = kotlinx.coroutines.test.runTest {
         var connectedNotifications = 0
-        val fixture = fixture(onConnected = { connectedNotifications += 1 })
+        var userConnectedNotifications = 0
+        val fixture = fixture(
+            onConnected = { connectedNotifications += 1 },
+            onUserConnected = { userConnectedNotifications += 1 },
+        )
         val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "secret")
         fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form))
 
@@ -68,6 +94,56 @@ class NaviampCoreConnectionControllerTest {
         assertEquals("source-1", state.currentSourceId)
         assertTrue(state.connection.savedConnections.single().current)
         assertEquals(1, connectedNotifications)
+        assertEquals(1, userConnectedNotifications)
+    }
+
+    @Test
+    fun restoringInitialConnectionDoesNotReplaceTheRestoredRoute() = kotlinx.coroutines.test.runTest {
+        var userConnectedNotifications = 0
+        val fixture = fixture(onUserConnected = { userConnectedNotifications += 1 })
+
+        fixture.controller.restoreInitialConnection()
+
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+        assertEquals(0, userConnectedNotifications)
+    }
+
+    @Test
+    fun failedConnectProvisioningLeavesTheExistingSourceUntouched() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(connectFailure = IllegalStateException("invalid credential"))
+
+        val connected = fixture.controller.provisionConnect(
+            ConnectionFormState(
+                serverUrl = "https://other.example",
+                username = "listener",
+                password = "wrong",
+            ),
+        )
+
+        assertFalse(connected)
+        assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+        assertEquals(listOf("source-1"), fixture.port.inventory.connections.map { it.id })
+    }
+
+    @Test
+    fun provisioningTheAlreadyConnectedSourceIsIdempotent() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        fixture.controller.execute(
+            NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()),
+        )
+        fixture.port.connectRequests.clear()
+
+        val connected = fixture.controller.provisionConnect(
+            ConnectionFormState(
+                serverUrl = "https://MUSIC.example/",
+                username = "demo",
+                password = "newly-transferred-secret",
+            ),
+        )
+
+        assertTrue(connected)
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
     }
 
     @Test
@@ -100,6 +176,41 @@ class NaviampCoreConnectionControllerTest {
 
         assertEquals(listOf("source-old->source-1:source-old"), transitions)
         assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+    }
+
+    @Test
+    fun switchingAmongMultipleSavedSourcesPublishesExactlyOneCurrentSource() = kotlinx.coroutines.test.runTest {
+        val records = listOf(
+            savedRecord(),
+            savedRecord(
+                id = "source-2",
+                displayName = "Studio Music",
+                serverUrl = "https://studio.example",
+            ),
+        )
+        val transitions = mutableListOf<Pair<String?, String>>()
+        val fixture = fixture(
+            savedRecords = records,
+            onSourceChanging = { previous, next -> transitions += previous to next },
+        )
+
+        fixture.controller.execute(
+            NaviampCoreCommand.Connection.ConnectSaved(
+                NaviampSavedConnectionUi(
+                    id = "source-2",
+                    displayName = "Studio Music",
+                    serverUrl = "https://studio.example",
+                    username = "demo",
+                ),
+            ),
+        )
+
+        assertEquals(NaviampCoreConnectionRequest.Saved("source-2"), fixture.port.connectRequests.single().first)
+        assertEquals(listOf<Pair<String?, String>>("source-1" to "source-2"), transitions)
+        val settings = fixture.store.state.value.shell.connectionSettings
+        assertEquals("source-2", settings.currentSourceId)
+        assertEquals(listOf(false, true), settings.connection.savedConnections.map { it.current })
+        assertEquals("Connected to Studio Music.", settings.connection.status)
     }
 
     @Test
@@ -141,6 +252,41 @@ class NaviampCoreConnectionControllerTest {
         assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
         assertEquals("source-1", offlineSourceId)
     }
+
+    @Test
+    fun unreachableSavedSourceSwitchMakesTheSelectedOfflineSourceAuthoritative() =
+        kotlinx.coroutines.test.runTest {
+            val records = listOf(
+                savedRecord(),
+                savedRecord("source-2", "Studio Music", "https://studio.example"),
+            )
+            val transitions = mutableListOf<Pair<String?, String>>()
+            var offlineSourceId: String? = null
+            val fixture = fixture(
+                connectFailure = IllegalStateException("Failed to connect to server"),
+                savedRecords = records,
+                onSourceChanging = { previous, next -> transitions += previous to next },
+                onOfflineRestored = { offlineSourceId = it },
+            )
+
+            fixture.controller.execute(
+                NaviampCoreCommand.Connection.ConnectSaved(
+                    NaviampSavedConnectionUi(
+                        id = "source-2",
+                        displayName = "Studio Music",
+                        serverUrl = "https://studio.example",
+                        username = "demo",
+                    ),
+                ),
+            )
+
+            val settings = fixture.store.state.value.shell.connectionSettings
+            assertEquals("source-2", settings.currentSourceId)
+            assertEquals(listOf(false, true), settings.connection.savedConnections.map { it.current })
+            assertEquals(listOf<Pair<String?, String>>("source-1" to "source-2"), transitions)
+            assertEquals("source-2", offlineSourceId)
+            assertEquals("Offline. Downloaded music remains available.", settings.connection.status)
+        }
 
     @Test
     fun authenticationFailureDoesNotEnterOfflineMode() = kotlinx.coroutines.test.runTest {
@@ -250,18 +396,57 @@ class NaviampCoreConnectionControllerTest {
         )
     }
 
+    @Test
+    fun provisioningPasswordValidationKeepsPlaybackAndUsesTheExistingSource() = kotlinx.coroutines.test.runTest {
+        val changed = mutableListOf<String>()
+        val fixture = fixture(onSourceChanging = { _, id -> changed += id })
+        assertTrue(fixture.controller.updateProvisioningCredential("source-1", "replacement"))
+        val (request, plan) = fixture.port.connectRequests.single()
+        val form = request as NaviampCoreConnectionRequest.Form
+        assertEquals("source-1", form.savedConnectionId)
+        assertEquals("replacement", form.form.password)
+        assertFalse(plan.clearExistingPlayback)
+        assertFalse(plan.clearProviderData)
+        assertTrue(changed.isEmpty())
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+        assertEquals("", fixture.store.state.value.shell.connectionSettings.connection.form.password)
+    }
+
+    @Test
+    fun invalidOrCancelledProvisioningPasswordRestoresConnectionState() = kotlinx.coroutines.test.runTest {
+        for (failure in listOf(IllegalArgumentException("invalid password"), kotlinx.coroutines.CancellationException())) {
+            val fixture = fixture(connectFailure = failure)
+            val before = fixture.store.state.value.shell.connectionSettings
+            try {
+                assertFalse(fixture.controller.updateProvisioningCredential("source-1", "replacement"))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                assertTrue(failure is kotlinx.coroutines.CancellationException)
+            }
+            assertEquals(before, fixture.store.state.value.shell.connectionSettings)
+        }
+    }
+
+    @Test
+    fun provisioningPasswordCannotChangeAnotherSourceOrSubmitBlankCredentials() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        assertFalse(fixture.controller.updateProvisioningCredential("other-source", "replacement"))
+        assertFalse(fixture.controller.updateProvisioningCredential("source-1", "  "))
+        assertTrue(fixture.port.connectRequests.isEmpty())
+    }
+
     private fun fixture(
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
         onConnected: (String) -> Unit = {},
+        onUserConnected: (String) -> Unit = {},
         onOfflineRestored: (String) -> Unit = {},
         onSourceChanging: (String?, String) -> Unit = { _, _ -> },
         currentSourceId: String? = "source-1",
         hasSavedConnection: Boolean = true,
+        savedRecords: List<NaviampCoreSavedConnectionRecord> = listOf(savedRecord()),
     ): ConnectionFixture {
-        val record = savedRecord()
         val inventory = NaviampCoreConnectionInventory(
-            connections = listOfNotNull(record.takeIf { hasSavedConnection }),
+            connections = savedRecords.takeIf { hasSavedConnection }.orEmpty(),
             currentSourceId = currentSourceId?.takeIf { hasSavedConnection },
         )
         val port = FakeProviderSessionPort(inventory, connectFailure, musicFoldersLoadFailed)
@@ -276,15 +461,20 @@ class NaviampCoreConnectionControllerTest {
                 initialInventory = inventory,
                 onSourceChanging = onSourceChanging,
                 onConnected = onConnected,
+                onUserConnected = onUserConnected,
                 onOfflineRestored = onOfflineRestored,
             ),
         )
     }
 
-    private fun savedRecord() = NaviampCoreSavedConnectionRecord(
-        id = "source-1",
-        displayName = "Home Music",
-        serverUrl = "https://music.example",
+    private fun savedRecord(
+        id: String = "source-1",
+        displayName: String = "Home Music",
+        serverUrl: String = "https://music.example",
+    ) = NaviampCoreSavedConnectionRecord(
+        id = id,
+        displayName = displayName,
+        serverUrl = serverUrl,
         username = "demo",
     )
 
@@ -307,6 +497,7 @@ private class FakeProviderSessionPort(
     private val connectFailure: Throwable?,
     private val musicFoldersLoadFailed: Boolean,
 ) : NaviampCoreProviderSessionPort {
+    override fun initialInventory() = inventory
     var inventory = initialInventory
     var refreshCalls = 0
     var activeSessionCleared = false
@@ -318,10 +509,12 @@ private class FakeProviderSessionPort(
     ): NaviampCoreConnectedSession {
         connectRequests += request to plan
         connectFailure?.let { throw it }
-        inventory = inventory.copy(currentSourceId = "source-1")
+        val sourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id ?: "source-1"
+        val saved = inventory.connections.firstOrNull { it.id == sourceId }
+        inventory = inventory.copy(currentSourceId = sourceId)
         return NaviampCoreConnectedSession(
-            sourceId = "source-1",
-            displayName = "Home Music",
+            sourceId = sourceId,
+            displayName = saved?.displayName ?: "Home Music",
             serverVersion = "1.2.3",
             inventory = inventory,
         )

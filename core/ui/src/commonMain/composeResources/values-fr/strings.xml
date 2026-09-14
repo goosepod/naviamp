@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Tri des albums</string>
+    <string name="tv_album_sort_order_description">Choisir l’ordre des sorties de l’artiste</string>
+    <string name="tv_album_sort_oldest_first">Plus anciens d’abord</string>
+    <string name="tv_album_sort_newest_first">Plus récents d’abord</string>
+    <string name="tv_album_sort_title">Titre</string>
+    <string name="tv_group_albums_by_release_type">Regrouper les albums par type de sortie</string>
+    <string name="tv_group_albums_by_release_type_description">Afficher les albums, EP, singles et autres sorties dans des sections distinctes</string>
+    <string name="connect_setup_password_required">Saisissez le mot de passe de votre source pour terminer la configuration. Naviamp le valide et le conserve en toute sécurité pour les prochaines connexions.</string>
+    <string name="connect_setup_code_consent">Afficher un code autorise l’appareil qui le saisit à s’associer et à configurer cet appareil avec sa source musicale et ses réglages.</string>
+    <string name="connect_setup_new_code_required">Affichez un nouveau code sur le téléviseur et associez à nouveau les appareils pour terminer la configuration.</string>
+    <string name="settings_keep_screen_awake">Garder l’écran allumé</string>
+    <string name="settings_keep_screen_awake_description">Empêche la veille automatique de l’écran lorsque Naviamp est visible. La veille du système, le verrouillage et les minuteries du téléviseur peuvent toujours s’appliquer.</string>
+    <string name="settings_keep_screen_awake_failed">Impossible de modifier la prévention de la veille de l’écran. Désactivez puis réactivez ce réglage pour réessayer.</string>
     <string name="settings_now_playing_split_background_opacity">Opacité de l’arrière-plan de la vue fractionnée</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Appareil de lecture : %1$s</string>
     <string name="smart_playlist_field_album_date_added">Date d’ajout de l’album</string>
     <string name="smart_playlist_field_album_date_modified">Date de modification de l’album</string>
     <string name="smart_playlist_field_album_duration">Durée de l’album</string>
@@ -10,4 +25,7 @@
     <string name="smart_playlist_refresh_delay">Intervalle d’actualisation</string>
     <string name="smart_playlist_refresh_delay_hint">Facultatif. Exemples : 12h, 1d ou 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Utilisez une durée valide comme 12h, 1d ou 1w.</string>
+    <string name="connect_pairing_code">Code d’association</string>
+    <string name="connect_devices_description">Contrôler et associer les appareils Naviamp sur ce réseau</string>
+    <string name="connect_setup_timed_out">Le délai de configuration a expiré. Vérifiez l’appareil de lecture, puis réessayez.</string>
 </resources>

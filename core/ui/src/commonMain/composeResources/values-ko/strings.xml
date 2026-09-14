@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">앨범 정렬</string>
+    <string name="tv_album_sort_order_description">아티스트 발매작의 정렬 방식을 선택하세요</string>
+    <string name="tv_album_sort_oldest_first">오래된 순</string>
+    <string name="tv_album_sort_newest_first">최신 순</string>
+    <string name="tv_album_sort_title">제목</string>
+    <string name="tv_group_albums_by_release_type">발매 유형별로 앨범 그룹화</string>
+    <string name="tv_group_albums_by_release_type_description">앨범, EP, 싱글 및 기타 발매작을 별도 섹션에 표시</string>
+    <string name="connect_setup_password_required">설정을 완료하려면 소스 비밀번호를 입력하세요. Naviamp가 비밀번호를 확인하고 향후 연결을 위해 안전하게 저장합니다.</string>
+    <string name="connect_setup_code_consent">코드를 표시하면 해당 코드를 입력한 기기가 페어링하고 자신의 음악 소스와 설정으로 이 기기를 설정할 수 있습니다.</string>
+    <string name="connect_setup_new_code_required">TV에 새 코드를 표시하고 다시 페어링하여 설정을 완료하세요.</string>
+    <string name="settings_keep_screen_awake">화면 켜짐 유지</string>
+    <string name="settings_keep_screen_awake_description">Naviamp가 표시되는 동안 화면의 자동 절전을 방지합니다. 시스템 절전, 화면 잠금 및 TV 전원 타이머는 계속 작동할 수 있습니다.</string>
+    <string name="settings_keep_screen_awake_failed">화면 절전 방지 설정을 변경하지 못했습니다. 이 설정을 껐다가 다시 켜서 재시도하세요.</string>
     <string name="settings_now_playing_split_background_opacity">분할 보기 배경 불투명도</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">재생 기기: %1$s</string>
     <string name="smart_playlist_field_album_date_added">앨범 추가 날짜</string>
     <string name="smart_playlist_field_album_date_modified">앨범 수정 날짜</string>
     <string name="smart_playlist_field_album_duration">앨범 재생 시간</string>
@@ -10,4 +25,7 @@
     <string name="smart_playlist_refresh_delay">새로 고침 간격</string>
     <string name="smart_playlist_refresh_delay_hint">선택 사항. 예: 12h, 1d 또는 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">12h, 1d 또는 1w와 같은 올바른 기간을 입력하세요.</string>
+    <string name="connect_pairing_code">페어링 코드</string>
+    <string name="connect_devices_description">이 네트워크의 Naviamp 기기 제어 및 페어링</string>
+    <string name="connect_setup_timed_out">기기 설정 시간이 초과되었습니다. 재생 기기를 확인한 후 다시 시도하세요.</string>
 </resources>

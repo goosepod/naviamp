@@ -68,6 +68,7 @@ class NavidromeCoreProviderSessionPort(
         NavidromeProvider(connection)
     }
     private var currentSourceId: String? = initialSessionSource?.id
+    private var activeSourcePassword: String? = initialSessionSource?.password
     private val nativeSession = NavidromeNativeSessionController(
         currentProvider = { provider },
         currentSourceId = { currentSourceId },
@@ -92,6 +93,11 @@ class NavidromeCoreProviderSessionPort(
         val session = sessionOpener.open(request.toLoginRequest(), plan.clearProviderData)
         provider = session.provider
         currentSourceId = session.sourceId
+        activeSourcePassword = (request as? NaviampCoreConnectionRequest.Form)
+            ?.form
+            ?.password
+            ?.takeIf(String::isNotBlank)
+            ?: mediaSources.mediaSource(session.sourceId)?.password
         migrateProviderIdentities(session.provider, session.sourceId, session.validation.serverVersion)
         return NaviampCoreConnectedSession(
             sourceId = session.sourceId,
@@ -106,12 +112,18 @@ class NavidromeCoreProviderSessionPort(
         val connection = saved.toNavidromeConnection()
         val folders = runCatching { musicFolders(connection) }
         return NaviampCoreEditableConnection(
-            form = saved.toConnectionForm(),
+            form = saved.toConnectionForm().withActiveSourcePassword(id),
             availableMusicFolders = connectionFormMusicFolders(
                 folders.getOrDefault(emptyList()).map { it.id to it.name },
             ),
             musicFoldersLoadFailed = folders.isFailure,
         )
+    }
+
+    override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? {
+        val id = currentSourceId ?: return null
+        val saved = requireSubsonicSaved(id)
+        return NaviampCoreEditableConnection(saved.toConnectionForm().withActiveSourcePassword(id))
     }
 
     override suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory {
@@ -120,13 +132,18 @@ class NavidromeCoreProviderSessionPort(
         if (currentSourceId == id) {
             currentSourceId = null
             provider = null
+            activeSourcePassword = null
         }
         return inventory()
     }
 
     override suspend fun smartPlaylistProvider(password: String?): MediaProvider? =
         if (provider?.id?.value?.let(::subsonicProviderProfile)?.nativeAuthentication == true) {
-            nativeSession.provider(password)
+            nativeSession.provider(
+                password?.takeIf(String::isNotBlank)
+                    ?: activeSourcePassword
+                    ?: currentSourceId?.let(mediaSources::mediaSource)?.password,
+            )
         } else {
             provider
         }
@@ -149,7 +166,11 @@ class NavidromeCoreProviderSessionPort(
     override suspend fun clearActiveSession() {
         currentSourceId = null
         provider = null
+        activeSourcePassword = null
     }
+
+    private fun ConnectionFormState.withActiveSourcePassword(id: String): ConnectionFormState =
+        if (id == currentSourceId && password.isBlank()) copy(password = activeSourcePassword.orEmpty()) else this
 
     private fun NaviampCoreConnectionRequest.toLoginRequest(): NavidromeConnectionLoginRequest {
         val form = when (this) {
@@ -293,6 +314,7 @@ fun navidromeProviderSessionOpener(
             preparedConnection = { it.connection },
             provider = ::NavidromeProvider,
             mediaSourceConnection = NavidromeConnection::toProviderMediaSourceConnection,
+            sourcePassword = { it.password },
             applyTlsDefaults = { applyTlsDefaults(it) },
             smartPlaylistAuthWarning = { it.nativeAuthErrorMessage },
             preferredSourceId = login.savedSourceId,
@@ -309,7 +331,7 @@ private fun SavedMediaSource.toConnectionForm(): ConnectionFormState = Connectio
     displayName = displayName.takeUnless { it == baseUrl }.orEmpty(),
     serverUrl = baseUrl,
     username = username,
-    password = "",
+    password = password.orEmpty(),
     skipTlsVerification = tlsSettings.insecureSkipTlsVerification,
     customCertificatePath = tlsSettings.customCertificatePath.orEmpty(),
     clientCertificatePath = tlsSettings.clientCertificateKeyStorePath.orEmpty(),

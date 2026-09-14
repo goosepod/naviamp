@@ -126,6 +126,15 @@ class NaviampCoreInternetRadioController(
 
     suspend fun refreshAfterConnection() = refresh()
 
+    /** Resolves and starts a provider station requested by a trusted Connect controller. */
+    internal suspend fun startConnectStation(stationId: String): Boolean {
+        val provider = providerSource.current() ?: return false
+        val station = stationsById[stationId]
+            ?: runCatching { provider.internetRadioStations().firstOrNull { it.id == stationId } }.getOrNull()
+            ?: return false
+        return play(station)
+    }
+
     fun resetForSourceChange() {
         generation += 1
         stations = emptyList()
@@ -180,9 +189,9 @@ class NaviampCoreInternetRadioController(
         delete(station)
     }
 
-    private suspend fun play(station: InternetRadioStation) {
+    private suspend fun play(station: InternetRadioStation): Boolean {
         publishStatus("Starting ${station.name}...")
-        runCatching {
+        return runCatching {
             onPlaybackStarted(station)
             playback.play(station)
             recents.record(station)
@@ -199,6 +208,7 @@ class NaviampCoreInternetRadioController(
                 )
             }
         }.onFailure { cause -> publishStatus(cause.message ?: "Could not play station.") }
+            .isSuccess
     }
 
     private suspend fun playResolved(resolve: () -> InternetRadioStation) {

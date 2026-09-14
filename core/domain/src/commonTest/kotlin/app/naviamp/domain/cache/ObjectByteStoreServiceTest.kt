@@ -49,4 +49,25 @@ class ObjectByteStoreServiceTest {
 
         assertContentEquals(byteArrayOf(7, 8, 9), service.cachedBytes("cover-1"))
     }
+
+    @Test
+    fun promotesEquivalentLegacyKeyWithoutFetching() = runTest {
+        val store = InMemoryObjectByteStore()
+        val service = ObjectByteStoreService(store)
+        store.writeObjectBytes("cover-1?token=old", byteArrayOf(4, 5, 6))
+        var fetched = false
+
+        val bytes = service.bytes(
+            key = "cover-1",
+            equivalentKey = { candidate -> candidate.substringBefore('?') == "cover-1" },
+            fetch = {
+                fetched = true
+                byteArrayOf(9)
+            },
+        )
+
+        assertContentEquals(byteArrayOf(4, 5, 6), bytes)
+        assertEquals(false, fetched)
+        assertContentEquals(byteArrayOf(4, 5, 6), store.objectBytes("cover-1"))
+    }
 }

@@ -132,7 +132,7 @@ data class NaviampPlayerColors(
 @Composable
 fun animatedNaviampPlayerColors(
     target: NaviampPlayerColors,
-    durationMillis: Int = 180,
+    durationMillis: Int = 360,
 ): NaviampPlayerColors {
     val animationSpec = tween<Color>(durationMillis = durationMillis, easing = LinearEasing)
     val backgroundStart by animateColorAsState(target.backgroundStart, animationSpec, label = "playerBackgroundStart")

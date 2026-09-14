@@ -55,6 +55,8 @@ object AndroidBassJni {
 
     fun configureInternetStreams(): Boolean = nativeConfigureInternetStreams()
 
+    fun setNetworkProxy(proxy: String): Boolean = nativeSetNetworkProxy(proxy)
+
     fun createUrlStream(url: String): Int = nativeCreateUrlStream(url)
 
     fun createFileStream(path: String): Int = nativeCreateFileStream(path)
@@ -108,6 +110,8 @@ object AndroidBassJni {
 
     fun durationSeconds(stream: Int): Double? = nativeDurationSeconds(stream).takeIf { it > 0.0 }
 
+    fun filePosition(stream: Int, mode: Int): Long? = nativeFilePosition(stream, mode).takeIf { it >= 0L }
+
     fun lengthBytes(stream: Int): Long? = nativeLengthBytes(stream).takeIf { it > 0L }
 
     fun streamTags(stream: Int): Array<String> = nativeStreamTags(stream)
@@ -153,6 +157,7 @@ object AndroidBassJni {
     private external fun nativeFree()
     private external fun nativeSetVerifyNet(verify: Boolean): Boolean
     private external fun nativeConfigureInternetStreams(): Boolean
+    private external fun nativeSetNetworkProxy(proxy: String): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateFileStream(path: String): Int
     private external fun nativeCreateUrlDecodeStream(url: String, bounded: Boolean): Int
@@ -177,6 +182,7 @@ object AndroidBassJni {
     private external fun nativeAudiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
     private external fun nativeLengthBytes(stream: Int): Long
+    private external fun nativeFilePosition(stream: Int, mode: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
     private external fun nativeWaveformLevels(stream: Int, bucketCount: Int): FloatArray

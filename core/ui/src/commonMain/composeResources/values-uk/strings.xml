@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Сортування альбомів</string>
+    <string name="tv_album_sort_order_description">Виберіть порядок релізів виконавця</string>
+    <string name="tv_album_sort_oldest_first">Спочатку старі</string>
+    <string name="tv_album_sort_newest_first">Спочатку нові</string>
+    <string name="tv_album_sort_title">Назва</string>
+    <string name="tv_group_albums_by_release_type">Групувати альбоми за типом релізу</string>
+    <string name="tv_group_albums_by_release_type_description">Показувати альбоми, EP, сингли та інші релізи в окремих розділах</string>
+    <string name="connect_setup_password_required">Введіть пароль джерела, щоб завершити налаштування. Naviamp перевірить його та безпечно збереже для майбутніх підключень.</string>
+    <string name="connect_setup_code_consent">Показ коду дозволяє пристрою, на якому його введуть, створити пару та налаштувати цей пристрій зі своїм джерелом музики й налаштуваннями.</string>
+    <string name="connect_setup_new_code_required">Покажіть новий код на телевізорі та повторіть створення пари, щоб завершити налаштування.</string>
+    <string name="settings_keep_screen_awake">Не вимикати екран</string>
+    <string name="settings_keep_screen_awake_description">Запобігає автоматичному вимкненню екрана, поки Naviamp видимий. Сон системи, блокування екрана й таймери телевізора можуть діяти й надалі.</string>
+    <string name="settings_keep_screen_awake_failed">Не вдалося змінити запобігання вимкненню екрана. Вимкніть і знову ввімкніть цей параметр, щоб повторити спробу.</string>
     <string name="settings_now_playing_split_background_opacity">Непрозорість тла розділеного перегляду</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Пристрій відтворення: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Дата додавання альбому</string>
     <string name="smart_playlist_field_album_date_modified">Дата зміни альбому</string>
     <string name="smart_playlist_field_album_duration">Тривалість альбому</string>
@@ -10,4 +25,7 @@
     <string name="smart_playlist_refresh_delay">Інтервал оновлення</string>
     <string name="smart_playlist_refresh_delay_hint">Необов’язково. Приклади: 12h, 1d або 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Вкажіть дійсну тривалість, наприклад 12h, 1d або 1w.</string>
+    <string name="connect_pairing_code">Код сполучення</string>
+    <string name="connect_devices_description">Керуйте пристроями Naviamp у цій мережі та створюйте пари</string>
+    <string name="connect_setup_timed_out">Час налаштування пристрою минув. Перевірте пристрій відтворення та спробуйте знову.</string>
 </resources>

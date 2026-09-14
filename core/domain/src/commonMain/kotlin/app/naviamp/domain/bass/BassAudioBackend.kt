@@ -78,12 +78,19 @@ fun bassErrorMessage(code: Int): String =
         44 -> "codec unavailable"
         45 -> "ended"
         46 -> "device busy"
-        47 -> "unsupported protocol"
+        47 -> "unstreamable file"
         48 -> "unsupported protocol"
         49 -> "access denied"
         50 -> "SSL unavailable"
         -1 -> "unknown BASS error"
         else -> "BASS error $code"
+    }
+
+fun bassPlaybackFailureReason(code: Int?): app.naviamp.domain.playback.PlaybackFailureReason? =
+    when (code) {
+        47 -> app.naviamp.domain.playback.PlaybackFailureReason.UnstreamableNetworkSource
+        41, 44 -> app.naviamp.domain.playback.PlaybackFailureReason.UnsupportedFormat
+        else -> null
     }
 
 fun BassAudioBackend.bassFailureMessage(prefix: String): String =
@@ -140,6 +147,9 @@ data class BassCreatedPlayback(
     val sourceHandle: Int,
     val replayGainFactor: Float,
 )
+
+/** Raw BASS file-position modes; unavailable native values are represented as null. */
+enum class BassFilePosition(val nativeValue: Int) { Download(1), End(2), Start(3), Connected(4), Size(8) }
 
 data class BassPlaybackSnapshot(
     val activeState: Int,
@@ -293,6 +303,8 @@ interface BassAudioBackend {
     ): Double? = positionSeconds(sourceStream.takeIf { it.value != 0 } ?: playbackStream)
 
     fun durationSeconds(stream: BassStreamHandle): Double? = null
+
+    fun filePosition(stream: BassStreamHandle, position: BassFilePosition): Long? = null
 
     fun lengthBytes(stream: BassStreamHandle): Long?
 

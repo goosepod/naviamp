@@ -63,6 +63,9 @@ interface NaviampCoreProviderSessionPort {
     ): NaviampCoreConnectedSession
 
     suspend fun editableConnection(id: String): NaviampCoreEditableConnection
+
+    suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? =
+        currentSourceId()?.let { id -> editableConnection(id) }
     suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory
     suspend fun smartPlaylistProvider(password: String?): MediaProvider?
     suspend fun refreshActiveSession(): Boolean

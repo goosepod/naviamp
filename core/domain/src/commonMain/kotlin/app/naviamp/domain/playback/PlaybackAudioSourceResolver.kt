@@ -164,6 +164,33 @@ suspend fun resolvePlaybackAudioSource(
     )
 }
 
+fun cachedPlaybackAudioSourcePlan(
+    track: Track,
+    quality: StreamQuality,
+    startPositionSeconds: Double?,
+    localAudio: PlaybackLocalAudio,
+): PlaybackAudioSourcePlan =
+    playbackAudioSourcePlan(
+        track = track,
+        quality = quality,
+        startPositionSeconds = startPositionSeconds,
+        localAudio = localAudio,
+        source = PlaybackSource.CachedFile,
+    )
+
+fun providerPlaybackAudioSourcePlan(
+    track: Track,
+    quality: StreamQuality,
+    startPositionSeconds: Double?,
+): PlaybackAudioSourcePlan =
+    playbackAudioSourcePlan(
+        track = track,
+        quality = quality,
+        startPositionSeconds = startPositionSeconds,
+        localAudio = null,
+        source = PlaybackSource.ProviderStream,
+    )
+
 private fun playbackAudioSourcePlan(
     track: Track,
     quality: StreamQuality,

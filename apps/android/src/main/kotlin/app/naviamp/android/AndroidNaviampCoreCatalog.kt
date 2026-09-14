@@ -1,12 +1,23 @@
 package app.naviamp.android
 
 import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
 import app.naviamp.android.playback.AndroidAudioTagReader
 import app.naviamp.app.NaviampClock
+import app.naviamp.app.BouncyCastleNaviampConnectPakeFactory
+import app.naviamp.app.NaviampConnectEndpointOverrideTransportFactory
+import app.naviamp.app.JvmNaviampConnectAuthenticatedCipherFactory
+import app.naviamp.app.JvmNaviampConnectIdentityVerifier
+import app.naviamp.app.JvmNaviampConnectTcpTransportFactory
+import app.naviamp.app.NaviampConnectTrustRepository
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.presentation.NaviampCoreEnvironment
+import app.naviamp.presentation.NaviampCoreBidirectionalConnectCapabilities
+import app.naviamp.presentation.NaviampCoreConnectServices
+import app.naviamp.presentation.NaviampCorePlaybackTargetConnectCapabilities
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreHomeDateSource
@@ -24,6 +35,8 @@ import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import java.io.File
 import java.time.Instant
 import java.time.LocalDateTime
+import java.security.SecureRandom
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -72,8 +85,10 @@ class AndroidNaviampCoreCatalog private constructor(
             )
             setAndroidPlatformCoverArtByteLoader { url ->
                 runCatching {
-                    storage.imageBytes(url) {
-                        sessions.currentProvider()?.bytesForOwnedUrl(url)
+                    val provider = sessions.currentProvider()
+                        ?: throw IllegalStateException("Could not load provider artwork.")
+                    storage.imageBytesForProvider(provider, url) {
+                        provider.bytesForOwnedUrl(url)
                             ?: throw IllegalStateException("Could not load provider artwork.")
                     }
                 }.getOrNull()
@@ -188,9 +203,49 @@ class AndroidNaviampCoreCatalog private constructor(
                 favoritedAtIso8601 = { Instant.now().toString() },
                 diagnostics = AndroidCoreDiagnosticsPort(storage::stats),
             )
+            val isTelevision = appContext.resources.configuration.uiMode and
+                Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
+            val connectDeviceCapabilities = if (isTelevision) {
+                NaviampCorePlaybackTargetConnectCapabilities
+            } else {
+                NaviampCoreBidirectionalConnectCapabilities
+            }
+            val secureRandom = SecureRandom()
+            val connectDebugHost = BuildConfig.NAVIAMP_CONNECT_DEBUG_HOST.takeIf(String::isNotBlank)
+            val connectTransport = JvmNaviampConnectTcpTransportFactory().let { transport ->
+                connectDebugHost?.let { debugHost ->
+                    NaviampConnectEndpointOverrideTransportFactory(
+                        delegate = transport,
+                        overriddenHosts = setOf(AndroidEmulatorPrivateAddress),
+                        overriddenHostPrefixes = setOf(AndroidEmulatorLinkLocalAddressPrefix),
+                        replacementHost = debugHost,
+                        replacementPort = AndroidEmulatorControllerBridgePort,
+                    )
+                } ?: transport
+            }
+            val connectServices = NaviampCoreConnectServices(
+                deviceCapabilities = connectDeviceCapabilities,
+                displayName = Build.MODEL?.takeIf(String::isNotBlank) ?: "Android Naviamp",
+                identity = AndroidNaviampConnectDeviceIdentityEffect(),
+                identityVerifier = JvmNaviampConnectIdentityVerifier,
+                transport = connectTransport,
+                pake = BouncyCastleNaviampConnectPakeFactory,
+                cipher = JvmNaviampConnectAuthenticatedCipherFactory,
+                trust = NaviampConnectTrustRepository(AndroidNaviampConnectTrustStorageEffect(appContext)),
+                credentials = app.naviamp.app.NaviampConnectSessionCredentialRepository(
+                    AndroidNaviampConnectSessionCredentialStorageEffect(appContext),
+                ),
+                discovery = AndroidNaviampConnectDiscoveryEffect(appContext).takeUnless { isTelevision },
+                advertising = AndroidNaviampConnectAdvertisingEffect(appContext),
+                permissionSettings = AndroidNaviampConnectPermissionSettingsEffect(appContext),
+                newOpaqueId = { UUID.randomUUID().toString() },
+                newPairingCode = { secureRandom.nextInt(1_000_000).toString().padStart(6, '0') },
+                nowEpochMillis = clock::nowEpochMillis,
+                pairingListenPort = if (connectDebugHost == null) 0 else AndroidEmulatorPairingPort,
+            )
             return AndroidNaviampCoreCatalog(
                 environment = NaviampCoreEnvironment(
-                    services = storedCatalog.services,
+                    services = storedCatalog.services.copy(connect = connectServices),
                     initialState = storedCatalog.initialState,
                     actionAvailability = AndroidCapabilityPresentation.toCoreActionAvailability(),
                     onAsyncFailure = { command, failure ->
@@ -215,3 +270,7 @@ private fun List<AndroidStorageLocation>.idFor(directory: File): String? {
 }
 
 private const val AndroidSettingsSyncDeviceId = "android"
+private const val AndroidEmulatorPrivateAddress = "10.0.2.15"
+private const val AndroidEmulatorLinkLocalAddressPrefix = "fe80:"
+private const val AndroidEmulatorControllerBridgePort = 42_424
+private const val AndroidEmulatorPairingPort = 42_425

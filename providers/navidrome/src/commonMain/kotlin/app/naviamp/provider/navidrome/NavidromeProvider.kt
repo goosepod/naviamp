@@ -460,6 +460,8 @@ class NavidromeProvider(
     override suspend fun tracks(limit: Int): List<Track> =
         tracksPage(MediaPageRequest(limit = limit.coerceAtMost(app.naviamp.domain.provider.MaximumMediaPageSize))).items
 
+    override suspend fun track(trackId: TrackId): Track? = song(trackId)
+
     override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? =
         if (!bulkMetadataEnumeration) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
             searchForMusicFolder(query = "", songCount = limit, songOffset = offset, musicFolderId = folder).tracks
@@ -1427,6 +1429,22 @@ class NavidromeProvider(
                 "size" to size.pixels.toString(),
             ),
         )
+
+    override fun artworkCacheKey(url: String): String {
+        if (!ownsUrl(url)) return url
+        val queryStart = url.indexOf('?')
+        if (queryStart < 0) return url
+        val stableQuery = url.substring(queryStart + 1)
+            .split('&')
+            .filterNot { parameter ->
+                when (parameter.substringBefore('=').lowercase()) {
+                    "t", "s" -> true
+                    else -> false
+                }
+            }
+            .joinToString("&")
+        return "${url.substring(0, queryStart)}?$stableQuery"
+    }
 
     fun ownsUrl(url: String): Boolean =
         url.startsWith("${connection.normalizedBaseUrl}/", ignoreCase = true)

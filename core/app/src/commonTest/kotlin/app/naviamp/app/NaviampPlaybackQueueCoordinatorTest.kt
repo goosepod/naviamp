@@ -148,8 +148,11 @@ class NaviampPlaybackQueueCoordinatorTest {
         assertEquals(listOf(first, third, second), applied.single().queue.tracks)
         assertTrue(applied.single().clearPreparedNext)
 
+        assertTrue(commands.moveUpcoming(fromIndex = 1, toIndex = 2).changed)
+        assertEquals(listOf(first, second, third), applied.last().queue.tracks)
+
         assertTrue(commands.removeAt(1).changed)
-        assertEquals(listOf(first, second), applied.last().queue.tracks)
+        assertEquals(listOf(first, third), applied.last().queue.tracks)
 
         assertTrue(commands.clearUpcoming().changed)
         assertEquals(listOf(first), applied.last().queue.tracks)

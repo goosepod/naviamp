@@ -1,4 +1,5 @@
 package app.naviamp.ui
+import app.naviamp.ui.generated.resources.*
 
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
@@ -2111,7 +2112,7 @@ fun InternetRadioContent(
 }
 
 @Composable
-private fun InternetRadioStationDialog(
+internal fun InternetRadioStationDialog(
     initialStation: NaviampInternetRadioStationUi?,
     onDismiss: () -> Unit,
     onConfirm: (NaviampInternetRadioStationEditUi) -> Unit,
@@ -2122,12 +2123,12 @@ private fun InternetRadioStationDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initialStation == null) "New station" else "Edit station") },
+        title = { Text(if (initialStation == null) stringResource(Res.string.tv_new_station) else stringResource(Res.string.connection_edit_station)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
-                OutlinedTextField(value = streamUrl, onValueChange = { streamUrl = it }, label = { Text("Stream URL") }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
-                OutlinedTextField(value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text("Home page URL") }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(Res.string.favorite_artists_sort_name)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(value = streamUrl, onValueChange = { streamUrl = it }, label = { Text(stringResource(Res.string.connection_stream_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text(stringResource(Res.string.connection_home_page_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
             }
         },
         confirmButton = {
@@ -2144,12 +2145,12 @@ private fun InternetRadioStationDialog(
                     )
                 },
             ) {
-                Text("Save")
+                Text(stringResource(Res.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )

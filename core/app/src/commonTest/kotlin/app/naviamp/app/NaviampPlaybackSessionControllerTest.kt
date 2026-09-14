@@ -17,6 +17,31 @@ import kotlin.test.assertTrue
 
 class NaviampPlaybackSessionControllerTest {
     @Test
+    fun failedWritesDoNotThrottleRetryAndRestartLoadsTheLastDurablePosition() {
+        for (saveArbitrarySession in listOf(false, true)) {
+            val repository = RecordingPlaybackSessionRepository()
+            val controller = NaviampPlaybackSessionController(repository)
+            val queue = PlaybackQueue(listOf(track("current")), 0)
+            val request = saveRequest(queue.current!!, queue, 73.0)
+            val session = PlaybackSessionSettings.fromTracks(queue.tracks, currentIndex = 0)!!.copy(positionSeconds = 73.0)
+            fun save() = if (saveArbitrarySession) {
+                controller.saveSessionThrottled(session, "source", false, 30_000L, 30_000L)
+            } else {
+                controller.planAndSaveThrottled(request, false, 30_000L, 30_000L) is PlaybackSessionSavePlan.Save
+            }
+            repository.failSave = true
+            kotlin.test.assertFailsWith<IllegalStateException> { save() }
+            repository.failSave = false
+            assertTrue(save(), "The first successful write must not wait for the failed attempt's throttle")
+            val restarted = NaviampPlaybackSessionController(repository)
+            val restored = assertIs<PlaybackSessionRestorePlan.TrackSession>(restarted.restorePlan("source"))
+            assertEquals(queue, restored.playbackQueue)
+            assertEquals(73.0, restored.restoredStartPositionSeconds)
+            assertFalse(save())
+        }
+    }
+
+    @Test
     fun exposesSharedSessionPersistencePerformanceDiagnostics() {
         val repository = RecordingPlaybackSessionRepository(
             performance = PlaybackSessionRepositoryPerformance(
@@ -345,6 +370,7 @@ private class RecordingPlaybackSessionRepository(
     var lastSavedSourceId: String? = null
     var saveCount: Int = 0
     var loadCount: Int = 0
+    var failSave = false
 
     override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? {
         loadCount += 1
@@ -352,6 +378,7 @@ private class RecordingPlaybackSessionRepository(
     }
 
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
+        if (failSave) error("Storage temporarily unavailable")
         saveCount += 1
         lastSavedSourceId = sourceId
         sessions[sourceId] = session

@@ -303,6 +303,8 @@ data class PlaybackRequest(
     val replayGainPreampDb: Float = 0f,
     val replayGain: PlaybackReplayGain? = null,
     val startPositionSeconds: Double? = null,
+    /** A live source has no successful natural end; retry reconnects at the live edge. */
+    val isLive: Boolean = false,
 )
 
 fun PlaybackRequest.downloadFallbackRequest(positionSeconds: Double? = null): PlaybackRequest? =
@@ -436,7 +438,13 @@ sealed interface PlaybackState {
 
     data class Error(
         val message: String,
+        val reason: PlaybackFailureReason? = null,
     ) : PlaybackState
+}
+
+enum class PlaybackFailureReason {
+    UnstreamableNetworkSource,
+    UnsupportedFormat,
 }
 
 fun PlaybackState.label(): String =

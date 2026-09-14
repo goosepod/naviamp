@@ -10,6 +10,7 @@ import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.connect.NaviampConnectDeviceCapability
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.playback.PlaybackProfileTarget
 import app.naviamp.domain.playback.PlaybackProfileTargetType
@@ -91,6 +92,7 @@ class NaviampCore private constructor(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val diagnostics: NaviampCoreDiagnosticsPort,
+    private val connectController: NaviampCoreConnectController?,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
 
@@ -162,6 +164,10 @@ class NaviampCore private constructor(
         playbackController.expireSleepTimer()
     }
 
+    fun close() {
+        connectController?.close()
+    }
+
     /** Runs the shared sliding-session heartbeat until the mounted Core application is disposed. */
     suspend fun maintainProviderSession() {
         providerSessionLifecycle.maintainWhileMounted()
@@ -220,6 +226,7 @@ class NaviampCore private constructor(
                 stateStore,
                 providerSource,
                 libraryGenreRefresh = services.content.libraryGenreRefresh,
+                libraryIndex = services.content.libraryIndex,
                 albumIndex = services.content.albumIndex,
                 mediaRegistry = mediaRegistry,
             )
@@ -382,7 +389,7 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 navigation::openNowPlaying,
-                services.content.homeLibrary,
+                favoriteArtistActivity = services.content.homeLibrary,
                 onFavoriteArtistActivityChanged = { scope.launch { home.refreshAfterConnection() } },
                 onAlbumUpdated = { provider, album -> services.content.albumIndex?.updateAlbum(provider, album) },
             )
@@ -415,6 +422,12 @@ class NaviampCore private constructor(
                 onPlaylistContentsReconciled = playlistBrowse::reconcileContents,
                 onPlaylistCreated = playlistBrowse::publishCreated,
                 membershipCoordinator = playlistMembership,
+            )
+            val connectCatalog = NaviampCoreConnectCatalogController(
+                providerSource = providerSource,
+                media = mediaTransactions,
+                radio = radio,
+                registry = mediaRegistry,
             )
             val recentRadio = NaviampCoreRecentRadioController(
                 recents = generatedRadioRecents,
@@ -516,6 +529,9 @@ class NaviampCore private constructor(
                     scope.launch { playlistBrowse.refreshAfterConnection() }
                     scope.launch { radio.refreshAfterConnection() }
                 },
+                onUserConnected = {
+                    navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(app.naviamp.ui.SharedRoute.Home))
+                },
                 onOfflineRestored = restoreLocalSession,
             )
             if (initialState.connectionInventory.currentSourceId != null) {
@@ -588,13 +604,36 @@ class NaviampCore private constructor(
                 ),
                 onAsyncFailure = onAsyncFailure,
             )
+            val connect = services.connect?.let { connectServices ->
+                val supportsRemotePlayback = NaviampConnectDeviceCapability.PlaybackTarget in
+                    connectServices.deviceCapabilities
+                NaviampCoreConnectController(
+                    scope = scope,
+                    stateStore = stateStore,
+                    services = connectServices,
+                    targetPlayback = playback.takeIf { supportsRemotePlayback },
+                    targetNowPlaying = nowPlaying.takeIf { supportsRemotePlayback },
+                    targetCatalog = connectCatalog.takeIf { supportsRemotePlayback },
+                    localPlayback = playback,
+                    sourceIdentity = {
+                        naviampCoreConnectSourceIdentity(stateStore, providerSource)
+                    },
+                    providerSessions = services.connection,
+                    localConnection = connection,
+                    targetConnection = connection.takeIf { supportsRemotePlayback },
+                    targetSettings = settings.takeIf { supportsRemotePlayback },
+                    revealTargetNowPlaying = navigation::openNowPlaying,
+                )
+            }
+            val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
+            livePlayback.observe { live -> connect?.onLocalPlaybackChanged(live) }
             nowPlayingPresenter.publish()
             scope.launch { connection.restoreInitialConnection() }
             return NaviampCore(
                 stateStore = stateStore,
                 playbackProgress = livePlayback.progress,
-                actions = createNaviampCoreActions(router, actionAvailability),
-                commands = router,
+                actions = createNaviampCoreActions(commandHandler, actionAvailability, connect?.actions),
+                commands = commandHandler,
                 playbackController = playback,
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
@@ -602,6 +641,7 @@ class NaviampCore private constructor(
                 providerSource = providerSource,
                 sidecars = services.playback.sidecars,
                 diagnostics = services.diagnostics,
+                connectController = connect,
             )
         }
     }

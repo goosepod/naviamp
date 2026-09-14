@@ -608,6 +608,7 @@ data class SharedHomeCollectionSectionUi(
     val title: String,
     val items: List<SharedHomeCollectionItemUi>,
     val titleResource: SharedHomeCollectionTitleResource? = null,
+    val titleArgument: String? = null,
     val favoriteArtistSort: app.naviamp.domain.settings.FavoriteArtistSort? = null,
     val favoriteArtistsStatus: app.naviamp.domain.home.FavoriteArtistsStatus? = null,
     val visible: Boolean = true,
@@ -956,6 +957,7 @@ data class NaviampAppShellUiState(
     val artistDetail: NaviampArtistDetailScreenUi = NaviampArtistDetailScreenUi(),
     val playlistDetail: NaviampPlaylistDetailScreenUi = NaviampPlaylistDetailScreenUi(),
     val nowPlaying: NowPlayingUi? = null,
+    val connect: NaviampConnectSettingsUi = NaviampConnectSettingsUi(),
     val playlistMembership: NaviampTrackPlaylistMembershipUi? = null,
 )
 
@@ -980,6 +982,7 @@ data class NaviampAppShellActions(
     val homeActions: NaviampHomeActions,
     val mediaActions: NaviampMediaActions,
     val nowPlayingActions: NaviampNowPlayingActions,
+    val connectActions: NaviampConnectSettingsActions? = null,
 )
 
 data class SharedSonicPathBuilderActions(
@@ -1084,6 +1087,8 @@ data class NowPlayingUi(
     val subtitle: String,
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val stateLabel: String,
+    val remoteOutputDeviceName: String? = null,
+    val playbackOutputs: List<NaviampPlaybackOutputUi> = emptyList(),
     val coverArtUrl: String? = null,
     val trackCoverArtUrl: String? = coverArtUrl,
     val albumCoverArtUrl: String? = null,
@@ -1133,6 +1138,9 @@ data class NowPlayingUi(
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
+    val queueCurrentIndex: Int? = null,
+    val queueSnapshot: app.naviamp.domain.queue.PlaybackQueue? = null,
+    val queueManagementActionsOnly: Boolean = false,
     /** Enabled only by a session that routes membership commands to its active source. */
     val canEditPlaylistMembership: Boolean = false,
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
@@ -1143,6 +1151,13 @@ data class NowPlayingUi(
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
     val radioDjs: List<RadioDjPreset> = emptyList(),
     val activeRadioDjId: String? = null,
+)
+
+data class NaviampPlaybackOutputUi(
+    val deviceId: String?,
+    val displayName: String,
+    val selected: Boolean,
+    val available: Boolean = true,
 )
 
 data class NaviampSleepTimerUi(

@@ -6,6 +6,8 @@ class InMemoryObjectByteStore : ObjectByteStore {
     override suspend fun objectBytes(key: String): ByteArray? =
         objects[key]?.copyOf()
 
+    override suspend fun objectKeys(): List<String> = objects.keys.toList()
+
     override suspend fun writeObjectBytes(key: String, bytes: ByteArray): StoredObjectBytes {
         objects[key] = bytes.copyOf()
         return StoredObjectBytes(key = key, sizeBytes = bytes.size.toLong())

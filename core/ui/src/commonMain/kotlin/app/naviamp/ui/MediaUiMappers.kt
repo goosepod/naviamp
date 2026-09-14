@@ -23,6 +23,7 @@ import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.media.AlbumReleaseSection
 import app.naviamp.domain.navibeat.statusLabel
 import app.naviamp.domain.media.groupedByReleaseSection
 import app.naviamp.domain.lyrics.LyricsTiming
@@ -96,6 +97,21 @@ fun List<SharedMediaItemUi>.sortedForAlbumDisplay(order: AlbumSortOrder): List<S
             compareBy(String.CASE_INSENSITIVE_ORDER, SharedMediaItemUi::title)
                 .thenBy { it.releaseYear ?: Int.MAX_VALUE },
         )
+    }
+
+internal fun SharedArtistDetailUi.albumSectionsForDisplay(
+    groupByReleaseType: Boolean,
+    sortOrder: AlbumSortOrder,
+): List<SharedAlbumSectionUi> =
+    (if (groupByReleaseType) {
+        albumSections
+    } else {
+        listOf(SharedAlbumSectionUi(AlbumReleaseSection.Albums, albums))
+    }).mapNotNull { section ->
+        section.albums
+            .sortedForAlbumDisplay(sortOrder)
+            .takeIf(List<SharedMediaItemUi>::isNotEmpty)
+            ?.let { section.copy(albums = it) }
     }
 
 fun Playlist.toSharedMediaItemUi(
@@ -214,13 +230,14 @@ fun HomeContent.toSharedHomeUi(
         SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
     }
     val sections = buildList {
-        fun addSection(id: String, title: String, items: List<SharedHomeCollectionItemUi>) {
+        fun addSection(id: String, title: String, items: List<SharedHomeCollectionItemUi>, titleArgument: String? = null) {
             if (items.isEmpty()) return
             val presentation = interfaceSettings.homeSectionPresentation(id)
             add(
                 SharedHomeCollectionSectionUi(
                     id = id,
                     title = title,
+                    titleArgument = titleArgument,
                     items = items,
                     visible = presentation.visible,
                     homeLayout = presentation.homeLayout,
@@ -311,13 +328,13 @@ fun HomeContent.toSharedHomeUi(
                 )
             })
         }
-        fun addAlbums(id: String, title: String, albums: List<Album>) = addSection(id, title, albums.map { album ->
+        fun addAlbums(id: String, title: String, albums: List<Album>, titleArgument: String? = null) = addSection(id, title, albums.map { album ->
             SharedHomeCollectionItemUi(
                 mediaItem = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums),
                 mediaKind = SharedMediaItemKind.Album,
                 action = SharedHomeCollectionItemAction.OpenAlbum,
             )
-        })
+        }, titleArgument = titleArgument)
         addAlbums(HomeSectionIds.RecentlyAdded, "RECENTLY ADDED MUSIC", recentlyAddedAlbums)
         addSection(HomeSectionIds.RecentPlaylists, "RECENT PLAYLISTS", playlists.map { playlist ->
             SharedHomeCollectionItemUi(
@@ -350,8 +367,8 @@ fun HomeContent.toSharedHomeUi(
         addAlbums(HomeSectionIds.RecentAlbums, "RECENT ALBUMS", recentAlbums)
         addAlbums(HomeSectionIds.FrequentlyPlayedAlbums, "FREQUENTLY PLAYED ALBUMS", frequentAlbums)
         addAlbums(HomeSectionIds.RandomAlbums, "RANDOM ALBUMS", randomAlbums)
-        addAlbums(HomeSectionIds.GenreSpotlight, "MORE IN ${genreSpotlight?.name.orEmpty()}", genreSpotlightAlbums)
-        addAlbums(HomeSectionIds.Decade, "FROM THE ${decadeLabel.uppercase()}", decadeAlbums)
+        addAlbums(HomeSectionIds.GenreSpotlight, "MORE IN ${genreSpotlight?.name.orEmpty()}", genreSpotlightAlbums, titleArgument = genreSpotlight?.name.orEmpty())
+        addAlbums(HomeSectionIds.Decade, "FROM THE ${decadeLabel.uppercase()}", decadeAlbums, titleArgument = decadeLabel)
     }
     val order = interfaceSettings.resolvedHomeSectionOrder(sections.map { it.id })
     val orderIndex = order.withIndex().associate { it.value to it.index }
@@ -665,6 +682,11 @@ private fun nowPlayingSectionsUi(
 
 sealed interface NowPlayingItemTarget {
     data class QueueIndex(val index: Int) : NowPlayingItemTarget
+    data class QueueOccurrence(
+        val occurrenceId: String,
+        val renderedIndex: Int,
+        val renderedRevision: Long,
+    ) : NowPlayingItemTarget
     data class RelatedIndex(val index: Int) : NowPlayingItemTarget
     data class TrackId(val id: String) : NowPlayingItemTarget
 }
@@ -761,6 +783,7 @@ data class NowPlayingDisplayActionRequest(
 enum class NowPlayingQueueAction {
     SaveQueueAsPlaylist,
     MoveToNext,
+    MoveQueueItem,
     RemoveFromQueue,
     EmptyQueue,
 }
@@ -769,6 +792,9 @@ data class NowPlayingQueueActionRequest(
     val action: NowPlayingQueueAction,
     val playlistName: String? = null,
     val queueIndex: Int? = null,
+    val destinationQueueIndex: Int? = null,
+    val sourceTarget: NowPlayingItemTarget? = null,
+    val expectedQueue: PlaybackQueue? = null,
 )
 
 enum class NowPlayingSleepTimerAction {
@@ -829,7 +855,7 @@ fun nowPlayingListItemKey(index: Int, item: NaviampNowPlayingItemUi): String =
     "$index:${item.id}"
 
 fun nowPlayingItemTarget(item: NaviampNowPlayingItemUi): NowPlayingItemTarget =
-    item.id.removePrefix("queue:")
+    item.actionTarget ?: item.id.removePrefix("queue:")
         .takeIf { it != item.id }
         ?.toIntOrNull()
         ?.let(NowPlayingItemTarget::QueueIndex)
@@ -840,7 +866,11 @@ fun nowPlayingItemTarget(item: NaviampNowPlayingItemUi): NowPlayingItemTarget =
         ?: NowPlayingItemTarget.TrackId(item.id)
 
 fun nowPlayingQueueIndex(item: NaviampNowPlayingItemUi): Int? =
-    (nowPlayingItemTarget(item) as? NowPlayingItemTarget.QueueIndex)?.index
+    when (val target = nowPlayingItemTarget(item)) {
+        is NowPlayingItemTarget.QueueIndex -> target.index
+        is NowPlayingItemTarget.QueueOccurrence -> target.renderedIndex
+        else -> null
+    }
 
 fun nowPlayingRelatedIndex(item: NaviampNowPlayingItemUi): Int? =
     (nowPlayingItemTarget(item) as? NowPlayingItemTarget.RelatedIndex)?.index
@@ -889,6 +919,7 @@ fun NowPlayingItemActionRequest.resolveAction(
 private val NowPlayingItemTarget.source: NowPlayingItemSource
     get() = when (this) {
         is NowPlayingItemTarget.QueueIndex -> NowPlayingItemSource.Queue
+        is NowPlayingItemTarget.QueueOccurrence -> NowPlayingItemSource.Queue
         is NowPlayingItemTarget.RelatedIndex -> NowPlayingItemSource.Related
         is NowPlayingItemTarget.TrackId -> NowPlayingItemSource.TrackId
     }
@@ -933,6 +964,7 @@ private fun resolveNowPlayingTargetTrack(
 ): Track? =
     when (target) {
         is NowPlayingItemTarget.QueueIndex -> queueTracks.getOrNull(target.index)
+        is NowPlayingItemTarget.QueueOccurrence -> queueTracks.getOrNull(target.renderedIndex)
         is NowPlayingItemTarget.RelatedIndex -> relatedTracks.getOrNull(target.index)
         is NowPlayingItemTarget.TrackId ->
             (knownTracks + queueTracks + relatedTracks).firstOrNull { track -> track.id.value == target.id }
@@ -1007,7 +1039,6 @@ fun nowPlayingTrackCapabilities(
     NowPlayingTrackCapabilities(
         canPlayPause = hasPlaybackTarget &&
             playbackState != PlaybackState.Loading &&
-            playbackState !is PlaybackState.Error &&
             (supportsPause || playbackState != PlaybackState.Playing),
         canSeek = supportsSeek && !isLiveStream,
         canChangeVolume = supportsSoftwareVolume,
@@ -1338,7 +1369,7 @@ fun NowPlayingUi.withDisplaySettings(
         coverArtUrl = art,
         albumYear = year,
         albumLine = albumTitle.takeIf(String::isNotBlank)?.let { title ->
-            year?.let { "$title ($it)" } ?: title
+            if (settings.showAlbumYear) year?.let { "$title ($it)" } ?: title else title
         }.orEmpty(),
     )
 }

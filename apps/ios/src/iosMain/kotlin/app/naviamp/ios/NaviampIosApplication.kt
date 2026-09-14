@@ -2,6 +2,7 @@ package app.naviamp.ios
 
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.ComposeUIViewController
 import app.cash.sqldelight.db.SqlDriver
@@ -297,6 +298,7 @@ class NaviampIosApplication(
         NaviampCoreApp(
             core = core,
             modifier = Modifier.safeDrawingPadding().imePadding(),
+            screenAwakeEffect = remember { IosScreenAwakeEffect() },
             applicationUpdateChecker = environment.applicationUpdateChecker,
         )
     }.also { contentViewController = it }
@@ -309,6 +311,16 @@ class NaviampIosApplication(
         driver.close()
     }
 
-    private suspend fun loadProviderArtwork(url: String): ByteArray? =
-        runCatching { artworkCache.imageBytes(url) }.getOrNull()
+    private suspend fun loadProviderArtwork(url: String): ByteArray? = runCatching {
+        val provider = sessions.currentProvider()
+        if (provider == null) {
+            artworkCache.imageBytes(url)
+        } else {
+            artworkCache.imageBytesForProvider(provider, url) {
+                provider.bytesForOwnedUrl(url)
+                    ?: httpClient.getBytes(url)
+                    ?: throw IllegalStateException("Could not load artwork.")
+            }
+        }
+    }.getOrNull()
 }

@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Urutan album</string>
+    <string name="tv_album_sort_order_description">Pilih urutan rilisan artis</string>
+    <string name="tv_album_sort_oldest_first">Terlama lebih dulu</string>
+    <string name="tv_album_sort_newest_first">Terbaru lebih dulu</string>
+    <string name="tv_album_sort_title">Judul</string>
+    <string name="tv_group_albums_by_release_type">Kelompokkan album menurut jenis rilisan</string>
+    <string name="tv_group_albums_by_release_type_description">Tampilkan album, EP, singel, dan rilisan lain dalam bagian terpisah</string>
+    <string name="connect_setup_password_required">Masukkan kata sandi sumber Anda untuk menyelesaikan penyiapan. Naviamp memvalidasi dan menyimpannya dengan aman untuk koneksi berikutnya.</string>
+    <string name="connect_setup_code_consent">Menampilkan kode mengizinkan perangkat yang memasukkannya untuk berpasangan dan menyiapkan perangkat ini dengan sumber musik dan pengaturannya.</string>
+    <string name="connect_setup_new_code_required">Tampilkan kode baru di TV dan pasangkan kembali untuk menyelesaikan penyiapan.</string>
+    <string name="settings_keep_screen_awake">Biarkan layar menyala</string>
+    <string name="settings_keep_screen_awake_description">Mencegah layar tidur otomatis saat Naviamp terlihat. Tidur sistem, kunci layar, dan pengatur waktu TV mungkin tetap berlaku.</string>
+    <string name="settings_keep_screen_awake_failed">Pencegahan tidur layar tidak dapat diubah. Nonaktifkan lalu aktifkan pengaturan ini untuk mencoba lagi.</string>
     <string name="settings_now_playing_split_background_opacity">Opasitas latar belakang tampilan terbagi</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Perangkat pemutaran: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Tanggal album ditambahkan</string>
     <string name="smart_playlist_field_album_date_modified">Tanggal album diubah</string>
     <string name="smart_playlist_field_album_duration">Durasi album</string>
@@ -10,4 +25,7 @@
     <string name="smart_playlist_refresh_delay">Jeda penyegaran</string>
     <string name="smart_playlist_refresh_delay_hint">Opsional. Contoh: 12h, 1d, atau 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Gunakan durasi yang valid seperti 12h, 1d, atau 1w.</string>
+    <string name="connect_pairing_code">Kode pemasangan</string>
+    <string name="connect_devices_description">Kontrol dan pasangkan perangkat Naviamp di jaringan ini</string>
+    <string name="connect_setup_timed_out">Waktu penyiapan perangkat habis. Periksa perangkat pemutaran, lalu coba lagi.</string>
 </resources>

@@ -88,6 +88,20 @@ class NaviampCoreSettingsController(
     private val onLocalSettingsChanged: () -> Unit = {},
     private val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
 ) : NaviampCoreCommandController {
+    internal fun applyConnectPortableSettings(settings: app.naviamp.domain.connect.NaviampConnectPortableSettings) {
+        val shell = stateStore.state.value.shell
+        changeInterface(
+            NaviampCoreCommand.Settings.ChangeInterface(
+                shell.general.interfaceSettings.withConnectPortableValues(settings.interfaceSettings),
+            ),
+        )
+        changePlayback(
+            NaviampCoreCommand.Settings.ChangePlayback(
+                shell.playback.settings.withConnectPortableValues(settings.playbackSettings),
+                redownload = false,
+            ),
+        )
+    }
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
         val settings = command as? NaviampCoreCommand.Settings
             ?: return NaviampCoreImmediateCommandResult.Unhandled

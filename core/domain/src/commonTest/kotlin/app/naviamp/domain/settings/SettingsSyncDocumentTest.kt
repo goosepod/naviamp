@@ -9,6 +9,37 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
+    @Test fun keepScreenAwakeRoundTripsAndOlderExportsDefaultOff() {
+        for (enabled in listOf(false, true)) {
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(keepScreenAwake = enabled)), 1L, "test")
+            val imported = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(enabled, imported.keepScreenAwake)
+        }
+        assertFalse(SettingsSyncJson.decode("{}") .preferences.interfaceSettings.keepScreenAwake)
+        assertFalse(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{}}}""")
+            .preferences.interfaceSettings.keepScreenAwake)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"keepScreenAwake":"invalid"}}}""")
+        }
+    }
+
+    @Test
+    fun interfaceLanguageRoundTripsMissingValuesDefaultAndUnknownValuesAreRejected() {
+        for (language in InterfaceLanguage.entries) {
+            val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(language = language),
+            ))
+            assertEquals(language, SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+                .preferences.interfaceSettings.language)
+        }
+        assertEquals(InterfaceLanguage.System, SettingsSyncJson.decode("""{"preferences":{}}""")
+            .preferences.interfaceSettings.language)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"language":"FutureLanguage"}}}""")
+        }
+    }
+
     @Test
     fun playerWorkspacePreferenceRoundTripsAndOlderExportsDefaultToSplit() {
         for (layout in WideNowPlayingLayout.entries) {
@@ -61,6 +92,24 @@ class SettingsSyncDocumentTest {
         val invalid = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"auroraColorSteps":20,"auroraAngleDegrees":-45}}}""")
         assertEquals(5, invalid.preferences.interfaceSettings.auroraColorSteps)
         assertEquals(0, invalid.preferences.interfaceSettings.auroraAngleDegrees)
+    }
+
+    @Test
+    fun artistReleasePreferencesRoundTripAndOlderExportsUseSharedDefaults() {
+        val settings = InterfaceSettings(
+            albumSortOrder = AlbumSortOrder.ReleaseYearDescending,
+            groupAlbumsByReleaseType = false,
+        )
+        val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(
+            SettingsSyncDocument(preferences = SettingsSyncPreferences(interfaceSettings = settings)),
+        )).preferences.interfaceSettings
+
+        assertEquals(AlbumSortOrder.ReleaseYearDescending, decoded.albumSortOrder)
+        assertFalse(decoded.groupAlbumsByReleaseType)
+
+        val older = SettingsSyncJson.decode("{}").preferences.interfaceSettings
+        assertEquals(AlbumSortOrder.ReleaseYearAscending, older.albumSortOrder)
+        assertTrue(older.groupAlbumsByReleaseType)
     }
 
     @Test
@@ -257,6 +306,7 @@ class SettingsSyncDocumentTest {
     fun interfaceBackgroundDefaultsAndNormalizesHexColor() {
         assertEquals(AppBackgroundStyle.Aurora, InterfaceSettings().appBackgroundStyle)
         assertEquals(AuroraTone.Dark, InterfaceSettings().auroraTone)
+        assertEquals("Balanced", InterfaceSettings().auroraTone.label)
         assertEquals(3, InterfaceSettings().auroraColorSteps)
         assertEquals(45, InterfaceSettings().auroraAngleDegrees)
         assertEquals(2, InterfaceSettings(auroraColorSteps = 1).normalized().auroraColorSteps)
@@ -270,6 +320,28 @@ class SettingsSyncDocumentTest {
         assertEquals(DefaultSingleColorHex, InterfaceSettings(singleColorHex = "not-a-color").normalized().singleColorHex)
         assertEquals(NowPlayingAlbumYearPreference.Original, NowPlayingDisplaySettings().albumYearPreference)
         assertEquals(false, NowPlayingDisplaySettings().showTrackCover)
+    }
+
+    @Test
+    fun auroraToneKeepsOldDarkValueBalancedAndRoundTripsNewDark() {
+        val existing = SettingsSyncDocument(
+            preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(auroraTone = AuroraTone.Dark),
+            ),
+        )
+        val existingJson = SettingsSyncJson.encode(existing)
+        assertTrue(existingJson.contains("\"auroraTone\": \"Dark\""))
+        assertEquals("Balanced", SettingsSyncJson.decode(existingJson).preferences.interfaceSettings.auroraTone.label)
+
+        val newDark = existing.copy(
+            preferences = existing.preferences.copy(
+                interfaceSettings = existing.preferences.interfaceSettings.copy(auroraTone = AuroraTone.DeepDark),
+            ),
+        )
+        assertEquals(
+            AuroraTone.DeepDark,
+            SettingsSyncJson.decode(SettingsSyncJson.encode(newDark)).preferences.interfaceSettings.auroraTone,
+        )
     }
 
     @Test

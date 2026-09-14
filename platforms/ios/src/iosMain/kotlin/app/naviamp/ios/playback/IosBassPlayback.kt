@@ -2,6 +2,8 @@
 
 package app.naviamp.ios.playback
 
+import app.naviamp.domain.bass.BassFilePosition
+import app.naviamp.ios.bass.native.BASS_StreamGetFilePosition
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassCodecPluginInventory
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
@@ -426,6 +428,10 @@ class IosBassAudioBackend : BassAudioBackend {
 
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         lengthBytes(stream)?.let { BASS_ChannelBytes2Seconds(stream.uint, it.toULong()) }?.takeIf { it >= 0.0 }
+
+    override fun filePosition(stream: BassStreamHandle, position: BassFilePosition): Long? =
+        BASS_StreamGetFilePosition(stream.uint, position.nativeValue.toUInt())
+            .takeUnless { it == ULong.MAX_VALUE }?.toLong()
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =
         BASS_ChannelGetLength(stream.uint, BASS_POS_BYTE.toUInt())

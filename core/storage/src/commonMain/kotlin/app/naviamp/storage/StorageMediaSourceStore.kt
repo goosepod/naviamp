@@ -110,7 +110,7 @@ class StorageMediaSourceStore(
         val id = preferredSourceId ?: existing?.id ?: stableMediaSourceId(cacheNamespace)
         val serverConnectionKey = connection.serverConnectionKey(providerId)
         val libraryScopeKey = connection.libraryScopeKey()
-        val values = connection.toStoredValues()
+        val values = connection.toStoredValues(existing?.password)
         queries.upsertMediaSource(
             id = id,
             provider_id = providerId,
@@ -120,6 +120,7 @@ class StorageMediaSourceStore(
             display_name = connection.displayName,
             base_url = connection.baseUrl,
             username = connection.username,
+            password = values.password,
             token = values.token,
             salt = values.salt,
             native_token = values.nativeToken,
@@ -146,6 +147,7 @@ class StorageMediaSourceStore(
             display_name = connection.displayName,
             base_url = connection.baseUrl,
             username = connection.username,
+            password = values.password,
             token = values.token,
             salt = values.salt,
             native_token = values.nativeToken,
@@ -216,7 +218,10 @@ class StorageMediaSourceStore(
         queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
     }
 
-    private fun ProviderMediaSourceConnection.toStoredValues() = StoredMediaSourceValues(
+    private fun ProviderMediaSourceConnection.toStoredValues(existingProtectedPassword: String?) = StoredMediaSourceValues(
+        password = password?.takeIf(String::isNotBlank)?.let {
+            protectOptionalCredential(it, "source password")
+        } ?: existingProtectedPassword,
         token = protectRequiredCredential(token, "provider token"),
         salt = protectRequiredCredential(salt, "provider salt"),
         nativeToken = protectOptionalCredential(nativeToken, "native provider token"),
@@ -299,6 +304,7 @@ class StorageMediaSourceStore(
             displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
             baseUrl = base_url,
             username = username,
+            password = credentialProtector.reveal(password),
             token = credentialProtector.reveal(token).orEmpty(),
             salt = credentialProtector.reveal(salt).orEmpty(),
             nativeToken = credentialProtector.reveal(native_token),
@@ -332,6 +338,7 @@ class StorageMediaSourceStore(
             val needsMigration = listOf(
                 source.token,
                 source.salt,
+                source.password,
                 source.native_token,
                 source.client_certificate_keystore_password,
             ).any { value -> !value.isNullOrEmpty() && !credentialProtector.isProtected(value) } ||
@@ -348,6 +355,7 @@ class StorageMediaSourceStore(
                 display_name = source.display_name,
                 base_url = source.base_url,
                 username = source.username,
+                password = protectOptionalCredential(source.password, "source password"),
                 token = protectRequiredCredential(source.token, "provider token"),
                 salt = protectRequiredCredential(source.salt, "provider salt"),
                 native_token = protectOptionalCredential(source.native_token, "native provider token"),
@@ -385,6 +393,7 @@ class StorageMediaSourceStore(
 }
 
 private data class StoredMediaSourceValues(
+    val password: String?,
     val token: String,
     val salt: String,
     val nativeToken: String?,

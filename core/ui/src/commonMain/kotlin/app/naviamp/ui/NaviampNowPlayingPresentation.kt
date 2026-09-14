@@ -179,6 +179,8 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
         ).copy(
             radioDjs = radioDjs,
             activeRadioDjId = activeRadioDjId,
+            queueCurrentIndex = playbackQueue.currentIndex.takeIf { it in playbackQueue.tracks.indices },
+            queueSnapshot = playbackQueue,
         )
     } ?: nowPlayingTrack?.toTrackNowPlayingUi(
         stateLabel = stateLabel,
@@ -221,8 +223,10 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
         radioStations = radioStations,
         radioDjs = radioDjs,
         activeRadioDjId = activeRadioDjId,
+        queueCurrentIndex = playbackQueue.currentIndex.takeIf { it in playbackQueue.tracks.indices },
+        queueSnapshot = playbackQueue,
     ) ?: NowPlayingUi(
-        title = "Queue will appear here after connection",
+        title = "Choose something to play",
         subtitle = if (isLiveStream) "Internet radio" else "Nothing Playing",
         stateLabel = stateLabel,
         coverArtUrl = coverArtUrl,

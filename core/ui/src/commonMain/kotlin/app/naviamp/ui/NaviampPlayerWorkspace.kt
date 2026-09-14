@@ -21,7 +21,8 @@ internal fun supportsPlayerWorkspace(width: Float, height: Float): Boolean = wid
 internal fun readableSurfaceColor(
     colors: NaviampColors,
     opacity: Float = DefaultSplitPaneBackgroundOpacityPercent / 100f,
-) = colors.background.copy(alpha = opacity.coerceIn(0f, 1f))
+) =
+    colors.background.copy(alpha = opacity.coerceIn(0f, 1f))
 
 /** One bounded reading surface for every host and for either workspace pane. */
 @Composable

@@ -7,6 +7,20 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
 class NaviampListenReportingTest {
+    @Test fun interruptionTimeDoesNotQualifyAndReconnectRetriesOnlyOneListen() = runTest {
+        val provider = Provider().apply { offline = true }
+        val reporting = NaviampListenReporting()
+        reporting.observe(provider, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 1_000)
+        reporting.observe(provider, track, PlaybackState.Paused, PlaybackProgress(10.0, 60.0), 11_000)
+        reporting.observe(provider, track, PlaybackState.Playing, PlaybackProgress(10.0, 60.0), 111_000)
+        assertTrue(provider.listens.isEmpty())
+        reporting.observe(provider, track, PlaybackState.Playing, PlaybackProgress(35.0, 60.0), 136_000)
+        provider.offline = false
+        reporting.observe(provider, track, PlaybackState.Playing, PlaybackProgress(40.0, 60.0), 141_000)
+        reporting.observe(provider, track, PlaybackState.Playing, PlaybackProgress(50.0, 60.0), 151_000)
+        assertEquals(listOf(1_000L), provider.listens)
+    }
+
     @Test fun reconnectingMidListenDoesNotStartASecondReportingProtocol() = runTest {
         val offline = Provider().apply { this.offline = true }
         val online = Provider(timeline = true)

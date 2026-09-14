@@ -30,6 +30,31 @@ Kover measures JVM and Android unit-test execution. Kotlin/Native, XCTest, Andro
 and native C/JNI execution are intentionally represented by explicit CI gates rather than being
 misreported as JVM line coverage.
 
+## Opt-in Connect cross-device instrumentation
+
+`AndroidNaviampConnectCrossDeviceInstrumentedTest` (discovery) and
+`AndroidNaviampConnectPairingCrossDeviceInstrumentedTest` (pairing/control) require a coordinated
+target and controller. Ordinary `connectedDebugAndroidTest` runs skip these two scenarios when
+`connectRole` is absent. An explicitly supplied invalid role still fails, so invocation errors cannot
+silently pass. Single-device Connect/native tests continue to run normally.
+
+Select one of those test classes explicitly and run it on both participating test devices, starting
+the target first. Use `-e connectRole target` on the target and `-e connectRole controller` on the
+controller, with each device's explicit `adb -s <serial>` and installed instrumentation component:
+
+```shell
+adb -s <target-serial> shell am instrument -w -r \
+  -e class app.naviamp.android.AndroidNaviampConnectCrossDeviceInstrumentedTest \
+  -e connectRole target <test-package>/androidx.test.runner.AndroidJUnitRunner
+adb -s <controller-serial> shell am instrument -w -r \
+  -e class app.naviamp.android.AndroidNaviampConnectCrossDeviceInstrumentedTest \
+  -e connectRole controller <test-package>/androidx.test.runner.AndroidJUnitRunner
+```
+
+Run the commands in separate terminals while the target is listening. Both devices need the
+network topology required by the selected fixture; skipping these tests in single-device CI does
+not establish cross-device acceptance.
+
 ## CI verification
 
 `.github/workflows/verify.yml` runs on every branch push and pull request and is also called before

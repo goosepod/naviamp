@@ -3,6 +3,7 @@ package app.naviamp.android
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.util.Log
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
 import app.naviamp.android.playback.AndroidBassAudioBackend
 import app.naviamp.android.playback.AndroidBassJni
@@ -26,7 +27,7 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val bassJni = AndroidBassJni.load().getOrElse { error ->
         throw IllegalStateException("BASS is required for Android playback.", error)
-    }
+    }.also(::configureBassNetworkProxy)
     private val bass = AndroidBassAudioBackend(bassJni)
     private val engine = AndroidFocusedBassPlaybackEngine(appContext, bass)
     private val catalog = AndroidNaviampCoreCatalog.create(
@@ -58,6 +59,16 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
     }
 
+    /** Android's HTTP proxy is an OS network boundary; BASS requires the same endpoint explicitly. */
+    private fun configureBassNetworkProxy(bass: AndroidBassJni) {
+        val proxy = appContext.getSystemService(ConnectivityManager::class.java).defaultProxy ?: return
+        val host = proxy.host?.trim()?.takeIf(String::isNotEmpty) ?: return
+        val port = proxy.port.takeIf { it in 1..65_535 } ?: return
+        if (!bass.setNetworkProxy("$host:$port")) {
+            Log.w(RuntimeLogTag, "BASS could not apply the Android system network proxy.")
+        }
+    }
+
     companion object {
         @Volatile
         private var instance: AndroidNaviampApplicationRuntime? = null
@@ -68,3 +79,5 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
             }
     }
 }
+
+private const val RuntimeLogTag = "NaviampRuntime"

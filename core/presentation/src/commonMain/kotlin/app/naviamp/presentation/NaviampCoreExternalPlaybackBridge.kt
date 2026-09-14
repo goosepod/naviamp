@@ -159,21 +159,18 @@ class NaviampExternalPlaybackLifecycleCoordinator(
     private val play: () -> Unit,
     private val pause: () -> Unit,
 ) {
-    private var resumeAfterInterruption = false
+    private val interruption = app.naviamp.domain.playback.PlaybackInterruptionPolicy()
 
     fun interruptionBegan() {
-        resumeAfterInterruption = snapshot().state == NaviampExternalPlaybackState.Playing
-        if (resumeAfterInterruption) pause()
+        if (interruption.began(snapshot().state == NaviampExternalPlaybackState.Playing)) pause()
     }
 
     fun interruptionEnded(shouldResume: Boolean) {
-        val resume = resumeAfterInterruption && shouldResume
-        resumeAfterInterruption = false
-        if (resume) play()
+        if (interruption.ended(shouldResume)) play()
     }
 
     fun outputDisconnected() {
-        resumeAfterInterruption = false
+        interruption.cancel()
         if (snapshot().state == NaviampExternalPlaybackState.Playing) pause()
     }
 }

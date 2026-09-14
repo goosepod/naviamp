@@ -294,6 +294,7 @@ class InternetRadioPlaybackTest {
             replayGainMode = ReplayGainMode.Track,
         )
 
+        assertEquals(true, requestPlan.request.isLive)
         assertEquals("https://cdn.example/live.mp3", requestPlan.request.url)
         assertEquals("kexp", requestPlan.request.mediaId)
         assertEquals(ReplayGainMode.Off, requestPlan.request.replayGainMode)
@@ -320,7 +321,7 @@ class InternetRadioPlaybackTest {
             setErrorStatus = { calls += "status:$it" },
         )
 
-        assertEquals(listOf("state:Error(message=Stream failed)", "status:Stream failed"), calls)
+        assertEquals(listOf("state:Error(message=Stream failed, reason=null)", "status:Stream failed"), calls)
     }
 
     @Test

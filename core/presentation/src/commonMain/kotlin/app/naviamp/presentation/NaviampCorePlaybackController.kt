@@ -30,6 +30,7 @@ import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.PlaybackSessionSavePlan
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.queue.groupAt
 import app.naviamp.domain.queue.groupForTransition
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
@@ -83,6 +84,7 @@ class NaviampCorePlaybackController(
     private var persistedQueue = PlaybackQueue()
     private var persistedStationId: String? = null
     private var sourceTransitionTargetId: String? = null
+    private var connectHandoffAwaitingStart = false
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Playback,
@@ -118,6 +120,216 @@ class NaviampCorePlaybackController(
 
     fun currentDisplay(): NaviampCoreNowPlayingDisplayState = display
 
+    /** Executes the remote-control subset against the same shared owners used by local UI. */
+    internal fun executeConnectPlayback(command: app.naviamp.domain.connect.NaviampConnectCommand): Boolean =
+        when (command) {
+            app.naviamp.domain.connect.NaviampConnectPlay -> when {
+                connectHandoffAwaitingStart -> startConnectHandoff()
+                else -> commands.play()
+            }
+            app.naviamp.domain.connect.NaviampConnectPause -> when {
+                connectHandoffAwaitingStart -> true
+                else -> commands.pause()
+            }
+            app.naviamp.domain.connect.NaviampConnectTogglePlayPause ->
+                if (connectHandoffAwaitingStart) startConnectHandoff() else commands.playPause()
+            app.naviamp.domain.connect.NaviampConnectPrevious ->
+                navigate(queue.previousCommand(stateStore.state.value.shell.playback.settings.previousButtonBehavior)) !=
+                    PlaybackQueueNavigationCommand.None
+            app.naviamp.domain.connect.NaviampConnectNext ->
+                navigate(queue.nextCommand()) != PlaybackQueueNavigationCommand.None
+            app.naviamp.domain.connect.NaviampConnectStop -> {
+                commands.stop()
+                true
+            }
+            is app.naviamp.domain.connect.NaviampConnectSeek -> commands.seek(
+                NaviampPlaybackSeekRequest(
+                    positionSeconds = command.positionMillis / 1_000.0,
+                    streamQuality = effects.playbackQuality
+                        ?: stateStore.state.value.shell.playback.settings.streamQualityForNetwork(false),
+                    playbackSource = effects.playbackSource,
+                    issuedAtMillis = nowEpochMillis(),
+                ),
+            ) != null
+            is app.naviamp.domain.connect.NaviampConnectSetRepeat -> {
+                val requested = when (command.mode) {
+                    app.naviamp.domain.connect.NaviampConnectRepeatMode.Off -> RepeatMode.Off
+                    app.naviamp.domain.connect.NaviampConnectRepeatMode.All -> RepeatMode.Queue
+                    app.naviamp.domain.connect.NaviampConnectRepeatMode.One -> RepeatMode.Track
+                }
+                if (playback.state.value.repeatMode != requested) {
+                    playback.updateRepeatMode(requested)
+                    effects.applyRepeatMode(requested)
+                }
+                true
+            }
+            is app.naviamp.domain.connect.NaviampConnectSetShuffle -> {
+                val enabled = playback.state.value.shuffledUpNextSnapshot != null
+                if (enabled != command.enabled) {
+                    val update = queue.toggleUpcomingShuffle()
+                    if (!update.changed) return false
+                    effects.applyQueue(update.queue, clearPreparedNext = true)
+                }
+                true
+            }
+            else -> false
+        }.also { presenter.publish(display) }
+
+    internal fun selectConnectQueueIndex(index: Int): Boolean {
+        if (index !in playback.state.value.queue.tracks.indices) return false
+        navigate(PlaybackQueueNavigationCommand.JumpTo(index, moveSelectedToCurrent = true))
+        presenter.publish(display)
+        return true
+    }
+
+    internal fun moveConnectQueueIndex(fromIndex: Int, beforeIndex: Int?): Boolean {
+        val current = playback.state.value.queue
+        val upcoming = (current.currentIndex + 1)..current.tracks.lastIndex
+        if (fromIndex !in upcoming || (beforeIndex != null && beforeIndex !in upcoming)) return false
+        val destination = when {
+            beforeIndex == null -> current.tracks.lastIndex
+            fromIndex < beforeIndex -> beforeIndex - 1
+            else -> beforeIndex
+        }
+        val update = mutations.moveUpcoming(fromIndex, destination)
+        presenter.publish(display)
+        return update.changed || fromIndex == destination
+    }
+
+    internal fun removeConnectQueueIndex(index: Int): Boolean {
+        val current = playback.state.value.queue
+        if (index <= current.currentIndex || index !in current.tracks.indices) return false
+        val update = mutations.removeAt(index)
+        presenter.publish(display)
+        return update.changed
+    }
+
+    internal fun clearConnectUpNext(): Boolean {
+        val update = queue.retainCurrentOnly()
+        if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
+        presenter.publish(display)
+        return update.changed
+    }
+
+    internal suspend fun handoffConnectQueue(
+        command: app.naviamp.domain.connect.NaviampConnectHandoffQueue,
+    ): Boolean {
+        if (command.queue.occurrences.isEmpty() || command.queue.currentIndex !in command.queue.occurrences.indices) {
+            return false
+        }
+        providerSource.current() ?: return false
+        val locallyKnownTracks = playback.state.value.queue.tracks.associateBy { it.id.value }
+        val tracks = command.queue.occurrences.map { occurrence ->
+            val known = locallyKnownTracks[occurrence.mediaId]
+            known?.copy(
+                title = occurrence.title.ifBlank { known.title },
+                artistId = occurrence.artistId?.let { app.naviamp.domain.ArtistId(it) }
+                    ?: known.artistId,
+                artistName = occurrence.artistName.ifBlank { known.artistName },
+                albumId = occurrence.albumId?.let { app.naviamp.domain.AlbumId(it) }
+                    ?: known.albumId,
+                albumTitle = occurrence.albumTitle ?: known.albumTitle,
+                durationSeconds = occurrence.durationMillis?.div(1_000L)?.toInt()
+                    ?: known.durationSeconds,
+                coverArtId = occurrence.artworkId ?: known.coverArtId,
+                favoritedAtIso8601 = ConnectHandoffFavoriteMarker.takeIf { occurrence.favorite },
+            ) ?: app.naviamp.domain.Track(
+                id = app.naviamp.domain.TrackId(occurrence.mediaId),
+                title = occurrence.title,
+                artistId = occurrence.artistId?.let { app.naviamp.domain.ArtistId(it) },
+                artistName = occurrence.artistName,
+                albumId = occurrence.albumId?.let { app.naviamp.domain.AlbumId(it) },
+                albumTitle = occurrence.albumTitle,
+                durationSeconds = occurrence.durationMillis?.div(1_000L)?.toInt(),
+                coverArtId = occurrence.artworkId,
+                audioInfo = null,
+                replayGain = null,
+                favoritedAtIso8601 = ConnectHandoffFavoriteMarker.takeIf { occurrence.favorite },
+            )
+        }
+        val handedOffQueue = app.naviamp.domain.queue.PlaybackQueue(
+            tracks = tracks,
+            currentIndex = command.queue.currentIndex,
+            playNextCount = command.queue.playNextCount,
+            groups = command.queue.groups.map { group ->
+                app.naviamp.domain.queue.PlaybackQueueGroup(
+                    id = group.groupId,
+                    target = app.naviamp.domain.playback.PlaybackProfileTarget(
+                        type = group.targetType,
+                        id = group.targetId,
+                    ),
+                    label = group.label.orEmpty(),
+                    startIndex = group.startIndex,
+                    endIndexExclusive = group.endIndexExclusive,
+                    profile = group.playbackProfile,
+                )
+            },
+        )
+        val repeatMode = when (command.repeatMode) {
+            app.naviamp.domain.connect.NaviampConnectRepeatMode.Off -> RepeatMode.Off
+            app.naviamp.domain.connect.NaviampConnectRepeatMode.All -> RepeatMode.Queue
+            app.naviamp.domain.connect.NaviampConnectRepeatMode.One -> RepeatMode.Track
+        }
+        val positionSeconds = command.positionMillis / 1_000.0
+        val previous = playback.state.value
+        val previousHandoffAwaitingStart = connectHandoffAwaitingStart
+        // A handoff replaces the native playback session as well as Core's queue. Pausing the
+        // previous stream leaves that stream alive, and some native engines then report the new
+        // handoff as logically playing without ever activating its audio output.
+        effects.stop()
+        playback.replace(
+            playback.state.value.copy(
+                currentTrack = handedOffQueue.current,
+                currentStation = null,
+                queue = handedOffQueue,
+                progress = app.naviamp.domain.playback.PlaybackProgress(
+                    positionSeconds,
+                    handedOffQueue.current?.durationSeconds?.toDouble(),
+                ),
+                playbackState = if (command.playing) PlaybackState.Playing else PlaybackState.Paused,
+                repeatMode = repeatMode,
+                shuffledUpNextSnapshot = handedOffQueue.upNext().takeIf { command.shuffled },
+            ),
+        )
+        effects.restoreQueue(handedOffQueue, positionSeconds)
+        effects.applyRepeatMode(repeatMode)
+        connectHandoffAwaitingStart = true
+        if (command.playing) {
+            if (!startConnectHandoff()) {
+                restorePlaybackAfterRejectedConnectHandoff(previous, previousHandoffAwaitingStart)
+                presenter.publish(display)
+                return false
+            }
+        }
+        presenter.publish(display)
+        return true
+    }
+
+    private fun restorePlaybackAfterRejectedConnectHandoff(
+        previous: app.naviamp.app.NaviampLivePlaybackState,
+        previousHandoffAwaitingStart: Boolean,
+    ) {
+        effects.stop()
+        playback.replace(previous)
+        effects.restoreQueue(previous.queue, previous.progress.positionSeconds)
+        effects.applyRepeatMode(previous.repeatMode)
+        connectHandoffAwaitingStart = previousHandoffAwaitingStart
+        if (previous.playbackState == PlaybackState.Playing ||
+            previous.playbackState == PlaybackState.Loading
+        ) {
+            effects.startOrRestore()
+        }
+    }
+
+    private fun startConnectHandoff(): Boolean {
+        if (!connectHandoffAwaitingStart) return false
+        val started = effects.startOrRestore()
+        if (started) connectHandoffAwaitingStart = false
+        return started
+    }
+
+    internal fun connectLiveState(): app.naviamp.app.NaviampLivePlaybackState = playback.state.value
+
     fun diagnostics(): List<Pair<String, String>> =
         effects.diagnostics() + sessions.performanceDiagnostics()
 
@@ -132,6 +344,7 @@ class NaviampCorePlaybackController(
         playback.observe { persistSession(force = false) }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
+                if (state == PlaybackState.Playing) connectHandoffAwaitingStart = false
                 val repeatedFinished = state == PlaybackState.Finished &&
                     playback.state.value.playbackState == PlaybackState.Finished
                 if (state != PlaybackState.Finished) {
@@ -148,6 +361,9 @@ class NaviampCorePlaybackController(
                         PlaybackQueueFinishedCommand.ReplayCurrent -> effects.replayCurrent(0.0)
                         PlaybackQueueFinishedCommand.PlayNext -> {
                             playback.updateCurrentTrack(finished.queue.current)
+                            // A gapless engine may remain Playing without publishing another state
+                            // callback, so advance sidecars from the authoritative queue transition.
+                            loadCurrentTrackSidecars()
                             effects.applyAutomaticNavigation(PlaybackQueueNavigationCommand.Next)
                         }
                         PlaybackQueueFinishedCommand.None -> startSonicAutoplayContinuation()
@@ -386,10 +602,10 @@ class NaviampCorePlaybackController(
         val playbackSettings = stateStore.state.value.shell.playback.settings
         when (request.action) {
             NowPlayingPlaybackAction.Stop -> commands.stop()
-            NowPlayingPlaybackAction.Pause,
+            NowPlayingPlaybackAction.Pause -> commands.pause()
             NowPlayingPlaybackAction.Resume,
             NowPlayingPlaybackAction.PlayCurrent,
-            -> if (!commands.playPause()) publishStatus("Nothing is available to play.")
+            -> if (!commands.play()) publishStatus("Nothing is available to play.")
             NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let { seconds ->
                 commands.seek(
                     NaviampPlaybackSeekRequest(
@@ -433,6 +649,13 @@ class NaviampCorePlaybackController(
             NowPlayingQueueAction.SaveQueueAsPlaylist -> saveQueue(request.playlistName)
             NowPlayingQueueAction.MoveToNext -> request.queueIndex?.let(mutations::moveToNext)
                 ?: publishStatus("Queue position is missing.")
+            NowPlayingQueueAction.MoveQueueItem -> {
+                if (request.expectedQueue != null && request.expectedQueue != playback.state.value.queue) return
+                val fromIndex = request.queueIndex
+                val toIndex = request.destinationQueueIndex
+                if (fromIndex == null || toIndex == null) publishStatus("Queue positions are missing.")
+                else mutations.moveUpcoming(fromIndex, toIndex)
+            }
             NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(mutations::removeAt)
                 ?: publishStatus("Queue position is missing.")
             NowPlayingQueueAction.EmptyQueue -> {
@@ -581,3 +804,4 @@ internal fun playbackProfileDiagnosticRows(
 }
 
 private const val PlaybackSessionSaveIntervalMillis = 5_000L
+private const val ConnectHandoffFavoriteMarker = "1970-01-01T00:00:00Z"

@@ -147,6 +147,21 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun artworkCacheKeyIgnoresRotatingSubsonicCredentials() {
+        val first = NavidromeProvider(connection("https://music.example.test"))
+        val second = NavidromeProvider(
+            connection("https://music.example.test").copy(token = "new-token", salt = "new-salt"),
+        )
+
+        val firstUrl = first.coverArtUrl("cover-1")
+        val secondUrl = second.coverArtUrl("cover-1")
+
+        assertEquals(first.artworkCacheKey(firstUrl), second.artworkCacheKey(secondUrl))
+        assertFalse(first.artworkCacheKey(firstUrl).contains("token"))
+        assertFalse(first.artworkCacheKey(firstUrl).contains("salt"))
+    }
+
+    @Test
     fun heroCoverArtUrlRequestsA1024PixelImage() {
         val provider = NavidromeProvider(connection("https://music.example.test"))
 

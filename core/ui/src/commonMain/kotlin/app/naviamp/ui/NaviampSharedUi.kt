@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -44,8 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -61,8 +62,6 @@ import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
-import app.naviamp.domain.settings.AppBackgroundStyle
-import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.ui.generated.resources.Res
@@ -108,7 +107,7 @@ fun NaviampSharedAppShell(
     val playlistDetailActions = actions.playlistDetailActions
     val homeActions = actions.homeActions
     val mediaActions = actions.mediaActions
-    val nowPlayingActions = actions.nowPlayingActions
+    val connectActions = actions.connectActions
     val connectionSettings = uiState.connectionSettings
     val general = uiState.general
     val playback = uiState.playback
@@ -129,7 +128,17 @@ fun NaviampSharedAppShell(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val remoteNowPlaying = uiState.connect.remoteNowPlaying
+    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
+        ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val nowPlayingActions = (if (remoteNowPlaying != null) {
+        connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
+            ?: actions.nowPlayingActions
+    } else {
+        actions.nowPlayingActions
+    }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
+    val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
+    PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
     val selectedRoute = shellChrome.selectedRoute
@@ -182,7 +191,15 @@ fun NaviampSharedAppShell(
         channel = interfaceSettings.applicationUpdateChannel ?: defaultApplicationUpdateChannel(about.version),
         checker = applicationUpdateChecker,
     )
-    val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
+    val canShowNowPlaying = sharedCanShowNowPlaying(
+        connected = connected,
+        remoteNowPlayingAvailable = remoteNowPlaying != null,
+    )
+    val showFullNowPlaying = canShowNowPlaying &&
+        !editingConnection &&
+        !restoringConnection &&
+        nowPlayingOpen &&
+        nowPlaying != null
     val outerContentScrollState = rememberScrollState()
     LaunchedEffect(editingConnection) {
         if (editingConnection) {
@@ -194,8 +211,11 @@ fun NaviampSharedAppShell(
             outerContentScrollState.animateScrollTo(0)
         }
     }
-    val routeUsesOwnScroll = connected &&
-        sharedRouteCanUseOwnScroll(editingConnection, selectedRoute) &&
+    val routeUsesOwnScroll = sharedRouteUsesOwnScroll(
+        connected = connected,
+        editingConnection = editingConnection,
+        selectedRoute = selectedRoute,
+    ) &&
         !restoringConnection &&
         !showFullNowPlaying &&
         (
@@ -216,14 +236,13 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.Settings
             )
     val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
-    val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
-        ?: naviampColorFromHex(DefaultSingleColorHex)!!
-    val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
-        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
-        AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
-        AppBackgroundStyle.AlbumBlur -> albumPlayerColors
-    }
-    val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
+    val appBackground = naviampAppBackgroundUi(
+        interfaceSettings = interfaceSettings,
+        coverArtUrl = nowPlaying?.coverArtUrl,
+        albumPlayerColors = albumPlayerColors,
+        colors = colors,
+    )
+    val nowPlayingPlayerColors = animatedNaviampPlayerColors(appBackground.targetPlayerColors)
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = colors.background,
@@ -249,21 +268,11 @@ fun NaviampSharedAppShell(
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-            when (interfaceSettings.appBackgroundStyle) {
-                AppBackgroundStyle.Aurora -> NaviampAuroraBackground(
-                    nowPlayingPlayerColors, interfaceSettings.auroraColorSteps, interfaceSettings.auroraAngleDegrees)
-                AppBackgroundStyle.AlbumBlur -> NaviampAlbumBlurBackground(
-                    url = nowPlaying?.coverArtUrl,
-                    colors = colors,
-                    playerColors = nowPlayingPlayerColors,
-                    blurRadiusDp = interfaceSettings.albumBlurRadiusDp,
-                )
-                AppBackgroundStyle.SingleColor -> Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(singleBackgroundColor),
-                )
-            }
+            NaviampAppBackground(
+                background = appBackground,
+                colors = colors,
+                playerColors = nowPlayingPlayerColors,
+            )
             Column(
                 modifier
                     .fillMaxSize(),
@@ -318,7 +327,7 @@ fun NaviampSharedAppShell(
                         ConnectedContent(
                             colors = colors,
                             uiState = uiState,
-                            playbackProgress = playbackProgress,
+                            playbackProgress = effectivePlaybackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
                             actions = actions,
@@ -327,7 +336,7 @@ fun NaviampSharedAppShell(
                     }
                 }
                 if (!showFullNowPlaying) {
-                    if (connected && !editingConnection && !restoringConnection && nowPlaying != null) {
+                    if (canShowNowPlaying && !editingConnection && !restoringConnection && nowPlaying != null) {
                         NaviampMiniNowPlaying(
                             nowPlaying = nowPlaying,
                             colors = colors,
@@ -348,17 +357,93 @@ fun NaviampSharedAppShell(
                 }
             }
         }
+        uiState.connect.sourceMismatchRecovery?.let { recovery ->
+            NaviampConnectSourceMismatchDialog(
+                recovery = recovery,
+                colors = colors,
+                onOpenSettings = {
+                    connectActions?.onDismissSourceMismatchRecovery?.invoke()
+                    navigationActions.onCloseNowPlaying()
+                    navigationActions.onRouteSelected(SharedRoute.Settings)
+                },
+                onProvisionTarget = connectActions?.onProvisionTarget,
+                onDismiss = { connectActions?.onDismissSourceMismatchRecovery?.invoke() },
+            )
+        }
     }
 
     }
 }
 
+@Composable
+internal fun NaviampConnectSourceMismatchDialog(
+    recovery: NaviampConnectSourceMismatchUi,
+    colors: NaviampColors,
+    onOpenSettings: () -> Unit,
+    onProvisionTarget: (() -> Unit)?,
+    onDismiss: () -> Unit,
+) {
+    val targetName = recovery.targetName ?: stringResource(Res.string.connect_source_mismatch_playback_device)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.controlSurface,
+        title = { Text(stringResource(Res.string.connect_source_mismatch_title), color = colors.primaryText) },
+        text = {
+            Text(
+                stringResource(Res.string.connect_source_mismatch_message, targetName),
+                color = colors.secondaryText,
+            )
+        },
+        confirmButton = {
+            if (recovery.canProvisionTarget && onProvisionTarget != null) {
+                TextButton(
+                    onClick = onProvisionTarget,
+                    modifier = Modifier.testTag(NaviampConnectSourceMismatchProvisionTestTag),
+                ) { Text(stringResource(Res.string.connect_source_mismatch_set_up, targetName)) }
+            } else {
+                TextButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.testTag(NaviampConnectSourceMismatchSettingsTestTag),
+                ) { Text(stringResource(Res.string.connect_source_mismatch_open_settings)) }
+            }
+        },
+        dismissButton = {
+            if (recovery.canProvisionTarget && onProvisionTarget != null) {
+                TextButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.testTag(NaviampConnectSourceMismatchSettingsTestTag),
+                ) { Text(stringResource(Res.string.connect_source_mismatch_open_settings)) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.connect_source_mismatch_not_now)) }
+            }
+        },
+        modifier = Modifier.testTag(NaviampConnectSourceMismatchDialogTestTag),
+    )
+}
+
+internal const val NaviampConnectSourceMismatchDialogTestTag = "connect-source-mismatch"
+internal const val NaviampConnectSourceMismatchProvisionTestTag = "connect-source-mismatch-provision"
+internal const val NaviampConnectSourceMismatchSettingsTestTag = "connect-source-mismatch-settings"
+
 internal fun sharedRouteCanUseOwnScroll(
     editingConnection: Boolean,
     selectedRoute: SharedRoute,
 ): Boolean = !editingConnection || selectedRoute == SharedRoute.Settings
+
+internal fun sharedCanShowNowPlaying(
+    connected: Boolean,
+    remoteNowPlayingAvailable: Boolean,
+): Boolean = connected || remoteNowPlayingAvailable
+
+internal fun sharedRouteUsesOwnScroll(
+    connected: Boolean,
+    editingConnection: Boolean,
+    selectedRoute: SharedRoute,
+): Boolean = sharedRouteCanUseOwnScroll(editingConnection, selectedRoute) &&
+    (connected || selectedRoute == SharedRoute.Settings)
+
 @Composable
-private fun ConnectedContent(
+internal fun ConnectedContent(
     colors: NaviampColors,
     uiState: NaviampAppShellUiState,
     playbackProgress: StateFlow<PlaybackProgress>?,
@@ -385,7 +470,7 @@ private fun ConnectedContent(
     val playlistDetailActions = actions.playlistDetailActions
     val homeActions = actions.homeActions
     val mediaActions = actions.mediaActions
-    val nowPlayingActions = actions.nowPlayingActions
+    val connectActions = actions.connectActions
     val connectionSettings = uiState.connectionSettings
     val general = uiState.general
     val playback = uiState.playback
@@ -406,7 +491,16 @@ private fun ConnectedContent(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val remoteNowPlaying = uiState.connect.remoteNowPlaying
+    val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
+        ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+    val nowPlayingActions = (if (remoteNowPlaying != null) {
+        connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
+            ?: actions.nowPlayingActions
+    } else {
+        actions.nowPlayingActions
+    }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
+    val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
     val selectedVisualizer = shellChrome.selectedVisualizer
@@ -443,14 +537,13 @@ private fun ConnectedContent(
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val routeStateHolder = rememberSaveableStateHolder()
     val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
-    val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
-        ?: naviampColorFromHex(DefaultSingleColorHex)!!
-    val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
-        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
-        AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
-        AppBackgroundStyle.AlbumBlur -> albumPlayerColors
-    }
-    val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
+    val appBackground = naviampAppBackgroundUi(
+        interfaceSettings = interfaceSettings,
+        coverArtUrl = nowPlaying?.coverArtUrl,
+        albumPlayerColors = albumPlayerColors,
+        colors = colors,
+    )
+    val nowPlayingPlayerColors = animatedNaviampPlayerColors(appBackground.targetPlayerColors)
     val homeScrollState = rememberScrollState()
     val libraryViewportState = rememberNaviampLibraryViewportState()
     val artistDetailScrollState = rememberScrollState()
@@ -504,6 +597,8 @@ private fun ConnectedContent(
                 syncActions = syncActions,
                 valueActions = valueActions,
                 maintenanceActions = maintenanceActions,
+                connect = uiState.connect,
+                connectActions = actions.connectActions,
             )
         }
         else -> when (selectedRoute) {
@@ -708,7 +803,7 @@ private fun ConnectedContent(
             NaviampPlayerWorkspace(wide, layout, onLayoutChanged = {
                 valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = interfaceSettings.nowPlaying.copy(wideLayout = it)))
             }, player = { panelLayout ->
-                FullNowPlaying(nowPlaying, playbackProgress, colors, nowPlayingPlayerColors,
+                FullNowPlaying(nowPlaying, effectivePlaybackProgress, colors, nowPlayingPlayerColors,
                     visualizerBandsProvider, selectedVisualizer, nowPlayingActions, interfaceSettings.nowPlaying, panelLayout)
             }, browser = {
                 Column(Modifier.fillMaxSize()) {
@@ -719,14 +814,15 @@ private fun ConnectedContent(
                             surfaceOpacity = interfaceSettings.nowPlaying
                                 .splitPaneBackgroundOpacityPercent / 100f,
                         ) {
-                            if (queueSelected) NaviampQueueContent(nowPlaying, playbackProgress, colors, nowPlayingActions)
+                            if (queueSelected) NaviampQueueContent(nowPlaying, effectivePlaybackProgress, colors, nowPlayingActions)
                             else browseContent()
                         }
                     }
                     Spacer(Modifier.height(12.dp))
                     SharedBottomNavigationBar(colors, selectedRoute, shellChrome.supportsDownloads,
                         onRouteSelected = { queueSelected = false; actions.navigationActions.onRouteSelected(it) },
-                        queueSelected = queueSelected, onQueueSelected = { queueSelected = true })
+                        queueSelected = queueSelected, onQueueSelected = { queueSelected = true },
+                        bottomPadding = 4.dp)
                 }
             })
         } else {
@@ -759,6 +855,49 @@ private fun ConnectedContent(
             },
         )
     }
+}
+
+internal fun NaviampNowPlayingActions.withLocalDisplayActions(
+    local: NaviampNowPlayingActions,
+): NaviampNowPlayingActions = copy(onDisplayAction = local.onDisplayAction)
+
+internal fun NowPlayingUi.withSelectedRemoteOutput(connect: NaviampConnectSettingsUi): NowPlayingUi =
+    connect.trustedDevices.filter { it.playbackTarget }.let { targets -> copy(
+        remoteOutputDeviceName = connect.selectedPlaybackDeviceName.takeIf {
+            connect.playbackDestinationStatus == NaviampConnectPlaybackDestinationUiStatus.Connected &&
+                connect.remotePlaybackAuthorityActive
+        },
+        playbackOutputs = if (targets.isEmpty()) emptyList() else buildList {
+            add(
+                NaviampPlaybackOutputUi(
+                    deviceId = null,
+                    displayName = connect.localDeviceName,
+                    selected = !connect.remoteOutputSelected,
+                ),
+            )
+            targets.forEach { device ->
+                add(
+                    NaviampPlaybackOutputUi(
+                        deviceId = device.deviceId,
+                        displayName = device.displayName,
+                        selected = device.deviceId == connect.selectedPlaybackDeviceId,
+                        available = device.reconnectAvailable,
+                    ),
+                )
+            }
+        },
+    ) }
+
+internal fun NaviampNowPlayingActions.withSelectedRemoteOutputAction(
+    connect: NaviampConnectSettingsUi,
+    connectActions: NaviampConnectSettingsActions?,
+): NaviampNowPlayingActions = if (!connect.remoteOutputSelected || connectActions == null) {
+    if (connectActions == null) this else copy(onPlaybackOutputSelected = connectActions.onPlaybackDeviceSelected)
+} else {
+    copy(
+        onRemoteOutputAction = connectActions.remoteNowPlayingActions.onRemoteOutputAction,
+        onPlaybackOutputSelected = connectActions.onPlaybackDeviceSelected,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -833,6 +972,8 @@ fun NaviampSettingsContent(
     syncActions: NaviampSettingsSyncActions,
     valueActions: NaviampSettingsValueActions,
     maintenanceActions: NaviampSettingsMaintenanceActions,
+    connect: NaviampConnectSettingsUi = NaviampConnectSettingsUi(),
+    connectActions: NaviampConnectSettingsActions? = null,
 ) {
     val connection = connectionSettings.connection
     NaviampSharedSettingsContent(
@@ -899,6 +1040,8 @@ fun NaviampSettingsContent(
         showTooltipPreference = playback.hoverTooltipsAvailable,
         desktopShortcutPlatform = desktopShortcutPlatform,
         globalShortcutStatuses = general.globalShortcutStatuses,
+        connect = connect,
+        connectActions = connectActions,
     )
 }
 

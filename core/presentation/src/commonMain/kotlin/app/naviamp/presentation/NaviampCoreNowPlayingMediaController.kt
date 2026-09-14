@@ -56,7 +56,13 @@ class NaviampCoreNowPlayingMediaController(
     )
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
-        is NaviampCoreCommand.NowPlaying.Display,
+        is NaviampCoreCommand.NowPlaying.Display ->
+            if (command.request.action == NowPlayingDisplayAction.Collapse) {
+                navigation.dispatch(NaviampCoreCommand.Navigation.CloseNowPlaying)
+                NaviampCoreImmediateCommandResult.Handled()
+            } else {
+                NaviampCoreImmediateCommandResult.Deferred
+            }
         is NaviampCoreCommand.NowPlaying.CurrentTrack,
         is NaviampCoreCommand.NowPlaying.Selection,
         is NaviampCoreCommand.NowPlaying.QueueItem,
@@ -95,6 +101,21 @@ class NaviampCoreNowPlayingMediaController(
             if (lyricsNeeded) sidecars.loadLyrics(track)
         }
         presenter.publish(playbackController.currentDisplay())
+    }
+
+    /** Applies an absolute favorite value requested by a trusted Connect controller. */
+    internal suspend fun setConnectFavorite(mediaId: String, favorite: Boolean): Boolean {
+        val track = playback.state.value.queue.tracks.firstOrNull { it.id.value == mediaId }
+            ?: currentTrack()?.takeIf { it.id.value == mediaId }
+            ?: return false
+        if ((track.favoritedAtIso8601 != null) == favorite) return true
+        val provider = providerSource.current() ?: return false
+        val updated = runCatching {
+            favoriteTrackUpdate(provider, track, favoritedAtIso8601())
+        }.getOrNull() ?: return false
+        mediaRegistry.updateTrack(updated)
+        replaceTrack(updated)
+        return (updated.favoritedAtIso8601 != null) == favorite
     }
 
     private suspend fun display(request: NowPlayingDisplayActionRequest) {
@@ -203,10 +224,12 @@ class NaviampCoreNowPlayingMediaController(
                 track?.let { generatedRadio.addTrackRadio(it, playNext = false) } ?: staleTrack()
             NowPlayingItemAction.PlayNext -> when (val target = request.target) {
                 is NowPlayingItemTarget.QueueIndex -> applyQueueMutation(queue.moveToPlayNext(target.index))
+                is NowPlayingItemTarget.QueueOccurrence -> applyQueueMutation(queue.moveToPlayNext(target.renderedIndex))
                 else -> track?.let { applyQueueUpdate(queue.playNextTracks(listOf(it), "track")) } ?: staleTrack()
             }
             NowPlayingItemAction.PlayNextTrack -> when (val target = request.target) {
                 is NowPlayingItemTarget.QueueIndex -> applyQueueMutation(queue.moveToNext(target.index))
+                is NowPlayingItemTarget.QueueOccurrence -> applyQueueMutation(queue.moveToNext(target.renderedIndex))
                 else -> track?.let { applyQueueUpdate(queue.playNextTrack(it)) } ?: staleTrack()
             }
             NowPlayingItemAction.AddToQueue ->

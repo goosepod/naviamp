@@ -43,6 +43,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -127,6 +128,8 @@ internal fun NaviampTextField(
     inputKind: NaviampTextInputKind = NaviampTextInputKind.NaturalLanguage,
     forceFloatingLabel: Boolean = false,
     onSubmit: (() -> Unit)? = null,
+    imeAction: ImeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default,
+    onImeAction: (() -> Unit)? = null,
 ) {
     val displayValue = if (forceFloatingLabel && value.isEmpty()) FloatingLabelSentinel else value
     OutlinedTextField(
@@ -143,9 +146,13 @@ internal fun NaviampTextField(
             VisualTransformation.None
         },
         keyboardOptions = (if (isPassword) NaviampTextInputKind.Password else inputKind).keyboardOptions(
-            imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default,
+            imeAction = imeAction,
         ),
-        keyboardActions = KeyboardActions(onSearch = { onSubmit?.invoke() }),
+        keyboardActions = KeyboardActions(
+            onNext = { onImeAction?.invoke() },
+            onDone = { onImeAction?.invoke() },
+            onSearch = { onSubmit?.invoke() ?: onImeAction?.invoke() },
+        ),
         modifier = modifier.naviampTextInputFocus().then(
             if (onSubmit != null) {
                 Modifier.onPreviewKeyEvent { event ->
@@ -196,7 +203,13 @@ internal fun NaviampTextInputKind.keyboardOptions(imeAction: ImeAction): Keyboar
 private const val FloatingLabelSentinel = "\u200B"
 
 @Composable
-internal fun PrimaryButton(label: String, colors: NaviampColors, onClick: () -> Unit, enabled: Boolean = true) {
+internal fun PrimaryButton(
+    label: String,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
     Button(
         onClick = onClick,
         enabled = enabled,
@@ -206,7 +219,7 @@ internal fun PrimaryButton(label: String, colors: NaviampColors, onClick: () -> 
             disabledContainerColor = colors.controlSurface,
             disabledContentColor = colors.mutedText,
         ),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Text(label)
     }
@@ -401,9 +414,10 @@ fun SharedBottomNavigationBar(
     onRouteSelected: (SharedRoute) -> Unit,
     queueSelected: Boolean = false,
     onQueueSelected: (() -> Unit)? = null,
+    bottomPadding: Dp = 0.dp,
 ) {
     val bottomRoutes = sharedBottomNavigationRoutes(supportsDownloads)
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = bottomPadding)) {
         val surface = if (onQueueSelected == null && (selectedRoute == SharedRoute.Settings || maxWidth >= 900.dp)) readableSurfaceColor(colors) else Color.Transparent
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -412,6 +426,7 @@ fun SharedBottomNavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(surface)
+                .testTag("bottom-navigation-row")
                 .padding(vertical = 2.dp),
         ) {
             bottomRoutes.forEach { route ->

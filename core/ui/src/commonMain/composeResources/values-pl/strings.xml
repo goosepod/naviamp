@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">Sortowanie albumów</string>
+    <string name="tv_album_sort_order_description">Wybierz kolejność wydań wykonawcy</string>
+    <string name="tv_album_sort_oldest_first">Najstarsze najpierw</string>
+    <string name="tv_album_sort_newest_first">Najnowsze najpierw</string>
+    <string name="tv_album_sort_title">Tytuł</string>
+    <string name="tv_group_albums_by_release_type">Grupuj albumy według typu wydania</string>
+    <string name="tv_group_albums_by_release_type_description">Pokazuj albumy, EP-ki, single i inne wydania w osobnych sekcjach</string>
     <string name="settings_title">Ustawienia</string>
     <string name="settings_selected_label">Wybrane</string>
     <string name="settings_language_title">Język</string>
@@ -119,8 +127,15 @@
     <string name="settings_source_delete_content_description">Usuń połączenie</string>
     <string name="settings_source_libraries_prefix">Biblioteki: %1$s</string>
     <string name="settings_local_data_title">Dane lokalne</string>
+    <string name="connect_setup_password_required">Wpisz hasło źródła, aby dokończyć konfigurację. Naviamp sprawdzi je i bezpiecznie zapisze na potrzeby przyszłych połączeń.</string>
+    <string name="connect_setup_code_consent">Wyświetlenie kodu pozwala urządzeniu, które go wpisze, sparować się i skonfigurować to urządzenie ze swoim źródłem muzyki i ustawieniami.</string>
+    <string name="connect_setup_new_code_required">Wyświetl nowy kod na telewizorze i sparuj ponownie, aby dokończyć konfigurację.</string>
+    <string name="settings_keep_screen_awake">Nie wygaszaj ekranu</string>
+    <string name="settings_keep_screen_awake_description">Zapobiega automatycznemu uśpieniu ekranu, gdy Naviamp jest widoczny. Uśpienie systemu, blokady ekranu i wyłączniki czasowe telewizora mogą nadal działać.</string>
+    <string name="settings_keep_screen_awake_failed">Nie można zmienić zapobiegania uśpieniu ekranu. Wyłącz i włącz to ustawienie, aby spróbować ponownie.</string>
     <string name="settings_now_playing_split_background_opacity">Krycie tła widoku podzielonego</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">Urządzenie odtwarzające: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Data dodania albumu</string>
     <string name="smart_playlist_field_album_date_modified">Data modyfikacji albumu</string>
     <string name="smart_playlist_field_album_duration">Czas trwania albumu</string>
@@ -129,4 +144,7 @@
     <string name="smart_playlist_refresh_delay">Interwał odświeżania</string>
     <string name="smart_playlist_refresh_delay_hint">Opcjonalnie. Przykłady: 12h, 1d lub 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Użyj prawidłowego czasu, np. 12h, 1d lub 1w.</string>
+    <string name="connect_pairing_code">Kod parowania</string>
+    <string name="connect_devices_description">Steruj urządzeniami Naviamp w tej sieci i paruj je</string>
+    <string name="connect_setup_timed_out">Upłynął limit czasu konfiguracji. Sprawdź urządzenie odtwarzające i spróbuj ponownie.</string>
 </resources>

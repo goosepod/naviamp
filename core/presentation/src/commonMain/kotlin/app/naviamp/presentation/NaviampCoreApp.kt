@@ -1,7 +1,9 @@
 package app.naviamp.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableIntStateOf
@@ -9,12 +11,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import app.naviamp.ui.NaviampLocaleEnvironment
+import app.naviamp.ui.createNaviampLocaleEffect
 import app.naviamp.ui.NaviampApplicationUpdateChecker
+import app.naviamp.ui.NaviampApplicationSurface
+import app.naviamp.ui.LocalNaviampApplicationSurface
 import app.naviamp.ui.NaviampBusyDialog
 import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
+import app.naviamp.ui.NaviampTelevisionAppShell
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 
@@ -57,7 +64,7 @@ fun rememberNaviampCore(
     },
 ): NaviampCore {
     val scope = rememberCoroutineScope()
-    return remember(scope, services, initialState, actionAvailability, onAsyncFailure) {
+    val core = remember(scope, services, initialState, actionAvailability, onAsyncFailure) {
         NaviampCore.create(
             scope = scope,
             services = services,
@@ -66,13 +73,19 @@ fun rememberNaviampCore(
             onAsyncFailure = onAsyncFailure,
         )
     }
+    DisposableEffect(core) {
+        onDispose(core::close)
+    }
+    return core
 }
 
-/** The one product UI entry mounted unchanged by Android, Desktop, iOS, and fake hosts. */
+/** Renders a borrowed Core; its creator owns cleanup, independently of window lifetime. */
 @Composable
 fun NaviampCoreApp(
     core: NaviampCore,
     modifier: Modifier = Modifier,
+    applicationSurface: NaviampApplicationSurface = NaviampApplicationSurface.Standard,
+    screenAwakeEffect: app.naviamp.app.NaviampScreenAwakeEffect? = null,
     visualizerBandsProvider: () -> List<Float> = {
         core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
     },
@@ -88,30 +101,47 @@ fun NaviampCoreApp(
             core.maintainProviderSession()
         }
     }
-    NaviampSharedAppShell(
-        modifier = modifier,
-        uiState = state.shell,
-        settingsSync = state.settingsSync,
-        playbackProgress = core.playbackProgress,
-        visualizerBandsProvider = visualizerBandsProvider,
-        actions = core.actions.shell,
-        syncActions = core.actions.settingsSync,
-        applicationUpdateChecker = applicationUpdateChecker,
-    )
-    state.overlays.busyMessage?.let { message ->
-        NaviampBusyDialog(message)
-    }
-    if (state.overlays.statsForNerdsVisible) {
-        LaunchedEffect(core) {
-            while (true) {
-                delay(1_000)
-                diagnosticsRefreshTick += 1
+    NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
+        NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
+            CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+                when (applicationSurface) {
+                    NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
+                        modifier = modifier,
+                        uiState = state.shell,
+                        settingsSync = state.settingsSync,
+                        playbackProgress = core.playbackProgress,
+                        visualizerBandsProvider = visualizerBandsProvider,
+                        actions = core.actions.shell,
+                        syncActions = core.actions.settingsSync,
+                        applicationUpdateChecker = applicationUpdateChecker,
+                    )
+                    NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
+                        modifier = modifier,
+                        uiState = state.shell,
+                        settingsSync = state.settingsSync,
+                        playbackProgress = core.playbackProgress,
+                        visualizerBandsProvider = visualizerBandsProvider,
+                        actions = core.actions.shell,
+                        syncActions = core.actions.settingsSync,
+                    )
+                }
+                state.overlays.busyMessage?.let { message ->
+                    NaviampBusyDialog(message)
+                }
+                if (state.overlays.statsForNerdsVisible) {
+                    LaunchedEffect(core) {
+                        while (true) {
+                            delay(1_000)
+                            diagnosticsRefreshTick += 1
+                        }
+                    }
+                    statsForNerdsPresenter(
+                        diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
+                        { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
+                    )
+                }
             }
         }
-        statsForNerdsPresenter(
-            diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
-            { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
-        )
     }
 }
 

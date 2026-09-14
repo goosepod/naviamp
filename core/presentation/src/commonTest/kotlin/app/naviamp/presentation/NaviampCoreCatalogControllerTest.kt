@@ -1,5 +1,13 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.Genre
+import app.naviamp.domain.cache.LibraryAlbumYear
+import app.naviamp.domain.cache.LibraryIndexStats
+import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.popular.ArtistPopularTrackCandidate
+import app.naviamp.domain.popular.ArtistPopularTrackMatch
+
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
@@ -27,9 +35,75 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreCatalogControllerTest {
+    @Test
+    fun cachedArtistsAndPagedSongsCoexistAfterConnection() = runTest {
+        val repository = CatalogIndexRepository()
+        repository.artists += Artist(ArtistId("cached"), "Cached Artist")
+        val provider = CatalogTestProvider()
+        val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "source")) }
+        val controller = NaviampCoreCatalogController(store, { provider }, libraryIndex = repository)
+
+        controller.refreshAfterConnection()
+        assertEquals(listOf("cached"), store.state.value.shell.library.artists.items.map { it.id })
+        assertTrue(provider.artistPageOffsets.isEmpty())
+        val songs = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Songs)
+        controller.dispatch(songs)
+        controller.execute(songs)
+        assertTrue(store.state.value.shell.library.songs.tracks.isNotEmpty())
+        assertEquals(listOf("cached"), store.state.value.shell.library.artists.items.map { it.id })
+    }
+
+    @Test
+    fun staleCompleteArtistRefreshCannotReplaceTheNewSourceCache() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> {
+                gate.await()
+                return MediaPage(listOf(Artist(ArtistId("stale"), "Stale")), request.offset, request.limit, false)
+            }
+        }
+        val repository = CatalogIndexRepository()
+        repository.artists += Artist(ArtistId("cached"), "Cached")
+        val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "old")) }
+        val controller = NaviampCoreCatalogController(store, { provider }, libraryIndex = repository)
+        val refresh = launch { controller.execute(NaviampCoreCommand.Library.Refresh) }
+        runCurrent()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "new")) }
+        controller.resetForSourceChange()
+        gate.complete(Unit)
+        refresh.join()
+        assertEquals(listOf("cached"), repository.artists.map { it.id.value })
+        assertTrue(store.state.value.shell.library.artists.items.isEmpty())
+    }
+
+    @Test
+    fun completeArtistLibraryConsumesEveryProviderPage() = runTest {
+        val provider = CatalogTestProvider()
+
+        val artists = provider.loadCompleteArtistLibrary(maximumArtists = 3, pageSize = 2)
+
+        assertEquals(listOf("artist-1", "artist-2", "artist-3"), artists.map { it.id.value })
+        assertEquals(listOf(0, 2), provider.artistPageOffsets)
+    }
+
+    @Test
+    fun completeArtistLibraryRejectsAFalseContinuingPage() = runTest {
+        val provider = CatalogTestProvider(emptyContinuingPage = true)
+
+        val failure = assertFailsWith<IllegalStateException> {
+            provider.loadCompleteArtistLibrary(maximumArtists = 3, pageSize = 2)
+        }
+
+        assertTrue(failure.message.orEmpty().contains("empty continuing page"))
+    }
+
     @Test
     fun offsetLookupCannotOvertakeANewerLetterOrCrossSources() = runTest {
         val gate = CompletableDeferred<Unit>()
@@ -484,6 +558,7 @@ class NaviampCoreCatalogControllerTest {
 
 private class CatalogTestProvider(
     private val firstSearchGate: CompletableDeferred<Unit>? = null,
+    private val emptyContinuingPage: Boolean = false,
     private val albumPageGate: CompletableDeferred<Unit>? = null,
 ) : MediaProvider {
     override val id = ProviderId("test")
@@ -528,6 +603,9 @@ private class CatalogTestProvider(
     override suspend fun artists(limit: Int) = libraryArtists.take(limit)
     override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> {
         artistPageOffsets += request.offset
+        if (emptyContinuingPage) {
+            return MediaPage(emptyList(), request.offset, request.limit, hasMore = true)
+        }
         val items = libraryArtists.drop(request.offset).take(request.limit)
         return MediaPage(items, request.offset, request.limit, request.offset + items.size < libraryArtists.size)
     }
@@ -606,3 +684,104 @@ private class CatalogTestProvider(
         replayGain = null,
     )
 }
+
+    private class CatalogIndexRepository : LocalLibraryIndexRepository {
+        var syncStarted = false
+            private set
+        var syncCompleted = false
+            private set
+        val artists = mutableListOf<Artist>()
+        val albums = mutableListOf<Album>()
+        val tracks = mutableListOf<Track>()
+        var trackDetailAlbumWrites = 0
+            private set
+        var checkedScanSignature: String? = null
+            private set
+        var genres = emptyList<Genre>()
+            private set
+
+        override fun mediaSource(sourceId: String) =
+            null
+
+        override fun markLibraryScanChecked(sourceId: String, signature: String) {
+            checkedScanSignature = signature
+        }
+
+        override fun markLibrarySyncStarted(sourceId: String) {
+            syncStarted = true
+        }
+
+        override fun markLibrarySyncCompleted(sourceId: String) {
+            syncCompleted = true
+        }
+
+        override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {
+            this.artists += artists
+        }
+
+        override fun replaceLibraryArtists(sourceId: String, artists: List<Artist>) {
+            this.artists.clear()
+            this.artists += artists
+        }
+
+        override fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) {
+            if (albums.size == 1) trackDetailAlbumWrites += 1
+            this.albums += albums
+        }
+
+        override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {
+            this.tracks += tracks
+        }
+
+        override fun replaceLibraryGenreInventory(sourceId: String, genres: List<Genre>) {
+            this.genres = genres
+        }
+
+        override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot =
+            LibrarySnapshot(artists = artists.toList())
+
+        override fun searchLibrary(sourceId: String, query: String, limit: Long, offset: Long): LibrarySnapshot =
+            LibrarySnapshot(artists = artists.toList())
+
+        override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? =
+            null
+
+        override fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long): List<Track> =
+            emptyList()
+
+        override fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? =
+            null
+
+        override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> =
+            emptyList()
+
+        override fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> =
+            emptyList()
+
+        override fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long): List<Track> =
+            emptyList()
+
+        override fun libraryIndexStats(sourceId: String): LibraryIndexStats =
+            LibraryIndexStats(artistCount = artists.size.toLong(), albumCount = albums.size.toLong(), trackCount = tracks.size.toLong())
+
+        override fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> =
+            emptyList()
+
+        override fun clearLibraryData(sourceId: String?) = Unit
+
+        override fun artistPopularTracks(
+            sourceId: String,
+            artistId: ArtistId,
+            source: String,
+        ): List<ArtistPopularTrackMatch> =
+            emptyList()
+
+        override fun replaceArtistPopularTracks(
+            sourceId: String,
+            artistId: ArtistId,
+            source: String,
+            candidates: List<ArtistPopularTrackCandidate>,
+            matchedTracksBySourceTrackId: Map<String, Track>,
+            fetchedAtEpochMillis: Long,
+        ) = Unit
+    }

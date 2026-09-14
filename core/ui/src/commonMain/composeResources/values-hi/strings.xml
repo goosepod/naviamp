@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">एल्बम क्रम</string>
+    <string name="tv_album_sort_order_description">कलाकार की रिलीज़ का क्रम चुनें</string>
+    <string name="tv_album_sort_oldest_first">सबसे पुराने पहले</string>
+    <string name="tv_album_sort_newest_first">सबसे नए पहले</string>
+    <string name="tv_album_sort_title">शीर्षक</string>
+    <string name="tv_group_albums_by_release_type">रिलीज़ प्रकार के अनुसार एल्बम समूहित करें</string>
+    <string name="tv_group_albums_by_release_type_description">एल्बम, EP, सिंगल और अन्य रिलीज़ अलग-अलग अनुभागों में दिखाएँ</string>
+    <string name="connect_setup_password_required">सेटअप पूरा करने के लिए अपने स्रोत का पासवर्ड दर्ज करें। Naviamp इसे सत्यापित करके भविष्य के कनेक्शन के लिए सुरक्षित रूप से सहेजता है।</string>
+    <string name="connect_setup_code_consent">कोड दिखाने से उसे दर्ज करने वाले डिवाइस को पेयर करने और अपने संगीत स्रोत और सेटिंग्स के साथ इस डिवाइस को सेट अप करने की अनुमति मिलती है।</string>
+    <string name="connect_setup_new_code_required">सेटअप पूरा करने के लिए टीवी पर नया कोड दिखाएँ और फिर से पेयर करें।</string>
+    <string name="settings_keep_screen_awake">स्क्रीन चालू रखें</string>
+    <string name="settings_keep_screen_awake_description">Naviamp दिखाई देने पर स्क्रीन को अपने आप स्लीप होने से रोकता है। सिस्टम स्लीप, स्क्रीन लॉक और टीवी पावर टाइमर फिर भी लागू हो सकते हैं।</string>
+    <string name="settings_keep_screen_awake_failed">स्क्रीन स्लीप रोकने की सेटिंग बदली नहीं जा सकी। फिर से कोशिश करने के लिए इसे बंद करके चालू करें।</string>
     <string name="settings_now_playing_split_background_opacity">स्प्लिट व्यू पृष्ठभूमि की अपारदर्शिता</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">प्लेबैक डिवाइस: %1$s</string>
     <string name="smart_playlist_field_album_date_added">एल्बम जोड़े जाने की तारीख</string>
     <string name="smart_playlist_field_album_date_modified">एल्बम संशोधन तारीख</string>
     <string name="smart_playlist_field_album_duration">एल्बम अवधि</string>
@@ -10,4 +25,7 @@
     <string name="smart_playlist_refresh_delay">रीफ़्रेश अंतराल</string>
     <string name="smart_playlist_refresh_delay_hint">वैकल्पिक। उदाहरण: 12h, 1d या 1w।</string>
     <string name="smart_playlist_refresh_delay_invalid">12h, 1d या 1w जैसी मान्य अवधि दर्ज करें।</string>
+    <string name="connect_pairing_code">पेयरिंग कोड</string>
+    <string name="connect_devices_description">इस नेटवर्क पर Naviamp डिवाइस नियंत्रित और पेयर करें</string>
+    <string name="connect_setup_timed_out">डिवाइस सेटअप का समय समाप्त हो गया। प्लेबैक डिवाइस जाँचें, फिर दोबारा कोशिश करें।</string>
 </resources>

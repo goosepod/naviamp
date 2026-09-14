@@ -65,12 +65,17 @@ class NaviampPlayerColorsTest {
     }
 
     @Test
-    fun lightAuroraLiftsGradientAndColorPickerRoundTrips() {
-        val dark = NaviampPlayerColors.fromSingleColor(Color(0xFF24364A), NaviampColors.Dark)
-        val light = dark.withAuroraTone(AuroraTone.Light)
+    fun auroraTonesBracketBalancedGradientAndColorPickerRoundTrips() {
+        val balanced = NaviampPlayerColors.fromSingleColor(Color(0xFF24364A), NaviampColors.Dark)
+        val light = balanced.withAuroraTone(AuroraTone.Light)
+        val dark = balanced.withAuroraTone(AuroraTone.DeepDark)
 
-        assertTrue(light.backgroundStart.channelAverage() > dark.backgroundStart.channelAverage())
-        assertTrue(light.backgroundMid.channelAverage() > dark.backgroundMid.channelAverage())
+        assertEquals(balanced, balanced.withAuroraTone(AuroraTone.Dark))
+        assertTrue(light.backgroundStart.channelAverage() > balanced.backgroundStart.channelAverage())
+        assertTrue(light.backgroundMid.channelAverage() > balanced.backgroundMid.channelAverage())
+        assertTrue(dark.backgroundStart.channelAverage() < balanced.backgroundStart.channelAverage())
+        assertTrue(dark.backgroundMid.channelAverage() < balanced.backgroundMid.channelAverage())
+        assertTrue(dark.backgroundEnd.channelAverage() < balanced.backgroundEnd.channelAverage())
         val picked = naviampColorFromHsv(0.58f, 0.72f, 0.46f)
         assertEquals(naviampColorToHex(picked), naviampColorToHex(naviampColorFromHex(naviampColorToHex(picked))!!))
     }

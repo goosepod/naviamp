@@ -54,6 +54,8 @@ interface MediaProvider {
     suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
+    suspend fun track(trackId: TrackId): Track? =
+        tracks(limit = 5_000).firstOrNull { it.id == trackId }
     /** Bulk metadata enumeration, or null when the provider requires album-detail traversal. */
     suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun favoriteTracks(limit: Int = 5000): List<Track> =
@@ -183,6 +185,9 @@ interface MediaProvider {
 
     /** Returns bytes only when [url] belongs to this provider's authenticated server. */
     suspend fun bytesForOwnedUrl(url: String): ByteArray? = null
+
+    /** Stable persistent-cache identity for artwork URLs whose authentication may rotate. */
+    fun artworkCacheKey(url: String): String = url
 
     suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
         throw UnsupportedOperationException("Track favorites are not supported by $displayName.")

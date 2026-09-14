@@ -204,6 +204,9 @@ class JellyfinProvider(
     override suspend fun tracks(limit: Int): List<Track> =
         tracksPage(MediaPageRequest(limit = limit.coerceIn(1, 200))).items
 
+    override suspend fun track(trackId: TrackId): Track? =
+        runCatching { item(trackId.value).toTrack() }.getOrNull()
+
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
         trackPage(request)
 

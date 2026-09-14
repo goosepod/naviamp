@@ -32,6 +32,13 @@ interface ImageCacheRepository {
         url: String,
         fetch: suspend () -> ByteArray,
     ): ByteArray = imageBytes(url)
+
+    /** Uses provider-stable identity while retaining [url] only for the authenticated fetch. */
+    suspend fun imageBytesForProvider(
+        provider: MediaProvider,
+        url: String,
+        fetch: suspend () -> ByteArray,
+    ): ByteArray = imageBytes(provider.artworkCacheKey(url), fetch)
 }
 
 const val MaximumPersistentArtworkCacheBytes: Long = 96L * 1024L * 1024L
@@ -256,6 +263,7 @@ data class ProviderMediaSourceConnection(
     val token: String,
     val salt: String,
     val nativeToken: String? = null,
+    val password: String? = null,
     val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),

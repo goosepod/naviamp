@@ -152,7 +152,7 @@ internal suspend fun cacheDownloadedTrackArtwork(
     tracks.mapNotNull(Track::coverArtId).distinct().forEach { coverArtId ->
         runCatching {
             val url = provider.coverArtUrl(coverArtId)
-            cache.imageBytes(url) {
+            cache.imageBytesForProvider(provider, url) {
                 provider.bytesForOwnedUrl(url)
                     ?: throw IllegalStateException("Could not download cover art.")
             }

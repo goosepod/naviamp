@@ -1,5 +1,13 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake_description
+import app.naviamp.ui.generated.resources.settings_keep_screen_awake_failed
+
+import app.naviamp.ui.generated.resources.connect_setup_password_required
+import app.naviamp.ui.generated.resources.connection_password
+import app.naviamp.ui.generated.resources.connect_pairing_code
+import app.naviamp.ui.generated.resources.connect_devices_description
 import app.naviamp.domain.network.NaviampAppVersion
 import app.naviamp.domain.network.NaviampAppBuildNumber
 import androidx.compose.foundation.background
@@ -175,8 +183,8 @@ data class NaviampAboutUi(
 )
 
 data class NaviampChangelogSectionUi(
-    val title: String,
-    val entries: List<String>,
+    val title: org.jetbrains.compose.resources.StringResource,
+    val entries: List<org.jetbrains.compose.resources.StringResource>,
 )
 
 data class NaviampSavedConnectionUi(
@@ -200,6 +208,7 @@ enum class NaviampSettingsCategory(
     Playback("Playback", "Make your ears happy", NaviampTransportIcons.Play),
     Downloads("Downloads", "Media on the go", NaviampIcons.Downloads),
     AudioCache("Audio Cache", "Prefetch and playback cache", NaviampIcons.Cache),
+    Controllers("Controllers", "Control TVs on this network", NaviampIcons.Player),
     Debugging("Debugging", "Diagnostics and local data", NaviampIcons.Bug),
     About("About", "Version, libraries, changelog", NaviampIcons.AppMark),
 }
@@ -271,6 +280,8 @@ fun NaviampSharedSettingsContent(
     selectedAudioCacheLocationId: String? = null,
     onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
     onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
+    connect: NaviampConnectSettingsUi = NaviampConnectSettingsUi(),
+    connectActions: NaviampConnectSettingsActions? = null,
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf<NaviampSettingsCategory?>(null) }
     val contentScrollState = rememberScrollState()
@@ -404,6 +415,11 @@ fun NaviampSharedSettingsContent(
                     selectedLocationId = selectedAudioCacheLocationId,
                     onLocationChanged = onAudioCacheLocationChanged,
                 )
+                NaviampSettingsCategory.Controllers -> NaviampConnectSettingsSection(
+                    colors = colors,
+                    connect = connect,
+                    actions = connectActions,
+                )
                 NaviampSettingsCategory.Debugging -> {
                     if (showDebugLogging) {
                         NaviampDebugPlaybackSettingsSection(
@@ -436,7 +452,10 @@ fun NaviampSharedSettingsContent(
             }
         } ?: run {
             val currentConnection = savedConnections.firstOrNull { it.current }
-            NaviampSettingsCategory.entries.forEach { category ->
+            NaviampSettingsCategory.entries.filter { category ->
+                category != NaviampSettingsCategory.Controllers ||
+                    (connect.available && connectActions != null)
+            }.forEach { category ->
                 SettingsCategoryRow(
                     category = category,
                     languagePack = languagePack,
@@ -445,12 +464,159 @@ fun NaviampSharedSettingsContent(
                     subtitle = when (category) {
                         NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus ?: languagePack.categorySubtitle(category)
                         NaviampSettingsCategory.Language -> languagePack.languageTitle(interfaceSettings.language)
+                        NaviampSettingsCategory.Controllers -> stringResource(Res.string.connect_devices_description)
                         else -> languagePack.categorySubtitle(category)
                     },
                     onClick = { selectedCategory = category },
                 )
             }
         }
+        }
+    }
+}
+
+@Composable
+internal fun NaviampConnectSettingsSection(
+    colors: NaviampColors,
+    connect: NaviampConnectSettingsUi,
+    actions: NaviampConnectSettingsActions?,
+) {
+    if (!connect.available || actions == null) {
+        SettingsPlaceholderSection(colors, "Naviamp Connect", "Connect is unavailable on this device.")
+        return
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
+        var localDeviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
+        SettingsSectionTitle("This device", colors)
+        OutlinedTextField(
+            value = localDeviceName,
+            onValueChange = { if (it.length <= 64) localDeviceName = it },
+            singleLine = true,
+            label = { Text("Friendly name") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PrimaryButton(
+            "Save device name",
+            colors,
+            enabled = localDeviceName.trim().isNotEmpty() && localDeviceName.trim() != connect.localDeviceName,
+            onClick = { actions.onLocalDeviceNameChanged(localDeviceName) },
+        )
+        connect.recovery?.let { recovery ->
+            NaviampConnectRecoveryPanel(recovery, colors, actions.onRetryConnection,
+                actions.onOpenPermissionSettings, television = false)
+        } ?: run {
+            connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+        }
+        NaviampConnectTargetSettings(connect, colors, actions)
+        if (connect.needsProvisioningCredential) {
+            var password by remember { mutableStateOf("") }
+            Text(stringResource(Res.string.connect_setup_password_required), color = colors.secondaryText)
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text(stringResource(Res.string.connection_password)) },
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                singleLine = true,
+                enabled = !connect.provisioningBusy,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PrimaryButton(stringResource(Res.string.common_connect), colors,
+                enabled = password.isNotBlank() && !connect.provisioningBusy,
+                onClick = {
+                    val submitted = password
+                    password = ""
+                    actions.onSubmitProvisioningCredential(submitted)
+                })
+            PrimaryButton(stringResource(Res.string.common_cancel), colors, enabled = true,
+                onClick = { password = ""; actions.onCancelProvisioningCredential() })
+        }
+        connect.connectedTargetName?.let { targetName ->
+            SettingsSectionTitle("Controlling $targetName", colors)
+            PrimaryButton(
+                "Set up $targetName with this connection",
+                colors,
+                enabled = connect.canProvisionTarget && !connect.provisioningBusy,
+                onClick = actions.onProvisionTarget,
+            )
+            PrimaryButton(
+                "Stop controlling $targetName",
+                colors,
+                enabled = true,
+                onClick = actions.onStopControlling,
+            )
+        }
+        if (connect.canDiscover) {
+            PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = actions.onRefreshTargets)
+            connect.discoveredTargets.forEach { target ->
+                PrimaryButton(
+                    label = if (target.instanceId == connect.selectedTargetId) {
+                        "Selected: ${target.displayName}"
+                    } else {
+                        "Pair with ${target.displayName}"
+                    },
+                    colors = colors,
+                    enabled = target.compatible,
+                    onClick = { actions.onTargetSelected(target) },
+                )
+            }
+            if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingCode ||
+                connect.selectedTargetId != null
+            ) {
+                OutlinedTextField(
+                    value = connect.enteredPairingCode,
+                    onValueChange = actions.onPairingCodeChanged,
+                    singleLine = true,
+                    label = { Text(stringResource(Res.string.connect_pairing_code)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PrimaryButton(
+                    "Pair securely",
+                    colors,
+                    enabled = connect.enteredPairingCode.length == 6 &&
+                        connect.pairingPhase != NaviampConnectPairingUiPhase.Handshaking,
+                    onClick = actions.onSubmitPairingCode,
+                )
+            }
+        }
+        if (connect.trustedDevices.isNotEmpty()) {
+            SettingsSectionTitle("Trusted devices", colors)
+            connect.trustedDevices.forEach { device ->
+                var alias by remember(device.deviceId, device.localAlias) { mutableStateOf(device.localAlias.orEmpty()) }
+                PrimaryButton(
+                    label = if (device.reconnectAvailable) "Reconnect to ${device.displayName}" else device.displayName,
+                    colors = colors,
+                    enabled = device.reconnectAvailable,
+                    onClick = { actions.onTrustedDeviceSelected(device) },
+                )
+                OutlinedTextField(
+                    value = alias,
+                    onValueChange = { if (it.length <= 64) alias = it },
+                    singleLine = true,
+                    label = { Text("Local name (currently ${device.displayName})") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    PrimaryButton(
+                        "Save name",
+                        colors,
+                        enabled = alias.trim() != device.localAlias.orEmpty(),
+                        onClick = { actions.onTrustedDeviceAliasChanged(device.deviceId, alias) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    PrimaryButton(
+                        "Forget",
+                        colors,
+                        enabled = true,
+                        onClick = { actions.onForgetTrustedDevice(device.deviceId) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
         }
     }
 }
@@ -658,6 +824,17 @@ fun NaviampExperienceSettingsSection(
                 onInterfaceSettingsChanged(interfaceSettings.copy(startPlayingOnLaunch = enabled))
             },
         )
+        val screenAwake = LocalNaviampScreenAwakeUi.current
+        if (screenAwake.available) {
+            SettingsCheckboxRow(
+                colors = colors,
+                checked = interfaceSettings.keepScreenAwake,
+                label = stringResource(Res.string.settings_keep_screen_awake),
+                subtitle = stringResource(if (screenAwake.failed) Res.string.settings_keep_screen_awake_failed
+                    else Res.string.settings_keep_screen_awake_description),
+                onCheckedChange = { onInterfaceSettingsChanged(interfaceSettings.copy(keepScreenAwake = it)) },
+            )
+        }
         if (showTooltipPreference) {
             SettingsCheckboxRow(
                 colors = colors,
@@ -1050,33 +1227,6 @@ private enum class AlbumExperiencePage(val title: String, val subtitle: String) 
     Presentation("Presentation", "Choose list or album-art grid presentation"),
     Sorting("Sorting", "Choose how albums are ordered"),
 }
-
-private data class HomeScreenSectionOption(
-    val id: String,
-    val title: String,
-    val titleResource: org.jetbrains.compose.resources.StringResource? = null,
-)
-
-private val HomeScreenSectionOptions = listOf(
-    HomeScreenSectionOption(HomeSectionIds.FavoriteArtists, "", Res.string.settings_favorite_artists),
-    HomeScreenSectionOption(HomeSectionIds.MixesForYou, "Mixes for You"),
-    HomeScreenSectionOption(HomeSectionIds.NavibeatMixes, "NaviBeat Mixes"),
-    HomeScreenSectionOption(HomeSectionIds.RecentRadio, "Recently Played Radio"),
-    HomeScreenSectionOption(HomeSectionIds.RecentlyPlayed, "Recently Played"),
-    HomeScreenSectionOption(HomeSectionIds.MixBuilders, "Mix Builders"),
-    HomeScreenSectionOption(HomeSectionIds.MoreLikeRecentPlays, "More Like Recent Plays"),
-    HomeScreenSectionOption(HomeSectionIds.SonicDeepCuts, "Sonic Deep Cuts"),
-    HomeScreenSectionOption(HomeSectionIds.SimilarToStarredTracks, "Similar To Starred Tracks"),
-    HomeScreenSectionOption(HomeSectionIds.RecentlyAdded, "Recently Added Music"),
-    HomeScreenSectionOption(HomeSectionIds.RecentPlaylists, "Recent Playlists"),
-    HomeScreenSectionOption(HomeSectionIds.RecentInternetRadio, "Recent Internet Radio"),
-    HomeScreenSectionOption(HomeSectionIds.Stations, "Stations"),
-    HomeScreenSectionOption(HomeSectionIds.RecentAlbums, "Recent Albums"),
-    HomeScreenSectionOption(HomeSectionIds.FrequentlyPlayedAlbums, "Frequently Played Albums"),
-    HomeScreenSectionOption(HomeSectionIds.RandomAlbums, "Random Albums"),
-    HomeScreenSectionOption(HomeSectionIds.GenreSpotlight, "Genre Spotlight"),
-    HomeScreenSectionOption(HomeSectionIds.Decade, "Decade Spotlight"),
-)
 
 @Composable
 internal fun HomeScreenExperienceSettings(
@@ -1876,7 +2026,11 @@ private fun SettingsDetailHeader(
         }
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(languagePack.categoryLabel(category), color = colors.primaryText, fontSize = SettingsCategoryTitleSize, fontWeight = FontWeight.Bold)
-            Text(languagePack.categorySubtitle(category), color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize)
+            Text(
+                if (category == NaviampSettingsCategory.Controllers) stringResource(Res.string.connect_devices_description)
+                else languagePack.categorySubtitle(category),
+                color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize,
+            )
         }
     }
 }
@@ -1988,7 +2142,7 @@ fun NaviampAboutSettingsSection(
                     } else {
                         about.changelog.forEach { section ->
                             Text(
-                                section.title,
+                                stringResource(section.title),
                                 color = colors.primaryText,
                                 fontSize = SettingsDetailRowTitleSize,
                                 fontWeight = FontWeight.SemiBold,
@@ -2000,7 +2154,7 @@ fun NaviampAboutSettingsSection(
                                 ) {
                                     Text("•", color = colors.primaryText, fontSize = SettingsDetailRowSubtitleSize)
                                     Text(
-                                        entry,
+                                        stringResource(entry),
                                         color = colors.secondaryText,
                                         fontSize = SettingsDetailRowSubtitleSize,
                                         modifier = Modifier.weight(1f),
@@ -2501,19 +2655,20 @@ private val DefaultNaviampLibraries = listOf(
 
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
-        title = "Features",
-        entries = listOf(
-            "Keep an active album or playlist group together when using Play Next.",
-            "Use Play Next Track to interrupt a group now and resume its remaining tracks afterward.",
-            "Optionally downmix multichannel audio to a peak-safe stereo output with channel details in Stats for Nerds.",
-        ),
+        title = Res.string.changelog_features,
+        entries = listOf(Res.string.changelog_260_tv, Res.string.changelog_260_connect),
     ),
     NaviampChangelogSectionUi(
-        title = "Bug Fixes",
-        entries = listOf(
-            "Long remote tracks no longer stall waveform analysis by buffering the complete audio file.",
-            "Restoring a long track no longer waits for waveform, lyrics, and tag sidecar work.",
-        ),
+        title = Res.string.changelog_improvements,
+        entries = listOf(Res.string.changelog_260_screen_awake),
+    ),
+    NaviampChangelogSectionUi(
+        title = Res.string.changelog_bug_fixes,
+        entries = listOf(Res.string.changelog_260_playback_recovery),
+    ),
+    NaviampChangelogSectionUi(
+        title = Res.string.changelog_known_issues,
+        entries = listOf(Res.string.changelog_260_beta),
     ),
 )
 

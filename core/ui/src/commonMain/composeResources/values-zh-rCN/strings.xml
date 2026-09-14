@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="tv_percentage_value">%1$d%</string>
+    <string name="tv_album_sort_order">专辑排序</string>
+    <string name="tv_album_sort_order_description">选择艺人发行作品的排序方式</string>
+    <string name="tv_album_sort_oldest_first">最早优先</string>
+    <string name="tv_album_sort_newest_first">最新优先</string>
+    <string name="tv_album_sort_title">标题</string>
+    <string name="tv_group_albums_by_release_type">按发行类型分组专辑</string>
+    <string name="tv_group_albums_by_release_type_description">将专辑、EP、单曲和其他发行作品分别显示</string>
+    <string name="connect_setup_password_required">请输入音乐源密码以完成设置。Naviamp 会验证密码并安全保存，供今后连接使用。</string>
+    <string name="connect_setup_code_consent">显示代码即允许输入该代码的设备配对，并使用其音乐源和设置配置此设备。</string>
+    <string name="connect_setup_new_code_required">请在电视上显示新代码并重新配对，以完成设置。</string>
+    <string name="settings_keep_screen_awake">保持屏幕常亮</string>
+    <string name="settings_keep_screen_awake_description">在 Naviamp 可见时阻止屏幕自动休眠。系统睡眠、屏幕锁定和电视电源定时器仍可能生效。</string>
+    <string name="settings_keep_screen_awake_failed">无法更改屏幕休眠阻止设置。请关闭后重新开启此设置以重试。</string>
     <string name="settings_now_playing_split_background_opacity">分屏视图背景不透明度</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="now_playing_playback_device">播放设备：%1$s</string>
     <string name="smart_playlist_field_album_date_added">专辑添加日期</string>
     <string name="smart_playlist_field_album_date_modified">专辑修改日期</string>
     <string name="smart_playlist_field_album_duration">专辑时长</string>
@@ -10,4 +25,7 @@
     <string name="smart_playlist_refresh_delay">刷新间隔</string>
     <string name="smart_playlist_refresh_delay_hint">可选。示例：12h、1d 或 1w。</string>
     <string name="smart_playlist_refresh_delay_invalid">请输入有效时长，例如 12h、1d 或 1w。</string>
+    <string name="connect_pairing_code">配对码</string>
+    <string name="connect_devices_description">控制和配对此网络上的 Naviamp 设备</string>
+    <string name="connect_setup_timed_out">设备设置超时。请检查播放设备，然后重试。</string>
 </resources>

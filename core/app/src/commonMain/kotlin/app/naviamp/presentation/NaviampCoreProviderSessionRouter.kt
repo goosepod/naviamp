@@ -61,6 +61,9 @@ class NaviampCoreProviderSessionRouter(
     override suspend fun editableConnection(id: String): NaviampCoreEditableConnection =
         (routeForSaved(id) ?: unsupportedSaved(id)).sessionPort.editableConnection(id)
 
+    override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? =
+        activeRoute?.sessionPort?.currentProvisioningConnection()
+
     override suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory {
         val route = routeForSaved(id) ?: routes.first()
         val deletedActiveSource = inventory.currentSourceId == id

@@ -1,22 +1,21 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class NaviampChangelogTest {
     @Test
-    fun inAppChangelogContainsOnlyUserFacingCategories() {
+    fun release260LeadsWithTvAndConnectBetaAndIncludesTheBetaNotice() {
         val changelog = NaviampAboutUi().changelog
-
-        assertEquals(listOf("Features", "Bug Fixes"), changelog.map { it.title })
-        assertTrue(changelog.all { section -> section.entries.isNotEmpty() })
-        assertTrue(changelog.flatMap { it.entries }.all { entry -> entry.lines().size == 1 })
+        assertEquals(listOf(Res.string.changelog_features, Res.string.changelog_improvements,
+            Res.string.changelog_bug_fixes, Res.string.changelog_known_issues), changelog.map { it.title })
+        assertEquals(listOf(Res.string.changelog_260_tv, Res.string.changelog_260_connect), changelog.first().entries)
+        assertEquals(listOf(Res.string.changelog_260_beta), changelog.last().entries)
         val entries = changelog.flatMap { it.entries }
-        assertTrue(entries.any { "Play Next" in it })
-        assertTrue(entries.any { "interrupt a group" in it })
-        assertTrue(entries.any { "downmix multichannel audio" in it })
-        assertTrue(entries.any { "buffering the complete audio file" in it })
-        assertTrue(entries.any { "Restoring a long track" in it })
+        assertTrue(Res.string.changelog_260_screen_awake in entries)
+        assertTrue(Res.string.changelog_260_playback_recovery in entries)
+        assertTrue(changelog.all { it.entries.isNotEmpty() })
     }
 }

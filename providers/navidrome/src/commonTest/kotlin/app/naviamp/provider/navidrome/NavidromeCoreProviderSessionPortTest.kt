@@ -194,6 +194,34 @@ class NavidromeCoreProviderSessionPortTest {
     }
 
     @Test
+    fun formAuthenticatedSessionExposesPasswordOnlyForLiveProvisioning() = runTest {
+        val repository = TestMediaSourceRepository(savedSource())
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                assertEquals("session-secret", request.password)
+                session(request.savedConnectionForLogin ?: error("saved connection missing"))
+            },
+        )
+
+        port.connect(
+            NaviampCoreConnectionRequest.Form(
+                ConnectionFormState(
+                    serverUrl = "https://music.example",
+                    username = "demo",
+                    password = "session-secret",
+                ),
+                savedConnectionId = "source-1",
+            ),
+            NaviampConnectionAttemptPlan(true, false, false, false),
+        )
+
+        assertEquals("session-secret", port.currentProvisioningConnection()?.form?.password)
+        port.clearActiveSession()
+        assertNull(port.currentProvisioningConnection())
+    }
+
+    @Test
     fun advertisedTopSongsByArtistIdActivatesMigrationWithoutAReleaseNumberGate() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
         val port = NavidromeCoreProviderSessionPort(

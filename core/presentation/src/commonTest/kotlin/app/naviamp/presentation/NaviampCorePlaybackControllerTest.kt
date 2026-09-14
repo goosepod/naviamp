@@ -16,7 +16,17 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.connect.NaviampConnectRepeatMode
+import app.naviamp.domain.connect.NaviampConnectHandoffQueue
+import app.naviamp.domain.connect.NaviampConnectPlay
+import app.naviamp.domain.connect.NaviampConnectQueueOccurrence
+import app.naviamp.domain.connect.NaviampConnectQueueGroup
+import app.naviamp.domain.connect.NaviampConnectQueueSnapshot
+import app.naviamp.domain.connect.NaviampConnectSourceIdentity
+import app.naviamp.domain.connect.NaviampConnectSeek
+import app.naviamp.domain.connect.NaviampConnectSetRepeat
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
@@ -49,6 +59,264 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
+    @Test
+    fun connectCommandsUseCanonicalSeekAndRepeatOwners() = runTest {
+        val fixture = playbackFixture(this)
+
+        assertTrue(fixture.controller.executeConnectPlayback(NaviampConnectSeek(42_500)))
+        assertTrue(
+            fixture.controller.executeConnectPlayback(
+                NaviampConnectSetRepeat(NaviampConnectRepeatMode.One),
+            ),
+        )
+
+        assertEquals(listOf(42.5), fixture.effects.seeks)
+        assertEquals(42.5, fixture.live.state.value.progress.positionSeconds)
+        assertEquals(RepeatMode.Track, fixture.live.state.value.repeatMode)
+    }
+
+    @Test
+    fun aQueueMoveCannotApplyPositionsFromBeforeAnotherControllerChangedTheQueue() = runTest {
+        val fixture = playbackFixture(this)
+        val original = fixture.live.state.value.queue
+        val changed = original.copy(tracks = original.tracks.filterIndexed { index, _ -> index != 2 })
+        fixture.live.updateQueue(changed)
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Queue(NowPlayingQueueActionRequest(
+            NowPlayingQueueAction.MoveQueueItem, queueIndex = 3, destinationQueueIndex = 2, expectedQueue = original,
+        )))
+        assertEquals(changed, fixture.live.state.value.queue)
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Queue(NowPlayingQueueActionRequest(
+            NowPlayingQueueAction.MoveQueueItem, queueIndex = 3, destinationQueueIndex = 2, expectedQueue = changed,
+        )))
+        assertEquals(listOf("one", "two", "five", "four"), fixture.live.state.value.queue.tracks.map { it.id.value })
+    }
+
+    @Test
+    fun connectQueueMovementChangesTheSharedQueueBeforeMirroringTheEffect() = runTest {
+        val fixture = playbackFixture(this)
+
+        assertTrue(fixture.controller.moveConnectQueueIndex(fromIndex = 4, beforeIndex = 2))
+
+        assertEquals(
+            listOf("one", "two", "five", "three", "four"),
+            fixture.live.state.value.queue.tracks.map { it.id.value },
+        )
+        assertEquals(fixture.live.state.value.queue, fixture.effects.queues.single())
+    }
+
+    @Test
+    fun connectQueueHandoffReplacesStateAndNativeQueueAsOnePlan() = runTest {
+        val fixture = playbackFixture(this)
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:new-one", "new-one", "New One", "Artist"),
+                        NaviampConnectQueueOccurrence(
+                            occurrenceId = "1:new-two",
+                            mediaId = "new-two",
+                            title = "New Two",
+                            artistName = "Artist",
+                            artistId = "new-artist",
+                            albumId = "new-album",
+                            artworkId = "new-cover",
+                        ),
+                    ),
+                    currentIndex = 1,
+                    groups = listOf(
+                        NaviampConnectQueueGroup(
+                            groupId = "Album:new-album",
+                            label = "New Album",
+                            startIndex = 0,
+                            endIndexExclusive = 2,
+                            targetType = PlaybackProfileTargetType.Album,
+                            targetId = "new-album",
+                        ),
+                    ),
+                ),
+                positionMillis = 31_500,
+                repeatMode = NaviampConnectRepeatMode.One,
+                shuffled = false,
+                playing = false,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals(listOf("new-one", "new-two"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals("new-two", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals("new-artist", fixture.live.state.value.currentTrack?.artistId?.value)
+        assertEquals("new-album", fixture.live.state.value.currentTrack?.albumId?.value)
+        assertEquals("new-cover", fixture.live.state.value.currentTrack?.coverArtId)
+        assertEquals(31.5, fixture.live.state.value.progress.positionSeconds)
+        assertEquals(RepeatMode.Track, fixture.live.state.value.repeatMode)
+        assertEquals(PlaybackState.Paused, fixture.live.state.value.playbackState)
+        assertEquals("new-album", fixture.live.state.value.queue.groups.single().target.id)
+        assertEquals(31.5, fixture.effects.restoredStartPositionSeconds)
+        assertEquals(1, fixture.effects.stops)
+        assertEquals(0, fixture.effects.pauses)
+
+        assertTrue(fixture.controller.executeConnectPlayback(NaviampConnectPlay))
+        assertEquals(1, fixture.effects.starts)
+        assertEquals(0, fixture.effects.resumes)
+    }
+
+    @Test
+    fun playingConnectQueueHandoffStartsTheRestoredStreamImmediately() = runTest {
+        val fixture = playbackFixture(this)
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:new-one", "new-one", "New One", "Artist"),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 12_500,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = true,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals(12.5, fixture.effects.restoredStartPositionSeconds)
+        assertEquals(1, fixture.effects.stops)
+        assertEquals(1, fixture.effects.starts)
+        assertEquals(0, fixture.effects.pauses)
+    }
+
+    @Test
+    fun rejectedPlayingHandoffRestoresTheTargetsPreviousQueueAndPlayback() = runTest {
+        val fixture = playbackFixture(this)
+        val previous = fixture.live.state.value
+        fixture.effects.startSucceeds = false
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:new", "new", "New", "Artist"),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 5_000,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = true,
+            ),
+        )
+
+        assertFalse(accepted)
+        assertEquals(previous, fixture.live.state.value)
+        assertEquals(previous.queue, fixture.effects.queues.last())
+        assertEquals(2, fixture.effects.stops)
+    }
+
+    @Test
+    fun clearConnectUpNextRetainsCurrentTrackAndUpdatesNativeQueue() = runTest {
+        val fixture = playbackFixture(this)
+
+        assertTrue(fixture.controller.clearConnectUpNext())
+
+        assertEquals(listOf("two"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals(fixture.live.state.value.queue, fixture.effects.queues.single())
+    }
+
+    @Test
+    fun connectQueueHandoffReusesTracksAlreadyKnownByTheTarget() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.provider.unavailableTrackIds += listOf("one", "two")
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:one", "one", "One", "Artist"),
+                        NaviampConnectQueueOccurrence("1:two", "two", "Two", "Artist"),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 0,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = false,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals(listOf("one", "two"), fixture.live.state.value.queue.tracks.map { it.id.value })
+    }
+
+    @Test
+    fun connectQueueHandoffEnrichesAnExistingTargetTrackWithTransferredArtwork() = runTest {
+        val fixture = playbackFixture(this)
+        val existing = fixture.live.state.value.queue.tracks.first().copy(coverArtId = null)
+        fixture.live.replace(
+            fixture.live.state.value.copy(
+                currentTrack = existing,
+                queue = PlaybackQueue(listOf(existing), currentIndex = 0),
+            ),
+        )
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence(
+                            occurrenceId = "0:one",
+                            mediaId = "one",
+                            title = "One",
+                            artistName = "Artist",
+                            artworkId = "transferred-cover",
+                        ),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 0,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+                playing = false,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals("transferred-cover", fixture.live.state.value.currentTrack?.coverArtId)
+        assertEquals("transferred-cover", fixture.effects.queues.single().current?.coverArtId)
+    }
+
+    @Test
+    fun connectQueueHandoffUsesTransferredMetadataForTracksNotCachedByTarget() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.provider.unavailableTrackIds += "missing"
+
+        val accepted = fixture.controller.handoffConnectQueue(
+            NaviampConnectHandoffQueue(
+                sourceIdentity = NaviampConnectSourceIdentity("navidrome", "https://music.test", "listener"),
+                queue = NaviampConnectQueueSnapshot(
+                    occurrences = listOf(
+                        NaviampConnectQueueOccurrence("0:available", "available", "Available", "Artist"),
+                        NaviampConnectQueueOccurrence("1:missing", "missing", "Missing", "Artist"),
+                    ),
+                    currentIndex = 0,
+                ),
+                positionMillis = 0,
+                repeatMode = NaviampConnectRepeatMode.Off,
+                shuffled = false,
+            ),
+        )
+
+        assertTrue(accepted)
+        assertEquals(listOf("available", "missing"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals("Missing", fixture.live.state.value.queue.tracks.last().title)
+        assertEquals(listOf("available", "missing"), fixture.effects.queues.single().tracks.map { it.id.value })
+    }
+
     @Test
     fun nativeProgressPersistsTheCanonicalCoreQueueAndPosition() = runTest {
         val fixture = playbackFixture(this)
@@ -270,6 +538,36 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun gaplessAdvanceLoadsTheNewTrackWaveformWithoutAnotherPlayingCallback() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        runCurrent()
+
+        assertEquals("three", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(listOf("two", "three"), fixture.sidecars.loadedTracks)
+    }
+
+    @Test
+    fun explicitUiAndNativeTransportRequestsKeepTheirRequestedMeaning() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        repeat(2) { fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.PlayCurrent)) }
+        assertEquals(0, fixture.effects.pauses)
+        fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Pause))
+        fixture.effects.observer?.onStateChanged(PlaybackState.Paused)
+        runCurrent()
+        repeat(2) { fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Pause)) }
+        assertEquals(3, fixture.effects.pauses)
+        assertEquals(0, fixture.effects.resumes)
+        fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Resume))
+        assertEquals(1, fixture.effects.resumes)
+    }
+
+    @Test
     fun transportQueueVolumeRepeatAndShuffleAreResolvedByCore() = runTest {
         val fixture = playbackFixture(this)
 
@@ -355,6 +653,28 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(PlaybackState.Playing, fixture.live.state.value.playbackState)
         assertEquals(0, fixture.effects.stops)
         assertEquals(listOf("two"), fixture.effects.queues.last().tracks.map { it.id.value })
+    }
+
+    @Test
+    fun arbitraryUpcomingMoveIsAppliedAsOneCoreQueueTransaction() = runTest {
+        val fixture = playbackFixture(this)
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.Queue(
+                NowPlayingQueueActionRequest(
+                    action = NowPlayingQueueAction.MoveQueueItem,
+                    queueIndex = 4,
+                    destinationQueueIndex = 2,
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf("one", "two", "five", "three", "four"),
+            fixture.live.state.value.queue.tracks.map { it.id.value },
+        )
+        assertEquals("two", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(listOf("one", "two", "five", "three", "four"), fixture.effects.queues.single().tracks.map { it.id.value })
     }
 
     @Test
@@ -532,6 +852,7 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     var pauses = 0
     var resumes = 0
     var starts = 0
+    var startSucceeds = true
     var stops = 0
     val seeks = mutableListOf<Double>()
     val replays = mutableListOf<Double>()
@@ -547,7 +868,7 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
 
     override fun pause() { pauses += 1 }
     override fun resume() { resumes += 1 }
-    override fun startOrRestore(): Boolean { starts += 1; return true }
+    override fun startOrRestore(): Boolean { starts += 1; return startSucceeds }
     override fun seek(positionSeconds: Double) { seeks += positionSeconds }
     override fun replayCurrent(positionSeconds: Double) { replays += positionSeconds }
     override fun setVolume(percent: Int) { volumes += percent }
@@ -610,6 +931,7 @@ private class PlaybackTestProvider(
     val stateReports = mutableListOf<String>()
     val sonicRequests = mutableListOf<String>()
     val sonicMatchesBySeed = mutableMapOf<String, List<SonicSimilarTrack>>()
+    val unavailableTrackIds = mutableSetOf<String>()
     var beforeSonicRequest: suspend () -> Unit = {}
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
@@ -617,6 +939,8 @@ private class PlaybackTestProvider(
     override suspend fun artist(artistId: ArtistId): ArtistDetails = error("Not used")
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
+    override suspend fun track(trackId: TrackId) =
+        playbackTrack(trackId.value).takeUnless { trackId.value in unavailableTrackIds }
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()
     override suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int): List<SonicSimilarTrack> {
         sonicRequests += trackId.value

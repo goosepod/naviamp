@@ -104,6 +104,9 @@ class NaviampPlaybackQueueCoordinator(
     fun moveToNext(index: Int): PlaybackQueueMutationUpdate =
         mutateQueue(clearPreparedNext = true) { queue -> queue.moveToNext(index) }
 
+    fun moveUpcoming(fromIndex: Int, toIndex: Int): PlaybackQueueMutationUpdate =
+        mutateQueue(clearPreparedNext = true) { queue -> queue.moveUpcoming(fromIndex, toIndex) }
+
     fun moveToPlayNext(index: Int): PlaybackQueueMutationUpdate =
         mutateQueue(clearPreparedNext = true) { queue -> queue.moveToPlayNext(index) }
 

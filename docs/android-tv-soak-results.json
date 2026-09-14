@@ -1,0 +1,218 @@
+{
+  "date": "2026-09-09",
+  "device": "Disposable Television_1080p emulator",
+  "appCommit": "5bb7ef1c",
+  "tracks": 24,
+  "albums": 6,
+  "trackSeconds": 30,
+  "backgroundPlaybackSeconds": 712,
+  "instrumentationSeconds": 720.543,
+  "successfulListens": 24,
+  "peakFixtureStreams": 3,
+  "finalActiveFixtureStreams": 0,
+  "baselineUpperMedian": {
+    "pssKiB": 185774,
+    "nativeHeapKiB": 22437,
+    "fileDescriptors": 148,
+    "threads": 51
+  },
+  "finalUpperMedian": {
+    "pssKiB": 188342,
+    "nativeHeapKiB": 22481,
+    "fileDescriptors": 148,
+    "threads": 49
+  },
+  "growth": {
+    "pssKiB": 2568,
+    "nativeHeapKiB": 44,
+    "fileDescriptors": 0,
+    "threads": -2
+  },
+  "recoveries": [
+    {
+      "track": 5,
+      "beforeMillis": 6949,
+      "afterSeconds": 8.957375
+    },
+    {
+      "track": 13,
+      "beforeMillis": 6877,
+      "afterSeconds": 9.8864375
+    },
+    {
+      "track": 21,
+      "beforeMillis": 6962,
+      "afterSeconds": 10.657125
+    }
+  ],
+  "resourceSamples": [
+    {
+      "track": 1,
+      "pssKiB": 185037,
+      "nativeHeapKiB": 22873,
+      "fileDescriptors": 147,
+      "threads": 52
+    },
+    {
+      "track": 2,
+      "pssKiB": 190433,
+      "nativeHeapKiB": 22907,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 3,
+      "pssKiB": 193380,
+      "nativeHeapKiB": 22940,
+      "fileDescriptors": 149,
+      "threads": 51
+    },
+    {
+      "track": 4,
+      "pssKiB": 196949,
+      "nativeHeapKiB": 22973,
+      "fileDescriptors": 150,
+      "threads": 51
+    },
+    {
+      "track": 5,
+      "pssKiB": 184826,
+      "nativeHeapKiB": 22435,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 6,
+      "pssKiB": 185774,
+      "nativeHeapKiB": 22437,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 7,
+      "pssKiB": 185244,
+      "nativeHeapKiB": 22417,
+      "fileDescriptors": 147,
+      "threads": 51
+    },
+    {
+      "track": 8,
+      "pssKiB": 188036,
+      "nativeHeapKiB": 22449,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 9,
+      "pssKiB": 187622,
+      "nativeHeapKiB": 22483,
+      "fileDescriptors": 149,
+      "threads": 51
+    },
+    {
+      "track": 10,
+      "pssKiB": 187440,
+      "nativeHeapKiB": 22472,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 11,
+      "pssKiB": 186856,
+      "nativeHeapKiB": 22475,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 12,
+      "pssKiB": 185993,
+      "nativeHeapKiB": 22454,
+      "fileDescriptors": 147,
+      "threads": 51
+    },
+    {
+      "track": 13,
+      "pssKiB": 185117,
+      "nativeHeapKiB": 22458,
+      "fileDescriptors": 147,
+      "threads": 51
+    },
+    {
+      "track": 14,
+      "pssKiB": 185173,
+      "nativeHeapKiB": 22455,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 15,
+      "pssKiB": 188903,
+      "nativeHeapKiB": 22483,
+      "fileDescriptors": 149,
+      "threads": 51
+    },
+    {
+      "track": 16,
+      "pssKiB": 187773,
+      "nativeHeapKiB": 22475,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 17,
+      "pssKiB": 187630,
+      "nativeHeapKiB": 22501,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 18,
+      "pssKiB": 187291,
+      "nativeHeapKiB": 22496,
+      "fileDescriptors": 148,
+      "threads": 51
+    },
+    {
+      "track": 19,
+      "pssKiB": 185993,
+      "nativeHeapKiB": 22476,
+      "fileDescriptors": 148,
+      "threads": 50
+    },
+    {
+      "track": 20,
+      "pssKiB": 189707,
+      "nativeHeapKiB": 22497,
+      "fileDescriptors": 149,
+      "threads": 49
+    },
+    {
+      "track": 21,
+      "pssKiB": 188342,
+      "nativeHeapKiB": 22495,
+      "fileDescriptors": 148,
+      "threads": 49
+    },
+    {
+      "track": 22,
+      "pssKiB": 184778,
+      "nativeHeapKiB": 22451,
+      "fileDescriptors": 147,
+      "threads": 49
+    },
+    {
+      "track": 23,
+      "pssKiB": 188398,
+      "nativeHeapKiB": 22479,
+      "fileDescriptors": 148,
+      "threads": 49
+    },
+    {
+      "track": 24,
+      "pssKiB": 187537,
+      "nativeHeapKiB": 22481,
+      "fileDescriptors": 148,
+      "threads": 49
+    }
+  ]
+}

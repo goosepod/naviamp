@@ -6,9 +6,12 @@ import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.MaximumMediaPageSize
 import app.naviamp.domain.provider.SearchDisconnectedStatus
 import app.naviamp.domain.provider.normalizedSearchQuery
 import app.naviamp.domain.provider.searchResultsUpdate
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.Artist
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampLibraryCatalogUi
 import app.naviamp.ui.NaviampLibraryView
@@ -25,6 +28,7 @@ class NaviampCoreCatalogController(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val libraryPageSize: Int = 50,
     private val libraryGenreRefresh: NaviampCoreLibraryGenreRefreshPort = NaviampCoreLibraryGenreRefreshPort { },
+    private val libraryIndex: LocalLibraryIndexRepository? = null,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
     private val albumIndex: AlbumLibraryIndex? = null,
 ) : NaviampCoreCommandController {
@@ -113,6 +117,13 @@ class NaviampCoreCatalogController(
         view: NaviampLibraryView = stateStore.state.value.shell.library.selectedView,
         forceAlbums: Boolean = false,
     ) {
+        if (view == NaviampLibraryView.Artists && libraryIndex != null &&
+            stateStore.state.value.shell.library.artists.query.isBlank() &&
+            activeLibrarySourceId() != null && providerSource.current() != null
+        ) {
+            refreshArtistIndex()
+            return
+        }
         if (view == NaviampLibraryView.Albums && albumIndex != null) {
             refreshAlbumIndex(forceAlbums)
             return
@@ -201,7 +212,98 @@ class NaviampCoreCatalogController(
 
     suspend fun refreshAfterConnection() {
         resetForSourceChange()
-        refreshLibrary()
+        val provider = providerSource.current()
+        val sourceId = activeLibrarySourceId()
+        val repository = libraryIndex
+        if (provider == null || sourceId == null || repository == null ||
+            stateStore.state.value.shell.library.selectedView != NaviampLibraryView.Artists
+        ) {
+            refreshLibrary()
+            return
+        }
+        val cached = repository.librarySnapshot(sourceId, limit = Long.MAX_VALUE).artists
+        if (cached.isEmpty()) {
+            refreshLibrary()
+            return
+        }
+        val load = libraryLoads.getValue(NaviampLibraryView.Artists)
+        val generation = load.generation
+        val sourceKey = provider.id.value to provider.cacheNamespace
+        publishLibraryArtists(cached, provider)
+        load.nextRequest = null
+        load.loadedSource = sourceKey
+        val scan = try {
+            provider.libraryScanStatus()
+        } catch (cause: CancellationException) {
+            throw cause
+        } catch (_: Exception) {
+            null
+        }
+        if (!isCurrentLibraryLoad(load, generation, sourceKey) || sourceId != activeLibrarySourceId()) return
+        val scanSignature = scan?.signature
+        val previousSignature = repository.mediaSource(sourceId)?.lastLibraryScanSignature
+        when {
+            scan?.scanning == true -> publishLibraryStatus(
+                NaviampLibraryView.Artists,
+                "Navidrome is scanning. Refresh library after the scan finishes.",
+                loading = false,
+            )
+            scanSignature != null && previousSignature == null -> {
+                repository.markLibraryScanChecked(sourceId, scanSignature)
+                publishLibraryStatus(NaviampLibraryView.Artists, null, loading = false)
+            }
+            scanSignature == null || scanSignature == previousSignature ->
+                publishLibraryStatus(NaviampLibraryView.Artists, null, loading = false)
+            else -> refreshLibrary()
+        }
+    }
+
+    private fun activeLibrarySourceId(): String? =
+        stateStore.state.value.shell.connectionSettings.currentSourceId
+
+    private suspend fun refreshArtistIndex() {
+        val provider = providerSource.current() ?: return
+        val sourceId = activeLibrarySourceId() ?: return
+        val repository = libraryIndex ?: return
+        val view = NaviampLibraryView.Artists
+        val load = libraryLoads.getValue(view)
+        val generation = ++load.generation
+        val sourceKey = provider.id.value to provider.cacheNamespace
+        fun current() = isCurrentLibraryLoad(load, generation, sourceKey) && sourceId == activeLibrarySourceId()
+        load.loadingGeneration = generation
+        publishLibraryStatus(view, "Refreshing library…", loading = true)
+        try {
+            val artists = provider.loadCompleteArtistLibrary()
+            if (!current()) return
+            repository.replaceLibraryArtists(sourceId, artists)
+            publishLibraryArtists(artists, provider)
+            load.nextRequest = null
+            load.loadedSource = sourceKey
+            provider.libraryScanStatus()?.signature?.let { signature ->
+                if (current()) repository.markLibraryScanChecked(sourceId, signature)
+            }
+            if (current()) runCatching { libraryGenreRefresh.refresh() }
+        } catch (cause: CancellationException) {
+            throw cause
+        } catch (cause: Exception) {
+            if (current()) publishLibraryStatus(view, cause.message ?: "Could not load library.", loading = false)
+        } finally {
+            if (current()) {
+                load.loadingGeneration = null
+                updateLibraryCatalog(view) { it.copy(syncStatus = it.syncStatus.copy(isSyncing = false)) }
+            }
+        }
+    }
+
+    private fun publishLibraryArtists(artists: List<Artist>, provider: MediaProvider) {
+        mediaRegistry.updateLibraryArtists(artists, replace = true)
+        val mapped = artists.map { artist -> artist.toSharedMediaItemUi(
+            coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
+            canFavorite = provider.capabilities.supportsArtistFavorites,
+        ) }
+        updateLibraryCatalog(NaviampLibraryView.Artists) {
+            it.copy(items = mapped, syncStatus = NaviampLibrarySyncStatusUi())
+        }
     }
 
     private suspend fun loadMoreLibrary() {
@@ -510,3 +612,42 @@ class NaviampCoreCatalogController(
         return NaviampCoreImmediateCommandResult.Handled()
     }
 }
+
+internal suspend fun MediaProvider.loadCompleteArtistLibrary(
+    maximumArtists: Int = MaximumCachedLibraryArtists,
+    pageSize: Int = MaximumMediaPageSize,
+): List<Artist> {
+    require(maximumArtists > 0) { "The maximum artist count must be positive." }
+    require(pageSize in 1..MaximumMediaPageSize) { "The artist page size is invalid." }
+    val artists = mutableListOf<Artist>()
+    val seenRequests = mutableSetOf<MediaPageRequest>()
+    var request: MediaPageRequest? = MediaPageRequest(
+        limit = minOf(pageSize, maximumArtists),
+    )
+    while (request != null) {
+        check(seenRequests.add(request)) { "Provider artist paging did not advance." }
+        val page = artistsPage(request)
+        require(page.offset == request.offset && page.limit == request.limit) {
+            "Provider artist page metadata must match the requested offset and limit."
+        }
+        require(page.items.size <= request.limit) {
+            "Provider artist page returned more items than requested."
+        }
+        check(artists.size + page.items.size <= maximumArtists) {
+            "The artist library exceeds the supported refresh limit of $maximumArtists."
+        }
+        artists += page.items
+        request = page.nextRequest
+        if (request != null) {
+            check(page.items.isNotEmpty()) { "Provider artist paging returned an empty continuing page." }
+            val remaining = maximumArtists - artists.size
+            check(remaining > 0) {
+                "The artist library exceeds the supported refresh limit of $maximumArtists."
+            }
+            request = request.copy(limit = minOf(request.limit, remaining))
+        }
+    }
+    return artists.distinctBy { it.id }
+}
+
+private const val MaximumCachedLibraryArtists = 100_000

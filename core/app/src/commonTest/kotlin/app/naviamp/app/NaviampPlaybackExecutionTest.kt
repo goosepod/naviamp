@@ -12,6 +12,30 @@ import kotlin.test.assertEquals
 
 class NaviampPlaybackExecutionTest {
     @Test
+    fun explicitTransportRequestsNeverToggleOrRestartAnActiveStream() {
+        val execution = RecordingPlaybackExecution()
+        val playback = NaviampLivePlaybackController(NaviampLivePlaybackState(playbackState = PlaybackState.Playing))
+        val controller = NaviampPlaybackCommandController(execution, playback)
+        repeat(2) { assertEquals(true, controller.play()) }
+        assertEquals(0, execution.pauses)
+        assertEquals(0, execution.startOrRestores)
+        assertEquals(true, controller.pause())
+        playback.updatePlaybackState(PlaybackState.Paused)
+        repeat(2) { assertEquals(true, controller.pause()) }
+        assertEquals(3, execution.pauses)
+        assertEquals(0, execution.resumes)
+        assertEquals(true, controller.play())
+        assertEquals(1, execution.resumes)
+        playback.updatePlaybackState(PlaybackState.Loading)
+        repeat(2) { assertEquals(true, controller.play()) }
+        assertEquals(0, execution.startOrRestores)
+        playback.updatePlaybackState(PlaybackState.Error("Transport interrupted"))
+        assertEquals(false, controller.pause())
+        assertEquals(true, controller.play())
+        assertEquals(1, execution.startOrRestores)
+    }
+
+    @Test
     fun playPauseRequestsUseSharedPlaybackState() {
         val execution = RecordingPlaybackExecution()
         val playback = NaviampLivePlaybackController(NaviampLivePlaybackState(playbackState = PlaybackState.Playing))

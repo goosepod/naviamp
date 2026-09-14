@@ -43,7 +43,8 @@ CREATE TABLE media_source (
   provider_identity_version INTEGER NOT NULL DEFAULT 0,
   provider_identity_probe_target_version INTEGER,
   provider_identity_probe_server_version TEXT,
-  selected_music_folder_ids_json TEXT
+  selected_music_folder_ids_json TEXT,
+  password TEXT
 );
 
 CREATE TABLE library_artist (
@@ -477,6 +478,10 @@ SELECT bytes
 FROM cached_image
 WHERE url = ?;
 
+selectImageKeys:
+SELECT url
+FROM cached_image;
+
 upsertImage:
 INSERT OR REPLACE INTO cached_image(
   url,
@@ -673,6 +678,7 @@ INSERT OR IGNORE INTO media_source(
   display_name,
   base_url,
   username,
+  password,
   token,
   salt,
   native_token,
@@ -689,7 +695,7 @@ INSERT OR IGNORE INTO media_source(
   last_sync_completed_at_epoch_millis,
   last_library_scan_signature,
   last_library_scan_checked_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateMediaSource:
 UPDATE media_source
@@ -700,6 +706,7 @@ SET provider_id = ?,
     display_name = ?,
     base_url = ?,
     username = ?,
+    password = ?,
     token = ?,
     salt = ?,
     native_token = ?,

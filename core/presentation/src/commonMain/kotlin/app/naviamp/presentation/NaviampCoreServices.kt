@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.playback.EmptyPlaybackProfileRepository
@@ -24,6 +25,7 @@ data class NaviampCoreContentServices(
     val sonicHomeDiscovery: NaviampCoreSonicHomeDiscoverySource? = null,
     val externalUri: NaviampCoreExternalUriPort,
     val libraryGenreRefresh: NaviampCoreLibraryGenreRefreshPort = NaviampCoreLibraryGenreRefreshPort { },
+    val libraryIndex: LocalLibraryIndexRepository? = null,
     val albumIndex: AlbumLibraryIndex? = null,
 )
 
@@ -104,4 +106,5 @@ data class NaviampCoreServices(
     val clockEpochMillis: () -> Long,
     val favoritedAtIso8601: () -> String,
     val diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
+    val connect: NaviampCoreConnectServices? = null,
 )

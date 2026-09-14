@@ -244,7 +244,6 @@ class NaviampCorePlaylistBrowseController(
     private suspend fun open(item: SharedMediaItemUi) {
         val generation = ++detailGeneration
         mediaRegistry.updateSelectedPlaylist(null, emptyList())
-        navigationController.openPlaylistDetail()
         stateStore.updateShell { shell ->
             shell.copy(
                 albumDetail = NaviampAlbumDetailScreenUi(),
@@ -257,6 +256,7 @@ class NaviampCorePlaylistBrowseController(
                 ),
             )
         }
+        navigationController.openPlaylistDetail()
         val provider = providerSource.current()
         if (provider == null) {
             publishDetailFailure(item, "Connect to Navidrome to load a playlist.")

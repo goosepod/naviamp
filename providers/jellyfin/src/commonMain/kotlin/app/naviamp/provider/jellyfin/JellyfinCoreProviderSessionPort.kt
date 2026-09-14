@@ -68,6 +68,7 @@ class JellyfinCoreProviderSessionPort(
     private var provider: JellyfinProvider? = initialSessionSource?.toUnvalidatedJellyfinConnection(deviceId)
         ?.let { connection -> JellyfinProvider(connection, sessionServices) }
     private var currentSourceId: String? = initialSessionSource?.id
+    private var activeSourcePassword: String? = initialSessionSource?.password
 
     override val providerSource = NaviampCoreMediaProviderSource { provider }
     override fun currentProvider(): MediaProvider? = provider
@@ -81,6 +82,9 @@ class JellyfinCoreProviderSessionPort(
         val session = sessionOpener.open(request.toLoginRequest(), plan.clearProviderData)
         provider = session.provider
         currentSourceId = session.sourceId
+        activeSourcePassword = (request as? NaviampCoreConnectionRequest.Form)
+            ?.form?.password?.takeIf(String::isNotBlank)
+            ?: mediaSources.mediaSource(session.sourceId)?.password
         return NaviampCoreConnectedSession(
             sourceId = session.sourceId,
             displayName = session.connection.resolvedDisplayName(),
@@ -104,10 +108,19 @@ class JellyfinCoreProviderSessionPort(
         )
     }
 
+    override suspend fun currentProvisioningConnection(): NaviampCoreEditableConnection? {
+        val id = currentSourceId ?: return null
+        val saved = requireJellyfinSaved(id)
+        return NaviampCoreEditableConnection(
+            saved.toConnectionForm().copy(password = activeSourcePassword ?: saved.password.orEmpty()),
+        )
+    }
+
     override suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory {
         requireSaved(id)
         mediaSources.deleteMediaSource(id)
         if (currentSourceId == id) {
+            activeSourcePassword = null
             currentSourceId = null
             provider = null
         }
@@ -127,6 +140,7 @@ class JellyfinCoreProviderSessionPort(
     override suspend fun persistActiveSession() = Unit
 
     override suspend fun clearActiveSession() {
+        activeSourcePassword = null
         currentSourceId = null
         provider = null
     }
@@ -216,6 +230,9 @@ fun jellyfinProviderSessionOpener(
             preparedConnection = { it },
             provider = { connection -> JellyfinProvider(connection, sessionServices) },
             mediaSourceConnection = JellyfinConnection::toProviderMediaSourceConnection,
+            sourcePassword = { request ->
+                request.password.takeIf(String::isNotBlank) ?: request.savedSource?.password
+            },
             preferredSourceId = login.savedSourceId,
             clearProviderData = clearProviderData,
             pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(nowEpochMillis()),
