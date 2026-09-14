@@ -72,6 +72,29 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
     }
 
     @Test
+    fun nativeRegistrationCanRestartBeforeUnregisterCallbacksFinish() {
+        val effect = AndroidNaviampConnectAdvertisingEffect(ApplicationProvider.getApplicationContext())
+        try {
+            repeat(3) {
+                effect.start(registrationService(), object : NaviampConnectAdvertisingListener {
+                    override fun onServiceRegistered(registeredServiceName: String) = Unit
+                    override fun onRegistrationFailed(message: String) = Unit
+                })
+                effect.stop()
+            }
+            val registered = CountDownLatch(1)
+            var failure: String? = null
+            assertEquals(NaviampConnectAdvertisingStartResult.Started,
+                effect.start(registrationService(), object : NaviampConnectAdvertisingListener {
+                    override fun onServiceRegistered(registeredServiceName: String) { registered.countDown() }
+                    override fun onRegistrationFailed(message: String) { failure = message; registered.countDown() }
+                }))
+            assertTrue(registered.await(30, TimeUnit.SECONDS))
+            assertEquals(null, failure)
+        } finally { effect.stop() }
+    }
+
+    @Test
     fun nativeDnsSdDiscoveryCanStartAndStop() {
         val effect = AndroidNaviampConnectDiscoveryEffect(ApplicationProvider.getApplicationContext())
 

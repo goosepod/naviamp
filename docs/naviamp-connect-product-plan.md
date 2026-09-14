@@ -231,8 +231,10 @@ by that setup/discovery attempt. The subsequent shared UI implementation and phy
 smoke results are recorded in [the September 14 acceptance report](connect-phone-macos-acceptance-2026-09-14.md).
 Basic direct-LAN control now passes in both directions; the full topology row remains open for the
 broader recovery coverage. The setup and role-switch findings subsequently passed their bounded
-physical retests ([#79](connect-follow-up-79.md), [#80](connect-follow-up-80.md)); explicit DNS-SD
-stop/renewal remains tracked in [#81](https://github.com/goosepod/naviamp/issues/81).
+physical retests ([#79](connect-follow-up-79.md), [#80](connect-follow-up-80.md)). The shared
+nonblocking DNS-SD lifecycle and session-preserving discovery refresh subsequently passed their
+bounded phone/Mac retest in [#81](connect-follow-up-81.md); automatic expiry renewal has shared
+regression coverage. The watched performance pass and broader recovery matrix remain open.
 
 - [x] Enforce TV as playback-target-only in the shared capability policy and Android TV host
   configuration.

@@ -63,6 +63,7 @@ class NaviampCoreConnectControllerTest {
         val store = NaviampCoreStateStore()
         var nextId = 0
         val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
             deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities, displayName = "TV",
             identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
             transport = object : NaviampConnectTransportFactory {
@@ -239,6 +240,7 @@ class NaviampCoreConnectControllerTest {
             scope = CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
             stateStore = store,
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = deviceCapabilities,
                 displayName = "Office Phone",
                 identity = FakeIdentity,
@@ -311,6 +313,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities,
                 displayName = "Living Room TV",
                 identity = FakeIdentity,
@@ -373,6 +376,7 @@ class NaviampCoreConnectControllerTest {
             scope = CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
             stateStore = store,
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
@@ -429,6 +433,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = NaviampCoreStateStore(),
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
@@ -502,6 +507,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
@@ -549,6 +555,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
@@ -673,6 +680,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities,
                 displayName = "Living Room TV",
                 identity = FakeIdentity,
@@ -814,6 +822,7 @@ class NaviampCoreConnectControllerTest {
             scope = this,
             stateStore = store,
             services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
                 deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
                 displayName = "Pixel",
                 identity = FakeIdentity,
@@ -1013,6 +1022,7 @@ class NaviampCoreConnectControllerTest {
         trust.upsert(NaviampConnectTrustRecord("trusted-tv", target, "fingerprint", "public-key", 1L))
         val store = NaviampCoreStateStore()
         val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
             deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback), displayName = "Controller",
             identity = FakeIdentity, identityVerifier = FakeIdentityVerifier, transport = UnusedTransportFactory,
             pake = UnusedPakeFactory, cipher = UnusedCipherFactory, trust = trust,
@@ -1040,6 +1050,7 @@ class NaviampCoreConnectControllerTest {
         scope = this,
         stateStore = store,
         services = NaviampCoreConnectServices(
+                networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
             deviceCapabilities = NaviampCorePlaybackTargetConnectCapabilities,
             displayName = "Living Room TV",
             identity = FakeIdentity,

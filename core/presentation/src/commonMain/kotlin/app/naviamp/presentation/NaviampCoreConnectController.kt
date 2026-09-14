@@ -108,6 +108,7 @@ data class NaviampCoreConnectServices(
     val pairingListenPort: Int = 0,
     val targetCapabilities: Set<NaviampConnectCapability> = emptySet(),
     val permissionSettings: app.naviamp.app.NaviampConnectPermissionSettingsEffect? = null,
+    val networkDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
     val trace: (NaviampCoreConnectTraceEvent) -> Unit = { println(it.logLine()) },
 ) {
     init {
@@ -145,10 +146,13 @@ class NaviampCoreConnectController(
         get() = localDevice(NaviampConnectDeviceRole.Controller)
     private val localTargetDevice: NaviampConnectDevice
         get() = localDevice(NaviampConnectDeviceRole.Target)
-    private val discovery = services.discovery?.let {
+    private val networkEffects = app.naviamp.app.NaviampConnectNetworkEffects(
+        controllerScope, services.discovery, services.advertising, services.networkDispatcher,
+    )
+    private val discovery = networkEffects.discovery?.let {
         NaviampConnectDiscoveryController(it, nowEpochMillis = services.nowEpochMillis)
     }
-    private val advertising = services.advertising?.let {
+    private val advertising = networkEffects.advertising?.let {
         NaviampConnectAdvertisingController(it, services.nowEpochMillis)
     }
     private val targetPairing = NaviampConnectTargetPairingController()
@@ -391,6 +395,7 @@ class NaviampCoreConnectController(
         automaticReconnectRetryJob = null
         closeAuthenticatedSession()
         discovery?.stop()
+        networkEffects.close()
         controllerScope.cancel()
     }
 
@@ -822,17 +827,18 @@ class NaviampCoreConnectController(
 
     private fun refreshTargets() {
         if (!canControl || discovery == null) return
-        suspendAutomaticReconnectForManualPairing()
-        playbackDestination.reconnecting()
-        closeAuthenticatedSession()
-        selectedTarget = null
-        enteredCode = ""
-        phase = NaviampConnectPairingUiPhase.Starting
+        // Browsing is independent of an authenticated session. Choosing another target owns
+        // replacement; refreshing discovery must not detach either an incoming or outgoing peer.
+        if (authenticatedSession == null) {
+            suspendAutomaticReconnectForManualPairing()
+            playbackDestination.reconnecting()
+            selectedTarget = null
+            enteredCode = ""
+        }
         status = "Searching this local network…"
         statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.SearchingThisLocalNetwork)
         discovery.stop()
         discovery.start()
-        phase = NaviampConnectPairingUiPhase.Advertising
         publish()
     }
 

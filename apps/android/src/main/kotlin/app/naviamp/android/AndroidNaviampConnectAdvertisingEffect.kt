@@ -12,58 +12,49 @@ import app.naviamp.domain.connect.NaviampConnectServiceType
 /** Android DNS-SD registration adapter. Pairing lifetime and advertised metadata remain in Core. */
 class AndroidNaviampConnectAdvertisingEffect(context: Context) : NaviampConnectAdvertisingEffect {
     private val nsdManager = context.applicationContext.getSystemService(NsdManager::class.java)
-    private var listener: NaviampConnectAdvertisingListener? = null
-    private var registrationRequested = false
-    private var active = false
-
-    private val registrationListener = object : NsdManager.RegistrationListener {
-        override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-            synchronized(this@AndroidNaviampConnectAdvertisingEffect) {
-                if (!active) {
-                    runCatching { nsdManager.unregisterService(this) }
-                    return
-                }
-                listener?.onServiceRegistered(serviceInfo.serviceName)
-            }
-        }
-
-        override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            failRegistration("Android could not advertise this Naviamp target (error $errorCode).")
-        }
-
-        override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) = Unit
-
-        override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            synchronized(this@AndroidNaviampConnectAdvertisingEffect) {
-                if (active) {
-                    failRegistration("Android could not stop advertising this Naviamp target (error $errorCode).")
-                }
-            }
-        }
-    }
+    // NsdManager uses listener identity as the native registration handle. Never reuse it while
+    // unregister callbacks from a previous request may still be in flight.
+    private var registration: NsdManager.RegistrationListener? = null
 
     @Synchronized
     override fun start(
         service: NaviampConnectRegistrationService,
         listener: NaviampConnectAdvertisingListener,
     ): NaviampConnectAdvertisingStartResult {
-        if (active) return NaviampConnectAdvertisingStartResult.Started
-        val serviceInfo = service.toAndroidNsdServiceInfo()
-        this.listener = listener
-        active = true
-        registrationRequested = true
+        if (registration != null) return NaviampConnectAdvertisingStartResult.Started
+        val request = object : NsdManager.RegistrationListener {
+            override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
+                synchronized(this@AndroidNaviampConnectAdvertisingEffect) {
+                    if (registration !== this) {
+                        runCatching { nsdManager.unregisterService(this) }
+                    } else listener.onServiceRegistered(serviceInfo.serviceName)
+                }
+            }
+
+            override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                synchronized(this@AndroidNaviampConnectAdvertisingEffect) {
+                    if (registration !== this) return
+                    registration = null
+                    listener.onRegistrationFailed("Android could not advertise this Naviamp target (error $errorCode).")
+                }
+            }
+
+            override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) = Unit
+
+            override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                // This callback belongs to this native handle, even after a replacement starts.
+                listener.onRegistrationFailed("Android could not stop advertising this Naviamp target (error $errorCode).")
+            }
+        }
+        registration = request
         return try {
-            nsdManager.registerService(
-                serviceInfo,
-                NsdManager.PROTOCOL_DNS_SD,
-                registrationListener,
-            )
+            nsdManager.registerService(service.toAndroidNsdServiceInfo(), NsdManager.PROTOCOL_DNS_SD, request)
             NaviampConnectAdvertisingStartResult.Started
         } catch (_: SecurityException) {
-            clearLocked()
+            registration = null
             NaviampConnectAdvertisingStartResult.PermissionDenied
         } catch (error: RuntimeException) {
-            clearLocked()
+            registration = null
             NaviampConnectAdvertisingStartResult.Unavailable(
                 error.message ?: "Android network service registration is unavailable.",
             )
@@ -72,24 +63,9 @@ class AndroidNaviampConnectAdvertisingEffect(context: Context) : NaviampConnectA
 
     @Synchronized
     override fun stop() {
-        active = false
-        listener = null
-        if (registrationRequested) runCatching { nsdManager.unregisterService(registrationListener) }
-        registrationRequested = false
-    }
-
-    @Synchronized
-    private fun failRegistration(message: String) {
-        if (!active) return
-        val currentListener = listener
-        clearLocked()
-        currentListener?.onRegistrationFailed(message)
-    }
-
-    private fun clearLocked() {
-        active = false
-        registrationRequested = false
-        listener = null
+        val request = registration ?: return
+        registration = null
+        runCatching { nsdManager.unregisterService(request) }
     }
 }
 

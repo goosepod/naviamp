@@ -36,6 +36,7 @@ interface NaviampConnectDiscoveryListener {
     fun onServiceResolved(service: NaviampConnectResolvedService)
     fun onServiceLost(serviceName: String)
     fun onDiscoveryFailed(message: String)
+    fun onDiscoveryUnavailable(message: String) = onDiscoveryFailed(message)
     fun onPermissionDenied() = onDiscoveryFailed("Permission denied")
 }
 
@@ -155,6 +156,13 @@ class NaviampConnectDiscoveryController(
     override fun onPermissionDenied() {
         effect.stop()
         mutableState.value = NaviampConnectDiscoveryState(problem = NaviampConnectDiscoveryProblem.PermissionDenied)
+    }
+
+    override fun onDiscoveryUnavailable(message: String) {
+        effect.stop()
+        mutableState.value = NaviampConnectDiscoveryState(
+            problem = NaviampConnectDiscoveryProblem.Unavailable(message),
+        )
     }
 
     override fun onDiscoveryFailed(message: String) {

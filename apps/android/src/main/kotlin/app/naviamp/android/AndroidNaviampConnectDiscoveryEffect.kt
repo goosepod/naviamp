@@ -14,16 +14,18 @@ import app.naviamp.domain.connect.NaviampConnectServiceType
 class AndroidNaviampConnectDiscoveryEffect(context: Context) : NaviampConnectDiscoveryEffect {
     private val nsdManager = context.applicationContext.getSystemService(NsdManager::class.java)
     private val pendingResolutions = ArrayDeque<NsdServiceInfo>()
-    private var listener: NaviampConnectDiscoveryListener? = null
-    private var discovering = false
+    private var discovery: NativeDiscovery? = null
+    // Legacy NsdManager.resolveService permits only one in-flight resolution. Keep that native
+    // lifetime across browse restarts; its callback releases the slot for the current request.
     private var resolving = false
 
-    private val discoveryListener = object : NsdManager.DiscoveryListener {
+    private inner class NativeDiscovery(val listener: NaviampConnectDiscoveryListener) : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(serviceType: String) = Unit
+        override fun onDiscoveryStopped(serviceType: String) = Unit
 
         override fun onServiceFound(serviceInfo: NsdServiceInfo) {
             synchronized(this@AndroidNaviampConnectDiscoveryEffect) {
-                if (!discovering || serviceInfo.serviceType.trimEnd('.') != NaviampConnectServiceType) return
+                if (discovery !== this || serviceInfo.serviceType.trimEnd('.') != NaviampConnectServiceType) return
                 pendingResolutions.addLast(serviceInfo)
                 resolveNextLocked()
             }
@@ -31,40 +33,35 @@ class AndroidNaviampConnectDiscoveryEffect(context: Context) : NaviampConnectDis
 
         override fun onServiceLost(serviceInfo: NsdServiceInfo) {
             synchronized(this@AndroidNaviampConnectDiscoveryEffect) {
+                if (discovery !== this) return
                 pendingResolutions.removeAll { it.serviceName == serviceInfo.serviceName }
-                listener?.onServiceLost(serviceInfo.serviceName)
+                listener.onServiceLost(serviceInfo.serviceName)
             }
         }
 
         override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-            failDiscovery("Android could not start local target discovery (error $errorCode).",
+            failDiscovery(this, "Android could not start local target discovery (error $errorCode).",
                 permissionDenied = errorCode == AndroidNsdPermissionDenied)
         }
 
         override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
-            failDiscovery("Android could not stop local target discovery (error $errorCode).")
+            failDiscovery(this, "Android could not stop local target discovery (error $errorCode).")
         }
-
-        override fun onDiscoveryStopped(serviceType: String) = Unit
     }
 
     @Synchronized
     override fun start(listener: NaviampConnectDiscoveryListener): NaviampConnectDiscoveryStartResult {
-        if (discovering) return NaviampConnectDiscoveryStartResult.Started
-        this.listener = listener
-        discovering = true
+        if (discovery != null) return NaviampConnectDiscoveryStartResult.Started
+        val request = NativeDiscovery(listener)
+        discovery = request
         return try {
-            nsdManager.discoverServices(
-                NaviampConnectServiceType,
-                NsdManager.PROTOCOL_DNS_SD,
-                discoveryListener,
-            )
+            nsdManager.discoverServices(NaviampConnectServiceType, NsdManager.PROTOCOL_DNS_SD, request)
             NaviampConnectDiscoveryStartResult.Started
         } catch (_: SecurityException) {
-            clearLocked()
+            discovery = null
             NaviampConnectDiscoveryStartResult.PermissionDenied
         } catch (error: RuntimeException) {
-            clearLocked()
+            discovery = null
             NaviampConnectDiscoveryStartResult.Unavailable(
                 error.message ?: "Android network service discovery is unavailable.",
             )
@@ -73,66 +70,53 @@ class AndroidNaviampConnectDiscoveryEffect(context: Context) : NaviampConnectDis
 
     @Synchronized
     override fun stop() {
-        if (!discovering) {
-            clearLocked()
-            return
-        }
-        discovering = false
+        val request = discovery
+        discovery = null
         pendingResolutions.clear()
-        runCatching { nsdManager.stopServiceDiscovery(discoveryListener) }
-        clearLocked()
+        if (request != null) runCatching { nsdManager.stopServiceDiscovery(request) }
     }
 
     @Suppress("DEPRECATION")
     private fun resolveNextLocked() {
-        if (!discovering || resolving) return
+        val request = discovery ?: return
+        if (resolving) return
         val service = pendingResolutions.removeFirstOrNull() ?: return
         resolving = true
         try {
-            nsdManager.resolveService(
-                service,
-                object : NsdManager.ResolveListener {
-                    override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+            nsdManager.resolveService(service, object : NsdManager.ResolveListener {
+                override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                    synchronized(this@AndroidNaviampConnectDiscoveryEffect) {
                         if (errorCode == AndroidNsdPermissionDenied) {
-                            failDiscovery("Permission denied", permissionDenied = true)
-                        } else {
-                            finishResolution(null)
+                            failDiscovery(request, "Permission denied", permissionDenied = true)
                         }
+                        finishResolution(request, null)
                     }
+                }
 
-                    override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                        finishResolution(serviceInfo.toNaviampConnectResolvedService())
-                    }
-                },
-            )
+                override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
+                    finishResolution(request, serviceInfo.toNaviampConnectResolvedService())
+                }
+            })
         } catch (_: SecurityException) {
-            failDiscovery("Permission denied", permissionDenied = true)
+            failDiscovery(request, "Permission denied", permissionDenied = true)
+            finishResolution(request, null)
         } catch (_: RuntimeException) {
-            resolving = false
-            resolveNextLocked()
+            finishResolution(request, null)
         }
     }
 
     @Synchronized
-    private fun finishResolution(service: NaviampConnectResolvedService?) {
+    private fun finishResolution(request: NativeDiscovery, service: NaviampConnectResolvedService?) {
         resolving = false
-        if (discovering && service != null) listener?.onServiceResolved(service)
+        if (discovery === request && service != null) request.listener.onServiceResolved(service)
         resolveNextLocked()
     }
 
     @Synchronized
-    private fun failDiscovery(message: String, permissionDenied: Boolean = false) {
-        if (!discovering) return
-        val currentListener = listener
+    private fun failDiscovery(request: NativeDiscovery, message: String, permissionDenied: Boolean = false) {
+        if (discovery !== request) return
         stop()
-        if (permissionDenied) currentListener?.onPermissionDenied() else currentListener?.onDiscoveryFailed(message)
-    }
-
-    private fun clearLocked() {
-        discovering = false
-        resolving = false
-        pendingResolutions.clear()
-        listener = null
+        if (permissionDenied) request.listener.onPermissionDenied() else request.listener.onDiscoveryFailed(message)
     }
 }
 

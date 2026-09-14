@@ -16,6 +16,40 @@ class NaviampCoreConnectPeerTest {
     @Test
     fun incomingControllerReplacesAnActiveOutgoingSessionWithoutChangingTheLocalQueue() = reversePeers(disconnectFirst = false)
 
+    @Test
+    fun pairingStopRenewalAndExpiryPreserveTheLiveSessionAndPlaybackUpdates() = runTest {
+        val network = ConnectTestNetwork()
+        val phone = connectPeer("phone", "mac", network)
+        val mac = connectPeer("mac", "phone", network, configure = { it.copy(pairingLifetimeMillis = 10_000) })
+        try {
+            runCurrent()
+            phone.actions.shell.connectActions!!.onTrustedDeviceSelected(phone.state.value.shell.connect.trustedDevices.single())
+            runCurrent()
+            repeat(3) { pass ->
+                when (pass) {
+                    0 -> mac.actions.shell.connectActions!!.onStartPairingMode()
+                    1 -> mac.actions.shell.connectActions!!.onStopPairingMode()
+                    2 -> mac.actions.shell.connectActions!!.onStartPairingMode()
+                }
+                mac.actions.shell.connectActions!!.onRefreshTargets()
+                phone.actions.shell.connectActions!!.onRefreshTargets()
+                runCurrent()
+                advanceTimeBy(21_000)
+                runCurrent()
+                val track = app.naviamp.domain.Track(id = app.naviamp.domain.TrackId("track-$pass"), title = "Track $pass",
+                    artistName = "Artist", albumTitle = "Album", durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
+                mac.updateLivePlayback { it.copy(currentTrack = track, queue = app.naviamp.domain.queue.PlaybackQueue(listOf(track), 0)) }
+                advanceTimeBy(1_000)
+                runCurrent()
+                assertEquals("mac", phone.state.value.shell.connect.connectedTargetName)
+                assertEquals("phone", mac.state.value.shell.connect.connectedControllerName)
+                assertEquals("Track $pass", phone.state.value.shell.connect.remoteTrackTitle)
+                assertEquals(1, network.connectCount, "Pairing lifecycle must not require a reconnect")
+            }
+            assertTrue(network.advertisingStarts.getValue("mac") >= 5, "Expiry must exercise advertisement renewal")
+        } finally { phone.close(); mac.close(); runCurrent() }
+    }
+
     private fun reversePeers(disconnectFirst: Boolean) = runTest {
         val network = ConnectTestNetwork()
         val phone = connectPeer("phone", "mac", network)
@@ -60,6 +94,7 @@ class NaviampCoreConnectPeerTest {
     }
 }
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 internal fun TestScope.connectPeer(
     id: String, peerId: String, network: ConnectTestNetwork,
     source: NaviampCoreProviderSessionPort? = null,
@@ -85,6 +120,7 @@ internal fun TestScope.connectPeer(
     val base = fakeCoreServices()
     return NaviampCore.create(this, base.copy(connection = source ?: base.connection,
         connect = configure(NaviampCoreConnectServices(
+        networkDispatcher = StandardTestDispatcher(testScheduler),
         deviceCapabilities = NaviampCoreBidirectionalConnectCapabilities, displayName = id,
         identity = object : NaviampConnectDeviceIdentityEffect {
             override fun loadOrCreate() = NaviampConnectDeviceIdentity(id, id, id)

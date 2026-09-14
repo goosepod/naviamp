@@ -74,3 +74,6 @@ The affected JVM suites passed: domain 919, app 210, presentation 375, and UI 36
 (1,870 total, zero failures/errors/skips). Shared Android, JVM, iOS ARM64, and iOS Simulator ARM64 compilation passed, as did the architecture
 guard and Android/macOS packaging. After the final advertisement-lifetime change, all 375 presentation
 tests and those compilation/packaging checks passed again; the unchanged domain/app/UI results stand.
+
+Follow-up: [#81](connect-follow-up-81.md) now records the shared nonblocking DNS-SD lifecycle fix,
+session-preserving discovery refresh, and passing bounded Pixel/Mac retest.
