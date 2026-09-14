@@ -37,7 +37,7 @@ jobs:
         run: scripts/validate-release-tag.sh "$GITHUB_REF_NAME"
 
   android:
-    name: Android signed APK
+    name: Android signed APK and App Bundle
     needs:
       - verification
       - version
@@ -66,7 +66,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/naviamp-signing"
           printf '%s' "$NAVIAMP_ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/naviamp-signing/naviamp-upload.jks"
 
-      - name: Build signed Android release APK
+      - name: Build unified signed Android release
         env:
           NAVIAMP_ANDROID_KEYSTORE: ${{ runner.temp }}/naviamp-signing/naviamp-upload.jks
           NAVIAMP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.NAVIAMP_ANDROID_KEYSTORE_PASSWORD }}
@@ -74,14 +74,16 @@ jobs:
           NAVIAMP_ANDROID_KEY_PASSWORD: ${{ secrets.NAVIAMP_ANDROID_KEY_PASSWORD }}
         run: |
           scripts/require-android-signing.sh
-          ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :apps:android:stageReleaseApk
+          ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :apps:android:stageReleaseArtifacts
 
-      - name: Upload Android APK artifact
+      - name: Upload Android release artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: naviamp-android-apk
+          name: naviamp-android
           if-no-files-found: error
-          path: apps/android/build/release-artifacts/*.apk
+          path: |
+            apps/android/build/release-artifacts/*.apk
+            apps/android/build/release-artifacts/*.aab
 
   windows:
     name: Windows zip and installers

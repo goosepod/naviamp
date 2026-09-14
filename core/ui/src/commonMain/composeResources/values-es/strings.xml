@@ -667,8 +667,8 @@
     <string name="tv_line_synced">Sincronizadas por línea</string>
     <string name="tv_word_synced">Sincronizadas por palabra</string>
     <string name="tv_match_preferred_lyrics">Usar letras preferidas</string>
-    <string name="tv_restoring_naviamp_tv">Restaurando Naviamp TV</string>
-    <string name="tv_set_up_naviamp_tv">Configurar Naviamp TV</string>
+    <string name="tv_restoring_naviamp_tv">Restaurando Naviamp</string>
+    <string name="tv_set_up_naviamp_tv">Configurar Naviamp</string>
     <string name="tv_direct_setup_description">Conéctate directamente desde este televisor. Emparejar un teléfono u ordenador seguirá siendo opcional.</string>
     <string name="tv_keyboard_navigation_hint">Al escribir, elige Siguiente en el teclado del televisor para avanzar. Usa Atrás o Esc para cerrar el teclado.</string>
     <string name="tv_set_up_from_a_phone_or_computer">Configurar desde un teléfono u ordenador</string>
@@ -839,7 +839,7 @@
     <string name="connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority">Este dispositivo no pudo resolver todas las pistas, por lo que el dispositivo mantuvo el control de reproducción.</string>
     <string name="connect_status_the_tv_queue_is_now_playing_on_this_device">La cola del dispositivo ahora se reproduce en este dispositivo.</string>
     <string name="tv_paired_device">Dispositivo Naviamp emparejado</string>
-    <string name="connect_target_default_name">Naviamp TV</string>
+    <string name="connect_target_default_name">Naviamp</string>
     <string name="tv_alphabetical_sort">A–Z</string>
     <plurals name="tv_item_count">
         <item quantity="one">%1$d elemento</item>

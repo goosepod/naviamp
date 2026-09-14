@@ -234,7 +234,9 @@ make android-debug
   shared/provider/platform tests, native playback verification, and aggregate coverage.
 - `make coverage` verifies the aggregate coverage floor and writes a browsable report.
 - `make macos-test` builds, stages, and opens a local macOS app.
-- `make android-debug` builds the Android debug APK.
+- `make android-debug` builds one Android debug APK for phones, tablets, and Android TV.
+- `./gradlew :apps:android:stageReleaseArtifacts` stages the unified Android APK and Google Play
+  App Bundle; see [Android distribution](docs/android-distribution.md).
 - Windows and Linux standalone/installer targets must run on their respective operating systems.
 
 The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared

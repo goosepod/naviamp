@@ -27,8 +27,8 @@ help:
 	@printf "  make linux-installer     Build Linux DEB/RPM packages\n\n"
 	@printf "Android:\n"
 	@printf "  make android-debug       Build debug APK\n"
-	@printf "  make android-release     Build release APK/AAB tasks configured by Gradle\n\n"
-	@printf "  make android-play-release Build signed release AAB for Google Play\n\n"
+	@printf "  make android-release     Stage unified phone/tablet/TV APK and AAB\n\n"
+	@printf "  make android-play-release Stage the same APK/AAB with required release signing\n\n"
 	@printf "Android Auto DHU:\n"
 	@printf "  make android-auto-dhu    Install debug APK, start head unit server, and launch DHU\n"
 	@printf "  make android-auto-start  Start head unit server and launch DHU without reinstalling\n"
@@ -145,12 +145,12 @@ android-debug:
 
 .PHONY: android-release
 android-release:
-	$(GRADLE) $(GRADLE_COMMON) :apps:android:assembleRelease :apps:android:bundleRelease
+	$(GRADLE) $(GRADLE_COMMON) :apps:android:stageReleaseArtifacts
 
 .PHONY: android-play-release
 android-play-release:
 	scripts/require-android-signing.sh
-	$(GRADLE) $(GRADLE_COMMON) :apps:android:bundleRelease
+	$(GRADLE) $(GRADLE_COMMON) :apps:android:stageReleaseArtifacts
 
 .PHONY: android-auto-dhu
 android-auto-dhu:

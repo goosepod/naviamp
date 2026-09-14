@@ -699,8 +699,8 @@
     <string name="tv_line_synced">Line synced</string>
     <string name="tv_word_synced">Word synced</string>
     <string name="tv_match_preferred_lyrics">Match preferred lyrics</string>
-    <string name="tv_restoring_naviamp_tv">Restoring Naviamp TV</string>
-    <string name="tv_set_up_naviamp_tv">Set up Naviamp TV</string>
+    <string name="tv_restoring_naviamp_tv">Restoring Naviamp</string>
+    <string name="tv_set_up_naviamp_tv">Set up Naviamp</string>
     <string name="tv_direct_setup_description">Connect directly from this TV. Pairing a phone or computer will remain optional.</string>
     <string name="tv_keyboard_navigation_hint">While typing, choose Next on the TV keyboard to advance. Use Back or Esc to close the keyboard.</string>
     <string name="tv_set_up_from_a_phone_or_computer">Set up from a phone or computer</string>
@@ -871,7 +871,7 @@
     <string name="connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority">This device could not resolve every track, so the device kept playback authority.</string>
     <string name="connect_status_the_tv_queue_is_now_playing_on_this_device">The device queue is now playing on this device.</string>
     <string name="tv_paired_device">Paired Naviamp device</string>
-    <string name="connect_target_default_name">Naviamp TV</string>
+    <string name="connect_target_default_name">Naviamp</string>
     <string name="tv_alphabetical_sort">A–Z</string>
     <plurals name="tv_item_count">
         <item quantity="one">%1$d item</item>

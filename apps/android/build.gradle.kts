@@ -188,17 +188,30 @@ tasks.register("verifyDebugBassNativePackage") {
     }
 }
 
-tasks.register<Sync>("stageReleaseApk") {
+tasks.register<Sync>("stageReleaseArtifacts") {
     group = "distribution"
-    description = "Builds and stages the signed Android APK with the complete semantic version in its filename."
-    dependsOn("assembleRelease")
+    description = "Stages one phone/tablet/TV Android release as an APK and Google Play App Bundle."
+    dependsOn("assembleRelease", "bundleRelease")
     from(layout.buildDirectory.dir("outputs/apk/release")) {
         include("*.apk")
         rename { "Naviamp-$naviampVersionName-android.apk" }
     }
+    from(layout.buildDirectory.dir("outputs/bundle/release")) {
+        include("*.aab")
+        rename { "Naviamp-$naviampVersionName-android.aab" }
+    }
     into(layout.buildDirectory.dir("release-artifacts"))
     doLast {
-        val artifact = layout.buildDirectory.file("release-artifacts/Naviamp-$naviampVersionName-android.apk").get().asFile
-        check(artifact.isFile) { "Versioned Android release APK was not produced: ${artifact.absolutePath}" }
+        listOf("apk", "aab").forEach { extension ->
+            val artifact = layout.buildDirectory.file("release-artifacts/Naviamp-$naviampVersionName-android.$extension").get().asFile
+            check(artifact.isFile) { "Versioned Android release artifact was not produced: ${artifact.absolutePath}" }
+        }
     }
+}
+
+// Preserve existing local automation while routing every distribution build through one owner.
+tasks.register("stageReleaseApk") {
+    group = "distribution"
+    description = "Compatibility alias for stageReleaseArtifacts (Android APK and App Bundle)."
+    dependsOn("stageReleaseArtifacts")
 }
