@@ -146,4 +146,5 @@
     <string name="smart_playlist_refresh_delay_invalid">Użyj prawidłowego czasu, np. 12h, 1d lub 1w.</string>
     <string name="connect_pairing_code">Kod parowania</string>
     <string name="connect_devices_description">Steruj urządzeniami Naviamp w tej sieci i paruj je</string>
+    <string name="connect_setup_timed_out">Upłynął limit czasu konfiguracji. Sprawdź urządzenie odtwarzające i spróbuj ponownie.</string>
 </resources>

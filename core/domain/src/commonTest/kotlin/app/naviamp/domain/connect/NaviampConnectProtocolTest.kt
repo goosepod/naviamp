@@ -10,6 +10,19 @@ import kotlin.test.assertTrue
 
 class NaviampConnectProtocolTest {
     @Test
+    fun setupRejectionIsAdditiveAndLegacyFailureRemainsUnclassified() {
+        val result = NaviampConnectConnectionProvisioningResult(false, "", "setup", rejected = true)
+        val envelope = NaviampConnectEnvelope(1, "session", 1, message = result)
+        val encoded = NaviampConnectWireCodec.encode(envelope)
+        assertEquals(envelope, NaviampConnectWireCodec.decode(encoded))
+        val legacy = encoded.replace(",\"rejected\":true", "")
+        val decoded = NaviampConnectWireCodec.decode(legacy).message as NaviampConnectConnectionProvisioningResult
+        assertFalse(decoded.rejected)
+        assertFalse(decoded.succeeded)
+        assertEquals("setup", decoded.setupId)
+    }
+
+    @Test
     fun initialSetupAuthorizationAndResultsAreAdditiveAndCorrelated() {
         val oldWelcome = NaviampConnectWelcome("session", 1, targetDevice(), emptySet(), snapshot(0))
         val offered = oldWelcome.copy(initialSetupAllowed = true)

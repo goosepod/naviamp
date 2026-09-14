@@ -15,9 +15,14 @@ metadata on both peers, heartbeat survival past the reconnect deadline, detach, 
 and remote Now Playing labels for every connection status with and without playback authority.
 All production edits are in common Core code; there are no host adapter or settings/schema changes.
 
-Physical acceptance remains pending while the Pixel is unplugged: repeat the outgoing disconnect /
-incoming controller sequence, verify local output labels and controls, detach, and confirm target
-playback continues. Do not close [#79](https://github.com/goosepod/naviamp/issues/79) until that pass.
+Physical acceptance passed on September 14 with the updated Pixel 10a and Mac development app.
+The Pixel first entered a disconnected outgoing session. The Mac then reconnected as controller;
+the Pixel player no longer showed the Mac output badge, and its output menu selected
+`Playback device: Pixel 10a`. The retained local “Jumpin’ Jack” queue resumed on the Pixel.
+Mac Pause held the Pixel at 2:09; Resume followed by detach let the Pixel continue to 2:23.
+Trusted reconnect succeeded while it continued to 2:43. Both queues were paused at cleanup.
+The disconnection trigger was the independently tracked DNS-SD stop stall in
+[#81](https://github.com/goosepod/naviamp/issues/81).
 
 Verification: full presentation and UI JVM suites passed, along with presentation/shared UI Android,
 iOS ARM64, and iOS Simulator ARM64 compilation and `verifyCoreFirstArchitecture`.

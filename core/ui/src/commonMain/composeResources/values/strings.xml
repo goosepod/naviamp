@@ -888,4 +888,5 @@
     <string name="now_playing_playback_device">Playback device: %1$s</string>
     <string name="connect_pairing_code">Pairing code</string>
     <string name="connect_devices_description">Control and pair Naviamp devices on this network</string>
+    <string name="connect_setup_timed_out">Device setup timed out. Check the playback device, then retry.</string>
 </resources>

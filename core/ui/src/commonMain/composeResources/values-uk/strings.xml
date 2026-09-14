@@ -27,4 +27,5 @@
     <string name="smart_playlist_refresh_delay_invalid">Вкажіть дійсну тривалість, наприклад 12h, 1d або 1w.</string>
     <string name="connect_pairing_code">Код сполучення</string>
     <string name="connect_devices_description">Керуйте пристроями Naviamp у цій мережі та створюйте пари</string>
+    <string name="connect_setup_timed_out">Час налаштування пристрою минув. Перевірте пристрій відтворення та спробуйте знову.</string>
 </resources>

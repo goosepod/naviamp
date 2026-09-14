@@ -27,4 +27,5 @@
     <string name="smart_playlist_refresh_delay_invalid">12h、1d、1w などの有効な期間を入力してください。</string>
     <string name="connect_pairing_code">ペアリングコード</string>
     <string name="connect_devices_description">このネットワーク上のNaviampデバイスを操作・ペアリング</string>
+    <string name="connect_setup_timed_out">デバイスの設定がタイムアウトしました。再生デバイスを確認してから、もう一度お試しください。</string>
 </resources>

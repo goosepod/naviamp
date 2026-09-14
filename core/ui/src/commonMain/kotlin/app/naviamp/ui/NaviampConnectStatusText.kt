@@ -47,6 +47,7 @@ enum class NaviampConnectStatusText(val resource: StringResource) {
     TvSetupCompletedSecurely(Res.string.connect_status_tv_setup_completed_securely),
     CouldNotValidateThatConnectionCheckTheServerAndCredentialThenRetry(Res.string.connect_status_could_not_validate_that_connection_check_the_server_and_credential_then_retry),
     ConnectionSetupRequestRejected(Res.string.connect_status_connection_setup_request_rejected),
+    SetupTimedOut(Res.string.connect_setup_timed_out),
     TheTvDidNotPauseSoItsQueueWasLeftInPlace(Res.string.connect_status_the_tv_did_not_pause_so_its_queue_was_left_in_place),
     ThisDeviceCouldNotResolveEveryTrackSoTheTvKeptPlaybackAuthority(Res.string.connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority),
     TheTvQueueIsNowPlayingOnThisDevice(Res.string.connect_status_the_tv_queue_is_now_playing_on_this_device),

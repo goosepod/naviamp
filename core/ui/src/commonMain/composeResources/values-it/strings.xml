@@ -27,4 +27,5 @@
     <string name="smart_playlist_refresh_delay_invalid">Usa una durata valida come 12h, 1d o 1w.</string>
     <string name="connect_pairing_code">Codice di abbinamento</string>
     <string name="connect_devices_description">Controlla e abbina i dispositivi Naviamp su questa rete</string>
+    <string name="connect_setup_timed_out">Tempo scaduto per la configurazione. Controlla il dispositivo di riproduzione e riprova.</string>
 </resources>

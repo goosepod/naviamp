@@ -27,4 +27,5 @@
     <string name="smart_playlist_refresh_delay_invalid">Gebruik een geldige duur zoals 12h, 1d of 1w.</string>
     <string name="connect_pairing_code">Koppelingscode</string>
     <string name="connect_devices_description">Naviamp-apparaten op dit netwerk bedienen en koppelen</string>
+    <string name="connect_setup_timed_out">De apparaatconfiguratie duurde te lang. Controleer het afspeelapparaat en probeer het opnieuw.</string>
 </resources>

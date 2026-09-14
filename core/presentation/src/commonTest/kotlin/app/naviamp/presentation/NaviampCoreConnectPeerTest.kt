@@ -60,7 +60,12 @@ class NaviampCoreConnectPeerTest {
     }
 }
 
-internal fun TestScope.connectPeer(id: String, peerId: String, network: ConnectTestNetwork): NaviampCore {
+internal fun TestScope.connectPeer(
+    id: String, peerId: String, network: ConnectTestNetwork,
+    source: NaviampCoreProviderSessionPort? = null,
+    preTrusted: Boolean = true,
+    configure: (NaviampCoreConnectServices) -> NaviampCoreConnectServices = { it },
+): NaviampCore {
     var storedTrust: String? = null
     val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
         override fun read() = storedTrust
@@ -68,14 +73,18 @@ internal fun TestScope.connectPeer(id: String, peerId: String, network: ConnectT
     })
     val peer = NaviampConnectDevice(peerId, peerId, NaviampConnectDeviceRole.Target,
         deviceCapabilities = NaviampCoreBidirectionalConnectCapabilities)
-    trust.upsert(NaviampConnectTrustRecord("trusted-$peerId", peer, peerId, peerId, 1L))
+    if (preTrusted) trust.upsert(NaviampConnectTrustRecord("trusted-$peerId", peer, peerId, peerId, 1L))
+    val secrets = mutableMapOf<String, ByteArray>()
+    if (preTrusted) secrets[peerId] = ByteArray(32) { 1 }
     val credentials = NaviampConnectSessionCredentialRepository(object : NaviampConnectSessionCredentialStorageEffect {
-        override fun read(peerDeviceId: String) = ByteArray(32) { 1 }
-        override fun write(peerDeviceId: String, value: ByteArray) = Unit
-        override fun remove(peerDeviceId: String) = Unit
+        override fun read(peerDeviceId: String) = secrets[peerDeviceId]?.copyOf()
+        override fun write(peerDeviceId: String, value: ByteArray) { secrets[peerDeviceId] = value.copyOf() }
+        override fun remove(peerDeviceId: String) { secrets.remove(peerDeviceId)?.fill(0) }
     })
     var opaqueId = 0
-    return NaviampCore.create(this, fakeCoreServices().copy(connect = NaviampCoreConnectServices(
+    val base = fakeCoreServices()
+    return NaviampCore.create(this, base.copy(connection = source ?: base.connection,
+        connect = configure(NaviampCoreConnectServices(
         deviceCapabilities = NaviampCoreBidirectionalConnectCapabilities, displayName = id,
         identity = object : NaviampConnectDeviceIdentityEffect {
             override fun loadOrCreate() = NaviampConnectDeviceIdentity(id, id, id)
@@ -103,10 +112,12 @@ internal fun TestScope.connectPeer(id: String, peerId: String, network: ConnectT
             }
         },
         newOpaqueId = { "$id-${++opaqueId}" }, newPairingCode = { "123456" }, nowEpochMillis = { testScheduler.currentTime },
-    )))
+    ))), initialState = NaviampCoreInitialState(connectionInventory = source?.initialInventory() ?: NaviampCoreConnectionInventory()))
 }
 
 internal class ConnectTestNetwork {
+    val advertisingStarts = mutableMapOf<String, Int>()
+    val advertisingStops = mutableMapOf<String, Int>()
     private val listeners = mutableMapOf<String, Channel<NaviampConnectTransportConnection>>()
     private val advertisements = mutableMapOf<String, NaviampConnectRegistrationService>()
     private val discoveries = mutableSetOf<NaviampConnectDiscoveryListener>()
@@ -143,12 +154,16 @@ internal class ConnectTestNetwork {
     }
     fun advertising(id: String) = object : NaviampConnectAdvertisingEffect {
         override fun start(service: NaviampConnectRegistrationService, listener: NaviampConnectAdvertisingListener): NaviampConnectAdvertisingStartResult {
+            advertisingStarts[id] = (advertisingStarts[id] ?: 0) + 1
             advertisements[id] = service
             listener.onServiceRegistered(service.serviceName)
             discoveries.toList().forEach { it.onServiceResolved(resolved(id, service)) }
             return NaviampConnectAdvertisingStartResult.Started
         }
-        override fun stop() { advertisements.remove(id) }
+        override fun stop() {
+            advertisingStops[id] = (advertisingStops[id] ?: 0) + 1
+            advertisements.remove(id)
+        }
     }
     fun discovery() = object : NaviampConnectDiscoveryEffect {
         private var listener: NaviampConnectDiscoveryListener? = null

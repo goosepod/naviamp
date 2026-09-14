@@ -27,4 +27,5 @@
     <string name="smart_playlist_refresh_delay_invalid">Укажите допустимую длительность, например 12h, 1d или 1w.</string>
     <string name="connect_pairing_code">Код сопряжения</string>
     <string name="connect_devices_description">Управление устройствами Naviamp в этой сети и сопряжение с ними</string>
+    <string name="connect_setup_timed_out">Время настройки устройства истекло. Проверьте устройство воспроизведения и повторите попытку.</string>
 </resources>

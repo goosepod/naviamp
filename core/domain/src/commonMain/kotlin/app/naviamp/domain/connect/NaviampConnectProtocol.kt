@@ -524,6 +524,8 @@ data class NaviampConnectConnectionProvisioningResult(
     val succeeded: Boolean,
     val message: String,
     val setupId: String? = null,
+    /** Additive: older peers report only validation success/failure. Never infer rejection from copy. */
+    val rejected: Boolean = false,
 ) : NaviampConnectMessage
 
 @Serializable

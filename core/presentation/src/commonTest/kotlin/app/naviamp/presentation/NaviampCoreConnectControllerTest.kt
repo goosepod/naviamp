@@ -977,7 +977,8 @@ class NaviampCoreConnectControllerTest {
         advanceTimeBy(60_001)
         runCurrent()
         assertFalse(store.state.value.shell.connect.provisioningBusy)
-        assertTrue(store.state.value.shell.connect.needsProvisioningCredential)
+        assertFalse(store.state.value.shell.connect.needsProvisioningCredential)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.SetupTimedOut, store.state.value.shell.connect.statusMessage?.text)
         controller.close()
     }
 

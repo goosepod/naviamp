@@ -230,7 +230,9 @@ handoff, controls, reconnect, and controller-independent playback acceptance. No
 by that setup/discovery attempt. The subsequent shared UI implementation and physical phone/Mac
 smoke results are recorded in [the September 14 acceptance report](connect-phone-macos-acceptance-2026-09-14.md).
 Basic direct-LAN control now passes in both directions; the full topology row remains open for the
-reported setup/role-switch findings and broader recovery coverage.
+broader recovery coverage. The setup and role-switch findings subsequently passed their bounded
+physical retests ([#79](connect-follow-up-79.md), [#80](connect-follow-up-80.md)); explicit DNS-SD
+stop/renewal remains tracked in [#81](https://github.com/goosepod/naviamp/issues/81).
 
 - [x] Enforce TV as playback-target-only in the shared capability policy and Android TV host
   configuration.

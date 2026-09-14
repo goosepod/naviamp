@@ -27,4 +27,5 @@
     <string name="smart_playlist_refresh_delay_invalid">请输入有效时长，例如 12h、1d 或 1w。</string>
     <string name="connect_pairing_code">配对码</string>
     <string name="connect_devices_description">控制和配对此网络上的 Naviamp 设备</string>
+    <string name="connect_setup_timed_out">设备设置超时。请检查播放设备，然后重试。</string>
 </resources>
