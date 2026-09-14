@@ -889,4 +889,13 @@
     <string name="connect_pairing_code">Pairing code</string>
     <string name="connect_devices_description">Control and pair Naviamp devices on this network</string>
     <string name="connect_setup_timed_out">Device setup timed out. Check the playback device, then retry.</string>
+    <string name="changelog_features">Features</string>
+    <string name="changelog_improvements">Improvements</string>
+    <string name="changelog_bug_fixes">Bug fixes</string>
+    <string name="changelog_known_issues">Known issues</string>
+    <string name="changelog_260_tv">Android TV and Google TV support (beta): browse, search, manage your queue, and play music with a remote. One Android app automatically adapts to phones, tablets, and TVs.</string>
+    <string name="changelog_260_connect">Naviamp Connect (beta): pair Android and desktop devices on your local network to control playback, transfer queues, and set up another device.</string>
+    <string name="changelog_260_screen_awake">Choose whether Naviamp keeps the screen awake while the app is open. The preference is included in settings export, import, and sync.</string>
+    <string name="changelog_260_playback_recovery">Improve playback recovery after audio interruptions and keep interrupted live radio streams available to retry.</string>
+    <string name="changelog_260_beta">Android TV and Naviamp Connect are beta. Device compatibility, network recovery, and performance are still being refined.</string>
 </resources>

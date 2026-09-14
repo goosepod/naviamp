@@ -183,8 +183,8 @@ data class NaviampAboutUi(
 )
 
 data class NaviampChangelogSectionUi(
-    val title: String,
-    val entries: List<String>,
+    val title: org.jetbrains.compose.resources.StringResource,
+    val entries: List<org.jetbrains.compose.resources.StringResource>,
 )
 
 data class NaviampSavedConnectionUi(
@@ -2142,7 +2142,7 @@ fun NaviampAboutSettingsSection(
                     } else {
                         about.changelog.forEach { section ->
                             Text(
-                                section.title,
+                                stringResource(section.title),
                                 color = colors.primaryText,
                                 fontSize = SettingsDetailRowTitleSize,
                                 fontWeight = FontWeight.SemiBold,
@@ -2154,7 +2154,7 @@ fun NaviampAboutSettingsSection(
                                 ) {
                                     Text("•", color = colors.primaryText, fontSize = SettingsDetailRowSubtitleSize)
                                     Text(
-                                        entry,
+                                        stringResource(entry),
                                         color = colors.secondaryText,
                                         fontSize = SettingsDetailRowSubtitleSize,
                                         modifier = Modifier.weight(1f),
@@ -2655,19 +2655,20 @@ private val DefaultNaviampLibraries = listOf(
 
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
-        title = "Features",
-        entries = listOf(
-            "Keep an active album or playlist group together when using Play Next.",
-            "Use Play Next Track to interrupt a group now and resume its remaining tracks afterward.",
-            "Optionally downmix multichannel audio to a peak-safe stereo output with channel details in Stats for Nerds.",
-        ),
+        title = Res.string.changelog_features,
+        entries = listOf(Res.string.changelog_260_tv, Res.string.changelog_260_connect),
     ),
     NaviampChangelogSectionUi(
-        title = "Bug Fixes",
-        entries = listOf(
-            "Long remote tracks no longer stall waveform analysis by buffering the complete audio file.",
-            "Restoring a long track no longer waits for waveform, lyrics, and tag sidecar work.",
-        ),
+        title = Res.string.changelog_improvements,
+        entries = listOf(Res.string.changelog_260_screen_awake),
+    ),
+    NaviampChangelogSectionUi(
+        title = Res.string.changelog_bug_fixes,
+        entries = listOf(Res.string.changelog_260_playback_recovery),
+    ),
+    NaviampChangelogSectionUi(
+        title = Res.string.changelog_known_issues,
+        entries = listOf(Res.string.changelog_260_beta),
     ),
 )
 

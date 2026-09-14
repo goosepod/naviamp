@@ -6,6 +6,34 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.6.0
+
+Android TV and Naviamp Connect launch as **beta** features.
+
+### Features
+
+- Browse, search, manage queues, and play music on Android TV and Google TV with a remote.
+  The same Android app automatically adapts to phones, tablets, and TVs.
+- Pair Android and desktop devices over the local network with Naviamp Connect to control
+  playback, transfer queues, and set up another device from an existing connection.
+
+### Improvements
+
+- Choose whether Naviamp keeps the screen awake while open; the preference participates in
+  settings export, import, and sync.
+
+### Bug fixes
+
+- Improve audio-interruption recovery and keep interrupted live radio streams retryable.
+
+### Known issues
+
+- Android TV and Connect remain beta. Broader device/network recovery and watched physical-device
+  audio/render performance testing remain ongoing. Connect is currently for Android and desktop.
+- The iOS preview remains unsigned; Windows and macOS packages remain without publisher signing.
+
+See [full release notes](.github/releases/v2.6.0.md) for compatibility and download details.
+
 ## v2.4.1
 
 This urgent patch stops the Windows app from consuming a full logical CPU core while its window is

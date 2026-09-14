@@ -865,4 +865,13 @@
     <string name="connect_pairing_code">Código de emparejamiento</string>
     <string name="connect_devices_description">Controla y empareja dispositivos Naviamp en esta red</string>
     <string name="connect_setup_timed_out">La configuración del dispositivo agotó el tiempo de espera. Comprueba el dispositivo de reproducción y vuelve a intentarlo.</string>
+    <string name="changelog_features">Novedades</string>
+    <string name="changelog_improvements">Mejoras</string>
+    <string name="changelog_bug_fixes">Correcciones</string>
+    <string name="changelog_known_issues">Problemas conocidos</string>
+    <string name="changelog_260_tv">Compatibilidad con Android TV y Google TV (beta): explora, busca, gestiona la cola y reproduce música con un mando. Una sola aplicación Android se adapta automáticamente a teléfonos, tabletas y televisores.</string>
+    <string name="changelog_260_connect">Naviamp Connect (beta): vincula dispositivos Android y de escritorio en tu red local para controlar la reproducción, transferir colas y configurar otro dispositivo.</string>
+    <string name="changelog_260_screen_awake">Elige si Naviamp mantiene la pantalla encendida mientras la aplicación está abierta. La preferencia se incluye al exportar, importar y sincronizar ajustes.</string>
+    <string name="changelog_260_playback_recovery">Mejora la recuperación de la reproducción tras interrupciones de audio y permite reintentar las emisoras de radio en directo interrumpidas.</string>
+    <string name="changelog_260_beta">Android TV y Naviamp Connect están en beta. La compatibilidad con dispositivos, la recuperación de la red y el rendimiento siguen mejorándose.</string>
 </resources>
