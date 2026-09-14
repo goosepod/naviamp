@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.bundling.Zip
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
@@ -37,6 +38,7 @@ val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
     rootProject.layout.buildDirectory.dir("release/$appName")
 }
 val desktopReleaseArtifactsDir = layout.buildDirectory.dir("release-artifacts")
+val desktopDevelopmentDataProfileJvmOption = "-Dnaviamp.developmentDataProfile=true"
 // Per-user packages use a distinct upgrade family so Windows never tries to remove a legacy
 // machine-wide installation (and request elevation) while installing the current-user package.
 val windowsInstallerUpgradeUuid = "75051da2-0b4b-4f67-81d9-56d2e36a6437"
@@ -168,6 +170,12 @@ compose.desktop {
     }
 }
 
+tasks.withType<JavaExec>().configureEach {
+    if (name == "run" || name == "desktopRun") {
+        jvmArgs(desktopDevelopmentDataProfileJvmOption)
+    }
+}
+
 tasks.withType<AbstractJPackageTask>().configureEach {
     when (targetFormat) {
         TargetFormat.Deb -> freeArgs.addAll(
@@ -205,7 +213,8 @@ tasks.matching {
     )
 }.configureEach {
     doLast {
-        val appDirectory = if (name.contains("Release")) {
+        val releaseArtifact = name.contains("Release")
+        val appDirectory = if (releaseArtifact) {
             desktopReleasePackagedAppDir.get().asFile
         } else {
             desktopPackagedAppDir.get().asFile
@@ -213,6 +222,7 @@ tasks.matching {
         syncDesktopNativeAppResources(appDirectory)
         markDesktopVisualizerMetalExecutable(appDirectory)
         patchMacAppBundleVersion(appDirectory)
+        configureDesktopDataProfile(appDirectory, releaseArtifact)
         sealMacAppBundle(appDirectory)
     }
 }
@@ -528,6 +538,26 @@ fun markDesktopVisualizerMetalExecutable(appDirectory: File) {
         .resolve("Contents/app/resources/playback/bass/$platform")
         .resolve(desktopLibraryName("naviamp_visualizer_metal", platform))
     if (visualizer.isFile) visualizer.setExecutable(true, false)
+}
+
+fun configureDesktopDataProfile(appDirectory: File, releaseArtifact: Boolean) {
+    val platform = desktopNativePlatform.get()
+    val launcherConfig = when {
+        platform.startsWith("macos-") -> appDirectory.resolve("Contents/app/Naviamp.cfg")
+        platform.startsWith("linux-") -> appDirectory.resolve("lib/app/Naviamp.cfg")
+        else -> appDirectory.resolve("app/Naviamp.cfg")
+    }
+    check(launcherConfig.isFile) {
+        "Desktop launcher configuration is missing: ${launcherConfig.absolutePath}"
+    }
+    val existing = launcherConfig.readText()
+    if (releaseArtifact) {
+        check(desktopDevelopmentDataProfileJvmOption !in existing) {
+            "Release Desktop launcher must not use the development data profile."
+        }
+    } else if (desktopDevelopmentDataProfileJvmOption !in existing) {
+        launcherConfig.appendText("\njava-options=$desktopDevelopmentDataProfileJvmOption\n")
+    }
 }
 
 fun patchMacAppBundleVersion(appDirectory: File) {
