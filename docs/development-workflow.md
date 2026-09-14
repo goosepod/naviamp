@@ -100,6 +100,20 @@ shorter editorial introduction, but it should link back to the release rather th
 different list of changes. The Discord webhook is notification delivery, not a third changelog that
 must be edited separately.
 
+## Recovering an existing release build
+
+If an external build-tool or runner change breaks packaging after a verified release tag was
+created, fix the workflow through a linked pull request to `main`. Keep the existing tag immutable.
+The **Tag release builds** workflow can be dispatched from accepted `main` with `release_tag` set
+to that existing tag. It uses the corrected workflow while checking out the tagged source in every
+verification and packaging job. The tag must match that source's `VERSION`, the complete verification
+matrix still gates packaging, and publication still creates a draft for review. Leaving the input
+blank builds the selected branch without creating a release.
+
+```shell
+gh workflow run tag-release-builds.yml --ref main -f release_tag=vX.Y.Z
+```
+
 ## Manual Forgejo mirror
 
 Run from a clean clone whose `origin` is GitHub and whose `forgejo` remote is the secondary server:
