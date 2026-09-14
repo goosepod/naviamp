@@ -56,12 +56,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import org.junit.runner.RunWith
+import org.junit.Assume.assumeTrue
 
 @RunWith(AndroidJUnit4::class)
 class AndroidNaviampConnectPairingCrossDeviceInstrumentedTest {
     @Test
     fun pairAccordingToRequestedDeviceRole() {
-        when (InstrumentationRegistry.getArguments().getString("connectRole")) {
+        val role = InstrumentationRegistry.getArguments().getString("connectRole")
+        assumeTrue("Requires a coordinated peer and -e connectRole target|controller.", role != null)
+        when (role) {
             "target" -> runTarget()
             "controller" -> runController()
             else -> error("The cross-device pairing test requires -e connectRole target|controller.")

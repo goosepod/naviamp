@@ -287,11 +287,12 @@ Regression acceptance:
 
 ## Full-screen Now Playing performance
 
-Status: planned
+Status: weekend physical-device performance reported fine; watched performance acceptance deferred
 
-Make the transition into full-screen Now Playing smooth on Android TV. It is visibly choppy on new
-hardware. Profile the transition before changing it, with particular attention to layout and state
-recomposition, artwork/background decoding and effects, waveform work, and simultaneous animation.
+Make the transition into full-screen Now Playing smooth on Android TV. The original report described
+visible choppiness on new hardware. Profile any reproduced transition issue before changing it, with
+particular attention to layout and state recomposition, artwork/background decoding and effects,
+waveform work, and simultaneous animation.
 
 Acceptance criteria:
 
@@ -304,6 +305,11 @@ but its headless graphics stack uses software-rendered Lavapipe/SwANGLE. `gfxinf
 nearly every frame slow and cannot distinguish product work from emulator GPU emulation. No production
 animation change was made from that non-representative evidence. Keep the physical/profileable-device
 performance acceptance open.
+
+September 14 maintainer update: performance seemed fine during physical-TV testing over the weekend.
+The earlier choppiness is not currently confirmed as reproducible. A watched performance pass on a
+real device remains open for later, when hardware testing is available; this informal observation
+does not mark the formal performance acceptance gate complete or justify speculative animation changes.
 
 ## Now Playing settings survive track changes
 
