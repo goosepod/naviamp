@@ -13,7 +13,9 @@ on:
         default: ''
 
 permissions:
+  actions: read
   contents: write
+  pull-requests: read
 
 concurrency:
   group: release-${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
@@ -25,12 +27,98 @@ env:
   TZ: America/Los_Angeles
 
 jobs:
+  reusable-verification:
+    name: Find reusable verification
+    runs-on: ubuntu-latest
+    outputs:
+      reuse_verified: ${{ steps.find.outputs.reuse_verified }}
+      evidence: ${{ steps.find.outputs.evidence }}
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
+          fetch-depth: 0
+
+      - name: Find successful verification for this source tree
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          target_sha="$(git rev-parse HEAD)"
+          target_tree="$(git rev-parse 'HEAD^{tree}')"
+          candidate_file="$RUNNER_TEMP/verification-candidates"
+          printf '%s\n' "$target_sha" > "$candidate_file"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${target_sha}/pulls" \
+            --jq '.[].head.sha' >> "$candidate_file"
+
+          reuse_verified=false
+          evidence="No successful full verification artifact matched tree ${target_tree}."
+          while IFS= read -r candidate_sha; do
+            test -n "$candidate_sha" || continue
+            artifact_data="$(gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/artifacts" \
+              -f name="verified-source-${candidate_sha}" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | first | if . then [.id, .workflow_run.id] | @tsv else empty end')"
+            test -n "$artifact_data" || continue
+            artifact_id="${artifact_data%%$'\t'*}"
+            run_id="${artifact_data#*$'\t'}"
+            run_data="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+              --jq '[.name, .event, .conclusion, .head_sha] | @tsv')"
+            expected_run_data="Verify"$'\t'"pull_request"$'\t'"success"$'\t'"${candidate_sha}"
+            test "$run_data" = "$expected_run_data" || continue
+
+            evidence_dir="$RUNNER_TEMP/verification-${artifact_id}"
+            mkdir -p "$evidence_dir"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$evidence_dir/evidence.zip"
+            unzip -q "$evidence_dir/evidence.zip" -d "$evidence_dir"
+            evidence_file="$evidence_dir/evidence.txt"
+            test -f "$evidence_file" || continue
+            recorded_head="$(sed -n 's/^source_head_sha=//p' "$evidence_file")"
+            recorded_tree="$(sed -n 's/^tested_tree_sha=//p' "$evidence_file")"
+            recorded_run="$(sed -n 's/^workflow_run_id=//p' "$evidence_file")"
+            if [ "$recorded_head" = "$candidate_sha" ] && \
+               [ "$recorded_tree" = "$target_tree" ] && \
+               [ "$recorded_run" = "$run_id" ]; then
+              reuse_verified=true
+              evidence="Reusing successful Verify run ${run_id} for source tree ${target_tree}."
+              break
+            fi
+          done < <(awk '!seen[$0]++' "$candidate_file")
+
+          echo "reuse_verified=$reuse_verified" >> "$GITHUB_OUTPUT"
+          echo "evidence=$evidence" >> "$GITHUB_OUTPUT"
+          echo "$evidence"
+
   verification:
-    name: Verification gate
-    needs: version
+    name: Verification fallback
+    needs: reusable-verification
+    if: needs.reusable-verification.outputs.reuse_verified != 'true'
     uses: ./.github/workflows/verify.yml
     with:
       source_ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
+
+  verification-gate:
+    name: Verification gate
+    needs:
+      - reusable-verification
+      - verification
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require reused or fresh verification
+        env:
+          EVIDENCE: ${{ needs.reusable-verification.outputs.evidence }}
+          REUSE_VERIFIED: ${{ needs.reusable-verification.outputs.reuse_verified }}
+          REUSE_RESULT: ${{ needs.reusable-verification.result }}
+          VERIFICATION_RESULT: ${{ needs.verification.result }}
+        run: |
+          echo "$EVIDENCE"
+          test "$REUSE_RESULT" = "success"
+          if [ "$REUSE_VERIFIED" = "true" ]; then
+            test "$VERIFICATION_RESULT" = "skipped"
+          else
+            test "$VERIFICATION_RESULT" = "success"
+          fi
 
   version:
     name: Validate release tag
@@ -51,7 +139,6 @@ jobs:
   android:
     name: Android signed APK and App Bundle
     needs:
-      - verification
       - version
     runs-on: ubuntu-latest
     steps:
@@ -104,7 +191,6 @@ jobs:
   windows:
     name: Windows zip and installers
     needs:
-      - verification
       - version
     runs-on: windows-latest
     steps:
@@ -149,7 +235,6 @@ jobs:
   macos:
     name: macOS zip and DMG
     needs:
-      - verification
       - version
     runs-on: macos-latest
     steps:
@@ -178,7 +263,6 @@ jobs:
   linux:
     name: Linux zip, DEB, and RPM
     needs:
-      - verification
       - version
     runs-on: ubuntu-latest
     steps:
@@ -210,7 +294,6 @@ jobs:
   ios-unsigned:
     name: iOS unsigned device IPA
     needs:
-      - verification
       - version
     runs-on: macos-latest
     timeout-minutes: 45
@@ -240,6 +323,7 @@ jobs:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     needs:
+      - verification-gate
       - android
       - windows
       - macos

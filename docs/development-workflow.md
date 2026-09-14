@@ -61,6 +61,13 @@ integration branch, large late merge conflicts, and fixes that exist only in one
 10. Close the milestone when its shipped state is accurate.
 11. Mirror the accepted commits and tags to Forgejo using the procedure below.
 
+The pull-request Verify workflow records immutable evidence for the exact Git tree that passed the
+complete cross-platform matrix. When a release tag points at that same tree, the tag workflow
+validates the evidence and the successful originating workflow run before reusing it. If the tree or
+evidence does not match, the tag workflow runs the complete matrix again. Release packaging runs in
+parallel with this gate, but the draft release cannot be created unless reused or fresh verification
+and every packaging job succeed.
+
 If an issue must be removed after the release branch is cut, prefer fixing or reverting that issue's
 complete pull request rather than assembling a release from an undocumented collection of commits.
 
