@@ -221,13 +221,16 @@ development data profile. Both devices were on the same LAN, with no pre-existin
 or reverse tunnels and no Android Connect debug-host override. Mac discovery displayed the physical
 onn 4K Pro Streaming Device; that device was not selected or controlled in this attempt.
 
-Fresh phone/Mac pairing is blocked at the product UI: the standard shared Controllers page exposes
-discovery and controller-side code submission, but does not expose target pairing-code display or
-incoming-controller approval. `onStartPairingMode` is currently wired only in Television compositions,
-despite Core and the Android/Desktop hosts advertising bidirectional capabilities. Complete the
-standard shared target-management UI before repeating phone/Mac pairing, handoff, controls,
-reconnect, and controller-independent playback acceptance. None of those acceptance rows is closed
-by this setup/discovery attempt.
+The initial attempt found fresh phone/Mac pairing blocked at the product UI: the standard shared
+Controllers page exposed discovery and controller-side code submission, but lacked target
+pairing-code display and incoming-controller approval. `onStartPairingMode` was wired only in
+Television compositions, despite Core and the Android/Desktop hosts advertising bidirectional
+capabilities. Standard shared target-management UI was required before repeating phone/Mac pairing,
+handoff, controls, reconnect, and controller-independent playback acceptance. None of those acceptance rows was closed
+by that setup/discovery attempt. The subsequent shared UI implementation and physical phone/Mac
+smoke results are recorded in [the September 14 acceptance report](connect-phone-macos-acceptance-2026-09-14.md).
+Basic direct-LAN control now passes in both directions; the full topology row remains open for the
+reported setup/role-switch findings and broader recovery coverage.
 
 - [x] Enforce TV as playback-target-only in the shared capability policy and Android TV host
   configuration.

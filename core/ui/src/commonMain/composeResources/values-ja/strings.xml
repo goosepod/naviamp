@@ -9,7 +9,7 @@
     <string name="tv_group_albums_by_release_type">リリース種別でアルバムをグループ化</string>
     <string name="tv_group_albums_by_release_type_description">アルバム、EP、シングルなどを別々のセクションに表示</string>
     <string name="connect_setup_password_required">設定を完了するには、音楽ソースのパスワードを入力してください。Naviampはパスワードを検証し、今後の接続のために安全に保存します。</string>
-    <string name="connect_setup_code_consent">コードを表示すると、そのコードを入力したデバイスとのペアリングと、そのデバイスの音楽ソースおよび設定を使ったテレビのセットアップを許可します。</string>
+    <string name="connect_setup_code_consent">コードを表示すると、そのコードを入力したデバイスとのペアリングと、そのデバイスの音楽ソースおよび設定を使ったこのデバイスのセットアップを許可します。</string>
     <string name="connect_setup_new_code_required">テレビに新しいコードを表示し、もう一度ペアリングして設定を完了してください。</string>
     <string name="settings_keep_screen_awake">画面をオンに保つ</string>
     <string name="settings_keep_screen_awake_description">Naviampの表示中は画面の自動スリープを防ぎます。システムのスリープ、画面ロック、テレビの電源タイマーは引き続き動作する場合があります。</string>
@@ -25,4 +25,6 @@
     <string name="smart_playlist_refresh_delay">更新間隔</string>
     <string name="smart_playlist_refresh_delay_hint">省略可能。例: 12h、1d、1w。</string>
     <string name="smart_playlist_refresh_delay_invalid">12h、1d、1w などの有効な期間を入力してください。</string>
+    <string name="connect_pairing_code">ペアリングコード</string>
+    <string name="connect_devices_description">このネットワーク上のNaviampデバイスを操作・ペアリング</string>
 </resources>

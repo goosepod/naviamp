@@ -6,6 +6,8 @@ import app.naviamp.ui.generated.resources.settings_keep_screen_awake_failed
 
 import app.naviamp.ui.generated.resources.connect_setup_password_required
 import app.naviamp.ui.generated.resources.connection_password
+import app.naviamp.ui.generated.resources.connect_pairing_code
+import app.naviamp.ui.generated.resources.connect_devices_description
 import app.naviamp.domain.network.NaviampAppVersion
 import app.naviamp.domain.network.NaviampAppBuildNumber
 import androidx.compose.foundation.background
@@ -462,6 +464,7 @@ fun NaviampSharedSettingsContent(
                     subtitle = when (category) {
                         NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus ?: languagePack.categorySubtitle(category)
                         NaviampSettingsCategory.Language -> languagePack.languageTitle(interfaceSettings.language)
+                        NaviampSettingsCategory.Controllers -> stringResource(Res.string.connect_devices_description)
                         else -> languagePack.categorySubtitle(category)
                     },
                     onClick = { selectedCategory = category },
@@ -473,7 +476,7 @@ fun NaviampSharedSettingsContent(
 }
 
 @Composable
-private fun NaviampConnectSettingsSection(
+internal fun NaviampConnectSettingsSection(
     colors: NaviampColors,
     connect: NaviampConnectSettingsUi,
     actions: NaviampConnectSettingsActions?,
@@ -507,6 +510,7 @@ private fun NaviampConnectSettingsSection(
         } ?: run {
             connect.displayStatus()?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
         }
+        NaviampConnectTargetSettings(connect, colors, actions)
         if (connect.needsProvisioningCredential) {
             var password by remember { mutableStateOf("") }
             Text(stringResource(Res.string.connect_setup_password_required), color = colors.secondaryText)
@@ -567,7 +571,7 @@ private fun NaviampConnectSettingsSection(
                     value = connect.enteredPairingCode,
                     onValueChange = actions.onPairingCodeChanged,
                     singleLine = true,
-                    label = { Text("Six-digit TV code") },
+                    label = { Text(stringResource(Res.string.connect_pairing_code)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 PrimaryButton(
@@ -2022,7 +2026,11 @@ private fun SettingsDetailHeader(
         }
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(languagePack.categoryLabel(category), color = colors.primaryText, fontSize = SettingsCategoryTitleSize, fontWeight = FontWeight.Bold)
-            Text(languagePack.categorySubtitle(category), color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize)
+            Text(
+                if (category == NaviampSettingsCategory.Controllers) stringResource(Res.string.connect_devices_description)
+                else languagePack.categorySubtitle(category),
+                color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize,
+            )
         }
     }
 }

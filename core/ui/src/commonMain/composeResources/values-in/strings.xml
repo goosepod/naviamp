@@ -9,7 +9,7 @@
     <string name="tv_group_albums_by_release_type">Kelompokkan album menurut jenis rilisan</string>
     <string name="tv_group_albums_by_release_type_description">Tampilkan album, EP, singel, dan rilisan lain dalam bagian terpisah</string>
     <string name="connect_setup_password_required">Masukkan kata sandi sumber Anda untuk menyelesaikan penyiapan. Naviamp memvalidasi dan menyimpannya dengan aman untuk koneksi berikutnya.</string>
-    <string name="connect_setup_code_consent">Menampilkan kode mengizinkan perangkat yang memasukkannya untuk berpasangan dan menyiapkan TV ini dengan sumber musik dan pengaturannya.</string>
+    <string name="connect_setup_code_consent">Menampilkan kode mengizinkan perangkat yang memasukkannya untuk berpasangan dan menyiapkan perangkat ini dengan sumber musik dan pengaturannya.</string>
     <string name="connect_setup_new_code_required">Tampilkan kode baru di TV dan pasangkan kembali untuk menyelesaikan penyiapan.</string>
     <string name="settings_keep_screen_awake">Biarkan layar menyala</string>
     <string name="settings_keep_screen_awake_description">Mencegah layar tidur otomatis saat Naviamp terlihat. Tidur sistem, kunci layar, dan pengatur waktu TV mungkin tetap berlaku.</string>
@@ -25,4 +25,6 @@
     <string name="smart_playlist_refresh_delay">Jeda penyegaran</string>
     <string name="smart_playlist_refresh_delay_hint">Opsional. Contoh: 12h, 1d, atau 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Gunakan durasi yang valid seperti 12h, 1d, atau 1w.</string>
+    <string name="connect_pairing_code">Kode pemasangan</string>
+    <string name="connect_devices_description">Kontrol dan pasangkan perangkat Naviamp di jaringan ini</string>
 </resources>

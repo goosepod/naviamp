@@ -9,7 +9,7 @@
     <string name="tv_group_albums_by_release_type">Albümleri yayın türüne göre grupla</string>
     <string name="tv_group_albums_by_release_type_description">Albümleri, EP’leri, single’ları ve diğer yayınları ayrı bölümlerde göster</string>
     <string name="connect_setup_password_required">Kurulumu tamamlamak için kaynak parolanızı girin. Naviamp parolayı doğrular ve gelecekteki bağlantılar için güvenli şekilde kaydeder.</string>
-    <string name="connect_setup_code_consent">Kodun gösterilmesi, kodu giren cihazın eşleşmesine ve bu TV’yi kendi müzik kaynağı ve ayarlarıyla kurmasına izin verir.</string>
+    <string name="connect_setup_code_consent">Kodun gösterilmesi, kodu giren cihazın eşleşmesine ve bu cihazı kendi müzik kaynağı ve ayarlarıyla kurmasına izin verir.</string>
     <string name="connect_setup_new_code_required">Kurulumu tamamlamak için TV’de yeni bir kod gösterin ve yeniden eşleştirin.</string>
     <string name="settings_keep_screen_awake">Ekranı açık tut</string>
     <string name="settings_keep_screen_awake_description">Naviamp görünürken ekranın otomatik uykuya geçmesini önler. Sistem uykusu, ekran kilitleri ve TV zamanlayıcıları yine de devreye girebilir.</string>
@@ -25,4 +25,6 @@
     <string name="smart_playlist_refresh_delay">Yenileme aralığı</string>
     <string name="smart_playlist_refresh_delay_hint">İsteğe bağlı. Örnekler: 12h, 1d veya 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">12h, 1d veya 1w gibi geçerli bir süre kullanın.</string>
+    <string name="connect_pairing_code">Eşleştirme kodu</string>
+    <string name="connect_devices_description">Bu ağdaki Naviamp cihazlarını kontrol edin ve eşleştirin</string>
 </resources>

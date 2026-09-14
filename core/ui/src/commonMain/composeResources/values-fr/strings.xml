@@ -9,7 +9,7 @@
     <string name="tv_group_albums_by_release_type">Regrouper les albums par type de sortie</string>
     <string name="tv_group_albums_by_release_type_description">Afficher les albums, EP, singles et autres sorties dans des sections distinctes</string>
     <string name="connect_setup_password_required">Saisissez le mot de passe de votre source pour terminer la configuration. Naviamp le valide et le conserve en toute sécurité pour les prochaines connexions.</string>
-    <string name="connect_setup_code_consent">Afficher un code autorise l’appareil qui le saisit à s’associer et à configurer ce téléviseur avec sa source musicale et ses réglages.</string>
+    <string name="connect_setup_code_consent">Afficher un code autorise l’appareil qui le saisit à s’associer et à configurer cet appareil avec sa source musicale et ses réglages.</string>
     <string name="connect_setup_new_code_required">Affichez un nouveau code sur le téléviseur et associez à nouveau les appareils pour terminer la configuration.</string>
     <string name="settings_keep_screen_awake">Garder l’écran allumé</string>
     <string name="settings_keep_screen_awake_description">Empêche la veille automatique de l’écran lorsque Naviamp est visible. La veille du système, le verrouillage et les minuteries du téléviseur peuvent toujours s’appliquer.</string>
@@ -25,4 +25,6 @@
     <string name="smart_playlist_refresh_delay">Intervalle d’actualisation</string>
     <string name="smart_playlist_refresh_delay_hint">Facultatif. Exemples : 12h, 1d ou 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Utilisez une durée valide comme 12h, 1d ou 1w.</string>
+    <string name="connect_pairing_code">Code d’association</string>
+    <string name="connect_devices_description">Contrôler et associer les appareils Naviamp sur ce réseau</string>
 </resources>

@@ -9,7 +9,7 @@
     <string name="tv_group_albums_by_release_type">Alben nach Veröffentlichungstyp gruppieren</string>
     <string name="tv_group_albums_by_release_type_description">Alben, EPs, Singles und andere Veröffentlichungen in getrennten Abschnitten anzeigen</string>
     <string name="connect_setup_password_required">Gib das Passwort deiner Quelle ein, um die Einrichtung abzuschließen. Naviamp prüft es und speichert es sicher für künftige Verbindungen.</string>
-    <string name="connect_setup_code_consent">Wenn du einen Code anzeigst, darf das Gerät, das ihn eingibt, sich koppeln und diesen Fernseher mit seiner Musikquelle und seinen Einstellungen einrichten.</string>
+    <string name="connect_setup_code_consent">Wenn du einen Code anzeigst, darf das Gerät, das ihn eingibt, sich koppeln und dieses Gerät mit seiner Musikquelle und seinen Einstellungen einrichten.</string>
     <string name="connect_setup_new_code_required">Zeige einen neuen Code auf dem Fernseher an und kopple erneut, um die Einrichtung abzuschließen.</string>
     <string name="settings_keep_screen_awake">Bildschirm wach halten</string>
     <string name="settings_keep_screen_awake_description">Verhindert den automatischen Bildschirmruhezustand, solange Naviamp sichtbar ist. Systemruhe, Bildschirmsperren und TV-Ausschaltzeiten können weiterhin greifen.</string>
@@ -25,4 +25,6 @@
     <string name="smart_playlist_refresh_delay">Aktualisierungsintervall</string>
     <string name="smart_playlist_refresh_delay_hint">Optional. Beispiele: 12h, 1d oder 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Gib eine gültige Dauer wie 12h, 1d oder 1w ein.</string>
+    <string name="connect_pairing_code">Kopplungscode</string>
+    <string name="connect_devices_description">Naviamp-Geräte in diesem Netzwerk steuern und koppeln</string>
 </resources>

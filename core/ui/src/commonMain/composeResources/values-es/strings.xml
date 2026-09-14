@@ -728,7 +728,7 @@
     <string name="tv_approve_named_controller">Aprobar a %1$s</string>
     <string name="tv_stop_controlling_named">Dejar de controlar %1$s</string>
     <string name="tv_set_up_named_source">Configurar %1$s</string>
-    <string name="tv_provisioning_requested_by">Solicitado por %1$s. El televisor validará el servidor antes de guardarlo.</string>
+    <string name="tv_provisioning_requested_by">Solicitado por %1$s. El dispositivo validará el servidor antes de guardarlo.</string>
     <string name="tv_controller_asking_to_pair">%1$s solicita emparejarse.</string>
     <string name="tv_controller_can_set_up">%1$s puede configurar %2$s. El televisor lo validará antes de guardarlo.</string>
     <string name="tv_hide_section">Ocultar %1$s</string>
@@ -803,8 +803,8 @@
     <string name="connect_status_this_device_is_now_named_device">Este dispositivo ahora se llama %1$s.</string>
     <string name="connect_status_forgot_device">Se olvidó %1$s.</string>
     <string name="connect_status_ready_for_a_controller_on_this_local_network">Listo para un mando en esta red local.</string>
-    <string name="connect_status_connect_this_device_to_the_same_music_source_before_editing_the_tv_queue">Conecta este dispositivo a la misma fuente de música antes de editar la cola del televisor.</string>
-    <string name="connect_status_connect_this_device_to_the_same_music_source_before_playing_on_the_tv">Conecta este dispositivo a la misma fuente de música antes de reproducir en el televisor.</string>
+    <string name="connect_status_connect_this_device_to_the_same_music_source_before_editing_the_tv_queue">Conecta este dispositivo a la misma fuente de música antes de editar la cola del dispositivo.</string>
+    <string name="connect_status_connect_this_device_to_the_same_music_source_before_playing_on_the_tv">Conecta este dispositivo a la misma fuente de música antes de reproducir en el dispositivo.</string>
     <string name="connect_status_starting_secure_pairing">Iniciando emparejamiento seguro…</string>
     <string name="connect_status_a_trusted_reconnect_could_not_be_authenticated_still_waiting_for_a_controller">No se pudo autenticar la reconexión de confianza. Se sigue esperando un mando.</string>
     <string name="connect_status_an_incomplete_pairing_request_timed_out_still_waiting_for_a_controller">Una solicitud de emparejamiento incompleta agotó el tiempo de espera. Se sigue esperando un mando.</string>
@@ -816,28 +816,28 @@
     <string name="connect_status_pairing_request_rejected">Solicitud de emparejamiento rechazada.</string>
     <string name="connect_status_searching_this_local_network">Buscando en esta red local…</string>
     <string name="connect_status_pair_with_device_once_more_to_enable_secure_reconnect">Vuelve a emparejarte con %1$s para habilitar la reconexión segura.</string>
-    <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Buscando %1$s… Inicia el modo de emparejamiento en el televisor si es necesario.</string>
+    <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Buscando %1$s… Inicia el modo de emparejamiento en el dispositivo si es necesario.</string>
     <string name="connect_status_securely_reconnecting_to_device">Reconectando de forma segura con %1$s…</string>
-    <string name="connect_status_the_trusted_tv_did_not_start_a_compatible_control_session">El televisor de confianza no inició una sesión de control compatible.</string>
-    <string name="connect_status_could_not_securely_reconnect_to_device_naviamp_will_retry_when_the_tv_is_available">No se pudo reconectar de forma segura con %1$s. Naviamp lo reintentará cuando el televisor esté disponible.</string>
+    <string name="connect_status_the_trusted_tv_did_not_start_a_compatible_control_session">El dispositivo de confianza no inició una sesión de control compatible.</string>
+    <string name="connect_status_could_not_securely_reconnect_to_device_naviamp_will_retry_when_the_tv_is_available">No se pudo reconectar de forma segura con %1$s. Naviamp lo reintentará cuando el dispositivo esté disponible.</string>
     <string name="connect_status_enter_the_six_digit_code_shown_on_device">Introduce el código de seis dígitos que aparece en %1$s.</string>
-    <string name="connect_status_enter_all_six_digits_shown_on_the_tv">Introduce los seis dígitos que aparecen en el televisor.</string>
+    <string name="connect_status_enter_all_six_digits_shown_on_the_tv">Introduce los seis dígitos que aparecen en el dispositivo.</string>
     <string name="connect_status_the_paired_device_did_not_start_a_compatible_control_session">El dispositivo emparejado no inició una sesión de control compatible.</string>
-    <string name="connect_status_approve_the_connection_setup_request_on_this_tv">Aprueba la solicitud de configuración de conexión en este televisor.</string>
+    <string name="connect_status_approve_the_connection_setup_request_on_this_tv">Aprueba la solicitud de configuración de conexión en este dispositivo.</string>
     <string name="connect_status_looking_for_device">Buscando %1$s…</string>
-    <string name="connect_status_stopped_controlling_device_the_tv_will_keep_playing">Se dejó de controlar %1$s. El televisor seguirá reproduciendo.</string>
+    <string name="connect_status_stopped_controlling_device_the_tv_will_keep_playing">Se dejó de controlar %1$s. El dispositivo seguirá reproduciendo.</string>
     <string name="connect_status_sending_this_queue_to_device">Enviando esta cola a %1$s…</string>
     <string name="connect_status_queue_sent_to_device">Cola enviada a %1$s.</string>
-    <string name="connect_status_preparing_this_connection_for_secure_tv_setup">Preparando esta conexión para la configuración segura del televisor…</string>
-    <string name="connect_status_connect_this_device_to_the_server_you_want_to_configure_on_the_tv">Conecta este dispositivo al servidor que quieras configurar en el televisor.</string>
+    <string name="connect_status_preparing_this_connection_for_secure_tv_setup">Preparando esta conexión para la configuración segura del dispositivo…</string>
+    <string name="connect_status_connect_this_device_to_the_server_you_want_to_configure_on_the_tv">Conecta este dispositivo al servidor que quieras configurar en el dispositivo.</string>
     <string name="connect_status_approve_setup_on_device">Aprueba la configuración en %1$s.</string>
     <string name="connect_status_validating_device">Validando %1$s…</string>
-    <string name="connect_status_tv_setup_completed_securely">La configuración del televisor se completó de forma segura.</string>
+    <string name="connect_status_tv_setup_completed_securely">La configuración del dispositivo se completó de forma segura.</string>
     <string name="connect_status_could_not_validate_that_connection_check_the_server_and_credential_then_retry">No se pudo validar esa conexión. Comprueba el servidor y las credenciales e inténtalo de nuevo.</string>
     <string name="connect_status_connection_setup_request_rejected">Solicitud de configuración de conexión rechazada.</string>
-    <string name="connect_status_the_tv_did_not_pause_so_its_queue_was_left_in_place">El televisor no se pausó, por lo que su cola se mantuvo intacta.</string>
-    <string name="connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority">Este dispositivo no pudo resolver todas las pistas, por lo que el televisor mantuvo el control de reproducción.</string>
-    <string name="connect_status_the_tv_queue_is_now_playing_on_this_device">La cola del televisor ahora se reproduce en este dispositivo.</string>
+    <string name="connect_status_the_tv_did_not_pause_so_its_queue_was_left_in_place">El dispositivo no se pausó, por lo que su cola se mantuvo intacta.</string>
+    <string name="connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority">Este dispositivo no pudo resolver todas las pistas, por lo que el dispositivo mantuvo el control de reproducción.</string>
+    <string name="connect_status_the_tv_queue_is_now_playing_on_this_device">La cola del dispositivo ahora se reproduce en este dispositivo.</string>
     <string name="tv_paired_device">Dispositivo Naviamp emparejado</string>
     <string name="connect_target_default_name">Naviamp TV</string>
     <string name="tv_alphabetical_sort">A–Z</string>
@@ -846,7 +846,7 @@
         <item quantity="other">%1$d elementos</item>
     </plurals>
     <string name="connect_setup_password_required">Introduce la contraseña de tu fuente para completar la configuración. Naviamp la valida y la guarda de forma segura para futuras conexiones.</string>
-    <string name="connect_setup_code_consent">Mostrar un código permite al dispositivo que lo introduce emparejarse y configurar este televisor con su fuente de música y ajustes.</string>
+    <string name="connect_setup_code_consent">Mostrar un código permite al dispositivo que lo introduce emparejarse y configurar este dispositivo con su fuente de música y ajustes.</string>
     <string name="connect_setup_new_code_required">Muestra un código nuevo en el televisor y vuelve a emparejarlo para completar la configuración.</string>
     <string name="settings_keep_screen_awake">Mantener la pantalla encendida</string>
     <string name="settings_keep_screen_awake_description">Evita que la pantalla se apague automáticamente mientras Naviamp esté visible. La suspensión del sistema, los bloqueos y los temporizadores del televisor pueden seguir activos.</string>
@@ -862,4 +862,6 @@
     <string name="smart_playlist_refresh_delay">Intervalo de actualización</string>
     <string name="smart_playlist_refresh_delay_hint">Opcional. Ejemplos: 12h, 1d o 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Usa una duración válida como 12h, 1d o 1w.</string>
+    <string name="connect_pairing_code">Código de emparejamiento</string>
+    <string name="connect_devices_description">Controla y empareja dispositivos Naviamp en esta red</string>
 </resources>

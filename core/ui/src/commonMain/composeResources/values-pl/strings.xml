@@ -128,7 +128,7 @@
     <string name="settings_source_libraries_prefix">Biblioteki: %1$s</string>
     <string name="settings_local_data_title">Dane lokalne</string>
     <string name="connect_setup_password_required">Wpisz hasło źródła, aby dokończyć konfigurację. Naviamp sprawdzi je i bezpiecznie zapisze na potrzeby przyszłych połączeń.</string>
-    <string name="connect_setup_code_consent">Wyświetlenie kodu pozwala urządzeniu, które go wpisze, sparować się i skonfigurować ten telewizor ze swoim źródłem muzyki i ustawieniami.</string>
+    <string name="connect_setup_code_consent">Wyświetlenie kodu pozwala urządzeniu, które go wpisze, sparować się i skonfigurować to urządzenie ze swoim źródłem muzyki i ustawieniami.</string>
     <string name="connect_setup_new_code_required">Wyświetl nowy kod na telewizorze i sparuj ponownie, aby dokończyć konfigurację.</string>
     <string name="settings_keep_screen_awake">Nie wygaszaj ekranu</string>
     <string name="settings_keep_screen_awake_description">Zapobiega automatycznemu uśpieniu ekranu, gdy Naviamp jest widoczny. Uśpienie systemu, blokady ekranu i wyłączniki czasowe telewizora mogą nadal działać.</string>
@@ -144,4 +144,6 @@
     <string name="smart_playlist_refresh_delay">Interwał odświeżania</string>
     <string name="smart_playlist_refresh_delay_hint">Opcjonalnie. Przykłady: 12h, 1d lub 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Użyj prawidłowego czasu, np. 12h, 1d lub 1w.</string>
+    <string name="connect_pairing_code">Kod parowania</string>
+    <string name="connect_devices_description">Steruj urządzeniami Naviamp w tej sieci i paruj je</string>
 </resources>

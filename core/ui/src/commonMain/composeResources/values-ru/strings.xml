@@ -9,7 +9,7 @@
     <string name="tv_group_albums_by_release_type">Группировать альбомы по типу релиза</string>
     <string name="tv_group_albums_by_release_type_description">Показывать альбомы, EP, синглы и другие релизы в отдельных разделах</string>
     <string name="connect_setup_password_required">Введите пароль источника, чтобы завершить настройку. Naviamp проверит его и безопасно сохранит для будущих подключений.</string>
-    <string name="connect_setup_code_consent">Показ кода разрешает устройству, на котором его введут, выполнить сопряжение и настроить этот телевизор со своим источником музыки и настройками.</string>
+    <string name="connect_setup_code_consent">Показ кода разрешает устройству, на котором его введут, выполнить сопряжение и настроить это устройство со своим источником музыки и настройками.</string>
     <string name="connect_setup_new_code_required">Покажите новый код на телевизоре и повторите сопряжение, чтобы завершить настройку.</string>
     <string name="settings_keep_screen_awake">Не выключать экран</string>
     <string name="settings_keep_screen_awake_description">Предотвращает автоматическое отключение экрана, пока Naviamp виден. Сон системы, блокировка экрана и таймеры телевизора могут продолжать действовать.</string>
@@ -25,4 +25,6 @@
     <string name="smart_playlist_refresh_delay">Интервал обновления</string>
     <string name="smart_playlist_refresh_delay_hint">Необязательно. Примеры: 12h, 1d или 1w.</string>
     <string name="smart_playlist_refresh_delay_invalid">Укажите допустимую длительность, например 12h, 1d или 1w.</string>
+    <string name="connect_pairing_code">Код сопряжения</string>
+    <string name="connect_devices_description">Управление устройствами Naviamp в этой сети и сопряжение с ними</string>
 </resources>

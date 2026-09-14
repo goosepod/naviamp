@@ -9,7 +9,7 @@
     <string name="tv_group_albums_by_release_type">按发行类型分组专辑</string>
     <string name="tv_group_albums_by_release_type_description">将专辑、EP、单曲和其他发行作品分别显示</string>
     <string name="connect_setup_password_required">请输入音乐源密码以完成设置。Naviamp 会验证密码并安全保存，供今后连接使用。</string>
-    <string name="connect_setup_code_consent">显示代码即允许输入该代码的设备配对，并使用其音乐源和设置配置此电视。</string>
+    <string name="connect_setup_code_consent">显示代码即允许输入该代码的设备配对，并使用其音乐源和设置配置此设备。</string>
     <string name="connect_setup_new_code_required">请在电视上显示新代码并重新配对，以完成设置。</string>
     <string name="settings_keep_screen_awake">保持屏幕常亮</string>
     <string name="settings_keep_screen_awake_description">在 Naviamp 可见时阻止屏幕自动休眠。系统睡眠、屏幕锁定和电视电源定时器仍可能生效。</string>
@@ -25,4 +25,6 @@
     <string name="smart_playlist_refresh_delay">刷新间隔</string>
     <string name="smart_playlist_refresh_delay_hint">可选。示例：12h、1d 或 1w。</string>
     <string name="smart_playlist_refresh_delay_invalid">请输入有效时长，例如 12h、1d 或 1w。</string>
+    <string name="connect_pairing_code">配对码</string>
+    <string name="connect_devices_description">控制和配对此网络上的 Naviamp 设备</string>
 </resources>

@@ -760,7 +760,7 @@
     <string name="tv_approve_named_controller">Approve %1$s</string>
     <string name="tv_stop_controlling_named">Stop controlling %1$s</string>
     <string name="tv_set_up_named_source">Set up %1$s</string>
-    <string name="tv_provisioning_requested_by">Requested by %1$s. The TV will validate the server before saving it.</string>
+    <string name="tv_provisioning_requested_by">Requested by %1$s. The device will validate the server before saving it.</string>
     <string name="tv_controller_asking_to_pair">%1$s is asking to pair.</string>
     <string name="tv_controller_can_set_up">%1$s can set up %2$s. The TV will validate it before saving.</string>
     <string name="tv_hide_section">Hide %1$s</string>
@@ -835,8 +835,8 @@
     <string name="connect_status_this_device_is_now_named_device">This device is now named %1$s.</string>
     <string name="connect_status_forgot_device">Forgot %1$s.</string>
     <string name="connect_status_ready_for_a_controller_on_this_local_network">Ready for a controller on this local network.</string>
-    <string name="connect_status_connect_this_device_to_the_same_music_source_before_editing_the_tv_queue">Connect this device to the same music source before editing the TV queue.</string>
-    <string name="connect_status_connect_this_device_to_the_same_music_source_before_playing_on_the_tv">Connect this device to the same music source before playing on the TV.</string>
+    <string name="connect_status_connect_this_device_to_the_same_music_source_before_editing_the_tv_queue">Connect this device to the same music source before editing the device queue.</string>
+    <string name="connect_status_connect_this_device_to_the_same_music_source_before_playing_on_the_tv">Connect this device to the same music source before playing on the device.</string>
     <string name="connect_status_starting_secure_pairing">Starting secure pairing…</string>
     <string name="connect_status_a_trusted_reconnect_could_not_be_authenticated_still_waiting_for_a_controller">A trusted reconnect could not be authenticated. Still waiting for a controller.</string>
     <string name="connect_status_an_incomplete_pairing_request_timed_out_still_waiting_for_a_controller">An incomplete pairing request timed out. Still waiting for a controller.</string>
@@ -848,28 +848,28 @@
     <string name="connect_status_pairing_request_rejected">Pairing request rejected.</string>
     <string name="connect_status_searching_this_local_network">Searching this local network…</string>
     <string name="connect_status_pair_with_device_once_more_to_enable_secure_reconnect">Pair with %1$s once more to enable secure reconnect.</string>
-    <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Looking for %1$s… Start pairing mode on the TV if needed.</string>
+    <string name="connect_status_looking_for_device_start_pairing_mode_on_the_tv_if_needed">Looking for %1$s… Start pairing mode on the device if needed.</string>
     <string name="connect_status_securely_reconnecting_to_device">Securely reconnecting to %1$s…</string>
     <string name="connect_status_the_trusted_tv_did_not_start_a_compatible_control_session">The trusted TV did not start a compatible control session.</string>
-    <string name="connect_status_could_not_securely_reconnect_to_device_naviamp_will_retry_when_the_tv_is_available">Could not securely reconnect to %1$s. Naviamp will retry when the TV is available.</string>
+    <string name="connect_status_could_not_securely_reconnect_to_device_naviamp_will_retry_when_the_tv_is_available">Could not securely reconnect to %1$s. Naviamp will retry when the device is available.</string>
     <string name="connect_status_enter_the_six_digit_code_shown_on_device">Enter the six-digit code shown on %1$s.</string>
-    <string name="connect_status_enter_all_six_digits_shown_on_the_tv">Enter all six digits shown on the TV.</string>
+    <string name="connect_status_enter_all_six_digits_shown_on_the_tv">Enter all six digits shown on the device.</string>
     <string name="connect_status_the_paired_device_did_not_start_a_compatible_control_session">The paired device did not start a compatible control session.</string>
-    <string name="connect_status_approve_the_connection_setup_request_on_this_tv">Approve the connection setup request on this TV.</string>
+    <string name="connect_status_approve_the_connection_setup_request_on_this_tv">Approve the connection setup request on this device.</string>
     <string name="connect_status_looking_for_device">Looking for %1$s…</string>
-    <string name="connect_status_stopped_controlling_device_the_tv_will_keep_playing">Stopped controlling %1$s. The TV will keep playing.</string>
+    <string name="connect_status_stopped_controlling_device_the_tv_will_keep_playing">Stopped controlling %1$s. The device will keep playing.</string>
     <string name="connect_status_sending_this_queue_to_device">Sending this queue to %1$s…</string>
     <string name="connect_status_queue_sent_to_device">Queue sent to %1$s.</string>
-    <string name="connect_status_preparing_this_connection_for_secure_tv_setup">Preparing this connection for secure TV setup…</string>
-    <string name="connect_status_connect_this_device_to_the_server_you_want_to_configure_on_the_tv">Connect this device to the server you want to configure on the TV.</string>
+    <string name="connect_status_preparing_this_connection_for_secure_tv_setup">Preparing this connection for secure Device setup…</string>
+    <string name="connect_status_connect_this_device_to_the_server_you_want_to_configure_on_the_tv">Connect this device to the server you want to configure on the device.</string>
     <string name="connect_status_approve_setup_on_device">Approve setup on %1$s.</string>
     <string name="connect_status_validating_device">Validating %1$s…</string>
-    <string name="connect_status_tv_setup_completed_securely">TV setup completed securely.</string>
+    <string name="connect_status_tv_setup_completed_securely">Device setup completed securely.</string>
     <string name="connect_status_could_not_validate_that_connection_check_the_server_and_credential_then_retry">Could not validate that connection. Check the server and credential, then retry.</string>
     <string name="connect_status_connection_setup_request_rejected">Connection setup request rejected.</string>
-    <string name="connect_status_the_tv_did_not_pause_so_its_queue_was_left_in_place">The TV did not pause, so its queue was left in place.</string>
-    <string name="connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority">This device could not resolve every track, so the TV kept playback authority.</string>
-    <string name="connect_status_the_tv_queue_is_now_playing_on_this_device">The TV queue is now playing on this device.</string>
+    <string name="connect_status_the_tv_did_not_pause_so_its_queue_was_left_in_place">The device did not pause, so its queue was left in place.</string>
+    <string name="connect_status_this_device_could_not_resolve_every_track_so_the_tv_kept_playback_authority">This device could not resolve every track, so the device kept playback authority.</string>
+    <string name="connect_status_the_tv_queue_is_now_playing_on_this_device">The device queue is now playing on this device.</string>
     <string name="tv_paired_device">Paired Naviamp device</string>
     <string name="connect_target_default_name">Naviamp TV</string>
     <string name="tv_alphabetical_sort">A–Z</string>
@@ -878,7 +878,7 @@
         <item quantity="other">%1$d items</item>
     </plurals>
     <string name="connect_setup_password_required">Enter your source password to finish setup. Naviamp validates and securely saves it for future connections.</string>
-    <string name="connect_setup_code_consent">Showing a code allows the device that enters it to pair and set up this TV with its music source and settings.</string>
+    <string name="connect_setup_code_consent">Showing a code allows the device that enters it to pair and set up this device with its music source and settings.</string>
     <string name="connect_setup_new_code_required">Show a new code on the TV and pair again to finish setup.</string>
     <string name="settings_keep_screen_awake">Keep screen awake</string>
     <string name="settings_keep_screen_awake_description">Prevent automatic display sleep while Naviamp is visible. System sleep, screen locks, and TV power timers may still apply.</string>
@@ -886,4 +886,6 @@
     <string name="settings_now_playing_split_background_opacity">Split-view background opacity</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
     <string name="now_playing_playback_device">Playback device: %1$s</string>
+    <string name="connect_pairing_code">Pairing code</string>
+    <string name="connect_devices_description">Control and pair Naviamp devices on this network</string>
 </resources>
