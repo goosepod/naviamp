@@ -56,22 +56,62 @@ class DesktopCoreSettingsValueStore(
 fun defaultDesktopDataDirectory(): Path {
     val home = Path.of(System.getProperty("user.home"))
     val os = System.getProperty("os.name").lowercase()
+    val development = System.getProperty(DesktopDevelopmentDataProfileProperty).toBoolean()
+    return desktopDataDirectory(home, os, System.getenv("APPDATA"), development)
+}
+
+internal fun desktopDataDirectory(
+    home: Path,
+    os: String,
+    windowsAppData: String?,
+    development: Boolean,
+): Path {
     return when {
-        os.contains("mac") || os.contains("darwin") -> home.resolve("Library/Application Support/Naviamp")
+        os.contains("mac") || os.contains("darwin") ->
+            home.resolve("Library/Application Support").resolve(desktopDirectoryName(development))
         os.contains("win") ->
-            Path.of(System.getenv("APPDATA") ?: home.resolve("AppData/Roaming").toString()).resolve("Naviamp")
-        else -> home.resolve(".local/share/naviamp")
+            Path.of(windowsAppData ?: home.resolve("AppData/Roaming").toString())
+                .resolve(desktopDirectoryName(development))
+        else -> home.resolve(".local/share").resolve(linuxDirectoryName(development))
     }
 }
 
 fun defaultDesktopCoreSettingsPath(): Path {
     val home = Path.of(System.getProperty("user.home"))
     val os = System.getProperty("os.name").lowercase()
-    val directory = when {
-        os.contains("mac") || os.contains("darwin") -> home.resolve("Library/Application Support/Naviamp")
-        os.contains("win") ->
-            Path.of(System.getenv("APPDATA") ?: home.resolve("AppData/Roaming").toString()).resolve("Naviamp")
-        else -> Path.of(System.getenv("XDG_CONFIG_HOME") ?: home.resolve(".config").toString()).resolve("naviamp")
-    }
-    return directory.resolve("settings.json")
+    val development = System.getProperty(DesktopDevelopmentDataProfileProperty).toBoolean()
+    return desktopSettingsDirectory(
+        home = home,
+        os = os,
+        windowsAppData = System.getenv("APPDATA"),
+        xdgConfigHome = System.getenv("XDG_CONFIG_HOME"),
+        development = development,
+    ).resolve("settings.json")
 }
+
+internal fun desktopSettingsDirectory(
+    home: Path,
+    os: String,
+    windowsAppData: String?,
+    xdgConfigHome: String?,
+    development: Boolean,
+): Path {
+    val directory = when {
+        os.contains("mac") || os.contains("darwin") ->
+            home.resolve("Library/Application Support").resolve(desktopDirectoryName(development))
+        os.contains("win") ->
+            Path.of(windowsAppData ?: home.resolve("AppData/Roaming").toString())
+                .resolve(desktopDirectoryName(development))
+        else -> Path.of(xdgConfigHome ?: home.resolve(".config").toString())
+            .resolve(linuxDirectoryName(development))
+    }
+    return directory
+}
+
+private fun desktopDirectoryName(development: Boolean): String =
+    if (development) "Naviamp Development" else "Naviamp"
+
+private fun linuxDirectoryName(development: Boolean): String =
+    if (development) "naviamp-development" else "naviamp"
+
+const val DesktopDevelopmentDataProfileProperty = "naviamp.developmentDataProfile"
