@@ -214,6 +214,21 @@ changed both devices to **Vidmahe** within five seconds, and TV-local Next chang
 - [ ] Desktop <-> Desktop across macOS, Windows, and Linux where available.
 - [ ] iPhone/iPad <-> Android phone and Desktop.
 - [ ] Phone/Desktop -> tvOS.
+
+September 14 phone/Mac acceptance attempt: the physical Pixel 10a was updated to the branch's
+v2.5.0-v2test build, and the current Mac development app was built and opened with its isolated
+development data profile. Both devices were on the same LAN, with no pre-existing ADB forwarding
+or reverse tunnels and no Android Connect debug-host override. Mac discovery displayed the physical
+onn 4K Pro Streaming Device; that device was not selected or controlled in this attempt.
+
+Fresh phone/Mac pairing is blocked at the product UI: the standard shared Controllers page exposes
+discovery and controller-side code submission, but does not expose target pairing-code display or
+incoming-controller approval. `onStartPairingMode` is currently wired only in Television compositions,
+despite Core and the Android/Desktop hosts advertising bidirectional capabilities. Complete the
+standard shared target-management UI before repeating phone/Mac pairing, handoff, controls,
+reconnect, and controller-independent playback acceptance. None of those acceptance rows is closed
+by this setup/discovery attempt.
+
 - [x] Enforce TV as playback-target-only in the shared capability policy and Android TV host
   configuration.
 - [ ] Confirm on physical Google TV that no controller-mode UI or advertisement is exposed.
