@@ -45,6 +45,7 @@ class NaviampConnectNowPlayingActionsTest {
             selectedPlaybackDeviceId = "living-room-trust",
             selectedPlaybackDeviceName = "Living room",
             playbackDestinationStatus = NaviampConnectPlaybackDestinationUiStatus.Connected,
+            remotePlaybackAuthorityActive = true,
             trustedDevices = listOf(
                 NaviampConnectTrustedDeviceUi(
                     deviceId = "living-room-trust",
@@ -98,6 +99,21 @@ class NaviampConnectNowPlayingActionsTest {
         assertNull(decorated.remoteOutputDeviceName)
         assertEquals("Living room", decorated.selectedRemotePlaybackOutputName())
         assertEquals("living-room-trust", decorated.playbackOutputs.single { it.selected }.deviceId)
+    }
+
+    @Test
+    fun selectedOutputOnlyLabelsRemotePlaybackWithConnectedAuthority() {
+        for (status in NaviampConnectPlaybackDestinationUiStatus.entries) {
+            for (active in listOf(false, true)) {
+                val decorated = NowPlayingUi(title = "Track", subtitle = "Artist", stateLabel = "Paused")
+                    .withSelectedRemoteOutput(NaviampConnectSettingsUi(
+                        selectedPlaybackDeviceName = "Mac", playbackDestinationStatus = status,
+                        remotePlaybackAuthorityActive = active,
+                    ))
+                assertEquals(if (status == NaviampConnectPlaybackDestinationUiStatus.Connected && active) "Mac" else null,
+                    decorated.remoteOutputDeviceName, "$status / authority=$active")
+            }
+        }
     }
 
     private fun actions(

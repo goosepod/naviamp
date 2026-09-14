@@ -1239,10 +1239,9 @@ private fun NowPlayingDetails(
                             }
                             nowPlaying.playbackOutputs.forEach { output ->
                                 NaviampDropdownMenuItem(
-                                    label = buildString {
-                                        append(if (output.selected) "Playing on " else "Play on ")
-                                        append(output.displayName)
-                                    },
+                                    label = if (output.selected)
+                                        stringResource(Res.string.now_playing_playback_device, output.displayName)
+                                    else output.displayName,
                                     enabled = output.available && !output.selected,
                                     onClick = {
                                         actionMenuExpanded = false

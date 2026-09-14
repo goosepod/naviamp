@@ -85,6 +85,7 @@ data class NaviampConnectSettingsUi(
     val localDeviceName: String = "This device",
     val selectedPlaybackDeviceId: String? = null,
     val selectedPlaybackDeviceName: String? = null,
+    val remotePlaybackAuthorityActive: Boolean = false,
     val playbackDestinationStatus: NaviampConnectPlaybackDestinationUiStatus =
         NaviampConnectPlaybackDestinationUiStatus.Local,
     val connectedTargetName: String? = null,

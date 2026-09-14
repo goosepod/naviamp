@@ -864,7 +864,8 @@ internal fun NaviampNowPlayingActions.withLocalDisplayActions(
 internal fun NowPlayingUi.withSelectedRemoteOutput(connect: NaviampConnectSettingsUi): NowPlayingUi =
     connect.trustedDevices.filter { it.playbackTarget }.let { targets -> copy(
         remoteOutputDeviceName = connect.selectedPlaybackDeviceName.takeIf {
-            connect.playbackDestinationStatus == NaviampConnectPlaybackDestinationUiStatus.Connected
+            connect.playbackDestinationStatus == NaviampConnectPlaybackDestinationUiStatus.Connected &&
+                connect.remotePlaybackAuthorityActive
         },
         playbackOutputs = if (targets.isEmpty()) emptyList() else buildList {
             add(

@@ -1113,6 +1113,13 @@ class NaviampCoreConnectController(
                     targetIsEmpty(), services.nowEpochMillis()),
             ),
         )
+        // An authenticated incoming controller makes this device the playback owner. Retaining an
+        // old outgoing selection would misroute local actions and let its reconnect displace this session.
+        suspendAutomaticReconnectForManualPairing()
+        playbackDestination.selectLocal()
+        retryableRemoteCommands = emptyList()
+        selectedTarget = null
+        notice = null
         val connectedTarget = NaviampConnectTargetSession(
             sessionId = session.sessionId,
             protocolVersion = session.protocolVersion,
@@ -1902,6 +1909,7 @@ class NaviampCoreConnectController(
                     },
                     localDeviceName = services.trust.selfName() ?: services.displayName,
                     playbackDestinationStatus = destination.toUiStatus(),
+                    remotePlaybackAuthorityActive = playbackDestination.hasRemotePlaybackAuthority(),
                     connectedTargetName = remote?.target?.displayName,
                     connectedControllerDeviceId = targetSession
                         ?.let { authenticatedSession?.trust?.peerDevice?.deviceId },
