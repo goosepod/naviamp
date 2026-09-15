@@ -234,6 +234,7 @@ class NaviampCore private constructor(
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
             var completeDatabaseReset: suspend () -> Unit = {}
+            var notifyPlaybackSettingsChanged: (app.naviamp.domain.settings.PlaybackSettings, app.naviamp.domain.settings.PlaybackSettings) -> Unit = { _, _ -> }
             val home = NaviampCoreHomeController(
                 stateStore,
                 providerSource,
@@ -259,6 +260,9 @@ class NaviampCore private constructor(
                     catalog.interfaceSettingsChanged(interfaceSettings)
                     mediaDetails.interfaceSettingsChanged(interfaceSettings)
                     home.interfaceSettingsChanged(interfaceSettings)
+                },
+                onPlaybackSettingsChanged = { previous, current ->
+                    notifyPlaybackSettingsChanged(previous, current)
                 },
             )
             persistLibraryAlbumSortOrder = { order ->
@@ -376,6 +380,7 @@ class NaviampCore private constructor(
                 nowPlayingPresenter,
                 services.clockEpochMillis,
             )
+            notifyPlaybackSettingsChanged = playback::playbackSettingsChanged
             val generatedRadioRecents = NaviampRecentRadioStreamController(
                 load = services.radio.generatedRecents.load,
                 save = services.radio.generatedRecents.save,

@@ -27,7 +27,9 @@ class NaviampCoreDiagnosticsTest {
                 ),
             ),
             provider = FakeCoreMediaProvider(supportsSonicSimilarity = true),
-            sidecars = NaviampCoreNowPlayingSidecars(),
+            sidecars = NaviampCoreNowPlayingSidecars(
+                relatedTracksStatus = NaviampCoreRelatedTracksStatus.Disabled,
+            ),
             playbackEngineRows = listOf("BASS load state" to "Loaded"),
             playbackProfileRows = listOf("Custom profile active" to "true"),
             external = NaviampCoreDiagnosticsSnapshot(
@@ -52,5 +54,9 @@ class NaviampCoreDiagnosticsTest {
         assertEquals("2", byTitle.getValue("Database").rows.toMap()["Pending listens"])
         assertTrue("Provider features" in byTitle)
         assertTrue("Track sidecars" in byTitle)
+        assertEquals(
+            "0 (None, Disabled)",
+            byTitle.getValue("Track sidecars").rows.toMap()["Related tracks"],
+        )
     }
 }

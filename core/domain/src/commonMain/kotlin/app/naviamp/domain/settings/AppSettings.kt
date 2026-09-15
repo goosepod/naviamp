@@ -448,6 +448,8 @@ data class PlaybackSettings(
     val preferWordSyncedLyrics: Boolean = false,
     val lyricsSearchOrder: List<LyricsSourcePreference> = DefaultLyricsSearchOrder,
     val sonicSimilarityEnabled: Boolean = false,
+    /** Distinguishes the old opt-in default from a user's explicit choice. */
+    val sonicSimilarityPreferenceConfigured: Boolean = false,
     val sonicAutoplayEnabled: Boolean = false,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
@@ -479,6 +481,14 @@ fun PlaybackSettings.normalized(): PlaybackSettings =
         mobileStreamingQuality = mobileStreamingQuality.normalized(),
         downloadQuality = downloadQuality.normalized(),
     )
+
+/**
+ * Sonic similarity is available by default once a server advertises it. Older settings documents
+ * stored the original false default without recording whether the user chose it, so they remain
+ * automatic until the user explicitly changes the preference.
+ */
+fun PlaybackSettings.effectiveSonicSimilarityEnabled(): Boolean =
+    sonicSimilarityEnabled || !sonicSimilarityPreferenceConfigured
 
 @Serializable
 enum class DownloadedTrackPlayback(

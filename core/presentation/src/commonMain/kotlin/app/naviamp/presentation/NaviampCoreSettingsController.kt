@@ -9,6 +9,7 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.withHomeSectionPresentation
 import app.naviamp.ui.toCacheSettingsUi
@@ -87,6 +88,7 @@ class NaviampCoreSettingsController(
     private val onDatabaseReset: suspend () -> Unit = {},
     private val onLocalSettingsChanged: () -> Unit = {},
     private val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
+    private val onPlaybackSettingsChanged: (previous: PlaybackSettings, current: PlaybackSettings) -> Unit = { _, _ -> },
 ) : NaviampCoreCommandController {
     internal fun applyConnectPortableSettings(settings: app.naviamp.domain.connect.NaviampConnectPortableSettings) {
         val shell = stateStore.state.value.shell
@@ -241,11 +243,13 @@ class NaviampCoreSettingsController(
     }
 
     private fun changePlayback(command: NaviampCoreCommand.Settings.ChangePlayback) {
+        val previous = stateStore.state.value.shell.playback.settings
         val settings = playbackSettings.apply(command.settings, command.redownload)
         onLocalSettingsChanged()
         stateStore.updateShell { shell ->
             shell.copy(playback = shell.playback.copy(settings = settings))
         }
+        onPlaybackSettingsChanged(previous, settings)
     }
 
     private fun changeCache(

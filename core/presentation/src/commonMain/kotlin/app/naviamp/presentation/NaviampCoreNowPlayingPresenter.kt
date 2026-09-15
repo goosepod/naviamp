@@ -9,6 +9,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.settings.streamQualityForNetwork
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.ui.NaviampNowPlayingContentInput
 import app.naviamp.ui.nowPlayingTrackCapabilities
 import app.naviamp.ui.toNaviampSleepTimerUi
@@ -114,7 +115,7 @@ class NaviampCoreNowPlayingPresenter(
                 ?: playbackSettings.streamQualityForNetwork(network.isActiveNetworkMobileData()),
             replayGainInspectorEnabled = playbackSettings.replayGainInspectorEnabled,
             replayGainMode = playbackSettings.replayGainMode,
-            sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
+            sonicSimilarityEnabled = playbackSettings.effectiveSonicSimilarityEnabled(),
             radioDjs = playbackSettings.radioDjs,
             activeRadioDjId = playbackSettings.activeRadioDjId,
             playlistChoices = shell.playlistChoices,

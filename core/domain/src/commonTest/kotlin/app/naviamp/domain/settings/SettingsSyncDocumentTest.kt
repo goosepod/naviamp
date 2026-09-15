@@ -54,6 +54,28 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
+    fun sonicSimilarityChoiceRoundTripsAndOlderExportsUseAutomaticSupport() {
+        val disabled = PlaybackSettings(
+            sonicSimilarityEnabled = false,
+            sonicSimilarityPreferenceConfigured = true,
+        )
+        val decoded = SettingsSyncJson.decode(
+            SettingsSyncJson.encode(
+                SettingsSyncDocument(preferences = SettingsSyncPreferences(playback = disabled)),
+            ),
+        ).preferences.playback
+
+        assertFalse(decoded.effectiveSonicSimilarityEnabled())
+        assertTrue(decoded.sonicSimilarityPreferenceConfigured)
+
+        val older = SettingsSyncJson.decode(
+            """{"preferences":{"playback":{"sonicSimilarityEnabled":false}}}""",
+        ).preferences.playback
+        assertTrue(older.effectiveSonicSimilarityEnabled())
+        assertFalse(older.sonicSimilarityPreferenceConfigured)
+    }
+
+    @Test
     fun splitPaneOpacityRoundTripsDefaultsAndNormalizes() {
         val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
             interfaceSettings = InterfaceSettings(
@@ -206,6 +228,8 @@ class SettingsSyncDocumentTest {
                     crossfadeDurationSeconds = 6,
                     lyricsTimingPreference = LyricsTimingPreference.WordSynced,
                     lyricsDisplayPreference = LyricsDisplayPreference.LineSynced,
+                    sonicSimilarityEnabled = false,
+                    sonicSimilarityPreferenceConfigured = true,
                     radioDjs = listOf(RadioDjPreset(id = "dj", name = " Road DJ ")),
                 ),
                 visualizer = VisualizerSettings(selectedVisualizer = "Waveform"),
@@ -252,6 +276,8 @@ class SettingsSyncDocumentTest {
         assertEquals(ReplayGainMode.Album, decoded.preferences.playback.replayGainMode)
         assertEquals(SampleRateConverter.Sinc32, decoded.preferences.playback.sampleRateConverter)
         assertEquals(SampleRateMatching.Strict, decoded.preferences.playback.sampleRateMatching)
+        assertFalse(decoded.preferences.playback.effectiveSonicSimilarityEnabled())
+        assertTrue(decoded.preferences.playback.sonicSimilarityPreferenceConfigured)
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertEquals("goosepod", decoded.preferences.recentRadioStreams.single().sourceId)

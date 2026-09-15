@@ -59,6 +59,7 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.effectiveLyricsDisplayTimingPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.playback.resolveAgainst
 import app.naviamp.domain.audio.AudioMetadataSidecarService
@@ -69,6 +70,7 @@ import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -803,6 +805,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
         audioTags: List<app.naviamp.domain.audio.AudioTag>?,
         relatedTracks: List<app.naviamp.domain.Track>,
         relatedTracksSource: RelatedTracksSource,
+        relatedTracksStatus: NaviampCoreRelatedTracksStatus,
         relatedSimilarityByTrackId: Map<TrackId, Double>,
     ) {
         state = state.copy(
@@ -811,6 +814,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
             audioTags = audioTags,
             relatedTracks = relatedTracks,
             relatedTracksSource = relatedTracksSource,
+            relatedTracksStatus = relatedTracksStatus,
             relatedSimilarityByTrackId = relatedSimilarityByTrackId,
         )
     }
@@ -883,7 +887,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                 }.getOrNull()
             }
             val related = async {
-                loadCoreRelatedTracks(provider, track, settings.sonicSimilarityEnabled)
+                loadCoreRelatedTracks(provider, track, settings.effectiveSonicSimilarityEnabled())
             }
             val waveformResult = waveform.await()
             val audioTags = runCatching {
@@ -907,6 +911,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                 audioTags = loaded.audioTags,
                 relatedTracks = loaded.related.tracks,
                 relatedTracksSource = loaded.related.source,
+                relatedTracksStatus = loaded.related.status,
                 relatedSimilarityByTrackId = loaded.related.similarityByTrackId,
             )
         }
@@ -1021,6 +1026,7 @@ private data class LoadedTrackSidecars(
 internal data class LoadedRelatedTracks(
     val tracks: List<app.naviamp.domain.Track> = emptyList(),
     val source: RelatedTracksSource = RelatedTracksSource.None,
+    val status: NaviampCoreRelatedTracksStatus = NaviampCoreRelatedTracksStatus.NotRequested,
     val similarityByTrackId: Map<TrackId, Double> = emptyMap(),
 )
 
@@ -1029,17 +1035,28 @@ internal suspend fun loadCoreRelatedTracks(
     track: app.naviamp.domain.Track,
     sonicSimilarityEnabled: Boolean,
 ): LoadedRelatedTracks {
-    if (!sonicSimilarityEnabled || !provider.capabilities.supportsSonicSimilarity) {
-        return LoadedRelatedTracks()
+    if (!sonicSimilarityEnabled) {
+        return LoadedRelatedTracks(status = NaviampCoreRelatedTracksStatus.Disabled)
     }
-    val matches = runCatching {
+    if (!provider.capabilities.supportsSonicSimilarity) {
+        return LoadedRelatedTracks(status = NaviampCoreRelatedTracksStatus.Unsupported)
+    }
+    val matches = try {
         provider.sonicSimilarTrackMatches(track.id, count = CoreRelatedTrackLimit)
-    }.getOrDefault(emptyList())
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        return LoadedRelatedTracks(status = NaviampCoreRelatedTracksStatus.Failed)
+    }
         .filterNot { it.track.id == track.id }
         .distinctBy { it.track.id }
+    if (matches.isEmpty()) {
+        return LoadedRelatedTracks(status = NaviampCoreRelatedTracksStatus.Empty)
+    }
     return LoadedRelatedTracks(
         tracks = matches.map { it.track },
         source = RelatedTracksSource.SonicSimilarity,
+        status = NaviampCoreRelatedTracksStatus.Loaded,
         similarityByTrackId = matches.mapNotNull { match ->
             match.similarity?.let { match.track.id to it }
         }.toMap(),

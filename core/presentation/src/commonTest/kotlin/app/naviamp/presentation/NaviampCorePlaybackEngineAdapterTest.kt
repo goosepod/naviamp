@@ -1086,8 +1086,38 @@ class NaviampCorePlaybackEngineAdapterTest {
         val related = loadCoreRelatedTracks(provider, provider.track, sonicSimilarityEnabled = true)
 
         assertEquals(RelatedTracksSource.SonicSimilarity, related.source)
+        assertEquals(NaviampCoreRelatedTracksStatus.Loaded, related.status)
         assertEquals(listOf("sonic-related"), related.tracks.map { it.id.value })
         assertEquals(0.87, related.similarityByTrackId[TrackId("sonic-related")])
+    }
+
+    @Test
+    fun sharedSidecarLoaderReportsDisabledEmptyAndFailedSonicResults() = runTest {
+        val supported = FakeCoreMediaProvider(supportsSonicSimilarity = true)
+        val empty = object : MediaProvider by supported {
+            override suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int) = emptyList<app.naviamp.domain.provider.SonicSimilarTrack>()
+        }
+        val failed = object : MediaProvider by supported {
+            override suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int): List<app.naviamp.domain.provider.SonicSimilarTrack> =
+                error("Sonic request failed")
+        }
+
+        assertEquals(
+            NaviampCoreRelatedTracksStatus.Disabled,
+            loadCoreRelatedTracks(supported, supported.track, sonicSimilarityEnabled = false).status,
+        )
+        assertEquals(
+            NaviampCoreRelatedTracksStatus.Empty,
+            loadCoreRelatedTracks(empty, supported.track, sonicSimilarityEnabled = true).status,
+        )
+        assertEquals(
+            NaviampCoreRelatedTracksStatus.Failed,
+            loadCoreRelatedTracks(failed, supported.track, sonicSimilarityEnabled = true).status,
+        )
+        assertEquals(
+            NaviampCoreRelatedTracksStatus.Unsupported,
+            loadCoreRelatedTracks(FakeCoreMediaProvider(), supported.track, sonicSimilarityEnabled = true).status,
+        )
     }
 
     @Test

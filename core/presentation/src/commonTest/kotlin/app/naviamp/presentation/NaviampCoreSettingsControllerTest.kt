@@ -5,6 +5,7 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.domain.settings.normalized
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.ui.NaviampDownloadedTrackUi
@@ -61,6 +62,24 @@ class NaviampCoreSettingsControllerTest {
         )
         assertEquals(fixture.store.state.value.shell.playback.settings, fixture.savedPlayback.single())
         assertEquals(fixture.store.state.value.shell.cache.settings, fixture.savedCache.single())
+    }
+
+    @Test
+    fun changingPlaybackSettingsPublishesThePreviousAndSavedSettingsForImmediateSideEffects() {
+        val fixture = fixture()
+        val requested = PlaybackSettings(
+            sonicSimilarityEnabled = false,
+            sonicSimilarityPreferenceConfigured = true,
+        )
+
+        fixture.controller.dispatch(
+            NaviampCoreCommand.Settings.ChangePlayback(requested, redownload = false),
+        )
+
+        val (previous, current) = fixture.playbackChanges.single()
+        assertTrue(previous.effectiveSonicSimilarityEnabled())
+        assertFalse(current.effectiveSonicSimilarityEnabled())
+        assertEquals(fixture.savedPlayback.single(), current)
     }
 
     @Test
@@ -180,11 +199,13 @@ class NaviampCoreSettingsControllerTest {
         val savedInterface = mutableListOf<InterfaceSettings>()
         val savedPlayback = mutableListOf<PlaybackSettings>()
         val savedCache = mutableListOf<CacheSettings>()
+        val playbackChanges = mutableListOf<Pair<PlaybackSettings, PlaybackSettings>>()
         return SettingsFixture(
             store = store,
             savedInterface = savedInterface,
             savedPlayback = savedPlayback,
             savedCache = savedCache,
+            playbackChanges = playbackChanges,
             controller = NaviampCoreSettingsController(
                 stateStore = store,
                 interfaceStore = NaviampCoreInterfaceSettingsStore(savedInterface::add),
@@ -197,6 +218,9 @@ class NaviampCoreSettingsControllerTest {
                 maintenancePort = NaviampCoreMaintenancePort(maintenance),
                 refreshLibrary = refreshLibrary,
                 onDatabaseReset = onDatabaseReset,
+                onPlaybackSettingsChanged = { previous, current ->
+                    playbackChanges += previous to current
+                },
             ),
         )
     }
@@ -207,5 +231,6 @@ private data class SettingsFixture(
     val savedInterface: List<InterfaceSettings>,
     val savedPlayback: List<PlaybackSettings>,
     val savedCache: List<CacheSettings>,
+    val playbackChanges: List<Pair<PlaybackSettings, PlaybackSettings>>,
     val controller: NaviampCoreSettingsController,
 )
