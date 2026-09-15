@@ -358,3 +358,49 @@ jobs:
           path: |
             **/build/reports/tests/iosSimulatorArm64Test/**
             build/ios-keychain-tests.xcresult
+
+  evidence:
+    name: Record verified source tree
+    needs:
+      - changes
+      - shared-android
+      - desktop-macos
+      - android-device
+      - desktop-windows
+      - desktop-linux
+      - ios
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.run_full == 'true' &&
+      needs.shared-android.result == 'success' &&
+      needs.desktop-macos.result == 'success' &&
+      needs.android-device.result == 'success' &&
+      needs.desktop-windows.result == 'success' &&
+      needs.desktop-linux.result == 'success' &&
+      needs.ios.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the verified pull-request merge
+        uses: actions/checkout@v7
+
+      - name: Write verification evidence
+        env:
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/naviamp-verification"
+          {
+            echo "source_head_sha=$SOURCE_HEAD_SHA"
+            echo "tested_commit_sha=$(git rev-parse HEAD)"
+            echo "tested_tree_sha=$(git rev-parse 'HEAD^{tree}')"
+            echo "workflow_run_id=$WORKFLOW_RUN_ID"
+          } > "$RUNNER_TEMP/naviamp-verification/evidence.txt"
+
+      - name: Upload verification evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: verified-source-${{ github.event.pull_request.head.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: ${{ runner.temp }}/naviamp-verification/evidence.txt
