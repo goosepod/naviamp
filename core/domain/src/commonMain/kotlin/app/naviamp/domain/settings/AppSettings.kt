@@ -132,7 +132,7 @@ fun selectedMusicFolderLabels(
     availableFolders: List<ConnectionFormMusicFolder>,
 ): List<String> {
     val folderNameById = availableFolders.associate { it.id to it.name }
-    return selectedIds.map { id -> folderNameById[id] ?: "ID: $id" }
+    return selectedIds.mapNotNull(folderNameById::get)
 }
 
 fun selectedMusicFolderSummary(

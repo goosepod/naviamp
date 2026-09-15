@@ -728,6 +728,7 @@ data class NaviampLibraryScreenUi(
     val albums: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
     val songs: NaviampLibraryCatalogUi = NaviampLibraryCatalogUi(),
     val jumpRequest: NaviampLibraryJumpUi? = null,
+    val sourcePicker: NaviampLibrarySourcePickerUi = NaviampLibrarySourcePickerUi(),
 ) {
     fun catalog(view: NaviampLibraryView): NaviampLibraryCatalogUi = when (view) {
         NaviampLibraryView.Artists -> artists
@@ -737,6 +738,21 @@ data class NaviampLibraryScreenUi(
 
     val selectedCatalog: NaviampLibraryCatalogUi
         get() = catalog(selectedView)
+}
+
+data class NaviampLibrarySourcePickerUi(
+    val visible: Boolean = false,
+    val libraries: List<ConnectionFormMusicFolder> = emptyList(),
+    val selectedIds: List<String> = emptyList(),
+    val loading: Boolean = false,
+    val saving: Boolean = false,
+    val errorKind: NaviampLibrarySourcePickerError? = null,
+)
+
+enum class NaviampLibrarySourcePickerError {
+    ConnectionRequired,
+    LoadFailed,
+    SaveFailed,
 }
 
 data class NaviampLibraryJumpUi(
@@ -753,6 +769,11 @@ data class NaviampLibraryActions(
     val onJumpToLetter: (Char) -> Unit,
     val onAlbumSortOrderChanged: (LibraryAlbumSortOrder) -> Unit = {},
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    val onOpenSourcePicker: () -> Unit = {},
+    val onToggleSource: (String) -> Unit = {},
+    val onSaveSources: () -> Unit = {},
+    val onCancelSources: () -> Unit = {},
+    val onRetrySources: () -> Unit = {},
 )
 
 data class SharedArtistMixBuilderUi(

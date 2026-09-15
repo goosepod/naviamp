@@ -193,6 +193,11 @@ fun createNaviampCoreActions(
             onJumpToLetter = { send(NaviampCoreCommand.Library.JumpToLetter(it)) },
             onAlbumSortOrderChanged = { send(NaviampCoreCommand.Library.ChangeAlbumSortOrder(it)) },
             onTrackAction = { send(NaviampCoreCommand.Library.TrackAction(it)) },
+            onOpenSourcePicker = { send(NaviampCoreCommand.Library.OpenSources) },
+            onToggleSource = { send(NaviampCoreCommand.Library.ToggleSource(it)) },
+            onSaveSources = { send(NaviampCoreCommand.Library.SaveSources) },
+            onCancelSources = { send(NaviampCoreCommand.Library.CancelSources) },
+            onRetrySources = { send(NaviampCoreCommand.Library.RetrySources) },
         ),
         playlistsActions = NaviampPlaylistsActions(
             onRefresh = { send(NaviampCoreCommand.Playlists.Refresh) },

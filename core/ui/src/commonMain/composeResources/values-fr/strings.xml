@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Empêche la veille automatique de l’écran lorsque Naviamp est visible. La veille du système, le verrouillage et les minuteries du téléviseur peuvent toujours s’appliquer.</string>
     <string name="settings_keep_screen_awake_failed">Impossible de modifier la prévention de la veille de l’écran. Désactivez puis réactivez ce réglage pour réessayer.</string>
     <string name="settings_now_playing_split_background_opacity">Opacité de l’arrière-plan de la vue fractionnée</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Appareil de lecture : %1$s</string>
     <string name="smart_playlist_field_album_date_added">Date d’ajout de l’album</string>
     <string name="smart_playlist_field_album_date_modified">Date de modification de l’album</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">Chronologie</string>
     <string name="diagnostics_failure_legacy_presence">Présence héritée</string>
     <string name="diagnostics_failure_listen_submission">Envoyer l’écoute</string>
+    <string name="library_sources_choose">Choisir les bibliothèques</string>
+    <string name="library_sources_title">Bibliothèques</string>
+    <string name="library_sources_description">Choisissez les bibliothèques affichées dans Naviamp.</string>
+    <string name="library_sources_loading">Chargement des bibliothèques…</string>
+    <string name="library_sources_empty">Ce serveur ne propose aucune bibliothèque sélectionnable.</string>
+    <string name="library_sources_save">Enregistrer</string>
+    <string name="library_sources_cancel">Annuler</string>
+    <string name="library_sources_retry">Réessayer</string>
+    <string name="library_sources_connection_required">Connectez-vous à un serveur de musique pour choisir les bibliothèques.</string>
+    <string name="library_sources_load_failed">Impossible de charger les bibliothèques.</string>
+    <string name="library_sources_save_failed">Impossible de mettre à jour les bibliothèques sélectionnées.</string>
 </resources>

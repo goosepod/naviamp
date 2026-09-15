@@ -134,7 +134,7 @@
     <string name="settings_keep_screen_awake_description">Zapobiega automatycznemu uśpieniu ekranu, gdy Naviamp jest widoczny. Uśpienie systemu, blokady ekranu i wyłączniki czasowe telewizora mogą nadal działać.</string>
     <string name="settings_keep_screen_awake_failed">Nie można zmienić zapobiegania uśpieniu ekranu. Wyłącz i włącz to ustawienie, aby spróbować ponownie.</string>
     <string name="settings_now_playing_split_background_opacity">Krycie tła widoku podzielonego</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Urządzenie odtwarzające: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Data dodania albumu</string>
     <string name="smart_playlist_field_album_date_modified">Data modyfikacji albumu</string>
@@ -161,4 +161,15 @@
     <string name="diagnostics_failure_timeline">Oś czasu</string>
     <string name="diagnostics_failure_legacy_presence">Starszy tryb obecności</string>
     <string name="diagnostics_failure_listen_submission">Prześlij odsłuch</string>
+    <string name="library_sources_choose">Wybierz biblioteki</string>
+    <string name="library_sources_title">Biblioteki</string>
+    <string name="library_sources_description">Wybierz biblioteki wyświetlane w Naviamp.</string>
+    <string name="library_sources_loading">Wczytywanie bibliotek…</string>
+    <string name="library_sources_empty">Ten serwer nie ma bibliotek, które można wybrać.</string>
+    <string name="library_sources_save">Zapisz</string>
+    <string name="library_sources_cancel">Anuluj</string>
+    <string name="library_sources_retry">Spróbuj ponownie</string>
+    <string name="library_sources_connection_required">Połącz się z serwerem muzycznym, aby wybrać biblioteki.</string>
+    <string name="library_sources_load_failed">Nie udało się wczytać bibliotek.</string>
+    <string name="library_sources_save_failed">Nie udało się zaktualizować wybranych bibliotek.</string>
 </resources>

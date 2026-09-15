@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Запобігає автоматичному вимкненню екрана, поки Naviamp видимий. Сон системи, блокування екрана й таймери телевізора можуть діяти й надалі.</string>
     <string name="settings_keep_screen_awake_failed">Не вдалося змінити запобігання вимкненню екрана. Вимкніть і знову ввімкніть цей параметр, щоб повторити спробу.</string>
     <string name="settings_now_playing_split_background_opacity">Непрозорість тла розділеного перегляду</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Пристрій відтворення: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Дата додавання альбому</string>
     <string name="smart_playlist_field_album_date_modified">Дата зміни альбому</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">Хронологія</string>
     <string name="diagnostics_failure_legacy_presence">Застаріла присутність</string>
     <string name="diagnostics_failure_listen_submission">Надіслати прослуховування</string>
+    <string name="library_sources_choose">Вибрати бібліотеки</string>
+    <string name="library_sources_title">Бібліотеки</string>
+    <string name="library_sources_description">Виберіть бібліотеки, які відображатимуться в Naviamp.</string>
+    <string name="library_sources_loading">Завантаження бібліотек…</string>
+    <string name="library_sources_empty">На цьому сервері немає бібліотек, які можна вибрати.</string>
+    <string name="library_sources_save">Зберегти</string>
+    <string name="library_sources_cancel">Скасувати</string>
+    <string name="library_sources_retry">Повторити</string>
+    <string name="library_sources_connection_required">Підключіться до музичного сервера, щоб вибрати бібліотеки.</string>
+    <string name="library_sources_load_failed">Не вдалося завантажити бібліотеки.</string>
+    <string name="library_sources_save_failed">Не вдалося оновити вибрані бібліотеки.</string>
 </resources>

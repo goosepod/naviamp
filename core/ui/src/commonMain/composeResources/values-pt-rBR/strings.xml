@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Impede que a tela desligue automaticamente enquanto o Naviamp estiver visível. Suspensão do sistema, bloqueios e temporizadores da TV ainda podem ser aplicados.</string>
     <string name="settings_keep_screen_awake_failed">Não foi possível alterar a prevenção do desligamento da tela. Desative e ative esta opção para tentar novamente.</string>
     <string name="settings_now_playing_split_background_opacity">Opacidade do fundo da visualização dividida</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Dispositivo de reprodução: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Data de adição do álbum</string>
     <string name="smart_playlist_field_album_date_modified">Data de modificação do álbum</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">Linha do tempo</string>
     <string name="diagnostics_failure_legacy_presence">Presença legada</string>
     <string name="diagnostics_failure_listen_submission">Enviar reprodução</string>
+    <string name="library_sources_choose">Escolher bibliotecas</string>
+    <string name="library_sources_title">Bibliotecas</string>
+    <string name="library_sources_description">Escolha quais bibliotecas aparecem no Naviamp.</string>
+    <string name="library_sources_loading">Carregando bibliotecas…</string>
+    <string name="library_sources_empty">Este servidor não tem bibliotecas selecionáveis.</string>
+    <string name="library_sources_save">Salvar</string>
+    <string name="library_sources_cancel">Cancelar</string>
+    <string name="library_sources_retry">Tentar novamente</string>
+    <string name="library_sources_connection_required">Conecte-se a um servidor de música para escolher bibliotecas.</string>
+    <string name="library_sources_load_failed">Não foi possível carregar as bibliotecas.</string>
+    <string name="library_sources_save_failed">Não foi possível atualizar as bibliotecas selecionadas.</string>
 </resources>
