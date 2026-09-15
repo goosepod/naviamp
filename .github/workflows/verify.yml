@@ -315,11 +315,6 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Gradle cache and reporting
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
-
       - name: Set up Android SDK for Gradle configuration
         uses: android-actions/setup-android@v4
         with:
