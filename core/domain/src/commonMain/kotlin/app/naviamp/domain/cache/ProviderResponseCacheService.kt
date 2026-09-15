@@ -1,9 +1,15 @@
 package app.naviamp.domain.cache
 
 import app.naviamp.domain.provider.MediaProvider
+import kotlinx.coroutines.CancellationException
+
+data class CachedProviderResponse(
+    val payload: String,
+    val createdAtEpochMillis: Long,
+)
 
 interface ProviderResponseStore {
-    fun cachedResponse(cacheKey: String): String?
+    fun cachedResponse(cacheKey: String): CachedProviderResponse?
 
     fun touchResponse(
         cacheKey: String,
@@ -45,9 +51,9 @@ class ProviderResponseCacheService(
         fetch: suspend () -> T,
     ): T {
         val key = cacheKey(provider, resourceType, resourceId)
-        store.cachedResponse(key)?.let { payload ->
+        store.cachedResponse(key)?.let { cached ->
             store.touchResponse(key, nowMillis())
-            return decode(payload)
+            return decode(cached.payload)
         }
 
         val value = fetch()
@@ -62,6 +68,47 @@ class ProviderResponseCacheService(
             lastAccessedEpochMillis = now,
         )
         return value
+    }
+
+    override suspend fun <T> revalidatedProviderResponse(
+        provider: MediaProvider,
+        resourceType: String,
+        resourceId: String,
+        maxAgeMillis: Long,
+        decode: (String) -> T,
+        encode: (T) -> String,
+        fetch: suspend () -> T,
+    ): T {
+        require(maxAgeMillis >= 0) { "The provider response maximum age cannot be negative." }
+        val key = cacheKey(provider, resourceType, resourceId)
+        val cached = store.cachedResponse(key)
+        val now = nowMillis()
+        if (cached != null && now - cached.createdAtEpochMillis in 0 until maxAgeMillis) {
+            store.touchResponse(key, now)
+            return decode(cached.payload)
+        }
+        return try {
+            fetch().also { value ->
+                val refreshedAt = nowMillis()
+                store.upsertResponse(
+                    cacheKey = key,
+                    providerId = provider.cacheNamespace,
+                    resourceType = resourceType,
+                    resourceId = resourceId,
+                    payload = encode(value),
+                    createdAtEpochMillis = refreshedAt,
+                    lastAccessedEpochMillis = refreshedAt,
+                )
+            }
+        } catch (cause: CancellationException) {
+            throw cause
+        } catch (cause: Exception) {
+            cached?.let {
+                store.touchResponse(key, nowMillis())
+                return decode(it.payload)
+            }
+            throw cause
+        }
     }
 
     override fun invalidateProviderResponses(

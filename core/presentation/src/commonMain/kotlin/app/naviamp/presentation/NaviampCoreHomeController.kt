@@ -159,11 +159,11 @@ class NaviampCoreHomeController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         if (command != NaviampCoreCommand.Home.Refresh) return null
-        refresh()
+        refresh(forceRefreshRecentlyAdded = true)
         return NaviampCoreCommandResult.Completed
     }
 
-    private suspend fun refresh() {
+    private suspend fun refresh(forceRefreshRecentlyAdded: Boolean = false) {
         val generation = ++refreshGeneration
         val provider = providerSource.current()
         if (provider == null) {
@@ -183,6 +183,7 @@ class NaviampCoreHomeController(
                     recentRadioStreams = supplement.recentRadioStreams,
                     recentInternetRadioStations = supplement.recentInternetRadioStations,
                     artistLimit = artistLimit,
+                    forceRefreshRecentlyAdded = forceRefreshRecentlyAdded,
                     observedAtIso8601 = observedAtIso8601,
                 ),
             )

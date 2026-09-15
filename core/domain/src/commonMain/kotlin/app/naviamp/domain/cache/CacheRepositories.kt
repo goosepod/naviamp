@@ -53,6 +53,16 @@ interface ProviderResponseCacheRepository {
         fetch: suspend () -> T,
     ): T
 
+    suspend fun <T> revalidatedProviderResponse(
+        provider: MediaProvider,
+        resourceType: String,
+        resourceId: String,
+        maxAgeMillis: Long,
+        decode: (String) -> T,
+        encode: (T) -> String,
+        fetch: suspend () -> T,
+    ): T = cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
+
     fun invalidateProviderResponses(
         provider: MediaProvider,
         resourceType: String,

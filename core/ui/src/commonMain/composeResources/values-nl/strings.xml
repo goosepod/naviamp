@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">Koppelingscode</string>
     <string name="connect_devices_description">Naviamp-apparaten op dit netwerk bedienen en koppelen</string>
     <string name="connect_setup_timed_out">De apparaatconfiguratie duurde te lang. Controleer het afspeelapparaat en probeer het opnieuw.</string>
+    <string name="library_sort_title">Albums sorteren: Titel</string>
+    <string name="library_sort_recently_added">Albums sorteren: Onlangs toegevoegd</string>
 </resources>

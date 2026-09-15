@@ -305,7 +305,7 @@ class StorageCriticalStoresTest {
         assertEquals(125L, lyrics.cachedLyrics(fixture.sourceId, "track")?.offsetMillis)
         assertEquals("Lrclib", lyrics.cachedOnlineLyrics(fixture.sourceId, "track", "lrclib")?.lyricSource)
         assertEquals(375, offsets.lyricsOffsetMillis(fixture.sourceId, TrackId("track")))
-        assertEquals("{}", responses.cachedResponse("key"))
+        assertEquals("{}", responses.cachedResponse("key")?.payload)
         assertEquals(
             "failed",
             fixture.queries.selectCachedSidecarStatus(fixture.sourceId, "track", "original").executeAsOne().status,

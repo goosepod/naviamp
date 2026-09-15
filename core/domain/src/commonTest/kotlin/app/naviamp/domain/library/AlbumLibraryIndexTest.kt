@@ -8,6 +8,22 @@ import kotlin.test.*
 
 class AlbumLibraryIndexTest {
     @Test
+    fun recentlyAddedOrderingUsesProviderTimestampAndStableFallbacks() {
+        val albums = listOf(
+            Album(AlbumId("missing-b"), "Beta", "Artist", null, null),
+            Album(AlbumId("new"), "Newest", "Artist", null, "2026-09-15T12:00:00Z"),
+            Album(AlbumId("invalid"), "Alpha", "Artist", null, "not-a-date"),
+            Album(AlbumId("old"), "Older", "Artist", null, "2026-09-01T12:00:00Z"),
+            Album(AlbumId("missing-a"), "Alpha", "Artist", null, null),
+        )
+
+        assertEquals(
+            listOf("new", "old", "invalid", "missing-a", "missing-b"),
+            orderAlbumCatalog(albums, app.naviamp.domain.settings.LibraryAlbumSortOrder.RecentlyAdded).map { it.id.value },
+        )
+    }
+
+    @Test
     fun completeCatalogHasStableLocalOrderingAndWarmSnapshotsNeedNoNetwork() = runTest {
         val repository = MemoryAlbumCatalog()
         val provider = AlbumIndexProvider(listOf("The Aquabats!", "G I R L", "25", "Les Années 80", "Another", "G I R L"))

@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import app.naviamp.ui.NaviampLibraryView
+import app.naviamp.domain.settings.LibraryAlbumSortOrder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -389,6 +390,48 @@ class NaviampCoreCatalogControllerTest {
         assertEquals(store.state.value.shell.library.albums.items, restartedStore.state.value.shell.library.albums.items)
         restarted.execute(NaviampCoreCommand.Library.Refresh)
         assertEquals(2, requests)
+    }
+
+    @Test
+    fun indexedAlbumsCanSortByDateAddedAndDisableAlphabeticalJumping() = runTest {
+        val snapshots = mutableMapOf<app.naviamp.domain.library.AlbumCatalogScope, app.naviamp.domain.library.AlbumCatalogSnapshot>()
+        val repository = object : app.naviamp.domain.library.AlbumCatalogRepository {
+            override fun readAlbumCatalog(scope: app.naviamp.domain.library.AlbumCatalogScope) = snapshots[scope]
+            override fun replaceAlbumCatalog(scope: app.naviamp.domain.library.AlbumCatalogScope, snapshot: app.naviamp.domain.library.AlbumCatalogSnapshot) {
+                snapshots[scope] = snapshot
+            }
+        }
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun albumsPage(request: MediaPageRequest) = MediaPage(
+                listOf(
+                    Album(AlbumId("old"), "Alpha", "Artist", null, "2026-09-01T00:00:00Z"),
+                    Album(AlbumId("new"), "Zulu", "Artist", null, "2026-09-15T00:00:00Z"),
+                    Album(AlbumId("missing"), "Beta", "Artist", null, null),
+                ),
+                0,
+                request.limit,
+                false,
+            )
+        }
+        val store = NaviampCoreStateStore()
+        val changes = mutableListOf<LibraryAlbumSortOrder>()
+        val controller = NaviampCoreCatalogController(
+            store,
+            NaviampCoreMediaProviderSource { provider },
+            albumIndex = app.naviamp.domain.library.AlbumLibraryIndex(repository, { "source" }, { 1_000L }),
+            onLibraryAlbumSortOrderChanged = changes::add,
+        )
+        val selectAlbums = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Albums)
+        controller.dispatch(selectAlbums)
+        controller.execute(selectAlbums)
+
+        controller.dispatch(NaviampCoreCommand.Library.ChangeAlbumSortOrder(LibraryAlbumSortOrder.RecentlyAdded))
+        controller.execute(NaviampCoreCommand.Library.JumpToLetter('Z'))
+
+        assertEquals(listOf("Zulu", "Alpha", "Beta"), store.state.value.shell.library.albums.items.map { it.title })
+        assertEquals(LibraryAlbumSortOrder.RecentlyAdded, store.state.value.shell.library.albums.albumSortOrder)
+        assertEquals(listOf(LibraryAlbumSortOrder.RecentlyAdded), changes)
+        assertEquals(null, store.state.value.shell.library.jumpRequest)
     }
 
     @Test

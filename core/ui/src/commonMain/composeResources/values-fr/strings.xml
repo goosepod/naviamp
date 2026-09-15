@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">Code d’association</string>
     <string name="connect_devices_description">Contrôler et associer les appareils Naviamp sur ce réseau</string>
     <string name="connect_setup_timed_out">Le délai de configuration a expiré. Vérifiez l’appareil de lecture, puis réessayez.</string>
+    <string name="library_sort_title">Trier les albums : Titre</string>
+    <string name="library_sort_recently_added">Trier les albums : Ajoutés récemment</string>
 </resources>

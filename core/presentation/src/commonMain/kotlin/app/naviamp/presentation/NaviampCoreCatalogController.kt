@@ -2,6 +2,9 @@ package app.naviamp.presentation
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.library.AlbumLibraryIndex
+import app.naviamp.domain.library.orderAlbumCatalog
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.LibraryAlbumSortOrder
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.AlphabeticalLibraryKind
@@ -31,7 +34,13 @@ class NaviampCoreCatalogController(
     private val libraryIndex: LocalLibraryIndexRepository? = null,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
     private val albumIndex: AlbumLibraryIndex? = null,
+    private val onLibraryAlbumSortOrderChanged: (LibraryAlbumSortOrder) -> Unit = {},
 ) : NaviampCoreCommandController {
+    init {
+        val order = stateStore.state.value.shell.general.interfaceSettings.libraryAlbumSortOrder
+        updateLibraryCatalog(NaviampLibraryView.Albums) { it.copy(albumSortOrder = order) }
+    }
+
     private var searchGeneration = 0L
     private data class LibraryLoadState(
         var generation: Long = 0L,
@@ -62,6 +71,9 @@ class NaviampCoreCatalogController(
             NaviampCoreImmediateCommandResult.Deferred
         }
         is NaviampCoreCommand.Library.JumpToLetter -> NaviampCoreImmediateCommandResult.Deferred
+        is NaviampCoreCommand.Library.ChangeAlbumSortOrder -> handled {
+            changeAlbumSortOrder(command.order)
+        }
         NaviampCoreCommand.Library.Refresh,
         NaviampCoreCommand.Library.LoadMore,
         -> NaviampCoreImmediateCommandResult.Deferred
@@ -87,6 +99,7 @@ class NaviampCoreCatalogController(
             NaviampCoreCommand.Library.Refresh -> refreshLibrary(forceAlbums = true)
             NaviampCoreCommand.Library.LoadMore -> loadMoreLibrary()
             is NaviampCoreCommand.Library.JumpToLetter -> jumpToLetter(command.letter)
+            is NaviampCoreCommand.Library.ChangeAlbumSortOrder -> Unit
             else -> return null
         }
         return NaviampCoreCommandResult.Completed
@@ -148,12 +161,13 @@ class NaviampCoreCatalogController(
         val scope = index.scope(provider)
         fun current() = isCurrentLibraryLoad(load, generation, sourceKey)
         fun publish(albums: List<Album>) {
-            mediaRegistry.updateLibraryAlbums(albums, replace = true)
-            val items = albums.map { album -> album.toSharedMediaItemUi(
+            val ordered = orderAlbumCatalog(albums, currentAlbumSortOrder())
+            mediaRegistry.updateLibraryAlbums(ordered, replace = true)
+            val items = ordered.map { album -> album.toSharedMediaItemUi(
                 coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
                 canFavorite = provider.capabilities.supportsAlbumFavorites,
             ) }
-            updateLibraryCatalog(view) { it.copy(items = items) }
+            updateLibraryCatalog(view) { it.copy(items = items, albumSortOrder = currentAlbumSortOrder()) }
         }
         val cached = index.snapshot(scope)
         load.completeAlbumCatalog = cached != null
@@ -204,7 +218,12 @@ class NaviampCoreCatalogController(
             it.completeAlbumCatalog = false
             it.nextRequest = MediaPageRequest(limit = libraryPageSize)
         }
-        stateStore.updateShell { it.copy(library = app.naviamp.ui.NaviampLibraryScreenUi(selectedView = it.library.selectedView)) }
+        stateStore.updateShell {
+            it.copy(library = app.naviamp.ui.NaviampLibraryScreenUi(
+                selectedView = it.library.selectedView,
+                albums = NaviampLibraryCatalogUi(albumSortOrder = currentAlbumSortOrder()),
+            ))
+        }
         mediaRegistry.updateLibraryArtists(emptyList(), true)
         mediaRegistry.updateLibraryAlbums(emptyList(), true)
         mediaRegistry.updateLibraryTracks(emptyList(), true)
@@ -488,6 +507,40 @@ class NaviampCoreCatalogController(
         stateStore.updateShell { shell -> shell.copy(library = shell.library.copy(selectedView = view)) }
     }
 
+    private fun currentAlbumSortOrder(): LibraryAlbumSortOrder =
+        stateStore.state.value.shell.general.interfaceSettings.libraryAlbumSortOrder
+
+    private fun changeAlbumSortOrder(order: LibraryAlbumSortOrder) {
+        if (currentAlbumSortOrder() == order) return
+        val current = stateStore.state.value.shell.general.interfaceSettings
+        interfaceSettingsChanged(current.copy(libraryAlbumSortOrder = order))
+        onLibraryAlbumSortOrderChanged(order)
+    }
+
+    fun interfaceSettingsChanged(settings: InterfaceSettings) {
+        stateStore.updateShell { shell ->
+            shell.copy(
+                general = shell.general.copy(interfaceSettings = settings),
+                library = shell.library.copy(
+                    albums = shell.library.albums.copy(albumSortOrder = settings.libraryAlbumSortOrder),
+                ),
+            )
+        }
+        val provider = providerSource.current() ?: return
+        val albums = mediaRegistry.libraryAlbums
+        if (albums.isEmpty()) return
+        val ordered = orderAlbumCatalog(albums, settings.libraryAlbumSortOrder)
+        mediaRegistry.updateLibraryAlbums(ordered, replace = true)
+        updateLibraryCatalog(NaviampLibraryView.Albums) { catalog ->
+            catalog.copy(items = ordered.map { album ->
+                album.toSharedMediaItemUi(
+                    coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
+                    canFavorite = provider.capabilities.supportsAlbumFavorites,
+                )
+            })
+        }
+    }
+
     private fun publishLibraryStatus(view: NaviampLibraryView, message: String?, loading: Boolean) {
         updateLibraryCatalog(view) { catalog ->
             catalog.copy(syncStatus = NaviampLibrarySyncStatusUi(message = message, isSyncing = loading))
@@ -547,6 +600,7 @@ class NaviampCoreCatalogController(
         val library = stateStore.state.value.shell.library
         val view = library.selectedView
         if (view == NaviampLibraryView.Albums && albumIndex != null) {
+            if (currentAlbumSortOrder() != LibraryAlbumSortOrder.Title) return
             val load = libraryLoads.getValue(view)
             if (load.loadingGeneration == load.generation && !load.completeAlbumCatalog) {
                 updateLibraryCatalog(view) { it.copy(pendingJump = normalized) }

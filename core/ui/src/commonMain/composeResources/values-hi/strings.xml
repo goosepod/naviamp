@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">पेयरिंग कोड</string>
     <string name="connect_devices_description">इस नेटवर्क पर Naviamp डिवाइस नियंत्रित और पेयर करें</string>
     <string name="connect_setup_timed_out">डिवाइस सेटअप का समय समाप्त हो गया। प्लेबैक डिवाइस जाँचें, फिर दोबारा कोशिश करें।</string>
+    <string name="library_sort_title">एल्बम क्रम: शीर्षक</string>
+    <string name="library_sort_recently_added">एल्बम क्रम: हाल ही में जोड़े गए</string>
 </resources>

@@ -102,15 +102,28 @@ class ProviderResponseService(
         provider: MediaProvider,
         type: AlbumListType,
         limit: Int,
-    ): List<Album> =
-        cacheRepository.cachedProviderResponse(
+        maxAgeMillis: Long? = null,
+    ): List<Album> {
+        val decode: (String) -> List<Album> = { json.decodeFromString<List<AlbumDto>>(it).map { dto -> dto.toAlbum() } }
+        val encode: (List<Album>) -> String = { json.encodeToString(it.map { album -> AlbumDto.fromAlbum(album) }) }
+        val fetch: suspend () -> List<Album> = { provider.albumList(type, limit) }
+        return if (maxAgeMillis == null) cacheRepository.cachedProviderResponse(
             provider = provider,
             resourceType = AlbumListResourceType,
             resourceId = albumListResourceId(type, limit),
-            decode = { json.decodeFromString<List<AlbumDto>>(it).map { dto -> dto.toAlbum() } },
-            encode = { json.encodeToString(it.map { album -> AlbumDto.fromAlbum(album) }) },
-            fetch = { provider.albumList(type, limit) },
+            decode = decode,
+            encode = encode,
+            fetch = fetch,
+        ) else cacheRepository.revalidatedProviderResponse(
+            provider = provider,
+            resourceType = AlbumListResourceType,
+            resourceId = albumListResourceId(type, limit),
+            maxAgeMillis = maxAgeMillis,
+            decode = decode,
+            encode = encode,
+            fetch = fetch,
         )
+    }
 
     suspend fun albumsByGenre(
         provider: MediaProvider,

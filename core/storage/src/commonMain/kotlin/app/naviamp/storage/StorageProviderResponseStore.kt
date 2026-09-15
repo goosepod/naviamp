@@ -1,12 +1,15 @@
 package app.naviamp.storage
 
 import app.naviamp.domain.cache.ProviderResponseStore
+import app.naviamp.domain.cache.CachedProviderResponse
 
 class StorageProviderResponseStore(
     private val queries: NaviampStorageQueries,
 ) : ProviderResponseStore {
-    override fun cachedResponse(cacheKey: String): String? =
-        queries.selectResponse(cacheKey).executeAsOneOrNull()
+    override fun cachedResponse(cacheKey: String): CachedProviderResponse? =
+        queries.selectResponse(cacheKey).executeAsOneOrNull()?.let {
+            CachedProviderResponse(it.payload, it.created_at_epoch_millis)
+        }
 
     override fun touchResponse(
         cacheKey: String,

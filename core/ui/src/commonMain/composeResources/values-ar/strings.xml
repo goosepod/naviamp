@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">رمز الاقتران</string>
     <string name="connect_devices_description">تحكم في أجهزة Naviamp على هذه الشبكة واقترن بها</string>
     <string name="connect_setup_timed_out">انتهت مهلة إعداد الجهاز. تحقق من جهاز التشغيل ثم أعد المحاولة.</string>
+    <string name="library_sort_title">ترتيب الألبومات: العنوان</string>
+    <string name="library_sort_recently_added">ترتيب الألبومات: المضافة حديثًا</string>
 </resources>

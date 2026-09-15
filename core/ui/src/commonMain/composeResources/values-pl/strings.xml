@@ -147,4 +147,6 @@
     <string name="connect_pairing_code">Kod parowania</string>
     <string name="connect_devices_description">Steruj urządzeniami Naviamp w tej sieci i paruj je</string>
     <string name="connect_setup_timed_out">Upłynął limit czasu konfiguracji. Sprawdź urządzenie odtwarzające i spróbuj ponownie.</string>
+    <string name="library_sort_title">Sortowanie albumów: Tytuł</string>
+    <string name="library_sort_recently_added">Sortowanie albumów: Ostatnio dodane</string>
 </resources>

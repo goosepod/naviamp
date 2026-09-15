@@ -898,4 +898,6 @@
     <string name="changelog_260_screen_awake">Choose whether Naviamp keeps the screen awake while the app is open. The preference is included in settings export, import, and sync.</string>
     <string name="changelog_260_playback_recovery">Improve playback recovery after audio interruptions and keep interrupted live radio streams available to retry.</string>
     <string name="changelog_260_beta">Android TV and Naviamp Connect are beta. Device compatibility, network recovery, and performance are still being refined.</string>
+    <string name="library_sort_title">Sort albums: Title</string>
+    <string name="library_sort_recently_added">Sort albums: Recently added</string>
 </resources>

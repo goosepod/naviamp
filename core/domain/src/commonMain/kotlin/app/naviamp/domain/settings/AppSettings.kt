@@ -169,6 +169,7 @@ data class InterfaceSettings(
     val singleColorHex: String = DefaultSingleColorHex,
     val albumCollectionLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
     val albumSortOrder: AlbumSortOrder = AlbumSortOrder.ReleaseYearAscending,
+    val libraryAlbumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     val groupAlbumsByReleaseType: Boolean = true,
     val homeSectionPresentations: Map<String, HomeSectionPresentationSettings> = emptyMap(),
     val homeSectionOrder: List<String> = emptyList(),
@@ -336,6 +337,12 @@ enum class AlbumSortOrder(val label: String) {
     ReleaseYearAscending("Release year - oldest first"),
     ReleaseYearDescending("Release year - newest first"),
     Title("Title"),
+}
+
+@Serializable
+enum class LibraryAlbumSortOrder {
+    Title,
+    RecentlyAdded,
 }
 
 @Serializable

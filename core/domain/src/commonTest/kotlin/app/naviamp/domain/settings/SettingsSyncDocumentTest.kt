@@ -98,6 +98,7 @@ class SettingsSyncDocumentTest {
     fun artistReleasePreferencesRoundTripAndOlderExportsUseSharedDefaults() {
         val settings = InterfaceSettings(
             albumSortOrder = AlbumSortOrder.ReleaseYearDescending,
+            libraryAlbumSortOrder = LibraryAlbumSortOrder.RecentlyAdded,
             groupAlbumsByReleaseType = false,
         )
         val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(
@@ -105,10 +106,12 @@ class SettingsSyncDocumentTest {
         )).preferences.interfaceSettings
 
         assertEquals(AlbumSortOrder.ReleaseYearDescending, decoded.albumSortOrder)
+        assertEquals(LibraryAlbumSortOrder.RecentlyAdded, decoded.libraryAlbumSortOrder)
         assertFalse(decoded.groupAlbumsByReleaseType)
 
         val older = SettingsSyncJson.decode("{}").preferences.interfaceSettings
         assertEquals(AlbumSortOrder.ReleaseYearAscending, older.albumSortOrder)
+        assertEquals(LibraryAlbumSortOrder.Title, older.libraryAlbumSortOrder)
         assertTrue(older.groupAlbumsByReleaseType)
     }
 

@@ -144,6 +144,7 @@ class HomeService(
         recentRadioStreams: List<RecentRadioStream> = emptyList(),
         recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
         artistLimit: Int = HomeDefaultArtistLimit,
+        forceRefreshRecentlyAdded: Boolean = false,
     ): HomeContent {
         val genres = runCatching { provider.genres(limit = 12) }
             .getOrDefault(emptyList())
@@ -158,7 +159,13 @@ class HomeService(
         val randomPool = runCatching { albumList(AlbumListType.Random, limit = 14) }.getOrDefault(emptyList())
         return HomeContent(
             date = date,
-            recentlyAddedAlbums = runCatching { albumList(AlbumListType.Newest, limit = 8) }.getOrDefault(emptyList()),
+            recentlyAddedAlbums = runCatching {
+                albumList(
+                    AlbumListType.Newest,
+                    limit = 8,
+                    maxAgeMillis = if (forceRefreshRecentlyAdded) 0L else HomeRecentlyAddedMaximumAgeMillis,
+                )
+            }.getOrDefault(emptyList()),
             mixAlbums = randomPool.take(8),
             recentAlbums = runCatching { albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
             frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
@@ -237,8 +244,12 @@ class HomeService(
         }
     }
 
-    private suspend fun albumList(type: AlbumListType, limit: Int): List<Album> =
-        providerResponseService?.albumList(provider, type, limit)
+    private suspend fun albumList(
+        type: AlbumListType,
+        limit: Int,
+        maxAgeMillis: Long? = null,
+    ): List<Album> =
+        providerResponseService?.albumList(provider, type, limit, maxAgeMillis)
             ?: provider.albumList(type, limit)
 
     private suspend fun albumsByGenre(genre: String, limit: Int): List<Album> =
@@ -261,6 +272,8 @@ class HomeService(
         providerResponseService?.internetRadioStations(provider)
             ?: provider.internetRadioStations()
 }
+
+private const val HomeRecentlyAddedMaximumAgeMillis = 5 * 60 * 1000L
 
 data class HomeStation(
     val id: String,
