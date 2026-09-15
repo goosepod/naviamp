@@ -6,6 +6,7 @@ import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedAlbum
@@ -16,6 +17,26 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
+    @Test
+    fun olderSonicPreferenceDefaultsToAutomaticAndExplicitChoiceRoundTrips() {
+        val values = MemorySettingsValues().apply {
+            entries[KeyPlayback] = """{"sonicSimilarityEnabled":false}"""
+        }
+        val catalog = naviampCoreSettingsValueCatalog(values)
+
+        assertEquals(true, catalog.storedSettings.loadPlayback().effectiveSonicSimilarityEnabled())
+
+        catalog.savePlayback(
+            PlaybackSettings(
+                sonicSimilarityEnabled = false,
+                sonicSimilarityPreferenceConfigured = true,
+            ),
+        )
+        val reloaded = naviampCoreSettingsValueCatalog(values).storedSettings.loadPlayback()
+        assertFalse(reloaded.effectiveSonicSimilarityEnabled())
+        assertEquals(true, reloaded.sonicSimilarityPreferenceConfigured)
+    }
+
     @Test
     fun languageSurvivesRecreatingTheSettingsCatalog() {
         val values = MemorySettingsValues()

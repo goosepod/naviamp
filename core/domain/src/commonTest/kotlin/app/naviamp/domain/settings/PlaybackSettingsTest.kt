@@ -184,6 +184,25 @@ class PlaybackSettingsTest {
     }
 
     @Test
+    fun sonicSimilarityDefaultsOnUntilTheUserMakesAnExplicitChoice() {
+        assertEquals(true, PlaybackSettings().effectiveSonicSimilarityEnabled())
+        assertEquals(
+            false,
+            PlaybackSettings(
+                sonicSimilarityEnabled = false,
+                sonicSimilarityPreferenceConfigured = true,
+            ).effectiveSonicSimilarityEnabled(),
+        )
+        assertEquals(
+            true,
+            PlaybackSettings(
+                sonicSimilarityEnabled = true,
+                sonicSimilarityPreferenceConfigured = true,
+            ).effectiveSonicSimilarityEnabled(),
+        )
+    }
+
+    @Test
     fun playbackSettingsChangeReportsWhenLyricsSidecarsNeedReloading() {
         val previous = PlaybackSettings(lrclibLyricsEnabled = false)
         val unchanged = playbackSettingsChange(

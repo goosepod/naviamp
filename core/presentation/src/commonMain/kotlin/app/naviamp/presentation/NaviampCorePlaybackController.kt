@@ -26,6 +26,7 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.PlaybackSessionSavePlan
 import app.naviamp.domain.radio.internetRadioTrack
@@ -534,6 +535,12 @@ class NaviampCorePlaybackController(
             loadTrackSidecars(track)
             if (playback.state.value.currentTrack?.id == track.id) presenter.publish(display)
         }
+    }
+
+    fun playbackSettingsChanged(previous: PlaybackSettings, current: PlaybackSettings) {
+        if (previous.effectiveSonicSimilarityEnabled() == current.effectiveSonicSimilarityEnabled()) return
+        sidecarTrackId = null
+        loadCurrentTrackSidecars()
     }
 
     private fun startSonicAutoplayContinuation() {

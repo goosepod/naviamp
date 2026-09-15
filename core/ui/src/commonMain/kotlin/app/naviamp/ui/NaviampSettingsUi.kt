@@ -136,6 +136,7 @@ import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.LyricsTimingPreference
 import app.naviamp.domain.settings.NowPlayingAlbumYearPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.domain.settings.MaxReplayGainPreampDb
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinReplayGainPreampDb
@@ -2003,8 +2004,8 @@ private fun PlaybackSettings.lyricsSummary(): String =
 @Composable
 private fun PlaybackSettings.relatedTracksSummary(): String? =
     when {
-        sonicSimilarityEnabled && sonicAutoplayEnabled -> stringResource(Res.string.settings_related_autoplay_summary)
-        sonicSimilarityEnabled -> stringResource(Res.string.settings_related_summary)
+        effectiveSonicSimilarityEnabled() && sonicAutoplayEnabled -> stringResource(Res.string.settings_related_autoplay_summary)
+        effectiveSonicSimilarityEnabled() -> stringResource(Res.string.settings_related_summary)
         sonicAutoplayEnabled -> stringResource(Res.string.settings_autoplay_summary)
         else -> null
     }
@@ -4809,11 +4810,16 @@ private fun RelatedTracksSettings(
     if (supportsSonicSimilarity) {
         SettingsCheckboxRow(
             colors = colors,
-            checked = playbackSettings.sonicSimilarityEnabled,
+            checked = playbackSettings.effectiveSonicSimilarityEnabled(),
             label = stringResource(Res.string.settings_related_sonic_similarity),
             subtitle = stringResource(Res.string.settings_related_sonic_similarity_subtitle),
             onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(playbackSettings.copy(sonicSimilarityEnabled = enabled))
+                onPlaybackSettingsChanged(
+                    playbackSettings.copy(
+                        sonicSimilarityEnabled = enabled,
+                        sonicSimilarityPreferenceConfigured = true,
+                    ),
+                )
             },
         )
         SettingsCheckboxRow(

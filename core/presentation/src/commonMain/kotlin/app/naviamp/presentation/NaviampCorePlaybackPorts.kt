@@ -74,11 +74,21 @@ data class NaviampCoreNowPlayingSidecars(
     val visualizerFrame: PlaybackVisualizerFrame? = null,
     val relatedTracks: List<Track> = emptyList(),
     val relatedTracksSource: RelatedTracksSource = RelatedTracksSource.None,
+    val relatedTracksStatus: NaviampCoreRelatedTracksStatus = NaviampCoreRelatedTracksStatus.NotRequested,
     val relatedSimilarityByTrackId: Map<TrackId, Double> = emptyMap(),
     val internetRadioStations: List<InternetRadioStation> = emptyList(),
     val currentInternetRadioStationId: String? = null,
     val radioTrackArtworkByKey: Map<String, String?> = emptyMap(),
 )
+
+enum class NaviampCoreRelatedTracksStatus {
+    NotRequested,
+    Disabled,
+    Unsupported,
+    Loaded,
+    Empty,
+    Failed,
+}
 
 /** Cache/provider sidecar work; Core owns visibility and when these effects are requested. */
 interface NaviampCoreNowPlayingSidecarPort {

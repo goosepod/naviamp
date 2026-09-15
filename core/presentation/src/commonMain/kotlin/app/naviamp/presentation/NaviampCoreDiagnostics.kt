@@ -131,7 +131,7 @@ internal fun naviampCoreDiagnostics(
             "Lyrics offset" to (sidecars.lyrics?.offsetMillis?.let { "${it}ms" } ?: "None"),
             "Visualizer" to (sidecars.visualizerFrame?.bands?.let { "${it.size} FFT bands" } ?: "Waiting"),
             "Selected visualizer" to shell.shellChrome.selectedVisualizer.name,
-            "Related tracks" to "${sidecars.relatedTracks.size} (${sidecars.relatedTracksSource.name})",
+            "Related tracks" to "${sidecars.relatedTracks.size} (${sidecars.relatedTracksSource.name}, ${sidecars.relatedTracksStatus.name})",
             "Stream metadata title" to (streamMetadata.title ?: "None"),
             "Stream metadata" to streamMetadata.properties.entries
                 .sortedBy { it.key.lowercase() }

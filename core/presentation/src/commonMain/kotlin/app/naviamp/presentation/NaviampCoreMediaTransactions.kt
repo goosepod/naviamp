@@ -36,6 +36,7 @@ import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.radio.sessionSubtitle
 import app.naviamp.domain.Genre
 import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.withRecentRadioStreams
@@ -197,7 +198,7 @@ class NaviampCoreMediaTransactions(
 
     override suspend fun startTrackRadio(seed: Track) {
         val settings = stateStore.state.value.shell.playback.settings
-        startSeededMix(trackRadioRequest(seed, settings.sonicSimilarityEnabled)) { recordTrackArtistRadioPlayed(seed) }
+        startSeededMix(trackRadioRequest(seed, settings.effectiveSonicSimilarityEnabled())) { recordTrackArtistRadioPlayed(seed) }
     }
 
     override suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
@@ -206,7 +207,7 @@ class NaviampCoreMediaTransactions(
             runCatching {
                 val settings = stateStore.state.value.shell.playback.settings
                 RadioService(provider, tuning = settings.radioTuning)
-                    .trackRadio(seed, settings.sonicSimilarityEnabled)
+                    .trackRadio(seed, settings.effectiveSonicSimilarityEnabled())
             }.onSuccess { if (playNext) playNext(it) else addToQueue(it) }
                 .onFailure { publish(it.message ?: "Could not load track radio.") }
         }

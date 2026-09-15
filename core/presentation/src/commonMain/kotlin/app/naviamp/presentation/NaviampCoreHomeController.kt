@@ -17,6 +17,7 @@ import app.naviamp.domain.radio.sessionSubtitle
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.homeSectionPresentation
+import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
 import app.naviamp.domain.settings.resolvedHomeSectionOrder
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryService
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
@@ -187,7 +188,7 @@ class NaviampCoreHomeController(
                     observedAtIso8601 = observedAtIso8601,
                 ),
             )
-            val sonicEnabled = stateStore.state.value.shell.playback.settings.sonicSimilarityEnabled &&
+            val sonicEnabled = stateStore.state.value.shell.playback.settings.effectiveSonicSimilarityEnabled() &&
                 provider.capabilities.supportsSonicSimilarity
             val sonicRows = if (sonicEnabled && supplement.sourceId != null) {
                 sonicDiscoverySource?.load(provider, supplement.sourceId) ?: SonicHomeDiscoveryRows()
@@ -198,7 +199,7 @@ class NaviampCoreHomeController(
         }.onSuccess { (content, sonicRows) ->
             if (generation != refreshGeneration) return@onSuccess
             mediaRegistry.updateHome(content, sonicRows)
-            val sonicEnabled = stateStore.state.value.shell.playback.settings.sonicSimilarityEnabled &&
+            val sonicEnabled = stateStore.state.value.shell.playback.settings.effectiveSonicSimilarityEnabled() &&
                 provider.capabilities.supportsSonicSimilarity
             stateStore.update { state ->
                 val mappedContent = content.toSharedHomeUi(
