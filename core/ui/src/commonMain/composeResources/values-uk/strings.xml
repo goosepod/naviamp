@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">Час налаштування пристрою минув. Перевірте пристрій відтворення та спробуйте знову.</string>
     <string name="library_sort_title">Сортування альбомів: за назвою</string>
     <string name="library_sort_recently_added">Сортування альбомів: нещодавно додані</string>
+    <string name="diagnostics_listen_reporting_mode">Режим звітів про прослуховування</string>
+    <string name="diagnostics_mode_idle">Неактивно</string>
+    <string name="diagnostics_mode_timeline_presence">Присутність у хронології</string>
+    <string name="diagnostics_mode_legacy_presence">Застаріла присутність</string>
+    <string name="diagnostics_mode_legacy_fallback">Перехід на застарілий режим</string>
+    <string name="diagnostics_last_listen_reporting_failure">Остання помилка звіту про прослуховування</string>
+    <string name="diagnostics_external_scrobbling">Зовнішній скроблінг</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Керується сервером; прийняття API не підтверджує зовнішню доставку</string>
+    <string name="diagnostics_pending_listens">Очікувані прослуховування</string>
+    <string name="diagnostics_failure_timeline">Хронологія</string>
+    <string name="diagnostics_failure_legacy_presence">Застаріла присутність</string>
+    <string name="diagnostics_failure_listen_submission">Надіслати прослуховування</string>
 </resources>

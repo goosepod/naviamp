@@ -72,6 +72,7 @@ class NaviampCorePlaybackController(
         val state: PlaybackState,
         val progress: PlaybackProgress,
         val now: Long,
+        val presenceState: app.naviamp.domain.provider.PlaybackReportState?,
     )
     private val listenReporting = app.naviamp.app.NaviampListenReporting()
     private var listenReportJob: Job? = null
@@ -331,7 +332,7 @@ class NaviampCorePlaybackController(
     internal fun connectLiveState(): app.naviamp.app.NaviampLivePlaybackState = playback.state.value
 
     fun diagnostics(): List<Pair<String, String>> =
-        effects.diagnostics() + sessions.performanceDiagnostics()
+        effects.diagnostics() + sessions.performanceDiagnostics() + listenReporting.diagnostics()
 
     fun playbackProfileDiagnostics(): List<Pair<String, String>> {
         val liveQueue = playback.state.value.queue
@@ -578,7 +579,8 @@ class NaviampCorePlaybackController(
             reportingTrackId = track.id
             reportingSessionId += 1
         }
-        reporting.stateReport(
+        val now = nowEpochMillis()
+        val presenceReport = reporting.stateReport(
             NaviampPlaybackStateReportRequest(
                 sessionId = reportingSessionId,
                 trackId = track.id,
@@ -586,15 +588,21 @@ class NaviampCorePlaybackController(
                 supportsPlayReporting = provider.capabilities.supportsPlayReporting,
                 playbackState = state,
                 progress = progress,
-                nowEpochMillis = nowEpochMillis(),
+                nowEpochMillis = now,
             ),
-        )?.let {
-            val observation = ListenObservation(provider, track, state, progress, nowEpochMillis())
-            val previous = listenReportJob
-            listenReportJob = scope.launch {
-                previous?.join()
-                listenReporting.observe(observation.provider, observation.track, observation.state, observation.progress, observation.now)
-            }
+        )
+        val observation = ListenObservation(provider, track, state, progress, now, presenceReport?.state)
+        val previous = listenReportJob
+        listenReportJob = scope.launch {
+            previous?.join()
+            listenReporting.observe(
+                observation.provider,
+                observation.track,
+                observation.state,
+                observation.progress,
+                observation.now,
+                observation.presenceState,
+            )
         }
     }
 

@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">Время настройки устройства истекло. Проверьте устройство воспроизведения и повторите попытку.</string>
     <string name="library_sort_title">Сортировка альбомов: по названию</string>
     <string name="library_sort_recently_added">Сортировка альбомов: недавно добавленные</string>
+    <string name="diagnostics_listen_reporting_mode">Режим отчётов о прослушивании</string>
+    <string name="diagnostics_mode_idle">Неактивно</string>
+    <string name="diagnostics_mode_timeline_presence">Присутствие в хронологии</string>
+    <string name="diagnostics_mode_legacy_presence">Устаревшее присутствие</string>
+    <string name="diagnostics_mode_legacy_fallback">Переход на устаревший режим</string>
+    <string name="diagnostics_last_listen_reporting_failure">Последняя ошибка отчёта о прослушивании</string>
+    <string name="diagnostics_external_scrobbling">Внешний скробблинг</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Управляется сервером; принятие API не подтверждает внешнюю доставку</string>
+    <string name="diagnostics_pending_listens">Ожидающие прослушивания</string>
+    <string name="diagnostics_failure_timeline">Хронология</string>
+    <string name="diagnostics_failure_legacy_presence">Устаревшее присутствие</string>
+    <string name="diagnostics_failure_listen_submission">Отправить прослушивание</string>
 </resources>

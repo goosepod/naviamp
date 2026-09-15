@@ -520,6 +520,32 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun localListenAccountingReceivesProgressBetweenThrottledPresenceReports() = runTest {
+        var now = 0L
+        val fixture = playbackFixture(this, nowEpochMillis = { now })
+        val shortTrack = fixture.live.state.value.currentTrack!!.copy(durationSeconds = 30)
+        fixture.live.replace(
+            fixture.live.state.value.copy(
+                currentTrack = shortTrack,
+                progress = PlaybackProgress(0.0, 30.0),
+            ),
+        )
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        now = 10_000L
+        fixture.effects.observer?.onProgressChanged(PlaybackProgress(10.0, 30.0))
+        now = 11_000L
+        fixture.effects.observer?.onProgressChanged(PlaybackProgress(0.0, 30.0))
+        now = 20_000L
+        fixture.effects.observer?.onProgressChanged(PlaybackProgress(9.0, 30.0))
+        advanceUntilIdle()
+
+        assertEquals(listOf(0L), fixture.provider.listenTimestamps)
+        assertEquals(3, fixture.provider.stateReports.size)
+    }
+
+    @Test
     fun changingTracksCancelsThePreviousSidecarWork() = runTest {
         val sidecars = PlaybackTestSidecars(blockingTrackId = "two")
         val fixture = playbackFixture(this, sidecars)
@@ -767,6 +793,7 @@ private fun playbackFixture(
     sidecars: PlaybackTestSidecars = PlaybackTestSidecars(),
     supportsSonicSimilarity: Boolean = true,
     recreateProviderWrapper: Boolean = false,
+    nowEpochMillis: () -> Long = { 10_000L },
 ): PlaybackFixture {
     val tracks = listOf(
         playbackTrack("one"),
@@ -815,7 +842,7 @@ private fun playbackFixture(
         sidecars = sidecars,
         sessions = NaviampPlaybackSessionController(sessionRepository),
         presenter = presenter,
-        nowEpochMillis = { 10_000L },
+        nowEpochMillis = nowEpochMillis,
     )
     presenter.publish()
     return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved)
@@ -924,11 +951,13 @@ private class PlaybackTestProvider(
         supportsTrackRadio = true,
         supportsPlayReporting = true,
         supportsPlaybackTimeline = true,
+        supportsListenSubmission = true,
         supportsSonicSimilarity = supportsSonicSimilarity,
     )
     val created = mutableListOf<String>()
     val nowPlayingReports = mutableListOf<String>()
     val stateReports = mutableListOf<String>()
+    val listenTimestamps = mutableListOf<Long>()
     val sonicRequests = mutableListOf<String>()
     val sonicMatchesBySeed = mutableMapOf<String, List<SonicSimilarTrack>>()
     val unavailableTrackIds = mutableSetOf<String>()
@@ -960,6 +989,9 @@ private class PlaybackTestProvider(
         positionSeconds: Double?,
     ) {
         stateReports += "${trackId.value}:${state.providerValue}:$positionSeconds"
+    }
+    override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) {
+        listenTimestamps += startedAtEpochMillis
     }
     override suspend fun streamUrl(request: StreamRequest) = "https://stream.example"
     override fun coverArtUrl(coverArtId: String) = "https://art.example/$coverArtId"

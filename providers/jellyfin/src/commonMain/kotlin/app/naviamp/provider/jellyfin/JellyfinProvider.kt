@@ -512,6 +512,8 @@ class JellyfinProvider(
         }
     }
 
+    override suspend fun reportLegacyNowPlaying(trackId: TrackId) = reportNowPlaying(trackId)
+
     override suspend fun reportPlaybackState(
         trackId: TrackId,
         state: PlaybackReportState,

@@ -28,22 +28,29 @@ class NaviampListenReportingTest {
         reporter.observe(offline, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 1234)
         reporter.observe(online, track, PlaybackState.Playing, PlaybackProgress(35.0, 60.0), 36_234)
         assertEquals(listOf(1234L), online.listens)
-        assertTrue(online.events.isEmpty())
+        assertEquals(listOf("now"), online.events)
+        assertTrue(online.timelineAttempts.isEmpty())
     }
 
-    private class Provider(timeline: Boolean = false) : MediaProvider by RecordingProvider(false) {
+    private class Provider(
+        timeline: Boolean = false,
+        namespace: String = "test",
+    ) : MediaProvider by RecordingProvider(false) {
+        override val cacheNamespace = namespace
         override val capabilities = ProviderCapabilities(false, false, false, false, false,
             supportsPlayReporting = true, supportsPlaybackTimeline = timeline, supportsListenSubmission = true)
         val events = mutableListOf<String>()
         val listens = mutableListOf<Long>()
         val timelineAttempts = mutableListOf<PlaybackReportState>()
         var timelineFailure: PlaybackReportState? = null
+        var timelineFailureMessage = "timeline unavailable"
         var presenceFails = false
         var offline = false
         override suspend fun reportNowPlaying(trackId: TrackId) { if (offline || presenceFails) error("unavailable"); events += "now" }
+        override suspend fun reportLegacyNowPlaying(trackId: TrackId) = reportNowPlaying(trackId)
         override suspend fun reportPlaybackState(trackId: TrackId, state: PlaybackReportState, positionSeconds: Double?) {
             timelineAttempts += state
-            if (state == timelineFailure) error("timeline unavailable")
+            if (state == timelineFailure) error(timelineFailureMessage)
             if (offline) error("offline")
             events += state.providerValue
         }
@@ -93,6 +100,22 @@ class NaviampListenReportingTest {
         reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(10.0, 60.0), 10_000)
         assertEquals(listOf("now"), p.events)
         assertEquals(listOf(PlaybackReportState.Starting), p.timelineAttempts)
+        assertEquals("Legacy fallback", reporter.diagnostics().toMap()["Listen reporting mode"])
+        assertTrue(reporter.diagnostics().toMap().getValue("Last listen reporting failure").contains("unavailable"))
+    }
+
+    @Test fun reportingDiagnosticsRedactCredentialParameters() = runTest {
+        val p = Provider(timeline = true).apply {
+            timelineFailure = PlaybackReportState.Starting
+            timelineFailureMessage = "request failed?u=demo&t=secret&s=salt&password=hunter2"
+        }
+        val reporter = NaviampListenReporting()
+        reporter.observe(p, track, PlaybackState.Loading, PlaybackProgress(0.0, 60.0), 0)
+
+        val failure = reporter.diagnostics().toMap().getValue("Last listen reporting failure")
+        assertFalse("secret" in failure)
+        assertFalse("hunter2" in failure)
+        assertTrue("<redacted>" in failure)
     }
 
     @Test fun qualifyingListensAreSubmittedOnceAndRepeatedPlaysAreDistinct() = runTest {
@@ -116,7 +139,41 @@ class NaviampListenReportingTest {
         assertTrue(p.listens.isEmpty())
     }
 
-    @Test fun timelineSessionsAreOrderedAndNotDoubleScrobbled() = runTest {
+    @Test fun stopObservationCanQualifyWithoutUsingSeekedOrPausedTime() = runTest {
+        val p = Provider()
+        val reporter = NaviampListenReporting()
+        reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 1_000)
+        reporter.observe(p, track, PlaybackState.Stopped, PlaybackProgress(30.0, 60.0), 31_000)
+
+        assertEquals(listOf(1_000L), p.listens)
+    }
+
+    @Test fun sourceChangesDoNotCombineListeningAcrossSessions() = runTest {
+        val first = Provider(namespace = "first")
+        val second = Provider(namespace = "second")
+        val reporter = NaviampListenReporting()
+        reporter.observe(first, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 0)
+        reporter.observe(first, track, PlaybackState.Playing, PlaybackProgress(20.0, 60.0), 20_000)
+        reporter.observe(second, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 21_000)
+        reporter.observe(second, track, PlaybackState.Playing, PlaybackProgress(20.0, 60.0), 41_000)
+
+        assertTrue(first.listens.isEmpty())
+        assertTrue(second.listens.isEmpty())
+    }
+
+    @Test fun gaplessTrackTransitionKeepsQualifiedListensDistinct() = runTest {
+        val p = Provider()
+        val reporter = NaviampListenReporting()
+        val next = track.copy(id = TrackId("next"))
+        reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 1_000)
+        reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(30.0, 60.0), 31_000)
+        reporter.observe(p, next, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 32_000)
+        reporter.observe(p, next, PlaybackState.Playing, PlaybackProgress(30.0, 60.0), 62_000)
+
+        assertEquals(listOf(1_000L, 32_000L), p.listens)
+    }
+
+    @Test fun timelinePresenceAndExplicitSubmissionProduceOneQualifiedScrobble() = runTest {
         val p = Provider(timeline = true)
         val reporter = NaviampListenReporting()
         reporter.observe(p, track, PlaybackState.Loading, PlaybackProgress(0.0, 60.0), 0)
@@ -124,6 +181,44 @@ class NaviampListenReportingTest {
         reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(40.0, 60.0), 40_100)
         reporter.observe(p, track, PlaybackState.Stopped, PlaybackProgress(40.0, 60.0), 41_100)
         assertEquals(listOf("starting", "playing", "playing", "stopped"), p.events)
+        assertEquals(listOf(0L), p.listens)
+    }
+
+    @Test fun throttledPresenceDoesNotThrottleLocalListenAccounting() = runTest {
+        val p = Provider(timeline = true)
+        val reporter = NaviampListenReporting()
+        reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 1_000,
+            presenceState = PlaybackReportState.Playing)
+        reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(10.0, 60.0), 11_000,
+            presenceState = null)
+        reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(30.0, 60.0), 31_000,
+            presenceState = null)
+
+        assertEquals(listOf(1_000L), p.listens)
+        assertEquals(listOf(PlaybackReportState.Starting, PlaybackReportState.Playing), p.timelineAttempts)
+    }
+
+    @Test fun shortTrackBoundaryIsExplicit() = runTest {
+        val reporter = NaviampListenReporting()
+        val p = Provider()
+        val tooShort = track.copy(id = TrackId("short"), durationSeconds = 29)
+        reporter.observe(p, tooShort, PlaybackState.Playing, PlaybackProgress(0.0, 29.0), 0)
+        reporter.observe(p, tooShort, PlaybackState.Finished, PlaybackProgress(29.0, 29.0), 29_000)
+        val eligible = track.copy(id = TrackId("boundary"), durationSeconds = 30)
+        reporter.observe(p, eligible, PlaybackState.Playing, PlaybackProgress(0.0, 30.0), 40_000)
+        reporter.observe(p, eligible, PlaybackState.Playing, PlaybackProgress(15.0, 30.0), 55_000)
+
+        assertEquals(listOf(40_000L), p.listens)
+    }
+
+    @Test fun bufferingAndRestoredPositionDoNotCountAsListening() = runTest {
+        val p = Provider()
+        val reporter = NaviampListenReporting()
+        reporter.observe(p, track, PlaybackState.Loading, PlaybackProgress(45.0, 60.0), 0)
+        reporter.observe(p, track, PlaybackState.Loading, PlaybackProgress(45.0, 60.0), 100_000)
+        reporter.observe(p, track, PlaybackState.Playing, PlaybackProgress(45.0, 60.0), 101_000)
+        reporter.observe(p, track, PlaybackState.Stopped, PlaybackProgress(50.0, 60.0), 106_000)
+
         assertTrue(p.listens.isEmpty())
     }
 
@@ -134,12 +229,13 @@ class NaviampListenReportingTest {
         val offlineProvider = actions.offlineCapable(p, "source")
         val reporter = NaviampListenReporting()
         reporter.observe(offlineProvider, track, PlaybackState.Playing, PlaybackProgress(0.0, 60.0), 1234)
-        reporter.observe(offlineProvider, track, PlaybackState.Playing, PlaybackProgress(35.0, 60.0), 36_234)
+        reporter.observe(offlineProvider, track, PlaybackState.Stopped, PlaybackProgress(35.0, 60.0), 36_234)
         val pending = repository.pendingProviderActions("source").single()
         assertEquals(PendingActionSubmitListen, pending.actionType)
         assertEquals(1234L, pending.longValue)
         p.offline = false
-        actions.replay("source", p)
+        val restartedActions = NaviampProviderActionController(repository)
+        restartedActions.replay("source", p)
         assertEquals(listOf(1234L), p.listens)
         assertTrue(repository.pendingProviderActions("source").isEmpty())
     }

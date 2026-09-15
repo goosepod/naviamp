@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">Waktu penyiapan perangkat habis. Periksa perangkat pemutaran, lalu coba lagi.</string>
     <string name="library_sort_title">Urutkan album: Judul</string>
     <string name="library_sort_recently_added">Urutkan album: Baru ditambahkan</string>
+    <string name="diagnostics_listen_reporting_mode">Mode pelaporan pemutaran</string>
+    <string name="diagnostics_mode_idle">Tidak aktif</string>
+    <string name="diagnostics_mode_timeline_presence">Kehadiran linimasa</string>
+    <string name="diagnostics_mode_legacy_presence">Kehadiran lama</string>
+    <string name="diagnostics_mode_legacy_fallback">Fallback lama</string>
+    <string name="diagnostics_last_listen_reporting_failure">Kegagalan pelaporan pemutaran terakhir</string>
+    <string name="diagnostics_external_scrobbling">Scrobbling eksternal</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Dikelola server; penerimaan API tidak mengonfirmasi pengiriman eksternal</string>
+    <string name="diagnostics_pending_listens">Pemutaran tertunda</string>
+    <string name="diagnostics_failure_timeline">Linimasa</string>
+    <string name="diagnostics_failure_legacy_presence">Kehadiran lama</string>
+    <string name="diagnostics_failure_listen_submission">Kirim pemutaran</string>
 </resources>

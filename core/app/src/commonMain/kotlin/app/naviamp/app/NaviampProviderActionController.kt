@@ -63,6 +63,10 @@ class NaviampProviderActionController(
                 provider.reportNowPlaying(trackId)
             }
 
+            override suspend fun reportLegacyNowPlaying(trackId: TrackId) {
+                provider.reportLegacyNowPlaying(trackId)
+            }
+
             override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) {
                 if (sourceId == null) {
                     provider.submitListen(trackId, startedAtEpochMillis)

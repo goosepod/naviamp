@@ -2648,9 +2648,31 @@ class NavidromeProviderTest {
         provider.reportNowPlaying(TrackId("track-1"))
 
         assertEquals(
-            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=0&state=starting",
+            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=0&state=starting&ignoreScrobble=true",
             httpClient.urls.last(),
         )
+    }
+
+    @Test
+    fun legacyFallbackUsesScrobbleEvenWhenPlaybackReportRemainsAdvertised() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                okResponse(),
+                openSubsonicExtensionsResponse("playbackReport"),
+                okResponse(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.reportLegacyNowPlaying(TrackId("track-1"))
+
+        assertTrue(httpClient.urls.last().contains("/scrobble.view?"))
+        assertTrue(httpClient.urls.last().endsWith("&submission=false"))
+        assertFalse(httpClient.urls.last().contains("reportPlayback"))
     }
 
     @Test
@@ -2675,9 +2697,35 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=45250&state=playing",
+            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=45250&state=playing&ignoreScrobble=true",
             httpClient.urls.last(),
         )
+    }
+
+    @Test
+    fun timelinePresenceAndExplicitListenUseSeparateNonScrobblingAndScrobblingRequests() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                okResponse(),
+                openSubsonicExtensionsResponse("playbackReport"),
+                okResponse(),
+                okResponse(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.reportPlaybackState(TrackId("track-1"), PlaybackReportState.Playing, 31.0)
+        provider.submitListen(TrackId("track-1"), 1_234L)
+
+        val requests = httpClient.urls.takeLast(2)
+        assertTrue(requests[0].contains("/reportPlayback.view?"))
+        assertTrue(requests[0].endsWith("&state=playing&ignoreScrobble=true"))
+        assertTrue(requests[1].contains("/scrobble.view?"))
+        assertTrue(requests[1].endsWith("&submission=true&time=1234"))
     }
 
     @Test

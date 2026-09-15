@@ -61,7 +61,7 @@ fun NaviampStatsForNerdsContent(
                     )
                     section.rows.forEach { (label, value) ->
                         Text(
-                            "$label: $value",
+                            "${localizedDiagnosticText(label)}: ${localizedDiagnosticText(value)}",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )

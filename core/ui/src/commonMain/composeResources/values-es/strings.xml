@@ -876,4 +876,16 @@
     <string name="changelog_260_beta">Android TV y Naviamp Connect están en beta. La compatibilidad con dispositivos, la recuperación de la red y el rendimiento siguen mejorándose.</string>
     <string name="library_sort_title">Ordenar álbumes: Título</string>
     <string name="library_sort_recently_added">Ordenar álbumes: Añadidos recientemente</string>
+    <string name="diagnostics_listen_reporting_mode">Modo de registro de escuchas</string>
+    <string name="diagnostics_mode_idle">Inactivo</string>
+    <string name="diagnostics_mode_timeline_presence">Presencia de cronología</string>
+    <string name="diagnostics_mode_legacy_presence">Presencia heredada</string>
+    <string name="diagnostics_mode_legacy_fallback">Alternativa heredada</string>
+    <string name="diagnostics_last_listen_reporting_failure">Último error al registrar escuchas</string>
+    <string name="diagnostics_external_scrobbling">Scrobbling externo</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Gestionado por el servidor; la aceptación de la API no confirma la entrega externa</string>
+    <string name="diagnostics_pending_listens">Escuchas pendientes</string>
+    <string name="diagnostics_failure_timeline">Cronología</string>
+    <string name="diagnostics_failure_legacy_presence">Presencia heredada</string>
+    <string name="diagnostics_failure_listen_submission">Enviar escucha</string>
 </resources>

@@ -168,6 +168,8 @@ interface MediaProvider {
     ): List<SonicPathMatch> = emptyList()
     suspend fun lyrics(trackId: TrackId): Lyrics? = null
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
+    /** Forces the legacy presence endpoint after timeline reporting is unavailable. */
+    suspend fun reportLegacyNowPlaying(trackId: TrackId) = reportNowPlaying(trackId)
     suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) = Unit
     suspend fun reportPlaybackState(
         trackId: TrackId,

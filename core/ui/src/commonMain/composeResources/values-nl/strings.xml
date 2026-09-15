@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">De apparaatconfiguratie duurde te lang. Controleer het afspeelapparaat en probeer het opnieuw.</string>
     <string name="library_sort_title">Albums sorteren: Titel</string>
     <string name="library_sort_recently_added">Albums sorteren: Onlangs toegevoegd</string>
+    <string name="diagnostics_listen_reporting_mode">Luisterrapportagemodus</string>
+    <string name="diagnostics_mode_idle">Inactief</string>
+    <string name="diagnostics_mode_timeline_presence">Tijdlijnaanwezigheid</string>
+    <string name="diagnostics_mode_legacy_presence">Verouderde aanwezigheid</string>
+    <string name="diagnostics_mode_legacy_fallback">Terugval op verouderde methode</string>
+    <string name="diagnostics_last_listen_reporting_failure">Laatste fout bij luisterrapportage</string>
+    <string name="diagnostics_external_scrobbling">Externe scrobbling</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Beheerd door de server; API-acceptatie bevestigt geen externe levering</string>
+    <string name="diagnostics_pending_listens">Wachtende luisterbeurten</string>
+    <string name="diagnostics_failure_timeline">Tijdlijn</string>
+    <string name="diagnostics_failure_legacy_presence">Verouderde aanwezigheid</string>
+    <string name="diagnostics_failure_listen_submission">Luisterbeurt indienen</string>
 </resources>

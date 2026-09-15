@@ -75,6 +75,7 @@ class StorageMaintenanceStore(
             libraryAlbumCount = row.library_album_count,
             libraryTrackCount = row.library_track_count,
             pendingProviderActionCount = row.pending_provider_action_count,
+            pendingListenCount = row.pending_listen_count,
             failedPendingProviderActionCount = row.failed_pending_provider_action_count,
             hotImageCount = hotImageCount,
             hotImageBytes = hotImageBytes,

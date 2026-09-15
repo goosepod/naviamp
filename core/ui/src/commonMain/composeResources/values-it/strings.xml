@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">Tempo scaduto per la configurazione. Controlla il dispositivo di riproduzione e riprova.</string>
     <string name="library_sort_title">Ordina album: Titolo</string>
     <string name="library_sort_recently_added">Ordina album: Aggiunti di recente</string>
+    <string name="diagnostics_listen_reporting_mode">Modalità di segnalazione ascolti</string>
+    <string name="diagnostics_mode_idle">Inattivo</string>
+    <string name="diagnostics_mode_timeline_presence">Presenza timeline</string>
+    <string name="diagnostics_mode_legacy_presence">Presenza legacy</string>
+    <string name="diagnostics_mode_legacy_fallback">Fallback legacy</string>
+    <string name="diagnostics_last_listen_reporting_failure">Ultimo errore di segnalazione ascolti</string>
+    <string name="diagnostics_external_scrobbling">Scrobbling esterno</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Gestito dal server; l’accettazione API non conferma la consegna esterna</string>
+    <string name="diagnostics_pending_listens">Ascolti in sospeso</string>
+    <string name="diagnostics_failure_timeline">Timeline</string>
+    <string name="diagnostics_failure_legacy_presence">Presenza legacy</string>
+    <string name="diagnostics_failure_listen_submission">Invia ascolto</string>
 </resources>
