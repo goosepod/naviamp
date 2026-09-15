@@ -3,7 +3,9 @@ package app.naviamp.presentation
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampLibrarySourcePickerError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -434,6 +436,113 @@ class NaviampCoreConnectionControllerTest {
         assertTrue(fixture.port.connectRequests.isEmpty())
     }
 
+    @Test
+    fun librarySourcePickerPublishesNamedChoicesAndDropsStaleIds() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(
+            selectedMusicFolderIds = listOf("2", "stale-id"),
+            availableMusicFolders = listOf(
+                ConnectionFormMusicFolder("1", "Music", defaultSelected = true),
+                ConnectionFormMusicFolder("2", "Classical"),
+            ),
+        )
+
+        fixture.controller.execute(NaviampCoreCommand.Library.OpenSources)
+
+        val picker = fixture.store.state.value.shell.library.sourcePicker
+        assertTrue(picker.visible)
+        assertEquals(listOf("Music", "Classical"), picker.libraries.map { it.name })
+        assertEquals(listOf("2"), picker.selectedIds)
+        assertFalse(picker.loading)
+    }
+
+    @Test
+    fun savingLibrarySourcesReconnectsSilentlyAndRefreshesTheCurrentSource() = kotlinx.coroutines.test.runTest {
+        val transitions = mutableListOf<Pair<String?, String>>()
+        var connectedNotifications = 0
+        val fixture = fixture(
+            selectedMusicFolderIds = listOf("1"),
+            availableMusicFolders = listOf(
+                ConnectionFormMusicFolder("1", "Music", defaultSelected = true),
+                ConnectionFormMusicFolder("2", "Classical"),
+            ),
+            onSourceChanging = { previous, next -> transitions += previous to next },
+            onConnected = { connectedNotifications += 1 },
+        )
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        transitions.clear()
+        connectedNotifications = 0
+        fixture.controller.execute(NaviampCoreCommand.Library.OpenSources)
+        fixture.controller.dispatch(NaviampCoreCommand.Library.ToggleSource("2"))
+
+        fixture.controller.execute(NaviampCoreCommand.Library.SaveSources)
+
+        val (request, plan) = fixture.port.connectRequests.single()
+        assertEquals(listOf("1", "2"), (request as NaviampCoreConnectionRequest.Form).form.selectedMusicFolderIds)
+        assertEquals("source-1", request.savedConnectionId)
+        assertTrue(plan.restoreSavedSession)
+        assertEquals(listOf<Pair<String?, String>>("source-1" to "source-1"), transitions)
+        assertEquals(1, connectedNotifications)
+        assertFalse(fixture.store.state.value.shell.library.sourcePicker.visible)
+    }
+
+    @Test
+    fun cancellingLibrarySourcesDoesNotReconnect() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(availableMusicFolders = listOf(ConnectionFormMusicFolder("1", "Music")))
+        fixture.controller.execute(NaviampCoreCommand.Library.OpenSources)
+
+        fixture.controller.dispatch(NaviampCoreCommand.Library.CancelSources)
+
+        assertFalse(fixture.store.state.value.shell.library.sourcePicker.visible)
+        assertTrue(fixture.port.connectRequests.isEmpty())
+    }
+
+    @Test
+    fun librarySourcePickerExplainsUnavailableAndEmptyStates() = kotlinx.coroutines.test.runTest {
+        val disconnected = fixture(hasSavedConnection = false, currentSourceId = null)
+        disconnected.controller.execute(NaviampCoreCommand.Library.OpenSources)
+        assertEquals(
+            NaviampLibrarySourcePickerError.ConnectionRequired,
+            disconnected.store.state.value.shell.library.sourcePicker.errorKind,
+        )
+
+        val unsupported = fixture(availableMusicFolders = emptyList())
+        unsupported.controller.execute(NaviampCoreCommand.Library.OpenSources)
+        val picker = unsupported.store.state.value.shell.library.sourcePicker
+        assertTrue(picker.visible)
+        assertTrue(picker.libraries.isEmpty())
+        assertEquals(null, picker.errorKind)
+    }
+
+    @Test
+    fun librarySourcePickerKeepsTheOnlyAvailableLibrarySelected() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(availableMusicFolders = listOf(ConnectionFormMusicFolder("1", "Music")))
+        fixture.controller.execute(NaviampCoreCommand.Library.OpenSources)
+
+        fixture.controller.dispatch(NaviampCoreCommand.Library.ToggleSource("1"))
+        fixture.controller.dispatch(NaviampCoreCommand.Library.ToggleSource("unknown"))
+
+        assertEquals(listOf("1"), fixture.store.state.value.shell.library.sourcePicker.selectedIds)
+    }
+
+    @Test
+    fun failedLibrarySourceSaveKeepsTheConnectedSessionAndPickerOpen() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(availableMusicFolders = listOf(ConnectionFormMusicFolder("1", "Music")))
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+        fixture.port.connectRequests.clear()
+        fixture.controller.execute(NaviampCoreCommand.Library.OpenSources)
+        fixture.port.connectFailure = IllegalStateException("provider rejected selection")
+
+        fixture.controller.execute(NaviampCoreCommand.Library.SaveSources)
+
+        val picker = fixture.store.state.value.shell.library.sourcePicker
+        assertTrue(picker.visible)
+        assertFalse(picker.saving)
+        assertEquals(NaviampLibrarySourcePickerError.SaveFailed, picker.errorKind)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+        assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+    }
+
     private fun fixture(
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
@@ -444,12 +553,20 @@ class NaviampCoreConnectionControllerTest {
         currentSourceId: String? = "source-1",
         hasSavedConnection: Boolean = true,
         savedRecords: List<NaviampCoreSavedConnectionRecord> = listOf(savedRecord()),
+        selectedMusicFolderIds: List<String> = emptyList(),
+        availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     ): ConnectionFixture {
         val inventory = NaviampCoreConnectionInventory(
             connections = savedRecords.takeIf { hasSavedConnection }.orEmpty(),
             currentSourceId = currentSourceId?.takeIf { hasSavedConnection },
         )
-        val port = FakeProviderSessionPort(inventory, connectFailure, musicFoldersLoadFailed)
+        val port = FakeProviderSessionPort(
+            inventory,
+            connectFailure,
+            musicFoldersLoadFailed,
+            selectedMusicFolderIds,
+            availableMusicFolders,
+        )
         val store = NaviampCoreStateStore()
         return ConnectionFixture(
             store = store,
@@ -494,8 +611,10 @@ private data class ConnectionFixture(
 
 private class FakeProviderSessionPort(
     initialInventory: NaviampCoreConnectionInventory,
-    private val connectFailure: Throwable?,
+    var connectFailure: Throwable?,
     private val musicFoldersLoadFailed: Boolean,
+    private val selectedMusicFolderIds: List<String>,
+    private val availableMusicFolders: List<ConnectionFormMusicFolder>,
 ) : NaviampCoreProviderSessionPort {
     override fun initialInventory() = inventory
     var inventory = initialInventory
@@ -511,7 +630,15 @@ private class FakeProviderSessionPort(
         connectFailure?.let { throw it }
         val sourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id ?: "source-1"
         val saved = inventory.connections.firstOrNull { it.id == sourceId }
-        inventory = inventory.copy(currentSourceId = sourceId)
+        val requestedSelection = (request as? NaviampCoreConnectionRequest.Form)?.form?.selectedMusicFolderIds
+        inventory = inventory.copy(
+            currentSourceId = sourceId,
+            connections = inventory.connections.map { saved ->
+                if (saved.id == sourceId && requestedSelection != null) {
+                    saved.copy(selectedMusicFolderIds = requestedSelection)
+                } else saved
+            },
+        )
         return NaviampCoreConnectedSession(
             sourceId = sourceId,
             displayName = saved?.displayName ?: "Home Music",
@@ -521,7 +648,12 @@ private class FakeProviderSessionPort(
     }
 
     override suspend fun editableConnection(id: String) = NaviampCoreEditableConnection(
-        form = ConnectionFormState(serverUrl = "https://edited.example", username = "demo"),
+        form = ConnectionFormState(
+            serverUrl = "https://edited.example",
+            username = "demo",
+            selectedMusicFolderIds = selectedMusicFolderIds,
+        ),
+        availableMusicFolders = availableMusicFolders,
         musicFoldersLoadFailed = musicFoldersLoadFailed,
     )
 

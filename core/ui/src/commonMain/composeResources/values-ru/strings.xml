@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Предотвращает автоматическое отключение экрана, пока Naviamp виден. Сон системы, блокировка экрана и таймеры телевизора могут продолжать действовать.</string>
     <string name="settings_keep_screen_awake_failed">Не удалось изменить предотвращение отключения экрана. Выключите и снова включите этот параметр для повтора.</string>
     <string name="settings_now_playing_split_background_opacity">Непрозрачность фона в режиме разделённого экрана</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Устройство воспроизведения: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Дата добавления альбома</string>
     <string name="smart_playlist_field_album_date_modified">Дата изменения альбома</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">Хронология</string>
     <string name="diagnostics_failure_legacy_presence">Устаревшее присутствие</string>
     <string name="diagnostics_failure_listen_submission">Отправить прослушивание</string>
+    <string name="library_sources_choose">Выбрать библиотеки</string>
+    <string name="library_sources_title">Библиотеки</string>
+    <string name="library_sources_description">Выберите библиотеки, которые будут показаны в Naviamp.</string>
+    <string name="library_sources_loading">Загрузка библиотек…</string>
+    <string name="library_sources_empty">На этом сервере нет доступных для выбора библиотек.</string>
+    <string name="library_sources_save">Сохранить</string>
+    <string name="library_sources_cancel">Отмена</string>
+    <string name="library_sources_retry">Повторить</string>
+    <string name="library_sources_connection_required">Подключитесь к музыкальному серверу, чтобы выбрать библиотеки.</string>
+    <string name="library_sources_load_failed">Не удалось загрузить библиотеки.</string>
+    <string name="library_sources_save_failed">Не удалось обновить выбранные библиотеки.</string>
 </resources>

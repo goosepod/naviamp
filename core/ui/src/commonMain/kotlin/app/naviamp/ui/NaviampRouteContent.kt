@@ -1358,6 +1358,7 @@ fun NaviampLibraryContent(
     mediaActions: NaviampMediaActions,
     viewportState: NaviampLibraryViewportState,
 ) {
+    NaviampLibrarySourcePicker(colors, screen.sourcePicker, actions)
     val catalog = screen.selectedCatalog
     val items = catalog.items
     val tracks = catalog.tracks
@@ -1442,6 +1443,13 @@ fun NaviampLibraryContent(
             NaviampRowOverflowMenu(
                 colors = colors,
                 items = buildList {
+                    add(
+                        NaviampRowMenuItem(
+                            label = stringResource(Res.string.library_sources_choose),
+                            icon = NaviampIcons.Library,
+                            onClick = actions.onOpenSourcePicker,
+                        ),
+                    )
                     add(
                         NaviampRowMenuItem(
                             label = stringResource(Res.string.library_refresh),

@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Verhindert den automatischen Bildschirmruhezustand, solange Naviamp sichtbar ist. Systemruhe, Bildschirmsperren und TV-Ausschaltzeiten können weiterhin greifen.</string>
     <string name="settings_keep_screen_awake_failed">Der Bildschirmruhezustand konnte nicht angepasst werden. Schalte diese Einstellung aus und wieder ein, um es erneut zu versuchen.</string>
     <string name="settings_now_playing_split_background_opacity">Deckkraft des Hintergrunds der geteilten Ansicht</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Wiedergabegerät: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Album hinzugefügt</string>
     <string name="smart_playlist_field_album_date_modified">Album geändert</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">Timeline</string>
     <string name="diagnostics_failure_legacy_presence">Legacy-Präsenz</string>
     <string name="diagnostics_failure_listen_submission">Wiedergabe übermitteln</string>
+    <string name="library_sources_choose">Bibliotheken auswählen</string>
+    <string name="library_sources_title">Bibliotheken</string>
+    <string name="library_sources_description">Wähle aus, welche Bibliotheken in Naviamp angezeigt werden.</string>
+    <string name="library_sources_loading">Bibliotheken werden geladen…</string>
+    <string name="library_sources_empty">Dieser Server bietet keine auswählbaren Bibliotheken.</string>
+    <string name="library_sources_save">Speichern</string>
+    <string name="library_sources_cancel">Abbrechen</string>
+    <string name="library_sources_retry">Erneut versuchen</string>
+    <string name="library_sources_connection_required">Verbinde dich mit einem Musikserver, um Bibliotheken auszuwählen.</string>
+    <string name="library_sources_load_failed">Bibliotheken konnten nicht geladen werden.</string>
+    <string name="library_sources_save_failed">Die ausgewählten Bibliotheken konnten nicht aktualisiert werden.</string>
 </resources>

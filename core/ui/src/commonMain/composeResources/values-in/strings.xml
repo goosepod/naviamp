@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Mencegah layar tidur otomatis saat Naviamp terlihat. Tidur sistem, kunci layar, dan pengatur waktu TV mungkin tetap berlaku.</string>
     <string name="settings_keep_screen_awake_failed">Pencegahan tidur layar tidak dapat diubah. Nonaktifkan lalu aktifkan pengaturan ini untuk mencoba lagi.</string>
     <string name="settings_now_playing_split_background_opacity">Opasitas latar belakang tampilan terbagi</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Perangkat pemutaran: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Tanggal album ditambahkan</string>
     <string name="smart_playlist_field_album_date_modified">Tanggal album diubah</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">Linimasa</string>
     <string name="diagnostics_failure_legacy_presence">Kehadiran lama</string>
     <string name="diagnostics_failure_listen_submission">Kirim pemutaran</string>
+    <string name="library_sources_choose">Pilih pustaka</string>
+    <string name="library_sources_title">Pustaka</string>
+    <string name="library_sources_description">Pilih pustaka yang muncul di Naviamp.</string>
+    <string name="library_sources_loading">Memuat pustaka…</string>
+    <string name="library_sources_empty">Server ini tidak memiliki pustaka yang dapat dipilih.</string>
+    <string name="library_sources_save">Simpan</string>
+    <string name="library_sources_cancel">Batal</string>
+    <string name="library_sources_retry">Coba lagi</string>
+    <string name="library_sources_connection_required">Hubungkan ke server musik untuk memilih pustaka.</string>
+    <string name="library_sources_load_failed">Pustaka tidak dapat dimuat.</string>
+    <string name="library_sources_save_failed">Pustaka yang dipilih tidak dapat diperbarui.</string>
 </resources>

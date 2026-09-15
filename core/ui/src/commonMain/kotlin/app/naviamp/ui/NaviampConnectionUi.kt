@@ -63,7 +63,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
@@ -77,7 +76,6 @@ import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
-import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.provider.NaviampProviderCatalog
 import app.naviamp.domain.provider.ProviderAvailability
 import app.naviamp.domain.provider.ProviderConnectionIcon
@@ -237,16 +235,6 @@ fun NaviampConnectionForm(
             onClick = { advancedVisible = !advancedVisible },
         )
         if (advancedVisible) {
-            SettingsSectionTitle(stringResource(Res.string.settings_about_libraries_title), colors)
-            MusicFolderMultiSelect(
-                selectedIds = form.selectedMusicFolderIds,
-                availableFolders = availableMusicFolders,
-                status = musicFoldersStatus,
-                colors = colors,
-                onSelectedIdsChanged = { ids ->
-                    onFormChanged(form.copy(selectedMusicFolderIds = ids))
-                },
-            )
             val customServerCertificatesVisible = allowLocalFileInputs && capabilities.customServerCertificates
             val clientCertificatesVisible = allowLocalFileInputs && capabilities.clientCertificates
             if (capabilities.insecureServerVerification || customServerCertificatesVisible) {
@@ -578,73 +566,3 @@ private fun <T> List<T>.updateAt(index: Int, value: T): List<T> =
 
 private fun <T> List<T>.removeAt(index: Int): List<T> =
     filterIndexed { itemIndex, _ -> itemIndex != index }
-
-@Composable
-private fun MusicFolderMultiSelect(
-    selectedIds: List<String>,
-    availableFolders: List<ConnectionFormMusicFolder>,
-    status: String?,
-    colors: NaviampColors,
-    onSelectedIdsChanged: (List<String>) -> Unit,
-) {
-    val selectedSet = selectedIds.toSet()
-    val knownIds = availableFolders.map { it.id }.toSet()
-    val unknownSelected = selectedIds
-        .filterNot { it in knownIds }
-        .map { id -> ConnectionFormMusicFolder(id = id, name = id) }
-    val choices = availableFolders + unknownSelected
-
-    status?.let {
-        Text(it, color = colors.mutedText, fontSize = 11.sp)
-    }
-    if (choices.isEmpty()) {
-        Text(
-            stringResource(Res.string.connection_connect_or_enter_credentials_to_load_available_libraries),
-            color = colors.secondaryText,
-            fontSize = 12.sp,
-        )
-        return
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        choices.forEach { folder ->
-            val checked = folder.id in selectedSet
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable {
-                        onSelectedIdsChanged(
-                            selectedIds.toggleSelectedMusicFolderId(
-                                id = folder.id,
-                                requireOne = choices.isNotEmpty(),
-                            ),
-                        )
-                    }
-                    .padding(horizontal = 2.dp, vertical = 1.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Checkbox(
-                    checked = checked,
-                    onCheckedChange = null,
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = folder.name,
-                        color = colors.primaryText,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = if (folder.defaultSelected) stringResource(Res.string.connection_default_library) else stringResource(Res.string.connection_library_id, folder.id),
-                        color = colors.mutedText,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
-}

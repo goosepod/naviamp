@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">在 Naviamp 可见时阻止屏幕自动休眠。系统睡眠、屏幕锁定和电视电源定时器仍可能生效。</string>
     <string name="settings_keep_screen_awake_failed">无法更改屏幕休眠阻止设置。请关闭后重新开启此设置以重试。</string>
     <string name="settings_now_playing_split_background_opacity">分屏视图背景不透明度</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">播放设备：%1$s</string>
     <string name="smart_playlist_field_album_date_added">专辑添加日期</string>
     <string name="smart_playlist_field_album_date_modified">专辑修改日期</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">时间线</string>
     <string name="diagnostics_failure_legacy_presence">旧版状态</string>
     <string name="diagnostics_failure_listen_submission">提交收听记录</string>
+    <string name="library_sources_choose">选择媒体库</string>
+    <string name="library_sources_title">媒体库</string>
+    <string name="library_sources_description">选择要在 Naviamp 中显示的媒体库。</string>
+    <string name="library_sources_loading">正在加载媒体库…</string>
+    <string name="library_sources_empty">此服务器没有可选择的媒体库。</string>
+    <string name="library_sources_save">保存</string>
+    <string name="library_sources_cancel">取消</string>
+    <string name="library_sources_retry">重试</string>
+    <string name="library_sources_connection_required">连接到音乐服务器以选择媒体库。</string>
+    <string name="library_sources_load_failed">无法加载媒体库。</string>
+    <string name="library_sources_save_failed">无法更新所选媒体库。</string>
 </resources>

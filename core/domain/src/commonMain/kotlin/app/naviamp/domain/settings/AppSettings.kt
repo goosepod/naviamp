@@ -132,17 +132,18 @@ fun selectedMusicFolderLabels(
     availableFolders: List<ConnectionFormMusicFolder>,
 ): List<String> {
     val folderNameById = availableFolders.associate { it.id to it.name }
-    return selectedIds.map { id -> folderNameById[id] ?: "ID: $id" }
+    return selectedIds.mapNotNull(folderNameById::get)
 }
 
 fun selectedMusicFolderSummary(
     selectedIds: List<String>,
     availableFolders: List<ConnectionFormMusicFolder>,
     emptyLabel: String = "All accessible libraries",
-): String =
-    selectedMusicFolderLabels(selectedIds, availableFolders)
-        .joinToString(", ")
-        .ifBlank { emptyLabel }
+): String = if (selectedIds.isEmpty()) {
+    emptyLabel
+} else {
+    selectedMusicFolderLabels(selectedIds, availableFolders).joinToString(", ")
+}
 
 @Serializable
 enum class ApplicationUpdateChannel {

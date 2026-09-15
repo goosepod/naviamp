@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Naviamp görünürken ekranın otomatik uykuya geçmesini önler. Sistem uykusu, ekran kilitleri ve TV zamanlayıcıları yine de devreye girebilir.</string>
     <string name="settings_keep_screen_awake_failed">Ekran uykusunu önleme ayarı değiştirilemedi. Yeniden denemek için bu ayarı kapatıp açın.</string>
     <string name="settings_now_playing_split_background_opacity">Bölünmüş görünüm arka plan opaklığı</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Oynatma cihazı: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Albüm eklenme tarihi</string>
     <string name="smart_playlist_field_album_date_modified">Albüm değiştirilme tarihi</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">Zaman çizelgesi</string>
     <string name="diagnostics_failure_legacy_presence">Eski yöntem durumu</string>
     <string name="diagnostics_failure_listen_submission">Dinlemeyi gönder</string>
+    <string name="library_sources_choose">Kitaplıkları seç</string>
+    <string name="library_sources_title">Kitaplıklar</string>
+    <string name="library_sources_description">Naviamp’ta görünecek kitaplıkları seçin.</string>
+    <string name="library_sources_loading">Kitaplıklar yükleniyor…</string>
+    <string name="library_sources_empty">Bu sunucuda seçilebilir kitaplık yok.</string>
+    <string name="library_sources_save">Kaydet</string>
+    <string name="library_sources_cancel">İptal</string>
+    <string name="library_sources_retry">Yeniden dene</string>
+    <string name="library_sources_connection_required">Kitaplıkları seçmek için bir müzik sunucusuna bağlanın.</string>
+    <string name="library_sources_load_failed">Kitaplıklar yüklenemedi.</string>
+    <string name="library_sources_save_failed">Seçili kitaplıklar güncellenemedi.</string>
 </resources>

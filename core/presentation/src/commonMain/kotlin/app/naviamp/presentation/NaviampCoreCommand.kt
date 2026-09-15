@@ -109,6 +109,11 @@ sealed interface NaviampCoreCommand {
         data class JumpToLetter(val letter: Char) : Library
         data class ChangeAlbumSortOrder(val order: LibraryAlbumSortOrder) : Library
         data class TrackAction(val request: app.naviamp.ui.SharedTrackRowActionRequest) : Library
+        data object OpenSources : Library
+        data class ToggleSource(val id: String) : Library
+        data object SaveSources : Library
+        data object CancelSources : Library
+        data object RetrySources : Library
     }
 
     sealed interface Downloads : NaviampCoreCommand {

@@ -884,7 +884,7 @@
     <string name="settings_keep_screen_awake_description">Prevent automatic display sleep while Naviamp is visible. System sleep, screen locks, and TV power timers may still apply.</string>
     <string name="settings_keep_screen_awake_failed">Could not change display sleep prevention. Turn this setting off and on to retry.</string>
     <string name="settings_now_playing_split_background_opacity">Split-view background opacity</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Playback device: %1$s</string>
     <string name="connect_pairing_code">Pairing code</string>
     <string name="connect_devices_description">Control and pair Naviamp devices on this network</string>
@@ -900,6 +900,17 @@
     <string name="changelog_260_beta">Android TV and Naviamp Connect are beta. Device compatibility, network recovery, and performance are still being refined.</string>
     <string name="library_sort_title">Sort albums: Title</string>
     <string name="library_sort_recently_added">Sort albums: Recently added</string>
+    <string name="library_sources_choose">Choose libraries</string>
+    <string name="library_sources_title">Libraries</string>
+    <string name="library_sources_description">Choose which libraries appear in Naviamp.</string>
+    <string name="library_sources_loading">Loading libraries…</string>
+    <string name="library_sources_empty">This server has no selectable libraries.</string>
+    <string name="library_sources_connection_required">Connect to a music server to choose libraries.</string>
+    <string name="library_sources_load_failed">Could not load libraries.</string>
+    <string name="library_sources_save_failed">Could not update the selected libraries.</string>
+    <string name="library_sources_save">Save</string>
+    <string name="library_sources_cancel">Cancel</string>
+    <string name="library_sources_retry">Retry</string>
     <string name="diagnostics_listen_reporting_mode">Listen reporting mode</string>
     <string name="diagnostics_mode_idle">Idle</string>
     <string name="diagnostics_mode_timeline_presence">Timeline presence</string>

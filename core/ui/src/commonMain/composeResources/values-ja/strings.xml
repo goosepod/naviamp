@@ -15,7 +15,7 @@
     <string name="settings_keep_screen_awake_description">Naviampの表示中は画面の自動スリープを防ぎます。システムのスリープ、画面ロック、テレビの電源タイマーは引き続き動作する場合があります。</string>
     <string name="settings_keep_screen_awake_failed">画面のスリープ防止設定を変更できませんでした。この設定をオフにしてからオンにし、再試行してください。</string>
     <string name="settings_now_playing_split_background_opacity">分割表示の背景の不透明度</string>
-    <string name="settings_now_playing_split_background_opacity_value">%1$d%%</string>
+    <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">再生デバイス: %1$s</string>
     <string name="smart_playlist_field_album_date_added">アルバム追加日</string>
     <string name="smart_playlist_field_album_date_modified">アルバム更新日</string>
@@ -42,4 +42,15 @@
     <string name="diagnostics_failure_timeline">タイムライン</string>
     <string name="diagnostics_failure_legacy_presence">従来方式のプレゼンス</string>
     <string name="diagnostics_failure_listen_submission">再生を送信</string>
+    <string name="library_sources_choose">ライブラリを選択</string>
+    <string name="library_sources_title">ライブラリ</string>
+    <string name="library_sources_description">Naviamp に表示するライブラリを選択します。</string>
+    <string name="library_sources_loading">ライブラリを読み込み中…</string>
+    <string name="library_sources_empty">このサーバーには選択可能なライブラリがありません。</string>
+    <string name="library_sources_save">保存</string>
+    <string name="library_sources_cancel">キャンセル</string>
+    <string name="library_sources_retry">再試行</string>
+    <string name="library_sources_connection_required">ライブラリを選択するには音楽サーバーに接続してください。</string>
+    <string name="library_sources_load_failed">ライブラリを読み込めませんでした。</string>
+    <string name="library_sources_save_failed">選択したライブラリを更新できませんでした。</string>
 </resources>

@@ -5,10 +5,14 @@ import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.app.NaviampConnectionPhase
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
+import app.naviamp.domain.settings.defaultSelectedMusicFolderIds
 import app.naviamp.domain.settings.selectedMusicFolderSummary
+import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.source.connectionFailureStatus
 import app.naviamp.domain.source.connectionFailureAllowsOfflineRestoration
 import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampLibrarySourcePickerUi
+import app.naviamp.ui.NaviampLibrarySourcePickerError
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -45,6 +49,7 @@ class NaviampCoreConnectionController(
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
+    private var librarySourceConnection: NaviampCoreEditableConnection? = null
 
     init {
         publishConnection()
@@ -118,10 +123,8 @@ class NaviampCoreConnectionController(
     }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
-        val connectionCommand = command as? NaviampCoreCommand.Connection
-            ?: return NaviampCoreImmediateCommandResult.Unhandled
-        when (connectionCommand) {
-            is NaviampCoreCommand.Connection.ChangeForm -> updateForm(connectionCommand.form)
+        when (command) {
+            is NaviampCoreCommand.Connection.ChangeForm -> updateForm(command.form)
             NaviampCoreCommand.Connection.New -> openNewForm()
             NaviampCoreCommand.Connection.CancelForm -> setEditing(false)
             NaviampCoreCommand.Connection.Connect,
@@ -130,6 +133,13 @@ class NaviampCoreConnectionController(
             is NaviampCoreCommand.Connection.Delete,
             is NaviampCoreCommand.Connection.ConnectSaved,
             -> return NaviampCoreImmediateCommandResult.Deferred
+            is NaviampCoreCommand.Library.ToggleSource -> toggleLibrarySource(command.id)
+            NaviampCoreCommand.Library.CancelSources -> closeLibrarySources()
+            NaviampCoreCommand.Library.OpenSources,
+            NaviampCoreCommand.Library.RetrySources,
+            NaviampCoreCommand.Library.SaveSources,
+            -> return NaviampCoreImmediateCommandResult.Deferred
+            else -> return NaviampCoreImmediateCommandResult.Unhandled
         }
         return NaviampCoreImmediateCommandResult.Handled()
     }
@@ -150,6 +160,10 @@ class NaviampCoreConnectionController(
             }
             is NaviampCoreCommand.Connection.Edit -> edit(command.connection.id)
             is NaviampCoreCommand.Connection.Delete -> delete(command.connection)
+            NaviampCoreCommand.Library.OpenSources,
+            NaviampCoreCommand.Library.RetrySources,
+            -> openLibrarySources()
+            NaviampCoreCommand.Library.SaveSources -> saveLibrarySources()
             else -> return null
         }
         return NaviampCoreCommandResult.Completed
@@ -159,6 +173,8 @@ class NaviampCoreConnectionController(
         request: NaviampCoreConnectionRequest,
         preserveExistingSession: Boolean = false,
         userInitiated: Boolean = true,
+        forceSourceRefresh: Boolean = false,
+        onPreservedFailure: () -> Unit = {},
     ): Boolean {
         if (request is NaviampCoreConnectionRequest.Form) {
             connectionFormError(
@@ -168,6 +184,8 @@ class NaviampCoreConnectionController(
                 if (!preserveExistingSession) {
                     connection.failed(error)
                     publishConnection()
+                } else {
+                    onPreservedFailure()
                 }
                 return false
             }
@@ -181,7 +199,7 @@ class NaviampCoreConnectionController(
         var connected = false
         runCatching { sessionPort.connect(request, plan) }
             .onSuccess { session ->
-                if (previousSourceId != session.sourceId || plan.clearExistingPlayback) {
+                if (previousSourceId != session.sourceId || plan.clearExistingPlayback || forceSourceRefresh) {
                     onSourceChanging(previousSourceId, session.sourceId)
                 }
                 inventory = session.inventory
@@ -213,6 +231,7 @@ class NaviampCoreConnectionController(
                     stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
                         connection = shell.connectionSettings.connection.copy(status = previousStatus))) }
                     if (cause is kotlinx.coroutines.CancellationException) throw cause
+                    onPreservedFailure()
                     return@onFailure
                 }
                 val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
@@ -233,6 +252,98 @@ class NaviampCoreConnectionController(
                 }
             }
         return connected
+    }
+
+    private suspend fun openLibrarySources() {
+        val sourceId = inventory.currentSourceId ?: connection.state.value.sourceId
+        if (sourceId == null) {
+            updateLibrarySourcePicker {
+                NaviampLibrarySourcePickerUi(
+                    visible = true,
+                    errorKind = NaviampLibrarySourcePickerError.ConnectionRequired,
+                )
+            }
+            return
+        }
+        updateLibrarySourcePicker {
+            it.copy(visible = true, loading = true, saving = false, errorKind = null)
+        }
+        runCatching { sessionPort.editableConnection(sourceId) }
+            .onSuccess { editable ->
+                librarySourceConnection = editable
+                val knownIds = editable.availableMusicFolders.map { it.id }.toSet()
+                val retainedSelection = editable.form.selectedMusicFolderIds.filter { it in knownIds }
+                val selectedIds = defaultSelectedMusicFolderIds(retainedSelection, editable.availableMusicFolders)
+                updateLibrarySourcePicker {
+                    NaviampLibrarySourcePickerUi(
+                        visible = true,
+                        libraries = editable.availableMusicFolders,
+                        selectedIds = selectedIds,
+                        errorKind = if (editable.musicFoldersLoadFailed) {
+                            NaviampLibrarySourcePickerError.LoadFailed
+                        } else {
+                            null
+                        },
+                    )
+                }
+            }
+            .onFailure {
+                librarySourceConnection = null
+                updateLibrarySourcePicker {
+                    NaviampLibrarySourcePickerUi(
+                        visible = true,
+                        errorKind = NaviampLibrarySourcePickerError.LoadFailed,
+                    )
+                }
+            }
+    }
+
+    private fun toggleLibrarySource(id: String) {
+        updateLibrarySourcePicker { picker ->
+            if (picker.loading || picker.saving || picker.libraries.none { it.id == id }) picker else picker.copy(
+                selectedIds = picker.selectedIds.toggleSelectedMusicFolderId(id, requireOne = true),
+                errorKind = null,
+            )
+        }
+    }
+
+    private suspend fun saveLibrarySources() {
+        val editable = librarySourceConnection ?: return
+        val picker = stateStore.state.value.shell.library.sourcePicker
+        if (picker.loading || picker.saving || picker.libraries.isEmpty() || picker.selectedIds.isEmpty()) return
+        val sourceId = inventory.currentSourceId ?: connection.state.value.sourceId ?: return
+        updateLibrarySourcePicker { it.copy(saving = true, errorKind = null) }
+        val connected = connect(
+            request = NaviampCoreConnectionRequest.Form(
+                form = editable.form.copy(selectedMusicFolderIds = picker.selectedIds),
+                savedConnectionId = sourceId,
+            ),
+            preserveExistingSession = true,
+            userInitiated = false,
+            forceSourceRefresh = true,
+            onPreservedFailure = {
+                updateLibrarySourcePicker {
+                    it.copy(
+                        saving = false,
+                        errorKind = NaviampLibrarySourcePickerError.SaveFailed,
+                    )
+                }
+            },
+        )
+        if (connected) closeLibrarySources()
+    }
+
+    private fun closeLibrarySources() {
+        librarySourceConnection = null
+        updateLibrarySourcePicker { NaviampLibrarySourcePickerUi() }
+    }
+
+    private fun updateLibrarySourcePicker(
+        transform: (NaviampLibrarySourcePickerUi) -> NaviampLibrarySourcePickerUi,
+    ) {
+        stateStore.updateShell { shell ->
+            shell.copy(library = shell.library.copy(sourcePicker = transform(shell.library.sourcePicker)))
+        }
     }
 
     private suspend fun edit(id: String) {

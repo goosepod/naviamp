@@ -66,7 +66,7 @@ class ConnectionFormMusicFoldersTest {
     }
 
     @Test
-    fun summaryUsesNamesWithIdFallback() {
+    fun summaryUsesNamesWithoutExposingUnknownInternalIds() {
         val folders = connectionFormMusicFolders(
             listOf(
                 "1" to "Music Library",
@@ -75,12 +75,13 @@ class ConnectionFormMusicFoldersTest {
         )
 
         assertEquals(
-            "Music Library, ID: 3",
+            "Music Library",
             selectedMusicFolderSummary(listOf("1", "3"), folders),
         )
         assertEquals(
             "All accessible libraries",
             selectedMusicFolderSummary(emptyList(), folders),
         )
+        assertEquals("", selectedMusicFolderSummary(listOf("3"), folders))
     }
 }

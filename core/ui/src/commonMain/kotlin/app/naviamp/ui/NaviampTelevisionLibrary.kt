@@ -89,6 +89,7 @@ internal fun TelevisionLibrary(
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
+    NaviampLibrarySourcePicker(colors, screen.sourcePicker, actions)
     val view = screen.selectedView
     val catalog = screen.selectedCatalog
     val items = catalog.items
@@ -97,6 +98,7 @@ internal fun TelevisionLibrary(
     val titles = if (view == NaviampLibraryView.Songs) tracks.map { it.title } else items.map { it.title }
     val selectors = remember { NaviampLibraryView.entries.associateWith { FocusRequester() } }
     val refreshFocus = remember { FocusRequester() }
+    val sourcesFocus = remember { FocusRequester() }
     val sortFocus = remember { FocusRequester() }
     val showShortcuts = view != NaviampLibraryView.Albums || catalog.albumSortOrder == LibraryAlbumSortOrder.Title
     val shortcuts = if (showShortcuts) televisionLibraryShortcuts() else emptyList()
@@ -246,7 +248,7 @@ internal fun TelevisionLibrary(
                             Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
                             Key.DirectionRight -> {
                                 if (index < NaviampLibraryView.entries.lastIndex) selectors.getValue(NaviampLibraryView.entries[index + 1]).requestFocus()
-                                else if (view == NaviampLibraryView.Albums) sortFocus.requestFocus() else refreshFocus.requestFocus()
+                                else sourcesFocus.requestFocus()
                                 true
                             }
                             Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.entries[(index - 1).coerceAtLeast(0)]).requestFocus(); true }
@@ -255,6 +257,24 @@ internal fun TelevisionLibrary(
                     })
             }
             Spacer(Modifier.weight(1f))
+            TelevisionTextButton(
+                stringResource(Res.string.library_sources_choose),
+                colors,
+                calmFocus = true,
+                onClick = actions.onOpenSourcePicker,
+                modifier = Modifier.focusRequester(sourcesFocus).onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) false else when (event.key) {
+                        Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.Songs).requestFocus(); true }
+                        Key.DirectionRight -> {
+                            if (view == NaviampLibraryView.Albums) sortFocus.requestFocus() else refreshFocus.requestFocus()
+                            true
+                        }
+                        Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
+                        Key.DirectionDown -> { focusContent(); true }
+                        else -> false
+                    }
+                },
+            )
             if (view == NaviampLibraryView.Albums) {
                 val sortLabel = stringResource(
                     if (catalog.albumSortOrder == LibraryAlbumSortOrder.Title) {
@@ -273,7 +293,7 @@ internal fun TelevisionLibrary(
                     )
                 }, modifier = Modifier.focusRequester(sortFocus).onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) false else when (event.key) {
-                        Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.Albums).requestFocus(); true }
+                        Key.DirectionLeft -> { sourcesFocus.requestFocus(); true }
                         Key.DirectionRight -> { refreshFocus.requestFocus(); true }
                         Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
                         Key.DirectionDown -> { focusContent(); true }
@@ -285,7 +305,7 @@ internal fun TelevisionLibrary(
                 if (event.type != KeyEventType.KeyDown) false else when (event.key) {
                     Key.DirectionLeft -> {
                         if (view == NaviampLibraryView.Albums) sortFocus.requestFocus()
-                        else selectors.getValue(NaviampLibraryView.Songs).requestFocus()
+                        else sourcesFocus.requestFocus()
                         true
                     }
                     Key.DirectionRight -> true
