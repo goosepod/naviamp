@@ -2621,13 +2621,13 @@ fun NaviampDiagnosticsSettingsSection(
                             verticalAlignment = Alignment.Top,
                         ) {
                             Text(
-                                label,
+                                localizedDiagnosticText(label),
                                 color = colors.mutedText,
                                 fontSize = SettingsDetailTinyTextSize,
                                 modifier = Modifier.weight(0.42f),
                             )
                             Text(
-                                value,
+                                localizedDiagnosticText(value),
                                 color = colors.primaryText,
                                 fontSize = SettingsDetailTinyTextSize,
                                 modifier = Modifier.weight(0.58f),

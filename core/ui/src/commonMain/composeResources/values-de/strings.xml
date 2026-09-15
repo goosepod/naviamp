@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">Die Geräteeinrichtung hat zu lange gedauert. Prüfe das Wiedergabegerät und versuche es erneut.</string>
     <string name="library_sort_title">Albums sortieren: Titel</string>
     <string name="library_sort_recently_added">Albums sortieren: Kürzlich hinzugefügt</string>
+    <string name="diagnostics_listen_reporting_mode">Wiedergabemeldungsmodus</string>
+    <string name="diagnostics_mode_idle">Inaktiv</string>
+    <string name="diagnostics_mode_timeline_presence">Timeline-Präsenz</string>
+    <string name="diagnostics_mode_legacy_presence">Legacy-Präsenz</string>
+    <string name="diagnostics_mode_legacy_fallback">Legacy-Fallback</string>
+    <string name="diagnostics_last_listen_reporting_failure">Letzter Fehler bei der Wiedergabemeldung</string>
+    <string name="diagnostics_external_scrobbling">Externes Scrobbling</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Vom Server verwaltet; die API-Annahme bestätigt keine externe Übermittlung</string>
+    <string name="diagnostics_pending_listens">Ausstehende Wiedergaben</string>
+    <string name="diagnostics_failure_timeline">Timeline</string>
+    <string name="diagnostics_failure_legacy_presence">Legacy-Präsenz</string>
+    <string name="diagnostics_failure_listen_submission">Wiedergabe übermitteln</string>
 </resources>

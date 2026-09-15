@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">デバイスの設定がタイムアウトしました。再生デバイスを確認してから、もう一度お試しください。</string>
     <string name="library_sort_title">アルバムの並び順：タイトル</string>
     <string name="library_sort_recently_added">アルバムの並び順：最近追加</string>
+    <string name="diagnostics_listen_reporting_mode">再生報告モード</string>
+    <string name="diagnostics_mode_idle">アイドル</string>
+    <string name="diagnostics_mode_timeline_presence">タイムラインのプレゼンス</string>
+    <string name="diagnostics_mode_legacy_presence">従来方式のプレゼンス</string>
+    <string name="diagnostics_mode_legacy_fallback">従来方式へのフォールバック</string>
+    <string name="diagnostics_last_listen_reporting_failure">直近の再生報告エラー</string>
+    <string name="diagnostics_external_scrobbling">外部Scrobble</string>
+    <string name="diagnostics_external_scrobbling_server_managed">サーバー管理です。APIの受理は外部サービスへの配信を保証しません</string>
+    <string name="diagnostics_pending_listens">保留中の再生報告</string>
+    <string name="diagnostics_failure_timeline">タイムライン</string>
+    <string name="diagnostics_failure_legacy_presence">従来方式のプレゼンス</string>
+    <string name="diagnostics_failure_listen_submission">再生を送信</string>
 </resources>

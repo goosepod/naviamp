@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">O tempo de configuração do dispositivo esgotou. Verifique o dispositivo de reprodução e tente novamente.</string>
     <string name="library_sort_title">Ordenar álbuns: Título</string>
     <string name="library_sort_recently_added">Ordenar álbuns: Adicionados recentemente</string>
+    <string name="diagnostics_listen_reporting_mode">Modo de relatório de reprodução</string>
+    <string name="diagnostics_mode_idle">Inativo</string>
+    <string name="diagnostics_mode_timeline_presence">Presença na linha do tempo</string>
+    <string name="diagnostics_mode_legacy_presence">Presença legada</string>
+    <string name="diagnostics_mode_legacy_fallback">Fallback legado</string>
+    <string name="diagnostics_last_listen_reporting_failure">Última falha no relatório de reprodução</string>
+    <string name="diagnostics_external_scrobbling">Scrobbling externo</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Gerenciado pelo servidor; a aceitação da API não confirma a entrega externa</string>
+    <string name="diagnostics_pending_listens">Reproduções pendentes</string>
+    <string name="diagnostics_failure_timeline">Linha do tempo</string>
+    <string name="diagnostics_failure_legacy_presence">Presença legada</string>
+    <string name="diagnostics_failure_listen_submission">Enviar reprodução</string>
 </resources>

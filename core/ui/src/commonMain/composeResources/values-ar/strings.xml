@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">انتهت مهلة إعداد الجهاز. تحقق من جهاز التشغيل ثم أعد المحاولة.</string>
     <string name="library_sort_title">ترتيب الألبومات: العنوان</string>
     <string name="library_sort_recently_added">ترتيب الألبومات: المضافة حديثًا</string>
+    <string name="diagnostics_listen_reporting_mode">وضع الإبلاغ عن الاستماع</string>
+    <string name="diagnostics_mode_idle">خامل</string>
+    <string name="diagnostics_mode_timeline_presence">حضور المخطط الزمني</string>
+    <string name="diagnostics_mode_legacy_presence">الحضور القديم</string>
+    <string name="diagnostics_mode_legacy_fallback">الرجوع إلى النظام القديم</string>
+    <string name="diagnostics_last_listen_reporting_failure">آخر فشل في الإبلاغ عن الاستماع</string>
+    <string name="diagnostics_external_scrobbling">التسجيل الخارجي للاستماع</string>
+    <string name="diagnostics_external_scrobbling_server_managed">يديره الخادم؛ قبول API لا يؤكد التسليم الخارجي</string>
+    <string name="diagnostics_pending_listens">عمليات الاستماع المعلقة</string>
+    <string name="diagnostics_failure_timeline">المخطط الزمني</string>
+    <string name="diagnostics_failure_legacy_presence">الحضور القديم</string>
+    <string name="diagnostics_failure_listen_submission">إرسال الاستماع</string>
 </resources>

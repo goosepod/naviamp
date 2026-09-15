@@ -474,6 +474,7 @@ data class StorageCacheStats(
     val libraryAlbumCount: Long = 0L,
     val libraryTrackCount: Long = 0L,
     val pendingProviderActionCount: Long = 0L,
+    val pendingListenCount: Long = 0L,
     val failedPendingProviderActionCount: Long = 0L,
     val hotImageCount: Int = 0,
     val hotImageBytes: Long = 0L,

@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">डिवाइस सेटअप का समय समाप्त हो गया। प्लेबैक डिवाइस जाँचें, फिर दोबारा कोशिश करें।</string>
     <string name="library_sort_title">एल्बम क्रम: शीर्षक</string>
     <string name="library_sort_recently_added">एल्बम क्रम: हाल ही में जोड़े गए</string>
+    <string name="diagnostics_listen_reporting_mode">सुनने की रिपोर्टिंग मोड</string>
+    <string name="diagnostics_mode_idle">निष्क्रिय</string>
+    <string name="diagnostics_mode_timeline_presence">टाइमलाइन उपस्थिति</string>
+    <string name="diagnostics_mode_legacy_presence">लेगेसी उपस्थिति</string>
+    <string name="diagnostics_mode_legacy_fallback">लेगेसी फ़ॉलबैक</string>
+    <string name="diagnostics_last_listen_reporting_failure">सुनने की रिपोर्टिंग की पिछली विफलता</string>
+    <string name="diagnostics_external_scrobbling">बाहरी स्क्रॉबलिंग</string>
+    <string name="diagnostics_external_scrobbling_server_managed">सर्वर द्वारा प्रबंधित; API स्वीकृति बाहरी डिलीवरी की पुष्टि नहीं करती</string>
+    <string name="diagnostics_pending_listens">लंबित सुनाइयाँ</string>
+    <string name="diagnostics_failure_timeline">टाइमलाइन</string>
+    <string name="diagnostics_failure_legacy_presence">लेगेसी उपस्थिति</string>
+    <string name="diagnostics_failure_listen_submission">सुनाई सबमिट करें</string>
 </resources>

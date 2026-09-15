@@ -149,4 +149,16 @@
     <string name="connect_setup_timed_out">Upłynął limit czasu konfiguracji. Sprawdź urządzenie odtwarzające i spróbuj ponownie.</string>
     <string name="library_sort_title">Sortowanie albumów: Tytuł</string>
     <string name="library_sort_recently_added">Sortowanie albumów: Ostatnio dodane</string>
+    <string name="diagnostics_listen_reporting_mode">Tryb raportowania odsłuchów</string>
+    <string name="diagnostics_mode_idle">Bezczynny</string>
+    <string name="diagnostics_mode_timeline_presence">Obecność osi czasu</string>
+    <string name="diagnostics_mode_legacy_presence">Starszy tryb obecności</string>
+    <string name="diagnostics_mode_legacy_fallback">Powrót do starszego trybu</string>
+    <string name="diagnostics_last_listen_reporting_failure">Ostatni błąd raportowania odsłuchów</string>
+    <string name="diagnostics_external_scrobbling">Zewnętrzny scrobbling</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Zarządzane przez serwer; akceptacja API nie potwierdza dostarczenia zewnętrznego</string>
+    <string name="diagnostics_pending_listens">Oczekujące odsłuchy</string>
+    <string name="diagnostics_failure_timeline">Oś czasu</string>
+    <string name="diagnostics_failure_legacy_presence">Starszy tryb obecności</string>
+    <string name="diagnostics_failure_listen_submission">Prześlij odsłuch</string>
 </resources>

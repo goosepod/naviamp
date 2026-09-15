@@ -157,6 +157,7 @@ internal fun naviampCoreDiagnostics(
                 "Saved sources" to storage.mediaSourceCount.toString(),
                 "Playback sessions" to storage.playbackSessionCount.toString(),
                 "Pending provider actions" to storage.pendingProviderActionCount.toString(),
+                "Pending listens" to storage.pendingListenCount.toString(),
                 "Failed provider actions" to storage.failedPendingProviderActionCount.toString(),
             ),
         )

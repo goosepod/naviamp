@@ -38,6 +38,7 @@ class NaviampCoreDiagnosticsTest {
                     libraryAlbumCount = 34,
                     libraryTrackCount = 56,
                     lyricsCount = 7,
+                    pendingListenCount = 2,
                 ),
             ),
         )
@@ -48,6 +49,7 @@ class NaviampCoreDiagnosticsTest {
         assertEquals("Loaded", byTitle.getValue("Playback engine").rows.toMap()["BASS load state"])
         assertEquals("true", byTitle.getValue("Playback profile").rows.toMap()["Custom profile active"])
         assertEquals("7 (0 B)", byTitle.getValue("Storage").rows.toMap()["Lyrics"])
+        assertEquals("2", byTitle.getValue("Database").rows.toMap()["Pending listens"])
         assertTrue("Provider features" in byTitle)
         assertTrue("Track sidecars" in byTitle)
     }

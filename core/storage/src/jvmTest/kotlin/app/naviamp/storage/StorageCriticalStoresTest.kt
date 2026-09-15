@@ -319,6 +319,18 @@ class StorageCriticalStoresTest {
     }
 
     @Test
+    fun storageStatsExposePendingListenCountSeparately() = withStorage { fixture ->
+        val pending = StoragePendingProviderActionStore(fixture.queries) { 60L }
+        pending.enqueuePendingProviderAction(fixture.sourceId, "submit_listen", "track", longValue = 1_234L)
+        pending.enqueuePendingProviderAction(fixture.sourceId, "favorite", "track", boolValue = true)
+
+        val stats = StorageMaintenanceStore(fixture.queries).stats(databaseLabel = "test")
+
+        assertEquals(2L, stats.pendingProviderActionCount)
+        assertEquals(1L, stats.pendingListenCount)
+    }
+
+    @Test
     fun radioDjPresetsNormalizePreserveOrderAndDelete() = withStorage { fixture ->
         val store = StorageRadioDjPresetStore(fixture.queries) { 100L }
         val broad = RadioDjPreset(

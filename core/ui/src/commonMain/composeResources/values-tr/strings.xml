@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">Cihaz kurulumu zaman aşımına uğradı. Oynatma cihazını kontrol edip yeniden deneyin.</string>
     <string name="library_sort_title">Albüm sırası: Başlık</string>
     <string name="library_sort_recently_added">Albüm sırası: Son eklenenler</string>
+    <string name="diagnostics_listen_reporting_mode">Dinleme bildirim modu</string>
+    <string name="diagnostics_mode_idle">Boşta</string>
+    <string name="diagnostics_mode_timeline_presence">Zaman çizelgesi durumu</string>
+    <string name="diagnostics_mode_legacy_presence">Eski yöntem durumu</string>
+    <string name="diagnostics_mode_legacy_fallback">Eski yönteme dönüş</string>
+    <string name="diagnostics_last_listen_reporting_failure">Son dinleme bildirim hatası</string>
+    <string name="diagnostics_external_scrobbling">Harici skroplama</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Sunucu tarafından yönetilir; API kabulü harici teslimatı doğrulamaz</string>
+    <string name="diagnostics_pending_listens">Bekleyen dinlemeler</string>
+    <string name="diagnostics_failure_timeline">Zaman çizelgesi</string>
+    <string name="diagnostics_failure_legacy_presence">Eski yöntem durumu</string>
+    <string name="diagnostics_failure_listen_submission">Dinlemeyi gönder</string>
 </resources>

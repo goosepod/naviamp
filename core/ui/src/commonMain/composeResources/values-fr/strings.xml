@@ -30,4 +30,16 @@
     <string name="connect_setup_timed_out">Le délai de configuration a expiré. Vérifiez l’appareil de lecture, puis réessayez.</string>
     <string name="library_sort_title">Trier les albums : Titre</string>
     <string name="library_sort_recently_added">Trier les albums : Ajoutés récemment</string>
+    <string name="diagnostics_listen_reporting_mode">Mode de suivi des écoutes</string>
+    <string name="diagnostics_mode_idle">Inactif</string>
+    <string name="diagnostics_mode_timeline_presence">Présence chronologique</string>
+    <string name="diagnostics_mode_legacy_presence">Présence héritée</string>
+    <string name="diagnostics_mode_legacy_fallback">Repli hérité</string>
+    <string name="diagnostics_last_listen_reporting_failure">Dernier échec du suivi des écoutes</string>
+    <string name="diagnostics_external_scrobbling">Scrobbling externe</string>
+    <string name="diagnostics_external_scrobbling_server_managed">Géré par le serveur ; l’acceptation par l’API ne confirme pas la livraison externe</string>
+    <string name="diagnostics_pending_listens">Écoutes en attente</string>
+    <string name="diagnostics_failure_timeline">Chronologie</string>
+    <string name="diagnostics_failure_legacy_presence">Présence héritée</string>
+    <string name="diagnostics_failure_listen_submission">Envoyer l’écoute</string>
 </resources>

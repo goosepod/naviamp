@@ -1336,7 +1336,14 @@ class NavidromeProvider(
             trackId = trackId,
             state = PlaybackReportState.Starting,
             positionMs = 0,
+            ignoreScrobble = true,
         )
+    }
+
+    override suspend fun reportLegacyNowPlaying(trackId: TrackId) {
+        if (capabilities.supportsPlayReporting) {
+            get("scrobble.view", mapOf("id" to trackId.value, "submission" to "false"))
+        }
     }
 
     override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) {
@@ -1355,6 +1362,7 @@ class NavidromeProvider(
             trackId = trackId,
             state = state,
             positionMs = positionSeconds?.takeIf { it >= 0.0 }?.let { (it * 1000).toLong() } ?: 0L,
+            ignoreScrobble = true,
         )
     }
 
@@ -1553,6 +1561,7 @@ class NavidromeProvider(
         trackId: TrackId,
         state: PlaybackReportState,
         positionMs: Long,
+        ignoreScrobble: Boolean,
     ) {
         get(
             endpoint = "reportPlayback.view",
@@ -1561,6 +1570,7 @@ class NavidromeProvider(
                 put("mediaType", "song")
                 put("positionMs", positionMs.coerceAtLeast(0L).toString())
                 put("state", state.providerValue)
+                put("ignoreScrobble", ignoreScrobble.toString())
             },
         )
     }
