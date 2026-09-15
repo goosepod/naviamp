@@ -82,5 +82,6 @@ class ConnectionFormMusicFoldersTest {
             "All accessible libraries",
             selectedMusicFolderSummary(emptyList(), folders),
         )
+        assertEquals("", selectedMusicFolderSummary(listOf("3"), folders))
     }
 }

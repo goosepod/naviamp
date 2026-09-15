@@ -139,10 +139,11 @@ fun selectedMusicFolderSummary(
     selectedIds: List<String>,
     availableFolders: List<ConnectionFormMusicFolder>,
     emptyLabel: String = "All accessible libraries",
-): String =
-    selectedMusicFolderLabels(selectedIds, availableFolders)
-        .joinToString(", ")
-        .ifBlank { emptyLabel }
+): String = if (selectedIds.isEmpty()) {
+    emptyLabel
+} else {
+    selectedMusicFolderLabels(selectedIds, availableFolders).joinToString(", ")
+}
 
 @Serializable
 enum class ApplicationUpdateChannel {
