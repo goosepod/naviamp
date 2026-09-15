@@ -301,6 +301,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.run_full == 'true'
     runs-on: macos-latest
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -313,41 +315,67 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Set up Gradle cache and reporting
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+
       - name: Set up Android SDK for Gradle configuration
         uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
 
-      - name: Compile device targets and run all simulator tests
-        run: >
-          ./gradlew
-          verifyCoreFirstArchitecture
-          iosSimulatorArm64Test
-          :apps:ios:compileKotlinIosArm64
-          :apps:ios:compileKotlinIosSimulatorArm64
-          :providers:jellyfin:compileKotlinIosArm64
-          :providers:navidrome:compileKotlinIosArm64
+      - name: Compile device target and run all simulator tests
+        run: |
+          mkdir -p build/ci-timings
+          started_at="$(date +%s)"
+          ./gradlew \
+            --parallel \
+            --max-workers=2 \
+            --profile \
+            verifyCoreFirstArchitecture \
+            iosSimulatorArm64Test \
+            :apps:ios:compileKotlinIosArm64
+          elapsed_seconds="$(($(date +%s) - started_at))"
+          printf 'stage\tseconds\nGradle simulator tests and device compile\t%s\n' \
+            "$elapsed_seconds" > build/ci-timings/ios.tsv
+          {
+            echo '### iOS verification timing'
+            echo '| Stage | Duration |'
+            echo '| --- | ---: |'
+            echo "| Gradle simulator tests and device compile | ${elapsed_seconds}s |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build the production iOS app
         run: |
+          started_at="$(date +%s)"
           destination_id="$(xcodebuild -project apps/ios/Naviamp.xcodeproj -scheme Naviamp -showdestinations | awk -F'id:' '/platform:iOS Simulator/ && /name:iPhone/ { split($2, fields, ","); gsub(/[[:space:]]/, "", fields[1]); print fields[1]; exit }')"
           test -n "$destination_id"
           xcodebuild build -quiet \
+            -showBuildTimingSummary \
             -project apps/ios/Naviamp.xcodeproj \
             -scheme Naviamp \
             -configuration Debug \
             -destination "id=$destination_id"
+          elapsed_seconds="$(($(date +%s) - started_at))"
+          printf 'Xcode production app build\t%s\n' "$elapsed_seconds" >> build/ci-timings/ios.tsv
+          echo "| Xcode production app build | ${elapsed_seconds}s |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Exercise the Apple Keychain boundary
         run: |
+          started_at="$(date +%s)"
           destination_id="$(xcodebuild -project apps/ios/Naviamp.xcodeproj -scheme NaviampTests -showdestinations | awk -F'id:' '/platform:iOS Simulator/ && /name:iPhone/ { split($2, fields, ","); gsub(/[[:space:]]/, "", fields[1]); print fields[1]; exit }')"
           test -n "$destination_id"
           xcodebuild test -quiet \
+            -showBuildTimingSummary \
             -project apps/ios/Naviamp.xcodeproj \
             -scheme NaviampTests \
             -configuration Debug \
             -destination "id=$destination_id" \
             -resultBundlePath build/ios-keychain-tests.xcresult
+          elapsed_seconds="$(($(date +%s) - started_at))"
+          printf 'Keychain boundary test\t%s\n' "$elapsed_seconds" >> build/ci-timings/ios.tsv
+          echo "| Keychain boundary test | ${elapsed_seconds}s |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test reports
         if: always()
@@ -357,6 +385,8 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/iosSimulatorArm64Test/**
+            build/reports/profile/**
+            build/ci-timings/ios.tsv
             build/ios-keychain-tests.xcresult
 
   evidence:
