@@ -1711,9 +1711,10 @@ internal fun WaveformScrubber(
     val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
     val targetDrawValue = drawValue().coerceIn(0f, 1f)
     val animatedDrawValue = remember(progressIdentity) { Animatable(targetDrawValue) }
-    LaunchedEffect(targetDrawValue, smoothProgress, durationSeconds, progressIdentity) {
+    val animateProgress = smoothProgress && platformSupportsContinuousWaveformProgress
+    LaunchedEffect(targetDrawValue, animateProgress, durationSeconds, progressIdentity) {
         val duration = durationSeconds?.takeIf { it.isFinite() && it > 0.0 }
-        if (!smoothProgress || duration == null) {
+        if (!animateProgress || duration == null) {
             animatedDrawValue.snapTo(targetDrawValue)
             return@LaunchedEffect
         }
