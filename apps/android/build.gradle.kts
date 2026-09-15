@@ -71,6 +71,13 @@ android {
         }
         release {
             if (hasAndroidReleaseSigning) signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            ndk.debugSymbolLevel = "SYMBOL_TABLE"
         }
         create("benchmark") {
             initWith(getByName("release"))
@@ -200,11 +207,56 @@ tasks.register<Sync>("stageReleaseArtifacts") {
         include("*.aab")
         rename { "Naviamp-$naviampVersionName-android.aab" }
     }
+    from(layout.buildDirectory.file("outputs/mapping/release/mapping.txt")) {
+        rename { "Naviamp-$naviampVersionName-android-mapping.txt" }
+    }
+    from(layout.buildDirectory.file("outputs/native-debug-symbols/release/native-debug-symbols.zip")) {
+        rename { "Naviamp-$naviampVersionName-android-native-debug-symbols.zip" }
+    }
     into(layout.buildDirectory.dir("release-artifacts"))
     doLast {
-        listOf("apk", "aab").forEach { extension ->
-            val artifact = layout.buildDirectory.file("release-artifacts/Naviamp-$naviampVersionName-android.$extension").get().asFile
+        listOf(
+            "Naviamp-$naviampVersionName-android.apk",
+            "Naviamp-$naviampVersionName-android.aab",
+            "Naviamp-$naviampVersionName-android-mapping.txt",
+            "Naviamp-$naviampVersionName-android-native-debug-symbols.zip",
+        ).forEach { filename ->
+            val artifact = layout.buildDirectory.file("release-artifacts/$filename").get().asFile
             check(artifact.isFile) { "Versioned Android release artifact was not produced: ${artifact.absolutePath}" }
+            check(artifact.length() > 0L) { "Versioned Android release artifact is empty: ${artifact.absolutePath}" }
+        }
+    }
+}
+
+tasks.register("verifyReleaseOptimization") {
+    group = "verification"
+    description = "Builds the Android release and verifies R8 and diagnostic artifacts."
+    dependsOn("stageReleaseArtifacts")
+    doLast {
+        val artifactDirectory = layout.buildDirectory.dir("release-artifacts").get().asFile
+        val apk = artifactDirectory.resolve("Naviamp-$naviampVersionName-android.apk")
+        val mapping = artifactDirectory.resolve("Naviamp-$naviampVersionName-android-mapping.txt")
+        val usage = layout.buildDirectory.file("outputs/mapping/release/usage.txt").get().asFile
+        val nativeSymbols = artifactDirectory.resolve(
+            "Naviamp-$naviampVersionName-android-native-debug-symbols.zip",
+        )
+
+        val dexBytes = ZipFile(apk).use { zip ->
+            zip.entries().asSequence()
+                .filter { it.name.endsWith(".dex") }
+                .sumOf { it.size }
+        }
+        check(dexBytes in 1 until 20_000_000) {
+            "Optimized release DEX size must remain below 20 MB; found $dexBytes bytes"
+        }
+        check(mapping.readText().lineSequence().any {
+            it == "app.naviamp.android.playback.AndroidBassJni -> app.naviamp.android.playback.AndroidBassJni:"
+        }) {
+            "R8 mapping does not preserve the name-based AndroidBassJni boundary"
+        }
+        check(usage.isFile && usage.length() > 0L) { "R8 did not report removed release code" }
+        check(ZipFile(nativeSymbols).use { it.size() > 0 }) {
+            "Android native debug-symbol archive is empty"
         }
     }
 }

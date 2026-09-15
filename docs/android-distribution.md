@@ -13,17 +13,58 @@ tools, not device-specific distributions.
 
 ## Build and distribute
 
-Run `./gradlew :apps:android:stageReleaseArtifacts` to produce both formats from the same release:
+Run `./gradlew :apps:android:stageReleaseArtifacts` to produce the installable formats and their
+diagnostic artifacts from the same release:
 
 - `apps/android/build/release-artifacts/Naviamp-<version>-android.apk` for direct installation on
   phones, tablets, and TVs.
 - `apps/android/build/release-artifacts/Naviamp-<version>-android.aab` for Google Play.
+- `apps/android/build/release-artifacts/Naviamp-<version>-android-mapping.txt` for retracing
+  obfuscated JVM/Kotlin crash reports.
+- `apps/android/build/release-artifacts/Naviamp-<version>-android-native-debug-symbols.zip` for
+  symbolizing native crash reports.
+
+Release APKs and bundles use R8 full-mode code optimization, obfuscation, and optimized resource
+shrinking. The project uses `proguard-android-optimize.txt` plus a narrow rule that preserves the
+name-based Android BASS JNI bridge. Release native symbols use `SYMBOL_TABLE`; the packaged native
+libraries remain stripped while the separate symbols archive retains function names for crash
+diagnostics. Keep the mapping and native-symbol files with the exact APK/AAB that produced them.
 
 `make android-release` uses this same task. `make android-play-release` additionally requires the
 release signing environment before invoking it. `stageReleaseApk` remains a compatibility alias. The tag release workflow
 requires the existing signing environment, builds both formats in one Android job, and attaches
 both artifacts to the draft release. Local outputs without configured release signing are not
 publishable signed releases. No Play upload or publication is performed by this change.
+
+## Android Gradle Plugin 9 evaluation
+
+Naviamp remains on AGP 8.13 for this release. [AGP 9 enables built-in Kotlin and replaces the legacy
+Kotlin Multiplatform Android integration](https://developer.android.com/build/releases/agp-9-0-0-release-notes).
+Naviamp currently has eight shared modules that apply both
+`org.jetbrains.kotlin.multiplatform` and `com.android.library`, plus Android application/library
+modules that apply `org.jetbrains.kotlin.android`. Moving to AGP 9 therefore requires a coordinated
+KMP Android-plugin migration across Core, providers, tests, SQLDelight, and Compose rather than a
+safe packaging-only update. [R8 full mode is already the AGP 8 default](https://developer.android.com/agents/skills/performance/r8-analyzer/references/CONFIGURATION), and
+`android.r8.optimizedResourceShrinking=true` enables the optimized shrinker available in AGP 8.13.
+Re-evaluate AGP 9 after the shared modules can adopt the new KMP Android library plugin together.
+
+## Release optimization baseline — #93, September 15, 2026
+
+Measurements use fresh local `stageReleaseArtifacts` outputs from the same source tree before and
+after enabling R8. Sizes are raw bytes from the APK/AAB ZIP and DEX entries; they are independent of
+filesystem display-unit rounding.
+
+| Measurement | Before | Optimized | Reduction |
+| --- | ---: | ---: | ---: |
+| APK | 37,543,199 bytes | 24,987,117 bytes | 33.4% |
+| AAB | 28,542,710 bytes | 21,757,046 bytes | 23.8% |
+| Uncompressed DEX | 43,897,240 bytes (4 files) | 7,109,332 bytes (1 file) | 83.8% |
+| APK resources | 112,231 bytes | 71,020 bytes | 36.7% |
+
+`verifyReleaseOptimization` rebuilds the staged release in pull-request verification and checks
+that optimized DEX remains below 20 MB, R8 reports removed code, the JNI class name remains stable,
+and both diagnostic files are nonempty. All 18 arm64-v8a native libraries in the optimized APK were
+also inspected with NDK `llvm-readelf`; every load segment retains 16 KB (`0x4000`) alignment.
 
 For Google Play, use one Naviamp listing and package with TV support enabled. Supply the TV
 listing assets and complete its quality review. Separate TV tracks are optional; the unified

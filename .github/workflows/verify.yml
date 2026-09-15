@@ -102,6 +102,7 @@ jobs:
           :apps:android:testDebugUnitTest
           :apps:android:testReleaseUnitTest
           :apps:android:verifyDebugBassNativePackage
+          :apps:android:verifyReleaseOptimization
           :apps:android:bundleDebug
 
       - name: Configure headless ALSA output for coverage aggregation
