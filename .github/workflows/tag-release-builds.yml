@@ -187,6 +187,8 @@ jobs:
           path: |
             apps/android/build/release-artifacts/*.apk
             apps/android/build/release-artifacts/*.aab
+            apps/android/build/release-artifacts/*-mapping.txt
+            apps/android/build/release-artifacts/*-native-debug-symbols.zip
 
   windows:
     name: Windows zip and installers
