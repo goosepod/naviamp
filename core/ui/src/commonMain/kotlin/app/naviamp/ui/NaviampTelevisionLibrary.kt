@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.library.libraryLetterJumpIndex
+import app.naviamp.domain.settings.LibraryAlbumSortOrder
 import app.naviamp.ui.generated.resources.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -96,7 +97,9 @@ internal fun TelevisionLibrary(
     val titles = if (view == NaviampLibraryView.Songs) tracks.map { it.title } else items.map { it.title }
     val selectors = remember { NaviampLibraryView.entries.associateWith { FocusRequester() } }
     val refreshFocus = remember { FocusRequester() }
-    val shortcuts = televisionLibraryShortcuts()
+    val sortFocus = remember { FocusRequester() }
+    val showShortcuts = view != NaviampLibraryView.Albums || catalog.albumSortOrder == LibraryAlbumSortOrder.Title
+    val shortcuts = if (showShortcuts) televisionLibraryShortcuts() else emptyList()
     val letterFocus = remember { shortcuts.associateWith { FocusRequester() } }
     val letterListState = rememberLazyListState()
     val songFocus = remember(ids, view) { ids.associateWith { FocusRequester() } }
@@ -166,6 +169,7 @@ internal fun TelevisionLibrary(
         }
     }
     fun focusLetter() {
+        if (!showShortcuts) return
         val index = televisionLibraryRestoreIndex(ids, viewport.focusedId(view)) ?: return
         val letter = app.naviamp.domain.library.libraryTitleLetter(titles[index])
         shortcuts.indexOf(letter).takeIf { it >= 0 }?.let(::focusShortcut)
@@ -242,7 +246,7 @@ internal fun TelevisionLibrary(
                             Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
                             Key.DirectionRight -> {
                                 if (index < NaviampLibraryView.entries.lastIndex) selectors.getValue(NaviampLibraryView.entries[index + 1]).requestFocus()
-                                else refreshFocus.requestFocus()
+                                else if (view == NaviampLibraryView.Albums) sortFocus.requestFocus() else refreshFocus.requestFocus()
                                 true
                             }
                             Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.entries[(index - 1).coerceAtLeast(0)]).requestFocus(); true }
@@ -251,9 +255,39 @@ internal fun TelevisionLibrary(
                     })
             }
             Spacer(Modifier.weight(1f))
+            if (view == NaviampLibraryView.Albums) {
+                val sortLabel = stringResource(
+                    if (catalog.albumSortOrder == LibraryAlbumSortOrder.Title) {
+                        Res.string.library_sort_recently_added
+                    } else {
+                        Res.string.library_sort_title
+                    },
+                )
+                TelevisionTextButton(sortLabel, colors, calmFocus = true, onClick = {
+                    actions.onAlbumSortOrderChanged(
+                        if (catalog.albumSortOrder == LibraryAlbumSortOrder.Title) {
+                            LibraryAlbumSortOrder.RecentlyAdded
+                        } else {
+                            LibraryAlbumSortOrder.Title
+                        },
+                    )
+                }, modifier = Modifier.focusRequester(sortFocus).onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) false else when (event.key) {
+                        Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.Albums).requestFocus(); true }
+                        Key.DirectionRight -> { refreshFocus.requestFocus(); true }
+                        Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
+                        Key.DirectionDown -> { focusContent(); true }
+                        else -> false
+                    }
+                })
+            }
             val refreshModifier = Modifier.focusRequester(refreshFocus).onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) false else when (event.key) {
-                    Key.DirectionLeft -> { selectors.getValue(NaviampLibraryView.Songs).requestFocus(); true }
+                    Key.DirectionLeft -> {
+                        if (view == NaviampLibraryView.Albums) sortFocus.requestFocus()
+                        else selectors.getValue(NaviampLibraryView.Songs).requestFocus()
+                        true
+                    }
                     Key.DirectionRight -> true
                     Key.DirectionUp -> { topNavigationFocusRequester.requestFocus(); true }
                     Key.DirectionDown -> { focusContent(); true }
@@ -266,7 +300,7 @@ internal fun TelevisionLibrary(
         }
         NaviampLibraryLoadingStatus(colors, view, catalog)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
-            LazyColumn(state = letterListState, modifier = Modifier.fillMaxHeight().width(54.dp).testTag(TelevisionLibraryShortcutRailTestTag).onFocusChanged {
+            if (showShortcuts) LazyColumn(state = letterListState, modifier = Modifier.fillMaxHeight().width(54.dp).testTag(TelevisionLibraryShortcutRailTestTag).onFocusChanged {
                 letterFocused = it.hasFocus
                 if (it.hasFocus) viewport.restoreContent = false
             }.focusGroup()) {

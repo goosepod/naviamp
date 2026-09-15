@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">Eşleştirme kodu</string>
     <string name="connect_devices_description">Bu ağdaki Naviamp cihazlarını kontrol edin ve eşleştirin</string>
     <string name="connect_setup_timed_out">Cihaz kurulumu zaman aşımına uğradı. Oynatma cihazını kontrol edip yeniden deneyin.</string>
+    <string name="library_sort_title">Albüm sırası: Başlık</string>
+    <string name="library_sort_recently_added">Albüm sırası: Son eklenenler</string>
 </resources>

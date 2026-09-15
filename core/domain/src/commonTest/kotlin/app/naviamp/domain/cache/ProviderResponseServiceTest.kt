@@ -24,6 +24,26 @@ import kotlin.test.assertEquals
 
 class ProviderResponseServiceTest {
     @Test
+    fun albumListRevalidatesAfterMaximumAgeAndKeepsStaleValueOnFailure() = runTest {
+        var now = 1_000L
+        val provider = FakeSearchProvider()
+        val service = ProviderResponseService(
+            ProviderResponseCacheService(MemoryProviderResponseStore(), { now }),
+        )
+
+        assertEquals(listOf(album("newest-8")), service.albumList(provider, AlbumListType.Newest, 8, 300L))
+        provider.albumListResults = listOf(album("changed"))
+        now = 1_299L
+        assertEquals(listOf(album("newest-8")), service.albumList(provider, AlbumListType.Newest, 8, 300L))
+        now = 1_300L
+        assertEquals(listOf(album("changed")), service.albumList(provider, AlbumListType.Newest, 8, 300L))
+        provider.albumListFailure = true
+        now = 1_600L
+        assertEquals(listOf(album("changed")), service.albumList(provider, AlbumListType.Newest, 8, 300L))
+        assertEquals(3, provider.albumListCalls)
+    }
+
+    @Test
     fun searchUsesCachedProviderResponseResourceKey() = runTest {
         val cache = RecordingProviderResponseCacheRepository()
         val provider = FakeSearchProvider()
@@ -412,6 +432,25 @@ class ProviderResponseServiceTest {
         }
     }
 
+    private class MemoryProviderResponseStore : ProviderResponseStore {
+        private val values = mutableMapOf<String, CachedProviderResponse>()
+        override fun cachedResponse(cacheKey: String) = values[cacheKey]
+        override fun touchResponse(cacheKey: String, lastAccessedEpochMillis: Long) = Unit
+        override fun upsertResponse(
+            cacheKey: String,
+            providerId: String,
+            resourceType: String,
+            resourceId: String,
+            payload: String,
+            createdAtEpochMillis: Long,
+            lastAccessedEpochMillis: Long,
+        ) {
+            values[cacheKey] = CachedProviderResponse(payload, createdAtEpochMillis)
+        }
+        override fun deleteResponsesByProviderAndType(providerId: String, resourceType: String) = Unit
+        override fun deleteResponseByProviderTypeAndId(providerId: String, resourceType: String, resourceId: String) = Unit
+    }
+
     private class FakeSearchProvider : MediaProvider {
         override val id: ProviderId = ProviderId("provider-one")
         override val displayName: String = "Provider One"
@@ -427,6 +466,7 @@ class ProviderResponseServiceTest {
         var albumInfoCalls: Int = 0
         var artistCalls: Int = 0
         var albumListCalls: Int = 0
+        var albumListFailure: Boolean = false
         var artistsCalls: Int = 0
         var playlistsCalls: Int = 0
         var playlistTracksCalls: Int = 0
@@ -449,6 +489,7 @@ class ProviderResponseServiceTest {
 
         override suspend fun albumList(type: AlbumListType, limit: Int): List<Album> {
             albumListCalls += 1
+            if (albumListFailure) error("Offline")
             return albumListResults ?: listOf(album("${type.providerValue}-$limit"))
         }
 

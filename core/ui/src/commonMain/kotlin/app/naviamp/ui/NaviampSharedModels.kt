@@ -13,6 +13,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.LibraryAlbumSortOrder
 import app.naviamp.domain.settings.DesktopShortcutPlatform
 import app.naviamp.domain.settings.GlobalShortcutAction
 import app.naviamp.domain.settings.HomeSectionLayout
@@ -718,6 +719,7 @@ data class NaviampLibraryCatalogUi(
     val items: List<SharedMediaItemUi> = emptyList(),
     val tracks: List<SharedTrackRowUi> = emptyList(),
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
+    val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
 )
 
 data class NaviampLibraryScreenUi(
@@ -749,6 +751,7 @@ data class NaviampLibraryActions(
     val onRefresh: () -> Unit,
     val onLoadMore: () -> Unit,
     val onJumpToLetter: (Char) -> Unit,
+    val onAlbumSortOrderChanged: (LibraryAlbumSortOrder) -> Unit = {},
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 )
 

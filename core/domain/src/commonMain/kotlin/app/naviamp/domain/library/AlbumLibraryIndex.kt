@@ -3,8 +3,10 @@ package app.naviamp.domain.library
 import app.naviamp.domain.Album
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.settings.LibraryAlbumSortOrder
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
+import kotlin.time.Instant
 
 /** A complete, atomically published catalog, separate from opportunistic detail-cache rows. */
 data class AlbumCatalogSnapshot(val albums: List<Album>, val refreshedAtEpochMillis: Long)
@@ -92,3 +94,20 @@ fun orderAlbumCatalog(albums: List<Album>): List<Album> = albums.sortedWith(
     compareBy<Album>({ libraryTitleLetter(it.title) }, { it.title.trimStart().lowercase() },
         { it.artistName.lowercase() }, { it.id.value }),
 )
+
+fun orderAlbumCatalog(
+    albums: List<Album>,
+    order: LibraryAlbumSortOrder,
+): List<Album> = when (order) {
+    LibraryAlbumSortOrder.Title -> orderAlbumCatalog(albums)
+    LibraryAlbumSortOrder.RecentlyAdded -> albums.sortedWith(
+        compareBy<Album> { it.recentlyAddedAtIso8601.dateAddedTimestamp() == null }
+            .thenByDescending { it.recentlyAddedAtIso8601.dateAddedTimestamp() ?: Long.MIN_VALUE }
+            .thenBy { it.title.trimStart().lowercase() }
+            .thenBy { it.artistName.lowercase() }
+            .thenBy { it.id.value },
+    )
+}
+
+private fun String?.dateAddedTimestamp(): Long? =
+    this?.let { runCatching { Instant.parse(it).toEpochMilliseconds() }.getOrNull() }

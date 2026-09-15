@@ -14,6 +14,7 @@ data class HomeContentLoadRequest(
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
     val artistLimit: Int = HomeDefaultArtistLimit,
+    val forceRefreshRecentlyAdded: Boolean = false,
     val observedAtIso8601: () -> String = { "" },
 )
 
@@ -49,6 +50,7 @@ suspend fun loadHomeContent(request: HomeContentLoadRequest): HomeContent =
         recentRadioStreams = request.recentRadioStreams,
         recentInternetRadioStations = request.recentInternetRadioStations,
         artistLimit = request.artistLimit,
+        forceRefreshRecentlyAdded = request.forceRefreshRecentlyAdded,
     )
 
 fun homeLoadFailureStatus(exception: Throwable): String =

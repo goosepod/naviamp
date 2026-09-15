@@ -222,6 +222,7 @@ class NaviampCore private constructor(
             )
             deferredArtistNavigator.target = mediaDetails
 
+            var persistLibraryAlbumSortOrder: (app.naviamp.domain.settings.LibraryAlbumSortOrder) -> Unit = {}
             val catalog = NaviampCoreCatalogController(
                 stateStore,
                 providerSource,
@@ -229,6 +230,7 @@ class NaviampCore private constructor(
                 libraryIndex = services.content.libraryIndex,
                 albumIndex = services.content.albumIndex,
                 mediaRegistry = mediaRegistry,
+                onLibraryAlbumSortOrderChanged = { persistLibraryAlbumSortOrder(it) },
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
             var completeDatabaseReset: suspend () -> Unit = {}
@@ -254,10 +256,18 @@ class NaviampCore private constructor(
                 onDatabaseReset = { completeDatabaseReset() },
                 onLocalSettingsChanged = { notifyLocalSettingsChanged() },
                 onInterfaceSettingsChanged = { interfaceSettings ->
+                    catalog.interfaceSettingsChanged(interfaceSettings)
                     mediaDetails.interfaceSettingsChanged(interfaceSettings)
                     home.interfaceSettingsChanged(interfaceSettings)
                 },
             )
+            persistLibraryAlbumSortOrder = { order ->
+                settings.dispatch(
+                    NaviampCoreCommand.Settings.ChangeInterface(
+                        stateStore.state.value.shell.general.interfaceSettings.copy(libraryAlbumSortOrder = order),
+                    ),
+                )
+            }
             val playlistBrowse = NaviampCorePlaylistBrowseController(
                 stateStore,
                 providerSource,

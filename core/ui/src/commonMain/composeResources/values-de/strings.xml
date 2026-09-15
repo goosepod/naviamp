@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">Kopplungscode</string>
     <string name="connect_devices_description">Naviamp-Geräte in diesem Netzwerk steuern und koppeln</string>
     <string name="connect_setup_timed_out">Die Geräteeinrichtung hat zu lange gedauert. Prüfe das Wiedergabegerät und versuche es erneut.</string>
+    <string name="library_sort_title">Albums sortieren: Titel</string>
+    <string name="library_sort_recently_added">Albums sortieren: Kürzlich hinzugefügt</string>
 </resources>

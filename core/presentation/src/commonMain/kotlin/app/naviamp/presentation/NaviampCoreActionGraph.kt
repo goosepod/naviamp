@@ -191,6 +191,7 @@ fun createNaviampCoreActions(
             onRefresh = { send(NaviampCoreCommand.Library.Refresh) },
             onLoadMore = { send(NaviampCoreCommand.Library.LoadMore) },
             onJumpToLetter = { send(NaviampCoreCommand.Library.JumpToLetter(it)) },
+            onAlbumSortOrderChanged = { send(NaviampCoreCommand.Library.ChangeAlbumSortOrder(it)) },
             onTrackAction = { send(NaviampCoreCommand.Library.TrackAction(it)) },
         ),
         playlistsActions = NaviampPlaylistsActions(

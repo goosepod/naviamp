@@ -515,7 +515,7 @@ DELETE FROM cached_image
 WHERE url = ?;
 
 selectResponse:
-SELECT payload
+SELECT payload, created_at_epoch_millis
 FROM cached_response
 WHERE cache_key = ?;
 

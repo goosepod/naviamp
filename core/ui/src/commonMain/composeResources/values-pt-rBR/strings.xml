@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">Código de pareamento</string>
     <string name="connect_devices_description">Controle e emparelhe dispositivos Naviamp nesta rede</string>
     <string name="connect_setup_timed_out">O tempo de configuração do dispositivo esgotou. Verifique o dispositivo de reprodução e tente novamente.</string>
+    <string name="library_sort_title">Ordenar álbuns: Título</string>
+    <string name="library_sort_recently_added">Ordenar álbuns: Adicionados recentemente</string>
 </resources>

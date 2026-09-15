@@ -1441,14 +1441,44 @@ fun NaviampLibraryContent(
             }
             NaviampRowOverflowMenu(
                 colors = colors,
-                items = listOf(
-                    NaviampRowMenuItem(
-                        label = stringResource(Res.string.library_refresh),
-                        icon = NaviampIcons.Refresh,
-                        onClick = actions.onRefresh,
-                        enabled = !syncStatus.isSyncing,
-                    ),
-                ),
+                items = buildList {
+                    add(
+                        NaviampRowMenuItem(
+                            label = stringResource(Res.string.library_refresh),
+                            icon = NaviampIcons.Refresh,
+                            onClick = actions.onRefresh,
+                            enabled = !syncStatus.isSyncing,
+                        ),
+                    )
+                    if (screen.selectedView == NaviampLibraryView.Albums) {
+                        add(
+                            NaviampRowMenuItem(
+                                label = stringResource(Res.string.library_sort_title),
+                                icon = NaviampIcons.Alphabetical,
+                                onClick = {
+                                    actions.onAlbumSortOrderChanged(
+                                        app.naviamp.domain.settings.LibraryAlbumSortOrder.Title,
+                                    )
+                                },
+                                enabled = catalog.albumSortOrder !=
+                                    app.naviamp.domain.settings.LibraryAlbumSortOrder.Title,
+                            ),
+                        )
+                        add(
+                            NaviampRowMenuItem(
+                                label = stringResource(Res.string.library_sort_recently_added),
+                                icon = NaviampIcons.Clock,
+                                onClick = {
+                                    actions.onAlbumSortOrderChanged(
+                                        app.naviamp.domain.settings.LibraryAlbumSortOrder.RecentlyAdded,
+                                    )
+                                },
+                                enabled = catalog.albumSortOrder !=
+                                    app.naviamp.domain.settings.LibraryAlbumSortOrder.RecentlyAdded,
+                            ),
+                        )
+                    }
+                },
             )
         }
         NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
@@ -1696,7 +1726,10 @@ fun NaviampLibraryContent(
                 }
             }
         }
-            if (query.isBlank()) {
+            if (query.isBlank() && (
+                screen.selectedView != NaviampLibraryView.Albums ||
+                    catalog.albumSortOrder == app.naviamp.domain.settings.LibraryAlbumSortOrder.Title
+            )) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.LibraryAlbumSortOrder
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.DownloadedTrackActionRequest
@@ -106,6 +107,7 @@ sealed interface NaviampCoreCommand {
         data object Refresh : Library
         data object LoadMore : Library
         data class JumpToLetter(val letter: Char) : Library
+        data class ChangeAlbumSortOrder(val order: LibraryAlbumSortOrder) : Library
         data class TrackAction(val request: app.naviamp.ui.SharedTrackRowActionRequest) : Library
     }
 

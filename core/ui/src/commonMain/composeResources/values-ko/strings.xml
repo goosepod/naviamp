@@ -28,4 +28,6 @@
     <string name="connect_pairing_code">페어링 코드</string>
     <string name="connect_devices_description">이 네트워크의 Naviamp 기기 제어 및 페어링</string>
     <string name="connect_setup_timed_out">기기 설정 시간이 초과되었습니다. 재생 기기를 확인한 후 다시 시도하세요.</string>
+    <string name="library_sort_title">앨범 정렬: 제목</string>
+    <string name="library_sort_recently_added">앨범 정렬: 최근 추가</string>
 </resources>
