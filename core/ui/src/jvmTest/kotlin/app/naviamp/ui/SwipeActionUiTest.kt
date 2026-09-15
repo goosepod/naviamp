@@ -1,7 +1,14 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -20,6 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class SwipeActionUiTest {
@@ -74,6 +82,75 @@ class SwipeActionUiTest {
         onNodeWithTag(SwipeContentTag).performTouchInput {
             down(center)
             moveTo(Offset(center.x + 20f, center.y))
+            up()
+        }
+
+        runOnIdle { assertEquals(0, triggerCount) }
+    }
+
+    @Test
+    fun verticalAndDiagonalScrollingIntentDoesNotTriggerSwipeActions() = runComposeUiTest {
+        var triggerCount = 0
+        setContent {
+            SwipeTestSurface(
+                onSwipeRight = { triggerCount += 1 },
+                onSwipeLeft = { triggerCount += 1 },
+            )
+        }
+
+        onNodeWithTag(SwipeContentTag).performTouchInput {
+            down(center)
+            moveTo(center + Offset(100f, 120f), delayMillis = 200)
+            up()
+        }
+        onNodeWithTag(SwipeContentTag).performTouchInput {
+            down(center)
+            moveTo(center + Offset(-100f, 90f), delayMillis = 200)
+            up()
+        }
+
+        runOnIdle { assertEquals(0, triggerCount) }
+    }
+
+    @Test
+    fun verticalIntentIsYieldedToTheParentScrollContainer() = runComposeUiTest {
+        var scrollState: ScrollState? = null
+        setContent {
+            val rememberedScrollState = rememberScrollState()
+            scrollState = rememberedScrollState
+            Column(
+                Modifier
+                    .size(width = 300.dp, height = 120.dp)
+                    .verticalScroll(rememberedScrollState),
+            ) {
+                SwipeTestSurface(onSwipeRight = {}, onSwipeLeft = {})
+                Spacer(Modifier.fillMaxWidth().height(500.dp))
+            }
+        }
+
+        onNodeWithTag(SwipeContentTag).performTouchInput {
+            down(center)
+            moveTo(center + Offset(30f, -100f), delayMillis = 300)
+            up()
+        }
+
+        runOnIdle { assertTrue(scrollState!!.value > 0) }
+    }
+
+    @Test
+    fun horizontalReversalBackBelowCommitThresholdDoesNotTrigger() = runComposeUiTest {
+        var triggerCount = 0
+        setContent {
+            SwipeTestSurface(
+                onSwipeRight = { triggerCount += 1 },
+                onSwipeLeft = { triggerCount += 1 },
+            )
+        }
+
+        onNodeWithTag(SwipeContentTag).performTouchInput {
+            down(center)
+            moveTo(center + Offset(100f, 2f), delayMillis = 100)
+            moveTo(center + Offset(20f, 2f), delayMillis = 100)
             up()
         }
 

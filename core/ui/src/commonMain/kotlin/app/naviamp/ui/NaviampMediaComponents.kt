@@ -5,7 +5,8 @@ import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -51,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.TextStyle
@@ -63,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.TrackSwipeSettings
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 val LocalTrackSwipeSettings = compositionLocalOf { TrackSwipeSettings() }
@@ -489,6 +492,7 @@ fun SwipeActionContainer(
     val density = LocalDensity.current
     val thresholdPx = with(density) { 72.dp.toPx() }
     val maximumOffsetPx = with(density) { 132.dp.toPx() }
+    val intentDeadZonePx = with(density) { 10.dp.toPx() }
     val currentSwipeRight by rememberUpdatedState(swipeRight)
     val currentSwipeLeft by rememberUpdatedState(swipeLeft)
     var offsetX by remember { mutableStateOf(0f) }
@@ -527,28 +531,85 @@ fun SwipeActionContainer(
         content(
             Modifier
                 .offset { IntOffset(offsetX.roundToInt(), 0) }
-                .pointerInput(swipeRight != null, swipeLeft != null, thresholdPx) {
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            offsetX = (offsetX + dragAmount).coerceIn(
-                                minimumValue = if (currentSwipeLeft == null) 0f else -maximumOffsetPx,
-                                maximumValue = if (currentSwipeRight == null) 0f else maximumOffsetPx,
-                            )
-                        },
-                        onDragEnd = {
-                            val action = when {
-                                offsetX >= thresholdPx -> currentSwipeRight
-                                offsetX <= -thresholdPx -> currentSwipeLeft
-                                else -> null
+                .pointerInput(swipeRight != null, swipeLeft != null, thresholdPx, intentDeadZonePx) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val intentLock = SwipeGestureIntentLock(intentDeadZonePx)
+                        var horizontalDistance = 0f
+                        var verticalDistance = 0f
+                        var released = false
+
+                        try {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                val movement = change.positionChange()
+                                horizontalDistance += movement.x
+                                verticalDistance += movement.y
+                                if (!change.pressed) {
+                                    released = true
+                                    break
+                                }
+
+                                when (intentLock.update(horizontalDistance, verticalDistance)) {
+                                    SwipeGestureIntent.Pending -> Unit
+                                    SwipeGestureIntent.Vertical -> break
+                                    SwipeGestureIntent.Horizontal -> {
+                                        change.consume()
+                                        offsetX = intentLock.horizontalDistance.coerceIn(
+                                            minimumValue = if (currentSwipeLeft == null) 0f else -maximumOffsetPx,
+                                            maximumValue = if (currentSwipeRight == null) 0f else maximumOffsetPx,
+                                        )
+                                    }
+                                }
                             }
+
+                            if (released && intentLock.intent == SwipeGestureIntent.Horizontal) {
+                                val action = when {
+                                    offsetX >= thresholdPx -> currentSwipeRight
+                                    offsetX <= -thresholdPx -> currentSwipeLeft
+                                    else -> null
+                                }
+                                action?.onTriggered?.invoke()
+                            }
+                        } finally {
                             offsetX = 0f
-                            action?.onTriggered?.invoke()
-                        },
-                        onDragCancel = { offsetX = 0f },
-                    )
+                        }
+                    }
                 },
         )
+    }
+}
+
+internal enum class SwipeGestureIntent {
+    Pending,
+    Horizontal,
+    Vertical,
+}
+
+internal class SwipeGestureIntentLock(
+    private val deadZonePx: Float,
+    private val horizontalDominanceRatio: Float = 1.35f,
+) {
+    var intent: SwipeGestureIntent = SwipeGestureIntent.Pending
+        private set
+    var horizontalDistance: Float = 0f
+        private set
+
+    fun update(horizontalDistance: Float, verticalDistance: Float): SwipeGestureIntent {
+        this.horizontalDistance = horizontalDistance
+        if (intent != SwipeGestureIntent.Pending) return intent
+
+        val horizontalMagnitude = abs(horizontalDistance)
+        val verticalMagnitude = abs(verticalDistance)
+        if (maxOf(horizontalMagnitude, verticalMagnitude) < deadZonePx) return intent
+
+        intent = if (horizontalMagnitude > verticalMagnitude * horizontalDominanceRatio) {
+            SwipeGestureIntent.Horizontal
+        } else {
+            SwipeGestureIntent.Vertical
+        }
+        return intent
     }
 }
 
