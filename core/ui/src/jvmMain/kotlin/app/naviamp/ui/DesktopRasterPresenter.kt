@@ -204,6 +204,8 @@ private class MacRasterPresenter(private val window: Window) : NaviampRasterPres
         var handle = 0L
         var cachedImages = emptyList<ImageBitmap>()
         var encoded = emptyArray<ByteArray>()
+        var presentedLayers = emptyList<NaviampRasterLayer>()
+        var startedAtNanos = 0L
 
         override fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean {
             val layer = findSkiaLayer(window) ?: return false
@@ -232,6 +234,8 @@ private class MacRasterPresenter(private val window: Window) : NaviampRasterPres
                     motions.map { (it?.durationMillis ?: 1L) / 1000.0 }.toDoubleArray(),
                     layers.map { if (it.translation != null || (it.revealMotion == null && it.reveal == 1f && !it.clipFromStart)) 0 else 1 }.toIntArray(),
                     motions.map { it?.repeat ?: false }.toBooleanArray())
+                presentedLayers = layers
+                startedAtNanos = System.nanoTime()
                 true
             } catch (failure: UnsatisfiedLinkError) {
                 if (System.getenv("NAVIAMP_RASTER_DIAGNOSTICS") == "true") println("NaviampRaster native linkage: ${failure.message}")
@@ -240,14 +244,18 @@ private class MacRasterPresenter(private val window: Window) : NaviampRasterPres
             }
         }
 
-        override fun translationX(layerIndex: Int): Float? =
-            if (handle == 0L) null else DesktopRasterNative.translationX(handle, layerIndex).toFloat()
+        override fun translationX(layerIndex: Int): Float? {
+            if (handle == 0L) return null
+            val motion = presentedLayers.getOrNull(layerIndex)?.translation ?: return 0f
+            return motion.valueAt((System.nanoTime() - startedAtNanos) / 1_000_000L)
+        }
 
         override fun close() {
             if (handle != 0L) DesktopRasterNative.close(handle)
             handle = 0L
             cachedImages = emptyList()
             encoded = emptyArray()
+            presentedLayers = emptyList()
         }
     }
 }

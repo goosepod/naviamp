@@ -1,12 +1,20 @@
 #include <jni.h>
 #include <jawt.h>
 #include <jawt_md.h>
+#include <atomic>
+#include <memory>
 #include <vector>
 #import <AppKit/AppKit.h>
+#import <CoreFoundation/CoreFoundation.h>
 #import <QuartzCore/QuartzCore.h>
 
 // Presentation-only JNI bridge. All pixels, timing, clipping, and repeat values originate in Core.
-struct RasterRegion { __strong CALayer* root; __strong CALayer* parent; };
+struct RasterRegion {
+    __strong CALayer* root = nil;
+    __strong CALayer* parent = nil;
+    std::atomic_bool closed{false};
+};
+using RasterHandle = std::shared_ptr<RasterRegion>;
 struct RasterImage {
     __strong NSData* png;
     std::vector<double> geometry, values, times;
@@ -14,6 +22,24 @@ struct RasterImage {
     bool repeat;
     int kind;
 };
+
+// AWT and AppKit synchronously call into one another for accessibility and input. Waiting in either
+// direction can therefore deadlock. Copy presentation data before this boundary, enqueue only the
+// native layer mutation, and let the AppKit run loop perform it without blocking AWT.
+static void runOnAppKitThread(dispatch_block_t work) {
+    if ([NSThread isMainThread]) {
+        work();
+        return;
+    }
+    CFRunLoopPerformBlock(CFRunLoopGetMain(), kCFRunLoopCommonModes, work);
+    CFRunLoopWakeUp(CFRunLoopGetMain());
+}
+
+static RasterHandle regionFor(jlong handle) {
+    auto holder = reinterpret_cast<RasterHandle*>(handle);
+    return holder ? *holder : nullptr;
+}
+
 static std::vector<double> doubles(JNIEnv* env, jdoubleArray array) {
     std::vector<double> result(env->GetArrayLength(array));
     env->GetDoubleArrayRegion(array, 0, result.size(), result.data());
@@ -24,29 +50,22 @@ extern "C" JNIEXPORT jlong JNICALL Java_app_naviamp_ui_DesktopRasterNative_creat
     if (!JAWT_GetAWT(env, &awt)) return 0;
     auto surface = awt.GetDrawingSurface(env, component);
     if (!surface) return 0;
-    RasterRegion* region = nullptr;
+    RasterHandle region;
     if (!(surface->Lock(surface) & JAWT_LOCK_ERROR)) {
         auto info = surface->GetDrawingSurfaceInfo(surface);
         if (info && info->platformInfo) {
             id<JAWT_SurfaceLayers> layers = (__bridge id<JAWT_SurfaceLayers>) info->platformInfo;
-            __block CALayer* parent = nil;
-            dispatch_sync(dispatch_get_main_queue(), ^{ parent = layers.windowLayer ?: layers.layer; });
+            CALayer* parent = layers.windowLayer ?: layers.layer;
             if (parent) {
-                region = new RasterRegion(); region->parent = parent;
-                dispatch_sync(dispatch_get_main_queue(), ^{
-                    region->root = [CALayer layer];
-                    region->root.anchorPoint = CGPointZero;
-                    region->root.geometryFlipped = YES;
-                    region->root.masksToBounds = YES;
-                    [parent addSublayer:region->root];
-                });
+                region = std::make_shared<RasterRegion>();
+                region->parent = parent;
             }
         }
         if (info) surface->FreeDrawingSurfaceInfo(info);
         surface->Unlock(surface);
     }
     awt.FreeDrawingSurface(surface);
-    return reinterpret_cast<jlong>(region);
+    return region ? reinterpret_cast<jlong>(new RasterHandle(std::move(region))) : 0;
 }
 static void animate(CALayer* layer, NSString* key, const RasterImage& image, double multiplier, double add, double begin) {
     if (image.values.size() < 2) return;
@@ -67,7 +86,7 @@ extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_DesktopRasterNative_presen
     JNIEnv* env, jobject, jlong handle, jdoubleArray regionGeometry, jobjectArray pngs,
     jobjectArray geometries, jobjectArray values, jobjectArray times, jdoubleArray durations,
     jintArray kinds, jbooleanArray repeats) {
-    auto region = reinterpret_cast<RasterRegion*>(handle);
+    auto region = regionFor(handle);
     if (!region) return;
     auto geometry = doubles(env, regionGeometry);
     if (geometry.size() != 10) return;
@@ -87,7 +106,15 @@ extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_DesktopRasterNative_presen
         images.push_back({data, doubles(env,g), doubles(env,v), doubles(env,t), durationValues[i], repeatValues[i] != 0, kindValues[i]});
         env->DeleteLocalRef(g); env->DeleteLocalRef(v); env->DeleteLocalRef(t);
     }
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    runOnAppKitThread(^{
+        if (region->closed.load()) return;
+        if (!region->root) {
+            region->root = [CALayer layer];
+            region->root.anchorPoint = CGPointZero;
+            region->root.geometryFlipped = YES;
+            region->root.masksToBounds = YES;
+            [region->parent addSublayer:region->root];
+        }
         [CATransaction begin]; [CATransaction setDisableActions:YES];
         const double scale = geometry[7];
         const double x = geometry[2]/scale, y = geometry[3]/scale;
@@ -128,22 +155,15 @@ extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_DesktopRasterNative_presen
     });
 }
 extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_DesktopRasterNative_close(JNIEnv*, jobject, jlong handle) {
-    auto region = reinterpret_cast<RasterRegion*>(handle);
+    auto holder = reinterpret_cast<RasterHandle*>(handle);
+    if (!holder) return;
+    auto region = *holder;
+    delete holder;
     if (!region) return;
-    dispatch_sync(dispatch_get_main_queue(), ^{ [region->root removeFromSuperlayer]; });
-    delete region;
+    region->closed.store(true);
+    runOnAppKitThread(^{ [region->root removeFromSuperlayer]; region->root = nil; });
 }
 
 extern "C" JNIEXPORT jdouble JNICALL Java_app_naviamp_ui_DesktopRasterNative_translationX(JNIEnv*, jobject, jlong handle, jint index) {
-    auto region = reinterpret_cast<RasterRegion*>(handle);
-    if (!region) return 0;
-    __block double x = 0;
-    dispatch_sync(dispatch_get_main_queue(), ^{
-        if (index >= 0 && index < region->root.sublayers.count) {
-            CALayer* clip = region->root.sublayers[index];
-            CALayer* pixels = clip.sublayers.firstObject;
-            x = pixels.presentationLayer.transform.m41 * region->root.contentsScale;
-        }
-    });
-    return x;
+    return 0;
 }
