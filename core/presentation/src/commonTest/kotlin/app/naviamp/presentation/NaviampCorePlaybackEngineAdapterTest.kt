@@ -46,6 +46,7 @@ import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.AudioWaveformService
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -1194,6 +1195,7 @@ class NaviampCorePlaybackEngineAdapterTest {
                 waveform: AudioWaveform,
             ) = waveform
         }
+        val delegate = NaviampCoreMutableNowPlayingSidecars()
         val sidecars = NaviampCoreProviderNowPlayingSidecars(
             providerSource = NaviampCoreMediaProviderSource { provider },
             sourceId = { "saved-source" },
@@ -1210,6 +1212,7 @@ class NaviampCorePlaybackEngineAdapterTest {
             audioMetadataSidecarService = metadata,
             lyricsSidecarService = LyricsSidecarService(lyricsRepository, audioAssets, metadata),
             lyricsOffsetController = LyricsOffsetController(offsets),
+            delegate = delegate,
         )
 
         sidecars.loadForTrack(provider.track)
@@ -1239,9 +1242,23 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals(listOf("saved-source"), lyricSourceIds)
         assertEquals(listOf("saved-source"), offsetSourceIds)
 
-        sidecars.changeLyricsOffset(provider.track, 375)
+        val nextTrack = provider.track.copy(id = TrackId("next-track"), title = "Next Track")
+        sidecars.loadForTrack(nextTrack)
+        delegate.updateLyrics(expectedLyrics.copy(offsetMillis = 125), null, null)
+        val lyricsReload = launch(start = CoroutineStart.UNDISPATCHED) { sidecars.loadLyrics(nextTrack) }
+        runCurrent()
+        assertEquals(null, sidecars.snapshot().lyrics)
+        assertEquals(null, sidecars.snapshot().lyricsStatus)
+        advanceTimeBy(151L)
+        runCurrent()
+        assertEquals(null, sidecars.snapshot().lyrics)
+        assertEquals(lyricsLoadingStatus(onlineLyricsEnabled = true), sidecars.snapshot().lyricsStatus)
+        lyricsReload.join()
+        assertEquals("Core lyric", sidecars.snapshot().lyrics?.lines?.single()?.text)
+
+        sidecars.changeLyricsOffset(nextTrack, 375)
         assertEquals(375, savedOffset)
-        assertEquals(listOf("saved-source", "saved-source"), offsetSourceIds)
+        assertEquals(listOf("saved-source", "saved-source", "saved-source"), offsetSourceIds)
         assertEquals(375, sidecars.snapshot().lyrics?.offsetMillis)
     }
 }

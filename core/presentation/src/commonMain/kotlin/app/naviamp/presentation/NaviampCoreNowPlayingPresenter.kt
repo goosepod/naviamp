@@ -48,6 +48,7 @@ class NaviampCoreNowPlayingPresenter(
         val provider = providerSource.current()
         val sidecar = sidecars.snapshot()
         val track = live.currentTrack ?: live.queue.current
+        val lyricsSidecar = sidecar.lyricsForTrack(track?.id)
         val isLive = sidecar.currentInternetRadioStationId != null || track?.isInternetRadioTrack() == true
         val capabilities = nowPlayingTrackCapabilities(
             isLiveStream = isLive,
@@ -78,9 +79,9 @@ class NaviampCoreNowPlayingPresenter(
                 enabled = shell.cache.settings.waveformsEnabled,
             ),
             nowPlayingAudioTags = sidecar.audioTags,
-            nowPlayingLyrics = sidecar.lyrics,
-            nowPlayingLyricsAvailableTiming = sidecar.lyricsAvailableTiming,
-            nowPlayingLyricsStatus = sidecar.lyricsStatus,
+            nowPlayingLyrics = lyricsSidecar?.lyrics,
+            nowPlayingLyricsAvailableTiming = lyricsSidecar?.lyricsAvailableTiming,
+            nowPlayingLyricsStatus = lyricsSidecar?.lyricsStatus,
             nowPlayingStreamMetadata = sidecar.streamMetadata,
             lyricsVisible = display.lyricsVisible,
             visualizerAvailable = effects.capabilities.supportsVisualizer,
@@ -132,3 +133,7 @@ internal fun NaviampCoreNowPlayingSidecars.waveformForTrack(
     trackId: app.naviamp.domain.TrackId?,
     enabled: Boolean,
 ) = waveform.takeIf { enabled && this.trackId == trackId }
+
+internal fun NaviampCoreNowPlayingSidecars.lyricsForTrack(
+    trackId: app.naviamp.domain.TrackId?,
+) = takeIf { this.trackId == trackId }

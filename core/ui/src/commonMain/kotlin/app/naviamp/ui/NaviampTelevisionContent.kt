@@ -2089,7 +2089,7 @@ private fun TelevisionLyrics(
             positionMillis != null && start <= positionMillis
         } == true
     }
-    LaunchedEffect(activeIndex, nowPlaying.lyricsLines.size) {
+    LaunchedEffect(listState, activeIndex, nowPlaying.lyricsLines, nowPlaying.lyricsOffsetMillis) {
         if (activeIndex >= 0) listState.animateToActiveLyricLine(activeIndex)
     }
     when {
@@ -2100,35 +2100,36 @@ private fun TelevisionLyrics(
             modifier = modifier,
         )
         nowPlaying.lyricsLines.isEmpty() -> Spacer(modifier)
-        else -> LazyColumn(
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = modifier,
-        ) {
-            itemsIndexed(
-                nowPlaying.lyricsLines,
-                key = { index, line -> "lyric:$index:${line.startMillis}:${line.text}" },
-            ) { index, line ->
-                val active = index == activeIndex || (activeIndex < 0 && index == 0)
-                val emphasis by animateFloatAsState(
-                    targetValue = if (active) 1f else 0f,
-                    animationSpec = tween(
-                        durationMillis = LyricsLineTransitionMillis,
-                        easing = FastOutSlowInEasing,
-                    ),
-                    label = "TV lyric line emphasis",
-                )
-                val inactiveColor = colors.mutedText
-                Text(
-                    line.text,
-                    modifier = Modifier.semantics { selected = active },
-                    color = androidx.compose.ui.graphics.lerp(inactiveColor, colors.primaryText, emphasis),
-                    fontSize = (21f + 8f * emphasis).sp,
-                    lineHeight = (26f + 8f * emphasis).sp,
-                    fontWeight = if (emphasis >= 0.5f) FontWeight.Black else FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        else -> BoxWithConstraints(modifier) {
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(vertical = maxHeight / 2),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                itemsIndexed(
+                    nowPlaying.lyricsLines,
+                    key = { index, line -> "lyric:$index:${line.startMillis}:${line.text}" },
+                ) { index, line ->
+                    val active = index == activeIndex || (activeIndex < 0 && index == 0)
+                    val emphasis by animateFloatAsState(
+                        targetValue = if (active) 1f else 0f,
+                        animationSpec = tween(
+                            durationMillis = LyricsLineTransitionMillis,
+                            easing = FastOutSlowInEasing,
+                        ),
+                        label = "TV lyric line emphasis",
+                    )
+                    val inactiveColor = colors.mutedText
+                    Text(
+                        line.text,
+                        modifier = Modifier.semantics { selected = active },
+                        color = androidx.compose.ui.graphics.lerp(inactiveColor, colors.primaryText, emphasis),
+                        fontSize = (21f + 8f * emphasis).sp,
+                        lineHeight = (26f + 8f * emphasis).sp,
+                        fontWeight = if (emphasis >= 0.5f) FontWeight.Black else FontWeight.Medium,
+                    )
+                }
             }
         }
     }
