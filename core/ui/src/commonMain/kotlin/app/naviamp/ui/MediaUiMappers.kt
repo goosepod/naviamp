@@ -1593,11 +1593,12 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     }
     return SharedAlbumDetailUi(
         album = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbum).let { item ->
-            if (!showAlbumInformation) item else item.copy(
-                coverArtUrl = info?.largeImageUrl
+            val informationImageUrl = info?.largeImageUrl
                     ?: info?.mediumImageUrl
                     ?: info?.smallImageUrl
-                    ?: item.coverArtUrl,
+            if (!showAlbumInformation || informationImageUrl == null) item else item.copy(
+                coverArtUrl = informationImageUrl,
+                fallbackCoverArtUrl = item.coverArtUrl.takeIf { it != informationImageUrl },
             )
         },
         tracks = tracks.map {
@@ -1639,16 +1640,17 @@ fun ArtistDetails.toSharedArtistDetailUi(
     showArtistInformation: Boolean = true,
 ): SharedArtistDetailUi =
     SharedArtistDetailUi(
-        artist = artist.toSharedMediaItemUi(coverArtUrl, canFavoriteArtist).copy(
-            coverArtUrl = if (showArtistInformation) {
+        artist = artist.toSharedMediaItemUi(coverArtUrl, canFavoriteArtist).let { item ->
+            val informationImageUrl = if (showArtistInformation) {
                 info?.largeImageUrl
                     ?: info?.mediumImageUrl
                     ?: info?.smallImageUrl
-                    ?: coverArtUrl(artist.id.value)
-            } else {
-                coverArtUrl(artist.id.value)
-            },
-        ),
+            } else null
+            if (informationImageUrl == null) item else item.copy(
+                coverArtUrl = informationImageUrl,
+                fallbackCoverArtUrl = item.coverArtUrl.takeIf { it != informationImageUrl },
+            )
+        },
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         albumSections = albums.groupedByReleaseSection().map { group ->
             SharedAlbumSectionUi(

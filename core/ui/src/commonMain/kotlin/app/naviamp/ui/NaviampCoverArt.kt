@@ -56,6 +56,7 @@ fun NaviampCoverArt(
     cornerRadius: Dp,
     modifier: Modifier = Modifier,
     decodeSize: Dp = size,
+    fallbackUrl: String? = null,
 ) {
     val targetSidePx = with(LocalDensity.current) {
         ceil(decodeSize.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
@@ -65,8 +66,8 @@ fun NaviampCoverArt(
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     var outgoingImage by remember { mutableStateOf<ImageBitmap?>(null) }
     val incomingAlpha = remember { Animatable(1f) }
-    LaunchedEffect(url, targetSidePx) {
-        if (url == null) {
+    LaunchedEffect(url, fallbackUrl, targetSidePx) {
+        if (url == null && fallbackUrl == null) {
             // Playback can briefly publish no artwork between adjacent queue items. Do not let that
             // transient state expose the placeholder in the middle of a song transition.
             delay(CurrentMediaEmptyGraceMillis)
@@ -75,7 +76,9 @@ fun NaviampCoverArt(
             incomingAlpha.snapTo(1f)
             return@LaunchedEffect
         }
-        val loadedImage = NaviampCoverArtCache.image(url, targetSidePx)
+        val loadedImage = listOfNotNull(url, fallbackUrl)
+            .distinct()
+            .firstNotNullOfOrNull { candidate -> NaviampCoverArtCache.image(candidate, targetSidePx) }
         if (loadedImage == null) {
             image = null
             outgoingImage = null
@@ -125,14 +128,17 @@ fun NaviampExpandedMediaImage(
     colors: NaviampColors,
     maxWidth: Dp,
     maxHeight: Dp,
+    fallbackUrl: String? = null,
 ) {
     val targetSidePx = with(LocalDensity.current) {
         ceil(maxOf(maxWidth.toPx(), maxHeight.toPx())).toInt()
             .coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
     }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(url, targetSidePx) {
-        image = url?.let { NaviampCoverArtCache.image(it, targetSidePx) }
+    LaunchedEffect(url, fallbackUrl, targetSidePx) {
+        image = listOfNotNull(url, fallbackUrl)
+            .distinct()
+            .firstNotNullOfOrNull { candidate -> NaviampCoverArtCache.image(candidate, targetSidePx) }
     }
     val imageWidth = image?.width?.takeIf { it > 0 } ?: 1
     val imageHeight = image?.height?.takeIf { it > 0 } ?: 1

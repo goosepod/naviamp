@@ -506,6 +506,7 @@ class MediaUiMappersTest {
         )
 
         assertEquals("https://images.test/large.jpg", ui.artist.coverArtUrl)
+        assertEquals("cover://artist-1", ui.artist.fallbackCoverArtUrl)
         assertEquals("Artist biography", ui.biography)
     }
 
@@ -547,11 +548,13 @@ class MediaUiMappersTest {
                     if (showAlbum) "https://images.test/album.jpg" else "cover://cover-1",
                     albumUi.album.coverArtUrl,
                 )
+                assertEquals(if (showAlbum) "cover://cover-1" else null, albumUi.album.fallbackCoverArtUrl)
                 assertEquals(if (showArtist) "Artist biography" else null, artistUi.biography)
                 assertEquals(
                     if (showArtist) "https://images.test/artist.jpg" else "cover://artist-1",
                     artistUi.artist.coverArtUrl,
                 )
+                assertEquals(if (showArtist) "cover://artist-1" else null, artistUi.artist.fallbackCoverArtUrl)
             }
         }
     }
