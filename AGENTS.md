@@ -1,5 +1,23 @@
 # Naviamp Agent Development Rules
 
+## Small Animations Must Stay Cheap
+
+Scrolling text and smooth progress indicators must not cause sustained material CPU usage or
+continuous repainting of unrelated window content. Preserve smooth motion; disabling animation,
+reducing playback update frequency, or accepting a high CPU baseline is not a performance fix.
+
+Before accepting changes to continuous animation, measure static, individual-animation, and combined
+states in a visible real window. Record process CPU, parent-surface frames, and relevant GPU or
+compositor cost, with the same window size, scale, refresh rate, and power conditions. Confirm that
+the animation actually moves; a blank or frozen surface is not a passing result. Include idle,
+paused, hidden/minimized, restored, resize, input, clipping, and accessibility checks as applicable.
+
+Reuse cached content and compositor transforms or clipping for unchanged visual content. A Compose
+graphics layer or a separate surface is not proof of low cost: demonstrate it with measurements.
+Keep animation policy and behavior in common code; native adapters only execute the native
+presentation operations. Add reproducible probes and shared behavior tests, and keep a performance
+fix open until the real application meets its documented budget.
+
 ## Translatable User-Facing Strings
 
 Every new user-facing string must be defined in the project's string resource files, including

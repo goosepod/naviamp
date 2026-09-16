@@ -1773,52 +1773,56 @@ internal fun WaveformScrubber(
                 }
             },
     ) {
-        Canvas(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            val currentDrawValue = animatedDrawValue.value.coerceIn(0f, 1f)
-            if (displayAmplitudes.isEmpty()) {
-                drawFallbackScrubLine(currentDrawValue, enabled, colors)
-                return@Canvas
-            }
-
-            val centerY = size.height / 2f
-            val visibleBars = waveformVisibleBarCount(displayAmplitudes.size)
-            val step = size.width / visibleBars.toFloat()
-            val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
-            val minBarHeight = 2.5f
-            val maxBarHeight = size.height * 0.92f
-
-            val drawBars: DrawScope.(Color) -> Unit = drawWaveform@ { color ->
-                if (continuousWaveform) {
-                    drawContinuousWaveform(displayAmplitudes, color)
-                    return@drawWaveform
-                }
-                repeat(visibleBars) { index ->
-                    val sourceIndex = if (visibleBars == 1) {
-                        0
-                    } else {
-                        ((index / (visibleBars - 1f)) * (displayAmplitudes.size - 1)).toInt()
-                    }
-                    val amplitude = displayAmplitudes[sourceIndex].coerceIn(0f, 1f)
-                    val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
-                        .coerceAtMost(size.height)
-                    val x = index * step + step / 2f
-                    drawLine(
-                        color = color,
-                        start = Offset(x, centerY - barHeight / 2f),
-                        end = Offset(x, centerY + barHeight / 2f),
-                        strokeWidth = strokeWidth,
-                        cap = StrokeCap.Round,
-                    )
-                }
-            }
-            drawBars(colors.primaryText.copy(alpha = if (enabled) 0.34f else 0.16f))
-            clipRect(right = waveformPlayedClipWidth(size.width, currentDrawValue)) {
-                drawBars(playedColor)
-            }
+        Canvas(Modifier.fillMaxSize()) {
+            drawWaveformScrubberContent(displayAmplitudes, animatedDrawValue.value.coerceIn(0f, 1f),
+                enabled, colors, continuousWaveform, playedColor)
         }
+    }
+}
 
+internal fun DrawScope.drawWaveformScrubberContent(
+    displayAmplitudes: List<Float>, currentDrawValue: Float, enabled: Boolean,
+    colors: NaviampColors, continuousWaveform: Boolean, playedColor: Color,
+) {
+    if (displayAmplitudes.isEmpty()) {
+        drawFallbackScrubLine(currentDrawValue, enabled, colors)
+        return
+    }
+
+    val centerY = size.height / 2f
+    val visibleBars = waveformVisibleBarCount(displayAmplitudes.size)
+    val step = size.width / visibleBars.toFloat()
+    val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
+    val minBarHeight = 2.5f
+    val maxBarHeight = size.height * 0.92f
+
+    val drawBars: DrawScope.(Color) -> Unit = drawWaveform@ { color ->
+        if (continuousWaveform) {
+            drawContinuousWaveform(displayAmplitudes, color)
+            return@drawWaveform
+        }
+        repeat(visibleBars) { index ->
+            val sourceIndex = if (visibleBars == 1) {
+                0
+            } else {
+                ((index / (visibleBars - 1f)) * (displayAmplitudes.size - 1)).toInt()
+            }
+            val amplitude = displayAmplitudes[sourceIndex].coerceIn(0f, 1f)
+            val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
+                .coerceAtMost(size.height)
+            val x = index * step + step / 2f
+            drawLine(
+                color = color,
+                start = Offset(x, centerY - barHeight / 2f),
+                end = Offset(x, centerY + barHeight / 2f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+    drawBars(colors.primaryText.copy(alpha = if (enabled) 0.34f else 0.16f))
+    clipRect(right = waveformPlayedClipWidth(size.width, currentDrawValue)) {
+        drawBars(playedColor)
     }
 }
 

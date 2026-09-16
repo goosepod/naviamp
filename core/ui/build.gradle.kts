@@ -60,10 +60,31 @@ android {
 }
 
 // Opt-in real-window probe; intentionally excluded from CI tests and release packaging.
+val compositorProbeLibrary = layout.buildDirectory.file("animation-probe/libnaviamp_probe_layers.dylib")
+val buildAnimationCompositorProbe by tasks.registering(Exec::class) {
+    val source = file("src/jvmTest/native/animation_compositor_probe.mm")
+    inputs.file(source)
+    outputs.file(compositorProbeLibrary)
+    doFirst {
+        check(System.getProperty("os.name").startsWith("Mac")) { "The Core Animation probe requires macOS." }
+        val javaHome = System.getProperty("java.home")
+        val output = compositorProbeLibrary.get().asFile
+        output.parentFile.mkdirs()
+        commandLine("/usr/bin/clang++", "-std=c++17", "-fobjc-arc", "-dynamiclib",
+            "-I$javaHome/include", "-I$javaHome/include/darwin", source.absolutePath,
+            "-L$javaHome/lib", "-ljawt", "-framework", "AppKit", "-framework", "QuartzCore",
+            "-o", output.absolutePath)
+    }
+}
+
 tasks.register<JavaExec>("playerAnimationProbe") {
     group = "verification"
     description = "Measures CPU for static, marquee, smooth waveform, and combined player rendering."
     dependsOn("jvmTestClasses")
     classpath = tasks.named<Test>("jvmTest").get().classpath
     mainClass.set("app.naviamp.ui.NaviampPlayerAnimationProbeKt")
+    if (providers.environmentVariable("NAVIAMP_PROBE_COMPOSITOR").orNull == "true") {
+        dependsOn(buildAnimationCompositorProbe)
+        systemProperty("naviamp.probe.compositor.library", compositorProbeLibrary.get().asFile.absolutePath)
+    }
 }
