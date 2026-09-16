@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -2026,7 +2027,6 @@ private val CompactNowPlayingDetailsMinHeight = 132.dp
 private val WideNowPlayingArtMinHeight = 112.dp
 private val WideNowPlayingDetailsMinHeight = 232.dp
 private val WideNowPlayingDetailsTopPadding = 8.dp
-private const val LyricsActiveLineTargetIndex = 2
 private val VolumeThumbRadius = 6.dp
 
 internal fun fullNowPlayingTypographyScale(artSize: Dp): Float =
@@ -2226,11 +2226,6 @@ private fun LyricsPanel(
         }
     }
 
-    LaunchedEffect(activeLineIndex, nowPlaying.lyricsLines.size) {
-        if (activeLineIndex < 0) return@LaunchedEffect
-        listState.animateToActiveLyricLine(activeLineIndex)
-    }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -2262,15 +2257,49 @@ private fun LyricsPanel(
                     .weight(1f),
             )
             nowPlaying.lyricsLines.isEmpty() -> Spacer(Modifier.weight(1f))
-            else -> LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(if (largePresentation) 20.dp else 8.dp),
+            else -> CenteredLyricsList(
+                lines = nowPlaying.lyricsLines,
+                activeLineIndex = activeLineIndex,
+                positionMillis = positionMillis,
+                offsetMillis = nowPlaying.lyricsOffsetMillis,
+                colors = colors,
+                listState = listState,
+                largePresentation = largePresentation,
+                onSeek = onSeek,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-            ) {
-                items(nowPlaying.lyricsLines.size) { index ->
-                    val line = nowPlaying.lyricsLines[index]
+            )
+        }
+    }
+}
+
+@Composable
+internal fun CenteredLyricsList(
+    lines: List<NaviampLyricLineUi>,
+    activeLineIndex: Int,
+    positionMillis: Long?,
+    offsetMillis: Int,
+    colors: NaviampColors,
+    listState: LazyListState,
+    onSeek: (Double) -> Unit,
+    modifier: Modifier = Modifier,
+    largePresentation: Boolean = false,
+) {
+    LaunchedEffect(listState, activeLineIndex, lines, offsetMillis) {
+        if (activeLineIndex < 0) return@LaunchedEffect
+        listState.animateToActiveLyricLine(activeLineIndex)
+    }
+
+    BoxWithConstraints(modifier) {
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(vertical = maxHeight / 2),
+            verticalArrangement = Arrangement.spacedBy(if (largePresentation) 20.dp else 8.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(lines.size) { index ->
+                    val line = lines[index]
                     val active = index == activeLineIndex
                     val inactiveColor = colors.secondaryText.copy(alpha = 0.72f)
                     val emphasis by animateFloatAsState(
@@ -2284,16 +2313,16 @@ private fun LyricsPanel(
                     val karaokeRevision = if (active && line.cues.isNotEmpty()) {
                         line.karaokeHighlightRevision(
                             positionMillis = positionMillis,
-                            offsetMillis = nowPlaying.lyricsOffsetMillis,
+                            offsetMillis = offsetMillis,
                         )
                     } else {
                         0
                     }
                     val text = if (active && line.cues.isNotEmpty()) {
-                        remember(line, karaokeRevision, nowPlaying.lyricsOffsetMillis, inactiveColor, colors.primaryText) {
+                        remember(line, karaokeRevision, offsetMillis, inactiveColor, colors.primaryText) {
                             line.karaokeAnnotatedString(
                                 positionMillis = positionMillis,
-                                offsetMillis = nowPlaying.lyricsOffsetMillis,
+                                offsetMillis = offsetMillis,
                                 pendingColor = inactiveColor,
                                 completedColor = colors.primaryText,
                             )
@@ -2309,9 +2338,10 @@ private fun LyricsPanel(
                         fontWeight = if (emphasis >= 0.5f) FontWeight.Bold else FontWeight.Normal,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .testTag("lyrics-line-$index")
                             .clickable(enabled = line.startMillis != null) {
                                 line.startMillis
-                                    ?.plus(nowPlaying.lyricsOffsetMillis)
+                                    ?.plus(offsetMillis)
                                     ?.coerceAtLeast(0L)
                                     ?.let { onSeek(it / 1000.0) }
                             },
@@ -2320,7 +2350,6 @@ private fun LyricsPanel(
             }
         }
     }
-}
 
 @Composable
 internal fun LyricsDisplayTimingControls(
@@ -2450,18 +2479,35 @@ private const val LyricsOffsetStepMillis = 100
 internal const val LyricsLineTransitionMillis = 420
 private const val LyricsScrollTransitionMillis = 520
 
-internal fun lyricsActiveLineScrollTarget(activeLineIndex: Int): Int =
-    (activeLineIndex - LyricsActiveLineTargetIndex).coerceAtLeast(0)
+internal fun centeredLyricScrollDelta(
+    viewportStartOffset: Int,
+    viewportEndOffset: Int,
+    itemOffset: Int,
+    itemSize: Int,
+): Float {
+    val viewportCenter = (viewportStartOffset + viewportEndOffset) / 2f
+    val itemCenter = itemOffset + itemSize / 2f
+    return itemCenter - viewportCenter
+}
 
 internal suspend fun LazyListState.animateToActiveLyricLine(activeLineIndex: Int) {
     if (activeLineIndex < 0) return
-    val targetIndex = lyricsActiveLineScrollTarget(activeLineIndex)
-    val visibleTarget = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-    if (visibleTarget == null) {
-        animateScrollToItem(targetIndex)
-    } else if (visibleTarget.offset != 0) {
+    if (layoutInfo.visibleItemsInfo.none { it.index == activeLineIndex }) {
+        animateScrollToItem(activeLineIndex)
+    }
+    repeat(2) {
+        val layout = layoutInfo
+        val activeItem = layout.visibleItemsInfo.firstOrNull { it.index == activeLineIndex }
+            ?: return
+        val delta = centeredLyricScrollDelta(
+            viewportStartOffset = layout.viewportStartOffset,
+            viewportEndOffset = layout.viewportEndOffset,
+            itemOffset = activeItem.offset,
+            itemSize = activeItem.size,
+        )
+        if (abs(delta) <= 0.5f) return
         animateScrollBy(
-            value = visibleTarget.offset.toFloat(),
+            value = delta,
             animationSpec = tween(
                 durationMillis = LyricsScrollTransitionMillis,
                 easing = FastOutSlowInEasing,

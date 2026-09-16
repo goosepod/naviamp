@@ -12,6 +12,14 @@ import kotlin.test.assertTrue
 
 class NaviampLyricsUiTest {
     @Test
+    fun activeLyricsCenterUsingRenderedBounds() {
+        assertEquals(0f, centeredLyricScrollDelta(0, 400, 170, 60))
+        assertEquals(-130f, centeredLyricScrollDelta(0, 400, 40, 60))
+        assertEquals(130f, centeredLyricScrollDelta(0, 400, 300, 60))
+        assertEquals(0f, centeredLyricScrollDelta(0, 400, 120, 160))
+    }
+
+    @Test
     fun mapsProviderCueLinesIntoSharedUiWithoutFlatteningWordTiming() {
         val lyrics = Lyrics(
             source = LyricsSource.Provider,

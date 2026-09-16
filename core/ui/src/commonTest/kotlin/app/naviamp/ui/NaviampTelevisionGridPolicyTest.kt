@@ -10,15 +10,6 @@ import kotlin.test.assertTrue
 
 class NaviampTelevisionGridPolicyTest {
     @Test
-    fun activeLyricsKeepTwoLinesOfContextAboveThem() {
-        assertEquals(0, lyricsActiveLineScrollTarget(-1))
-        assertEquals(0, lyricsActiveLineScrollTarget(0))
-        assertEquals(0, lyricsActiveLineScrollTarget(2))
-        assertEquals(1, lyricsActiveLineScrollTarget(3))
-        assertEquals(7, lyricsActiveLineScrollTarget(9))
-    }
-
-    @Test
     fun waveformProgressUsesAContinuousClippingBoundary() {
         assertEquals(0f, waveformPlayedClipWidth(width = 800f, value = -1f))
         assertEquals(200f, waveformPlayedClipWidth(width = 800f, value = 0.25f))
