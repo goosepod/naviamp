@@ -51,8 +51,29 @@ class AndroidAnimationProbeTest {
         AnimationProbeActivity.done = CountDownLatch(1)
         val intent = Intent(instrumentation.context, AnimationProbeActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val activity = instrumentation.startActivitySync(intent)
-        try { assertTrue("Probe completed", AnimationProbeActivity.done.await(120, TimeUnit.SECONDS)) }
+        val activity = instrumentation.startActivitySync(intent) as AnimationProbeActivity
+        try {
+            // Marquee warm-up starts at 15 seconds. These compositor captures prove that cached
+            // pixels are visible and moving without contaminating the measured interval at 20s.
+            Thread.sleep(16_000)
+            val first = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+            Thread.sleep(750)
+            val second = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+            assertTrue("Marquee compositor output changed", changedPixelCount(first, second) > 100)
+            assertTrue("Probe completed", AnimationProbeActivity.done.await(120, TimeUnit.SECONDS))
+        }
         finally { instrumentation.runOnMainSync { activity.finish() } }
+    }
+
+    private fun changedPixelCount(first: android.graphics.Bitmap, second: android.graphics.Bitmap): Int {
+        val width = minOf(first.width, second.width)
+        val height = minOf(first.height, second.height)
+        var changed = 0
+        for (y in 0 until height step 2) {
+            for (x in 0 until width step 2) {
+                if (first.getPixel(x, y) != second.getPixel(x, y)) changed++
+            }
+        }
+        return changed
     }
 }

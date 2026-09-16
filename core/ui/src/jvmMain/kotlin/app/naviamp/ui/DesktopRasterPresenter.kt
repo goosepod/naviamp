@@ -38,7 +38,7 @@ fun NaviampDesktopRasterHost(window: Window, content: @Composable () -> Unit) {
         val mac = System.getProperty("os.name").contains("Mac")
         if (!forceSkia && mac && System.getProperty("compose.layers.type") == "WINDOW" && NativeMetalVisualizerHost.libraryAvailable()) {
             MacRasterPresenter(window)
-        } else if (!mac || forceSkia) DesktopSkiaRasterPresenter(window) else null
+        } else if (forceSkia) DesktopSkiaRasterPresenter(window) else null
     }
     var visible by remember(window) { mutableStateOf(window.isShowing) }
     var overlay by remember(window) { mutableStateOf(false) }
