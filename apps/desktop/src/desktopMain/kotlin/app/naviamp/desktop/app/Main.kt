@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 fun main() {
+    app.naviamp.ui.configureNaviampDesktopRasterLayers()
     configureDesktopHostAppearance()
     configureDesktopApplicationIcon()
     application {
@@ -70,7 +71,9 @@ fun main() {
                 MinDesktopWindowWidthDp.toInt(),
                 MinDesktopWindowHeightDp.toInt(),
             )
-            DesktopNaviampCoreHost(composition.environment, window)
+            app.naviamp.ui.NaviampDesktopRasterHost(window) {
+                DesktopNaviampCoreHost(composition.environment, window)
+            }
         }
     }
 }

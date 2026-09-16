@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
+val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true"
 
 plugins {
     alias(libs.plugins.android.library)
@@ -20,7 +21,22 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+    if (animationProbe) {
+        targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+            binaries.framework { baseName = "NaviampAnimationProbe"; isStatic = true }
+        }
+    }
+
     sourceSets {
+        if (animationProbe) {
+            commonMain.get().kotlin.srcDir("src/animationProbe/kotlin")
+            iosMain.get().kotlin.srcDir("src/animationProbeIos/kotlin")
+        }
+        androidInstrumentedTest.dependencies {
+            implementation(libs.activity.compose)
+            implementation(libs.androidx.test.runner)
+            implementation(libs.androidx.test.ext.junit)
+        }
         commonMain.dependencies {
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.serialization.json)
@@ -29,6 +45,7 @@ kotlin {
             implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
             implementation("org.jetbrains.compose.ui:ui:$composeVersion")
             implementation("org.jetbrains.compose.components:components-resources:$composeVersion")
+            implementation(libs.androidx.lifecycle.runtime.compose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -52,6 +69,11 @@ android {
     compileSdk = 36
     defaultConfig {
         minSdk = 26
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    if (animationProbe) {
+        sourceSets.getByName("androidTest").java.srcDir("src/animationProbeAndroid/kotlin")
+        sourceSets.getByName("androidTest").manifest.srcFile("src/animationProbeAndroid/AndroidManifest.xml")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

@@ -66,6 +66,7 @@ import app.naviamp.storage.StorageObjectByteStore
 import app.naviamp.ui.resetIosPlatformCoverArtByteLoader
 import app.naviamp.ui.setIosPlatformCoverArtByteLoader
 import app.naviamp.ui.NaviampStorageLocationUi
+import app.naviamp.ui.NaviampIosRasterHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -295,12 +296,14 @@ class NaviampIosApplication(
     )
 
     fun viewController(): UIViewController = contentViewController ?: ComposeUIViewController {
-        NaviampCoreApp(
-            core = core,
-            modifier = Modifier.safeDrawingPadding().imePadding(),
-            screenAwakeEffect = remember { IosScreenAwakeEffect() },
-            applicationUpdateChecker = environment.applicationUpdateChecker,
-        )
+        NaviampIosRasterHost(rootLayer = { contentViewController?.view?.layer }) {
+            NaviampCoreApp(
+                core = core,
+                modifier = Modifier.safeDrawingPadding().imePadding(),
+                screenAwakeEffect = remember { IosScreenAwakeEffect() },
+                applicationUpdateChecker = environment.applicationUpdateChecker,
+            )
+        }
     }.also { contentViewController = it }
 
     fun close() {

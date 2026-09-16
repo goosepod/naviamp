@@ -33,7 +33,10 @@ import java.lang.management.ManagementFactory
 import kotlinx.coroutines.delay
 
 /** Synthetic real-window rendering probe. No provider, audio engine, or user data is loaded. */
-fun main() = application {
+fun main() {
+    val integrated = System.getenv("NAVIAMP_PROBE_INTEGRATED") == "true"
+    if (integrated) configureNaviampDesktopRasterLayers()
+    application {
     val compositor = remember { System.getenv("NAVIAMP_PROBE_COMPOSITOR") == "true" }
     val raster = remember { System.getenv("NAVIAMP_PROBE_RASTER") == "true" }
     val raw = remember { System.getenv("NAVIAMP_PROBE_RAW") == "true" }
@@ -48,6 +51,7 @@ fun main() = application {
     ) {
         val marquee = phase == "marquee" || phase == "combined"
         val smooth = phase == "waveform" || phase == "combined"
+        val content: @Composable () -> Unit = {
         Row(Modifier.fillMaxSize().background(Color(0xff24242b)).padding(24.dp)) {
             if (compositor) ProbeCompositorSurface(marquee, smooth, Modifier.width(280.dp).fillMaxHeight())
             else if (raster) ProbeRasterAnimationSurface(marquee, smooth, Modifier.width(280.dp).fillMaxHeight())
@@ -81,6 +85,8 @@ fun main() = application {
                 }
             }
         }
+        }
+        if (integrated) NaviampDesktopRasterHost(window, content) else content()
         LaunchedEffect(Unit) {
             delay(1_000)
             val counters = probeLayers(window).map { layer ->
@@ -94,7 +100,7 @@ fun main() = application {
                 }
                 "${layer.width}x${layer.height}:${layer.renderApi}" to count
             }
-            println("ANIMATION_PROBE compositor=$compositor raster=$raster raw=$raw isolated=$isolated rows=$rowCount layers=${counters.map { it.first }} phase,cpu_percent,frames")
+            println("ANIMATION_PROBE integrated=$integrated compositor=$compositor raster=$raster raw=$raw isolated=$isolated rows=$rowCount layers=${counters.map { it.first }} phase,cpu_percent,frames")
             for (next in listOf("static", "marquee", "waveform", "combined")) {
                 phase = next
                 delay(5_000)
@@ -119,6 +125,7 @@ fun main() = application {
     }
 }
 
+}
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 private object ProbeNativeAnimationSurface : NaviampAnimationSurface {

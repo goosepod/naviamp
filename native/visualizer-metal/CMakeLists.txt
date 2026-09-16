@@ -6,6 +6,7 @@ find_package(JNI REQUIRED)
 
 add_library(naviamp_visualizer_metal SHARED
     src/naviamp_visualizer_metal.mm
+    src/naviamp_raster_compositor.mm
 )
 
 target_compile_features(naviamp_visualizer_metal PRIVATE cxx_std_17)
