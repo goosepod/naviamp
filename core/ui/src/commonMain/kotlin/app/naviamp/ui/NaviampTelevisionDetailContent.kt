@@ -84,6 +84,7 @@ internal fun TelevisionAlbumDetail(
                     detail.totalDurationLabel.takeIf { it.isNotBlank() },
                 ).joinToString("  •  "),
                 coverArtUrl = detail.album.coverArtUrl,
+                fallbackCoverArtUrl = detail.album.fallbackCoverArtUrl,
                 colors = colors,
                 topNavigationFocusRequester = topNavigationFocusRequester,
                 initialActionDownFocusRequester = firstTrackFocusRequester,
@@ -166,6 +167,7 @@ internal fun TelevisionArtistDetail(
                 subtitle = detail.artist.subtitle,
                 metadata = televisionReleaseCountLabel(detail.albums.size),
                 coverArtUrl = detail.artist.coverArtUrl,
+                fallbackCoverArtUrl = detail.artist.fallbackCoverArtUrl,
                 circularArtwork = true,
                 colors = colors,
                 topNavigationFocusRequester = topNavigationFocusRequester,
@@ -404,6 +406,7 @@ private fun TelevisionDetailHero(
     subtitle: String,
     metadata: String,
     coverArtUrl: String?,
+    fallbackCoverArtUrl: String? = null,
     circularArtwork: Boolean = false,
     colors: NaviampColors,
     actions: List<TelevisionHeroAction>,
@@ -422,6 +425,7 @@ private fun TelevisionDetailHero(
                 colors,
                 TelevisionDetailHeroArtworkSize,
                 if (circularArtwork) TelevisionDetailHeroArtworkSize / 2 else 16.dp,
+                fallbackUrl = fallbackCoverArtUrl,
             )
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),

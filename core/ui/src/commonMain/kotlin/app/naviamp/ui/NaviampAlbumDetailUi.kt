@@ -207,11 +207,17 @@ private fun AlbumDetailContent(
         ) {
             Box(
                 modifier = Modifier.clickable(
-                    enabled = detail.album.coverArtUrl != null,
+                    enabled = detail.album.coverArtUrl != null || detail.album.fallbackCoverArtUrl != null,
                     onClick = { albumImageOpen = true },
                 ),
             ) {
-                NaviampCoverArt(detail.album.coverArtUrl, colors, 96.dp, 4.dp)
+                NaviampCoverArt(
+                    detail.album.coverArtUrl,
+                    colors,
+                    96.dp,
+                    4.dp,
+                    fallbackUrl = detail.album.fallbackCoverArtUrl,
+                )
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
                 Text(
@@ -336,6 +342,7 @@ private fun AlbumDetailContent(
     if (albumImageOpen) {
         ExpandedMediaImageDialog(
             imageUrl = detail.album.coverArtUrl,
+            fallbackImageUrl = detail.album.fallbackCoverArtUrl,
             colors = colors,
             onDismissRequest = { albumImageOpen = false },
         )

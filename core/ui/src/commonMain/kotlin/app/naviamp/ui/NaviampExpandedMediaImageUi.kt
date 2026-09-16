@@ -64,6 +64,7 @@ import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 @Composable
 fun ExpandedMediaImageDialog(
     imageUrl: String?,
+    fallbackImageUrl: String? = null,
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
 ) {
@@ -78,6 +79,7 @@ fun ExpandedMediaImageDialog(
         ) {
             NaviampExpandedMediaImage(
                 url = imageUrl,
+                fallbackUrl = fallbackImageUrl,
                 colors = colors,
                 maxWidth = 320.dp,
                 maxHeight = 420.dp,
