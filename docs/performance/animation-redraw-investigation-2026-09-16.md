@@ -81,7 +81,7 @@ the rest of the application; the earlier 16–47% reproduction samples were domi
 redraw. The production result is therefore a real-app acceptance range, not a direct substitute for
 the synthetic compositor's approximately 0.3% animation-only result.
 
-The dedicated probe ran on physical Pixel `5A131JEA306253`, not an emulator. Static measured 0.46%
+The dedicated probe ran on a physical Pixel, not an emulator. Static measured 0.46%
 process CPU; marquee 4.87%; smooth waveform 3.74%; combined 3.96%; and restored static 0.05%.
 Every state recorded zero parent-root draws, zero sibling draws, and zero Android window frames.
 Two screenshots 750 ms apart also verified that the cached marquee pixels actually moved. Android
