@@ -256,6 +256,7 @@ data class SharedMediaItemUi(
     val releaseYear: Int? = null,
     val trackCount: Int? = null,
     val coverArtUrl: String? = null,
+    val fallbackCoverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
     val canEditPlaylist: Boolean = true,

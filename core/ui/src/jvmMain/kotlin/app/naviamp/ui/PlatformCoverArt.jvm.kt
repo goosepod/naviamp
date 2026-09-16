@@ -42,63 +42,8 @@ internal actual fun decodePlatformCoverArt(
     bytes: ByteArray,
     targetSidePx: Int,
 ): NaviampDecodedCoverArt? = runCatching {
-    val source = ImageIO.read(bytes.inputStream()) ?: return@runCatching null
-    val longestSide = maxOf(source.width, source.height)
-    val scale = (targetSidePx.toDouble() / longestSide).coerceAtMost(1.0)
-    val targetWidth = (source.width * scale).toInt().coerceAtLeast(1)
-    val targetHeight = (source.height * scale).toInt().coerceAtLeast(1)
-    val decoded = if (targetWidth == source.width && targetHeight == source.height) {
-        source
-    } else {
-        BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB).also { target ->
-            target.createGraphics().use { graphics ->
-                graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-                graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-                graphics.drawImage(source, 0, 0, targetWidth, targetHeight, null)
-            }
-        }
-    }
-    val encoded = ByteArrayOutputStream().use { output ->
-        check(ImageIO.write(decoded, "png", output))
-        output.toByteArray()
-    }
-    NaviampDecodedCoverArt(
-        image = SkiaImage.makeFromEncoded(encoded).toComposeImageBitmap(),
-        rgbSamples = jvmRgbSamples(decoded),
-    )
+    naviampDecodedCoverArt(SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap(), targetSidePx)
 }.getOrNull()
-
-private fun jvmRgbSamples(image: BufferedImage): List<NaviampRgbSample> {
-    val samples = mutableListOf<NaviampRgbSample>()
-    val stepX = (image.width / 32).coerceAtLeast(1)
-    val stepY = (image.height / 32).coerceAtLeast(1)
-    var y = 0
-    while (y < image.height) {
-        var x = 0
-        while (x < image.width) {
-            val pixel = image.getRGB(x, y)
-            val alpha = (pixel ushr 24) and 0xFF
-            if (alpha > 200) {
-                samples += NaviampRgbSample(
-                    red = (pixel shr 16) and 0xFF,
-                    green = (pixel shr 8) and 0xFF,
-                    blue = pixel and 0xFF,
-                )
-            }
-            x += stepX
-        }
-        y += stepY
-    }
-    return samples
-}
-
-private inline fun <T : java.awt.Graphics> T.use(block: (T) -> Unit) {
-    try {
-        block(this)
-    } finally {
-        dispose()
-    }
-}
 
 private suspend fun defaultPlatformCoverArtBytes(url: String): ByteArray =
     withContext(Dispatchers.IO) {

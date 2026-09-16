@@ -13,6 +13,44 @@ import kotlin.test.assertNotEquals
 @OptIn(ExperimentalTestApi::class)
 class NaviampCoverArtTransitionTest {
     @Test
+    fun failedInformationArtworkFallsBackToProviderArtwork() = runComposeUiTest {
+        val bytes = requireNotNull(
+            jvmGeneratedCoverArtBytes(
+                "naviamp-radio-tile://cover?label=F&from=CC2244&to=551122",
+            ),
+        )
+        val requestedUrls = mutableListOf<String>()
+        resetNaviampCoverArtCache()
+        setJvmPlatformCoverArtByteLoader { url ->
+            requestedUrls += url
+            if (url == "test://provider-cover") bytes else error("external artwork unavailable")
+        }
+
+        try {
+            setContent {
+                NaviampCoverArt(
+                    url = "https://external.test/missing.webp",
+                    colors = NaviampColors.Dark,
+                    size = 128.dp,
+                    cornerRadius = 8.dp,
+                    fallbackUrl = "test://provider-cover",
+                )
+            }
+            waitUntil(timeoutMillis = 5_000) {
+                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 1
+            }
+            assertEquals(
+                listOf("https://external.test/missing.webp", "test://provider-cover"),
+                requestedUrls,
+            )
+            onNodeWithContentDescription("Album art").assertExists()
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+            resetNaviampCoverArtCache()
+        }
+    }
+
+    @Test
     fun failedReplacementArtworkDoesNotLeaveThePreviousImageVisible() = runComposeUiTest {
         val artworkUrl = mutableStateOf<String?>("test://working")
         val bytes = requireNotNull(

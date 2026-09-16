@@ -316,11 +316,17 @@ private fun ArtistDetailContent(
         ) {
             Box(
                 modifier = Modifier.clickable(
-                    enabled = detail.artist.coverArtUrl != null,
+                    enabled = detail.artist.coverArtUrl != null || detail.artist.fallbackCoverArtUrl != null,
                     onClick = { artistImageOpen = true },
                 ),
             ) {
-                NaviampCoverArt(detail.artist.coverArtUrl, colors, 96.dp, 48.dp)
+                NaviampCoverArt(
+                    detail.artist.coverArtUrl,
+                    colors,
+                    96.dp,
+                    48.dp,
+                    fallbackUrl = detail.artist.fallbackCoverArtUrl,
+                )
             }
             Column(
                 verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -610,6 +616,7 @@ private fun ArtistDetailContent(
     if (artistImageOpen) {
         ExpandedMediaImageDialog(
             imageUrl = detail.artist.coverArtUrl,
+            fallbackImageUrl = detail.artist.fallbackCoverArtUrl,
             colors = colors,
             onDismissRequest = { artistImageOpen = false },
         )

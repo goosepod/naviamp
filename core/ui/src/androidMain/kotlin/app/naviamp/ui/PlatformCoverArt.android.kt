@@ -48,10 +48,7 @@ internal actual fun decodePlatformCoverArt(
     bytes: ByteArray,
     targetSidePx: Int,
 ): NaviampDecodedCoverArt? = decodeSampledBitmap(bytes, targetSidePx)?.let { bitmap ->
-    NaviampDecodedCoverArt(
-        image = bitmap.asImageBitmap(),
-        rgbSamples = bitmap.rgbSamples(),
-    )
+    naviampDecodedCoverArt(bitmap.asImageBitmap(), targetSidePx)
 }
 
 private object AndroidCoverArtCache {
@@ -191,27 +188,3 @@ private fun String.sha256(): String =
     MessageDigest.getInstance("SHA-256")
         .digest(toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
-
-private fun android.graphics.Bitmap.rgbSamples(): List<NaviampRgbSample> {
-    val samples = mutableListOf<NaviampRgbSample>()
-    val stepX = (width / 32).coerceAtLeast(1)
-    val stepY = (height / 32).coerceAtLeast(1)
-
-    var y = 0
-    while (y < height) {
-        var x = 0
-        while (x < width) {
-            val pixel = getPixel(x, y)
-            val alpha = android.graphics.Color.alpha(pixel)
-            if (alpha > 200) {
-                val red = android.graphics.Color.red(pixel)
-                val green = android.graphics.Color.green(pixel)
-                val blue = android.graphics.Color.blue(pixel)
-                samples += NaviampRgbSample(red, green, blue)
-            }
-            x += stepX
-        }
-        y += stepY
-    }
-    return samples
-}
