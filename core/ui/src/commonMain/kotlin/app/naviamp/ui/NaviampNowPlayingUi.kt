@@ -1710,25 +1710,6 @@ internal fun WaveformScrubber(
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
     val targetDrawValue = drawValue().coerceIn(0f, 1f)
-    val animatedDrawValue = remember(progressIdentity) { Animatable(targetDrawValue) }
-    LaunchedEffect(targetDrawValue, smoothProgress, durationSeconds, progressIdentity) {
-        val duration = durationSeconds?.takeIf { it.isFinite() && it > 0.0 }
-        if (!smoothProgress || duration == null) {
-            animatedDrawValue.snapTo(targetDrawValue)
-            return@LaunchedEffect
-        }
-        if (abs(animatedDrawValue.value - targetDrawValue) > minOf(WaveformProgressResyncThreshold, (2.0 / duration).toFloat())) {
-            animatedDrawValue.snapTo(targetDrawValue)
-        }
-        val remainingMillis = ((1f - animatedDrawValue.value) * duration * 1000.0)
-            .toLong()
-            .coerceIn(1L, Int.MAX_VALUE.toLong())
-            .toInt()
-        animatedDrawValue.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = remainingMillis, easing = LinearEasing),
-        )
-    }
 
     Box(
         modifier = modifier
@@ -1773,52 +1754,56 @@ internal fun WaveformScrubber(
                 }
             },
     ) {
-        Canvas(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            val currentDrawValue = animatedDrawValue.value.coerceIn(0f, 1f)
-            if (displayAmplitudes.isEmpty()) {
-                drawFallbackScrubLine(currentDrawValue, enabled, colors)
-                return@Canvas
-            }
-
-            val centerY = size.height / 2f
-            val visibleBars = waveformVisibleBarCount(displayAmplitudes.size)
-            val step = size.width / visibleBars.toFloat()
-            val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
-            val minBarHeight = 2.5f
-            val maxBarHeight = size.height * 0.92f
-
-            val drawBars: DrawScope.(Color) -> Unit = drawWaveform@ { color ->
-                if (continuousWaveform) {
-                    drawContinuousWaveform(displayAmplitudes, color)
-                    return@drawWaveform
-                }
-                repeat(visibleBars) { index ->
-                    val sourceIndex = if (visibleBars == 1) {
-                        0
-                    } else {
-                        ((index / (visibleBars - 1f)) * (displayAmplitudes.size - 1)).toInt()
-                    }
-                    val amplitude = displayAmplitudes[sourceIndex].coerceIn(0f, 1f)
-                    val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
-                        .coerceAtMost(size.height)
-                    val x = index * step + step / 2f
-                    drawLine(
-                        color = color,
-                        start = Offset(x, centerY - barHeight / 2f),
-                        end = Offset(x, centerY + barHeight / 2f),
-                        strokeWidth = strokeWidth,
-                        cap = StrokeCap.Round,
-                    )
-                }
-            }
-            drawBars(colors.primaryText.copy(alpha = if (enabled) 0.34f else 0.16f))
-            clipRect(right = waveformPlayedClipWidth(size.width, currentDrawValue)) {
-                drawBars(playedColor)
-            }
+        NaviampRasterWaveform(targetDrawValue, smoothProgress, durationSeconds, progressIdentity,
+            listOf(displayAmplitudes, enabled, colors, continuousWaveform)) { progress ->
+            drawWaveformScrubberContent(displayAmplitudes, progress, enabled, colors, continuousWaveform, playedColor)
         }
+    }
+}
 
+internal fun DrawScope.drawWaveformScrubberContent(
+    displayAmplitudes: List<Float>, currentDrawValue: Float, enabled: Boolean,
+    colors: NaviampColors, continuousWaveform: Boolean, playedColor: Color,
+) {
+    if (displayAmplitudes.isEmpty()) {
+        drawFallbackScrubLine(currentDrawValue, enabled, colors)
+        return
+    }
+
+    val centerY = size.height / 2f
+    val visibleBars = waveformVisibleBarCount(displayAmplitudes.size)
+    val step = size.width / visibleBars.toFloat()
+    val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
+    val minBarHeight = 2.5f
+    val maxBarHeight = size.height * 0.92f
+
+    val drawBars: DrawScope.(Color) -> Unit = drawWaveform@ { color ->
+        if (continuousWaveform) {
+            drawContinuousWaveform(displayAmplitudes, color)
+            return@drawWaveform
+        }
+        repeat(visibleBars) { index ->
+            val sourceIndex = if (visibleBars == 1) {
+                0
+            } else {
+                ((index / (visibleBars - 1f)) * (displayAmplitudes.size - 1)).toInt()
+            }
+            val amplitude = displayAmplitudes[sourceIndex].coerceIn(0f, 1f)
+            val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
+                .coerceAtMost(size.height)
+            val x = index * step + step / 2f
+            drawLine(
+                color = color,
+                start = Offset(x, centerY - barHeight / 2f),
+                end = Offset(x, centerY + barHeight / 2f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+    drawBars(colors.primaryText.copy(alpha = if (enabled) 0.34f else 0.16f))
+    clipRect(right = waveformPlayedClipWidth(size.width, currentDrawValue)) {
+        drawBars(playedColor)
     }
 }
 
@@ -1855,8 +1840,6 @@ internal fun waveformSeekFraction(x: Float, width: Float): Float =
 
 internal fun waveformPlayedClipWidth(width: Float, value: Float): Float =
     width.coerceAtLeast(0f) * value.coerceIn(0f, 1f)
-
-private const val WaveformProgressResyncThreshold = 0.025f
 
 private fun DrawScope.drawFallbackScrubLine(
     value: Float,
@@ -3366,7 +3349,7 @@ fun NaviampTransportIconButton(
 }
 
 @Composable
-private fun BouncingTitleText(
+internal fun BouncingTitleText(
     text: String,
     color: Color,
     fontSize: Int,
@@ -3376,82 +3359,12 @@ private fun BouncingTitleText(
     bold: Boolean = true,
     alignStart: Boolean = false,
 ) {
-    val offset = remember(text) { Animatable(0f) }
-    var containerWidth by remember { mutableStateOf(0) }
-    var textWidth by remember(text, fontSize) { mutableStateOf(0) }
-    val overflow = (textWidth - containerWidth).coerceAtLeast(0)
-
-    LaunchedEffect(text, overflow, marqueeEnabled) {
-        offset.snapTo(0f)
-        if (marqueeEnabled && overflow > 0) {
-            while (true) {
-                kotlinx.coroutines.delay(800)
-                offset.animateTo(
-                    targetValue = -overflow.toFloat(),
-                    animationSpec = tween(
-                        durationMillis = (overflow * 24).coerceAtLeast(1800),
-                        easing = LinearEasing,
-                    ),
-                )
-                kotlinx.coroutines.delay(800)
-                offset.animateTo(
-                    targetValue = 0f,
-                    animationSpec = tween(
-                        durationMillis = (overflow * 24).coerceAtLeast(1800),
-                        easing = LinearEasing,
-                    ),
-                )
-            }
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .height(height)
-            .clip(RoundedCornerShape(2.dp))
-            .onSizeChanged { containerWidth = it.width },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Layout(
-            content = {
-                Text(
-                    text,
-                    color = color,
-                    fontSize = fontSize.sp,
-                    lineHeight = (fontSize + 1).sp,
-                    fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-                    maxLines = 1,
-                    softWrap = false,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.onSizeChanged { textWidth = it.width },
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { measurables, constraints ->
-            val placeable = measurables.first().measure(
-                Constraints(
-                    minWidth = 0,
-                    maxWidth = Constraints.Infinity,
-                    minHeight = 0,
-                    maxHeight = constraints.maxHeight,
-                ),
-            )
-            val width = constraints.maxWidth
-            val height = if (constraints.maxHeight == Constraints.Infinity) {
-                placeable.height.coerceAtLeast(constraints.minHeight)
-            } else {
-                placeable.height.coerceIn(constraints.minHeight, constraints.maxHeight)
-            }
-            layout(width, height) {
-                val x = if (overflow > 0) {
-                    offset.value.roundToInt()
-                } else {
-                    if (alignStart) 0 else (width - placeable.width) / 2
-                }
-                placeable.placeRelative(x, (height - placeable.height) / 2)
-            }
-        }
-    }
+    NaviampRasterText(
+        text = androidx.compose.ui.text.AnnotatedString(text),
+        style = androidx.compose.ui.text.TextStyle(color = color, fontSize = fontSize.sp,
+            lineHeight = (fontSize + 1).sp, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal),
+        height = height, enabled = marqueeEnabled, alignStart = alignStart, modifier = modifier,
+    )
 }
 
 @Composable
@@ -3463,6 +3376,35 @@ private fun NowPlayingArtistCreditsLine(
     onArtistSelected: (SharedArtistCreditUi) -> Unit,
     alignStart: Boolean = false,
 ) {
+    if (marqueeEnabled) {
+        val currentOnArtistSelected by rememberUpdatedState(onArtistSelected)
+        val annotated = remember(credits, colors) {
+            androidx.compose.ui.text.buildAnnotatedString {
+                credits.forEachIndexed { index, credit ->
+                    if (index > 0) {
+                        pushStyle(androidx.compose.ui.text.SpanStyle(color = colors.mutedText))
+                        append("  •  ")
+                        pop()
+                    }
+                    append(credit.name)
+                }
+            }
+        }
+        val links = remember(credits) {
+            var offset = 0
+            credits.mapIndexed { index, credit ->
+                if (index > 0) offset += 5
+                val start = offset
+                offset += credit.name.length
+                NaviampTextLink(start, offset, credit.name) { currentOnArtistSelected(credit) }
+            }.filter { it.end > it.start }
+        }
+        NaviampRasterText(annotated,
+            androidx.compose.ui.text.TextStyle(color = colors.secondaryText, fontSize = fontSize.sp),
+            height = with(LocalDensity.current) { (fontSize + 3).sp.toDp() }, enabled = true,
+            alignStart = alignStart, modifier = Modifier.fillMaxWidth(), links = links)
+        return
+    }
     val content: @Composable () -> Unit = {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -3496,64 +3438,6 @@ private fun NowPlayingArtistCreditsLine(
         return
     }
 
-    val contentKey = credits.joinToString(separator = "|") { credit -> "${credit.id}:${credit.name}" }
-    val offset = remember(contentKey) { Animatable(0f) }
-    var containerWidth by remember { mutableStateOf(0) }
-    var contentWidth by remember(contentKey, fontSize) { mutableStateOf(0) }
-    val overflow = (contentWidth - containerWidth).coerceAtLeast(0)
-
-    LaunchedEffect(contentKey, overflow) {
-        offset.snapTo(0f)
-        if (overflow > 0) {
-            while (true) {
-                kotlinx.coroutines.delay(800)
-                offset.animateTo(
-                    targetValue = -overflow.toFloat(),
-                    animationSpec = tween(
-                        durationMillis = (overflow * 24).coerceAtLeast(1800),
-                        easing = LinearEasing,
-                    ),
-                )
-                kotlinx.coroutines.delay(800)
-                offset.animateTo(
-                    targetValue = 0f,
-                    animationSpec = tween(
-                        durationMillis = (overflow * 24).coerceAtLeast(1800),
-                        easing = LinearEasing,
-                    ),
-                )
-            }
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(2.dp))
-            .onSizeChanged { containerWidth = it.width },
-    ) {
-        Layout(
-            content = {
-                Row(modifier = Modifier.onSizeChanged { contentWidth = it.width }) {
-                    content()
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { measurables, constraints ->
-            val placeable = measurables.first().measure(
-                Constraints(
-                    minWidth = 0,
-                    maxWidth = Constraints.Infinity,
-                    minHeight = 0,
-                    maxHeight = constraints.maxHeight,
-                ),
-            )
-            layout(constraints.maxWidth, placeable.height) {
-                val x = if (overflow > 0) offset.value.roundToInt() else if (alignStart) 0 else (constraints.maxWidth - placeable.width) / 2
-                placeable.placeRelative(x, 0)
-            }
-        }
-    }
 }
 
 @Composable

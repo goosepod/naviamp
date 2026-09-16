@@ -253,13 +253,22 @@ jobs:
         shell: powershell
         run: .\scripts\windows-idle-cpu.ps1
 
+      - name: Measure isolated Windows animation surfaces
+        shell: powershell
+        run: |
+          $env:NAVIAMP_PROBE_INTEGRATED = "true"
+          .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :core:ui:playerAnimationProbe --console=plain |
+            Tee-Object -FilePath build/windows-animation-probe.txt
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: desktop-windows-test-reports
           if-no-files-found: error
-          path: "**/build/reports/tests/desktopTest/**"
+          path: |
+            **/build/reports/tests/desktopTest/**
+            build/windows-animation-probe.txt
 
   desktop-linux:
     name: Desktop native tests (Linux)
@@ -279,7 +288,7 @@ jobs:
           java-version: "21"
 
       - name: Install native test dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libsecret-tools
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libsecret-tools xvfb
 
       - name: Configure headless ALSA output
         run: |
@@ -289,13 +298,22 @@ jobs:
       - name: Run Desktop tests with Linux native libraries
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.bass.platform=linux-x64 desktopTest
 
+      - name: Measure isolated Linux animation surfaces
+        run: |
+          mkdir -p build
+          xvfb-run -a env NAVIAMP_PROBE_INTEGRATED=true \
+            ./gradlew -Pnaviamp.bass.platform=linux-x64 :core:ui:playerAnimationProbe --console=plain \
+            | tee build/linux-animation-probe.txt
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: desktop-linux-test-reports
           if-no-files-found: error
-          path: "**/build/reports/tests/desktopTest/**"
+          path: |
+            **/build/reports/tests/desktopTest/**
+            build/linux-animation-probe.txt
 
   ios:
     name: iOS simulator tests

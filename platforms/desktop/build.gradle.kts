@@ -198,6 +198,7 @@ tasks.register("verifyDesktopNativeInputs") {
             rootProject.file("native/bass-jni/src/naviamp_bass_jni.cpp"),
             rootProject.file("native/visualizer-metal/CMakeLists.txt"),
             rootProject.file("native/visualizer-metal/src/naviamp_visualizer_metal.mm"),
+            rootProject.file("native/visualizer-metal/src/naviamp_raster_compositor.mm"),
             rootProject.file("native/visualizer-opengl/CMakeLists.txt"),
             rootProject.file("native/visualizer-opengl/src/naviamp_visualizer_opengl.cpp"),
         )

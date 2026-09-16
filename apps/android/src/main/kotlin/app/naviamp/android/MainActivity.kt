@@ -28,6 +28,7 @@ import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.systemBackCommand
 import app.naviamp.ui.LocalNaviampSystemBackDispatcher
 import app.naviamp.ui.NaviampApplicationSurface
+import app.naviamp.ui.NaviampAndroidRasterHost
 import app.naviamp.ui.NaviampSystemBackDispatcher
 
 /** Thin Android window and intent/permission boundary for the process-owned Core app. */
@@ -65,13 +66,15 @@ class MainActivity : ComponentActivity() {
             }
             AndroidNaviampPlaybackLifecycle(runtime.core)
             CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides systemBackDispatcher) {
-                NaviampCoreApp(
-                    core = runtime.core,
-                    modifier = Modifier.safeDrawingPadding().imePadding(),
-                    applicationSurface = naviampApplicationSurface(),
-                    screenAwakeEffect = remember(window) { AndroidScreenAwakeEffect(window) },
-                    applicationUpdateChecker = runtime.applicationUpdateChecker,
-                )
+                NaviampAndroidRasterHost {
+                    NaviampCoreApp(
+                        core = runtime.core,
+                        modifier = Modifier.safeDrawingPadding().imePadding(),
+                        applicationSurface = naviampApplicationSurface(),
+                        screenAwakeEffect = remember(window) { AndroidScreenAwakeEffect(window) },
+                        applicationUpdateChecker = runtime.applicationUpdateChecker,
+                    )
+                }
             }
         }
     }
