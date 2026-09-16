@@ -12,6 +12,7 @@ import app.naviamp.domain.playback.PlaybackProfile
 import app.naviamp.domain.playback.PlaybackProfileRepository
 import app.naviamp.domain.playback.PlaybackProfileTarget
 import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.media.favoriteAlbumUpdate
@@ -198,7 +199,10 @@ class NaviampCoreMediaTransactions(
 
     override suspend fun startTrackRadio(seed: Track) {
         val settings = stateStore.state.value.shell.playback.settings
-        startSeededMix(trackRadioRequest(seed, settings.effectiveSonicSimilarityEnabled())) { recordTrackArtistRadioPlayed(seed) }
+        startSeededMix(
+            trackRadioRequest(seed, settings.effectiveSonicSimilarityEnabled()),
+            preserveCurrentSeed = true,
+        ) { recordTrackArtistRadioPlayed(seed) }
     }
 
     override suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
@@ -496,11 +500,17 @@ class NaviampCoreMediaTransactions(
 
     private suspend fun startSeededMix(
         request: app.naviamp.domain.radio.SeededRadioRequest,
+        preserveCurrentSeed: Boolean = false,
         onStarted: () -> Unit = {},
     ) {
         val provider = providerOrPublish() ?: return
         val sourceId = activeSourceId()
-        play(listOf(request.seedTrack))
+        val currentPlayback = playback.state.value
+        val retainCurrent = preserveCurrentSeed &&
+            currentPlayback.playbackState in setOf(PlaybackState.Playing, PlaybackState.Paused, PlaybackState.Loading) &&
+            currentPlayback.currentTrack?.id == request.seedTrack.id &&
+            currentPlayback.queue.current?.id == request.seedTrack.id
+        if (!retainCurrent) play(listOf(request.seedTrack))
         publish("Playing ${request.label} while the queue builds.")
         when (val result = seededRadioBuildResult(request, RadioService(provider, tuning = radioTuning()))) {
             is SeededRadioBuildResult.Ready -> {
