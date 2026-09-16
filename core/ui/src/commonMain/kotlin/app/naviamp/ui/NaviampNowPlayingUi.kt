@@ -1711,10 +1711,9 @@ internal fun WaveformScrubber(
     val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
     val targetDrawValue = drawValue().coerceIn(0f, 1f)
     val animatedDrawValue = remember(progressIdentity) { Animatable(targetDrawValue) }
-    val animateProgress = smoothProgress && platformSupportsContinuousWaveformProgress
-    LaunchedEffect(targetDrawValue, animateProgress, durationSeconds, progressIdentity) {
+    LaunchedEffect(targetDrawValue, smoothProgress, durationSeconds, progressIdentity) {
         val duration = durationSeconds?.takeIf { it.isFinite() && it > 0.0 }
-        if (!animateProgress || duration == null) {
+        if (!smoothProgress || duration == null) {
             animatedDrawValue.snapTo(targetDrawValue)
             return@LaunchedEffect
         }
@@ -3367,7 +3366,7 @@ fun NaviampTransportIconButton(
 }
 
 @Composable
-private fun BouncingTitleText(
+internal fun BouncingTitleText(
     text: String,
     color: Color,
     fontSize: Int,

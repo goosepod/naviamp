@@ -58,3 +58,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
+
+// Opt-in real-window probe; intentionally excluded from CI tests and release packaging.
+tasks.register<JavaExec>("playerAnimationProbe") {
+    group = "verification"
+    description = "Measures CPU for static, marquee, smooth waveform, and combined player rendering."
+    dependsOn("jvmTestClasses")
+    classpath = tasks.named<Test>("jvmTest").get().classpath
+    mainClass.set("app.naviamp.ui.NaviampPlayerAnimationProbeKt")
+}

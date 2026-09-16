@@ -48,11 +48,7 @@ class WaveformScrubberUiTest {
         }
         val before = sample()
         mainClock.advanceTimeBy(1000)
-        if (platformSupportsContinuousWaveformProgress) {
-            kotlin.test.assertNotEquals(before, sample())
-        } else {
-            assertEquals(before, sample())
-        }
+        kotlin.test.assertNotEquals(before, sample())
         runOnUiThread { playing.value = false; position.floatValue = 0.3f }
         mainClock.advanceTimeByFrame()
         val paused = sample()
