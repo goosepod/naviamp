@@ -42,6 +42,7 @@ import app.naviamp.domain.provider.effectiveStreamingQuality
 import app.naviamp.domain.provider.ProviderApiCallDiagnostic
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.provider.SonicPathMatch
+import app.naviamp.domain.media.ArtistDiscography
 import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
@@ -81,6 +82,11 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 data class NavidromeMusicFolder(
     val id: String,
     val name: String,
+)
+
+private data class NavidromeArtistCatalog(
+    val primary: ArtistDetails,
+    val appearanceAlbums: List<Album>,
 )
 
 @OptIn(ExperimentalAtomicApi::class)
@@ -341,7 +347,38 @@ class NavidromeProvider(
         )
     }
 
-    override suspend fun artist(artistId: ArtistId): ArtistDetails {
+    override suspend fun artist(artistId: ArtistId): ArtistDetails =
+        loadArtistCatalog(artistId).primary
+
+    override suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography {
+        val catalog = loadArtistCatalog(artistId)
+        if (catalog.appearanceAlbums.isEmpty()) return ArtistDiscography(primary = catalog.primary)
+        capabilities = capabilities.copy(supportsArtistDiscography = true)
+
+        val appearanceTracks = mutableListOf<Track>()
+        var loadFailed = false
+        catalog.appearanceAlbums.forEach { appearanceAlbum ->
+            val details = try {
+                album(appearanceAlbum.id)
+            } catch (cause: CancellationException) {
+                throw cause
+            } catch (_: Exception) {
+                loadFailed = true
+                null
+            }
+            details?.tracks
+                ?.filter { track -> track.canBelongToArtistParticipation(artistId) }
+                ?.let(appearanceTracks::addAll)
+        }
+        return ArtistDiscography(
+            primary = catalog.primary,
+            appearanceAlbums = catalog.appearanceAlbums,
+            appearanceTracks = appearanceTracks.distinctBy(Track::id),
+            appearanceLoadFailed = loadFailed,
+        )
+    }
+
+    private suspend fun loadArtistCatalog(artistId: ArtistId): NavidromeArtistCatalog {
         val response = get(
             endpoint = "getArtist.view",
             params = mapOf("id" to artistId.value),
@@ -351,18 +388,35 @@ class NavidromeProvider(
         val albums = artist["album"] as? JsonArray ?: JsonArray(emptyList())
         val info = runCatching { artistInfo(artistId) }.getOrNull()
 
-        return ArtistDetails(
-            artist = artist.toArtist(),
-            albums = albums.mapNotNull { album ->
-                (album as? JsonObject)?.toAlbum()
-            }.filter { album ->
-                // ArtistParticipations can add track-only credits to getArtist. Only explicit
-                // album-artist identities can disprove primary membership; names are not IDs.
-                val credits = album.artistCredits
-                credits.isEmpty() || credits.any { it.id == null || it.id == artistId }
-            },
-            info = info,
+        val mappedAlbums = albums.mapNotNull { album -> (album as? JsonObject)?.toAlbum() }
+        val primaryAlbums = mappedAlbums
+            .filter { album -> album.canBePrimaryReleaseFor(artistId) }
+            .distinctBy(Album::id)
+        val primaryAlbumIds = primaryAlbums.mapTo(mutableSetOf(), Album::id)
+        val appearanceAlbums = mappedAlbums
+            .filterNot { album -> album.canBePrimaryReleaseFor(artistId) }
+            .filterNot { album -> album.id in primaryAlbumIds }
+            .distinctBy(Album::id)
+
+        return NavidromeArtistCatalog(
+            primary = ArtistDetails(
+                artist = artist.toArtist(),
+                albums = primaryAlbums,
+                info = info,
+            ),
+            appearanceAlbums = appearanceAlbums,
         )
+    }
+
+    private fun Album.canBePrimaryReleaseFor(artistId: ArtistId): Boolean =
+        // ArtistParticipations can add track-only credits to getArtist. Only a complete set of
+        // different album-artist IDs disproves primary membership; display names are not IDs.
+        artistCredits.isEmpty() || artistCredits.any { credit -> credit.id == null || credit.id == artistId }
+
+    private fun Track.canBelongToArtistParticipation(artistId: ArtistId): Boolean {
+        if (this.artistId == artistId || artistCredits.any { credit -> credit.id == artistId }) return true
+        if (artistCredits.any { credit -> credit.id == null }) return true
+        return artistCredits.isEmpty() && this.artistId == null
     }
 
     override suspend fun artists(limit: Int): List<Artist> =

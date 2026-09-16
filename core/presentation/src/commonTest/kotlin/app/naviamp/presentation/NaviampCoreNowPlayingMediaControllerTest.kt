@@ -25,6 +25,7 @@ import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.ConnectionValidation
@@ -573,7 +574,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
         fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
         assertEquals("current", fixture.live.state.value.queue.current?.id?.value)
         assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
-        assertEquals(listOf("current:0"), fixture.effects.selections)
+        assertTrue(fixture.effects.selections.isEmpty())
         assertEquals("Playing current radio.", fixture.store.state.value.overlays.status)
         val recentSection = fixture.store.state.value.shell.home.content.collectionSections
             .single { it.id == app.naviamp.domain.settings.HomeSectionIds.RecentRadio }
@@ -598,7 +599,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
             ),
         )
         assertEquals("related", fixture.live.state.value.currentTrack?.id?.value)
-        assertEquals(listOf("current:0", "related:0"), fixture.effects.selections)
+        assertEquals(listOf("related:0"), fixture.effects.selections)
 
         fixture.controller.execute(
             NaviampCoreCommand.NowPlaying.QueueItem(
@@ -614,7 +615,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
-    fun trackRadioPlaysItsSeedBeforeTheProviderFinishesBuildingTheQueue() = runTest {
+    fun trackRadioKeepsTheExistingQueueUntilTheProviderFinishes() = runTest {
         val fixture = mediaFixture(this)
         val buildGate = CompletableDeferred<Unit>()
         fixture.provider.trackRadioGate = buildGate
@@ -622,12 +623,83 @@ class NaviampCoreNowPlayingMediaControllerTest {
         val request = async { fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio)) }
         runCurrent()
 
-        assertEquals(listOf("current"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals(listOf("past", "current", "next"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertTrue(fixture.effects.selections.isEmpty())
         assertEquals("Playing current radio while the queue builds.", fixture.store.state.value.overlays.status)
 
         buildGate.complete(Unit)
         request.await()
-        assertEquals(listOf("current", "radio"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        assertEquals(listOf("past", "current", "radio"), fixture.live.state.value.queue.tracks.map { it.id.value })
+    }
+
+    @Test
+    fun refreshingRadioPreservesPlayingAndPausedSessionsAndPreviousHistory() = runTest {
+        for (state in listOf(PlaybackState.Playing, PlaybackState.Paused)) {
+            val fixture = mediaFixture(this)
+            val tracks = listOf("first", "second", "third", "current", "old-upcoming").map(::nowPlayingTrack)
+            val before = fixture.live.state.value.copy(
+                queue = PlaybackQueue(tracks, 3),
+                playbackState = state,
+                progress = PlaybackProgress(positionSeconds = 73.0, durationSeconds = 180.0),
+            )
+            fixture.live.replace(before)
+            fixture.provider.trackRadioTracks = listOf(nowPlayingTrack("current"), nowPlayingTrack("radio"), nowPlayingTrack("radio"))
+
+            fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+
+            val after = fixture.live.state.value
+            assertEquals(listOf("first", "second", "third", "current", "radio"), after.queue.tracks.map { it.id.value })
+            assertEquals(3, after.queue.currentIndex)
+            assertEquals("third", after.queue.previous().current?.id?.value)
+            assertEquals(before.copy(queue = after.queue), after)
+            assertTrue(fixture.effects.selections.isEmpty())
+            assertEquals(after.queue, fixture.effects.appliedQueues.single())
+        }
+    }
+
+    @Test
+    fun failedRadioRefreshLeavesTheEntireSessionUntouched() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.provider.trackRadioFailure = IllegalStateException("radio failed")
+        val before = fixture.live.state.value
+
+        fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+
+        assertEquals(before, fixture.live.state.value)
+        assertTrue(fixture.effects.selections.isEmpty())
+        assertTrue(fixture.effects.appliedQueues.isEmpty())
+    }
+
+    @Test
+    fun delayedRadioRefreshDoesNotReplaceANewerTrackQueue() = runTest {
+        val fixture = mediaFixture(this)
+        val gate = CompletableDeferred<Unit>()
+        fixture.provider.trackRadioGate = gate
+        val request = async { fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio)) }
+        runCurrent()
+        fixture.transactions.play(listOf(nowPlayingTrack("different")))
+        val newer = fixture.live.state.value
+
+        gate.complete(Unit)
+        request.await()
+
+        assertEquals(newer, fixture.live.state.value)
+        assertEquals(listOf("different:0"), fixture.effects.selections)
+    }
+
+    @Test
+    fun radioForADifferentSeedStillStartsPlaybackImmediately() = runTest {
+        val fixture = mediaFixture(this)
+        val gate = CompletableDeferred<Unit>()
+        fixture.provider.trackRadioGate = gate
+        val request = async { fixture.transactions.startTrackRadio(nowPlayingTrack("different")) }
+        runCurrent()
+
+        assertEquals(listOf("different:0"), fixture.effects.selections)
+        assertEquals(listOf("different"), fixture.live.state.value.queue.tracks.map { it.id.value })
+        gate.complete(Unit)
+        request.await()
+        assertEquals(listOf("different", "radio"), fixture.live.state.value.queue.tracks.map { it.id.value })
     }
 
     @Test
@@ -910,6 +982,7 @@ private class NowPlayingTestEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities(supportsVisualizer = true)
     override val playbackSource = PlaybackSource.ProviderStream
     val selections = mutableListOf<String>()
+    val appliedQueues = mutableListOf<PlaybackQueue>()
     override fun pause() = Unit
     override fun resume() = Unit
     override fun startOrRestore() = true
@@ -917,7 +990,7 @@ private class NowPlayingTestEffects : NaviampCorePlaybackEffectPort {
     override fun replayCurrent(positionSeconds: Double) = Unit
     override fun setVolume(percent: Int) = Unit
     override fun stop() = Unit
-    override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) = Unit
+    override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) { appliedQueues += queue }
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) = Unit
     override fun applyRepeatMode(mode: RepeatMode) = Unit
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
@@ -993,11 +1066,12 @@ private class NowPlayingTestProvider : MediaProvider {
         )
         else -> MediaSearchResults()
     }
+    var trackRadioTracks = listOf(nowPlayingTrack("radio"))
     var trackRadioGate: CompletableDeferred<Unit>? = null
     override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
         trackRadioGate?.await()
         trackRadioFailure?.let { throw it }
-        return listOf(nowPlayingTrack("radio"))
+        return trackRadioTracks
     }
     override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> {
         artistRadioFailure?.let { throw it }
