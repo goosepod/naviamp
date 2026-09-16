@@ -59,6 +59,23 @@ class NaviampCenteredLyricsUiTest {
         runOnUiThread { activeLine = lines.lastIndex }
         waitForIdle()
         assertLineCentered(lines.lastIndex)
+
+        mainClock.autoAdvance = false
+        runOnUiThread { activeLine = 1 }
+        mainClock.advanceTimeBy(600L)
+        waitForIdle()
+        val afterScroll = onNodeWithTag("lyrics-line-1").fetchSemanticsNode().boundsInRoot
+        mainClock.advanceTimeBy(600L)
+        waitForIdle()
+        val afterEmphasis = onNodeWithTag("lyrics-line-1").fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            abs(afterEmphasis.center.y - afterScroll.center.y) <= 0.5f,
+            "active line moved after scrolling completed: ${afterScroll.center.y} to ${afterEmphasis.center.y}",
+        )
+        assertTrue(
+            abs(afterEmphasis.height - afterScroll.height) <= 0.5f,
+            "active line height changed after scrolling completed: ${afterScroll.height} to ${afterEmphasis.height}",
+        )
     }
 
     private fun androidx.compose.ui.test.ComposeUiTest.assertLineCentered(index: Int) {

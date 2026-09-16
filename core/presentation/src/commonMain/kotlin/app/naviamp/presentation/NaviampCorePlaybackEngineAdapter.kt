@@ -919,6 +919,8 @@ class NaviampCoreProviderNowPlayingSidecars(
 
     override suspend fun loadLyrics(track: app.naviamp.domain.Track) {
         val generation = loadGeneration
+        if (delegate.snapshot().trackId != track.id) return
+        delegate.updateLyrics(null, null, null)
         val provider = providerSource.current()
         val service = lyricsSidecarService
         if (provider == null || service == null) {
@@ -936,8 +938,8 @@ class NaviampCoreProviderNowPlayingSidecars(
                     delay(CoreLyricsLoadingStatusDelayMillis)
                     if (generation == loadGeneration) {
                         delegate.updateLyrics(
-                            lyrics = delegate.snapshot().lyrics,
-                            availableTiming = delegate.snapshot().lyricsAvailableTiming,
+                            lyrics = null,
+                            availableTiming = null,
                             status = lyricsLoadingStatus(settings.lrclibLyricsEnabled),
                         )
                     }

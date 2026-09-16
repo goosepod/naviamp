@@ -71,6 +71,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -87,6 +88,7 @@ import androidx.compose.ui.platform.testTag
 import kotlin.math.abs
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -2299,57 +2301,96 @@ internal fun CenteredLyricsList(
             modifier = Modifier.fillMaxSize(),
         ) {
             items(lines.size) { index ->
-                    val line = lines[index]
-                    val active = index == activeLineIndex
-                    val inactiveColor = colors.secondaryText.copy(alpha = 0.72f)
-                    val emphasis by animateFloatAsState(
-                        targetValue = if (active) 1f else 0f,
-                        animationSpec = tween(
-                            durationMillis = LyricsLineTransitionMillis,
-                            easing = FastOutSlowInEasing,
-                        ),
-                        label = "Lyric line emphasis",
-                    )
-                    val karaokeRevision = if (active && line.cues.isNotEmpty()) {
-                        line.karaokeHighlightRevision(
-                            positionMillis = positionMillis,
-                            offsetMillis = offsetMillis,
-                        )
-                    } else {
-                        0
-                    }
-                    val text = if (active && line.cues.isNotEmpty()) {
-                        remember(line, karaokeRevision, offsetMillis, inactiveColor, colors.primaryText) {
-                            line.karaokeAnnotatedString(
-                                positionMillis = positionMillis,
-                                offsetMillis = offsetMillis,
-                                pendingColor = inactiveColor,
-                                completedColor = colors.primaryText,
-                            )
-                        }
-                    } else {
-                        remember(line.text) { AnnotatedString(line.text) }
-                    }
-                    Text(
-                        text = text,
-                        color = lerp(inactiveColor, colors.primaryText, emphasis),
-                        fontSize = (if (largePresentation) 36f + 4f * emphasis else 13f + 2f * emphasis).sp,
-                        lineHeight = (if (largePresentation) 48f + 4f * emphasis else 16f + 2f * emphasis).sp,
-                        fontWeight = if (emphasis >= 0.5f) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("lyrics-line-$index")
-                            .clickable(enabled = line.startMillis != null) {
-                                line.startMillis
-                                    ?.plus(offsetMillis)
-                                    ?.coerceAtLeast(0L)
-                                    ?.let { onSeek(it / 1000.0) }
-                            },
-                    )
-                }
+                CenteredLyricLine(
+                    line = lines[index],
+                    active = index == activeLineIndex,
+                    positionMillis = positionMillis,
+                    offsetMillis = offsetMillis,
+                    colors = colors,
+                    largePresentation = largePresentation,
+                    onSeek = onSeek,
+                    modifier = Modifier.testTag("lyrics-line-$index"),
+                )
             }
         }
     }
+}
+
+@Composable
+private fun CenteredLyricLine(
+    line: NaviampLyricLineUi,
+    active: Boolean,
+    positionMillis: Long?,
+    offsetMillis: Int,
+    colors: NaviampColors,
+    largePresentation: Boolean,
+    onSeek: (Double) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val inactiveColor = colors.secondaryText.copy(alpha = 0.72f)
+    val emphasis by animateFloatAsState(
+        targetValue = if (active) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = LyricsLineTransitionMillis,
+            easing = FastOutSlowInEasing,
+        ),
+        label = "Lyric line emphasis",
+    )
+    val karaokeRevision = if (active && line.cues.isNotEmpty()) {
+        line.karaokeHighlightRevision(
+            positionMillis = positionMillis,
+            offsetMillis = offsetMillis,
+        )
+    } else {
+        0
+    }
+    val activeText = if (active && line.cues.isNotEmpty()) {
+        remember(line, karaokeRevision, offsetMillis, inactiveColor, colors.primaryText) {
+            line.karaokeAnnotatedString(
+                positionMillis = positionMillis,
+                offsetMillis = offsetMillis,
+                pendingColor = inactiveColor,
+                completedColor = colors.primaryText,
+            )
+        }
+    } else {
+        remember(line.text) { AnnotatedString(line.text) }
+    }
+    Box(
+        contentAlignment = Alignment.CenterStart,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(enabled = line.startMillis != null) {
+                line.startMillis
+                    ?.plus(offsetMillis)
+                    ?.coerceAtLeast(0L)
+                    ?.let { onSeek(it / 1000.0) }
+            },
+    ) {
+        Text(
+            text = line.text,
+            color = inactiveColor,
+            fontSize = (if (largePresentation) 36f else 13f).sp,
+            lineHeight = (if (largePresentation) 48f else 16f).sp,
+            fontWeight = FontWeight.Normal,
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer { alpha = 1f - emphasis }
+                .then(if (active) Modifier.clearAndSetSemantics { } else Modifier),
+        )
+        Text(
+            text = activeText,
+            color = colors.primaryText,
+            fontSize = (if (largePresentation) 40f else 15f).sp,
+            lineHeight = (if (largePresentation) 52f else 18f).sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer { alpha = emphasis }
+                .then(if (active) Modifier else Modifier.clearAndSetSemantics { }),
+        )
+    }
+}
 
 @Composable
 internal fun LyricsDisplayTimingControls(
@@ -2495,25 +2536,23 @@ internal suspend fun LazyListState.animateToActiveLyricLine(activeLineIndex: Int
     if (layoutInfo.visibleItemsInfo.none { it.index == activeLineIndex }) {
         animateScrollToItem(activeLineIndex)
     }
-    repeat(2) {
-        val layout = layoutInfo
-        val activeItem = layout.visibleItemsInfo.firstOrNull { it.index == activeLineIndex }
-            ?: return
-        val delta = centeredLyricScrollDelta(
-            viewportStartOffset = layout.viewportStartOffset,
-            viewportEndOffset = layout.viewportEndOffset,
-            itemOffset = activeItem.offset,
-            itemSize = activeItem.size,
-        )
-        if (abs(delta) <= 0.5f) return
-        animateScrollBy(
-            value = delta,
-            animationSpec = tween(
-                durationMillis = LyricsScrollTransitionMillis,
-                easing = FastOutSlowInEasing,
-            ),
-        )
-    }
+    val layout = layoutInfo
+    val activeItem = layout.visibleItemsInfo.firstOrNull { it.index == activeLineIndex }
+        ?: return
+    val delta = centeredLyricScrollDelta(
+        viewportStartOffset = layout.viewportStartOffset,
+        viewportEndOffset = layout.viewportEndOffset,
+        itemOffset = activeItem.offset,
+        itemSize = activeItem.size,
+    )
+    if (abs(delta) <= 0.5f) return
+    animateScrollBy(
+        value = delta,
+        animationSpec = tween(
+            durationMillis = LyricsScrollTransitionMillis,
+            easing = FastOutSlowInEasing,
+        ),
+    )
 }
 
 private data class LyricPositionAnchor(
