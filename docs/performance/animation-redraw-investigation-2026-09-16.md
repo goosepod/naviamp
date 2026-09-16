@@ -79,7 +79,8 @@ smooth progress active. After artwork and Home content stabilized, four consecut
 5.5%, 4.3%, 5.0%, and 5.3% process CPU. This includes decoding, audio output, provider activity, and
 the rest of the application; the earlier 16–47% reproduction samples were dominated by animation
 redraw. The production result is therefore a real-app acceptance range, not a direct substitute for
-the synthetic compositor's approximately 0.3% animation-only result.
+the synthetic compositor's approximately 0.3% animation-only result. After pausing and restoring the
+same window, four stabilized static samples were 0.5%, 0.8%, 0.4%, and 0.7%.
 
 The dedicated probe ran on a physical Pixel, not an emulator. Static measured 0.46%
 process CPU; marquee 4.87%; smooth waveform 3.74%; combined 3.96%; and restored static 0.05%.
