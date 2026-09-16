@@ -768,7 +768,8 @@ class NavidromeProviderTest {
             ),
         )
 
-        val details = provider.artist(ArtistId("artist-1"))
+        val discography = provider.artistDiscography(ArtistId("artist-1"))
+        val details = discography.primary
 
         assertEquals("Metallica", details.artist.name)
         assertEquals("2026-05-10T09:00:00Z", details.artist.favoritedAtIso8601)
@@ -779,26 +780,47 @@ class NavidromeProviderTest {
         assertEquals("Garage Days Re-Revisited", details.albums.last().title)
         assertEquals("Thrash metal band.", details.info?.biography)
         assertEquals("https://images.example.test/large.jpg", details.info?.largeImageUrl)
+        assertTrue(discography.appearanceAlbums.isEmpty(),
+            "Servers that return only the traditional primary discography remain unchanged.")
+        assertTrue(discography.appearanceTracks.isEmpty())
+        assertFalse(provider.capabilities.supportsArtistDiscography)
     }
 
     @Test
-    fun artistParticipationsDoNotBecomePrimaryReleasesWhenAlbumArtistIdsDisagree() = runTest {
+    fun artistParticipationsAreSeparatedFromPrimaryReleasesUsingStableCreditIds() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
             httpClient = SequencedHttpClient(listOf(
                 """{"subsonic-response":{"status":"ok","artist":{
                     "id":"selected","name":"Selected artist","album":[
                         {"id":"own","name":"Own album","artist":"Alias","artistId":"selected"},
+                        {"id":"own","name":"Duplicate own album","artist":"Alias","artistId":"selected"},
                         {"id":"guest","name":"Guest appearance","artist":"Other","artistId":"other"},
                         {"id":"collaboration","name":"Joint album","artist":"Other","artistId":"other",
                          "artists":[{"id":"other","name":"Other"},{"id":"selected","name":"Alias"}]},
                         {"id":"same-name","name":"Names are not identities","artist":"Selected artist","artistId":"different"},
+                        {"id":"guest","name":"Duplicate guest appearance","artist":"Other","artistId":"other"},
                         {"id":"legacy","name":"Legacy album","artist":"Different display name"},
                         {"id":"partial","name":"Incomplete credit IDs","artist":"Other / Alias",
                          "artists":[{"id":"other","name":"Other"},{"name":"Alias"}]}
                     ]
                 }}}""",
                 """{"subsonic-response":{"status":"ok","artistInfo2":{}}}""",
+                """{"subsonic-response":{"status":"ok","album":{
+                    "id":"guest","name":"Guest appearance","artist":"Other","artistId":"other","song":[
+                        {"id":"guest-track","title":"Guest verse","albumId":"guest","artist":"Other / Alias",
+                         "artists":[{"id":"other","name":"Other"},{"id":"selected","name":"Alias"}]},
+                        {"id":"unmapped-track","title":"Unmapped remix","albumId":"guest","artist":"Alias",
+                         "artists":[{"name":"Alias"}]},
+                        {"id":"unrelated-track","title":"Other song","albumId":"guest","artist":"Other","artistId":"other",
+                         "artists":[{"id":"other","name":"Other"}]}
+                    ]
+                }}}""",
+                """{"subsonic-response":{"status":"ok","album":{
+                    "id":"same-name","name":"Names are not identities","artist":"Selected artist","artistId":"different","song":[
+                        {"id":"same-name-track","title":"Credited by ID","albumId":"same-name","artist":"Alias","artistId":"selected"}
+                    ]
+                }}}""",
             )),
         )
 
@@ -810,8 +832,13 @@ class NavidromeProviderTest {
             discography.primary.albums[1].artistCredits.mapNotNull { it.id?.value })
         assertEquals("Other", discography.primary.albums[1].artistName,
             "The scalar display artist may omit a valid secondary album artist supplied in structured credits.")
-        assertFalse(provider.capabilities.supportsArtistDiscography,
-            "Credited appearances still come from the source-scoped shared index.")
+        assertEquals(listOf("guest", "same-name"),
+            discography.appearanceAlbums.map { it.id.value })
+        assertEquals(listOf("guest-track", "unmapped-track", "same-name-track"),
+            discography.appearanceTracks.map { it.id.value })
+        assertEquals(listOf("other", "selected"),
+            discography.appearanceTracks.first().artistCredits.mapNotNull { it.id?.value })
+        assertTrue(provider.capabilities.supportsArtistDiscography)
     }
 
     @Test
