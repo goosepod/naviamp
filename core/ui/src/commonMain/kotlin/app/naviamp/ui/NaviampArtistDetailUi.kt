@@ -377,7 +377,7 @@ private fun ArtistDetailContent(
                 .verticalScroll(scrollState),
         ) {
             detail.biography
-                ?.normalizedBiography()
+                ?.normalizedProviderDescription()
                 ?.toProviderRichText()
                 ?.takeIf { it.text.isNotBlank() }
                 ?.let { biography ->
@@ -388,15 +388,15 @@ private fun ArtistDetailContent(
                         maxLines = if (biographyExpanded) Int.MAX_VALUE else 3,
                         overflow = TextOverflow.Ellipsis,
                         style = TextStyle(
-                            fontSize = 11.sp,
-                            lineHeight = 13.sp,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
                         ),
                     )
                     if (showMoreLink) {
                         Text(
-                            if (biographyExpanded) "Less" else "More...",
+                            stringResource(if (biographyExpanded) Res.string.description_less else Res.string.description_more),
                             color = colors.primaryText,
-                            fontSize = 11.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable {
                                 biographyExpanded = !biographyExpanded
@@ -702,15 +702,5 @@ private fun SimilarArtistRow(
         }
     }
 }
-
-private fun String.normalizedBiography(): String =
-    trim()
-        .replace(Regex("[\\t ]+"), " ")
-        .split(Regex("\\R\\s*\\R+"))
-        .joinToString("\n\n") { paragraph ->
-            paragraph
-                .replace(Regex("\\s*\\R\\s*"), " ")
-                .trim()
-        }
 
 private val ArtistActionsExpandedMinWidth = 232.dp

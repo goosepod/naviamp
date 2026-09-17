@@ -152,6 +152,13 @@ enum class ApplicationUpdateChannel {
 }
 
 @Serializable
+enum class InterfaceFontSize(val scale: Float) {
+    Small(0.9f),
+    Standard(1f),
+    Large(1.15f),
+}
+
+@Serializable
 data class InterfaceSettings(
     val favoriteArtistSort: FavoriteArtistSort = FavoriteArtistSort.Name,
     val language: InterfaceLanguage = InterfaceLanguage.System,
@@ -172,6 +179,8 @@ data class InterfaceSettings(
     val albumSortOrder: AlbumSortOrder = AlbumSortOrder.ReleaseYearAscending,
     val libraryAlbumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     val groupAlbumsByReleaseType: Boolean = true,
+    val generalFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
+    val nowPlayingFontSize: InterfaceFontSize = InterfaceFontSize.Standard,
     val homeSectionPresentations: Map<String, HomeSectionPresentationSettings> = emptyMap(),
     val homeSectionOrder: List<String> = emptyList(),
     val globalKeyboardShortcuts: GlobalKeyboardShortcutSettings = GlobalKeyboardShortcutSettings(),

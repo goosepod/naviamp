@@ -9,6 +9,26 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
+    @Test
+    fun independentFontSizesRoundTripAndOlderExportsUseStandard() {
+        val settings = InterfaceSettings(
+            generalFontSize = InterfaceFontSize.Large,
+            nowPlayingFontSize = InterfaceFontSize.Small,
+        )
+        val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(
+            SettingsSyncDocument(preferences = SettingsSyncPreferences(interfaceSettings = settings)),
+        )).preferences.interfaceSettings
+
+        assertEquals(InterfaceFontSize.Large, decoded.generalFontSize)
+        assertEquals(InterfaceFontSize.Small, decoded.nowPlayingFontSize)
+
+        val older = SettingsSyncJson.decode(
+            """{"preferences":{"interfaceSettings":{}}}""",
+        ).preferences.interfaceSettings
+        assertEquals(InterfaceFontSize.Standard, older.generalFontSize)
+        assertEquals(InterfaceFontSize.Standard, older.nowPlayingFontSize)
+    }
+
     @Test fun keepScreenAwakeRoundTripsAndOlderExportsDefaultOff() {
         for (enabled in listOf(false, true)) {
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(

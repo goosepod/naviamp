@@ -115,6 +115,7 @@ import app.naviamp.domain.settings.DefaultAudioCacheBytes
 import app.naviamp.domain.settings.DefaultDownloadStorageBytes
 import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.domain.settings.InterfaceFontSize
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
@@ -711,6 +712,11 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
+            ExperienceSettingsPage.TextSize -> FontSizeSettings(
+                colors = colors,
+                interfaceSettings = interfaceSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            )
             ExperienceSettingsPage.KeyboardShortcuts -> desktopShortcutPlatform?.let { platform ->
                 GlobalKeyboardShortcutsSettingsPage(
                     colors = colors,
@@ -764,6 +770,16 @@ fun NaviampExperienceSettingsSection(
             value = interfaceSettings.appBackgroundStyle.label,
         ) {
             selectedSection = ExperienceSettingsPage.AppBackground
+        }
+        SettingsRow(
+            title = ExperienceSettingsPage.TextSize.title(),
+            subtitle = ExperienceSettingsPage.TextSize.subtitle(),
+            colors = colors,
+            value = stringResource(Res.string.settings_font_size_summary,
+                interfaceSettings.generalFontSize.label(),
+                interfaceSettings.nowPlayingFontSize.label()),
+        ) {
+            selectedSection = ExperienceSettingsPage.TextSize
         }
         SettingsRow(
             title = ExperienceSettingsPage.Albums.title(),
@@ -860,19 +876,17 @@ fun NaviampExperienceSettingsSection(
     }
 }
 
-private enum class ExperienceSettingsPage(
-    val title: String,
-    val subtitle: String,
-) {
-    Player("Player", "Queue, Back To, and Up Next behavior"),
-    RelatedTracks("Related Tracks", "Sonic similarity and autoplay"),
-    Lyrics("Lyrics", "Download and source order"),
-    AppBackground("App Background", "Choose Aurora, blurred album art, or a solid color"),
-    Albums("Albums", "Choose list or album-art grid presentation"),
-    HomeScreen("Home Screen", "Choose how each Home section is presented"),
-    KeyboardShortcuts("Keyboard Shortcuts", "Global Desktop playback and window shortcuts"),
-    SwipeActions("Swipe Actions", "Track gestures by list type"),
-    Updates("Update Notifications", "Choose whether and which releases to announce"),
+private enum class ExperienceSettingsPage {
+    Player,
+    RelatedTracks,
+    Lyrics,
+    TextSize,
+    AppBackground,
+    Albums,
+    HomeScreen,
+    KeyboardShortcuts,
+    SwipeActions,
+    Updates,
 }
 
 @Composable
@@ -881,6 +895,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
+        ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_title)
         ExperienceSettingsPage.AppBackground -> "App Background"
         ExperienceSettingsPage.Albums -> "Albums"
         ExperienceSettingsPage.HomeScreen -> "Home Screen"
@@ -895,6 +910,7 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
+        ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_subtitle)
         ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
         ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
         ExperienceSettingsPage.HomeScreen -> "Choose List, Grid, or Carousel for each Home section"
@@ -961,6 +977,67 @@ private fun UpdateNotificationSettings(
             )
         }
     }
+}
+
+@Composable
+private fun FontSizeSettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    Text(
+        stringResource(Res.string.settings_font_size_general_title),
+        color = colors.primaryText,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(horizontal = SettingsRowHorizontalPadding, vertical = 8.dp),
+    )
+    InterfaceFontSize.entries.forEach { size ->
+        SelectableSettingsRow(
+            colors = colors,
+            title = size.label(),
+            subtitle = size.subtitle(),
+            selected = interfaceSettings.generalFontSize == size,
+        ) {
+            onInterfaceSettingsChanged(interfaceSettings.copy(generalFontSize = size).normalized())
+        }
+    }
+    Text(
+        stringResource(Res.string.settings_font_size_now_playing_title),
+        color = colors.primaryText,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(
+            start = SettingsRowHorizontalPadding,
+            end = SettingsRowHorizontalPadding,
+            top = 18.dp,
+            bottom = 8.dp,
+        ),
+    )
+    InterfaceFontSize.entries.forEach { size ->
+        SelectableSettingsRow(
+            colors = colors,
+            title = size.label(),
+            subtitle = size.subtitle(),
+            selected = interfaceSettings.nowPlayingFontSize == size,
+        ) {
+            onInterfaceSettingsChanged(interfaceSettings.copy(nowPlayingFontSize = size).normalized())
+        }
+    }
+}
+
+@Composable
+private fun InterfaceFontSize.label(): String = when (this) {
+    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small)
+    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard)
+    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large)
+}
+
+@Composable
+private fun InterfaceFontSize.subtitle(): String = when (this) {
+    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small_subtitle)
+    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard_subtitle)
+    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large_subtitle)
 }
 
 @Composable

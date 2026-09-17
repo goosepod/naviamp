@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">اتصل بخادم موسيقى لاختيار المكتبات.</string>
     <string name="library_sources_load_failed">تعذر تحميل المكتبات.</string>
     <string name="library_sources_save_failed">تعذر تحديث المكتبات المحددة.</string>
+    <string name="settings_font_size_title">حجم النص</string>
+    <string name="settings_font_size_subtitle">اضبط نص الواجهة العامة وشاشة التشغيل الآن بشكل مستقل</string>
+    <string name="settings_font_size_summary">عام: %1$s · التشغيل الآن: %2$s</string>
+    <string name="settings_font_size_general_title">الواجهة العامة</string>
+    <string name="settings_font_size_now_playing_title">التشغيل الآن والمشغل المصغر وقائمة الانتظار والكلمات</string>
+    <string name="settings_font_size_small">صغير</string>
+    <string name="settings_font_size_small_subtitle">يعرض محتوى أكثر على الشاشة.</string>
+    <string name="settings_font_size_standard">قياسي</string>
+    <string name="settings_font_size_standard_subtitle">يستخدم حجم النص الافتراضي في Naviamp.</string>
+    <string name="settings_font_size_large">كبير</string>
+    <string name="settings_font_size_large_subtitle">يحسن القراءة بنص أكبر.</string>
+    <string name="description_less">أقل</string>
+    <string name="description_more">المزيد…</string>
 </resources>

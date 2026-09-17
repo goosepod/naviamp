@@ -1,5 +1,10 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.description_less
+import app.naviamp.ui.generated.resources.description_more
+import org.jetbrains.compose.resources.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -273,7 +278,7 @@ private fun AlbumDetailContent(
                 .verticalScroll(rememberScrollState()),
         ) {
             detail.information
-                ?.normalizedAlbumInformation()
+                ?.normalizedProviderDescription()
                 ?.toProviderRichText()
                 ?.takeIf { it.text.isNotBlank() }
                 ?.let { information ->
@@ -283,13 +288,13 @@ private fun AlbumDetailContent(
                         color = colors.secondaryText,
                         maxLines = if (informationExpanded) Int.MAX_VALUE else 3,
                         overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(fontSize = 11.sp, lineHeight = 13.sp),
+                        style = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
                     )
                     if (showMoreLink) {
                         Text(
-                            if (informationExpanded) "Less" else "More...",
+                            stringResource(if (informationExpanded) Res.string.description_less else Res.string.description_more),
                             color = colors.primaryText,
-                            fontSize = 11.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable {
                                 informationExpanded = !informationExpanded
@@ -357,8 +362,3 @@ private fun AlbumDetailContent(
         )
     }
 }
-
-private fun String.normalizedAlbumInformation(): String =
-    replace("\r\n", "\n")
-        .replace('\r', '\n')
-        .trim()
