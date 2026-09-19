@@ -7,8 +7,10 @@ Issue: https://github.com/goosepod/naviamp/issues/112
 The previous adapter applied geometry transactions to SurfaceView's framework-owned surface.
 Android explicitly documents that control as effectively read-only: the framework can overwrite
 its properties. The adapter now uses it only as the parent of app-owned SurfaceControl children.
+The native parent is hosted inside the shared layout through a narrow AndroidView adapter,
+so SurfaceView's render-thread position tracking follows scrolling with the Compose content.
 Each cached image is uploaded once, with subsequent presentation updating child geometry and
-visibility. Window coordinates are translated into the native parent's coordinates.
+visibility. Window coordinates are translated into the region's local coordinates.
 
 Reference: https://developer.android.com/reference/android/view/SurfaceView#getSurfaceControl()
 
@@ -19,7 +21,7 @@ platform production file is `core/ui/src/androidMain/kotlin/app/naviamp/ui/Andro
 Android SurfaceView/SurfaceControl/Surface APIs require native child-surface creation, transactions,
 coordinate translation, and resource lifetime management.
 
-## Phone regression evidence
+## Initial placement verification
 
 Pixel 10a, Android 17/API 37, portrait 1080×2424, density 420, active 60 Hz display mode,
 USB power, battery 100%; temperatures 27.3°C before and 27.1°C after the initial tests.
@@ -73,6 +75,68 @@ A local integration of the separate font-size and renderer branches also passed 
 playback paused and both font preferences Standard. Hidden app CPU measured 0.49% over 10.14
 seconds, and the player restored with its title and waveform in place. The source branches remain
 independent; this integration is only for device testing.
+
+## Follow-up: scrolling and image transitions
+
+User testing found wobbling during Now Playing scrolling and repeated waveform blinking when
+loading songs or replacing the fallback scrubber with waveform data. The initial settled-position
+tests did not cover the frames between stable positions.
+
+The new moving-frame regression reproduced a 10-pixel separation between cached pixels and an
+ordinary Compose reference. The final adapter embeds its native parent in the shared region's
+layout. Shared code publishes layout before drawing, coordinates native readiness with fallback
+content, and supplies the draw handoff. Android owns only AndroidView/SurfaceView attachment,
+native buffers, transactions, and their resource lifetimes. Layout-only updates preserve motion
+time. Same-sized images reuse their existing buffers, while different-sized replacements retire
+their old layers together with presentation of the replacements. On API 31+, presentation
+transactions join the root window's draw; older supported adapters apply them from the shared
+draw pass. Only API 37 was physically verified in this session.
+
+The two Android regression tests pass on the Pixel. They cover settled position/clipping,
+resize, hide/restore, actual motion, and 45 captured moving frames during image replacement
+every 80 ms. Replacement images exercise both equal and different dimensions. Every sampled
+frame contains the raster and stays within two pixels of its Compose reference, with actual
+movement required. Six shared interaction/readiness tests and common metadata/Android compilation
+also pass.
+
+The final visible-window probe records:
+
+| State | App CPU | Parent/sibling draws | Window frames |
+| --- | ---: | ---: | ---: |
+| Static | 0.06% | 0 / 0 | 0 |
+| Three scrolling titles | 6.01% | 0 / 0 | 0 |
+| Waveform | 4.75% | 0 / 0 | 0 |
+| Combined | 5.94% | 0 / 0 | 0 |
+| Restored static | 0.04% | 0 / 0 | 0 |
+
+SurfaceFlinger CPU is 8.14% over the complete 77.63-second probe, within the initial baseline's
+one-percentage-point nonregression allowance. Window GPU duration remains zero, with the same
+compositor-GPU caveat above. Display, density, refresh, USB power, and battery level are unchanged;
+the phone reports 27.8°C after the probe.
+
+The combined font/renderer review app was exercised with real Now Playing drags, seek input,
+and the transition from Mustard Plug's You to Yesterday. Drag captures keep the waveform aligned
+with the Compose time labels; track title and waveform remain present after the song change.
+Saved font preferences and login are preserved.
+
+Initial post-install playback samples varied (17.09%, then 15.79%, then 14.15% on replay), so
+acceptance uses a controlled reinstall comparison rather than comparing an established process
+with a newly installed one. Both builds use the same saved settings, You FLAC track, seek to about
+10 seconds, 10-second warmup, and 15-second measurement with playback confirmed in the UI:
+
+| Real player | Previous renderer | Final renderer |
+| --- | ---: | ---: |
+| App CPU | 15.84% | 16.16% |
+| Main-thread CPU (included above) | 9.50% | 9.37% |
+| SurfaceFlinger CPU | 7.85% | 7.98% |
+| Window frames | 16 | 15 |
+
+This passes the documented one-percentage-point/non-increasing-frame regression gate. Audio and
+other app work are included; these are not animation-only percentages. A separate paused sample
+measured 0.89% app CPU. The fixed combined review APK is restored after the comparison and left
+paused. Raw evidence is under `build/font-size-review/scroll-ab-*` and `renderer-anchor-*`.
+The final background/restore check measures 0.39% hidden app CPU over 10.13 seconds and restores
+the complete player correctly, paused on the original track at about 0:11.
 
 ## Reproduction
 
