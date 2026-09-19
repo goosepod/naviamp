@@ -54,9 +54,10 @@ class RasterPlacementActivity : ComponentActivity() {
                 (if (phase < 1) phase else 2 - phase) * 180
             } else 0f
             val bitmap = remember(generation) {
-                ImageBitmap(800, 80).also { image ->
+                // Exercise both buffer reuse and replacement when a new title has a different width.
+                ImageBitmap(if (generation % 3 == 0L) 800 else 840, 80).also { image ->
                     val canvas = Canvas(image)
-                    repeat(20) { stripe ->
+                    repeat(21) { stripe ->
                         canvas.drawRect(Rect(stripe * 40f, 0f, (stripe + 1) * 40f, 80f),
                             Paint().apply { color = if ((stripe + generation) % 2 == 0L) Color.Red else Color.Blue })
                     }
