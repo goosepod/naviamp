@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Canvas
@@ -31,29 +33,45 @@ class RasterPlacementActivity : ComponentActivity() {
     val shifted = mutableStateOf(false)
     val shown = mutableStateOf(true)
     val moving = mutableStateOf(false)
+    val scrolling = mutableStateOf(false)
+    val replacing = mutableStateOf(false)
+    val frame = mutableStateOf(0L)
     @Volatile var expectedBounds = Rect.Zero
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
-            val bitmap = remember {
+            LaunchedEffect(scrolling.value, replacing.value) {
+                if (scrolling.value || replacing.value) {
+                    val start = withFrameNanos { it }
+                    while (true) frame.value = withFrameNanos { (it - start) / 1_000_000L }
+                }
+            }
+            val generation = if (replacing.value) frame.value / 80 else 0L
+            val travel = if (scrolling.value) {
+                val phase = (frame.value % 1600).toFloat() / 800f
+                (if (phase < 1) phase else 2 - phase) * 180
+            } else 0f
+            val bitmap = remember(generation) {
                 ImageBitmap(800, 80).also { image ->
                     val canvas = Canvas(image)
                     repeat(20) { stripe ->
                         canvas.drawRect(Rect(stripe * 40f, 0f, (stripe + 1) * 40f, 80f),
-                            Paint().apply { color = if (stripe % 2 == 0) Color.Red else Color.Blue })
+                            Paint().apply { color = if ((stripe + generation) % 2 == 0L) Color.Red else Color.Blue })
                     }
                 }
             }
             NaviampAndroidRasterHost {
                 Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    if (scrolling.value || replacing.value) Box(Modifier.offset(20.dp, (160 + travel).dp)
+                        .size(10.dp, 30.dp).background(Color.Green))
                     if (shown.value) {
                         val motion = if (moving.value) NaviampLayerMotion(
                             listOf(0f, -80f), listOf(0L, 2000L), repeat = true,
                         ) else null
                         NaviampAnimatedRaster(listOf(NaviampRasterLayer(bitmap, translation = motion)),
-                            Modifier.offset(if (shifted.value) 110.dp else 60.dp, if (shifted.value) 240.dp else 160.dp)
+                            Modifier.offset(if (shifted.value) 110.dp else 60.dp, if (shifted.value) 240.dp else (160 + travel).dp)
                                 .size(if (shifted.value) 100.dp else 180.dp, 60.dp)
                                 .onGloballyPositioned { expectedBounds = it.boundsInWindow() })
                     }
@@ -64,6 +82,42 @@ class RasterPlacementActivity : ComponentActivity() {
 }
 
 class AndroidRasterPlacementTest {
+    @Test fun scrollingAndImageReplacementStayAttachedWithoutBlankFrames() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val activity = instrumentation.startActivitySync(
+            Intent(instrumentation.context, RasterPlacementActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        ) as RasterPlacementActivity
+        try {
+            Thread.sleep(1200)
+            instrumentation.runOnMainSync { activity.scrolling.value = true; activity.replacing.value = true }
+            Thread.sleep(400)
+            val positions = mutableSetOf<Int>()
+            repeat(45) {
+                val capture = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+                var reference = -1
+                var raster = -1
+                for (y in 100 until capture.height - 100) {
+                    for (x in 30 until capture.width / 2 step 3) {
+                        val pixel = capture.getPixel(x, y)
+                        val r = android.graphics.Color.red(pixel)
+                        val g = android.graphics.Color.green(pixel)
+                        val b = android.graphics.Color.blue(pixel)
+                        if (reference < 0 && g > 220 && r < 30 && b < 30) reference = y
+                        if (raster < 0 && g < 30 && ((r > 220 && b < 30) || (b > 220 && r < 30))) raster = y
+                    }
+                    if (reference >= 0 && raster >= 0) break
+                }
+                capture.recycle()
+                assertTrue("The composed reference must remain visible", reference >= 0)
+                assertTrue("Raster must not blink during replacement", raster >= 0)
+                assertTrue("Native pixels drifted from the scrolling layout: $raster vs $reference",
+                    kotlin.math.abs(raster - reference) <= 2)
+                positions += reference
+            }
+            assertTrue("Scrolling must actually move the content", positions.size > 10)
+        } finally { instrumentation.runOnMainSync { activity.finish() } }
+    }
+
     @Test fun cachedPixelsKeepTheirWindowPlacementClippingAndLifecycle() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val activity = instrumentation.startActivitySync(

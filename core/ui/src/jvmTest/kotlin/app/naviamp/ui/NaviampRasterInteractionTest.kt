@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.key.Key
@@ -25,17 +26,41 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun nativeReadinessResubmitsTheLatestLayoutWithoutAContentChange() = runComposeUiTest {
+        val presenter = RecordingPresenter().apply { ready = false }
+        setContent {
+            CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
+                BouncingTitleText("Cached title", Color.White, 14,
+                    marqueeEnabled = false, modifier = Modifier.offset(30.dp, 40.dp).width(100.dp))
+            }
+        }
+        waitForIdle()
+        var before = 0
+        runOnIdle {
+            before = presenter.presentations
+            presenter.ready = true
+            presenter.notifyReady()
+        }
+        waitForIdle()
+        runOnIdle {
+            assertTrue(presenter.presentations > before)
+            assertTrue(presenter.bounds.left > 0 && presenter.bounds.top > 0)
+        }
+    }
+
     @Test fun nativePresentationReceivesWindowBoundsAfterMovingAndResizing() = runComposeUiTest {
         val presenter = RecordingPresenter()
         val left = mutableStateOf(40.dp)
         val width = mutableStateOf(150.dp)
         var expected = Rect.Zero
+        val drawn = mutableListOf<Pair<Rect, Rect>>()
         setContent {
             Box(Modifier.size(500.dp)) {
                 CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
                     BouncingTitleText("A long cached title with enough text to scroll", Color.White, 14,
                         marqueeEnabled = true, modifier = Modifier.offset(left.value, 100.dp)
-                            .width(width.value).onGloballyPositioned { expected = it.boundsInWindow() })
+                            .width(width.value).onGloballyPositioned { expected = it.boundsInWindow() }
+                            .drawWithContent { drawn += expected to presenter.bounds; drawContent() })
                 }
             }
         }
@@ -47,7 +72,11 @@ class NaviampRasterInteractionTest {
             width.value = 100.dp
         }
         waitForIdle()
-        runOnIdle { assertEquals(expected, presenter.bounds) }
+        runOnIdle {
+            assertEquals(expected, presenter.bounds)
+            assertTrue(drawn.isNotEmpty())
+            drawn.filter { !it.first.isEmpty }.forEach { (layout, native) -> assertEquals(layout, native) }
+        }
     }
 
     @Test fun movingArtistHitTestUsesPresentedPosition() = runComposeUiTest {
@@ -135,12 +164,15 @@ class NaviampRasterInteractionTest {
         var closed = 0
         var layers = emptyList<NaviampRasterLayer>()
         var bounds = Rect.Zero
+        var ready = true
+        var notifyReady: () -> Unit = {}
         override fun create() = object : NaviampRasterRegion {
+            override fun whenReady(callback: () -> Unit) { notifyReady = callback }
             override fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean {
                 this@RecordingPresenter.layers = layers
                 this@RecordingPresenter.bounds = bounds
                 presentations++
-                return true
+                return ready
             }
             override fun translationX(layerIndex: Int) = offset
             override fun close() { closed++ }
