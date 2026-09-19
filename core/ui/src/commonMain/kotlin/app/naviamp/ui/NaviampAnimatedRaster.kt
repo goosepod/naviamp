@@ -28,6 +28,11 @@ internal interface NaviampRasterPresenter {
 }
 
 internal interface NaviampRasterRegion {
+    /**
+     * Bounds and clipping are in window pixels, including a non-zero window origin.
+     * Adapters translate these into their native parent coordinate system and own the layers
+     * they mutate; a host-owned parent is only an attachment point.
+     */
     fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean
     fun translationX(layerIndex: Int): Float? = null
     fun close()

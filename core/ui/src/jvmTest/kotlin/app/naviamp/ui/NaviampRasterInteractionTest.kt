@@ -1,12 +1,17 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
@@ -20,6 +25,31 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun nativePresentationReceivesWindowBoundsAfterMovingAndResizing() = runComposeUiTest {
+        val presenter = RecordingPresenter()
+        val left = mutableStateOf(40.dp)
+        val width = mutableStateOf(150.dp)
+        var expected = Rect.Zero
+        setContent {
+            Box(Modifier.size(500.dp)) {
+                CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
+                    BouncingTitleText("A long cached title with enough text to scroll", Color.White, 14,
+                        marqueeEnabled = true, modifier = Modifier.offset(left.value, 100.dp)
+                            .width(width.value).onGloballyPositioned { expected = it.boundsInWindow() })
+                }
+            }
+        }
+        waitForIdle()
+        runOnIdle {
+            assertTrue(expected.left > 0f && expected.top > 0f)
+            assertEquals(expected, presenter.bounds)
+            left.value = 80.dp
+            width.value = 100.dp
+        }
+        waitForIdle()
+        runOnIdle { assertEquals(expected, presenter.bounds) }
+    }
+
     @Test fun movingArtistHitTestUsesPresentedPosition() = runComposeUiTest {
         val presenter = RecordingPresenter()
         val selected = mutableListOf<String>()
@@ -104,9 +134,11 @@ class NaviampRasterInteractionTest {
         var presentations = 0
         var closed = 0
         var layers = emptyList<NaviampRasterLayer>()
+        var bounds = Rect.Zero
         override fun create() = object : NaviampRasterRegion {
             override fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean {
                 this@RecordingPresenter.layers = layers
+                this@RecordingPresenter.bounds = bounds
                 presentations++
                 return true
             }
