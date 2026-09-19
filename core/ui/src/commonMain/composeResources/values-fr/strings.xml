@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">Connectez-vous à un serveur de musique pour choisir les bibliothèques.</string>
     <string name="library_sources_load_failed">Impossible de charger les bibliothèques.</string>
     <string name="library_sources_save_failed">Impossible de mettre à jour les bibliothèques sélectionnées.</string>
+    <string name="settings_font_size_title">Taille du texte</string>
+    <string name="settings_font_size_subtitle">Réglez séparément le texte général et celui de Lecture en cours</string>
+    <string name="settings_font_size_summary">Général : %1$s · Lecture en cours : %2$s</string>
+    <string name="settings_font_size_general_title">Interface générale</string>
+    <string name="settings_font_size_now_playing_title">Lecture en cours, mini-lecteur, file et paroles</string>
+    <string name="settings_font_size_small">Petite</string>
+    <string name="settings_font_size_small_subtitle">Affiche davantage de contenu à l’écran.</string>
+    <string name="settings_font_size_standard">Standard</string>
+    <string name="settings_font_size_standard_subtitle">Utilise la taille de texte par défaut de Naviamp.</string>
+    <string name="settings_font_size_large">Grande</string>
+    <string name="settings_font_size_large_subtitle">Améliore la lisibilité avec un texte plus grand.</string>
+    <string name="description_less">Moins</string>
+    <string name="description_more">Plus…</string>
 </resources>

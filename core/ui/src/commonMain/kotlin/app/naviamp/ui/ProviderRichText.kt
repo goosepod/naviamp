@@ -94,6 +94,12 @@ internal fun String.toProviderRichText(): AnnotatedString {
     }
 }
 
+/** Normalizes provider line endings while preserving authored line and paragraph breaks. */
+internal fun String.normalizedProviderDescription(): String =
+    replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .trim()
+
 private fun String.decodeHtmlEntity(): String? = when (lowercase()) {
     "amp" -> "&"
     "lt" -> "<"

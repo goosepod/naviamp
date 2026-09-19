@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">Підключіться до музичного сервера, щоб вибрати бібліотеки.</string>
     <string name="library_sources_load_failed">Не вдалося завантажити бібліотеки.</string>
     <string name="library_sources_save_failed">Не вдалося оновити вибрані бібліотеки.</string>
+    <string name="settings_font_size_title">Розмір тексту</string>
+    <string name="settings_font_size_subtitle">Налаштуйте окремо текст інтерфейсу та екрана відтворення</string>
+    <string name="settings_font_size_summary">Загальний: %1$s · Зараз грає: %2$s</string>
+    <string name="settings_font_size_general_title">Загальний інтерфейс</string>
+    <string name="settings_font_size_now_playing_title">Зараз грає, мініпрогравач, черга та тексти пісень</string>
+    <string name="settings_font_size_small">Малий</string>
+    <string name="settings_font_size_small_subtitle">Показує більше вмісту на екрані.</string>
+    <string name="settings_font_size_standard">Стандартний</string>
+    <string name="settings_font_size_standard_subtitle">Використовує стандартний розмір тексту Naviamp.</string>
+    <string name="settings_font_size_large">Великий</string>
+    <string name="settings_font_size_large_subtitle">Покращує читабельність завдяки більшому тексту.</string>
+    <string name="description_less">Згорнути</string>
+    <string name="description_more">Ще…</string>
 </resources>

@@ -6,6 +6,7 @@ import app.naviamp.ui.generated.resources.settings_keep_screen_awake_failed
 
 import app.naviamp.ui.generated.resources.connect_setup_code_consent
 import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.domain.settings.InterfaceFontSize
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.*
@@ -104,6 +105,8 @@ internal fun televisionSettingsCategories(controllersAvailable: Boolean): List<T
 
 private enum class TelevisionSettingsChoicePage {
     Language,
+    GeneralFontSize,
+    NowPlayingFontSize,
     Background,
     AlbumBlurAmount,
     SingleColor,
@@ -998,6 +1001,34 @@ private fun TelevisionDisplaySettings(
                 ),
             )
         }
+        item(key = "general-font-size") {
+            TelevisionSettingsRow(
+                stringResource(Res.string.settings_font_size_general_title),
+                stringResource(Res.string.settings_font_size_subtitle),
+                settings.generalFontSize.label(),
+                NaviampIcons.Experience,
+                disclosure = true,
+                colors = colors,
+                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.GeneralFontSize) },
+                modifier = if (returnChoice == TelevisionSettingsChoicePage.GeneralFontSize) {
+                    Modifier.focusRequester(returnFocusRequester)
+                } else Modifier,
+            )
+        }
+        item(key = "now-playing-font-size") {
+            TelevisionSettingsRow(
+                stringResource(Res.string.settings_font_size_now_playing_title),
+                stringResource(Res.string.settings_font_size_subtitle),
+                settings.nowPlayingFontSize.label(),
+                NaviampIcons.Player,
+                disclosure = true,
+                colors = colors,
+                onClick = { onChoiceSelected(TelevisionSettingsChoicePage.NowPlayingFontSize) },
+                modifier = if (returnChoice == TelevisionSettingsChoicePage.NowPlayingFontSize) {
+                    Modifier.focusRequester(returnFocusRequester)
+                } else Modifier,
+            )
+        }
         if (screenAwake.available) {
             item(key = "keep-screen-awake") {
                 TelevisionSettingsToggleRow(
@@ -1595,6 +1626,28 @@ private fun televisionSettingsChoices(
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(language = value).normalized())
             }
         }
+        TelevisionSettingsChoicePage.GeneralFontSize -> InterfaceFontSize.entries.map { value ->
+            TelevisionChoiceUi(
+                value.label(),
+                value.subtitle(),
+                value == interfaceSettings.generalFontSize,
+            ) {
+                actions.valueActions.onInterfaceSettingsChanged(
+                    interfaceSettings.copy(generalFontSize = value).normalized(),
+                )
+            }
+        }
+        TelevisionSettingsChoicePage.NowPlayingFontSize -> InterfaceFontSize.entries.map { value ->
+            TelevisionChoiceUi(
+                value.label(),
+                value.subtitle(),
+                value == interfaceSettings.nowPlayingFontSize,
+            ) {
+                actions.valueActions.onInterfaceSettingsChanged(
+                    interfaceSettings.copy(nowPlayingFontSize = value).normalized(),
+                )
+            }
+        }
         TelevisionSettingsChoicePage.Background -> AppBackgroundStyle.entries.map { value ->
             TelevisionChoiceUi(televisionBackgroundLabel(value), selected = value == interfaceSettings.appBackgroundStyle) {
                 actions.valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(appBackgroundStyle = value))
@@ -1801,6 +1854,8 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
     is TelevisionSettingsPage.Category -> stringResource(page.category.label)
     is TelevisionSettingsPage.Choice -> when (page.choice) {
         TelevisionSettingsChoicePage.Language -> stringResource(Res.string.settings_language_title)
+        TelevisionSettingsChoicePage.GeneralFontSize -> stringResource(Res.string.settings_font_size_general_title)
+        TelevisionSettingsChoicePage.NowPlayingFontSize -> stringResource(Res.string.settings_font_size_now_playing_title)
         TelevisionSettingsChoicePage.Background -> stringResource(Res.string.tv_background)
         TelevisionSettingsChoicePage.AlbumBlurAmount -> stringResource(Res.string.tv_blur_amount)
         TelevisionSettingsChoicePage.SingleColor -> stringResource(Res.string.tv_single_color)
@@ -1819,6 +1874,8 @@ private fun televisionSettingsPageTitle(page: TelevisionSettingsPage): String = 
 
 private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): TelevisionSettingsCategory = when (page) {
     TelevisionSettingsChoicePage.Language,
+    TelevisionSettingsChoicePage.GeneralFontSize,
+    TelevisionSettingsChoicePage.NowPlayingFontSize,
     TelevisionSettingsChoicePage.Background,
     TelevisionSettingsChoicePage.AlbumBlurAmount,
     TelevisionSettingsChoicePage.SingleColor,
