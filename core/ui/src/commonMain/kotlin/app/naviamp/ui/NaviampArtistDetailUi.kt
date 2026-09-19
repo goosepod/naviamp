@@ -43,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -250,7 +249,6 @@ private fun ArtistDetailContent(
 ) {
     var addArtistToPlaylistOpen by remember(detail.artist.id) { mutableStateOf(false) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
-    var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
     var artistImageOpen by remember(detail.artist.id) { mutableStateOf(false) }
     val similarArtistsVisible = detail.similarArtistsExpanded
     val visibleAlbumSections = detail.albumSectionsForDisplay(
@@ -376,34 +374,7 @@ private fun ArtistDetailContent(
                 .weight(1f)
                 .verticalScroll(scrollState),
         ) {
-            detail.biography
-                ?.normalizedProviderDescription()
-                ?.toProviderRichText()
-                ?.takeIf { it.text.isNotBlank() }
-                ?.let { biography ->
-                    val showMoreLink = biography.length > 260
-                    Text(
-                        biography,
-                        color = colors.secondaryText,
-                        maxLines = if (biographyExpanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                        ),
-                    )
-                    if (showMoreLink) {
-                        Text(
-                            stringResource(if (biographyExpanded) Res.string.description_less else Res.string.description_more),
-                            color = colors.primaryText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable {
-                                biographyExpanded = !biographyExpanded
-                            },
-                        )
-                    }
-                }
+            NaviampProviderDescription(detail.biography, detail.artist.id, colors)
             if (similarArtistsVisible) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),

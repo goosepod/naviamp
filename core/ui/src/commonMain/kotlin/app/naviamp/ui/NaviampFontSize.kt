@@ -5,6 +5,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import app.naviamp.domain.settings.InterfaceFontSize
+import app.naviamp.ui.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 internal const val NaviampStandardFontScale = 1.08f
 
@@ -32,4 +34,18 @@ internal fun NaviampFontSizeScope(
         ),
         content = content,
     )
+}
+
+@Composable
+internal fun InterfaceFontSize.label(): String = when (this) {
+    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small)
+    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard)
+    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large)
+}
+
+@Composable
+internal fun InterfaceFontSize.subtitle(): String = when (this) {
+    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small_subtitle)
+    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard_subtitle)
+    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large_subtitle)
 }

@@ -10,6 +10,23 @@ import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
     @Test
+    fun everyFontSizeCombinationSurvivesExportNormalizationAndIndependentReset() {
+        for (general in InterfaceFontSize.entries) for (player in InterfaceFontSize.entries) {
+            val settings = InterfaceSettings(generalFontSize = general, nowPlayingFontSize = player)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val imported = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(settings, imported)
+            assertEquals(player, imported.copy(generalFontSize = InterfaceFontSize.Standard).normalized().nowPlayingFontSize)
+            assertEquals(general, imported.copy(nowPlayingFontSize = InterfaceFontSize.Standard).normalized().generalFontSize)
+        }
+        for (field in listOf("generalFontSize", "nowPlayingFontSize")) {
+            kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+                SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"$field":"Unknown"}}}""")
+            }
+        }
+    }
+
+    @Test
     fun independentFontSizesRoundTripAndOlderExportsUseStandard() {
         val settings = InterfaceSettings(
             generalFontSize = InterfaceFontSize.Large,

@@ -1005,7 +1005,7 @@ private fun TelevisionDisplaySettings(
             TelevisionSettingsRow(
                 stringResource(Res.string.settings_font_size_general_title),
                 stringResource(Res.string.settings_font_size_subtitle),
-                televisionFontSizeLabel(settings.generalFontSize),
+                settings.generalFontSize.label(),
                 NaviampIcons.Experience,
                 disclosure = true,
                 colors = colors,
@@ -1019,7 +1019,7 @@ private fun TelevisionDisplaySettings(
             TelevisionSettingsRow(
                 stringResource(Res.string.settings_font_size_now_playing_title),
                 stringResource(Res.string.settings_font_size_subtitle),
-                televisionFontSizeLabel(settings.nowPlayingFontSize),
+                settings.nowPlayingFontSize.label(),
                 NaviampIcons.Player,
                 disclosure = true,
                 colors = colors,
@@ -1628,8 +1628,8 @@ private fun televisionSettingsChoices(
         }
         TelevisionSettingsChoicePage.GeneralFontSize -> InterfaceFontSize.entries.map { value ->
             TelevisionChoiceUi(
-                televisionFontSizeLabel(value),
-                televisionFontSizeSubtitle(value),
+                value.label(),
+                value.subtitle(),
                 value == interfaceSettings.generalFontSize,
             ) {
                 actions.valueActions.onInterfaceSettingsChanged(
@@ -1639,8 +1639,8 @@ private fun televisionSettingsChoices(
         }
         TelevisionSettingsChoicePage.NowPlayingFontSize -> InterfaceFontSize.entries.map { value ->
             TelevisionChoiceUi(
-                televisionFontSizeLabel(value),
-                televisionFontSizeSubtitle(value),
+                value.label(),
+                value.subtitle(),
                 value == interfaceSettings.nowPlayingFontSize,
             ) {
                 actions.valueActions.onInterfaceSettingsChanged(
@@ -1892,20 +1892,6 @@ private fun televisionSettingsCategoryFor(page: TelevisionSettingsChoicePage): T
     TelevisionSettingsChoicePage.LyricsDownloadTiming,
     TelevisionSettingsChoicePage.LyricsDisplayTiming,
     -> TelevisionSettingsCategory.Lyrics
-}
-
-@Composable
-private fun televisionFontSizeLabel(size: InterfaceFontSize): String = when (size) {
-    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small)
-    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard)
-    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large)
-}
-
-@Composable
-private fun televisionFontSizeSubtitle(size: InterfaceFontSize): String = when (size) {
-    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small_subtitle)
-    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard_subtitle)
-    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large_subtitle)
 }
 
 @Composable

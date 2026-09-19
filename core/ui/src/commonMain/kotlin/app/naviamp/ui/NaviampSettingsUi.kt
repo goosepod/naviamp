@@ -980,7 +980,7 @@ private fun UpdateNotificationSettings(
 }
 
 @Composable
-private fun FontSizeSettings(
+internal fun FontSizeSettings(
     colors: NaviampColors,
     interfaceSettings: InterfaceSettings,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
@@ -1024,20 +1024,6 @@ private fun FontSizeSettings(
             onInterfaceSettingsChanged(interfaceSettings.copy(nowPlayingFontSize = size).normalized())
         }
     }
-}
-
-@Composable
-private fun InterfaceFontSize.label(): String = when (this) {
-    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small)
-    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard)
-    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large)
-}
-
-@Composable
-private fun InterfaceFontSize.subtitle(): String = when (this) {
-    InterfaceFontSize.Small -> stringResource(Res.string.settings_font_size_small_subtitle)
-    InterfaceFontSize.Standard -> stringResource(Res.string.settings_font_size_standard_subtitle)
-    InterfaceFontSize.Large -> stringResource(Res.string.settings_font_size_large_subtitle)
 }
 
 @Composable
