@@ -25,7 +25,8 @@ import org.jetbrains.skiko.SkikoRenderDelegate
 
 /** Native window stacking keeps menus and dialogs above independently presented raster regions. */
 fun configureNaviampDesktopRasterLayers() {
-    if (System.getProperty("os.name").contains("Mac") && System.getProperty("compose.layers.type") == null) {
+    val os = System.getProperty("os.name")
+    if ((os.contains("Mac") || os.startsWith("Windows")) && System.getProperty("compose.layers.type") == null) {
         System.setProperty("compose.layers.type", "WINDOW")
     }
 }
@@ -36,9 +37,12 @@ fun NaviampDesktopRasterHost(window: Window, content: @Composable () -> Unit) {
     val presenter = remember(window) {
         val forceSkia = System.getenv("NAVIAMP_RASTER_FORCE_SKIA") == "true"
         val mac = System.getProperty("os.name").contains("Mac")
+        val windows = System.getProperty("os.name").startsWith("Windows")
         if (!forceSkia && mac && System.getProperty("compose.layers.type") == "WINDOW" && NativeMetalVisualizerHost.libraryAvailable()) {
             MacRasterPresenter(window)
-        } else if (forceSkia) DesktopSkiaRasterPresenter(window) else null
+        } else if (forceSkia) DesktopSkiaRasterPresenter(window)
+        else if (windows && System.getProperty("compose.layers.type") == "WINDOW" && NativeOpenGlVisualizerHost.libraryAvailable()) WindowsRasterPresenter(window)
+        else null
     }
     var visible by remember(window) { mutableStateOf(window.isShowing) }
     var overlay by remember(window) { mutableStateOf(false) }
@@ -260,7 +264,7 @@ private class MacRasterPresenter(private val window: Window) : NaviampRasterPres
     }
 }
 
-private fun findSkiaLayer(component: Component): SkiaLayer? = when (component) {
+internal fun findSkiaLayer(component: Component): SkiaLayer? = when (component) {
     is SkiaLayer -> component
     is Container -> component.components.firstNotNullOfOrNull(::findSkiaLayer)
     else -> null

@@ -24,6 +24,8 @@ internal data class NaviampRasterLayer(
 )
 
 internal interface NaviampRasterPresenter {
+    /** True only when native pixels are intrinsically below the host's owned popup windows. */
+    val contentBelowOwnedWindows: Boolean get() = false
     fun create(): NaviampRasterRegion
 }
 
@@ -92,7 +94,7 @@ internal fun NaviampRasterEnvironment(
 ) {
     CompositionLocalProvider(
         LocalNaviampRasterPresenter provides presenter,
-        LocalNaviampAnimationVisible provides (windowVisible && !overlayVisible),
+        LocalNaviampAnimationVisible provides (windowVisible && (!overlayVisible || presenter?.contentBelowOwnedWindows == true)),
         content = content,
     )
 }

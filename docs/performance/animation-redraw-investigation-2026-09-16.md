@@ -6,7 +6,11 @@ The production player now renders metadata and waveform pixels once in shared Ko
 their motion through narrow platform compositor adapters. The shared UI still owns animation
 timing, clipping, visibility, seeking, artist-link hit testing, keyboard input, and accessibility.
 macOS and iOS consume declarative Core Animation keyframes, Android updates cached SurfaceFlinger
-surfaces without redrawing Compose, and Windows/Linux repaint only small isolated Skia surfaces.
+surfaces without redrawing Compose. The initial Windows/Linux implementation retained the Compose
+fallback by default; the isolated Skia presenter required an opt-in environment variable. Windows
+measurements later showed that opt-in was expensive. See the
+[Windows DirectComposition follow-up](windows-raster-compositor-2026-09-19.md) for the correction
+and measured replacement. Linux acceptance remains outside that Windows follow-up.
 
 The macOS app passed playback, full/split transitions, menu and dialog layering, clipping,
 accessibility inspection, and restored-surface checks. A first synchronous AWT/AppKit bridge could
