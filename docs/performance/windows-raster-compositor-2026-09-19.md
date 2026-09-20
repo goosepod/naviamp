@@ -38,6 +38,7 @@ power plan unchanged. Measurements are diagnostic workstation samples, not unive
 | Forced Skia windows | 0.00% | 174.66% | 56.49% | 280.83% | 0 |
 | First DirectComposition run | 0.47% | 0.16% | 0.47% | 1.09% | 0 |
 | Popup-retention verification | 11.86% | 6.71% | 3.28% | 4.06% | 0 |
+| Capture primed before warm-up | 34.67% | 28.72% | 26.23% | 7.18% | 0 |
 
 The first compositor screenshots showed actual text/waveform content; pixel changes were 7,777
 for marquee, 176 for waveform, and 7,934 combined. A later run was obscured by the always-on-top
@@ -47,8 +48,10 @@ failure. Its verification mode keeps the probe on top and excludes the external 
 pixel comparisons. The popup-retention run independently observed text and waveform movement,
 zero sibling pixel changes and 12 successful popup visibility samples. Static CPU varied during
 startup; the probe now primes screen capture before the warm-up interval so first-use capture/JIT
-work does not start at the beginning of its CPU sample. Final real-app idle measurements remain
-the idle acceptance gate.
+work does not start at the beginning of its CPU sample. Priming did not resolve the variation:
+the final run still had high early samples, while independently verifying both moving elements,
+zero sibling changes and all 12 popup transitions. Do not use this run as evidence of low static
+CPU. The performance issue remains open for the variation and tooltip cost described below.
 
 Real application, same narrow player window, same track (`13 Women`), Standard font settings,
 OpenGL backend and unchanged power/display conditions, with compilation finished:
@@ -66,7 +69,34 @@ A/B replay. The app CPU reduction is approximately 88%, without an observed DWM/
 
 An initial long-title playback sample was 18.34% app CPU, 39.31% DWM CPU, 0.128 app GPU engine sum,
 13.01 DWM GPU engine sum. This preceded the popup-lifetime correction and remains recorded rather
-than being omitted. Final popup/lifecycle and combined-app verification is recorded below when run.
+than being omitted.
+
+The final combined review build includes #25, #112 and the popup-retention correction. Same narrow
+306 x 714 window, Standard fonts, OpenGL, display and power conditions:
+
+| State | App CPU | DWM CPU | App GPU engine sum | DWM GPU engine sum |
+| --- | ---: | ---: | ---: | ---: |
+| Paused, fitting title after launch | 4.29% | 31.25% | 0 | 12.42 |
+| Long title and waveform playing | 7.90% | 32.04% | 0.059 | 12.44 |
+| Paused and minimized | 0.59% | 32.96% | 0 | 12.39 |
+| Restored, paused with title scrolling | 7.62% | 33.94% | 0 | 12.90 |
+| Paused fitting title, control tooltip visible | 65.32% | 36.70% | 0.610 | 12.55 |
+| Same paused fitting title, pointer moved away | 7.99% | 31.73% | 0 | 12.72 |
+
+The long-title track was `You & Me & the Bottle Makes 3 Tonight (Baby)`; fitting-title samples
+used `Mr. Pinstripe Suit`. The 7.90% final sample is not a same-track replay of the original
+63.96% baseline. The matched-track comparison above remains the stronger before/after evidence.
+Minimize/restore, maximized/narrow resize, track changes, menu stacking and dismissal passed visual
+checks. Both title movement and waveform advancement were visible; the user reported no scrolling
+wobble. These point-in-time observations do not exclude every transient blink.
+
+**Acceptance remains open:** the tooltip-associated spike needs a reproducible isolated profile
+and correction, and static CPU variation needs explanation. A 15-second paused thread sample
+attributed 469 ms to AWT-Windows, 344 ms to an unidentified native thread, and 109 ms to C2 compilation;
+it did not establish a root cause. The packaged runtime lacks `jdk.jfr`, so its attempted JFR
+recording could not start. Do not claim this build meets the full performance gate merely because
+steady playback and zero-parent-redraw checks improved. No animation or playback-update frequency
+was reduced.
 
 ## Reproduction
 
@@ -88,7 +118,8 @@ For CPU/GPU sampling of the visible app, pass its actual launcher/JVM process ID
 .\scripts\animation-probe\measure-windows.ps1 -ApplicationProcessIds <ids> -SampleCount 15
 ```
 
-Fourteen targeted tests cover shared motion, pixel reuse, input, keyboard/accessibility actions,
+Fourteen targeted tests on the isolated Windows branch (16 on the combined review branch) cover
+shared motion, pixel reuse, input, keyboard/accessibility actions,
 visibility, popup retention, clipping properties and timeline continuity. Common metadata, Android,
 JVM and iOS arm64 Kotlin compilation passed on this host; native iOS execution was not performed.
 
