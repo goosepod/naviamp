@@ -36,6 +36,8 @@ import kotlinx.coroutines.delay
 fun main() {
     val integrated = System.getenv("NAVIAMP_PROBE_INTEGRATED") == "true"
     val verifyPixels = System.getenv("NAVIAMP_PROBE_VERIFY") == "true"
+    val tooltipProbe = System.getenv("NAVIAMP_PROBE_TOOLTIPS") == "true"
+    val hoverProbe = System.getenv("NAVIAMP_PROBE_HOVER") == "true"
     if (integrated) configureNaviampDesktopRasterLayers()
     application {
     val compositor = remember { System.getenv("NAVIAMP_PROBE_COMPOSITOR") == "true" }
@@ -82,6 +84,10 @@ fun main() {
             }
             }
             Column(Modifier.weight(1f).padding(start = 24.dp).verticalScroll(rememberScrollState())) {
+                if (hoverProbe) NaviampTooltip("Tooltip probe", NaviampColors()) {
+                    Text("Hover here for tooltip measurement", color = Color.White,
+                        modifier = Modifier.fillMaxWidth().padding(12.dp))
+                }
                 repeat(rowCount) { index ->
                     Text("Library row $index — artist and album metadata", color = Color.White,
                         modifier = Modifier.fillMaxWidth().padding(12.dp).background(Color(0xff303039)))
@@ -91,7 +97,11 @@ fun main() {
         }
         if (integrated) NaviampDesktopRasterHost(window, content) else content()
         if (popupVisible) androidx.compose.ui.window.Popup(alignment = androidx.compose.ui.Alignment.TopEnd) {
-            Box(Modifier.size(80.dp, 30.dp).background(Color.Magenta))
+            androidx.compose.material3.Surface(
+                color = Color(0xff24242b).copy(alpha = 0.98f),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(5.dp),
+                shadowElevation = 5.dp,
+            ) { Text("Tooltip probe", color = Color.White, modifier = Modifier.padding(8.dp, 5.dp)) }
         }
         LaunchedEffect(Unit) {
             try {
@@ -109,17 +119,35 @@ fun main() {
                 "${layer.width}x${layer.height}:${layer.renderApi}" to count
             }
             println("ANIMATION_PROBE integrated=$integrated compositor=$compositor raster=$raster raw=$raw isolated=$isolated rows=$rowCount layers=${counters.map { it.first }} phase,cpu_percent,frames")
-            for (next in listOf("static", "marquee", "waveform", "combined")) {
+            val opened = AtomicLong()
+            val closed = AtomicLong()
+            val lifecycle = java.awt.event.AWTEventListener { event ->
+                if (event.id == java.awt.event.WindowEvent.WINDOW_OPENED) opened.incrementAndGet()
+                if (event.id == java.awt.event.WindowEvent.WINDOW_CLOSED) closed.incrementAndGet()
+            }
+            java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(lifecycle, java.awt.AWTEvent.WINDOW_EVENT_MASK)
+            for (next in if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined")) {
                 phase = next
+                if (tooltipProbe) popupVisible = next == "tooltip"
+                if (hoverProbe) kotlinx.coroutines.withTimeout(90_000) {
+                    while (window.ownedWindows.none { it.isShowing }) delay(100)
+                }
                 delay(5_000)
+                val openedBefore = opened.get()
+                val closedBefore = closed.get()
                 val initialFrames = counters.map { it.second.get() }
                 val positions = if (compositor) ProbeCompositor.positions(ProbeCompositor.handle).toList() else emptyList()
                 val beforePixels = if (verifyPixels) captureProbe(window, "$next-before") else null
                 val startCpu = cpu.processCpuTime
                 val start = System.nanoTime()
-                delay(10_000)
+                delay(if (hoverProbe) 30_000 else 10_000)
                 val percent = (cpu.processCpuTime - startCpu).toDouble() / (System.nanoTime() - start) * 100.0
                 println("ANIMATION_PROBE $next,$percent,${counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }}")
+                println("ANIMATION_WINDOWS $next opened=${opened.get() - openedBefore} closed=${closed.get() - closedBefore}")
+                if (hoverProbe) {
+                    check(window.ownedWindows.any { it.isShowing }) { "Hover tooltip is not visible" }
+                    check(opened.get() == openedBefore && closed.get() == closedBefore) { "Hover recreated native popup windows" }
+                }
                 if (verifyPixels) {
                     val afterCapture = captureProbe(window, "$next-after")
                     val beforeCapture = requireNotNull(beforePixels)
@@ -160,6 +188,7 @@ fun main() {
                     check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
                 }
             }
+            java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(lifecycle)
             if (verifyPixels) {
                 // Exercise real owned-window notifications while the compositor timelines run.
                 repeat(12) { index ->

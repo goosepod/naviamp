@@ -100,6 +100,36 @@ was reduced.
 
 ## Reproduction
 
+### Tooltip follow-up
+
+The isolated static popup did not reproduce the control-hover spike: static, popup visible and
+dismissed samples were 6.71%, 7.03% and 8.27% of one core, with zero parent redraws. Recording the
+real player under the full JDK reproduced 49.86% CPU, with native popup creation, resizing and
+OpenGL-context creation recurring while the pointer stayed on a player control. This is popup
+lifetime churn, rather than continuous repainting by the cached waveform/title timelines.
+
+The hover implementation now lives in common code. A visible tooltip survives a brief pointer
+transfer (100 ms dismissal grace), re-entry cancels dismissal without restarting the show delay,
+and leaving before the 450 ms show delay cancels the pending tooltip. The grace timer runs only
+on a pointer transition; there is no continuous polling. Touch does not trigger hover tooltips.
+The three platform tooltip implementations are removed: none required a platform API.
+
+`NAVIAMP_PROBE_TOOLTIPS=true` measures static popup cost; `NAVIAMP_PROBE_HOVER=true` adds an actual
+hover target to the fixture. Hover that target; the probe waits for the tooltip, warms up for five
+seconds, then measures 30 seconds. Leave the pointer there. It requires a visible owned tooltip and zero native
+window open/close events during the sample. `NAVIAMP_PROBE_JFR=<absolute recording path>` enables
+JFR on the probe JVM, without requiring a recording module in the packaged app runtime.
+
+The uninterrupted hover probe passed at 0.57% of one core, zero parent frames, zero native window
+open/close events, unchanged sibling pixels and a visible tooltip throughout the 30-second sample.
+All 12 subsequent popup visibility checks passed. Earlier instrumented runs recorded one initial
+opening, or one close/reopen during inspection; they are not passing sustained-hover evidence.
+Seventeen targeted tests passed, including three new common hover-state regressions. Common
+metadata, Android, JVM and iOS arm64 compilation passed after the shared extraction.
+Combined-app verification remains to be recorded below.
+
+### Animation and GPU probes
+
 Build native resources before running the production-integrated probe:
 
 ```powershell

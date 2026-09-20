@@ -70,13 +70,6 @@ import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-expect fun NaviampTooltip(
-    text: String,
-    colors: NaviampColors,
-    content: @Composable () -> Unit,
-)
-
-@Composable
 @NonRestartableComposable
 fun NaviampSharedAppShell(
     modifier: Modifier = Modifier,
