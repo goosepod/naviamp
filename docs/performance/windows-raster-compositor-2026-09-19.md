@@ -90,8 +90,8 @@ Minimize/restore, maximized/narrow resize, track changes, menu stacking and dism
 checks. Both title movement and waveform advancement were visible; the user reported no scrolling
 wobble. These point-in-time observations do not exclude every transient blink.
 
-**Acceptance remains open:** the tooltip-associated spike needs a reproducible isolated profile
-and correction, and static CPU variation needs explanation. A 15-second paused thread sample
+**Initial acceptance blocker (follow-up below):** the tooltip-associated spike required a
+reproducible isolated profile and correction, and static CPU variation needed explanation. A 15-second paused thread sample
 attributed 469 ms to AWT-Windows, 344 ms to an unidentified native thread, and 109 ms to C2 compilation;
 it did not establish a root cause. The packaged runtime lacks `jdk.jfr`, so its attempted JFR
 recording could not start. Do not claim this build meets the full performance gate merely because
@@ -126,7 +126,23 @@ All 12 subsequent popup visibility checks passed. Earlier instrumented runs reco
 opening, or one close/reopen during inspection; they are not passing sustained-hover evidence.
 Seventeen targeted tests passed, including three new common hover-state regressions. Common
 metadata, Android, JVM and iOS arm64 compilation passed after the shared extraction.
-Combined-app verification remains to be recorded below.
+The combined review build passed 19 targeted tests. Final real-app samples used the same narrow
+window and `Why Me?`, with the tooltip visibly retained over Next (paused) and Pause (playing):
+
+| State | App CPU | DWM CPU | App GPU engine sum | DWM GPU engine sum |
+| --- | ---: | ---: | ---: | ---: |
+| Initial paused tooltip sample after launch | 36.31% | 42.02% | 0 | 14.08 |
+| Settled paused tooltip | 10.96% | 35.68% | 0 | 13.30 |
+| Playback with tooltip | 12.58% | 33.75% | 0.062 | 12.80 |
+| Paused, tooltip dismissed | 3.49% | 32.18% | 0 | 12.77 |
+
+The native recreation loop is corrected, and tooltip switching/dismissal and waveform advancement
+were visually verified. These samples are not a matched-track replay of the previous 65.32%
+tooltip result. The first post-launch sample remains explicitly recorded; do not present this as
+a general startup-performance fix. Residual whole-app/native-window overhead and startup variation
+remain review limitations, although the isolated stable-hover test meets the animation budget.
+The UI event thread consumed no measurable CPU during a separate ten-second settled paused sample;
+the largest measured consumers were the AWT native event thread and an unidentified native thread.
 
 ### Animation and GPU probes
 
@@ -162,5 +178,12 @@ JVM and iOS arm64 Kotlin compilation passed on this host; native iOS execution w
 - `native/visualizer-opengl/src/naviamp_raster_windows.cpp`: uses JAWT, HWND, D3D11, Direct2D, WIC and
   DirectComposition APIs for cached surfaces, clips, timelines and transactional presentation.
 
-No Android or iOS production adapter changes. Linux rendering is outside this Windows issue.
+- `core/ui/src/jvmMain/kotlin/app/naviamp/ui/NaviampTooltip.jvm.kt`: removed; its hover policy and
+  Compose UI require no native boundary and now live in common code.
+- `core/ui/src/androidMain/kotlin/app/naviamp/ui/NaviampTooltip.android.kt`: removed the no-op
+  platform duplicate; shared hover behavior remains inactive for touch input.
+- `core/ui/src/iosMain/kotlin/app/naviamp/ui/NaviampTooltip.ios.kt`: removed the same no-op platform
+  duplicate; shared hover behavior remains inactive for touch input.
+
+No Android or iOS rendering adapter changes. Linux rendering is outside this Windows issue.
 No Play Console operation, release, signing change or application data reset was performed.
