@@ -187,18 +187,13 @@ private class AndroidRasterRegion(
 
     override fun synchronizeDraw() {
         if (!needsUpdate || !hostReady || layers.isEmpty()) return
-        // Layout and image handoffs join the Compose window's next buffer. Free-running
-        // motion still uses compositor-only transactions and never invalidates that window.
+        // The SurfaceView render thread owns parent movement. Each child transaction contains
+        // complete current geometry, so layout/image handoffs can commit without waiting on a
+        // root draw that some Android compositors never deliver.
         SurfaceControl.Transaction().use { transaction ->
             updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
             needsUpdate = false
-            if (Build.VERSION.SDK_INT >= 31 && root.rootSurfaceControl != null) {
-                if (root.rootSurfaceControl!!.applyTransactionOnDraw(transaction)) {
-                    // This handoff is requested from the current draw. Guarantee the next root
-                    // draw that commits it; free-running motion remains compositor-only.
-                    root.postInvalidateOnAnimation()
-                } else transaction.apply()
-            } else transaction.apply()
+            transaction.apply()
         }
         invalidate()
     }
