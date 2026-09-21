@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">ライブラリを選択するには音楽サーバーに接続してください。</string>
     <string name="library_sources_load_failed">ライブラリを読み込めませんでした。</string>
     <string name="library_sources_save_failed">選択したライブラリを更新できませんでした。</string>
+    <string name="settings_font_size_title">文字サイズ</string>
+    <string name="settings_font_size_subtitle">全般と再生中の文字サイズを個別に設定します</string>
+    <string name="settings_font_size_summary">全般: %1$s · 再生中: %2$s</string>
+    <string name="settings_font_size_general_title">全般インターフェース</string>
+    <string name="settings_font_size_now_playing_title">再生中、ミニプレーヤー、キュー、歌詞</string>
+    <string name="settings_font_size_small">小</string>
+    <string name="settings_font_size_small_subtitle">画面により多くの内容を表示します。</string>
+    <string name="settings_font_size_standard">標準</string>
+    <string name="settings_font_size_standard_subtitle">Naviamp の標準文字サイズを使用します。</string>
+    <string name="settings_font_size_large">大</string>
+    <string name="settings_font_size_large_subtitle">大きな文字で読みやすくします。</string>
+    <string name="description_less">閉じる</string>
+    <string name="description_more">もっと見る…</string>
 </resources>

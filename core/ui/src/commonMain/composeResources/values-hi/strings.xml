@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">लाइब्रेरी चुनने के लिए किसी संगीत सर्वर से कनेक्ट करें।</string>
     <string name="library_sources_load_failed">लाइब्रेरी लोड नहीं हो सकीं।</string>
     <string name="library_sources_save_failed">चुनी गई लाइब्रेरी अपडेट नहीं हो सकीं।</string>
+    <string name="settings_font_size_title">टेक्स्ट का आकार</string>
+    <string name="settings_font_size_subtitle">सामान्य और अभी चल रहा है टेक्स्ट को अलग-अलग सेट करें</string>
+    <string name="settings_font_size_summary">सामान्य: %1$s · अभी चल रहा है: %2$s</string>
+    <string name="settings_font_size_general_title">सामान्य इंटरफ़ेस</string>
+    <string name="settings_font_size_now_playing_title">अभी चल रहा है, मिनी प्लेयर, कतार और गीत</string>
+    <string name="settings_font_size_small">छोटा</string>
+    <string name="settings_font_size_small_subtitle">स्क्रीन पर अधिक सामग्री दिखाता है।</string>
+    <string name="settings_font_size_standard">मानक</string>
+    <string name="settings_font_size_standard_subtitle">Naviamp के डिफ़ॉल्ट टेक्स्ट आकार का उपयोग करता है।</string>
+    <string name="settings_font_size_large">बड़ा</string>
+    <string name="settings_font_size_large_subtitle">बड़े टेक्स्ट से पढ़ना आसान बनाता है।</string>
+    <string name="description_less">कम</string>
+    <string name="description_more">और…</string>
 </resources>

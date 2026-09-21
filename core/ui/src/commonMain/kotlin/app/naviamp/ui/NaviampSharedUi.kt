@@ -47,11 +47,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
@@ -169,12 +167,11 @@ fun NaviampSharedAppShell(
     val selectedDownloadLocationId = cache.selectedDownloadLocationId
     val selectedAudioCacheLocationId = cache.selectedAudioCacheLocationId
     val colors = NaviampColors.Dark
-    val baseDensity = LocalDensity.current
+    NaviampFontSizeScope(
+        fontSize = interfaceSettings.generalFontSize,
+        includeStandardScale = true,
+    ) {
     CompositionLocalProvider(
-        LocalDensity provides Density(
-            density = baseDensity.density,
-            fontScale = baseDensity.fontScale * 1.08f,
-        ),
         LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
         LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
     ) {
@@ -248,15 +245,17 @@ fun NaviampSharedAppShell(
         typography = rememberNaviampTypography(),
     ) {
         uiState.playlistMembership?.let { membership ->
-            TrackPlaylistMembershipDialog(
-                membership = membership,
-                colors = colors,
-                onToggle = nowPlayingActions.onPlaylistMembershipToggled,
-                onCreate = nowPlayingActions.onMembershipPlaylistCreated,
-                onRetry = nowPlayingActions.onPlaylistMembershipRetried,
-                onApply = nowPlayingActions.onPlaylistMembershipApplied,
-                onDismissRequest = nowPlayingActions.onPlaylistMembershipDismissed,
-            )
+            NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                TrackPlaylistMembershipDialog(
+                    membership = membership,
+                    colors = colors,
+                    onToggle = nowPlayingActions.onPlaylistMembershipToggled,
+                    onCreate = nowPlayingActions.onMembershipPlaylistCreated,
+                    onRetry = nowPlayingActions.onPlaylistMembershipRetried,
+                    onApply = nowPlayingActions.onPlaylistMembershipApplied,
+                    onDismissRequest = nowPlayingActions.onPlaylistMembershipDismissed,
+                )
+            }
         }
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -330,13 +329,15 @@ fun NaviampSharedAppShell(
                 }
                 if (!showFullNowPlaying) {
                     if (canShowNowPlaying && !editingConnection && !restoringConnection && nowPlaying != null) {
-                        NaviampMiniNowPlaying(
-                            nowPlaying = nowPlaying,
-                            colors = colors,
-                            onOpen = navigationActions.onOpenNowPlaying,
-                            actions = nowPlayingActions,
-                            modifier = Modifier.padding(vertical = 2.dp),
-                        )
+                        NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                            NaviampMiniNowPlaying(
+                                nowPlaying = nowPlaying,
+                                colors = colors,
+                                onOpen = navigationActions.onOpenNowPlaying,
+                                actions = nowPlayingActions,
+                                modifier = Modifier.padding(vertical = 2.dp),
+                            )
+                        }
                     }
                     SharedBottomNavigationBar(
                         colors = colors,
@@ -366,6 +367,7 @@ fun NaviampSharedAppShell(
     }
 
     }
+}
 }
 
 @Composable
@@ -796,8 +798,10 @@ internal fun ConnectedContent(
             NaviampPlayerWorkspace(wide, layout, onLayoutChanged = {
                 valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = interfaceSettings.nowPlaying.copy(wideLayout = it)))
             }, player = { panelLayout ->
-                FullNowPlaying(nowPlaying, effectivePlaybackProgress, colors, nowPlayingPlayerColors,
-                    visualizerBandsProvider, selectedVisualizer, nowPlayingActions, interfaceSettings.nowPlaying, panelLayout)
+                NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                    FullNowPlaying(nowPlaying, effectivePlaybackProgress, colors, nowPlayingPlayerColors,
+                        visualizerBandsProvider, selectedVisualizer, nowPlayingActions, interfaceSettings.nowPlaying, panelLayout)
+                }
             }, browser = {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -807,8 +811,11 @@ internal fun ConnectedContent(
                             surfaceOpacity = interfaceSettings.nowPlaying
                                 .splitPaneBackgroundOpacityPercent / 100f,
                         ) {
-                            if (queueSelected) NaviampQueueContent(nowPlaying, effectivePlaybackProgress, colors, nowPlayingActions)
-                            else browseContent()
+                            if (queueSelected) {
+                                NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                    NaviampQueueContent(nowPlaying, effectivePlaybackProgress, colors, nowPlayingActions)
+                                }
+                            } else browseContent()
                         }
                     }
                     Spacer(Modifier.height(12.dp))

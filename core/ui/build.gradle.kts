@@ -28,6 +28,9 @@ kotlin {
     }
 
     sourceSets {
+        val renderedUiTests = "src/renderedTest/kotlin"
+        jvmTest.get().kotlin.srcDir(renderedUiTests)
+        androidInstrumentedTest.get().kotlin.srcDir(renderedUiTests)
         if (animationProbe) {
             commonMain.get().kotlin.srcDir("src/animationProbe/kotlin")
             iosMain.get().kotlin.srcDir("src/animationProbeIos/kotlin")
@@ -36,6 +39,10 @@ kotlin {
             implementation(libs.activity.compose)
             implementation(libs.androidx.test.runner)
             implementation(libs.androidx.test.ext.junit)
+            implementation("org.jetbrains.compose.ui:ui-test:$composeVersion")
+            // Espresso 3.7 uses the public input service on Android 17.
+            implementation("androidx.test.espresso:espresso-core:3.7.0")
+            implementation(kotlin("test-junit"))
         }
         commonMain.dependencies {
             implementation(project(":core:domain"))
@@ -71,6 +78,7 @@ android {
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    sourceSets.getByName("androidTest").manifest.srcFile("src/androidInstrumentedTest/AndroidManifest.xml")
     if (animationProbe) {
         sourceSets.getByName("androidTest").java.srcDir("src/animationProbeAndroid/kotlin")
         sourceSets.getByName("androidTest").manifest.srcFile("src/animationProbeAndroid/AndroidManifest.xml")
