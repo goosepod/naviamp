@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import android.net.nsd.NsdServiceInfo
+import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.naviamp.app.NaviampConnectDiscoveryListener
@@ -125,7 +126,12 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
             serviceName = "Naviamp Living Room"
             serviceType = "_naviamp-connect._tcp"
             port = 42_424
-            hostAddresses = listOf(InetAddress.getByName("192.0.2.10"))
+            if (Build.VERSION.SDK_INT >= 34) {
+                hostAddresses = listOf(InetAddress.getByName("192.0.2.10"))
+            } else {
+                @Suppress("DEPRECATION")
+                host = InetAddress.getByName("192.0.2.10")
+            }
             NaviampConnectDiscoveryMetadata.encode(advertisement).forEach(::setAttribute)
         }
 
