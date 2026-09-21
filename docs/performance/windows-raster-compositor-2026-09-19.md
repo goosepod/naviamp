@@ -144,6 +144,49 @@ remain review limitations, although the isolated stable-hover test meets the ani
 The UI event thread consumed no measurable CPU during a separate ten-second settled paused sample;
 the largest measured consumers were the AWT native event thread and an unidentified native thread.
 
+### Final integrated acceptance — September 20, 2026
+
+The branch was merged with the independent font-size work and rebuilt from commit `60afed35`.
+Measurements below used the same 2560 x 1440, 60 Hz display, AMD Radeon Graphics, custom power
+plan and OpenGL backend. The executable was verified as the workspace package before sampling; an
+installed 2.6 build that was initially selected by its display name was rejected from the results.
+
+The strengthened synthetic probe again confirmed visible motion, zero parent-surface frames,
+unchanged sibling pixels and all 12 popup transitions:
+
+| State | App CPU (one core) | Parent frames | Native popup opens/closes during sample |
+| --- | ---: | ---: | ---: |
+| Static | 2.97% | 0 | n/a |
+| Marquee | 1.09% | 0 | n/a |
+| Waveform | 9.53% | 0 | n/a |
+| Combined | 1.25% | 0 | n/a |
+| Sustained real hover | 8.02% | 0 | 0 / 0 |
+
+The automated popup sequence measured 5.31% static, 9.21% with its tooltip visible and 3.12%
+after dismissal, all with zero parent frames and unchanged sibling pixels. The uninterrupted real
+hover sample retained a visible tooltip throughout. A separate packaged-app idle probe measured
+0% of one core.
+
+The exact workspace-packaged application was then sampled in a visible 1148 x 714 window:
+
+| State | App CPU | DWM CPU | App GPU engine sum | DWM GPU engine sum |
+| --- | ---: | ---: | ---: | ---: |
+| Paused after launch | 4.04% | 10.44% | 0 | 0 |
+| Playback with advancing waveform | 12.09% | 34.59% | 0.082 | 13.59 |
+| Playback with Pause tooltip retained | 13.28% | 34.62% | 0.089 | 13.36 |
+
+The retained real tooltip added approximately 1.20 percentage points of application CPU and did
+not produce a material DWM or GPU change. This replaces the former 65.32% tooltip blocker with a
+stable result and meets the issue's under-10% synthetic combined-animation budget without reducing
+motion or playback-update frequency. Minimize/restore, maximized/narrow resize, input, clipping,
+tooltip/menu stacking and accessibility actions were covered by the visible checks and shared
+tests. A full screen-reader audit was not performed.
+
+The shared raster placement tests now exercise portable placement data instead of constructing a
+Compose `ImageBitmap` on an Android unit-test JVM. The full GitHub verification run passed shared
+and Android tests, Android emulator native tests, Windows/Linux/macOS desktop native tests and iOS
+simulator tests. The earlier iOS framework-copy failure did not recur.
+
 ### Animation and GPU probes
 
 Build native resources before running the production-integrated probe:
