@@ -138,6 +138,35 @@ paused. Raw evidence is under `build/font-size-review/scroll-ab-*` and `renderer
 The final background/restore check measures 0.39% hidden app CPU over 10.13 seconds and restores
 the complete player correctly, paused on the original track at about 0:11.
 
+## API 34 transaction-pacing follow-up
+
+The combined rendering branch exposed a repeatable API 34 emulator failure after the initial
+layout transaction: cached pixels were placed correctly, but marquee and waveform motion remained
+frozen. The adapter waited for a transaction-committed callback before allowing free-running
+geometry updates. That callback did not release the wait on this emulator. It was also introduced
+in API 33 even though the adapter entered the path on API 31, leaving API 31 and 32 exposed to a
+missing platform method.
+
+The adapter no longer gates complete geometry updates on that callback. The layout/image handoff
+still joins the root window draw through `applyTransactionOnDraw` on API 31+, while subsequent
+animation transactions carry the same current bounds and clipping and can safely proceed. API 29
+and 30 retain the direct transaction path.
+
+On the Android 14/API 34 arm64 emulator, both placement tests pass after the correction. They cover
+45 moving image-replacement frames, settled placement and clipping, resize, removal/restoration,
+and actual compositor motion. The visible probe also passes with the following diagnostic emulator
+measurements; emulator CPU is not a substitute for the physical-device acceptance numbers above.
+
+| State | App CPU | Parent/sibling draws | Window frames |
+| --- | ---: | ---: | ---: |
+| Static | 0.11% | 0 / 0 | 0 |
+| Three scrolling titles | 1.65% | 0 / 0 | 0 |
+| Waveform | 2.99% | 0 / 0 | 0 |
+| Combined | 2.10% | 0 / 0 | 0 |
+| Restored static | 0.02% | 0 / 0 | 0 |
+
+An API 29 or 30 execution is still required to exercise the supported direct-transaction branch.
+
 ## Reproduction
 
 ```powershell

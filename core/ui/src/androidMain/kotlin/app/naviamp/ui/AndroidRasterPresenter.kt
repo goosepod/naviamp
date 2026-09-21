@@ -133,7 +133,6 @@ private class AndroidRasterRegion(
     private var layers = emptyList<PresentedLayer>()
     private val retiredLayers = mutableListOf<PresentedLayer>()
     private var ready: () -> Unit = {}
-    private var pendingLayoutTransactions = 0
     private var attached = false
     private var startedAt = 0L
     private var bounds = Rect.Zero
@@ -194,11 +193,6 @@ private class AndroidRasterRegion(
             updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
             needsUpdate = false
             if (Build.VERSION.SDK_INT >= 31 && root.rootSurfaceControl != null) {
-                pendingLayoutTransactions++
-                transaction.addTransactionCommittedListener({ command -> root.post(command) }) {
-                    pendingLayoutTransactions--
-                    invalidate()
-                }
                 if (!root.rootSurfaceControl!!.applyTransactionOnDraw(transaction)) transaction.apply()
             } else transaction.apply()
         }
@@ -257,7 +251,7 @@ private class AndroidRasterRegion(
     fun hasReadySurface(): Boolean = needsUpdate && attached && hostReady && layers.isNotEmpty()
 
     fun appendUpdate(transaction: SurfaceControl.Transaction): Boolean {
-        if (!attached || needsUpdate || pendingLayoutTransactions > 0 || !running) return false
+        if (!attached || needsUpdate || !running) return false
         val elapsed = SystemClock.uptimeMillis() - startedAt
         val changed = updateSurfaces(transaction, elapsed)
         needsUpdate = false
