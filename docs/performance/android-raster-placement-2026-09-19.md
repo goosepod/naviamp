@@ -147,10 +147,11 @@ geometry updates. That callback did not release the wait on this emulator. It wa
 in API 33 even though the adapter entered the path on API 31, leaving API 31 and 32 exposed to a
 missing platform method.
 
-The adapter no longer gates complete geometry updates on that callback. The layout/image handoff
-still joins the root window draw through `applyTransactionOnDraw` on API 31+, while subsequent
-animation transactions carry the same current bounds and clipping and can safely proceed. API 29
-and 30 retain the direct transaction path.
+The adapter no longer gates complete geometry updates on that callback or on a later root draw.
+The SurfaceView render thread already synchronizes movement of the native parent with the window;
+child layout, image, and animation transactions carry complete current bounds and clipping and
+commit directly on every supported API. This also avoids a headless API 35 compositor that accepts
+`applyTransactionOnDraw` but never presents the queued first frame.
 
 On the Android 14/API 34 arm64 emulator, both placement tests pass after the correction. They cover
 45 moving image-replacement frames, settled placement and clipping, resize, removal/restoration,
@@ -165,8 +166,8 @@ measurements; emulator CPU is not a substitute for the physical-device acceptanc
 | Combined | 2.10% | 0 / 0 | 0 |
 | Restored static | 0.02% | 0 / 0 | 0 |
 
-The device workflow now runs these three raster tests on API 30 and API 35. API 30 exercises the
-supported direct-transaction branch, while API 35 exercises the synchronized root-draw branch.
+The device workflow now runs these three raster tests on API 30 and API 35, covering both the
+oldest SurfaceControl runtime used by the adapter and the current Android compositor behavior.
 
 ## Reproduction
 
