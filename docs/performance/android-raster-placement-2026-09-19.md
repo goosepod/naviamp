@@ -157,6 +157,11 @@ API 33+ expresses geometry with the supported crop, buffer-transform, scale, and
 API 29–32 retain `setGeometry`, which is the only public equivalent there; Android deprecated that
 combined call in API 33.
 
+API 34+ attaches an immutable hardware bitmap with `SurfaceControl.Transaction.setBuffer`. This
+avoids the legacy `Surface(SurfaceControl)` buffer queue, which accepts drawing calls on current
+Android but does not reliably publish those buffers. API 29–33 retain the compatible queue path.
+Image changes replace the cached buffer; animation frames continue to update geometry only.
+
 On the Android 14/API 34 arm64 emulator, both placement tests pass after the correction. They cover
 45 moving image-replacement frames, settled placement and clipping, resize, removal/restoration,
 and actual compositor motion. The visible probe also passes with the following diagnostic emulator

@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import android.app.Activity
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.PorterDuff
@@ -105,8 +106,10 @@ private class AndroidRasterRegion(
 ) : NaviampRasterRegion {
     private data class PresentedLayer(
         val control: SurfaceControl,
-        val surface: Surface,
+        val surface: Surface?,
         var spec: NaviampRasterLayer,
+        var hardwareBitmap: Bitmap? = null,
+        var bufferChanged: Boolean = false,
         val source: AndroidRect = AndroidRect(),
         val destination: AndroidRect = AndroidRect(),
         var visible: Boolean = false,
@@ -211,7 +214,7 @@ private class AndroidRasterRegion(
                 it.spec.image.width == bitmap.width && it.spec.image.height == bitmap.height
             }
             if (reusable != null) {
-                if (reusable.spec.image !== spec.image) upload(reusable.surface, spec)
+                if (reusable.spec.image !== spec.image) upload(reusable, spec)
                 reusable.spec = spec
                 return@mapIndexed reusable
             }
@@ -219,14 +222,27 @@ private class AndroidRasterRegion(
                 .setParent(host.surfaceControl)
                 .setBufferSize(bitmap.width.coerceAtLeast(1), bitmap.height.coerceAtLeast(1))
                 .setFormat(PixelFormat.TRANSLUCENT).build()
-            val surface = Surface(control)
-            upload(surface, spec)
-            PresentedLayer(control, surface, spec)
+            val layer = PresentedLayer(
+                control = control,
+                surface = if (Build.VERSION.SDK_INT >= 34) null else Surface(control),
+                spec = spec,
+            )
+            upload(layer, spec)
+            layer
         }
         retiredLayers += previous.filter { old -> layers.none { it === old } }
     }
 
-    private fun upload(surface: Surface, spec: NaviampRasterLayer) {
+    private fun upload(layer: PresentedLayer, spec: NaviampRasterLayer) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            layer.hardwareBitmap?.recycle()
+            layer.hardwareBitmap = requireNotNull(
+                spec.image.asAndroidBitmap().copy(Bitmap.Config.HARDWARE, false),
+            ) { "Android could not allocate a hardware raster buffer" }
+            layer.bufferChanged = true
+            return
+        }
+        val surface = requireNotNull(layer.surface)
         val canvas = surface.lockHardwareCanvas()
         try {
             canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
@@ -241,7 +257,11 @@ private class AndroidRasterRegion(
             released.forEach { if (it.control.isValid) transaction.reparent(it.control, null) }
             transaction.apply()
         }
-        released.forEach { it.surface.release(); it.control.release() }
+        released.forEach {
+            it.surface?.release()
+            it.hardwareBitmap?.recycle()
+            it.control.release()
+        }
         retiredLayers.clear()
         layers = emptyList()
     }
@@ -266,7 +286,8 @@ private class AndroidRasterRegion(
         var changed = retiredLayers.isNotEmpty()
         retiredLayers.forEach {
             if (it.control.isValid) transaction.reparent(it.control, null)
-            it.surface.release()
+            it.surface?.release()
+            it.hardwareBitmap?.recycle()
             it.control.release()
         }
         retiredLayers.clear()
@@ -309,6 +330,10 @@ private class AndroidRasterRegion(
                 if (!layer.ordered) {
                     transaction.setLayer(layer.control, index)
                     layer.ordered = true
+                }
+                if (Build.VERSION.SDK_INT >= 34 && layer.bufferChanged) {
+                    transaction.setBuffer(layer.control, requireNotNull(layer.hardwareBitmap).hardwareBuffer)
+                    layer.bufferChanged = false
                 }
                 if (Build.VERSION.SDK_INT >= 33) {
                     val scaleX = layer.destination.width().toFloat() / layer.source.width()
