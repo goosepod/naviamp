@@ -154,11 +154,15 @@ jobs:
           path: "**/build/reports/tests/desktopTest/**"
 
   android-device:
-    name: Android emulator native tests
+    name: Android emulator native tests (API ${{ matrix.api-level }})
     needs: changes
     if: needs.changes.outputs.run_full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [30, 35]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -181,8 +185,8 @@ jobs:
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-35;google_apis;x86_64"
-          echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-35;google_apis;x86_64"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
+          echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
 
       - name: Enable KVM access
         run: |
@@ -214,18 +218,20 @@ jobs:
           fi
           adb shell input keyevent 82
 
-      - name: Exercise Android Keystore and packaged BASS libraries
-        run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :apps:android:connectedDebugAndroidTest
+      - name: Exercise native boundaries and raster animation
+        run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
       - name: Upload device reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-device-test-reports
+          name: android-device-api-${{ matrix.api-level }}-test-reports
           if-no-files-found: error
           path: |
             apps/android/build/reports/androidTests/**
             apps/android/build/outputs/androidTest-results/**
+            core/ui/build/reports/androidTests/**
+            core/ui/build/outputs/androidTest-results/**
             /tmp/naviamp-emulator.log
 
   desktop-windows:

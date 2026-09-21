@@ -165,7 +165,8 @@ measurements; emulator CPU is not a substitute for the physical-device acceptanc
 | Combined | 2.10% | 0 / 0 | 0 |
 | Restored static | 0.02% | 0 / 0 | 0 |
 
-An API 29 or 30 execution is still required to exercise the supported direct-transaction branch.
+The device workflow now runs these three raster tests on API 30 and API 35. API 30 exercises the
+supported direct-transaction branch, while API 35 exercises the synchronized root-draw branch.
 
 ## Reproduction
 
