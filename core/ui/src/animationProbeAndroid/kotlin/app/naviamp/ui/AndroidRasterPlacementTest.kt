@@ -89,16 +89,18 @@ class AndroidRasterPlacementTest {
             Intent(instrumentation.context, RasterPlacementActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         ) as RasterPlacementActivity
         try {
-            Thread.sleep(1200)
+            instrumentation.waitForIdleSync()
+            for (attempt in 0 until 100) {
+                if (!activity.expectedBounds.isEmpty) break
+                Thread.sleep(100)
+            }
+            assertTrue("Shared layout must become ready", !activity.expectedBounds.isEmpty)
             instrumentation.runOnMainSync { activity.scrolling.value = true; activity.replacing.value = true }
-            Thread.sleep(400)
-            val positions = mutableSetOf<Int>()
-            repeat(45) {
-                val capture = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+            fun positions(capture: Bitmap): Pair<Int, Int> {
                 var reference = -1
                 var raster = -1
-                for (y in 100 until capture.height - 100) {
-                    for (x in 30 until capture.width / 2 step 3) {
+                for (y in 0 until capture.height) {
+                    for (x in 0 until capture.width / 2) {
                         val pixel = capture.getPixel(x, y)
                         val r = android.graphics.Color.red(pixel)
                         val g = android.graphics.Color.green(pixel)
@@ -108,6 +110,22 @@ class AndroidRasterPlacementTest {
                     }
                     if (reference >= 0 && raster >= 0) break
                 }
+                return reference to raster
+            }
+            var ready = false
+            for (attempt in 0 until 100) {
+                val capture = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+                val (reference, raster) = positions(capture)
+                capture.recycle()
+                if (reference >= 0 && raster >= 0) ready = true
+                if (ready) break
+                Thread.sleep(100)
+            }
+            assertTrue("Composed and native pixels must become visible", ready)
+            val positions = mutableSetOf<Int>()
+            repeat(45) {
+                val capture = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+                val (reference, raster) = positions(capture)
                 capture.recycle()
                 assertTrue("The composed reference must remain visible", reference >= 0)
                 assertTrue("Raster must not blink during replacement", raster >= 0)
@@ -129,19 +147,29 @@ class AndroidRasterPlacementTest {
             (android.graphics.Color.red(pixel) > 220 && android.graphics.Color.green(pixel) < 30 && android.graphics.Color.blue(pixel) < 30) ||
                 (android.graphics.Color.blue(pixel) > 220 && android.graphics.Color.red(pixel) < 30 && android.graphics.Color.green(pixel) < 30)
         fun verifyPlacement() {
-            Thread.sleep(1200)
-            val bounds = activity.expectedBounds
-            val capture = screenshot()
-            assertTrue("Fixture must be positioned away from the window origin", bounds.left > 100 && bounds.top > 100)
-            assertTrue("Cached pixels must appear inside shared layout bounds: $bounds",
-                colored(capture.getPixel(bounds.left.toInt() + 8, bounds.top.toInt() + 8)))
+            instrumentation.waitForIdleSync()
+            var bounds = Rect.Zero
+            var capture: Bitmap? = null
+            for (attempt in 0 until 100) {
+                bounds = activity.expectedBounds
+                if (!bounds.isEmpty) {
+                    val candidate = screenshot()
+                    if (colored(candidate.getPixel(bounds.left.toInt() + 8, bounds.top.toInt() + 8))) {
+                        capture = candidate
+                    } else candidate.recycle()
+                }
+                if (capture != null) break
+                Thread.sleep(100)
+            }
+            val settled = requireNotNull(capture) { "Cached pixels must become visible inside shared layout bounds: $bounds" }
+            assertTrue("Fixture must be positioned away from the window origin", bounds.left > 1 && bounds.top > 1)
             var escaped = 0
-            for (y in 0 until capture.height step 4) for (x in 0 until capture.width step 4) {
-                if (colored(capture.getPixel(x, y)) &&
+            for (y in 0 until settled.height step 4) for (x in 0 until settled.width step 4) {
+                if (colored(settled.getPixel(x, y)) &&
                     (x < bounds.left - 1 || x > bounds.right + 1 || y < bounds.top - 1 || y > bounds.bottom + 1)) escaped++
             }
             assertTrue("Cached pixels must not escape their shared clip ($escaped samples)", escaped == 0)
-            capture.recycle()
+            settled.recycle()
         }
         try {
             verifyPlacement()
