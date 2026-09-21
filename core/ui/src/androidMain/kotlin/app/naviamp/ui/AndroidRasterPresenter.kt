@@ -310,8 +310,22 @@ private class AndroidRasterRegion(
                     transaction.setLayer(layer.control, index)
                     layer.ordered = true
                 }
-                transaction.setGeometry(layer.control, layer.source, layer.destination,
-                    SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
+                if (Build.VERSION.SDK_INT >= 33) {
+                    val scaleX = layer.destination.width().toFloat() / layer.source.width()
+                    val scaleY = layer.destination.height().toFloat() / layer.source.height()
+                    transaction.setCrop(layer.control, layer.source)
+                        .setBufferTransform(layer.control, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
+                        .setScale(layer.control, scaleX, scaleY)
+                        .setPosition(
+                            layer.control,
+                            layer.destination.left - layer.source.left * scaleX,
+                            layer.destination.top - layer.source.top * scaleY,
+                        )
+                } else {
+                    @Suppress("DEPRECATION")
+                    transaction.setGeometry(layer.control, layer.source, layer.destination,
+                        SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
+                }
                 changed = true
         }
         return changed

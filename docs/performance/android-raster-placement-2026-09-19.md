@@ -153,6 +153,10 @@ child layout, image, and animation transactions carry complete current bounds an
 commit directly on every supported API. This also avoids a headless API 35 compositor that accepts
 `applyTransactionOnDraw` but never presents the queued first frame.
 
+API 33+ expresses geometry with the supported crop, buffer-transform, scale, and position calls.
+API 29–32 retain `setGeometry`, which is the only public equivalent there; Android deprecated that
+combined call in API 33.
+
 On the Android 14/API 34 arm64 emulator, both placement tests pass after the correction. They cover
 45 moving image-replacement frames, settled placement and clipping, resize, removal/restoration,
 and actual compositor motion. The visible probe also passes with the following diagnostic emulator
