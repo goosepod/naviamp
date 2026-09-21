@@ -328,7 +328,9 @@ private class AndroidRasterRegion(
                     layer.visible = true
                 }
                 if (!layer.ordered) {
-                    transaction.setLayer(layer.control, index)
+                    // Keep cached children above the host SurfaceView's own buffer. Android 15
+                    // resolves a layer-zero tie in favor of the parent, hiding child pixels.
+                    transaction.setLayer(layer.control, index + 1)
                     layer.ordered = true
                 }
                 if (Build.VERSION.SDK_INT >= 34 && layer.bufferChanged) {
