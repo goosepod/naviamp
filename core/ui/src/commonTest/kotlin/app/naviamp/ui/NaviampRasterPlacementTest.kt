@@ -1,13 +1,12 @@
 package app.naviamp.ui
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.ImageBitmap
 import kotlin.test.*
 
 class NaviampRasterPlacementTest {
     @Test fun translationIncludesOriginAndPreservesSharedTiming() {
         val motion = requireNotNull(marqueeLayerMotion(80f))
-        val placement = NaviampRasterLayer(ImageBitmap(200, 20), Offset(12f, 3f), translation = motion).placement(100f, 20f)
+        val placement = naviampRasterPlacement(Offset(12f, 3f), motion, 1f, null, false, 100f, 20f)
         assertEquals(3f, placement.y)
         assertEquals(motion.timesMillis, placement.x.motion!!.timesMillis)
         assertTrue(placement.x.motion.repeat)
@@ -18,9 +17,8 @@ class NaviampRasterPlacementTest {
 
     @Test fun playedAndRemainingPixelsShareAnExactMovingEdge() {
         val motion = progressLayerMotion(.2f, 100.0)
-        val image = ImageBitmap(200, 20)
-        val played = NaviampRasterLayer(image, reveal = .2f, revealMotion = motion).placement(200f, 20f)
-        val remaining = NaviampRasterLayer(image, reveal = .2f, revealMotion = motion, clipFromStart = true).placement(200f, 20f)
+        val played = naviampRasterPlacement(Offset.Zero, null, .2f, motion, false, 200f, 20f)
+        val remaining = naviampRasterPlacement(Offset.Zero, null, .2f, motion, true, 200f, 20f)
         assertEquals(played.right, remaining.left)
         assertEquals(0f, played.left.value)
         assertEquals(200f, remaining.right.value)
@@ -30,12 +28,12 @@ class NaviampRasterPlacementTest {
 
     @Test fun layoutOnlySubmissionsKeepMotionClockWhileContentAndResizeRestartIt() {
         val clock = NaviampRasterSceneClock()
-        val layers = listOf(NaviampRasterLayer(ImageBitmap(200, 20), translation = marqueeLayerMotion(100f)))
-        assertTrue(clock.update(layers, 100f, 20f, 10))
-        assertFalse(clock.update(layers.toList(), 100f, 20f, 900))
+        val scene = listOf(marqueeLayerMotion(100f))
+        assertTrue(clock.updateScene(scene, 100f, 20f, 10))
+        assertFalse(clock.updateScene(scene.toList(), 100f, 20f, 900))
         assertEquals(10L, clock.startedMillis)
-        assertTrue(clock.update(layers, 120f, 20f, 1000))
+        assertTrue(clock.updateScene(scene, 120f, 20f, 1000))
         assertEquals(1000L, clock.startedMillis)
-        assertTrue(clock.update(layers.map { it.copy(translation = null) }, 120f, 20f, 1100))
+        assertTrue(clock.updateScene(listOf(null), 120f, 20f, 1100))
     }
 }
