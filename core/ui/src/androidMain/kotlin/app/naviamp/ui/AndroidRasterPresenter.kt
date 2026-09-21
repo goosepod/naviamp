@@ -193,7 +193,11 @@ private class AndroidRasterRegion(
             updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
             needsUpdate = false
             if (Build.VERSION.SDK_INT >= 31 && root.rootSurfaceControl != null) {
-                if (!root.rootSurfaceControl!!.applyTransactionOnDraw(transaction)) transaction.apply()
+                if (root.rootSurfaceControl!!.applyTransactionOnDraw(transaction)) {
+                    // This handoff is requested from the current draw. Guarantee the next root
+                    // draw that commits it; free-running motion remains compositor-only.
+                    root.postInvalidateOnAnimation()
+                } else transaction.apply()
             } else transaction.apply()
         }
         invalidate()
