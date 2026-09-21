@@ -301,7 +301,7 @@ jobs:
       - name: Measure isolated Linux animation surfaces
         run: |
           mkdir -p build
-          xvfb-run -a env NAVIAMP_PROBE_INTEGRATED=true \
+          xvfb-run -a env NAVIAMP_PROBE_INTEGRATED=true NAVIAMP_PROBE_VERIFY=true \
             ./gradlew -Pnaviamp.bass.platform=linux-x64 :core:ui:playerAnimationProbe --console=plain \
             | tee build/linux-animation-probe.txt
 

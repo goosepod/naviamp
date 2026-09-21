@@ -25,11 +25,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import java.lang.management.ManagementFactory
+import java.awt.event.InputEvent
 import kotlinx.coroutines.delay
 
 /** Synthetic real-window rendering probe. No provider, audio engine, or user data is loaded. */
@@ -45,6 +48,8 @@ fun main() {
     val raw = remember { System.getenv("NAVIAMP_PROBE_RAW") == "true" }
     val isolated = remember { System.getenv("NAVIAMP_PROBE_ISOLATED") == "true" }
     var phase by remember { mutableStateOf("static") }
+    var waveformInputEvents by remember { mutableIntStateOf(0) }
+    var waveformCenter by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     var popupVisible by remember { mutableStateOf(false) }
     val rowCount = remember { System.getenv("NAVIAMP_PROBE_ROWS")?.toIntOrNull()?.coerceIn(0, 1000) ?: 150 }
     val cpu = remember { ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean }
@@ -76,8 +81,13 @@ fun main() {
                     amplitudes = List(512) { ((it * 17) % 101) / 100f },
                     value = 0.2f, enabled = true, smoothProgress = smooth,
                     durationSeconds = 300.0, colors = NaviampColors(),
-                    onValueChange = {}, onValueChangeFinished = {},
-                    modifier = Modifier.fillMaxWidth().height(32.dp),
+                    onValueChange = { waveformInputEvents++ }, onValueChangeFinished = {},
+                    modifier = Modifier.fillMaxWidth().height(32.dp).onGloballyPositioned { coordinates ->
+                        val position = coordinates.positionInWindow()
+                        waveformCenter = position + androidx.compose.ui.geometry.Offset(
+                            coordinates.size.width / 2f, coordinates.size.height / 2f,
+                        )
+                    },
                 )
                 Text(phase, color = Color.White)
             }
@@ -132,6 +142,12 @@ fun main() {
                 if (hoverProbe) kotlinx.coroutines.withTimeout(90_000) {
                     while (window.ownedWindows.none { it.isShowing }) delay(100)
                 }
+                if (verifyPixels) {
+                    val origin = window.locationOnScreen
+                    java.awt.Robot(window.graphicsConfiguration.device).mouseMove(
+                        origin.x + window.width - 10, origin.y + window.height - 10,
+                    )
+                }
                 delay(5_000)
                 val openedBefore = opened.get()
                 val closedBefore = closed.get()
@@ -162,8 +178,11 @@ fun main() {
                         val pixel = afterPixels.getRGB(x, y)
                         if (pixel != before.getRGB(x, y)) {
                             changed++
-                            if (y < 450) textChanged++
-                            if (y in 450..490) waveformChanged++
+                            // Window decorations differ between real window managers and Xvfb.
+                            // Keep a small overlap so both coordinate layouts cover the third label
+                            // and waveform without making either motion assertion depend on insets.
+                            if (y < 445) textChanged++
+                            if (y in 415..500) waveformChanged++
                         }
                         if ((pixel shr 16 and 255) > 200 && (pixel shr 8 and 255) > 200 && (pixel and 255) > 200) textPixels++
                     }
@@ -203,6 +222,16 @@ fun main() {
                     check(visibleText > 100) { "Text disappeared during popup transition $index" }
                 }
                 println("ANIMATION_POPUPS 12 visible-text samples passed")
+                val origin = window.locationOnScreen
+                val robot = java.awt.Robot(window.graphicsConfiguration.device)
+                val inputX = origin.x + window.insets.left + waveformCenter.x.toInt()
+                val inputY = origin.y + window.insets.top + waveformCenter.y.toInt()
+                robot.mouseMove(inputX, inputY)
+                robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
+                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
+                delay(300)
+                check(waveformInputEvents > 0) { "Native raster surface intercepted shared waveform input" }
+                println("ANIMATION_INPUT waveform events=$waveformInputEvents point=$inputX,$inputY insets=${window.insets}")
             }
             exitApplication()
             } catch (failure: Throwable) {

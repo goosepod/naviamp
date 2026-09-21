@@ -129,6 +129,12 @@ val (_, copyDesktopVisualizerOpenGlResources, copyDesktopVisualizerOpenGlAppReso
     libraryStem = "naviamp_visualizer_opengl",
     enabled = { platform -> platform.startsWith("windows-") },
 )
+val (_, copyDesktopRasterX11Resources, copyDesktopRasterX11AppResources) = desktopNativeBuild(
+    name = "DesktopRasterX11",
+    sourceDirectory = "native/raster-x11",
+    libraryStem = "naviamp_raster_x11",
+    enabled = { platform -> platform.startsWith("linux-") },
+)
 
 val prepareDesktopNativeResources by tasks.registering {
     group = "build"
@@ -138,6 +144,7 @@ val prepareDesktopNativeResources by tasks.registering {
         copyDesktopBassJniResources,
         copyDesktopVisualizerMetalResources,
         copyDesktopVisualizerOpenGlResources,
+        copyDesktopRasterX11Resources,
     )
 }
 
@@ -150,6 +157,7 @@ val prepareDesktopNativeAppResources by tasks.registering {
         copyDesktopBassJniAppResources,
         copyDesktopVisualizerMetalAppResources,
         copyDesktopVisualizerOpenGlAppResources,
+        copyDesktopRasterX11AppResources,
     )
 }
 
@@ -201,6 +209,8 @@ tasks.register("verifyDesktopNativeInputs") {
             rootProject.file("native/visualizer-metal/src/naviamp_raster_compositor.mm"),
             rootProject.file("native/visualizer-opengl/CMakeLists.txt"),
             rootProject.file("native/visualizer-opengl/src/naviamp_visualizer_opengl.cpp"),
+            rootProject.file("native/raster-x11/CMakeLists.txt"),
+            rootProject.file("native/raster-x11/src/naviamp_raster_x11.cpp"),
         )
         check(nativeInputs.all { it.isFile && it.length() > 0L }) {
             "Desktop native build inputs are missing: ${nativeInputs.filterNot { it.isFile && it.length() > 0L }.joinToString()}"
