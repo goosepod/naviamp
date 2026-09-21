@@ -43,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -173,7 +172,6 @@ private fun AlbumDetailContent(
 ) {
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
     var albumImageOpen by remember(detail.album.id) { mutableStateOf(false) }
-    var informationExpanded by remember(detail.album.id) { mutableStateOf(false) }
     var playbackProfileOpen by remember(detail.album.id) { mutableStateOf(false) }
 
     Column(
@@ -272,31 +270,7 @@ private fun AlbumDetailContent(
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),
         ) {
-            detail.information
-                ?.normalizedAlbumInformation()
-                ?.toProviderRichText()
-                ?.takeIf { it.text.isNotBlank() }
-                ?.let { information ->
-                    val showMoreLink = information.length > 260
-                    Text(
-                        information,
-                        color = colors.secondaryText,
-                        maxLines = if (informationExpanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(fontSize = 11.sp, lineHeight = 13.sp),
-                    )
-                    if (showMoreLink) {
-                        Text(
-                            if (informationExpanded) "Less" else "More...",
-                            color = colors.primaryText,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable {
-                                informationExpanded = !informationExpanded
-                            },
-                        )
-                    }
-                }
+            NaviampProviderDescription(detail.information, detail.album.id, colors)
             val reservePopularIndicatorSpace = detail.tracks.any { it.popular }
             val trackNumberWidth = trackNumberColumnWidth(detail.tracks.size)
             detail.tracks.forEachIndexed { index, track ->
@@ -357,8 +331,3 @@ private fun AlbumDetailContent(
         )
     }
 }
-
-private fun String.normalizedAlbumInformation(): String =
-    replace("\r\n", "\n")
-        .replace('\r', '\n')
-        .trim()

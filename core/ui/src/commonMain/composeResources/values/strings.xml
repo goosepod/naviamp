@@ -923,4 +923,17 @@
     <string name="diagnostics_failure_timeline">Timeline</string>
     <string name="diagnostics_failure_legacy_presence">Legacy presence</string>
     <string name="diagnostics_failure_listen_submission">Listen submission</string>
+    <string name="settings_font_size_title">Text size</string>
+    <string name="settings_font_size_subtitle">Set general and Now Playing text independently</string>
+    <string name="settings_font_size_summary">General: %1$s · Now Playing: %2$s</string>
+    <string name="settings_font_size_general_title">General interface</string>
+    <string name="settings_font_size_now_playing_title">Now Playing, mini player, queue, and lyrics</string>
+    <string name="settings_font_size_small">Small</string>
+    <string name="settings_font_size_small_subtitle">Fits more content on screen.</string>
+    <string name="settings_font_size_standard">Standard</string>
+    <string name="settings_font_size_standard_subtitle">Uses Naviamp’s default text size.</string>
+    <string name="settings_font_size_large">Large</string>
+    <string name="settings_font_size_large_subtitle">Improves readability with larger text.</string>
+    <string name="description_less">Less</string>
+    <string name="description_more">More…</string>
 </resources>
