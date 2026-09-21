@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ImageBitmap
@@ -25,10 +26,21 @@ internal data class NaviampRasterLayer(
 
 internal interface NaviampRasterPresenter {
     fun create(): NaviampRasterRegion
+    /** Optional native anchor hosted at the shared region's layout position. */
+    @Composable fun Content(region: NaviampRasterRegion) {}
 }
 
 internal interface NaviampRasterRegion {
+    /**
+     * Bounds and clipping are in window pixels, including a non-zero window origin.
+     * Adapters translate these into their native parent coordinate system and own the layers
+     * they mutate; a host-owned parent is only an attachment point.
+     */
     fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean
+    /** Notify the shared owner when an asynchronous native attachment can replace its fallback. */
+    fun whenReady(callback: () -> Unit) {}
+    /** Commit prepared native changes with the shared content's actual drawing pass. */
+    fun synchronizeDraw() {}
     fun translationX(layerIndex: Int): Float? = null
     fun close()
 }
@@ -40,6 +52,11 @@ internal class NaviampRasterPosition {
     var translationX: () -> Float = { 0f }
 }
 
+private data class RasterSubmission(
+    val layers: List<NaviampRasterLayer>, val bounds: Rect, val clip: Rect, val cornerRadius: Float,
+)
+private class RasterSubmissionState { var latest: RasterSubmission? = null }
+
 /** Compose retains all input/semantics. Presentation effects never install an input surface. */
 @Composable
 internal fun NaviampAnimatedRaster(layers: List<NaviampRasterLayer>, modifier: Modifier, cornerRadius: Float = 0f, position: NaviampRasterPosition? = null) {
@@ -50,17 +67,36 @@ internal fun NaviampAnimatedRaster(layers: List<NaviampRasterLayer>, modifier: M
     var clip by remember { mutableStateOf(Rect.Zero) }
     var presented by remember(region) { mutableStateOf(false) }
     var elapsed by remember(layers) { mutableLongStateOf(0L) }
+    val submission = remember(region) { RasterSubmissionState() }
+    var readyRevision by remember(region) { mutableIntStateOf(0) }
     SideEffect { position?.translationX = {
         if (presented) region?.translationX(0) ?: 0f else layers.firstOrNull()?.translation?.valueAt(elapsed) ?: 0f
     } }
-    DisposableEffect(region) { onDispose { region?.close() } }
-    LaunchedEffect(region, layers, bounds, clip, cornerRadius) {
-        presented = region?.present(layers, bounds, clip, cornerRadius) == true
+    val submit by rememberUpdatedState {
+        val next = RasterSubmission(layers, bounds, clip, cornerRadius)
+        if (submission.latest != next) {
+            submission.latest = next
+            presented = region?.present(layers, bounds, clip, cornerRadius) == true
+        }
     }
+    DisposableEffect(region) {
+        region?.whenReady { submission.latest = null; submit(); readyRevision++ }
+        onDispose { region?.close() }
+    }
+    SideEffect { submit() }
     Box(modifier.onGloballyPositioned {
         bounds = Rect(it.positionInWindow(), androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat()))
         clip = it.boundsInWindow()
+        // Layout must reach the presenter before this frame is drawn, not via a later coroutine.
+        submit()
+    }.drawWithContent {
+        // A native surface may become ready without changing pixels or layout.
+        readyRevision
+        submit()
+        region?.synchronizeDraw()
+        drawContent()
     }) {
+        if (region != null) presenter?.Content(region)
         if (!presented) {
             LaunchedEffect(layers, visible, clip.isEmpty) {
                 if (!visible || clip.isEmpty) return@LaunchedEffect
