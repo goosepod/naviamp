@@ -13,6 +13,12 @@ adapter uploads premultiplied ARGB pixels to cached X11 pixmaps, applies the sha
 moves or reveals child windows. Its X Shape input region is empty, so the shared Compose surface
 continues to receive pointer input. No Compose or Skia rendering occurs for an animation frame.
 
+Transparent child windows require an active X11 compositing manager. The presenter now checks the
+standard `_NET_WM_CM_Sn` selection on the parent visual's screen before creating any native window.
+When no compositor owns that selection, native presentation declines cleanly and shared Compose
+content remains visible. CI starts `xcompmgr` explicitly instead of relying on an accidental Xvfb
+configuration. Fully clipped reveal layers are unmapped rather than forcing a one-pixel X11 window.
+
 Final release acceptance remains open until the packaged application is measured in a visible,
 accelerated Linux desktop session. The current workstation is a virtual machine whose visible X11
 session reports Mesa llvmpipe and `Accelerated: no`; its CPU results prove the redraw boundary and
@@ -75,6 +81,8 @@ Before closing #116 and shipping v2.7.0:
   graphics, recording static, marquee, waveform, and combined process CPU plus compositor/GPU cost;
 - visually confirm placement, rectangular and rounded clipping, resize behavior, menus, tooltips,
   seeking, and track replacement;
+- verify transparent rendering with compositing enabled, safe fallback with compositing disabled,
+  and compositor detection under XWayland;
 - verify paused, hidden/minimized, restored, and idle states stop continuous work;
 - inspect the shared accessibility tree with a Linux accessibility inspector;
 - rerun the complete Linux and cross-platform matrix on the final integrated tree.

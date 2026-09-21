@@ -80,6 +80,7 @@ struct Layer {
     int imageHeight = 1;
     double y = 0.0;
     double height = 1.0;
+    bool visible = false;
     Motion x;
     Motion left;
     Motion right;
@@ -201,7 +202,6 @@ struct X11RasterRegion {
             layer.pixels = child(layer.clip);
             if (!layer.clip || !layer.pixels) throw std::runtime_error("Could not create X11 raster layer");
             XMapWindow(display, layer.pixels);
-            XMapWindow(display, layer.clip);
         }
     }
 
@@ -247,6 +247,19 @@ struct X11RasterRegion {
             const double x = layer.x.at(elapsedMillis);
             const double left = layer.left.at(elapsedMillis);
             const double right = layer.right.at(elapsedMillis);
+            active = active || layer.x.active(elapsedMillis) || layer.left.active(elapsedMillis) ||
+                layer.right.active(elapsedMillis);
+            if (right <= left || layer.height <= 0.0) {
+                if (layer.visible) {
+                    XUnmapWindow(display, layer.clip);
+                    layer.visible = false;
+                }
+                continue;
+            }
+            if (!layer.visible) {
+                XMapWindow(display, layer.clip);
+                layer.visible = true;
+            }
             const int clipLeft = static_cast<int>(std::lround(left));
             const int clipTop = 0;
             const int clipWidthValue = std::max(1, static_cast<int>(std::lround(right - left)));
@@ -254,8 +267,6 @@ struct X11RasterRegion {
             XMoveResizeWindow(display, layer.clip, clipLeft, clipTop, clipWidthValue, clipHeightValue);
             XMoveWindow(display, layer.pixels,
                 static_cast<int>(std::lround(x - left)), static_cast<int>(std::lround(layer.y)));
-            active = active || layer.x.active(elapsedMillis) || layer.left.active(elapsedMillis) ||
-                layer.right.active(elapsedMillis);
         }
         XFlush(display);
         return active;
@@ -387,7 +398,23 @@ extern "C" JNIEXPORT jlong JNICALL Java_app_naviamp_ui_LinuxRasterNative_create(
         XLockDisplay(parent.display);
         X11RasterRegion* region = nullptr;
         try {
-            if (!XMatchVisualInfo(parent.display, DefaultScreen(parent.display), 32, TrueColor, &match)) {
+            XVisualInfo query{};
+            query.visualid = parent.visualId;
+            int visualCount = 0;
+            XVisualInfo* parentVisuals = XGetVisualInfo(parent.display, VisualIDMask, &query, &visualCount);
+            if (!parentVisuals || visualCount == 0) {
+                if (parentVisuals) XFree(parentVisuals);
+                throw std::runtime_error("Could not identify the X11 parent visual");
+            }
+            const int screen = parentVisuals[0].screen;
+            XFree(parentVisuals);
+            char compositorSelection[32];
+            std::snprintf(compositorSelection, sizeof(compositorSelection), "_NET_WM_CM_S%d", screen);
+            const Atom compositor = XInternAtom(parent.display, compositorSelection, True);
+            if (compositor == None || XGetSelectionOwner(parent.display, compositor) == None) {
+                throw std::runtime_error("An active X11 compositing manager is required for transparent raster layers");
+            }
+            if (!XMatchVisualInfo(parent.display, screen, 32, TrueColor, &match)) {
                 throw std::runtime_error("A 32-bit ARGB X11 visual is unavailable");
             }
             region = new X11RasterRegion(parent.display, parent.drawable, match.visual, match.depth);
