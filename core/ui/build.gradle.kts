@@ -77,6 +77,12 @@ android {
     defaultConfig {
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        if (animationProbe) {
+            testInstrumentationRunnerArguments["class"] = listOf(
+                "app.naviamp.ui.AndroidAnimationProbeTest",
+                "app.naviamp.ui.AndroidRasterPlacementTest",
+            ).joinToString(",")
+        }
     }
     sourceSets.getByName("androidTest").manifest.srcFile("src/androidInstrumentedTest/AndroidManifest.xml")
     if (animationProbe) {
@@ -89,7 +95,7 @@ android {
     }
 }
 
-// Opt-in real-window probe; intentionally excluded from CI tests and release packaging.
+// Opt-in real-window probe; included only in explicit device CI and excluded from release packaging.
 val compositorProbeLibrary = layout.buildDirectory.file("animation-probe/libnaviamp_probe_layers.dylib")
 val buildAnimationCompositorProbe by tasks.registering(Exec::class) {
     val source = file("src/jvmTest/native/animation_compositor_probe.mm")
