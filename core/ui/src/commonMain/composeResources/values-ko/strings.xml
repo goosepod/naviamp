@@ -66,4 +66,11 @@
     <string name="settings_font_size_large_subtitle">더 큰 텍스트로 가독성을 높입니다.</string>
     <string name="description_less">접기</string>
     <string name="description_more">더 보기…</string>
+    <string name="changelog_270_font_sizes">현재 재생 화면과 나머지 인터페이스의 글자 크기를 작게, 표준, 크게 중에서 각각 선택할 수 있으며 시스템 접근성 배율도 계속 적용됩니다.</string>
+    <string name="changelog_270_animations">스크롤 제목과 부드러운 파형 진행 표시가 캐시된 플랫폼 표면을 사용해 Android, iOS, macOS, Windows, Linux에서 CPU 사용량을 줄이고 애니메이션을 더 매끄럽게 표시합니다.</string>
+    <string name="changelog_270_library">최근 추가된 앨범이 올바르게 새로 고쳐지고, 라이브러리를 추가 날짜순으로 정렬하며, 라이브러리 페이지에서 원본 라이브러리를 선택할 수 있습니다.</string>
+    <string name="changelog_270_usability">지원되는 경우 Sonic 유사 검색이 자동으로 켜지고, 스와이프 동작은 의도적인 가로 이동을 기다리며, Android 릴리스 다운로드 크기가 줄었습니다.</string>
+    <string name="changelog_270_playback">Navidrome 재생 보고가 더 안정적이며 트랙 라디오를 새로 고쳐도 현재 트랙, 위치, 일시 정지 상태와 기록이 유지됩니다.</string>
+    <string name="changelog_270_media">참여 앨범에 트랙별 아티스트 크레딧이 포함되고, 데스크톱에서 WebP 아트워크를 지원하며, 동기화 가사는 가운데를 유지하고 트랙 사이에서 지워집니다.</string>
+    <string name="changelog_270_beta">기기 호환성, 네트워크 복구와 성능 테스트가 계속되는 동안 Android TV와 Naviamp Connect는 베타로 유지됩니다.</string>
 </resources>

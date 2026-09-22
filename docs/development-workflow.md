@@ -153,8 +153,9 @@ milestone, pull request, release notes, and Announcement just as for a normal re
 - [x] Verified all retained release tags and branches; the active Android TV branch is tracked by
       GitHub issue #17 and its GitHub pull request.
 - [x] Made GitHub the default development remote and updated contributor documentation.
-- [x] Configured a GitHub ruleset for `main` and `release/*` requiring pull requests and all six
-      cross-platform checks while blocking deletion and non-fast-forward updates.
+- [x] Configured a GitHub ruleset for `main` and `release/*` requiring pull requests and the full
+      cross-platform matrix, including Android API 30 and API 35 emulator checks, while blocking
+      deletion and non-fast-forward updates.
 - [x] Verified templates, release labels, the v2.5.0 milestone, permissions, signing secrets,
       webhooks, and the Announcements Discussion category.
 - [x] Added labeled pull-request release-note generation while retaining curated versioned notes.

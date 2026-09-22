@@ -7,15 +7,17 @@ import kotlin.test.assertTrue
 
 class NaviampChangelogTest {
     @Test
-    fun release260LeadsWithTvAndConnectBetaAndIncludesTheBetaNotice() {
+    fun release270LeadsWithFontSizesAndIncludesCrossPlatformAnimationWork() {
         val changelog = NaviampAboutUi().changelog
         assertEquals(listOf(Res.string.changelog_features, Res.string.changelog_improvements,
             Res.string.changelog_bug_fixes, Res.string.changelog_known_issues), changelog.map { it.title })
-        assertEquals(listOf(Res.string.changelog_260_tv, Res.string.changelog_260_connect), changelog.first().entries)
-        assertEquals(listOf(Res.string.changelog_260_beta), changelog.last().entries)
+        assertEquals(listOf(Res.string.changelog_270_font_sizes), changelog.first().entries)
+        assertEquals(listOf(Res.string.changelog_270_beta), changelog.last().entries)
         val entries = changelog.flatMap { it.entries }
-        assertTrue(Res.string.changelog_260_screen_awake in entries)
-        assertTrue(Res.string.changelog_260_playback_recovery in entries)
+        assertTrue(Res.string.changelog_270_animations in entries)
+        assertTrue(Res.string.changelog_270_library in entries)
+        assertTrue(Res.string.changelog_270_playback in entries)
+        assertTrue(Res.string.changelog_270_media in entries)
         assertTrue(changelog.all { it.entries.isNotEmpty() })
     }
 }

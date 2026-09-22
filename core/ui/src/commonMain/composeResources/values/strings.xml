@@ -936,4 +936,11 @@
     <string name="settings_font_size_large_subtitle">Improves readability with larger text.</string>
     <string name="description_less">Less</string>
     <string name="description_more">More…</string>
+    <string name="changelog_270_font_sizes">Choose Small, Standard, or Large text independently for Now Playing and the rest of the interface, while retaining the system accessibility scale.</string>
+    <string name="changelog_270_animations">Scrolling titles and smooth waveform progress now use cached platform surfaces for lower CPU use and smoother animation on Android, iOS, macOS, Windows, and Linux.</string>
+    <string name="changelog_270_library">Recently added albums refresh correctly, Library can sort by date added, and source libraries can be selected from the Library page.</string>
+    <string name="changelog_270_usability">Sonic similarity turns on automatically when supported, swipe actions wait for deliberate horizontal movement, and Android release downloads are smaller.</string>
+    <string name="changelog_270_playback">Navidrome listen reporting is more reliable, and refreshing track radio preserves the current track, position, pause state, and history.</string>
+    <string name="changelog_270_media">Appears On includes track-level artist credits, desktop supports WebP artwork, and synchronized lyrics stay centered and clear between tracks.</string>
+    <string name="changelog_270_beta">Android TV and Naviamp Connect remain beta while device compatibility, network recovery, and performance testing continue.</string>
 </resources>

@@ -66,4 +66,11 @@
     <string name="settings_font_size_large_subtitle">Migliora la leggibilità con testo più grande.</string>
     <string name="description_less">Meno</string>
     <string name="description_more">Altro…</string>
+    <string name="changelog_270_font_sizes">Scegli separatamente testo Piccolo, Standard o Grande per In riproduzione e per il resto dell’interfaccia, mantenendo la scala di accessibilità del sistema.</string>
+    <string name="changelog_270_animations">I titoli scorrevoli e l’avanzamento fluido della forma d’onda ora usano superfici di piattaforma memorizzate nella cache, riducendo l’uso della CPU e rendendo più fluide le animazioni su Android, iOS, macOS, Windows e Linux.</string>
+    <string name="changelog_270_library">Gli album aggiunti di recente si aggiornano correttamente, la Libreria può essere ordinata per data di aggiunta e le librerie sorgente possono essere selezionate dalla pagina Libreria.</string>
+    <string name="changelog_270_usability">La similarità Sonic si attiva automaticamente quando supportata, le azioni di scorrimento attendono un movimento orizzontale intenzionale e i download Android sono più piccoli.</string>
+    <string name="changelog_270_playback">La segnalazione degli ascolti Navidrome è più affidabile e l’aggiornamento della radio di un brano conserva brano corrente, posizione, stato di pausa e cronologia.</string>
+    <string name="changelog_270_media">Compare in include i crediti artista dei singoli brani, il desktop supporta le immagini WebP e i testi sincronizzati restano centrati e vengono cancellati tra i brani.</string>
+    <string name="changelog_270_beta">Android TV e Naviamp Connect restano in beta mentre continuano i test di compatibilità dei dispositivi, ripristino della rete e prestazioni.</string>
 </resources>

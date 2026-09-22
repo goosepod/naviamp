@@ -66,4 +66,11 @@
     <string name="settings_font_size_large_subtitle">使用更大的文字提高可读性。</string>
     <string name="description_less">收起</string>
     <string name="description_more">更多…</string>
+    <string name="changelog_270_font_sizes">可分别为“正在播放”和界面其他部分选择小号、标准或大号文字，同时保留系统无障碍缩放设置。</string>
+    <string name="changelog_270_animations">滚动标题和平滑的波形进度现在使用缓存的平台表面，从而降低 Android、iOS、macOS、Windows 和 Linux 上的 CPU 占用并提升动画流畅度。</string>
+    <string name="changelog_270_library">最近添加的专辑可以正确刷新，媒体库可按添加日期排序，并可从媒体库页面选择来源媒体库。</string>
+    <string name="changelog_270_usability">服务器支持时会自动启用 Sonic 相似度，滑动操作会等待明确的水平移动，并且 Android 发行版下载体积更小。</string>
+    <string name="changelog_270_playback">Navidrome 收听记录上报更加可靠，刷新曲目电台时会保留当前曲目、播放位置、暂停状态和历史记录。</string>
+    <string name="changelog_270_media">“参与作品”会包含曲目级艺术家署名，桌面版支持 WebP 封面，同步歌词会保持居中并在曲目切换时清除。</string>
+    <string name="changelog_270_beta">Android TV 和 Naviamp Connect 仍处于测试阶段，同时继续进行设备兼容性、网络恢复和性能测试。</string>
 </resources>

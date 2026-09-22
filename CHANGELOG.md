@@ -6,6 +6,43 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.7.0
+
+Naviamp 2.7.0 adds independent text-size controls for Now Playing and the rest of the interface. It
+also makes player animations substantially lighter and smoother across Android, iOS, macOS,
+Windows, and Linux, with improvements to library browsing, playback reporting, lyrics, and artwork.
+
+### Features
+
+- Choose Small, Standard, or Large text independently for Now Playing and the rest of the interface
+  while retaining the operating system's accessibility scale.
+
+### Improvements
+
+- Move scrolling titles and smooth waveform progress through small cached platform surfaces instead
+  of repeatedly redrawing whole windows, with platform-specific compositor support on Android,
+  iOS, macOS, Windows, and Linux.
+- Refresh Recently added albums correctly, sort the Library by date added, and choose source
+  libraries directly from the Library page.
+- Enable Sonic similarity automatically when supported, require deliberate horizontal movement for
+  row swipes, and reduce Android release download size.
+
+### Bug fixes
+
+- Make Navidrome listen reporting reliable and preserve the active track, position, pause state,
+  and history when refreshing track radio.
+- Include track-level artist credits under Appears On, display WebP artwork on desktop, and keep
+  synchronized lyrics centered and scoped to the current track.
+
+### Known issues
+
+- Android TV and Naviamp Connect remain beta while broader device compatibility, network recovery,
+  and performance testing continues.
+- The iOS artifact remains an unsigned preview; Windows and macOS packages remain without publisher
+  signing.
+
+See [full release notes](.github/releases/v2.7.0.md) for compatibility and download details.
+
 ## v2.6.0
 
 Android TV and Naviamp Connect launch as **beta** features.
