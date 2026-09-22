@@ -113,6 +113,9 @@ tasks.register<JavaExec>("playerAnimationProbe") {
     dependsOn("jvmTestClasses")
     classpath = tasks.named<Test>("jvmTest").get().classpath
     mainClass.set("app.naviamp.ui.NaviampPlayerAnimationProbeKt")
+    providers.environmentVariable("NAVIAMP_PROBE_JFR").orNull?.let { recording ->
+        jvmArgs("-XX:StartFlightRecording=filename=$recording,settings=profile,dumponexit=true")
+    }
     if (providers.environmentVariable("NAVIAMP_PROBE_COMPOSITOR").orNull == "true") {
         dependsOn(buildAnimationCompositorProbe)
         systemProperty("naviamp.probe.compositor.library", compositorProbeLibrary.get().asFile.absolutePath)

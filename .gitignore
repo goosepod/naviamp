@@ -22,6 +22,7 @@ local.properties
 apps/desktop/vendor/mpv/*/mpv
 apps/desktop/vendor/mpv/*/mpv.exe
 apps/desktop/bin/
+/core/ui/bin/
 /platforms/desktop/bin/
 /tools/genre-ontology/bin/
 /assets/

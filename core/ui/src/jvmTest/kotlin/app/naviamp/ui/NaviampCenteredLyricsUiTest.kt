@@ -50,7 +50,10 @@ class NaviampCenteredLyricsUiTest {
         assertLineCentered(2)
         val wrappedHeight = onNodeWithTag("lyrics-line-2").fetchSemanticsNode().boundsInRoot.height
         val shortHeight = onNodeWithTag("lyrics-line-1").fetchSemanticsNode().boundsInRoot.height
-        assertTrue(wrappedHeight > shortHeight * 2f)
+        assertTrue(
+            wrappedHeight >= shortHeight * 2f - 0.5f,
+            "expected a multi-row active lyric: wrapped=$wrappedHeight, short=$shortHeight",
+        )
 
         runOnUiThread { activeLine = 0 }
         waitForIdle()

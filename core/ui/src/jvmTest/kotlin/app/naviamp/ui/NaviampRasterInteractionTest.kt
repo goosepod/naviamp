@@ -99,7 +99,28 @@ class NaviampRasterInteractionTest {
         }
     }
 
-    private class RecordingPresenter : NaviampRasterPresenter {
+    @Test fun ownedPopupDoesNotReplacePresentationWhenNativeStackingKeepsItBelowThePopup() = runComposeUiTest {
+        val presenter = RecordingPresenter(contentBelowOwnedWindows = true)
+        val visible = mutableStateOf(true)
+        val overlay = mutableStateOf(false)
+        setContent {
+            NaviampRasterEnvironment(presenter, visible.value, overlay.value) {
+                BouncingTitleText("A very long title which needs scrolling", Color.White, 14,
+                    marqueeEnabled = true, modifier = Modifier.width(100.dp))
+            }
+        }
+        waitForIdle()
+        val before = presenter.presentations
+        runOnIdle { overlay.value = true }
+        waitForIdle()
+        runOnIdle { assertEquals(0, presenter.closed); assertEquals(before, presenter.presentations); overlay.value = false }
+        waitForIdle()
+        runOnIdle { assertEquals(0, presenter.closed); visible.value = false }
+        waitForIdle()
+        runOnIdle { assertEquals(1, presenter.closed) }
+    }
+
+    private class RecordingPresenter(override val contentBelowOwnedWindows: Boolean = false) : NaviampRasterPresenter {
         var offset = 0f
         var presentations = 0
         var closed = 0
