@@ -73,4 +73,5 @@
     <string name="changelog_270_playback">Navidrome 收听记录上报更加可靠，刷新曲目电台时会保留当前曲目、播放位置、暂停状态和历史记录。</string>
     <string name="changelog_270_media">“参与作品”会包含曲目级艺术家署名，桌面版支持 WebP 封面，同步歌词会保持居中并在曲目切换时清除。</string>
     <string name="changelog_270_beta">Android TV 和 Naviamp Connect 仍处于测试阶段，同时继续进行设备兼容性、网络恢复和性能测试。</string>
+    <string name="changelog_271_popups">修复了弹出菜单和对话框跳动、闪烁以及点击响应位置错误的问题。</string>
 </resources>
