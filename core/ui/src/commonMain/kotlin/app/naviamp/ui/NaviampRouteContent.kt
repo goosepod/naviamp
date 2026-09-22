@@ -441,7 +441,7 @@ internal fun HomeCollectionArtwork(
 ) {
     val artwork = when (item.artwork) {
         SharedHomeCollectionArtwork.CoverArt -> {
-            val cornerRadius = if (item.mediaKind == SharedMediaItemKind.Artist) size / 2 else 7.dp
+            val cornerRadius = mediaArtworkCornerRadius(item.mediaKind, size, 7.dp)
             NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, cornerRadius, modifier)
             return
         }
@@ -925,6 +925,7 @@ private fun HomeCollectionItemListRow(
         )
         else -> SharedMediaRow(
             item = item.mediaItem,
+            mediaKind = item.mediaKind,
             colors = colors,
             onClick = { dispatchHomeCollectionItem(item, actions, mediaActions) },
             menuItems = homeCollectionMenuItems(item, actions, mediaActions),
@@ -1246,6 +1247,7 @@ fun NaviampSearchContent(
         }
         SharedMediaRow(
             item = item,
+            mediaKind = kind,
             colors = colors,
             menuItems = mediaMenuItems(item, kind, specs),
             onClick = {
@@ -1700,6 +1702,7 @@ fun NaviampLibraryContent(
                     }
                     SharedMediaRow(
                         item = item,
+                        mediaKind = kind,
                         colors = colors,
                         menuItems = menuItems,
                         onClick = {
