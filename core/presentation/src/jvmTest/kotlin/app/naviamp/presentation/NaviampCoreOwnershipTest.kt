@@ -58,6 +58,9 @@ class NaviampCoreOwnershipTest {
         transport = UnusedTransportFactory,
         pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
         trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
+        // These fake effects are synchronous; avoid racing their queued cleanup on
+        // Dispatchers.Default when asserting composition ownership below.
+        networkDispatcher = Dispatchers.Unconfined,
         discovery = discovery, newOpaqueId = { "fixture" }, newPairingCode = { "123456" }, nowEpochMillis = { 0L },
     ))
 }
