@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">라이브러리를 선택하려면 음악 서버에 연결하세요.</string>
     <string name="library_sources_load_failed">라이브러리를 불러올 수 없습니다.</string>
     <string name="library_sources_save_failed">선택한 라이브러리를 업데이트할 수 없습니다.</string>
+    <string name="settings_font_size_title">텍스트 크기</string>
+    <string name="settings_font_size_subtitle">일반 화면과 지금 재생 중의 텍스트를 별도로 설정합니다</string>
+    <string name="settings_font_size_summary">일반: %1$s · 지금 재생 중: %2$s</string>
+    <string name="settings_font_size_general_title">일반 인터페이스</string>
+    <string name="settings_font_size_now_playing_title">지금 재생 중, 미니 플레이어, 대기열 및 가사</string>
+    <string name="settings_font_size_small">작게</string>
+    <string name="settings_font_size_small_subtitle">화면에 더 많은 내용을 표시합니다.</string>
+    <string name="settings_font_size_standard">표준</string>
+    <string name="settings_font_size_standard_subtitle">Naviamp 기본 텍스트 크기를 사용합니다.</string>
+    <string name="settings_font_size_large">크게</string>
+    <string name="settings_font_size_large_subtitle">더 큰 텍스트로 가독성을 높입니다.</string>
+    <string name="description_less">접기</string>
+    <string name="description_more">더 보기…</string>
 </resources>

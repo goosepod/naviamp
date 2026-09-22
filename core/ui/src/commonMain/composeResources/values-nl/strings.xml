@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">Maak verbinding met een muziekserver om bibliotheken te kiezen.</string>
     <string name="library_sources_load_failed">Bibliotheken konden niet worden geladen.</string>
     <string name="library_sources_save_failed">De geselecteerde bibliotheken konden niet worden bijgewerkt.</string>
+    <string name="settings_font_size_title">Tekstgrootte</string>
+    <string name="settings_font_size_subtitle">Stel tekst voor de algemene interface en Nu afgespeeld afzonderlijk in</string>
+    <string name="settings_font_size_summary">Algemeen: %1$s · Nu afgespeeld: %2$s</string>
+    <string name="settings_font_size_general_title">Algemene interface</string>
+    <string name="settings_font_size_now_playing_title">Nu afgespeeld, minispeler, wachtrij en songteksten</string>
+    <string name="settings_font_size_small">Klein</string>
+    <string name="settings_font_size_small_subtitle">Toont meer inhoud op het scherm.</string>
+    <string name="settings_font_size_standard">Standaard</string>
+    <string name="settings_font_size_standard_subtitle">Gebruikt de standaardtekstgrootte van Naviamp.</string>
+    <string name="settings_font_size_large">Groot</string>
+    <string name="settings_font_size_large_subtitle">Verbetert de leesbaarheid met grotere tekst.</string>
+    <string name="description_less">Minder</string>
+    <string name="description_more">Meer…</string>
 </resources>

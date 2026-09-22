@@ -212,6 +212,9 @@ fun NaviampTelevisionAppShell(
         }
     }
 
+    NaviampFontSizeScope(
+        fontSize = interfaceSettings.generalFontSize,
+    ) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = colors.background,
@@ -315,19 +318,23 @@ fun NaviampTelevisionAppShell(
                         },
                         label = "TV Now Playing fullscreen transition",
                     ) { fullscreen ->
-                        if (fullscreen && nowPlaying != null) TelevisionNowPlaying(
-                            nowPlaying = nowPlaying,
-                            playbackProgress = playbackProgress,
-                            colors = colors,
-                            playerColors = backgroundPlayerColors,
-                            actions = actions.nowPlayingActions,
-                            onClose = {
-                                nowPlayingPreview = true
-                                suppressedFocusActivation = NaviampTelevisionDestination.NowPlaying
-                                actions.navigationActions.onCloseNowPlaying()
-                            },
-                            onOpenSettings = { settingsOpen = true },
-                        ) else Column(modifier = Modifier.fillMaxSize()) {
+                        if (fullscreen && nowPlaying != null) {
+                            NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                TelevisionNowPlaying(
+                                    nowPlaying = nowPlaying,
+                                    playbackProgress = playbackProgress,
+                                    colors = colors,
+                                    playerColors = backgroundPlayerColors,
+                                    actions = actions.nowPlayingActions,
+                                    onClose = {
+                                        nowPlayingPreview = true
+                                        suppressedFocusActivation = NaviampTelevisionDestination.NowPlaying
+                                        actions.navigationActions.onCloseNowPlaying()
+                                    },
+                                    onOpenSettings = { settingsOpen = true },
+                                )
+                            }
+                        } else Column(modifier = Modifier.fillMaxSize()) {
                             TelevisionNavigationBar(
                                 destinations = televisionDestinations,
                                 focusDestination = navigationFocusDestination,
@@ -366,15 +373,17 @@ fun NaviampTelevisionAppShell(
                                     .padding(horizontal = 36.dp, vertical = 18.dp),
                             ) {
                                 if (nowPlayingPreview && nowPlaying != null) {
-                                    TelevisionNowPlaying(
-                                        nowPlaying = nowPlaying,
-                                        playbackProgress = playbackProgress,
-                                        colors = colors,
-                                        actions = actions.nowPlayingActions,
-                                        interactive = false,
-                                        onClose = { nowPlayingPreview = false },
-                                        onOpenSettings = { settingsOpen = true },
-                                    )
+                                    NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                        TelevisionNowPlaying(
+                                            nowPlaying = nowPlaying,
+                                            playbackProgress = playbackProgress,
+                                            colors = colors,
+                                            actions = actions.nowPlayingActions,
+                                            interactive = false,
+                                            onClose = { nowPlayingPreview = false },
+                                            onOpenSettings = { settingsOpen = true },
+                                        )
+                                    }
                                 } else {
                                     TelevisionConnectedContent(
                                         colors = colors,
@@ -400,11 +409,13 @@ fun NaviampTelevisionAppShell(
                                 }
                             }
                             if (nowPlaying != null && !nowPlayingPreview) {
-                                TelevisionMiniPlayer(
-                                    nowPlaying = nowPlaying,
-                                    colors = colors,
-                                    modifier = Modifier.padding(horizontal = 36.dp, vertical = 4.dp),
-                                )
+                                NaviampFontSizeScope(interfaceSettings.nowPlayingFontSize, interfaceSettings.generalFontSize) {
+                                    TelevisionMiniPlayer(
+                                        nowPlaying = nowPlaying,
+                                        colors = colors,
+                                        modifier = Modifier.padding(horizontal = 36.dp, vertical = 4.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -422,6 +433,7 @@ fun NaviampTelevisionAppShell(
                 }
             }
         }
+    }
     }
 }
 

@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">Hubungkan ke server musik untuk memilih pustaka.</string>
     <string name="library_sources_load_failed">Pustaka tidak dapat dimuat.</string>
     <string name="library_sources_save_failed">Pustaka yang dipilih tidak dapat diperbarui.</string>
+    <string name="settings_font_size_title">Ukuran teks</string>
+    <string name="settings_font_size_subtitle">Atur teks umum dan Sedang Diputar secara terpisah</string>
+    <string name="settings_font_size_summary">Umum: %1$s · Sedang Diputar: %2$s</string>
+    <string name="settings_font_size_general_title">Antarmuka umum</string>
+    <string name="settings_font_size_now_playing_title">Sedang Diputar, pemutar mini, antrean, dan lirik</string>
+    <string name="settings_font_size_small">Kecil</string>
+    <string name="settings_font_size_small_subtitle">Menampilkan lebih banyak konten di layar.</string>
+    <string name="settings_font_size_standard">Standar</string>
+    <string name="settings_font_size_standard_subtitle">Menggunakan ukuran teks bawaan Naviamp.</string>
+    <string name="settings_font_size_large">Besar</string>
+    <string name="settings_font_size_large_subtitle">Meningkatkan keterbacaan dengan teks lebih besar.</string>
+    <string name="description_less">Lebih sedikit</string>
+    <string name="description_more">Lainnya…</string>
 </resources>

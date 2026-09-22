@@ -53,4 +53,17 @@
     <string name="library_sources_connection_required">连接到音乐服务器以选择媒体库。</string>
     <string name="library_sources_load_failed">无法加载媒体库。</string>
     <string name="library_sources_save_failed">无法更新所选媒体库。</string>
+    <string name="settings_font_size_title">文字大小</string>
+    <string name="settings_font_size_subtitle">分别设置常规界面和正在播放的文字</string>
+    <string name="settings_font_size_summary">常规：%1$s · 正在播放：%2$s</string>
+    <string name="settings_font_size_general_title">常规界面</string>
+    <string name="settings_font_size_now_playing_title">正在播放、迷你播放器、队列和歌词</string>
+    <string name="settings_font_size_small">小</string>
+    <string name="settings_font_size_small_subtitle">在屏幕上显示更多内容。</string>
+    <string name="settings_font_size_standard">标准</string>
+    <string name="settings_font_size_standard_subtitle">使用 Naviamp 的默认文字大小。</string>
+    <string name="settings_font_size_large">大</string>
+    <string name="settings_font_size_large_subtitle">使用更大的文字提高可读性。</string>
+    <string name="description_less">收起</string>
+    <string name="description_more">更多…</string>
 </resources>
