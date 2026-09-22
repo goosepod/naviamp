@@ -178,6 +178,7 @@ internal fun TelevisionSettingsSheet(
         withFrameNanos { }
         (if (returnFocus == null) firstFocusRequester else returnFocusRequester).requestFocus()
     }
+    NaviampPopupPresence()
     Popup(
         alignment = Alignment.TopStart,
         onDismissRequest = dismissOrGoBack,
@@ -424,6 +425,7 @@ private fun TelevisionControllersSettings(
     var renameOpen by remember { mutableStateOf(false) }
     var deviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
     if (renameOpen) {
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { renameOpen = false },
             title = { Text(stringResource(Res.string.tv_name_this_device)) },

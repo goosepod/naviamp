@@ -73,4 +73,5 @@
     <string name="changelog_270_playback">O envio de reproduções ao Navidrome está mais confiável e atualizar a rádio de uma faixa preserva a faixa atual, a posição, o estado de pausa e o histórico.</string>
     <string name="changelog_270_media">A seção Participações inclui créditos de artista por faixa, o desktop aceita capas WebP e as letras sincronizadas permanecem centralizadas e são limpas entre as faixas.</string>
     <string name="changelog_270_beta">Android TV e Naviamp Connect continuam em beta enquanto prosseguem os testes de compatibilidade de dispositivos, recuperação de rede e desempenho.</string>
+    <string name="changelog_271_popups">Corrigidos os saltos, a cintilação e as respostas a cliques em locais incorretos dos menus pop-up e das caixas de diálogo.</string>
 </resources>

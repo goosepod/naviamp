@@ -650,6 +650,7 @@ internal fun TelevisionInternetRadio(
     }
 
     actionStation?.let { station ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { actionStation = null },
             title = { Text(station.item.title) },
@@ -695,6 +696,7 @@ internal fun TelevisionInternetRadio(
         )
     }
     deletingStation?.let { station ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { deletingStation = null },
             title = { Text(stringResource(Res.string.tv_delete_station)) },
@@ -2005,6 +2007,7 @@ private fun TelevisionQueueActionsDialog(
         NowPlayingItemAction.RemoveFromQueue to stringResource(Res.string.mix_remove),
         NowPlayingItemAction.StartRadio to stringResource(Res.string.tv_start_radio),
     )
+    NaviampPopupPresence()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.68f))) {
             Column(

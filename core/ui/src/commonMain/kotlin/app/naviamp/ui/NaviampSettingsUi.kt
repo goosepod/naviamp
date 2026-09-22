@@ -1416,6 +1416,7 @@ private fun KeyboardShortcutCaptureDialog(
 ) {
     val focusRequester = remember { FocusRequester() }
     var message by remember { mutableStateOf("Press a key together with at least one modifier") }
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(action.label) },
@@ -2476,6 +2477,7 @@ private fun NaviampConnectionsSettingsSection(
         }
     }
         pendingDelete?.let { connection ->
+            NaviampPopupPresence()
             AlertDialog(
                 onDismissRequest = { pendingDelete = null },
                 title = { Text(stringResource(Res.string.settings_source_delete_title)) },
@@ -2719,27 +2721,8 @@ private val DefaultNaviampLibraries = listOf(
 
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
-        title = Res.string.changelog_features,
-        entries = listOf(Res.string.changelog_270_font_sizes),
-    ),
-    NaviampChangelogSectionUi(
-        title = Res.string.changelog_improvements,
-        entries = listOf(
-            Res.string.changelog_270_animations,
-            Res.string.changelog_270_library,
-            Res.string.changelog_270_usability,
-        ),
-    ),
-    NaviampChangelogSectionUi(
         title = Res.string.changelog_bug_fixes,
-        entries = listOf(
-            Res.string.changelog_270_playback,
-            Res.string.changelog_270_media,
-        ),
-    ),
-    NaviampChangelogSectionUi(
-        title = Res.string.changelog_known_issues,
-        entries = listOf(Res.string.changelog_270_beta),
+        entries = listOf(Res.string.changelog_271_popups),
     ),
 )
 
@@ -2778,6 +2761,7 @@ private fun SharedLocalDataActions(
     }
 
     confirmAction?.let { action ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { confirmAction = null },
             title = { Text(action.title()) },
@@ -3805,6 +3789,7 @@ private fun AudioOutputSettings(
         }
     }
     if (pendingStrictCrossfadeConfirmation) {
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { pendingStrictCrossfadeConfirmation = false },
             title = { Text(stringResource(Res.string.settings_sample_rate_matching_strict_crossfade_title)) },
@@ -4199,6 +4184,7 @@ private fun GaplessCrossfadeSettings(
             }
         }
         pendingCrossfadeDurationForStrict?.let { seconds ->
+            NaviampPopupPresence()
             AlertDialog(
                 onDismissRequest = { pendingCrossfadeDurationForStrict = null },
                 title = { Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_title)) },
@@ -5162,6 +5148,7 @@ private fun EqualizerSettings(
         }
     }
     if (profileDialogOpen) {
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { profileDialogOpen = false },
             title = {
@@ -5352,6 +5339,7 @@ private fun DownloadQualitySettings(
         }
     }
     pendingDownloadQualitySettings?.let { pendingSettings ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { pendingDownloadQualitySettings = null },
             title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },
@@ -5394,6 +5382,7 @@ private fun DownloadQualityChangeDialog(
     onKeepExisting: () -> Unit,
     onRedownload: () -> Unit,
 ) {
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },

@@ -179,13 +179,26 @@ jobs:
           scripts/require-android-signing.sh
           ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :apps:android:stageReleaseArtifacts
 
-      - name: Upload Android release artifacts
+      - name: Verify Android public and publishing artifacts
+        run: |
+          test "$(find apps/android/build/release-artifacts -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
+          test "$(find apps/android/build/release-artifacts -maxdepth 1 -type f -name '*.aab' | wc -l)" -eq 1
+          test "$(find apps/android/build/release-artifacts -maxdepth 1 -type f -name '*-mapping.txt' | wc -l)" -eq 1
+          test "$(find apps/android/build/release-artifacts -maxdepth 1 -type f -name '*-native-debug-symbols.zip' | wc -l)" -eq 1
+
+      - name: Upload public Android release artifact
         uses: actions/upload-artifact@v7
         with:
           name: naviamp-android
           if-no-files-found: error
+          path: apps/android/build/release-artifacts/*.apk
+
+      - name: Retain Android publishing and diagnostic artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-publishing-support
+          if-no-files-found: error
           path: |
-            apps/android/build/release-artifacts/*.apk
             apps/android/build/release-artifacts/*.aab
             apps/android/build/release-artifacts/*-mapping.txt
             apps/android/build/release-artifacts/*-native-debug-symbols.zip

@@ -18,6 +18,14 @@ Keep animation policy and behavior in common code; native adapters only execute 
 presentation operations. Add reproducible probes and shared behavior tests, and keep a performance
 fix open until the real application meets its documented budget.
 
+## Artwork Shapes
+
+Artist portraits must be circular in every shared UI presentation, including list rows, grids,
+Home sections, search results, and placeholders. Album artwork keeps a square silhouette (existing
+small corner rounding is allowed). Pass the media kind to shared artwork/row components; do not
+infer image shape from a URL, label, or the page containing it. Use the shared artwork shape policy
+when adding a media presentation.
+
 ## Translatable User-Facing Strings
 
 Every new user-facing string must be defined in the project's string resource files, including

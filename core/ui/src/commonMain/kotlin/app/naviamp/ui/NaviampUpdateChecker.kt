@@ -72,6 +72,7 @@ fun NaviampApplicationUpdateEffect(
         if (!enabled) availableUpdate = null
     }
     availableUpdate?.let { update ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { availableUpdate = null },
             title = { Text("Naviamp Update Available") },

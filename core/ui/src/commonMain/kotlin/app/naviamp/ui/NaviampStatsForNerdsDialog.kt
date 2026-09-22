@@ -22,6 +22,7 @@ fun NaviampStatsForNerdsDialog(
     diagnostics: NaviampDiagnosticsUi,
     onDismissRequest: () -> Unit,
 ) {
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Stats for Nerds") },

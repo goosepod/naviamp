@@ -32,7 +32,13 @@ class AndroidNativeBoundaryInstrumentedTest {
         assertFalse(first.contains(secret))
         assertNotEquals(first, second, "Keystore encryption must use a fresh randomized IV")
         assertEquals(listOf(secret, secret), listOf(protector.reveal(first), protector.reveal(second)))
-        assertTrue(protector.reveal("${first.dropLast(1)}x") == null, "Damaged ciphertext must fail closed")
+        // Change a full Base64 sextet, not the last character (which may already be x
+        // or contain unused padding bits). The prefix and encoding remain valid.
+        val payloadStart = first.indexOf(':') + 1
+        val replacement = if (first[payloadStart] == 'A') 'B' else 'A'
+        val damaged = first.replaceRange(payloadStart, payloadStart + 1, replacement.toString())
+        assertNotEquals(first, damaged)
+        assertTrue(protector.reveal(damaged) == null, "Damaged ciphertext must fail closed")
     }
 
     @Test

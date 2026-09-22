@@ -73,4 +73,5 @@
     <string name="changelog_270_playback">Navidrome-luisterrapportage is betrouwbaarder en het vernieuwen van trackradio behoudt de huidige track, positie, pauzestatus en geschiedenis.</string>
     <string name="changelog_270_media">Verschenen op bevat artiestcredits per track, desktop ondersteunt WebP-afbeeldingen en gesynchroniseerde songteksten blijven gecentreerd en worden tussen tracks gewist.</string>
     <string name="changelog_270_beta">Android TV en Naviamp Connect blijven bèta terwijl tests voor apparaatcompatibiliteit, netwerkherstel en prestaties doorgaan.</string>
+    <string name="changelog_271_popups">Verholpen dat pop-upmenu’s en dialoogvensters versprongen, flikkerden en op de verkeerde plek op klikken reageerden.</string>
 </resources>

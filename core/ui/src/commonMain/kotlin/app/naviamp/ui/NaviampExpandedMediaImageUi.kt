@@ -68,6 +68,7 @@ fun ExpandedMediaImageDialog(
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
 ) {
+    NaviampPopupPresence()
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
