@@ -2144,6 +2144,7 @@ fun InternetRadioContent(
     }
 
     stationBeingDeleted?.let { station ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { stationBeingDeleted = null },
             title = { Text("Delete station") },
@@ -2181,6 +2182,8 @@ internal fun InternetRadioStationDialog(
     var name by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.item?.title.orEmpty()) }
     var streamUrl by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.streamUrl.orEmpty()) }
     var homePageUrl by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.homePageUrl.orEmpty()) }
+
+    NaviampPopupPresence()
 
     AlertDialog(
         onDismissRequest = onDismiss,

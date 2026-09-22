@@ -46,6 +46,8 @@ fun PlaybackProfileDialog(
         mutableStateOf(normalized.crossfadeDurationSeconds ?: DefaultPlaybackProfileCrossfadeSeconds)
     }
 
+    NaviampPopupPresence()
+
     AlertDialog(
         onDismissRequest = onDismissRequest,
         containerColor = colors.controlSurface,

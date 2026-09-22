@@ -120,6 +120,8 @@ fun SmartPlaylistBuilderDialog(
         previewLoading = false
     }
 
+    NaviampPopupPresence()
+
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title) },
@@ -293,6 +295,7 @@ fun SmartPlaylistBuilderDialog(
     )
     if (passwordPromptOpen) {
         val pendingDefinition = pendingPasswordDefinition
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = {
                 if (!passwordSaving) {
@@ -397,6 +400,8 @@ internal fun SmartPlaylistLoadPasswordDialog(
     var loading by remember(playlist.id) { mutableStateOf(false) }
     var errorMessage by remember(playlist.id) { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+
+    NaviampPopupPresence()
 
     AlertDialog(
         onDismissRequest = { if (!loading) onDismissRequest() },
@@ -970,6 +975,7 @@ private fun SmartPlaylistGenreTypeahead(
             properties = PopupProperties(focusable = false),
             modifier = Modifier.heightIn(max = 280.dp),
         ) {
+            NaviampPopupPresence()
             if (suggestions.isEmpty()) {
                 DropdownMenuItem(
                     text = { Text("No matches", color = colors.secondaryText) },
@@ -1060,6 +1066,7 @@ private fun <T> SmartPlaylistDropdown(
             properties = PopupProperties(focusable = false),
             modifier = Modifier.heightIn(max = 280.dp),
         ) {
+            NaviampPopupPresence()
             if (visibleOptions.isEmpty()) {
                 DropdownMenuItem(
                     text = { Text("No matches", color = colors.secondaryText) },

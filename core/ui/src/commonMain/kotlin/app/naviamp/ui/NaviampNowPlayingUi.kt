@@ -2569,6 +2569,7 @@ fun TrackDetailsDialog(
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
 ) {
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Track details", fontWeight = FontWeight.Bold) },
@@ -2622,6 +2623,7 @@ fun ConfirmActionDialog(
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
 ) {
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title, fontWeight = FontWeight.Bold) },
@@ -2652,6 +2654,8 @@ fun AddToPlaylistDialog(
     var createNew by remember(playlists) { mutableStateOf(playlists.isEmpty()) }
     var playlistName by remember { mutableStateOf("") }
     val playlistListState = rememberLazyListState()
+
+    NaviampPopupPresence()
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -2796,6 +2800,7 @@ fun TrackPlaylistMembershipDialog(
             androidx.compose.runtime.withFrameNanos { }
             nameFocusRequester.requestFocus()
         }
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { if (!busy) creatingPlaylist = false },
             title = { Text(stringResource(Res.string.playlist_membership_new_playlist)) },
@@ -2841,6 +2846,7 @@ fun TrackPlaylistMembershipDialog(
         )
         return
     }
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = { if (!membership.saving) onDismissRequest() },
         title = { Text(stringResource(Res.string.playlist_membership_title), fontWeight = FontWeight.Bold) },
@@ -2953,6 +2959,8 @@ fun SaveQueueAsPlaylistDialog(
 ) {
     var playlistName by remember { mutableStateOf("") }
 
+    NaviampPopupPresence()
+
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title, fontWeight = FontWeight.Bold) },
@@ -2993,6 +3001,7 @@ fun SleepTimerDialog(
     onTimerSelected: (SleepTimerRequest) -> Unit,
     onCancelTimer: () -> Unit,
 ) {
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Sleep timer", fontWeight = FontWeight.Bold) },
@@ -3177,7 +3186,7 @@ private fun NowPlayingItemList(
                         Box {
                             NaviampTooltip("More actions", colors) {
                                 IconButton(
-                                    onClick = { menuExpanded = true },
+                                    onClick = { menuExpanded = !menuExpanded },
                                     modifier = Modifier.size(28.dp),
                                 ) {
                                     Icon(

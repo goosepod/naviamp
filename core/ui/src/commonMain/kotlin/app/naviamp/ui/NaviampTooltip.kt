@@ -64,6 +64,7 @@ fun NaviampTooltip(text: String, colors: NaviampColors, content: @Composable () 
     Box(Modifier.hoverable(anchor, enabled = enabled)) {
         content()
         if (state.visible) {
+            NaviampPopupPresence()
             Popup(
                 alignment = Alignment.TopCenter,
                 offset = IntOffset(0, with(LocalDensity.current) { (-34).dp.roundToPx() }),

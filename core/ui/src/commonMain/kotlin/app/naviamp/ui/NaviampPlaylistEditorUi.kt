@@ -138,6 +138,8 @@ fun StandardPlaylistEditorDialog(
         }
     }
 
+    NaviampPopupPresence()
+
     AlertDialog(
         onDismissRequest = { if (!saving) onDismissRequest() },
         title = { Text("Edit $playlistName") },

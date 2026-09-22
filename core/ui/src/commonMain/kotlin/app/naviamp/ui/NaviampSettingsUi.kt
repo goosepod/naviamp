@@ -1416,6 +1416,7 @@ private fun KeyboardShortcutCaptureDialog(
 ) {
     val focusRequester = remember { FocusRequester() }
     var message by remember { mutableStateOf("Press a key together with at least one modifier") }
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(action.label) },
@@ -2476,6 +2477,7 @@ private fun NaviampConnectionsSettingsSection(
         }
     }
         pendingDelete?.let { connection ->
+            NaviampPopupPresence()
             AlertDialog(
                 onDismissRequest = { pendingDelete = null },
                 title = { Text(stringResource(Res.string.settings_source_delete_title)) },
@@ -2778,6 +2780,7 @@ private fun SharedLocalDataActions(
     }
 
     confirmAction?.let { action ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { confirmAction = null },
             title = { Text(action.title()) },
@@ -3805,6 +3808,7 @@ private fun AudioOutputSettings(
         }
     }
     if (pendingStrictCrossfadeConfirmation) {
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { pendingStrictCrossfadeConfirmation = false },
             title = { Text(stringResource(Res.string.settings_sample_rate_matching_strict_crossfade_title)) },
@@ -4199,6 +4203,7 @@ private fun GaplessCrossfadeSettings(
             }
         }
         pendingCrossfadeDurationForStrict?.let { seconds ->
+            NaviampPopupPresence()
             AlertDialog(
                 onDismissRequest = { pendingCrossfadeDurationForStrict = null },
                 title = { Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_title)) },
@@ -5162,6 +5167,7 @@ private fun EqualizerSettings(
         }
     }
     if (profileDialogOpen) {
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { profileDialogOpen = false },
             title = {
@@ -5352,6 +5358,7 @@ private fun DownloadQualitySettings(
         }
     }
     pendingDownloadQualitySettings?.let { pendingSettings ->
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { pendingDownloadQualitySettings = null },
             title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },
@@ -5394,6 +5401,7 @@ private fun DownloadQualityChangeDialog(
     onKeepExisting: () -> Unit,
     onRedownload: () -> Unit,
 ) {
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },
