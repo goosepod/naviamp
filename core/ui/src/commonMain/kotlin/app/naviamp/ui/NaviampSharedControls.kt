@@ -482,7 +482,10 @@ fun NaviampDropdownMenu(
         tonalElevation = 0.dp,
         shadowElevation = 8.dp,
         modifier = modifier.widthIn(min = 220.dp),
-        content = content,
+        content = {
+            NaviampPopupPresence()
+            content()
+        },
     )
 }
 
@@ -600,7 +603,7 @@ fun NaviampRowOverflowMenu(
     Box(modifier = modifier) {
         NaviampTooltip("More actions", colors) {
             IconButton(
-                onClick = { expanded = true },
+                onClick = { expanded = !expanded },
                 modifier = Modifier
                     .size(buttonSize)
                     .clip(RoundedCornerShape(buttonSize / 2))

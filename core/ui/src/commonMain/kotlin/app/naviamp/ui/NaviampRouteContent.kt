@@ -779,7 +779,7 @@ internal fun FavoriteArtistSortMenu(
     var expanded by remember { mutableStateOf(false) }
     Box {
         TextButton(
-            onClick = { expanded = true },
+            onClick = { expanded = !expanded },
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             colors = ButtonDefaults.textButtonColors(contentColor = colors.secondaryText),
         ) {
@@ -1984,6 +1984,7 @@ fun NaviampDownloadsContent(
         )
     }
     if (confirmDeleteAll) {
+        NaviampPopupPresence()
         AlertDialog(
             onDismissRequest = { confirmDeleteAll = false },
             title = { Text("Delete all downloads?") },

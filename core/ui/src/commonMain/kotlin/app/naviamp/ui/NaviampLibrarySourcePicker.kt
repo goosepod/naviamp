@@ -49,6 +49,7 @@ internal fun NaviampLibrarySourcePicker(
             NaviampLibrarySourcePickerError.SaveFailed -> Res.string.library_sources_save_failed
         })
     }
+    NaviampPopupPresence()
     AlertDialog(
         modifier = Modifier.testTag(LibrarySourcePickerTestTag),
         onDismissRequest = { if (!picker.loading && !picker.saving) actions.onCancelSources() },

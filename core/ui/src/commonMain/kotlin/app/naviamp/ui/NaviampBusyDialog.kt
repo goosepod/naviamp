@@ -16,6 +16,7 @@ import androidx.compose.ui.window.Dialog
 /** Shared modal progress surface for Core-owned operations that may take noticeable time. */
 @Composable
 fun NaviampBusyDialog(message: String) {
+    NaviampPopupPresence()
     Dialog(onDismissRequest = {}) {
         Surface(
             shape = MaterialTheme.shapes.large,

@@ -23,11 +23,10 @@ import org.jetbrains.skia.RRect
 import org.jetbrains.skiko.SkiaLayer
 import org.jetbrains.skiko.SkikoRenderDelegate
 
-/** Native window stacking keeps menus and dialogs above independently presented raster regions. */
+/** Popups share the main canvas; shared overlay ownership handles native raster stacking. */
 fun configureNaviampDesktopRasterLayers() {
-    val os = System.getProperty("os.name")
-    if ((os.contains("Mac") || os.startsWith("Windows") || os.contains("Linux")) && System.getProperty("compose.layers.type") == null) {
-        System.setProperty("compose.layers.type", "WINDOW")
+    if (System.getProperty("compose.layers.type") == null) {
+        System.setProperty("compose.layers.type", "SAME_CANVAS")
     }
 }
 
@@ -39,11 +38,11 @@ fun NaviampDesktopRasterHost(window: Window, content: @Composable () -> Unit) {
         val mac = System.getProperty("os.name").contains("Mac")
         val windows = System.getProperty("os.name").startsWith("Windows")
         val linux = System.getProperty("os.name").contains("Linux")
-        if (!forceSkia && mac && System.getProperty("compose.layers.type") == "WINDOW" && NativeMetalVisualizerHost.libraryAvailable()) {
+        if (!forceSkia && mac && NativeMetalVisualizerHost.libraryAvailable()) {
             MacRasterPresenter(window)
         } else if (forceSkia) DesktopSkiaRasterPresenter(window)
-        else if (windows && System.getProperty("compose.layers.type") == "WINDOW" && NativeOpenGlVisualizerHost.libraryAvailable()) WindowsRasterPresenter(window)
-        else if (linux && System.getProperty("compose.layers.type") == "WINDOW" && LinuxRasterPresenter.libraryAvailable()) LinuxRasterPresenter(window)
+        else if (windows && NativeOpenGlVisualizerHost.libraryAvailable()) WindowsRasterPresenter(window)
+        else if (linux && LinuxRasterPresenter.libraryAvailable()) LinuxRasterPresenter(window)
         else null
     }
     var visible by remember(window) { mutableStateOf(window.isShowing) }
