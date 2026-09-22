@@ -66,4 +66,11 @@
     <string name="settings_font_size_large_subtitle">يحسن القراءة بنص أكبر.</string>
     <string name="description_less">أقل</string>
     <string name="description_more">المزيد…</string>
+    <string name="changelog_270_font_sizes">اختر نصًا صغيرًا أو قياسيًا أو كبيرًا بشكل مستقل لشاشة التشغيل الآن ولبقية الواجهة، مع الحفاظ على مقياس تسهيلات الاستخدام في النظام.</string>
+    <string name="changelog_270_animations">تستخدم العناوين المتحركة وتقدم شكل الموجة السلس الآن أسطحًا مخزنة مؤقتًا خاصة بالنظام لتقليل استهلاك المعالج وتحسين سلاسة الحركة على Android وiOS وmacOS وWindows وLinux.</string>
+    <string name="changelog_270_library">يتم تحديث الألبومات المضافة حديثًا بصورة صحيحة، ويمكن فرز المكتبة حسب تاريخ الإضافة واختيار مكتبات المصدر من صفحة المكتبة.</string>
+    <string name="changelog_270_usability">يتم تشغيل تشابه Sonic تلقائيًا عند دعمه، وتنتظر إجراءات السحب حركة أفقية مقصودة، كما أصبحت تنزيلات إصدار Android أصغر.</string>
+    <string name="changelog_270_playback">أصبح الإبلاغ عن الاستماع في Navidrome أكثر موثوقية، ويحافظ تحديث راديو المقطع على المقطع الحالي والموضع وحالة الإيقاف المؤقت والسجل.</string>
+    <string name="changelog_270_media">يتضمن قسم «يظهر في» نسب الفنان على مستوى المقاطع، ويدعم سطح المكتب صور WebP، وتبقى الكلمات المتزامنة في المنتصف وتُمسح بين المقاطع.</string>
+    <string name="changelog_270_beta">لا يزال Android TV وNaviamp Connect في المرحلة التجريبية مع استمرار اختبارات توافق الأجهزة واستعادة الشبكة والأداء.</string>
 </resources>
