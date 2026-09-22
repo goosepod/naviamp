@@ -20,6 +20,9 @@ val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionN
 val desktopExecutableDescription = "Naviamp"
 val desktopNativePlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(providers.provider(::desktopNativePlatformId))
+val desktopComposeRuntime = desktopNativePlatform.map { platform ->
+    "org.jetbrains.compose.desktop:desktop-jvm-$platform:${libs.versions.desktopComposeRuntime.get()}"
+}
 val generatedDesktopNativeAppResources =
     rootProject.layout.projectDirectory.dir("platforms/desktop/build/generated/desktopNativeAppResources")
 val desktopPackagedAppName = desktopNativePlatform.map { platform ->
@@ -60,7 +63,8 @@ kotlin {
                 implementation(project(":platforms:desktop"))
                 implementation(compose.runtime)
                 implementation(compose.ui)
-                implementation(compose.desktop.currentOs)
+                // 1.12 fixes WINDOW-layer popup coordinates without raising Android's SDK/AGP floor.
+                implementation(desktopComposeRuntime.get())
                 implementation(libs.compose.material3)
                 implementation(libs.kotlinx.coroutines.core)
             }
