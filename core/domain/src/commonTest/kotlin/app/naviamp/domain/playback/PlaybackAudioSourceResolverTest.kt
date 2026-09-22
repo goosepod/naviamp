@@ -140,6 +140,45 @@ class PlaybackAudioSourceResolverTest {
     }
 
     @Test
+    fun requestedQualityOnlySkipsMismatchedCachedAudio() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            audioAssets = fakeAudioAssets(
+                downloaded = null,
+                cached = null,
+                cachedForTrack = "cached-mobile-transcode",
+            ),
+            allowMismatchedCachedAudio = false,
+        )
+
+        assertNull(plan.localAudio)
+        assertEquals(PlaybackSource.ProviderStream, plan.source)
+        assertEquals(StreamQuality.Original, plan.target.providerStreamRequest.quality)
+    }
+
+    @Test
+    fun requestedQualityOnlyStillUsesExactCachedAudio() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Transcoded(AudioCodec.Opus, 320),
+            audioCachingEnabled = true,
+            audioAssets = fakeAudioAssets(
+                downloaded = null,
+                cached = "cached-wifi-transcode",
+                cachedForTrack = "cached-mobile-transcode",
+            ),
+            allowMismatchedCachedAudio = false,
+        )
+
+        assertEquals(localAudio("cached-wifi-transcode"), plan.localAudio)
+        assertEquals(PlaybackSource.CachedFile, plan.source)
+    }
+
+    @Test
     fun emptyRepositoryFallsBackToProviderStream() = runTest {
         val plan = resolvePlaybackAudioSource(
             sourceId = "source",

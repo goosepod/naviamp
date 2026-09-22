@@ -103,6 +103,7 @@ suspend fun resolvePlaybackAudioSource(
     audioCachingEnabled: Boolean,
     audioAssets: PlaybackAudioAssetRepository,
     downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
+    allowMismatchedCachedAudio: Boolean = true,
     startPositionSeconds: Double? = null,
 ): PlaybackAudioSourcePlan =
     resolvePlaybackAudioSource(
@@ -112,6 +113,7 @@ suspend fun resolvePlaybackAudioSource(
         audioCachingEnabled = audioCachingEnabled,
         startPositionSeconds = startPositionSeconds,
         downloadedTrackPlayback = downloadedTrackPlayback,
+        allowMismatchedCachedAudio = allowMismatchedCachedAudio,
         downloadedAudio = { id, trackId, _ -> audioAssets.downloadedAudio(id, trackId) },
         cachedAudio = audioAssets::cachedAudio,
         cachedAudioForTrack = audioAssets::cachedAudio,
@@ -123,6 +125,7 @@ suspend fun resolvePlaybackAudioSource(
     quality: StreamQuality,
     audioCachingEnabled: Boolean,
     downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
+    allowMismatchedCachedAudio: Boolean = true,
     startPositionSeconds: Double? = null,
     downloadedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
     cachedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
@@ -141,7 +144,10 @@ suspend fun resolvePlaybackAudioSource(
 
     val cached = sourceId
         ?.takeIf { audioCachingEnabled }
-        ?.let { id -> cachedAudio(id, track.id, quality) ?: cachedAudioForTrack(id, track.id) }
+        ?.let { id ->
+            cachedAudio(id, track.id, quality)
+                ?: cachedAudioForTrack(id, track.id).takeIf { allowMismatchedCachedAudio }
+        }
     if (cached != null) {
         return playbackAudioSourcePlan(
             track = track,

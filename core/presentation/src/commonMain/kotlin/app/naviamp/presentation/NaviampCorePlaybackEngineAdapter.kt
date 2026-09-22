@@ -60,6 +60,7 @@ import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.effectiveLyricsDisplayTimingPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
 import app.naviamp.domain.settings.effectiveSonicSimilarityEnabled
+import app.naviamp.domain.settings.allowMismatchedCachedAudioForNetwork
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.playback.resolveAgainst
 import app.naviamp.domain.audio.AudioMetadataSidecarService
@@ -356,7 +357,8 @@ class NaviampCorePlaybackEngineAdapter(
             val playbackSettings = effectivePlaybackSettingsForTrack(queue.currentIndex)
             val transitionSettings = effectivePlaybackSettingsForTransition()
             applyProfileEngineSettings(playbackSettings, transitionSettings)
-            val requestedQuality = recoveryQuality ?: playbackSettings.streamQualityForNetwork(isMobileData())
+            val mobileData = isMobileData()
+            val requestedQuality = recoveryQuality ?: playbackSettings.streamQualityForNetwork(mobileData)
             val quality = provider?.capabilities?.effectiveStreamingQuality(requestedQuality)
                 ?: requestedQuality
             val audioSource = if (externalStreamUrl != null) {
@@ -382,6 +384,7 @@ class NaviampCorePlaybackEngineAdapter(
                     audioCachingEnabled = cacheSettings().audioCachingEnabled,
                     audioAssets = audioAssets,
                     downloadedTrackPlayback = playbackSettings.downloadedTrackPlayback,
+                    allowMismatchedCachedAudio = playbackSettings.allowMismatchedCachedAudioForNetwork(mobileData),
                     startPositionSeconds = startPositionSeconds,
                 ).withAudioStreamOffsetSupport(provider?.capabilities?.supportsAudioStreamOffset == true)
             }
@@ -656,16 +659,18 @@ class NaviampCorePlaybackEngineAdapter(
         val nextIndex = queue.nextIndex(repeatMode, repeatTrack = true) ?: return
         val next = queue.tracks.getOrNull(nextIndex) ?: return
         val playbackSettings = effectivePlaybackSettingsForTrack(nextIndex)
+        val mobileData = isMobileData()
         val audioSource = resolvePlaybackAudioSource(
             sourceId = activeSourceId(),
             track = next,
             quality = provider.capabilities.effectiveStreamingQuality(
-                playbackSettings.streamQualityForNetwork(isMobileData()),
+                playbackSettings.streamQualityForNetwork(mobileData),
             ),
             startPositionSeconds = null,
             audioCachingEnabled = cacheSettings().audioCachingEnabled,
             audioAssets = audioAssets,
             downloadedTrackPlayback = playbackSettings.downloadedTrackPlayback,
+            allowMismatchedCachedAudio = playbackSettings.allowMismatchedCachedAudioForNetwork(mobileData),
         )
         val streamUrl = runCatching {
             audioSource.playbackStreamUrl { target -> provider.streamUrl(target.providerStreamRequest) }

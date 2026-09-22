@@ -10,6 +10,24 @@ import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
     @Test
+    fun cachedAudioUpgradeRoundTripsAndOlderExportsDefaultOff() {
+        val document = buildSettingsSyncDocument(
+            SettingsSyncLocalSnapshot(
+                playback = PlaybackSettings(upgradeCachedAudioOnWifi = true),
+            ),
+            1L,
+            "test",
+        )
+
+        val imported = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.playback
+        assertTrue(imported.upgradeCachedAudioOnWifi)
+        assertFalse(
+            SettingsSyncJson.decode("""{"preferences":{"playback":{}}}""")
+                .preferences.playback.upgradeCachedAudioOnWifi,
+        )
+    }
+
+    @Test
     fun everyFontSizeCombinationSurvivesExportNormalizationAndIndependentReset() {
         for (general in InterfaceFontSize.entries) for (player in InterfaceFontSize.entries) {
             val settings = InterfaceSettings(generalFontSize = general, nowPlayingFontSize = player)
