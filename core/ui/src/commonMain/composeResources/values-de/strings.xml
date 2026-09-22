@@ -73,4 +73,5 @@
     <string name="changelog_270_playback">Die Navidrome-Wiedergabemeldung ist zuverlässiger. Beim Aktualisieren des Track-Radios bleiben aktueller Titel, Position, Pausenstatus und Verlauf erhalten.</string>
     <string name="changelog_270_media">„Erscheint auf“ berücksichtigt Künstlernennungen einzelner Titel, Desktop unterstützt WebP-Cover und synchronisierte Liedtexte bleiben zentriert und werden zwischen Titeln geleert.</string>
     <string name="changelog_270_beta">Android TV und Naviamp Connect bleiben Beta, während Gerätekompatibilität, Netzwerkwiederherstellung und Leistung weiter getestet werden.</string>
+    <string name="changelog_271_popups">Behoben: Popup-Menüs und Dialoge sprangen, flackerten und reagierten an der falschen Stelle auf Klicks.</string>
 </resources>

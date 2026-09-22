@@ -2719,27 +2719,8 @@ private val DefaultNaviampLibraries = listOf(
 
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
-        title = Res.string.changelog_features,
-        entries = listOf(Res.string.changelog_270_font_sizes),
-    ),
-    NaviampChangelogSectionUi(
-        title = Res.string.changelog_improvements,
-        entries = listOf(
-            Res.string.changelog_270_animations,
-            Res.string.changelog_270_library,
-            Res.string.changelog_270_usability,
-        ),
-    ),
-    NaviampChangelogSectionUi(
         title = Res.string.changelog_bug_fixes,
-        entries = listOf(
-            Res.string.changelog_270_playback,
-            Res.string.changelog_270_media,
-        ),
-    ),
-    NaviampChangelogSectionUi(
-        title = Res.string.changelog_known_issues,
-        entries = listOf(Res.string.changelog_270_beta),
+        entries = listOf(Res.string.changelog_271_popups),
     ),
 )
 
