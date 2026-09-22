@@ -88,6 +88,12 @@ jobs:
         with:
           packages: platform-tools
 
+      - name: Install Linux desktop headers
+        if: needs.changes.outputs.run_full == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev
+
       - name: Install Android build packages
         if: needs.changes.outputs.run_full == 'true'
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
@@ -294,7 +300,7 @@ jobs:
           java-version: "21"
 
       - name: Install native test dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libsecret-tools xvfb
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libsecret-tools xcompmgr xvfb
 
       - name: Configure headless ALSA output
         run: |
@@ -307,9 +313,13 @@ jobs:
       - name: Measure isolated Linux animation surfaces
         run: |
           mkdir -p build
-          xvfb-run -a env NAVIAMP_PROBE_INTEGRATED=true \
-            ./gradlew -Pnaviamp.bass.platform=linux-x64 :core:ui:playerAnimationProbe --console=plain \
-            | tee build/linux-animation-probe.txt
+          xvfb-run -a bash -c '
+            xcompmgr -a &
+            compositor_pid=$!
+            trap "kill $compositor_pid" EXIT
+            env NAVIAMP_PROBE_INTEGRATED=true NAVIAMP_PROBE_VERIFY=true \
+              ./gradlew -Pnaviamp.bass.platform=linux-x64 :core:ui:playerAnimationProbe --console=plain
+          ' | tee build/linux-animation-probe.txt
 
       - name: Upload test reports
         if: always()

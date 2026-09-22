@@ -10,7 +10,9 @@ surfaces without redrawing Compose. The initial Windows/Linux implementation ret
 fallback by default; the isolated Skia presenter required an opt-in environment variable. Windows
 measurements later showed that opt-in was expensive. See the
 [Windows DirectComposition follow-up](windows-raster-compositor-2026-09-19.md) for the correction
-and measured replacement. Linux acceptance remains outside that Windows follow-up.
+and measured replacement. The
+[Linux X11 follow-up](linux-raster-compositor-2026-09-21.md) records the corresponding production
+fix, redraw verification, and remaining accelerated packaged-app acceptance.
 
 The macOS app passed playback, full/split transitions, menu and dialog layering, clipping,
 accessibility inspection, and restored-surface checks. A first synchronous AWT/AppKit bridge could
@@ -92,6 +94,11 @@ Every state recorded zero parent-root draws, zero sibling draws, and zero Androi
 Two screenshots 750 ms apart also verified that the cached marquee pixels actually moved. Android
 therefore pays for small SurfaceFlinger geometry transactions while avoiding the original whole-app
 Compose redraw.
+
+The Linux follow-up replaces the missing production presenter with cached ARGB X11 child windows.
+Visible llvmpipe and Xvfb diagnostics measured approximately 0.2–1.5% process CPU with actual
+marquee and waveform motion, shared waveform input, stable popup transitions, and zero parent
+frames. Accelerated packaged-app acceptance remains open under issue #116.
 
 ## Reproduce the probe
 
