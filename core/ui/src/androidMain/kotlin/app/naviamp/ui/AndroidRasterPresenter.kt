@@ -148,6 +148,14 @@ private class AndroidRasterRegion(
             override fun surfaceCreated(holder: SurfaceHolder) {
                 attached = true
                 hostReady = true
+                // Current Android does not present a manually parented child hierarchy until
+                // the SurfaceView's own buffer queue has latched at least one frame.
+                val canvas = holder.surface.lockHardwareCanvas()
+                try {
+                    canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+                } finally {
+                    holder.surface.unlockCanvasAndPost(canvas)
+                }
                 updateBuffers()
                 needsUpdate = true
                 ready()
