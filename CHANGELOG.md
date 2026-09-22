@@ -22,8 +22,8 @@ Windows, and Linux, with improvements to library browsing, playback reporting, l
 - Move scrolling titles and smooth waveform progress through small cached platform surfaces instead
   of repeatedly redrawing whole windows, with platform-specific compositor support on Android,
   iOS, macOS, Windows, and Linux.
-- Refresh Recently added albums correctly, sort the Library by date added, and choose source
-  libraries directly from the Library page.
+- Refresh Recently added albums correctly and sort the Library by date added.
+- Move source-library selection out of connection settings and directly into the Library page.
 - Enable Sonic similarity automatically when supported, require deliberate horizontal movement for
   row swipes, and reduce Android release download size.
 
