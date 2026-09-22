@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
+val desktopComposeRuntime =
+    "org.jetbrains.compose.desktop:desktop-jvm-${desktopNativePlatformId()}:${libs.versions.desktopComposeRuntime.get()}"
 val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true"
 
 plugins {
@@ -57,8 +59,12 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
+        jvmMain.dependencies {
+            // Compile JVM Skia calls against the same ABI packaged by the Desktop 1.12 runtime.
+            implementation(desktopComposeRuntime)
+        }
         jvmTest.dependencies {
-            implementation(compose.desktop.currentOs)
+            implementation(desktopComposeRuntime)
             implementation("org.jetbrains.compose.ui:ui-test:$composeVersion")
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.kotlin.test)
@@ -128,4 +134,23 @@ tasks.register<JavaExec>("playerAnimationProbe") {
         dependsOn(buildAnimationCompositorProbe)
         systemProperty("naviamp.probe.compositor.library", compositorProbeLibrary.get().asFile.absolutePath)
     }
+}
+
+fun desktopNativePlatformId(): String {
+    val os = System.getProperty("os.name").lowercase().let { name ->
+        when {
+            name.contains("mac") || name.contains("darwin") -> "macos"
+            name.contains("win") -> "windows"
+            name.contains("linux") -> "linux"
+            else -> name.filter(Char::isLetterOrDigit).ifBlank { "unknown" }
+        }
+    }
+    val architecture = System.getProperty("os.arch").lowercase().let { name ->
+        when (name) {
+            "aarch64", "arm64" -> "arm64"
+            "x86_64", "amd64" -> "x64"
+            else -> name.filter(Char::isLetterOrDigit).ifBlank { "unknown" }
+        }
+    }
+    return "$os-$architecture"
 }
