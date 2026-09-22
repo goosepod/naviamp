@@ -813,6 +813,7 @@ fun SharedMediaRow(
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
     modifier: Modifier = Modifier,
+    mediaKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
 ) {
     Row(
         modifier = modifier
@@ -831,7 +832,12 @@ fun SharedMediaRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         val coverUrls = listOfNotNull(item.coverArtUrl).ifEmpty { item.coverArtUrls }
-        MultiCoverArt(colors = colors, covers = coverUrls, size = coverArtSize, cornerRadius = coverArtCornerRadius)
+        MultiCoverArt(
+            colors = colors,
+            covers = coverUrls,
+            size = coverArtSize,
+            cornerRadius = mediaArtworkCornerRadius(mediaKind, coverArtSize, coverArtCornerRadius),
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(item.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(
