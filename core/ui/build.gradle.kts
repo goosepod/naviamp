@@ -69,6 +69,8 @@ android {
     compileSdk = 36
     defaultConfig {
         minSdk = 26
+        // Keep the standalone native-boundary fixture on the pre-enforced-edge-to-edge model.
+        targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         if (animationProbe) {
             testInstrumentationRunnerArguments["class"] = listOf(

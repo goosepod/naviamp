@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import android.app.Activity
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.PorterDuff
@@ -9,6 +10,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.view.Choreographer
 import android.view.SurfaceControl
+import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
@@ -103,11 +105,13 @@ private class AndroidRasterRegion(
     private val removed: (AndroidRasterRegion) -> Unit,
 ) : NaviampRasterRegion {
     private data class PresentedLayer(
-        val view: SurfaceView,
+        val control: SurfaceControl,
+        val surface: Surface?,
         var spec: NaviampRasterLayer,
+        var hardwareBitmap: Bitmap? = null,
+        var bufferChanged: Boolean = false,
         val source: AndroidRect = AndroidRect(),
         val destination: AndroidRect = AndroidRect(),
-        var ready: Boolean = false,
         var visible: Boolean = false,
         var ordered: Boolean = false,
     )
@@ -117,6 +121,17 @@ private class AndroidRasterRegion(
         isFocusable = false
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
     }
+    // SurfaceView owns this parent and may reset its geometry at any time. Only our children
+    // receive compositor transactions. View movement belongs to SurfaceView's render-thread
+    // position tracking, which synchronizes its parent transform with the window buffer.
+    private val host = SurfaceView(activity).apply {
+        setZOrderOnTop(true)
+        holder.setFormat(PixelFormat.TRANSLUCENT)
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    }
+    private var hostReady = false
     private var requestedLayers = emptyList<NaviampRasterLayer>()
     private var layers = emptyList<PresentedLayer>()
     private val retiredLayers = mutableListOf<PresentedLayer>()
@@ -127,6 +142,36 @@ private class AndroidRasterRegion(
     private var clip = Rect.Zero
     private var running = false
     private var needsUpdate = false
+
+    init {
+        host.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                attached = true
+                hostReady = true
+                // Current Android does not present a manually parented child hierarchy until
+                // the SurfaceView's own buffer queue has latched at least one frame.
+                val canvas = holder.surface.lockHardwareCanvas()
+                try {
+                    canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+                } finally {
+                    holder.surface.unlockCanvasAndPost(canvas)
+                }
+                updateBuffers()
+                needsUpdate = true
+                ready()
+            }
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+                needsUpdate = true
+                ready()
+            }
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                attached = false
+                hostReady = false
+                releaseLayers()
+            }
+        })
+        root.addView(host, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    }
 
     override fun whenReady(callback: () -> Unit) { ready = callback }
 
@@ -139,7 +184,7 @@ private class AndroidRasterRegion(
         }
         val contentChanged = requestedLayers != layers
         val layoutChanged = this.bounds != bounds || this.clip != clip
-        if (!contentChanged && !layoutChanged && !needsUpdate && this.layers.all { it.ready }) return true
+        if (!contentChanged && !layoutChanged && !needsUpdate && hostReady) return true
         if (contentChanged) startedAt = SystemClock.uptimeMillis()
         requestedLayers = layers
         this.bounds = bounds
@@ -147,13 +192,14 @@ private class AndroidRasterRegion(
         updateBuffers()
         running = layers.any { it.translation != null || it.revealMotion != null }
         needsUpdate = true
-        return this.layers.isNotEmpty() && this.layers.all { it.ready }
+        if (!hostReady || this.layers.isEmpty()) return false
+        return true
     }
 
     override fun synchronizeDraw() {
-        if (!needsUpdate || layers.isEmpty() || layers.any { !it.ready }) return
-        // The SurfaceView render thread owns attachment. Each transaction contains complete
-        // current geometry, so layout/image handoffs can commit without waiting on a
+        if (!needsUpdate || !hostReady || layers.isEmpty()) return
+        // The SurfaceView render thread owns parent movement. Each child transaction contains
+        // complete current geometry, so layout/image handoffs can commit without waiting on a
         // root draw that some Android compositors never deliver.
         SurfaceControl.Transaction().use { transaction ->
             updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
@@ -164,6 +210,7 @@ private class AndroidRasterRegion(
     }
 
     private fun updateBuffers() {
+        if (!hostReady) return
         if (layers.size == requestedLayers.size && layers.zip(requestedLayers).all { (old, new) -> old.spec.image === new.image }) {
             layers.zip(requestedLayers).forEach { (old, new) -> old.spec = new }
             return
@@ -175,41 +222,35 @@ private class AndroidRasterRegion(
                 it.spec.image.width == bitmap.width && it.spec.image.height == bitmap.height
             }
             if (reusable != null) {
-                if (reusable.spec.image !== spec.image && reusable.ready) upload(reusable.view.holder, spec)
+                if (reusable.spec.image !== spec.image) upload(reusable, spec)
                 reusable.spec = spec
                 return@mapIndexed reusable
             }
-            lateinit var layer: PresentedLayer
-            val view = SurfaceView(activity).apply {
-                setZOrderOnTop(true)
-                holder.setFormat(PixelFormat.TRANSLUCENT)
-                isClickable = false
-                isFocusable = false
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            }
-            layer = PresentedLayer(view, spec)
-            view.holder.addCallback(object : SurfaceHolder.Callback {
-                override fun surfaceCreated(holder: SurfaceHolder) {
-                    layer.ready = true
-                    upload(holder, layer.spec)
-                    attached = true
-                    needsUpdate = true
-                    ready()
-                }
-                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-                    needsUpdate = true
-                    ready()
-                }
-                override fun surfaceDestroyed(holder: SurfaceHolder) { layer.ready = false }
-            })
-            root.addView(view, FrameLayout.LayoutParams(bitmap.width.coerceAtLeast(1), bitmap.height.coerceAtLeast(1)))
+            val control = SurfaceControl.Builder().setName("Naviamp cached raster")
+                .setParent(host.surfaceControl)
+                .setBufferSize(bitmap.width.coerceAtLeast(1), bitmap.height.coerceAtLeast(1))
+                .setFormat(PixelFormat.TRANSLUCENT).build()
+            val layer = PresentedLayer(
+                control = control,
+                surface = if (Build.VERSION.SDK_INT >= 34) null else Surface(control),
+                spec = spec,
+            )
+            upload(layer, spec)
             layer
         }
         retiredLayers += previous.filter { old -> layers.none { it === old } }
     }
 
-    private fun upload(holder: SurfaceHolder, spec: NaviampRasterLayer) {
-        val surface = holder.surface
+    private fun upload(layer: PresentedLayer, spec: NaviampRasterLayer) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            layer.hardwareBitmap?.recycle()
+            layer.hardwareBitmap = requireNotNull(
+                spec.image.asAndroidBitmap().copy(Bitmap.Config.HARDWARE, false),
+            ) { "Android could not allocate a hardware raster buffer" }
+            layer.bufferChanged = true
+            return
+        }
+        val surface = requireNotNull(layer.surface)
         val canvas = surface.lockHardwareCanvas()
         try {
             canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
@@ -220,13 +261,21 @@ private class AndroidRasterRegion(
     private fun releaseLayers() {
         val released = layers + retiredLayers
         if (released.isEmpty()) return
-        released.forEach { root.removeView(it.view) }
+        SurfaceControl.Transaction().use { transaction ->
+            released.forEach { if (it.control.isValid) transaction.reparent(it.control, null) }
+            transaction.apply()
+        }
+        released.forEach {
+            it.surface?.release()
+            it.hardwareBitmap?.recycle()
+            it.control.release()
+        }
         retiredLayers.clear()
         layers = emptyList()
     }
 
-    fun isAnimating(): Boolean = running && attached && layers.all { it.ready }
-    fun hasReadySurface(): Boolean = needsUpdate && attached && layers.isNotEmpty() && layers.all { it.ready }
+    fun isAnimating(): Boolean = running && attached && hostReady
+    fun hasReadySurface(): Boolean = needsUpdate && attached && hostReady && layers.isNotEmpty()
 
     fun appendUpdate(transaction: SurfaceControl.Transaction): Boolean {
         if (!attached || needsUpdate || !running) return false
@@ -243,14 +292,15 @@ private class AndroidRasterRegion(
     private fun updateSurfaces(transaction: SurfaceControl.Transaction, elapsed: Long): Boolean {
         if (Build.VERSION.SDK_INT < 29) return false
         var changed = retiredLayers.isNotEmpty()
-        val retired = retiredLayers.toList()
-        retired.forEach {
-            if (it.view.surfaceControl.isValid) transaction.setVisibility(it.view.surfaceControl, false)
+        retiredLayers.forEach {
+            if (it.control.isValid) transaction.reparent(it.control, null)
+            it.surface?.release()
+            it.hardwareBitmap?.recycle()
+            it.control.release()
         }
         retiredLayers.clear()
-        if (retired.isNotEmpty()) root.post { retired.forEach { root.removeView(it.view) } }
         layers.forEachIndexed { index, layer ->
-                if (!layer.ready || !layer.view.surfaceControl.isValid) return@forEachIndexed
+                if (!layer.control.isValid) return@forEachIndexed
                 val spec = layer.spec
                 val dx = spec.translation?.valueAt(elapsed) ?: 0f
                 val imageLeft = bounds.left + spec.origin.x + dx
@@ -267,7 +317,7 @@ private class AndroidRasterRegion(
                 }
                 if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) {
                     if (layer.visible) {
-                        transaction.setVisibility(layer.view.surfaceControl, false)
+                        transaction.setVisibility(layer.control, false)
                         layer.visible = false
                         changed = true
                     }
@@ -282,27 +332,33 @@ private class AndroidRasterRegion(
                     ceil(visibleRight - bounds.left).toInt(), ceil(visibleBottom - bounds.top).toInt(),
                 )
                 if (!layer.visible) {
-                    transaction.setVisibility(layer.view.surfaceControl, true)
+                    transaction.setVisibility(layer.control, true)
                     layer.visible = true
                 }
                 if (!layer.ordered) {
-                    transaction.setLayer(layer.view.surfaceControl, index)
+                    // Keep cached children above the host SurfaceView's own buffer. Android 15
+                    // resolves a layer-zero tie in favor of the parent, hiding child pixels.
+                    transaction.setLayer(layer.control, index + 1)
                     layer.ordered = true
+                }
+                if (Build.VERSION.SDK_INT >= 34 && layer.bufferChanged) {
+                    transaction.setBuffer(layer.control, requireNotNull(layer.hardwareBitmap).hardwareBuffer)
+                    layer.bufferChanged = false
                 }
                 if (Build.VERSION.SDK_INT >= 33) {
                     val scaleX = layer.destination.width().toFloat() / layer.source.width()
                     val scaleY = layer.destination.height().toFloat() / layer.source.height()
-                    transaction.setCrop(layer.view.surfaceControl, layer.source)
-                        .setBufferTransform(layer.view.surfaceControl, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
-                        .setScale(layer.view.surfaceControl, scaleX, scaleY)
+                    transaction.setCrop(layer.control, layer.source)
+                        .setBufferTransform(layer.control, SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
+                        .setScale(layer.control, scaleX, scaleY)
                         .setPosition(
-                            layer.view.surfaceControl,
+                            layer.control,
                             layer.destination.left - layer.source.left * scaleX,
                             layer.destination.top - layer.source.top * scaleY,
                         )
                 } else {
                     @Suppress("DEPRECATION")
-                    transaction.setGeometry(layer.view.surfaceControl, layer.source, layer.destination,
+                    transaction.setGeometry(layer.control, layer.source, layer.destination,
                         SurfaceControl.BUFFER_TRANSFORM_IDENTITY)
                 }
                 changed = true
