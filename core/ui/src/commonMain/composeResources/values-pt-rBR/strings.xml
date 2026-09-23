@@ -17,6 +17,9 @@
     <string name="settings_now_playing_split_background_opacity">Opacidade do fundo da visualização dividida</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Dispositivo de reprodução: %1$s</string>
+    <string name="now_playing_from_playlist">Da playlist: %1$s</string>
+    <string name="now_playing_from_album">Do álbum: %1$s</string>
+    <string name="now_playing_from_work">Da obra: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Data de adição do álbum</string>
     <string name="smart_playlist_field_album_date_modified">Data de modificação do álbum</string>
     <string name="smart_playlist_field_album_duration">Duração do álbum</string>

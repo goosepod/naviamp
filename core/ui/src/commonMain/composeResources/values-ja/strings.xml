@@ -17,6 +17,9 @@
     <string name="settings_now_playing_split_background_opacity">分割表示の背景の不透明度</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">再生デバイス: %1$s</string>
+    <string name="now_playing_from_playlist">プレイリストから再生: %1$s</string>
+    <string name="now_playing_from_album">アルバムから再生: %1$s</string>
+    <string name="now_playing_from_work">作品から再生: %1$s</string>
     <string name="smart_playlist_field_album_date_added">アルバム追加日</string>
     <string name="smart_playlist_field_album_date_modified">アルバム更新日</string>
     <string name="smart_playlist_field_album_duration">アルバムの長さ</string>

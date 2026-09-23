@@ -11,6 +11,7 @@ import app.naviamp.domain.connect.NaviampConnectPause
 import app.naviamp.domain.connect.NaviampConnectPlay
 import app.naviamp.domain.connect.NaviampConnectMoveQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectQueueOccurrence
+import app.naviamp.domain.connect.NaviampConnectQueueGroup
 import app.naviamp.domain.connect.NaviampConnectQueueSnapshot
 import app.naviamp.domain.connect.NaviampConnectRemoveQueueOccurrence
 import app.naviamp.domain.connect.NaviampConnectRequestSnapshot
@@ -21,6 +22,8 @@ import app.naviamp.domain.connect.NaviampConnectSetFavorite
 import app.naviamp.domain.connect.NaviampConnectSetRepeat
 import app.naviamp.domain.connect.NaviampConnectSetShuffle
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.ui.NowPlayingQueueContextUi
 import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingItemAction
@@ -59,6 +62,28 @@ class NaviampCoreConnectRemoteNowPlayingTest {
         val empty = snapshot().copy(queue = NaviampConnectQueueSnapshot())
 
         assertNull(empty.toRemoteNowPlayingUiOrNull("Living Room TV"))
+    }
+
+    @Test
+    fun remoteNowPlayingUsesTheCurrentQueueGroupContext() {
+        val group = NaviampConnectQueueGroup(
+            groupId = "internal-id",
+            label = "Road Trip",
+            startIndex = 0,
+            endIndexExclusive = 2,
+            targetType = PlaybackProfileTargetType.Playlist,
+            targetId = "provider-id",
+        )
+        val remote = snapshot().copy(queue = snapshot().queue.copy(groups = listOf(group)))
+
+        assertEquals(
+            NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
+            remote.toRemoteNowPlayingUi("TV").queueContext,
+        )
+        assertNull(remote.copy(queue = remote.queue.copy(currentIndex = 2, playNextCount = 0))
+            .toRemoteNowPlayingUi("TV").queueContext)
+        assertNull(remote.copy(queue = remote.queue.copy(groups = listOf(group.copy(label = null))))
+            .toRemoteNowPlayingUi("TV").queueContext)
     }
 
     @Test

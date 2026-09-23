@@ -1542,6 +1542,16 @@ internal fun TelevisionNowPlaying(
                         if (album.isNotBlank()) {
                             Text(album, color = colors.mutedText, fontSize = 18.sp, maxLines = 1)
                         }
+                        nowPlaying.queueContext?.let { context ->
+                            Text(
+                                nowPlayingQueueContextLabel(context),
+                                color = colors.secondaryText,
+                                fontSize = 17.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.testTag("tv-now-playing-queue-context"),
+                            )
+                        }
                         if (nowPlaying.audioInfo.isNotBlank()) {
                             Text(nowPlaying.audioInfo, color = colors.mutedText, fontSize = 15.sp)
                         }

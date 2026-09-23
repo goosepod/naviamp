@@ -886,6 +886,9 @@
     <string name="settings_now_playing_split_background_opacity">Split-view background opacity</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Playback device: %1$s</string>
+    <string name="now_playing_from_playlist">Playing from playlist: %1$s</string>
+    <string name="now_playing_from_album">Playing from album: %1$s</string>
+    <string name="now_playing_from_work">Playing from work: %1$s</string>
     <string name="connect_pairing_code">Pairing code</string>
     <string name="connect_devices_description">Control and pair Naviamp devices on this network</string>
     <string name="connect_setup_timed_out">Device setup timed out. Check the playback device, then retry.</string>

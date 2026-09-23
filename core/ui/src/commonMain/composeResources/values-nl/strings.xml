@@ -17,6 +17,9 @@
     <string name="settings_now_playing_split_background_opacity">Dekking van achtergrond in gesplitste weergave</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Afspeelapparaat: %1$s</string>
+    <string name="now_playing_from_playlist">Uit afspeellijst: %1$s</string>
+    <string name="now_playing_from_album">Uit album: %1$s</string>
+    <string name="now_playing_from_work">Uit werk: %1$s</string>
     <string name="smart_playlist_field_album_date_added">Datum album toegevoegd</string>
     <string name="smart_playlist_field_album_date_modified">Datum album gewijzigd</string>
     <string name="smart_playlist_field_album_duration">Albumduur</string>

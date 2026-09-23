@@ -17,6 +17,9 @@
     <string name="settings_now_playing_split_background_opacity">Opacité de l’arrière-plan de la vue fractionnée</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Appareil de lecture : %1$s</string>
+    <string name="now_playing_from_playlist">Depuis la playlist : %1$s</string>
+    <string name="now_playing_from_album">Depuis l’album : %1$s</string>
+    <string name="now_playing_from_work">Depuis l’œuvre : %1$s</string>
     <string name="smart_playlist_field_album_date_added">Date d’ajout de l’album</string>
     <string name="smart_playlist_field_album_date_modified">Date de modification de l’album</string>
     <string name="smart_playlist_field_album_duration">Durée de l’album</string>

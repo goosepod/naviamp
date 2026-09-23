@@ -17,6 +17,9 @@
     <string name="settings_now_playing_split_background_opacity">स्प्लिट व्यू पृष्ठभूमि की अपारदर्शिता</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">प्लेबैक डिवाइस: %1$s</string>
+    <string name="now_playing_from_playlist">प्लेलिस्ट से: %1$s</string>
+    <string name="now_playing_from_album">एल्बम से: %1$s</string>
+    <string name="now_playing_from_work">रचना से: %1$s</string>
     <string name="smart_playlist_field_album_date_added">एल्बम जोड़े जाने की तारीख</string>
     <string name="smart_playlist_field_album_date_modified">एल्बम संशोधन तारीख</string>
     <string name="smart_playlist_field_album_duration">एल्बम अवधि</string>
