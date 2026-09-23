@@ -193,4 +193,6 @@
     <string name="changelog_270_media">Sekcja Występuje na uwzględnia wykonawców przypisanych do utworów, wersja komputerowa obsługuje grafiki WebP, a zsynchronizowane teksty pozostają wyśrodkowane i są czyszczone między utworami.</string>
     <string name="changelog_270_beta">Android TV i Naviamp Connect pozostają w wersji beta podczas dalszych testów zgodności urządzeń, odzyskiwania sieci i wydajności.</string>
     <string name="changelog_271_popups">Naprawiono przeskakiwanie i migotanie menu podręcznych oraz okien dialogowych, a także reagowanie na kliknięcia w niewłaściwym miejscu.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Poprawiaj jakość bufora audio przez Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">W razie potrzeby zastępuj dźwięk o niższej jakości w buforze bieżącą jakością Wi-Fi.</string>
 </resources>

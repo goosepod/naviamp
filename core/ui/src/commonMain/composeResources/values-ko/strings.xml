@@ -74,4 +74,6 @@
     <string name="changelog_270_media">참여 앨범에 트랙별 아티스트 크레딧이 포함되고, 데스크톱에서 WebP 아트워크를 지원하며, 동기화 가사는 가운데를 유지하고 트랙 사이에서 지워집니다.</string>
     <string name="changelog_270_beta">기기 호환성, 네트워크 복구와 성능 테스트가 계속되는 동안 Android TV와 Naviamp Connect는 베타로 유지됩니다.</string>
     <string name="changelog_271_popups">팝업 메뉴와 대화상자가 갑자기 이동하거나 깜박이고 잘못된 위치에서 클릭에 반응하던 문제를 수정했습니다.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi에서 캐시된 오디오 음질 향상</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">필요할 때 저음질 캐시 오디오를 현재 Wi-Fi 음질로 업그레이드합니다.</string>
 </resources>

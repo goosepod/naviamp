@@ -74,4 +74,6 @@
     <string name="changelog_270_media">‘इसमें भी’ में ट्रैक-स्तरीय कलाकार क्रेडिट शामिल हैं, डेस्कटॉप WebP आर्टवर्क का समर्थन करता है और सिंक्रनाइज़ किए गए बोल केंद्रित रहते हैं तथा ट्रैक बदलने पर साफ़ हो जाते हैं।</string>
     <string name="changelog_270_beta">डिवाइस संगतता, नेटवर्क रिकवरी और प्रदर्शन परीक्षण जारी रहने के दौरान Android TV और Naviamp Connect बीटा में बने हुए हैं।</string>
     <string name="changelog_271_popups">पॉपअप मेन्यू और संवादों का अचानक खिसकना, झिलमिलाना और गलत स्थान पर क्लिक का जवाब देना ठीक किया गया।</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi पर कैश किए गए ऑडियो की गुणवत्ता बढ़ाएँ</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">ज़रूरत पड़ने पर कम गुणवत्ता वाले कैश किए गए ऑडियो को मौजूदा Wi-Fi गुणवत्ता में अपग्रेड करें।</string>
 </resources>

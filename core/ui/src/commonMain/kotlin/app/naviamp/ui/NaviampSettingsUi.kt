@@ -5214,7 +5214,7 @@ private fun EqualizerSettingsPage.subtitle(): String =
     }
 
 @Composable
-private fun StreamingQualitySettings(
+internal fun StreamingQualitySettings(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     showMobileNetworkQuality: Boolean,
@@ -5260,16 +5260,16 @@ private fun StreamingQualitySettings(
         ) {
             selectedPage = StreamingQualitySettingsPage.Mobile
         }
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = playbackSettings.upgradeCachedAudioOnWifi,
-            label = stringResource(Res.string.settings_quality_upgrade_cache_wifi_title),
-            subtitle = stringResource(Res.string.settings_quality_upgrade_cache_wifi_subtitle),
-            onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(playbackSettings.copy(upgradeCachedAudioOnWifi = enabled))
-            },
-        )
     }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.upgradeCachedAudioOnWifi,
+        label = stringResource(Res.string.settings_quality_upgrade_cache_wifi_title),
+        subtitle = stringResource(Res.string.settings_quality_upgrade_cache_wifi_subtitle),
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(playbackSettings.copy(upgradeCachedAudioOnWifi = enabled))
+        },
+    )
 }
 
 private enum class StreamingQualitySettingsPage(

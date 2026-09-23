@@ -64,6 +64,48 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun wifiUpgradePreservesCurrentTrackAndUsesCachedFallbackAfterFailure() = runTest {
+        val provider = FakeCoreMediaProvider(supportsStreamingTranscode = true)
+        val engine = RecordingPlaybackEngine()
+        val lowQuality = StreamQuality.Transcoded(AudioCodec.Opus, 128)
+        var mobile = true
+        val assets = object : PlaybackAudioAssetRepository {
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) = null
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
+            override suspend fun cachedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
+            override suspend fun cachedAudio(sourceId: String, trackId: TrackId) =
+                PlaybackLocalAudio("/cache/${trackId.value}", "file:///cache/${trackId.value}", quality = lowQuality)
+        }
+        val writes = mutableListOf<StreamQuality>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(upgradeCachedAudioOnWifi = true) },
+            activeSourceId = { "source" }, isMobileData = { mobile }, audioAssets = assets,
+            cacheSettings = { CacheSettings(audioCachingEnabled = true, audioPrefetchDepth = 2) },
+            cacheAudio = { _, _, _, quality -> writes += quality; error("Upgrade interrupted") },
+        )
+        val next = provider.track.copy(id = TrackId("next"))
+        val queue = PlaybackQueue(listOf(provider.track, next), 0)
+        adapter.playQueueSelection(queue, 0)
+        advanceUntilIdle()
+        assertEquals("file:///cache/core-track", engine.request?.url)
+        assertTrue(writes.isEmpty())
+        mobile = false
+        advanceUntilIdle()
+        assertEquals(1, engine.requests.size)
+        adapter.playQueueSelection(queue, 1)
+        advanceUntilIdle()
+        assertTrue(writes.isNotEmpty())
+        assertTrue(writes.all { it == StreamQuality.Original })
+        assertEquals(StreamQuality.Original, adapter.playbackQuality)
+        assertEquals("file:///cache/next", engine.request?.fallbackUrl)
+        engine.emitDownloadFallback()
+        assertEquals(PlaybackSource.CachedFile, adapter.playbackSource)
+        assertEquals(lowQuality, adapter.playbackQuality)
+    }
+
+    @Test
     fun unsupportedProviderFormatIsRetriedAsACompatibleServerTranscode() = runTest {
         val provider = FakeCoreMediaProvider(supportsStreamingTranscode = true)
         val engine = RecordingPlaybackEngine()

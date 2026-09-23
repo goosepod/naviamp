@@ -74,4 +74,6 @@
     <string name="changelog_270_media">Apparaît sur inclut les crédits d’artiste au niveau des titres, le bureau prend en charge les images WebP et les paroles synchronisées restent centrées et sont effacées entre les titres.</string>
     <string name="changelog_270_beta">Android TV et Naviamp Connect restent en bêta pendant la poursuite des tests de compatibilité des appareils, de récupération réseau et de performances.</string>
     <string name="changelog_271_popups">Correction des menus contextuels et des boîtes de dialogue qui se déplaçaient, clignotaient et réagissaient aux clics au mauvais endroit.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Améliorer le cache audio en Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Améliorer au besoin les fichiers en cache de qualité inférieure selon la qualité Wi-Fi actuelle.</string>
 </resources>

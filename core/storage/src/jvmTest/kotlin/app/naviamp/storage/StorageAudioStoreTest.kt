@@ -21,6 +21,31 @@ import kotlin.test.assertNull
 
 class StorageAudioStoreTest {
     @Test
+    fun interruptedCacheUpgradePreservesTheExistingQualityAndFile() = runBlocking {
+        var receivedBytes = 0
+        val bytes = object : AudioByteStore {
+            override suspend fun writeAudioBytes(fileName: String, errorMessage: String,
+                writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes {
+                check(writeBytes(AudioByteWriter { _, count -> receivedBytes += count }))
+                return StoredAudioBytes("/cache/$fileName", receivedBytes.toLong())
+            }
+            override fun deleteAudioBytes(filePath: String) = Unit
+        }
+        fixture(fileExists = { true }, byteStore = bytes).use { fixture ->
+            fixture.insertCached("/cache/mobile.opus", "transcoded:Opus:128")
+            assertFailsWith<IllegalStateException> {
+                fixture.store.cacheAudioTrack("source", AudioTestProvider("partial"),
+                    Track(id = TrackId("track"), title = "Track", artistName = "Artist", albumTitle = "Album",
+                        durationSeconds = 120, coverArtId = null, audioInfo = null, replayGain = null,
+                        favoritedAtIso8601 = null), StreamQuality.Original)
+            }
+            assertEquals("/cache/mobile.opus", fixture.store.cachedAudioFile("source", TrackId("track"))?.filePath)
+            assertEquals(1L, fixture.queries.audioCacheCount().executeAsOne())
+            assertEquals(16, receivedBytes)
+        }
+    }
+
+    @Test
     fun missingCacheFileRepairsTheOwnedDatabaseRow() = runBlocking {
         fixture(fileExists = { false }).use { fixture ->
             fixture.insertCached("/cache/missing.mp3")
@@ -170,11 +195,11 @@ private class StorageAudioStoreFixture(
     val queries: NaviampStorageQueries,
     val store: StorageAudioStore,
 ) : AutoCloseable {
-    fun insertCached(path: String) {
+    fun insertCached(path: String, qualityKey: String = "original") {
         queries.upsertCachedAudio(
             source_id = "source",
             remote_track_id = "track",
-            quality_key = "original",
+            quality_key = qualityKey,
             file_path = path,
             size_bytes = 12L,
             content_type = "audio/mpeg",

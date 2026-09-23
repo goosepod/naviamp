@@ -37,6 +37,7 @@ import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.fallbackPlaybackUrl
+import app.naviamp.domain.playback.resolvedForPlaybackUrl
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.cachedPlaybackAudioSourcePlan
 import app.naviamp.domain.playback.providerPlaybackAudioSourcePlan
@@ -361,7 +362,7 @@ class NaviampCorePlaybackEngineAdapter(
             val requestedQuality = recoveryQuality ?: playbackSettings.streamQualityForNetwork(mobileData)
             val quality = provider?.capabilities?.effectiveStreamingQuality(requestedQuality)
                 ?: requestedQuality
-            val audioSource = if (externalStreamUrl != null) {
+            val plannedAudioSource = if (externalStreamUrl != null) {
                 null
             } else if (recoveryQuality != null) {
                 providerPlaybackAudioSourcePlan(
@@ -389,7 +390,7 @@ class NaviampCorePlaybackEngineAdapter(
                 ).withAudioStreamOffsetSupport(provider?.capabilities?.supportsAudioStreamOffset == true)
             }
             val streamUrl = externalStreamUrl ?: runCatching {
-                requireNotNull(audioSource).playbackStreamUrl { target ->
+                requireNotNull(plannedAudioSource).playbackStreamUrl { target ->
                     provider?.streamUrl(target.providerStreamRequest)
                         ?: throw IllegalStateException("Connect to the music server to stream this track.")
                 }
@@ -401,6 +402,7 @@ class NaviampCorePlaybackEngineAdapter(
                 }
                 return@launch
             }
+            val audioSource = plannedAudioSource?.resolvedForPlaybackUrl(streamUrl)
             if (requestGeneration != generation) return@launch
             if (audioSource == null) {
                 publishPlaybackSource(PlaybackSource.ProviderStream, null)
@@ -441,7 +443,7 @@ class NaviampCorePlaybackEngineAdapter(
                     {
                         if (requestGeneration == generation) {
                             publishPlaybackSource(
-                                PlaybackSource.DownloadedFile,
+                                audioSource.fallbackSource,
                                 fallback.quality ?: quality,
                             )
                         }
@@ -591,7 +593,16 @@ class NaviampCorePlaybackEngineAdapter(
                     requestGeneration == generation && activePrefetchGeneration == prefetchGeneration
                 },
                 cacheAudio = { track ->
-                    cacheAudio(work.sourceId, work.provider, track, work.quality)
+                    val plan = resolvePlaybackAudioSource(
+                        sourceId = work.sourceId,
+                        track = track,
+                        quality = work.quality,
+                        audioCachingEnabled = true,
+                        audioAssets = audioAssets,
+                        downloadedTrackPlayback = settings().downloadedTrackPlayback,
+                        allowMismatchedCachedAudio = settings().allowMismatchedCachedAudioForNetwork(isMobileData()),
+                    )
+                    plan.localAudio ?: cacheAudio(work.sourceId, work.provider, track, work.quality)
                 },
                 prepareSidecars = { track, cachedAudio ->
                     preparePrefetchedSidecars(
@@ -683,6 +694,7 @@ class NaviampCorePlaybackEngineAdapter(
             track = next,
             playbackSource = audioSource.source,
             streamUrl = streamUrl,
+            fallbackStreamUrl = audioSource.fallbackPlaybackUrl(),
             replayGainMode = playbackSettings.replayGainMode,
             replayGainPreampDb = playbackSettings.replayGainPreampDb,
             replayGain = next.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },

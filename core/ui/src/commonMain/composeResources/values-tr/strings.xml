@@ -74,4 +74,6 @@
     <string name="changelog_270_media">Yer Aldığı Albümler parça düzeyindeki sanatçı kredilerini içeriyor, masaüstü WebP görsellerini destekliyor ve eşzamanlı şarkı sözleri ortalanıp parçalar arasında temizleniyor.</string>
     <string name="changelog_270_beta">Cihaz uyumluluğu, ağ kurtarma ve performans testleri sürerken Android TV ve Naviamp Connect beta olarak kalıyor.</string>
     <string name="changelog_271_popups">Açılır menü ve iletişim kutularının yer değiştirmesi, titremesi ve yanlış konumdaki tıklamalara yanıt vermesi düzeltildi.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi üzerinden önbellekteki sesi iyileştir</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Gerektiğinde düşük kaliteli önbellek sesini mevcut Wi-Fi kalitesine yükseltir.</string>
 </resources>

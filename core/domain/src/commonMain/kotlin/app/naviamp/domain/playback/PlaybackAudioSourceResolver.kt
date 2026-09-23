@@ -18,6 +18,7 @@ data class PlaybackAudioSourcePlan(
     val fallbackLocalAudio: PlaybackLocalAudio? = null,
     val source: PlaybackSource,
     val target: PlaybackTargetPlan,
+    val fallbackSource: PlaybackSource = PlaybackSource.DownloadedFile,
 ) {
     val hasLocalAudio: Boolean = localAudio != null || fallbackLocalAudio != null
     val effectiveQuality: StreamQuality
@@ -75,6 +76,17 @@ suspend fun PlaybackAudioSourcePlan.playbackStreamUrl(
 fun PlaybackAudioSourcePlan.fallbackPlaybackUrl(
     localAudioUrl: (PlaybackLocalAudio) -> String = { it.uri },
 ): String? = fallbackLocalAudio?.let(localAudioUrl)
+
+fun PlaybackAudioSourcePlan.resolvedForPlaybackUrl(url: String): PlaybackAudioSourcePlan {
+    val fallback = fallbackLocalAudio?.takeIf { it.uri == url && localAudio == null } ?: return this
+    return copy(
+        localAudio = fallback,
+        fallbackLocalAudio = null,
+        source = fallbackSource,
+        target = target.copy(engineStartPositionSeconds =
+            target.providerStreamRequest.startPositionSeconds ?: target.engineStartPositionSeconds),
+    )
+}
 
 fun emptyPlaybackAudioAssetRepository(): PlaybackAudioAssetRepository =
     object : PlaybackAudioAssetRepository {
@@ -146,9 +158,9 @@ suspend fun resolvePlaybackAudioSource(
         ?.takeIf { audioCachingEnabled }
         ?.let { id ->
             cachedAudio(id, track.id, quality)
-                ?: cachedAudioForTrack(id, track.id).takeIf { allowMismatchedCachedAudio }
+                ?: cachedAudioForTrack(id, track.id)
         }
-    if (cached != null) {
+    if (cached != null && (allowMismatchedCachedAudio || !quality.upgradesCachedAudio(cached.quality))) {
         return playbackAudioSourcePlan(
             track = track,
             quality = quality,
@@ -158,16 +170,26 @@ suspend fun resolvePlaybackAudioSource(
         )
     }
 
+    val fallback = downloaded.takeIf {
+        downloadedTrackPlayback == DownloadedTrackPlayback.PreferServer
+    } ?: cached
     return playbackAudioSourcePlan(
         track = track,
         quality = quality,
         startPositionSeconds = startPositionSeconds,
         localAudio = null,
-        fallbackLocalAudio = downloaded.takeIf {
-            downloadedTrackPlayback == DownloadedTrackPlayback.PreferServer
-        },
+        fallbackLocalAudio = fallback,
         source = if (audioCachingEnabled) PlaybackSource.ProviderStream else PlaybackSource.ProviderStreamCacheDisabled,
-    )
+    ).copy(fallbackSource = if (fallback === cached) PlaybackSource.CachedFile else PlaybackSource.DownloadedFile)
+}
+
+/** Only known upgrades replace cached audio; codec bitrates are not directly comparable. */
+fun StreamQuality.upgradesCachedAudio(cached: StreamQuality?): Boolean = when {
+    cached == null || cached == this || cached == StreamQuality.Original -> false
+    this == StreamQuality.Original -> true
+    this is StreamQuality.Transcoded && cached is StreamQuality.Transcoded ->
+        codec == cached.codec && bitrateKbps > cached.bitrateKbps
+    else -> false
 }
 
 fun cachedPlaybackAudioSourcePlan(

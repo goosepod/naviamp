@@ -150,6 +150,7 @@ class PlaybackAudioSourceResolverTest {
                 downloaded = null,
                 cached = null,
                 cachedForTrack = "cached-mobile-transcode",
+                cachedQuality = StreamQuality.Transcoded(AudioCodec.Opus, 128),
             ),
             allowMismatchedCachedAudio = false,
         )
@@ -157,6 +158,33 @@ class PlaybackAudioSourceResolverTest {
         assertNull(plan.localAudio)
         assertEquals(PlaybackSource.ProviderStream, plan.source)
         assertEquals(StreamQuality.Original, plan.target.providerStreamRequest.quality)
+        assertEquals(PlaybackSource.CachedFile, plan.fallbackSource)
+        assertEquals("file:///tmp/cached-mobile-transcode", plan.playbackStreamUrl { error("Offline") })
+        val fallback = plan.resolvedForPlaybackUrl("file:///tmp/cached-mobile-transcode")
+        assertEquals(PlaybackSource.CachedFile, fallback.source)
+        assertEquals(StreamQuality.Transcoded(AudioCodec.Opus, 128), fallback.effectiveQuality)
+    }
+
+    @Test
+    fun upgradesKeepHigherUnknownAndIncomparableQualityCaches() = runTest {
+        val requested = StreamQuality.Transcoded(AudioCodec.Opus, 192)
+        for ((stored, upgrade) in listOf(
+            StreamQuality.Original to false,
+            null to false,
+            StreamQuality.Transcoded(AudioCodec.Opus, 320) to false,
+            StreamQuality.Transcoded(AudioCodec.Opus, 192) to false,
+            StreamQuality.Transcoded(AudioCodec.Mp3, 128) to false,
+            StreamQuality.Transcoded(AudioCodec.Opus, 128) to true,
+        )) {
+            val plan = resolvePlaybackAudioSource(
+                sourceId = "source", track = track("one"), quality = requested,
+                audioCachingEnabled = true, allowMismatchedCachedAudio = false,
+                audioAssets = fakeAudioAssets(cachedForTrack = "existing", cachedQuality = stored),
+            )
+            assertEquals(upgrade, plan.localAudio == null, "$stored")
+            assertEquals(requested, plan.target.providerStreamRequest.quality)
+            if (upgrade) assertEquals("file:///tmp/existing", plan.fallbackPlaybackUrl())
+        }
     }
 
     @Test
@@ -325,6 +353,7 @@ class PlaybackAudioSourceResolverTest {
         downloaded: String? = null,
         cached: String? = null,
         cachedForTrack: String? = null,
+        cachedQuality: StreamQuality? = null,
     ): PlaybackAudioAssetRepository =
         object : PlaybackAudioAssetRepository {
             override suspend fun downloadedAudio(
@@ -347,6 +376,6 @@ class PlaybackAudioSourceResolverTest {
             override suspend fun cachedAudio(
                 sourceId: String,
                 trackId: TrackId,
-            ): PlaybackLocalAudio? = cachedForTrack?.let(::localAudio)
+            ): PlaybackLocalAudio? = cachedForTrack?.let { localAudio(it).copy(quality = cachedQuality) }
         }
 }
