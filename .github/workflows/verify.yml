@@ -227,6 +227,18 @@ jobs:
       - name: Exercise native boundaries and raster animation
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
+      - name: Repeat API 35 DNS-SD discovery tests
+        if: matrix.api-level == 35
+        run: |
+          for attempt in 1 2 3; do
+            echo "DNS-SD repeat $attempt of 3"
+            adb shell am instrument -w \
+              -e class app.naviamp.android.AndroidNaviampConnectDiscoveryInstrumentedTest \
+              app.naviamp.android.v2test.test/androidx.test.runner.AndroidJUnitRunner \
+              | tee "/tmp/naviamp-dnssd-repeat-$attempt.txt"
+            grep -q '^OK (5 tests)' "/tmp/naviamp-dnssd-repeat-$attempt.txt"
+          done
+
       - name: Capture Android discovery diagnostics
         if: failure()
         run: |
@@ -248,6 +260,7 @@ jobs:
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
+            /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
 
   desktop-windows:
