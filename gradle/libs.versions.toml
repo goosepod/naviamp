@@ -17,8 +17,10 @@ jna = "5.19.1"
 kover = "0.9.9"
 bouncycastle = "1.85.2"
 jmdns = "3.6.3"
+ksoup = "0.6.0"
 
 [libraries]
+ksoup-entities = { module = "com.mohamedrejeb.ksoup:ksoup-entities", version.ref = "ksoup" }
 androidx-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
