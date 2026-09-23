@@ -230,6 +230,8 @@ jobs:
       - name: Repeat API 35 DNS-SD discovery tests
         if: matrix.api-level == 35
         run: |
+          adb install -r apps/android/build/outputs/apk/debug/android-debug.apk
+          adb install -r apps/android/build/outputs/apk/androidTest/debug/android-debug-androidTest.apk
           for attempt in 1 2 3; do
             echo "DNS-SD repeat $attempt of 3"
             adb shell am instrument -w \
