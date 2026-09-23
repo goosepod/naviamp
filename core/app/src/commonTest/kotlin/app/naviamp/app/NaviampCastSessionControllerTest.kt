@@ -7,23 +7,14 @@ import kotlin.test.assertTrue
 
 class NaviampCastSessionControllerTest {
     @Test
-    fun discoveryIsOrderedAndIgnoredAfterStop() {
+    fun effectLifecycleIsIdempotent() {
         val effect = FakeCastEffect()
         val controller = NaviampCastSessionController(effect, NaviampPlaybackOutputSelectionController())
         controller.start()
         controller.start()
         assertEquals(1, effect.starts)
-
-        controller.onTargetsChanged(listOf(
-            NaviampCastTarget("b", "Kitchen"),
-            NaviampCastTarget("a", "Bedroom"),
-            NaviampCastTarget("b", "Kitchen duplicate"),
-        ))
-        assertEquals(listOf("a", "b"), controller.state.value.targets.map(NaviampCastTarget::id))
-
         controller.stop()
-        controller.onTargetsChanged(listOf(NaviampCastTarget("c", "New")))
-        assertTrue(controller.state.value.targets.isEmpty())
+        controller.stop()
         assertEquals(1, effect.stops)
     }
 
@@ -32,8 +23,7 @@ class NaviampCastSessionControllerTest {
         val effect = FakeCastEffect()
         val outputs = NaviampPlaybackOutputSelectionController()
         val controller = NaviampCastSessionController(effect, outputs)
-        controller.select(NaviampCastTarget("tv", "TV"))
-        val castId = effect.connectedIds.single()
+        val castId = controller.onTargetSelected(NaviampCastTarget("tv", "TV"))
         controller.onConnecting(castId)
         controller.onConnected(castId, "Living Room TV")
         assertEquals(NaviampRemoteOutputPhase.Connected,
@@ -57,8 +47,7 @@ class NaviampCastSessionControllerTest {
         val effect = FakeCastEffect()
         val outputs = NaviampPlaybackOutputSelectionController()
         val controller = NaviampCastSessionController(effect, outputs)
-        controller.select(NaviampCastTarget("tv", "TV"))
-        val castId = effect.connectedIds.single()
+        val castId = controller.onTargetSelected(NaviampCastTarget("tv", "TV"))
         controller.onConnected(castId, "TV")
         assertTrue(outputs.activatePlaybackAuthority(castId))
 
@@ -71,15 +60,26 @@ class NaviampCastSessionControllerTest {
             (outputs.state.value as NaviampPlaybackOutputSelection.Remote).selectionId)
     }
 
+    @Test
+    fun normalRouteStopReturnsToLocalWithoutDisconnectingAgain() {
+        val effect = FakeCastEffect()
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val controller = NaviampCastSessionController(effect, outputs)
+        val castId = controller.onTargetSelected(NaviampCastTarget("tv", "TV"))
+        controller.onConnected(castId, "TV")
+
+        controller.onStopped(castId)
+
+        assertEquals(NaviampPlaybackOutputSelection.Local, outputs.state.value)
+        assertEquals(0, effect.disconnects)
+    }
+
     private class FakeCastEffect : NaviampCastSessionEffect {
         var starts = 0
         var stops = 0
         var disconnects = 0
-        val connectedIds = mutableListOf<Long>()
-
         override fun start(listener: NaviampCastSessionListener) { starts++ }
         override fun stop() { stops++ }
-        override fun connect(targetId: String, selectionId: Long) { connectedIds += selectionId }
         override fun disconnect() { disconnects++ }
     }
 }

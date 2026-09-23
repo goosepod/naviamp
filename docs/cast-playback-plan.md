@@ -2,14 +2,15 @@
 
 Status: architecture and compatibility investigation started on 2026-09-23. The first shared
 output-selection model is connected to the existing Connect controller, with common tests. A
-shared Cast session contract and controller now own discovery ordering, selection, session status,
-and stale callback rejection. A debug-only Android probe initializes the Cast SDK and opens its
-route picker. The shared Cast controller has no production host adapter or media access yet, and
-Cast playback is not enabled.
+shared Cast session contract and controller now own selection, session status,
+and stale callback rejection. The Android SDK adapter translates native session callbacks into
+that common controller. A debug-only Android probe opens the native route picker and exercises the
+adapter. Core also owns expiring opaque media leases and HTTP request authorization. The provider
+byte source and receiver-reachable socket are still missing, so Cast playback is not enabled.
 
 ## Existing shared owners
 
-- `NaviampConnectPlaybackDestinationController` owns the current local-versus-Connect output intent. Cast must join a single shared output selection model so two remote outputs cannot own playback simultaneously.
+- `NaviampConnectPlaybackDestinationController` uses the shared local/Connect/Cast output selection model so two remote outputs cannot own playback simultaneously.
 - `NaviampCoreConnectRemoteNowPlaying` projects receiver-authoritative playback into the shared UI. Extract the reusable remote snapshot and command policy before adding a Cast-specific source; retain Connect's protocol mapping separately.
 - The Core queue and playback controllers own handoff, position, navigation, reporting, and return-to-local policy. A Cast sender adapter may report receiver events and execute commands, but may not keep a second queue or decide when local audio stops.
 - Providers construct stream URLs in `commonMain`. Both Navidrome and Jellyfin can embed credentials in their URL query. No provider URL, artwork URL, or local file path may be passed directly to a Cast receiver without an explicit media-access decision.
@@ -20,6 +21,13 @@ The first implementation target is a receiver-reachable, short-lived media endpo
 
 This is a candidate design, not a supported capability yet. Before implementing a socket, validate receiver reachability, byte-range behavior, codec/container support, and background lifetime on physical receivers. If a host cannot sustain the endpoint, define one common product behavior for that capability instead of silently exposing different Cast features by platform.
 
+The current shared lease policy issues a URL-safe, sender-scoped token for a track or artwork ID,
+expires it after one hour by default, and revokes it when Core requests. The shared HTTP gate accepts
+only GET/HEAD on that token path, validates a single byte range, and rejects unknown or expired
+leases. Android supplies 256 bits of cryptographic random data for each token. The URL contains no
+provider ID or credential. The socket and byte source must preserve these checks while serving a
+bounded stream; downloading an entire track into memory is not an acceptable implementation.
+
 ## Sender and receiver matrix to verify
 
 | Sender | Native boundary | Initial verification |
@@ -28,7 +36,12 @@ This is a candidate design, not a supported capability yet. Before implementing 
 | iOS | Cast SDK discovery, session callbacks, local-network permission, and background lifecycle | Physical iPhone/iPad and Cast receiver |
 | Desktop | No native desktop sender SDK is listed in Google's sender matrix; investigate a supported browser/Web Sender bridge or another documented route before promising native Desktop Cast | Windows, macOS, and Linux with physical receiver |
 
-Google documents Android, iOS, and Web sender SDKs. Its Default Media Receiver can load a supplied media URL, while authentication or custom receiver logic calls for a Custom Web Receiver. The media-access proof will determine whether the Default Media Receiver is sufficient; do not register or ship a custom receiver until that choice is supported by evidence.
+Google documents Android, iOS, and Web sender SDKs. Its Android framework owns discovery and starts
+a session when a user picks a route; the Android adapter reports that choice to Core instead of
+trying to connect to a route ID directly. The Default Media Receiver can load a supplied media URL,
+while authentication or custom receiver logic calls for a Custom Web Receiver. The media-access
+proof will determine whether the Default Media Receiver is sufficient; do not register or ship a
+custom receiver until that choice is supported by evidence.
 
 On 2026-09-23, a Pixel 10a running the debug probe initialized Cast SDK 22.3.1 and opened the native
 route picker. It discovered `GoogleTV8565` and `Living Room TV`. Neither receiver was selected or
@@ -51,3 +64,5 @@ delivery, and playback remain untested.
 - [Google Cast Web Receiver types](https://developers.google.com/cast/docs/web_receiver)
 - [Google Cast supported media](https://developers.google.com/cast/docs/media)
 - [Google Cast sender design checklist](https://developers.google.com/cast/docs/design_checklist/sender)
+- [Android sender integration](https://developers.google.com/cast/docs/android_sender/integrate)
+- [Android SessionManager lifecycle](https://developers.google.com/android/reference/com/google/android/gms/cast/framework/SessionManager)
