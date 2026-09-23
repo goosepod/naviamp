@@ -1114,6 +1114,7 @@ data class NowPlayingUi(
     val stateLabel: String,
     val remoteOutputDeviceName: String? = null,
     val castAvailable: Boolean = false,
+    val castSelected: Boolean = false,
     val playbackOutputs: List<NaviampPlaybackOutputUi> = emptyList(),
     val coverArtUrl: String? = null,
     val trackCoverArtUrl: String? = coverArtUrl,

@@ -1207,6 +1207,18 @@ private fun NowPlayingDetails(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.align(Alignment.CenterEnd),
                 ) {
+                    if (nowPlaying.castAvailable) {
+                        NaviampTransportIconButton(
+                            enabled = true,
+                            icon = NaviampTransportIcons.Cast,
+                            contentDescription = stringResource(Res.string.now_playing_cast_to_device),
+                            colors = colors,
+                            selected = nowPlaying.castSelected,
+                            buttonSize = bottomActionButtonSize,
+                            iconSize = bottomActionIconSize,
+                            onClick = actions.onCastPicker,
+                        )
+                    }
                     NaviampTransportIconButton(
                         enabled = nowPlaying.lyricsAvailable,
                         icon = NaviampTransportIcons.Lyrics,
@@ -1235,6 +1247,7 @@ private fun NowPlayingDetails(
                             if (nowPlaying.castAvailable) {
                                 NaviampDropdownMenuItem(
                                     label = stringResource(Res.string.now_playing_cast_to_device),
+                                    icon = NaviampTransportIcons.Cast,
                                     onClick = {
                                         actionMenuExpanded = false
                                         actions.onCastPicker()

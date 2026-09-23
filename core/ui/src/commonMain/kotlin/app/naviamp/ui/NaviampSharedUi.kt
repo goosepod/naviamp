@@ -925,6 +925,7 @@ internal fun NowPlayingUi.withCastOutput(
     unavailableLabel: String?,
 ): NowPlayingUi = copy(
     castAvailable = cast.available,
+    castSelected = cast.selected,
     remoteOutputDeviceName = if (cast.selected) cast.selectedTargetName else remoteOutputDeviceName,
     stateLabel = unavailableLabel ?: stateLabel,
     playbackOutputs = if (cast.selected) playbackOutputs.map { it.copy(selected = false) } else playbackOutputs,
