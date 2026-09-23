@@ -106,21 +106,23 @@ class NaviampNowPlayingPresentationTest {
             endIndexExclusive = 2,
         )
         val restored = PlaybackQueue(listOf(first, second), currentIndex = 0, groups = listOf(playlist, album))
+        fun context(track: Track, queue: PlaybackQueue) = input(track, queue)
+            .copy(displaySettings = NowPlayingDisplaySettings(showPlaybackSource = true))
+            .toPresentationUi().nowPlaying.queueContext
+
+        assertNull(input(first, restored).toPresentationUi().nowPlaying.queueContext)
 
         assertEquals(
             NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
-            input(first, restored).toPresentationUi().nowPlaying.queueContext,
+            context(first, restored),
         )
         assertEquals(
             NowPlayingQueueContextUi(PlaybackProfileTargetType.Album, "Evening Songs"),
-            input(second, restored.copy(currentIndex = 1)).toPresentationUi().nowPlaying.queueContext,
+            context(second, restored.copy(currentIndex = 1)),
         )
-        assertNull(input(second, restored.copy(currentIndex = 1, groups = listOf(playlist)))
-            .toPresentationUi().nowPlaying.queueContext)
-        assertNull(input(first, restored.copy(groups = listOf(playlist.copy(label = "  "))))
-            .toPresentationUi().nowPlaying.queueContext)
-        assertNull(input(first, restored.copy(groups = listOf(playlist.copy(label = "provider-id"))))
-            .toPresentationUi().nowPlaying.queueContext)
+        assertNull(context(second, restored.copy(currentIndex = 1, groups = listOf(playlist))))
+        assertNull(context(first, restored.copy(groups = listOf(playlist.copy(label = "  ")))))
+        assertNull(context(first, restored.copy(groups = listOf(playlist.copy(label = "provider-id")))))
     }
 
     @Test

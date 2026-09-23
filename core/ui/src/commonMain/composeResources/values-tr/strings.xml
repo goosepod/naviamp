@@ -20,6 +20,8 @@
     <string name="now_playing_from_playlist">Çalma listesinden: %1$s</string>
     <string name="now_playing_from_album">Albümden: %1$s</string>
     <string name="now_playing_from_work">Eserden: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Çalma kaynağını göster</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Geçerli kuyruğu başlatan koleksiyonu göster.</string>
     <string name="smart_playlist_field_album_date_added">Albüm eklenme tarihi</string>
     <string name="smart_playlist_field_album_date_modified">Albüm değiştirilme tarihi</string>
     <string name="smart_playlist_field_album_duration">Albüm süresi</string>

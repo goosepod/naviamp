@@ -20,6 +20,8 @@
     <string name="now_playing_from_playlist">Из плейлиста: %1$s</string>
     <string name="now_playing_from_album">Из альбома: %1$s</string>
     <string name="now_playing_from_work">Из произведения: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Показывать источник воспроизведения</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Показывать коллекцию, с которой началась текущая очередь.</string>
     <string name="smart_playlist_field_album_date_added">Дата добавления альбома</string>
     <string name="smart_playlist_field_album_date_modified">Дата изменения альбома</string>
     <string name="smart_playlist_field_album_duration">Длительность альбома</string>

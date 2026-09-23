@@ -973,7 +973,7 @@ private fun NowPlayingDetails(
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum) },
                         ),
                     )
-                    nowPlaying.queueContext?.let { context ->
+                    nowPlaying.queueContext?.takeIf { displaySettings.showPlaybackSource }?.let { context ->
                         Text(
                             text = nowPlayingQueueContextLabel(context),
                             color = colors.secondaryText,

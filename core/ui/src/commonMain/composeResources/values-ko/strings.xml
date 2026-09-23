@@ -20,6 +20,8 @@
     <string name="now_playing_from_playlist">재생목록에서 재생: %1$s</string>
     <string name="now_playing_from_album">앨범에서 재생: %1$s</string>
     <string name="now_playing_from_work">작품에서 재생: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">재생 출처 표시</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">현재 대기열을 시작한 모음을 표시합니다.</string>
     <string name="smart_playlist_field_album_date_added">앨범 추가 날짜</string>
     <string name="smart_playlist_field_album_date_modified">앨범 수정 날짜</string>
     <string name="smart_playlist_field_album_duration">앨범 재생 시간</string>

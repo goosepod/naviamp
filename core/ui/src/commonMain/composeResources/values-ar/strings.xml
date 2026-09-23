@@ -20,6 +20,8 @@
     <string name="now_playing_from_playlist">تشغيل من قائمة التشغيل: %1$s</string>
     <string name="now_playing_from_album">تشغيل من الألبوم: %1$s</string>
     <string name="now_playing_from_work">تشغيل من العمل: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">إظهار مصدر التشغيل</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">إظهار المجموعة التي بدأت قائمة التشغيل الحالية.</string>
     <string name="smart_playlist_field_album_date_added">تاريخ إضافة الألبوم</string>
     <string name="smart_playlist_field_album_date_modified">تاريخ تعديل الألبوم</string>
     <string name="smart_playlist_field_album_duration">مدة الألبوم</string>

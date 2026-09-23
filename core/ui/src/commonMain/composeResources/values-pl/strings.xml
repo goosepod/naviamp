@@ -139,6 +139,8 @@
     <string name="now_playing_from_playlist">Z playlisty: %1$s</string>
     <string name="now_playing_from_album">Z albumu: %1$s</string>
     <string name="now_playing_from_work">Z utworu: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Pokaż źródło odtwarzania</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Pokaż kolekcję, od której rozpoczęła się bieżąca kolejka.</string>
     <string name="smart_playlist_field_album_date_added">Data dodania albumu</string>
     <string name="smart_playlist_field_album_date_modified">Data modyfikacji albumu</string>
     <string name="smart_playlist_field_album_duration">Czas trwania albumu</string>

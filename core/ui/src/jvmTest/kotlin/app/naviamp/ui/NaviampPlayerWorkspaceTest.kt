@@ -28,6 +28,7 @@ class NaviampPlayerWorkspaceTest {
         val context = mutableStateOf<NowPlayingQueueContextUi?>(
             NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
         )
+        val showPlaybackSource = mutableStateOf(false)
         setContent {
             NaviampNowPlayingPanel(
                 nowPlaying = NowPlayingUi(
@@ -36,9 +37,15 @@ class NaviampPlayerWorkspaceTest {
                 ),
                 colors = NaviampColors(),
                 actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                displaySettings = app.naviamp.domain.settings.NowPlayingDisplaySettings(
+                    showPlaybackSource = showPlaybackSource.value,
+                ),
                 panelLayout = NaviampPlayerPanelLayout.Standalone,
             )
         }
+        onNodeWithTag("now-playing-queue-context").assertDoesNotExist()
+        showPlaybackSource.value = true
+        waitForIdle()
         onNodeWithTag("now-playing-queue-context").assertTextContains("Road Trip", substring = true)
         context.value = NowPlayingQueueContextUi(PlaybackProfileTargetType.Album, "Evening Songs")
         waitForIdle()

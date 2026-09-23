@@ -20,6 +20,8 @@
     <string name="now_playing_from_playlist">Dari daftar putar: %1$s</string>
     <string name="now_playing_from_album">Dari album: %1$s</string>
     <string name="now_playing_from_work">Dari karya: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Tampilkan sumber pemutaran</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Tampilkan koleksi yang memulai antrean saat ini.</string>
     <string name="smart_playlist_field_album_date_added">Tanggal album ditambahkan</string>
     <string name="smart_playlist_field_album_date_modified">Tanggal album diubah</string>
     <string name="smart_playlist_field_album_duration">Durasi album</string>

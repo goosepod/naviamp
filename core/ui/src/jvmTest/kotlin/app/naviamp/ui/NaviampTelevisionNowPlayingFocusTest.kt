@@ -17,6 +17,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.CompositionLocalProvider
 import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -71,6 +72,7 @@ class NaviampTelevisionNowPlayingFocusTest {
                 ),
                 onClose = {},
                 onOpenSettings = {},
+                displaySettings = NowPlayingDisplaySettings(showPlaybackSource = true),
             )
         }
         mainClock.advanceTimeBy(200)

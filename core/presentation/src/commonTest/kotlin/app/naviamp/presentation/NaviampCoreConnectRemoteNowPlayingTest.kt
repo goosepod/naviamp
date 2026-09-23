@@ -23,7 +23,9 @@ import app.naviamp.domain.connect.NaviampConnectSetRepeat
 import app.naviamp.domain.connect.NaviampConnectSetShuffle
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
 import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.ui.NowPlayingQueueContextUi
+import app.naviamp.ui.withDisplaySettings
 import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingItemAction
@@ -79,6 +81,12 @@ class NaviampCoreConnectRemoteNowPlayingTest {
         assertEquals(
             NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
             remote.toRemoteNowPlayingUi("TV").queueContext,
+        )
+        assertNull(remote.toRemoteNowPlayingUi("TV").withDisplaySettings(NowPlayingDisplaySettings()).queueContext)
+        assertEquals(
+            NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
+            remote.toRemoteNowPlayingUi("TV")
+                .withDisplaySettings(NowPlayingDisplaySettings(showPlaybackSource = true)).queueContext,
         )
         assertNull(remote.copy(queue = remote.queue.copy(currentIndex = 2, playNextCount = 0))
             .toRemoteNowPlayingUi("TV").queueContext)

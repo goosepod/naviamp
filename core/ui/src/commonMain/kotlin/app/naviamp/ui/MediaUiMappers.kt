@@ -1366,6 +1366,7 @@ fun NowPlayingUi.withDisplaySettings(
         albumCoverArtUrl ?: trackCoverArtUrl
     }
     return copy(
+        queueContext = queueContext.takeIf { settings.showPlaybackSource },
         coverArtUrl = art,
         albumYear = year,
         albumLine = albumTitle.takeIf(String::isNotBlank)?.let { title ->
