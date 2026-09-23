@@ -950,6 +950,7 @@ private fun PlaylistBulkToolsDialog(
         mutableStateOf(defaultCopyName)
     }
     val deduplicatedCount = remember(detail.tracks) { detail.tracks.distinctBy { it.id }.size }
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(stringResource(Res.string.playlists_bulk_tools_title)) },
@@ -1042,6 +1043,7 @@ fun RenamePlaylistDialog(
     onConfirm: (String) -> Unit,
 ) {
     var name by remember(playlist.id) { mutableStateOf(playlist.title) }
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.playlists_rename_title)) },
@@ -1077,6 +1079,7 @@ fun DeletePlaylistDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.playlists_delete_title)) },

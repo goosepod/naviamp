@@ -39,8 +39,6 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Choose Small, Standard, or Large text", substring = true).assertIsDisplayed()
-        onNodeWithText("cached platform surfaces", substring = true).assertIsDisplayed()
-        onNodeWithText("Android TV and Naviamp Connect remain beta", substring = true).assertIsDisplayed()
+        onNodeWithText("Fixed popup menus and dialogs jumping, flickering, and responding to clicks in the wrong location.").assertIsDisplayed()
     }
 }

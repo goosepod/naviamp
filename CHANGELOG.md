@@ -6,6 +6,10 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.7.1
+
+- Fixed popup menus and dialogs jumping, flickering, and responding to clicks in the wrong location.
+
 ## v2.7.0
 
 Naviamp 2.7.0 adds independent text-size controls for Now Playing and the rest of the interface. It

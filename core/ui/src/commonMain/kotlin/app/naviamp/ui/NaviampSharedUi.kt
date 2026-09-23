@@ -379,6 +379,7 @@ internal fun NaviampConnectSourceMismatchDialog(
     onDismiss: () -> Unit,
 ) {
     val targetName = recovery.targetName ?: stringResource(Res.string.connect_source_mismatch_playback_device)
+    NaviampPopupPresence()
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.controlSurface,

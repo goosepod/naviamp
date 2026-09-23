@@ -39,6 +39,7 @@ import kotlinx.coroutines.delay
 fun main() {
     val integrated = System.getenv("NAVIAMP_PROBE_INTEGRATED") == "true"
     val verifyPixels = System.getenv("NAVIAMP_PROBE_VERIFY") == "true"
+    val popupProbe = System.getenv("NAVIAMP_PROBE_POPUPS") == "true"
     val tooltipProbe = System.getenv("NAVIAMP_PROBE_TOOLTIPS") == "true"
     val hoverProbe = System.getenv("NAVIAMP_PROBE_HOVER") == "true"
     if (integrated) configureNaviampDesktopRasterLayers()
@@ -59,8 +60,8 @@ fun main() {
         state = rememberWindowState(width = 1000.dp, height = 740.dp),
         alwaysOnTop = verifyPixels,
     ) {
-        val marquee = phase == "marquee" || phase == "combined"
-        val smooth = phase == "waveform" || phase == "combined"
+        val marquee = phase == "marquee" || phase.endsWith("combined")
+        val smooth = phase == "waveform" || phase.endsWith("combined")
         val content: @Composable () -> Unit = {
         Row(Modifier.fillMaxSize().background(Color(0xff24242b)).padding(24.dp)) {
             if (compositor) ProbeCompositorSurface(marquee, smooth, Modifier.width(280.dp).fillMaxHeight())
@@ -104,15 +105,16 @@ fun main() {
                 }
             }
         }
-        }
-        if (integrated) NaviampDesktopRasterHost(window, content) else content()
         if (popupVisible) androidx.compose.ui.window.Popup(alignment = androidx.compose.ui.Alignment.TopEnd) {
+            NaviampPopupPresence()
             androidx.compose.material3.Surface(
                 color = Color(0xff24242b).copy(alpha = 0.98f),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(5.dp),
                 shadowElevation = 5.dp,
             ) { Text("Tooltip probe", color = Color.White, modifier = Modifier.padding(8.dp, 5.dp)) }
         }
+        }
+        if (integrated) NaviampDesktopRasterHost(window, content) else content()
         LaunchedEffect(Unit) {
             try {
             delay(1_000)
@@ -136,8 +138,9 @@ fun main() {
                 if (event.id == java.awt.event.WindowEvent.WINDOW_CLOSED) closed.incrementAndGet()
             }
             java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(lifecycle, java.awt.AWTEvent.WINDOW_EVENT_MASK)
-            for (next in if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined")) {
+            for (next in if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined") else if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined")) {
                 phase = next
+                if (popupProbe) popupVisible = next == "popup-combined"
                 if (tooltipProbe) popupVisible = next == "tooltip"
                 if (hoverProbe) kotlinx.coroutines.withTimeout(90_000) {
                     while (window.ownedWindows.none { it.isShowing }) delay(100)
@@ -193,18 +196,18 @@ fun main() {
                     }
                     println("ANIMATION_PIXELS $next changed=$changed text=$textChanged waveform=$waveformChanged visibleText=$textPixels sibling=$siblingChanges")
                     check(textPixels > 100) { "Cached text is blank" }
-                    if (next == "marquee" || next == "combined") check(textChanged > 10) { "Text did not move" }
-                    if (next == "waveform" || next == "combined") check(waveformChanged > 10) { "Waveform did not move" }
+                    if (next == "marquee" || next.endsWith("combined")) check(textChanged > 10) { "Text did not move" }
+                    if (next == "waveform" || next.endsWith("combined")) check(waveformChanged > 10) { "Waveform did not move" }
                     check(siblingChanges == 0) { "Unrelated content changed" }
-                    check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
+                    if (next != "popup-combined") check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
                 }
                 if (compositor) {
                     val after = ProbeCompositor.positions(ProbeCompositor.handle).toList()
                     println("COMPOSITOR_POSITIONS $next $positions -> $after")
                     check(after[0] > 0.0 && after[1] > 0.0) { "Native surface is empty" }
-                    if (next == "marquee" || next == "combined") check((2..4).all { kotlin.math.abs(after[it] - positions[it]) > 1.0 }) { "Marquee did not move" }
-                    if (next == "waveform" || next == "combined") check(after[5] > positions[5] + 1.0) { "Progress did not advance" }
-                    check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
+                    if (next == "marquee" || next.endsWith("combined")) check((2..4).all { kotlin.math.abs(after[it] - positions[it]) > 1.0 }) { "Marquee did not move" }
+                    if (next == "waveform" || next.endsWith("combined")) check(after[5] > positions[5] + 1.0) { "Progress did not advance" }
+                    if (next != "popup-combined") check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
                 }
             }
             java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(lifecycle)

@@ -179,6 +179,25 @@ class NaviampRasterInteractionTest {
         runOnIdle { assertEquals(1, presenter.closed) }
     }
 
+    @Test fun sharedPopupReleasesNativeSurfaceAndRestoresItAfterDismissal() = runComposeUiTest {
+        val presenter = RecordingPresenter(contentBelowOwnedWindows = true)
+        val popup = mutableStateOf(false)
+        setContent {
+            NaviampRasterEnvironment(presenter, true, false) {
+                BouncingTitleText("A long title rendered beneath the popup", Color.White, 14,
+                    marqueeEnabled = false, modifier = Modifier.width(100.dp))
+                if (popup.value) NaviampPopupPresence()
+            }
+        }
+        waitForIdle()
+        runOnIdle { assertTrue(presenter.presentations > 0); popup.value = true }
+        waitForIdle()
+        val beforeRestore = presenter.presentations
+        runOnIdle { assertEquals(1, presenter.closed); popup.value = false }
+        waitForIdle()
+        runOnIdle { assertTrue(presenter.presentations > beforeRestore) }
+    }
+
     private class RecordingPresenter(override val contentBelowOwnedWindows: Boolean = false) : NaviampRasterPresenter {
         var offset = 0f
         var presentations = 0

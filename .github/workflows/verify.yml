@@ -386,6 +386,7 @@ jobs:
           started_at="$(date +%s)"
           destination_id="$(xcodebuild -project apps/ios/Naviamp.xcodeproj -scheme Naviamp -showdestinations | awk -F'id:' '/platform:iOS Simulator/ && /name:iPhone/ { split($2, fields, ","); gsub(/[[:space:]]/, "", fields[1]); print fields[1]; exit }')"
           test -n "$destination_id"
+          echo "NAVIAMP_IOS_TEST_DESTINATION=$destination_id" >> "$GITHUB_ENV"
           xcodebuild build -quiet \
             -showBuildTimingSummary \
             -project apps/ios/Naviamp.xcodeproj \
@@ -399,7 +400,9 @@ jobs:
       - name: Exercise the Apple Keychain boundary
         run: |
           started_at="$(date +%s)"
-          destination_id="$(xcodebuild -project apps/ios/Naviamp.xcodeproj -scheme NaviampTests -showdestinations | awk -F'id:' '/platform:iOS Simulator/ && /name:iPhone/ { split($2, fields, ","); gsub(/[[:space:]]/, "", fields[1]); print fields[1]; exit }')"
+          # Reuse the device that built the production app. Xcode can omit concrete
+          # destinations from a subsequent query after the build has completed.
+          destination_id="$NAVIAMP_IOS_TEST_DESTINATION"
           test -n "$destination_id"
           xcodebuild test -quiet \
             -showBuildTimingSummary \

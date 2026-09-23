@@ -640,6 +640,7 @@ private fun TelevisionTrackActionsDialog(
     onAction: (SharedTrackRowAction) -> Unit,
 ) {
     val firstActionFocusRequester = remember { FocusRequester() }
+    NaviampPopupPresence()
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
