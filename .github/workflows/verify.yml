@@ -227,6 +227,15 @@ jobs:
       - name: Exercise native boundaries and raster animation
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
+      - name: Capture Android discovery diagnostics
+        if: failure()
+        run: |
+          mkdir -p build/android-emulator-diagnostics
+          adb shell getprop > build/android-emulator-diagnostics/properties.txt || true
+          adb shell dumpsys connectivity > build/android-emulator-diagnostics/connectivity.txt || true
+          adb shell dumpsys mdns > build/android-emulator-diagnostics/mdns.txt || true
+          adb logcat -d -t 8000 -v threadtime > build/android-emulator-diagnostics/logcat.txt || true
+
       - name: Upload device reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -238,6 +247,7 @@ jobs:
             apps/android/build/outputs/androidTest-results/**
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
+            build/android-emulator-diagnostics/**
             /tmp/naviamp-emulator.log
 
   desktop-windows:
