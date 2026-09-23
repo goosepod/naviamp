@@ -1,5 +1,6 @@
 package app.naviamp.app
 
+import app.naviamp.domain.StreamQuality
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -8,9 +9,14 @@ enum class NaviampCastMediaKind { Track, Artwork }
 /** Provider identity stays on the sender; only the opaque lease token appears in a receiver URL. */
 data class NaviampCastMediaResource(
     val kind: NaviampCastMediaKind,
+    val sourceId: String,
     val id: String,
+    val quality: StreamQuality = StreamQuality.Original,
 ) {
-    init { require(id.isNotBlank()) { "A Cast media resource ID is required." } }
+    init {
+        require(sourceId.isNotBlank()) { "A Cast media source ID is required." }
+        require(id.isNotBlank()) { "A Cast media resource ID is required." }
+    }
 }
 
 /** Implementations must use an operating-system cryptographic random source. */

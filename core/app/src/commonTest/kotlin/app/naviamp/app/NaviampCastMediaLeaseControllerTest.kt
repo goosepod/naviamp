@@ -17,6 +17,7 @@ class NaviampCastMediaLeaseControllerTest {
         )
         val resource = NaviampCastMediaResource(
             NaviampCastMediaKind.Track,
+            "source",
             "provider-track?api_key=private",
         )
 
@@ -35,8 +36,8 @@ class NaviampCastMediaLeaseControllerTest {
             tokens = NaviampCastSecureTokenSource { (++next).toString().padStart(32, 'a') },
             nowEpochMillis = { 1_000L },
         )
-        val track = leases.issue(NaviampCastMediaResource(NaviampCastMediaKind.Track, "song"))
-        val artwork = leases.issue(NaviampCastMediaResource(NaviampCastMediaKind.Artwork, "cover"))
+        val track = leases.issue(NaviampCastMediaResource(NaviampCastMediaKind.Track, "source", "song"))
+        val artwork = leases.issue(NaviampCastMediaResource(NaviampCastMediaKind.Artwork, "source", "cover"))
 
         leases.revoke(track.token)
         assertNull(leases.resolve(track.token))
@@ -47,7 +48,7 @@ class NaviampCastMediaLeaseControllerTest {
 
     @Test
     fun weakMalformedOrReusedTokensCannotBeIssued() = runTest {
-        val resource = NaviampCastMediaResource(NaviampCastMediaKind.Track, "song")
+        val resource = NaviampCastMediaResource(NaviampCastMediaKind.Track, "source", "song")
         val weak = NaviampCastMediaLeaseController(
             tokens = NaviampCastSecureTokenSource { "short" },
             nowEpochMillis = { 0L },

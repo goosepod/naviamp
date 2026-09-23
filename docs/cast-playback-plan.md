@@ -5,8 +5,10 @@ output-selection model is connected to the existing Connect controller, with com
 shared Cast session contract and controller now own selection, session status,
 and stale callback rejection. The Android SDK adapter translates native session callbacks into
 that common controller. A debug-only Android probe opens the native route picker and exercises the
-adapter. Core also owns expiring opaque media leases and HTTP request authorization. The provider
-byte source and receiver-reachable socket are still missing, so Cast playback is not enabled.
+adapter. Core owns expiring opaque media leases, HTTP request authorization, and provider byte
+selection. Navidrome and Jellyfin stream authenticated track bytes with range response metadata;
+Android binds a receiver-reachable socket. Shared queue handoff and receiver media loading are still
+missing, so Cast playback is not enabled.
 
 ## Existing shared owners
 
@@ -19,14 +21,18 @@ byte source and receiver-reachable socket are still missing, so Cast playback is
 
 The first implementation target is a receiver-reachable, short-lived media endpoint controlled by Naviamp. Core owns its lease lifetime, allowed media identity, playback quality, expiry, invalidation, and recovery. A narrow host effect binds a listening socket and serves byte-range requests. It fetches provider bytes through the existing shared provider contract, keeping provider credentials on the sender. Receiver-visible URLs contain only scoped opaque tokens; never provider tokens, API keys, or session credentials. Artwork needs the same access policy. The endpoint must keep working while the sender is backgrounded for as long as the host can retain its required native service; this is a physical-device acceptance gate, especially on iOS.
 
-This is a candidate design, not a supported capability yet. Before implementing a socket, validate receiver reachability, byte-range behavior, codec/container support, and background lifetime on physical receivers. If a host cannot sustain the endpoint, define one common product behavior for that capability instead of silently exposing different Cast features by platform.
+The socket has been proven reachable from the Mac over the local Wi-Fi network. Receiver
+reachability, codec/container support, provider range behavior, and background lifetime still need
+physical receiver verification. If a host cannot sustain the endpoint, define one common product
+behavior for that capability instead of silently exposing different Cast features by platform.
 
 The current shared lease policy issues a URL-safe, sender-scoped token for a track or artwork ID,
 expires it after one hour by default, and revokes it when Core requests. The shared HTTP gate accepts
 only GET/HEAD on that token path, validates a single byte range, and rejects unknown or expired
 leases. Android supplies 256 bits of cryptographic random data for each token. The URL contains no
-provider ID or credential. The socket and byte source must preserve these checks while serving a
-bounded stream; downloading an entire track into memory is not an acceptable implementation.
+provider ID or credential. The provider byte source streams track chunks through its existing
+authenticated client and caps buffered artwork at 8 MiB. The Android socket binds only to a local
+Wi-Fi or Ethernet address and forwards the shared response headers and chunks.
 
 ## Sender and receiver matrix to verify
 
@@ -47,7 +53,11 @@ On 2026-09-23, a Pixel 10a running the debug probe initialized Cast SDK 22.3.1 a
 route picker. It discovered `GoogleTV8565` and `Living Room TV`. Neither receiver was selected or
 used for playback. The probe lives in the Android debug source set and uses the Default Media
 Receiver application ID. This establishes phone-side discovery only; receiver reachability, media
-delivery, and playback remain untested.
+delivery, and playback remain untested. A later probe on that phone exposed a scoped test endpoint
+at its Wi-Fi address. From the Mac, a full GET returned 200, a ranged GET returned 206 with the
+expected four bytes, and HEAD returned headers without a body. Invalid ranges returned 416 and
+unknown tokens returned 404. This proves local-network HTTP behavior for test bytes, not provider
+media delivery to a Cast receiver.
 
 ## First implementation sequence
 

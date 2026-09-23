@@ -1,5 +1,6 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.network.isHttpDownloadComplete
 import app.naviamp.domain.network.NaviampUserAgent
 import io.ktor.client.HttpClient
@@ -62,6 +63,20 @@ class KtorNavidromeHttpClient(
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
     ): Boolean =
         downloadBytes(url = url, headers = mapOf(HttpHeaders.Accept to "*/*") + headers, writeChunk = writeChunk)
+
+    override suspend fun stream(
+        url: String,
+        headers: Map<String, String>,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean = downloadBytes(
+        url = url,
+        headers = mapOf(HttpHeaders.Accept to "*/*", HttpHeaders.AcceptEncoding to "identity") + headers,
+        writeChunk = writeChunk,
+        onResponse = onResponse,
+        headOnly = headOnly,
+    )
 
     private suspend fun request(
         url: String,
@@ -187,6 +202,8 @@ class KtorNavidromeHttpClient(
         url: String,
         headers: Map<String, String> = emptyMap(),
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+        onResponse: (suspend (ProviderMediaByteResponse) -> Unit)? = null,
+        headOnly: Boolean = false,
     ): Boolean {
         val startedAt = navidromeCurrentTimeMillis()
         rateLimitBackoff.activeExceptionOrNull()?.let { error ->
@@ -209,6 +226,15 @@ class KtorNavidromeHttpClient(
             }.execute { response ->
                 val statusCode = response.status.value
                 if (!response.status.isSuccess()) {
+                    if (statusCode == 416 && onResponse != null) {
+                        onResponse(ProviderMediaByteResponse(
+                            statusCode = 416,
+                            contentType = null,
+                            contentLength = 0,
+                            contentRange = response.headers[HttpHeaders.ContentRange],
+                        ))
+                        return@execute true
+                    }
                     val rateLimitError = rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])
                     recordApiCall(
                         method = HttpMethod.Get.value,
@@ -219,6 +245,8 @@ class KtorNavidromeHttpClient(
                     )
                     return@execute false
                 }
+                if (onResponse != null && response.headers[HttpHeaders.ContentEncoding]
+                        ?.equals("identity", ignoreCase = true) == false) return@execute false
 
                 val channel = response.bodyAsChannel()
                 val prefix = ByteArray(4096)
@@ -229,6 +257,13 @@ class KtorNavidromeHttpClient(
                     prefixSize += read
                 }
                 validateSubsonicMediaResponse(response.headers[HttpHeaders.ContentType], prefix.copyOf(prefixSize))
+                onResponse?.invoke(ProviderMediaByteResponse(
+                    statusCode = statusCode,
+                    contentType = response.headers[HttpHeaders.ContentType],
+                    contentLength = response.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
+                    contentRange = response.headers[HttpHeaders.ContentRange],
+                ))
+                if (headOnly) return@execute true
                 if (prefixSize > 0) writeChunk(prefix, prefixSize)
                 val buffer = ByteArray(64 * 1024)
                 var receivedBytes = prefixSize.toLong()

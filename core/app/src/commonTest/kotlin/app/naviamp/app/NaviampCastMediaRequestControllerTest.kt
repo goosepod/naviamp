@@ -12,7 +12,7 @@ class NaviampCastMediaRequestControllerTest {
             tokens = NaviampCastSecureTokenSource { "abcdefghijklmnopqrstuvwxyz012345" },
             nowEpochMillis = { 0L },
         )
-        val resource = NaviampCastMediaResource(NaviampCastMediaKind.Track, "provider-secret-id")
+        val resource = NaviampCastMediaResource(NaviampCastMediaKind.Track, "source", "provider-secret-id")
         val lease = leases.issue(resource)
         val requests = NaviampCastMediaRequestController(leases)
 
@@ -37,7 +37,7 @@ class NaviampCastMediaRequestControllerTest {
             tokens = NaviampCastSecureTokenSource { "abcdefghijklmnopqrstuvwxyz012345" },
             nowEpochMillis = { 0L },
         )
-        val path = leases.issue(NaviampCastMediaResource(NaviampCastMediaKind.Artwork, "cover")).receiverPath
+        val path = leases.issue(NaviampCastMediaResource(NaviampCastMediaKind.Artwork, "source", "cover")).receiverPath
         val requests = NaviampCastMediaRequestController(leases)
 
         assertEquals(NaviampCastRequestedRange.From(10, 99),
@@ -57,5 +57,17 @@ class NaviampCastMediaRequestControllerTest {
                 assertEquals(NaviampCastMediaRequestDecision.InvalidRange,
                     requests.authorize("GET", path, header))
             }
+    }
+
+    @Test
+    fun resolvesRangesAgainstKnownArtworkLength() {
+        assertEquals(NaviampCastResolvedRange(10, 19, 100),
+            NaviampCastRequestedRange.From(10, 19).resolve(100))
+        assertEquals(NaviampCastResolvedRange(90, 99, 100),
+            NaviampCastRequestedRange.Suffix(10).resolve(100))
+        assertEquals(NaviampCastResolvedRange(0, 99, 100),
+            NaviampCastRequestedRange.Suffix(200).resolve(100))
+        assertEquals(null, NaviampCastRequestedRange.From(100).resolve(100))
+        assertEquals("bytes=10-", NaviampCastRequestedRange.From(10).toHttpHeader())
     }
 }

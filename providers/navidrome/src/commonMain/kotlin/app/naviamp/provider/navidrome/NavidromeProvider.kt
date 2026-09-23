@@ -35,6 +35,7 @@ import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaPage
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.ProviderCapabilities
@@ -1531,6 +1532,20 @@ class NavidromeProvider(
             httpClient.download(url, writeChunk = writeChunk)
         }
 
+    override suspend fun streamTrackBytes(
+        request: StreamRequest,
+        rangeHeader: String?,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean = httpClient.stream(
+        url = streamUrl(request),
+        headers = customHeaders + listOfNotNull(rangeHeader?.let { "Range" to it }).toMap(),
+        headOnly = headOnly,
+        onResponse = onResponse,
+        writeChunk = writeChunk,
+    )
+
     private suspend fun similarSongs(endpoint: String, responseKey: String, id: String, count: Int): List<Track> =
         try {
             get(endpoint, mapOf("id" to id, "count" to count.coerceAtLeast(1).toString()))
@@ -2236,6 +2251,13 @@ interface NavidromeHttpClient {
     ): Boolean {
         throw UnsupportedOperationException("Streaming download is not supported by this Navidrome HTTP client.")
     }
+    suspend fun stream(
+        url: String,
+        headers: Map<String, String>,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean = throw UnsupportedOperationException("Cast streaming is not supported by this Navidrome HTTP client.")
 }
 
 data class NavidromeHttpResponse(

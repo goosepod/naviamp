@@ -5,6 +5,35 @@ sealed interface NaviampCastRequestedRange {
     data class Suffix(val byteCount: Long) : NaviampCastRequestedRange
 }
 
+data class NaviampCastResolvedRange(val firstByte: Long, val lastByteInclusive: Long, val totalBytes: Long) {
+    val length: Long get() = lastByteInclusive - firstByte + 1
+    val contentRange: String get() = "bytes $firstByte-$lastByteInclusive/$totalBytes"
+}
+
+fun NaviampCastRequestedRange.toHttpHeader(): String = when (this) {
+    is NaviampCastRequestedRange.From -> "bytes=$firstByte-${lastByteInclusive?.toString().orEmpty()}"
+    is NaviampCastRequestedRange.Suffix -> "bytes=-$byteCount"
+}
+
+fun NaviampCastRequestedRange.resolve(totalBytes: Long): NaviampCastResolvedRange? {
+    if (totalBytes <= 0) return null
+    return when (this) {
+        is NaviampCastRequestedRange.From -> {
+            if (firstByte >= totalBytes) null
+            else NaviampCastResolvedRange(
+                firstByte = firstByte,
+                lastByteInclusive = (lastByteInclusive ?: totalBytes - 1).coerceAtMost(totalBytes - 1),
+                totalBytes = totalBytes,
+            )
+        }
+        is NaviampCastRequestedRange.Suffix -> NaviampCastResolvedRange(
+            firstByte = (totalBytes - byteCount).coerceAtLeast(0),
+            lastByteInclusive = totalBytes - 1,
+            totalBytes = totalBytes,
+        )
+    }
+}
+
 sealed interface NaviampCastMediaRequestDecision {
     data class Allowed(
         val resource: NaviampCastMediaResource,

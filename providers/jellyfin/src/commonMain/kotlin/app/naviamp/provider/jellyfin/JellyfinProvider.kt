@@ -34,6 +34,7 @@ import app.naviamp.domain.provider.MediaPage
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.collectBoundedMediaPages
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.ProviderCapabilities
@@ -614,6 +615,21 @@ class JellyfinProvider(
         httpClient: SharedHttpClient,
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
     ): Boolean = service.download(readyConnection(), url, writeChunk)
+
+    override suspend fun streamTrackBytes(
+        request: StreamRequest,
+        rangeHeader: String?,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean = service.stream(
+        connection = readyConnection(),
+        url = streamUrl(request),
+        rangeHeader = rangeHeader,
+        headOnly = headOnly,
+        onResponse = onResponse,
+        writeChunk = writeChunk,
+    )
 
     private suspend fun item(id: String): JsonObject =
         service.getJson(
