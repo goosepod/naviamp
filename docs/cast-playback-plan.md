@@ -1,6 +1,8 @@
 # Google Cast playback plan (#147)
 
-Status: architecture and compatibility investigation started on 2026-09-23. No Cast playback is enabled yet.
+Status: architecture and compatibility investigation started on 2026-09-23. The first shared
+output-selection model and common tests are in the draft branch. It is not yet connected to the
+existing Connect controller or a Cast effect, and no Cast playback is enabled.
 
 ## Existing shared owners
 
