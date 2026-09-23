@@ -2,8 +2,10 @@
 
 Status: architecture and compatibility investigation started on 2026-09-23. The first shared
 output-selection model is connected to the existing Connect controller, with common tests. A
-debug-only Android probe initializes the Cast SDK and opens its route picker. Cast playback is not
-enabled yet.
+shared Cast session contract and controller now own discovery ordering, selection, session status,
+and stale callback rejection. A debug-only Android probe initializes the Cast SDK and opens its
+route picker. The shared Cast controller has no production host adapter or media access yet, and
+Cast playback is not enabled.
 
 ## Existing shared owners
 
