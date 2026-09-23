@@ -86,7 +86,7 @@ class NaviampCorePlaybackEngineAdapterTest {
             cacheAudio = { _, _, _, quality -> writes += quality; error("Upgrade interrupted") },
         )
         val next = provider.track.copy(id = TrackId("next"))
-        val queue = PlaybackQueue(listOf(provider.track, next), 0)
+        val queue = PlaybackQueue(listOf(provider.track, next, provider.track.copy(id = TrackId("later"))), 0)
         adapter.playQueueSelection(queue, 0)
         advanceUntilIdle()
         assertEquals("file:///cache/core-track", engine.request?.url)
