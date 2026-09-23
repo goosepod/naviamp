@@ -3,6 +3,9 @@ package app.naviamp.presentation
 import app.naviamp.domain.library.AlbumLibraryIndex
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampProviderActionController
+import app.naviamp.app.NaviampCastHttpServerEffect
+import app.naviamp.app.NaviampCastSecureTokenSource
+import app.naviamp.app.NaviampCastSessionEffect
 import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
@@ -81,6 +84,14 @@ data class NaviampCoreRadioServices(
     val generatedRecents: NaviampCoreGeneratedRadioRecentsPort,
 )
 
+/** Native Cast SDK, LAN socket, secure randomness, and route picker effects. */
+data class NaviampCoreCastServices(
+    val session: NaviampCastSessionEffect,
+    val server: NaviampCastHttpServerEffect,
+    val tokens: NaviampCastSecureTokenSource,
+    val showRoutePicker: () -> Unit,
+)
+
 /** Portable persistence effects for Core-owned generated-radio recency policy. */
 data class NaviampCoreGeneratedRadioRecentsPort(
     val load: () -> List<RecentRadioStream>,
@@ -107,4 +118,5 @@ data class NaviampCoreServices(
     val favoritedAtIso8601: () -> String,
     val diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
     val connect: NaviampCoreConnectServices? = null,
+    val cast: NaviampCoreCastServices? = null,
 )

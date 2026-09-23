@@ -7,6 +7,9 @@ import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackOutputSelectionController
+import app.naviamp.app.NaviampCastMediaEndpointController
+import app.naviamp.app.NaviampCastMediaLeaseController
+import app.naviamp.app.NaviampCastSessionController
 import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
@@ -94,6 +97,8 @@ class NaviampCore private constructor(
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val diagnostics: NaviampCoreDiagnosticsPort,
     private val connectController: NaviampCoreConnectController?,
+    private val castController: NaviampCoreCastController?,
+    private val showCastRoutePicker: (() -> Unit)?,
     internal val playbackOutputs: NaviampPlaybackOutputSelectionController,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
@@ -167,8 +172,15 @@ class NaviampCore private constructor(
     }
 
     fun close() {
+        castController?.close()
         connectController?.close()
     }
+
+    val castAvailable: Boolean get() = showCastRoutePicker != null
+
+    fun showCastPicker() { showCastRoutePicker?.invoke() }
+
+    fun selectLocalPlayback() { castController?.selectLocal() }
 
     /** Runs the shared sliding-session heartbeat until the mounted Core application is disposed. */
     suspend fun maintainProviderSession() {
@@ -202,6 +214,8 @@ class NaviampCore private constructor(
             val navigationState = NaviampNavigationController(initialState.navigation)
             val livePlayback = NaviampLivePlaybackController(initialState.playback)
             val queue = NaviampPlaybackQueueCoordinator(livePlayback)
+            val playbackOutputs = NaviampPlaybackOutputSelectionController()
+            val routedPlaybackEffects = NaviampCoreOutputPlaybackEffects(services.playback.effects, playbackOutputs)
             val deferredArtistNavigator = DeferredArtistNavigator()
             val mediaRegistry = NaviampCoreMediaRegistry()
             val navigation = NaviampCoreNavigationController(
@@ -307,7 +321,7 @@ class NaviampCore private constructor(
                 providerSource,
                 livePlayback,
                 queue,
-                services.playback.effects,
+                routedPlaybackEffects,
                 services.playback.sidecars,
                 services.downloads.network,
                 radio::stations,
@@ -315,7 +329,7 @@ class NaviampCore private constructor(
             val queuePlayback = NaviampCoreQueuePlaybackController(
                 playback = livePlayback,
                 queue = queue,
-                effects = services.playback.effects,
+                effects = routedPlaybackEffects,
                 publishNowPlaying = nowPlayingPresenter::publish,
                 openNowPlaying = navigation::openNowPlaying,
                 activeSourceId = { stateStore.state.value.shell.connectionSettings.currentSourceId },
@@ -357,7 +371,7 @@ class NaviampCore private constructor(
                         groupLabel = playlist.name,
                     )
                     if (update.tracksChanged) {
-                        services.playback.effects.applyQueue(update.queue, clearPreparedNext = true)
+                        routedPlaybackEffects.applyQueue(update.queue, clearPreparedNext = true)
                         publishPlaylistQueueUpdate()
                     }
                 },
@@ -375,7 +389,7 @@ class NaviampCore private constructor(
                 providerSource,
                 livePlayback,
                 queue,
-                services.playback.effects,
+                routedPlaybackEffects,
                 services.playback.settings,
                 services.playback.sidecars,
                 services.playback.sessions,
@@ -397,7 +411,7 @@ class NaviampCore private constructor(
                 mediaRegistry,
                 livePlayback,
                 queue,
-                services.playback.effects,
+                routedPlaybackEffects,
                 queuePlayback,
                 downloads,
                 mediaDetails,
@@ -423,7 +437,7 @@ class NaviampCore private constructor(
                 providerSource,
                 livePlayback,
                 queue,
-                services.playback.effects,
+                routedPlaybackEffects,
                 nowPlayingPresenter,
                 playback,
                 services.playback.settings,
@@ -621,7 +635,6 @@ class NaviampCore private constructor(
                 ),
                 onAsyncFailure = onAsyncFailure,
             )
-            val playbackOutputs = NaviampPlaybackOutputSelectionController()
             val connect = services.connect?.let { connectServices ->
                 val supportsRemotePlayback = NaviampConnectDeviceCapability.PlaybackTarget in
                     connectServices.deviceCapabilities
@@ -644,6 +657,29 @@ class NaviampCore private constructor(
                     playbackOutputs = playbackOutputs,
                 )
             }
+            val cast = services.cast?.let { castServices ->
+                NaviampCoreCastController(
+                    scope = scope,
+                    sessions = NaviampCastSessionController(castServices.session, playbackOutputs),
+                    outputs = playbackOutputs,
+                    endpoint = NaviampCastMediaEndpointController(
+                        server = castServices.server,
+                        leases = NaviampCastMediaLeaseController(
+                            tokens = castServices.tokens,
+                            nowEpochMillis = services.clockEpochMillis,
+                        ),
+                        source = NaviampCoreCastMediaByteSource(providerSource),
+                    ),
+                    providers = providerSource,
+                    playback = livePlayback,
+                    queue = queue,
+                    local = services.playback.effects,
+                    publishNowPlaying = { nowPlayingPresenter.publish(playback.currentDisplay()) },
+                ).also { controller ->
+                    routedPlaybackEffects.cast = controller
+                    controller.start()
+                }
+            }
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
             livePlayback.observe { live -> connect?.onLocalPlaybackChanged(live) }
             nowPlayingPresenter.publish()
@@ -661,6 +697,8 @@ class NaviampCore private constructor(
                 sidecars = services.playback.sidecars,
                 diagnostics = services.diagnostics,
                 connectController = connect,
+                castController = cast,
+                showCastRoutePicker = services.cast?.showRoutePicker,
                 playbackOutputs = playbackOutputs,
             )
         }

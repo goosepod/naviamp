@@ -17,6 +17,7 @@ import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreBidirectionalConnectCapabilities
 import app.naviamp.presentation.NaviampCoreConnectServices
+import app.naviamp.presentation.NaviampCoreCastServices
 import app.naviamp.presentation.NaviampCorePlaybackTargetConnectCapabilities
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
@@ -245,7 +246,15 @@ class AndroidNaviampCoreCatalog private constructor(
             )
             return AndroidNaviampCoreCatalog(
                 environment = NaviampCoreEnvironment(
-                    services = storedCatalog.services.copy(connect = connectServices),
+                    services = storedCatalog.services.copy(
+                        connect = connectServices,
+                        cast = NaviampCoreCastServices(
+                            session = AndroidNaviampCastSessionEffect(appContext),
+                            server = AndroidNaviampCastHttpServerEffect(appContext),
+                            tokens = AndroidNaviampCastSecureTokenSource(),
+                            showRoutePicker = AndroidNaviampCastRoutePickerEffect::show,
+                        ).takeUnless { isTelevision },
+                    ),
                     initialState = storedCatalog.initialState,
                     actionAvailability = AndroidCapabilityPresentation.toCoreActionAvailability(),
                     onAsyncFailure = { command, failure ->

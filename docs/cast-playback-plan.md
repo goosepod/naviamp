@@ -7,8 +7,12 @@ and stale callback rejection. The Android SDK adapter translates native session 
 that common controller. A debug-only Android probe opens the native route picker and exercises the
 adapter. Core owns expiring opaque media leases, HTTP request authorization, and provider byte
 selection. Navidrome and Jellyfin stream authenticated track bytes with range response metadata;
-Android binds a receiver-reachable socket. Shared queue handoff and receiver media loading are still
-missing, so Cast playback is not enabled.
+Android binds a receiver-reachable socket. The shared output router now diverts queue selection
+and transport commands from local audio while Cast is selected. Core creates a paused receiver load
+from an opaque track URL, stops local audio only after the load is accepted, and then starts the
+receiver. Receiver status drives shared progress and queue completion; returning to local restores
+the receiver position. The shared Now Playing menu opens the Android SDK route picker. This path is
+implemented but has not yet played provider media on a physical receiver, so the PR remains draft.
 
 ## Existing shared owners
 
@@ -25,6 +29,10 @@ The socket has been proven reachable from the Mac over the local Wi-Fi network. 
 reachability, codec/container support, provider range behavior, and background lifetime still need
 physical receiver verification. If a host cannot sustain the endpoint, define one common product
 behavior for that capability instead of silently exposing different Cast features by platform.
+
+The initial receiver load requests MP3 transcoding at 320 kbps when the provider supports it, or
+uses an original MP3 source. Other original formats wait for a verified receiver format policy.
+The Default Media Receiver receives only the scoped sender endpoint URL and artwork URL.
 
 The current shared lease policy issues a URL-safe, sender-scoped token for a track or artwork ID,
 expires it after one hour by default, and revokes it when Core requests. The shared HTTP gate accepts
@@ -58,6 +66,11 @@ at its Wi-Fi address. From the Mac, a full GET returned 200, a ranged GET return
 expected four bytes, and HEAD returned headers without a body. Invalid ranges returned 416 and
 unknown tokens returned 404. This proves local-network HTTP behavior for test bytes, not provider
 media delivery to a Cast receiver.
+
+The normal Naviamp Now Playing menu now opens the same native route picker on the Pixel 10a. The
+picker again listed both televisions, and it was dismissed without selecting either one. The
+Android host uses `FragmentActivity` and an AppCompat activity theme because the MediaRouter
+dialog requires both. This verifies sender discovery and the product entry point, not Cast playback.
 
 ## First implementation sequence
 

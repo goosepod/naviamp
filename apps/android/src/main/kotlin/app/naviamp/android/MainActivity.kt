@@ -12,6 +12,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +24,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.fragment.app.FragmentActivity
+import androidx.mediarouter.app.MediaRouteButton
+import com.google.android.gms.cast.framework.CastButtonFactory
 import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.systemBackCommand
@@ -32,7 +40,7 @@ import app.naviamp.ui.NaviampAndroidRasterHost
 import app.naviamp.ui.NaviampSystemBackDispatcher
 
 /** Thin Android window and intent/permission boundary for the process-owned Core app. */
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private var openNowPlayingRequest by mutableIntStateOf(0)
     private var settingsImportRequest by mutableStateOf<String?>(null)
 
@@ -67,13 +75,26 @@ class MainActivity : ComponentActivity() {
             AndroidNaviampPlaybackLifecycle(runtime.core)
             CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides systemBackDispatcher) {
                 NaviampAndroidRasterHost {
-                    NaviampCoreApp(
-                        core = runtime.core,
-                        modifier = Modifier.safeDrawingPadding().imePadding(),
-                        applicationSurface = naviampApplicationSurface(),
-                        screenAwakeEffect = remember(window) { AndroidScreenAwakeEffect(window) },
-                        applicationUpdateChecker = runtime.applicationUpdateChecker,
-                    )
+                    Box {
+                        NaviampCoreApp(
+                            core = runtime.core,
+                            modifier = Modifier.safeDrawingPadding().imePadding(),
+                            applicationSurface = naviampApplicationSurface(),
+                            screenAwakeEffect = remember(window) { AndroidScreenAwakeEffect(window) },
+                            applicationUpdateChecker = runtime.applicationUpdateChecker,
+                        )
+                        if (runtime.core.castAvailable) {
+                            AndroidView(
+                                factory = { context ->
+                                    MediaRouteButton(context).also { button ->
+                                        CastButtonFactory.setUpMediaRouteButton(context, button)
+                                        AndroidNaviampCastRoutePickerEffect.attach(button)
+                                    }
+                                },
+                                modifier = Modifier.size(1.dp).alpha(0f),
+                            )
+                        }
+                    }
                 }
             }
         }

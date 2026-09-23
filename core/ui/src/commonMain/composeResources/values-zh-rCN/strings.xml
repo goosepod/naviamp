@@ -74,4 +74,5 @@
     <string name="changelog_270_media">“参与作品”会包含曲目级艺术家署名，桌面版支持 WebP 封面，同步歌词会保持居中并在曲目切换时清除。</string>
     <string name="changelog_270_beta">Android TV 和 Naviamp Connect 仍处于测试阶段，同时继续进行设备兼容性、网络恢复和性能测试。</string>
     <string name="changelog_271_popups">修复了弹出菜单和对话框跳动、闪烁以及点击响应位置错误的问题。</string>
+    <string name="now_playing_cast_to_device">投放到设备</string>
 </resources>
