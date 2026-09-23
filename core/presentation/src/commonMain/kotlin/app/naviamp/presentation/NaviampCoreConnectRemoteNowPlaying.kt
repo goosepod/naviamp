@@ -30,6 +30,7 @@ import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingQueueAction
 import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.nowPlayingQueueContext
 
 internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(
     targetName: String,
@@ -66,6 +67,10 @@ internal fun NaviampConnectTargetSnapshot.toRemoteNowPlayingUi(
             NaviampConnectPlaybackState.Failed -> "Playback failed on $targetName"
             NaviampConnectPlaybackState.Idle -> "Connected to $targetName"
         },
+        queueContext = queue.groups.firstOrNull { queue.currentIndex in it.startIndex until it.endIndexExclusive }
+            ?.let { group ->
+                nowPlayingQueueContext(group.targetType, group.label, group.targetId, group.groupId)
+            },
         remoteOutputDeviceName = targetName,
         coverArtUrl = coverArtUrl(current?.artworkId),
         trackCoverArtUrl = coverArtUrl(current?.artworkId),

@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">Deckkraft des Hintergrunds der geteilten Ansicht</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Wiedergabegerät: %1$s</string>
+    <string name="now_playing_from_playlist">Aus Playlist: %1$s</string>
+    <string name="now_playing_from_album">Aus Album: %1$s</string>
+    <string name="now_playing_from_work">Aus Werk: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Wiedergabequelle anzeigen</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Die Sammlung anzeigen, mit der die aktuelle Warteschlange gestartet wurde.</string>
     <string name="smart_playlist_field_album_date_added">Album hinzugefügt</string>
     <string name="smart_playlist_field_album_date_modified">Album geändert</string>
     <string name="smart_playlist_field_album_duration">Albumdauer</string>

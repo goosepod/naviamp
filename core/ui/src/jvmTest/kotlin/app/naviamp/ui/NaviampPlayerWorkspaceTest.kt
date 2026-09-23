@@ -18,11 +18,43 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 import app.naviamp.domain.playback.EqualizerSettings
+import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.settings.WideNowPlayingLayout
 import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPlayerWorkspaceTest {
+    @Test fun playlistContextUpdatesAndDisappearsInTheRenderedPlayer() = runDesktopComposeUiTest(420, 800) {
+        val context = mutableStateOf<NowPlayingQueueContextUi?>(
+            NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
+        )
+        val showPlaybackSource = mutableStateOf(false)
+        setContent {
+            NaviampNowPlayingPanel(
+                nowPlaying = NowPlayingUi(
+                    id = "song", title = "Song", subtitle = "Artist", stateLabel = "Playing",
+                    queueContext = context.value,
+                ),
+                colors = NaviampColors(),
+                actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                displaySettings = app.naviamp.domain.settings.NowPlayingDisplaySettings(
+                    showPlaybackSource = showPlaybackSource.value,
+                ),
+                panelLayout = NaviampPlayerPanelLayout.Standalone,
+            )
+        }
+        onNodeWithTag("now-playing-queue-context").assertDoesNotExist()
+        showPlaybackSource.value = true
+        waitForIdle()
+        onNodeWithTag("now-playing-queue-context").assertTextContains("Road Trip", substring = true)
+        context.value = NowPlayingQueueContextUi(PlaybackProfileTargetType.Album, "Evening Songs")
+        waitForIdle()
+        onNodeWithTag("now-playing-queue-context").assertTextContains("Evening Songs", substring = true)
+        context.value = null
+        waitForIdle()
+        onNodeWithTag("now-playing-queue-context").assertDoesNotExist()
+    }
+
     @Test fun playerPanesPreserveAlbumBackground() = runDesktopComposeUiTest(1000, 640) {
         val layout = mutableStateOf(WideNowPlayingLayout.Split)
         setContent {

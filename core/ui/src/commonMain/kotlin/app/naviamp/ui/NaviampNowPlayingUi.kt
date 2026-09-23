@@ -973,6 +973,17 @@ private fun NowPlayingDetails(
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum) },
                         ),
                     )
+                    nowPlaying.queueContext?.takeIf { displaySettings.showPlaybackSource }?.let { context ->
+                        Text(
+                            text = nowPlayingQueueContextLabel(context),
+                            color = colors.secondaryText,
+                            fontSize = (metadataFontSize - 1).sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = if (largePresentation) TextAlign.Start else TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().testTag("now-playing-queue-context"),
+                        )
+                    }
                 }
         }
 

@@ -2012,6 +2012,13 @@ private fun NowPlayingDisplaySettings(
         label = stringResource(Res.string.settings_now_playing_show_audio_info),
         onCheckedChange = { enabled -> update { it.copy(showAudioInfo = enabled) } },
     )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.showPlaybackSource,
+        label = stringResource(Res.string.settings_now_playing_show_playback_source),
+        subtitle = stringResource(Res.string.settings_now_playing_show_playback_source_subtitle),
+        onCheckedChange = { enabled -> update { it.copy(showPlaybackSource = enabled) } },
+    )
     if (showSoftwareVolumePreference) {
         SettingsCheckboxRow(
             colors = colors,

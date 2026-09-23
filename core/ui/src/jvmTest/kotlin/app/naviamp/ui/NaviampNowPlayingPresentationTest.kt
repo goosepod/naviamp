@@ -10,16 +10,20 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackProfileTarget
+import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.PlaybackQueueGroup
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampNowPlayingPresentationTest {
@@ -81,6 +85,44 @@ class NaviampNowPlayingPresentationTest {
         assertEquals("current", miniNowPlaying.id)
         assertTrue(miniNowPlaying.isPlaying)
         assertTrue(miniNowPlaying.hasNext)
+    }
+
+    @Test
+    fun queueContextFollowsTheCurrentGroupAndIgnoresMissingOrInternalLabels() {
+        val first = track("first")
+        val second = track("second")
+        val playlist = PlaybackQueueGroup(
+            id = "internal-playlist-id",
+            target = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "provider-id"),
+            label = "Road Trip",
+            startIndex = 0,
+            endIndexExclusive = 1,
+        )
+        val album = PlaybackQueueGroup(
+            id = "internal-album-id",
+            target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album-id"),
+            label = "Evening Songs",
+            startIndex = 1,
+            endIndexExclusive = 2,
+        )
+        val restored = PlaybackQueue(listOf(first, second), currentIndex = 0, groups = listOf(playlist, album))
+        fun context(track: Track, queue: PlaybackQueue) = input(track, queue)
+            .copy(displaySettings = NowPlayingDisplaySettings(showPlaybackSource = true))
+            .toPresentationUi().nowPlaying.queueContext
+
+        assertNull(input(first, restored).toPresentationUi().nowPlaying.queueContext)
+
+        assertEquals(
+            NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
+            context(first, restored),
+        )
+        assertEquals(
+            NowPlayingQueueContextUi(PlaybackProfileTargetType.Album, "Evening Songs"),
+            context(second, restored.copy(currentIndex = 1)),
+        )
+        assertNull(context(second, restored.copy(currentIndex = 1, groups = listOf(playlist))))
+        assertNull(context(first, restored.copy(groups = listOf(playlist.copy(label = "  ")))))
+        assertNull(context(first, restored.copy(groups = listOf(playlist.copy(label = "provider-id")))))
     }
 
     @Test
