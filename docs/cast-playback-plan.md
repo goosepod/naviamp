@@ -1,8 +1,9 @@
 # Google Cast playback plan (#147)
 
 Status: architecture and compatibility investigation started on 2026-09-23. The first shared
-output-selection model and common tests are in the draft branch. It is not yet connected to the
-existing Connect controller or a Cast effect, and no Cast playback is enabled.
+output-selection model is connected to the existing Connect controller, with common tests. A
+debug-only Android probe initializes the Cast SDK and opens its route picker. Cast playback is not
+enabled yet.
 
 ## Existing shared owners
 
@@ -26,6 +27,12 @@ This is a candidate design, not a supported capability yet. Before implementing 
 | Desktop | No native desktop sender SDK is listed in Google's sender matrix; investigate a supported browser/Web Sender bridge or another documented route before promising native Desktop Cast | Windows, macOS, and Linux with physical receiver |
 
 Google documents Android, iOS, and Web sender SDKs. Its Default Media Receiver can load a supplied media URL, while authentication or custom receiver logic calls for a Custom Web Receiver. The media-access proof will determine whether the Default Media Receiver is sufficient; do not register or ship a custom receiver until that choice is supported by evidence.
+
+On 2026-09-23, a Pixel 10a running the debug probe initialized Cast SDK 22.3.1 and opened the native
+route picker. It discovered `GoogleTV8565` and `Living Room TV`. Neither receiver was selected or
+used for playback. The probe lives in the Android debug source set and uses the Default Media
+Receiver application ID. This establishes phone-side discovery only; receiver reachability, media
+delivery, and playback remain untested.
 
 ## First implementation sequence
 

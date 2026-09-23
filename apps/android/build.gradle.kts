@@ -144,6 +144,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(kotlin("test"))
     androidTestImplementation(libs.ktor.client.core)
+    debugImplementation("com.google.android.gms:play-services-cast-framework:22.3.1")
 }
 
 tasks.register("verifyDebugBassNativePackage") {

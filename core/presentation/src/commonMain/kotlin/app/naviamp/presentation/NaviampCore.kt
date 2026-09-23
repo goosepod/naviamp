@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaybackOutputSelectionController
 import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
@@ -93,6 +94,7 @@ class NaviampCore private constructor(
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val diagnostics: NaviampCoreDiagnosticsPort,
     private val connectController: NaviampCoreConnectController?,
+    internal val playbackOutputs: NaviampPlaybackOutputSelectionController,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
 
@@ -619,6 +621,7 @@ class NaviampCore private constructor(
                 ),
                 onAsyncFailure = onAsyncFailure,
             )
+            val playbackOutputs = NaviampPlaybackOutputSelectionController()
             val connect = services.connect?.let { connectServices ->
                 val supportsRemotePlayback = NaviampConnectDeviceCapability.PlaybackTarget in
                     connectServices.deviceCapabilities
@@ -638,6 +641,7 @@ class NaviampCore private constructor(
                     targetConnection = connection.takeIf { supportsRemotePlayback },
                     targetSettings = settings.takeIf { supportsRemotePlayback },
                     revealTargetNowPlaying = navigation::openNowPlaying,
+                    playbackOutputs = playbackOutputs,
                 )
             }
             val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
@@ -657,6 +661,7 @@ class NaviampCore private constructor(
                 sidecars = services.playback.sidecars,
                 diagnostics = services.diagnostics,
                 connectController = connect,
+                playbackOutputs = playbackOutputs,
             )
         }
     }

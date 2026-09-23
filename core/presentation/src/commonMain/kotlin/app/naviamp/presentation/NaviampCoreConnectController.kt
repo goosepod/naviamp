@@ -19,6 +19,7 @@ import app.naviamp.app.NaviampConnectPakeFactory
 import app.naviamp.app.NaviampConnectPairingRuntimeResult
 import app.naviamp.app.NaviampConnectPlaybackDestination
 import app.naviamp.app.NaviampConnectPlaybackDestinationController
+import app.naviamp.app.NaviampPlaybackOutputSelectionController
 import app.naviamp.app.NaviampConnectRemoteOutputStatus
 import app.naviamp.app.NaviampConnectPendingTargetPairing
 import app.naviamp.app.NaviampConnectTargetPairingRequestResult
@@ -135,6 +136,7 @@ class NaviampCoreConnectController(
     private val localConnection: NaviampCoreConnectionController? = null,
     private val targetSettings: NaviampCoreSettingsController? = null,
     private val revealTargetNowPlaying: () -> Unit = {},
+    private val playbackOutputs: NaviampPlaybackOutputSelectionController = NaviampPlaybackOutputSelectionController(),
 ) {
     private val controllerScope = CoroutineScope(
         scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]),
@@ -156,7 +158,7 @@ class NaviampCoreConnectController(
         NaviampConnectAdvertisingController(it, services.nowEpochMillis)
     }
     private val targetPairing = NaviampConnectTargetPairingController()
-    private val playbackDestination = NaviampConnectPlaybackDestinationController()
+    private val playbackDestination = NaviampConnectPlaybackDestinationController(playbackOutputs)
     private var listener: NaviampConnectTransportListener? = null
     private var listenerJob: Job? = null
     private var acceptedPairingConnection: NaviampConnectTransportConnection? = null
@@ -1924,7 +1926,7 @@ class NaviampCoreConnectController(
         val effectiveStatus = discovered?.problem?.userMessage() ?: status ?: remote?.lastError?.message
         val trusts = services.trust.load()
         val trustDisplayNames = disambiguateNaviampConnectDeviceNames(trusts.map { it.visibleDisplayName() })
-        val destination = playbackDestination.state.value
+        val destination = playbackDestination.snapshot()
         val remoteDestination = destination as? NaviampConnectPlaybackDestination.Remote
         stateStore.updateShell { shell ->
             shell.copy(
