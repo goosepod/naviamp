@@ -11,8 +11,9 @@ Android binds a receiver-reachable socket. The shared output router now diverts 
 and transport commands from local audio while Cast is selected. Core creates a paused receiver load
 from an opaque track URL, stops local audio only after the load is accepted, and then starts the
 receiver. Receiver status drives shared progress and queue completion; returning to local restores
-the receiver position. The shared Now Playing menu opens the Android SDK route picker. This path is
-implemented but has not yet played provider media on a physical receiver, so the PR remains draft.
+the receiver position. The shared Now Playing menu opens the Android SDK route picker. A user test
+has now confirmed playback on a Roku TV, while an Onn 4K Pro receiver connects without starting
+playback; the PR remains draft pending investigation and broader receiver verification.
 
 ## Existing shared owners
 
@@ -71,6 +72,21 @@ The normal Naviamp Now Playing menu now opens the same native route picker on th
 picker again listed both televisions, and it was dismissed without selecting either one. The
 Android host uses `FragmentActivity` and an AppCompat activity theme because the MediaRouter
 dialog requires both. This verifies sender discovery and the product entry point, not Cast playback.
+
+### Physical receiver feedback (2026-09-23)
+
+The user tested the `v2.7.1-casttest` Android build on the Pixel 10a. Their setup has a Roku TV
+with an Onn 4K Pro TV box connected to it. These are separate Cast targets:
+
+- **Roku TV:** Selecting the TV switched it to a playback view with the track and album art.
+  Playback worked as expected. Stopping Cast control stopped playback immediately.
+- **Onn 4K Pro:** Naviamp reported that it was controlling the Onn, but nothing played on the box.
+  The Onn uses the Projectivy launcher. Whether that launcher affects receiver behavior is unknown.
+
+Follow up by capturing sender session/load/status callbacks and receiver-side behavior for the Onn,
+then compare with the working Roku path. Check whether the Onn requests the scoped media URL and
+whether the failure is in receiver launch, media loading, network access, or playback. Retest with
+the stock launcher if feasible. Do not treat a connected session alone as successful playback.
 
 ## First implementation sequence
 
