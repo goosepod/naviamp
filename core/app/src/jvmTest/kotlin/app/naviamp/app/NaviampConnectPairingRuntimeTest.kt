@@ -27,6 +27,44 @@ import kotlin.test.assertTrue
 
 class NaviampConnectPairingRuntimeTest {
     @Test
+    fun manualAddressUsesTheSameCodeApprovalAndVerifiedIdentity() = runBlocking {
+        val controllerIdentity = TestIdentityEffect()
+        val targetIdentity = TestIdentityEffect()
+        val capabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback, NaviampConnectDeviceCapability.PlaybackTarget)
+        val controllerDevice = controllerIdentity.device("Controller", NaviampConnectDeviceRole.Controller, capabilities)
+        val targetDevice = targetIdentity.device("Target", NaviampConnectDeviceRole.Target, capabilities)
+        val transport = JvmNaviampConnectTcpTransportFactory()
+        val listener = transport.listen()
+        val advertisement = advertisement(listener.port, targetIdentity.identity.identityFingerprint)
+        val policy = NaviampConnectTargetPairingController().apply {
+            start(advertisement, PairingSession, PairingCode, nowEpochMillis = 1_000)
+        }
+        val target = async(Dispatchers.Default) {
+            val request = assertIs<NaviampConnectTargetPairingRequestResult.AwaitingApproval>(
+                targetRuntime(targetDevice, targetIdentity, policy).receiveRequest(listener.accept(), 1_100),
+            )
+            request.request.approve(1_200, "controller-trust")
+        }
+        val controller = async(Dispatchers.Default) {
+            controllerRuntime(controllerDevice, controllerIdentity, transport).pairManual(
+                "127.0.0.1", listener.port, PairingCode.toCharArray(), 1_200, "target-trust",
+            )
+        }
+        val pairedController = assertIs<NaviampConnectPairingRuntimeResult.Paired>(controller.await())
+        val pairedTarget = assertIs<NaviampConnectPairingRuntimeResult.Paired>(target.await())
+        try {
+            assertEquals(targetIdentity.identity.identityFingerprint, pairedController.trust.identityFingerprint)
+            assertContentEquals(pairedController.resumptionCredential, pairedTarget.resumptionCredential)
+            pairedController.session.send(NaviampConnectPing(7))
+            assertEquals(NaviampConnectPing(7), pairedTarget.session.receive().message)
+        } finally {
+            pairedController.session.close()
+            pairedTarget.session.close()
+            listener.close()
+        }
+    }
+
+    @Test
     fun completesIdentityBoundPairingAndRetainsAuthenticatedSession(): Unit = runBlocking {
         val controllerIdentity = TestIdentityEffect()
         val targetIdentity = TestIdentityEffect()

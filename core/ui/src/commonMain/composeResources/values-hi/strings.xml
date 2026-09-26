@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">पॉपअप मेन्यू और संवादों का अचानक खिसकना, झिलमिलाना और गलत स्थान पर क्लिक का जवाब देना ठीक किया गया।</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi पर कैश किए गए ऑडियो की गुणवत्ता बढ़ाएँ</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">ज़रूरत पड़ने पर कम गुणवत्ता वाले कैश किए गए ऑडियो को मौजूदा Wi-Fi गुणवत्ता में अपग्रेड करें।</string>
+    <string name="connect_manual_address_label">मैन्युअल पता</string>
+    <string name="connect_manual_address_hint">लक्ष्य का Tailnet IP या होस्टनाम और उस डिवाइस पर दिखाया गया पोर्ट दर्ज करें।</string>
+    <string name="connect_manual_pair">पते से पेयर करें</string>
+    <string name="connect_manual_invalid">मान्य होस्टनाम या IP पता और पोर्ट दर्ज करें।</string>
+    <string name="connect_manual_enter_code">लक्ष्य पर दिखाया गया छह अंकों का कोड दर्ज करें।</string>
+    <string name="connect_manual_authenticating">इस पते पर लक्ष्य का प्रमाणीकरण हो रहा है…</string>
+    <string name="connect_manual_unreachable">इस पते तक नहीं पहुँचा जा सका। Tailnet, पोर्ट और पेयरिंग मोड जाँचें।</string>
+    <string name="connect_manual_port">मैन्युअल कनेक्शन पोर्ट: %1$d</string>
+    <string name="connect_manual_rejected">पते तक पहुँचे, लेकिन विश्वसनीय डिवाइस की पुष्टि नहीं हो सकी। उसकी पहचान जाँचें या फिर से पेयर करें।</string>
+    <string name="connect_manual_reconnect">%1$s से पते द्वारा फिर कनेक्ट करें</string>
 </resources>

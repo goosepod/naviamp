@@ -492,6 +492,7 @@ internal fun NaviampConnectSettingsSection(
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
     ) {
         var localDeviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
+        var manualAddress by rememberSaveable { mutableStateOf("") }
         SettingsSectionTitle("This device", colors)
         OutlinedTextField(
             value = localDeviceName,
@@ -554,6 +555,19 @@ internal fun NaviampConnectSettingsSection(
         }
         if (connect.canDiscover) {
             PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = actions.onRefreshTargets)
+            Text(stringResource(Res.string.connect_manual_address_hint), color = colors.secondaryText, fontSize = 12.sp)
+            OutlinedTextField(
+                value = manualAddress,
+                onValueChange = { manualAddress = it },
+                singleLine = true,
+                label = { Text(stringResource(Res.string.connect_manual_address_label)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PrimaryButton(
+                stringResource(Res.string.connect_manual_pair), colors,
+                enabled = manualAddress.isNotBlank(),
+                onClick = { actions.onManualEndpointSelected(manualAddress) },
+            )
             connect.discoveredTargets.forEach { target ->
                 PrimaryButton(
                     label = if (target.instanceId == connect.selectedTargetId) {
@@ -567,7 +581,7 @@ internal fun NaviampConnectSettingsSection(
                 )
             }
             if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingCode ||
-                connect.selectedTargetId != null
+                connect.selectedTargetId != null || connect.manualEndpointAwaitingCode
             ) {
                 OutlinedTextField(
                     value = connect.enteredPairingCode,
@@ -595,6 +609,13 @@ internal fun NaviampConnectSettingsSection(
                     enabled = device.reconnectAvailable,
                     onClick = { actions.onTrustedDeviceSelected(device) },
                 )
+                if (manualAddress.isNotBlank() && device.reconnectAvailable) {
+                    PrimaryButton(
+                        label = stringResource(Res.string.connect_manual_reconnect, device.displayName),
+                        colors = colors,
+                        onClick = { actions.onManualTrustedEndpointSelected(device, manualAddress) },
+                    )
+                }
                 OutlinedTextField(
                     value = alias,
                     onValueChange = { if (it.length <= 64) alias = it },

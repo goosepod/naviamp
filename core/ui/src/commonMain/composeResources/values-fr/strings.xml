@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Correction des menus contextuels et des boîtes de dialogue qui se déplaçaient, clignotaient et réagissaient aux clics au mauvais endroit.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Améliorer le cache audio en Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Améliorer au besoin les fichiers en cache de qualité inférieure selon la qualité Wi-Fi actuelle.</string>
+    <string name="connect_manual_address_label">Adresse manuelle</string>
+    <string name="connect_manual_address_hint">Saisissez l’adresse IP ou le nom d’hôte Tailnet de la cible et le port affiché sur cet appareil.</string>
+    <string name="connect_manual_pair">Associer par adresse</string>
+    <string name="connect_manual_invalid">Saisissez un nom d’hôte ou une adresse IP et un port valides.</string>
+    <string name="connect_manual_enter_code">Saisissez le code à six chiffres affiché sur la cible.</string>
+    <string name="connect_manual_authenticating">Authentification de la cible à cette adresse…</string>
+    <string name="connect_manual_unreachable">Adresse inaccessible. Vérifiez le Tailnet, le port et le mode d’association.</string>
+    <string name="connect_manual_port">Port de connexion manuelle : %1$d</string>
+    <string name="connect_manual_rejected">Adresse atteinte, mais l’appareil de confiance n’a pas pu être vérifié. Vérifiez son identité ou associez-le à nouveau.</string>
+    <string name="connect_manual_reconnect">Reconnecter %1$s par adresse</string>
 </resources>

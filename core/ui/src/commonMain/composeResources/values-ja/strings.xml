@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">ポップアップメニューやダイアログの位置がずれる、ちらつく、誤った位置でクリックに反応する問題を修正しました。</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fiでキャッシュ音声の音質を向上</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">必要に応じて低音質のキャッシュ音声を現在のWi-Fi音質に更新します。</string>
+    <string name="connect_manual_address_label">手動アドレス</string>
+    <string name="connect_manual_address_hint">接続先のTailnet IPまたはホスト名と、接続先に表示されたポートを入力してください。</string>
+    <string name="connect_manual_pair">アドレスでペアリング</string>
+    <string name="connect_manual_invalid">有効なホスト名またはIPアドレスとポートを入力してください。</string>
+    <string name="connect_manual_enter_code">接続先に表示された6桁のコードを入力してください。</string>
+    <string name="connect_manual_authenticating">このアドレスの接続先を認証しています…</string>
+    <string name="connect_manual_unreachable">このアドレスに接続できません。Tailnet、ポート、ペアリングモードを確認してください。</string>
+    <string name="connect_manual_port">手動接続ポート: %1$d</string>
+    <string name="connect_manual_rejected">アドレスには接続できましたが、信頼済みデバイスを確認できませんでした。IDを確認するか、再度ペアリングしてください。</string>
+    <string name="connect_manual_reconnect">アドレスで%1$sに再接続</string>
 </resources>

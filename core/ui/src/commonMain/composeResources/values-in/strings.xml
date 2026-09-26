@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Memperbaiki menu pop-up dan dialog yang bergeser, berkedip, dan merespons klik di lokasi yang salah.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Tingkatkan kualitas cache audio melalui Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Tingkatkan audio cache berkualitas lebih rendah ke kualitas Wi-Fi saat ini sesuai kebutuhan.</string>
+    <string name="connect_manual_address_label">Alamat manual</string>
+    <string name="connect_manual_address_hint">Masukkan IP atau nama host Tailnet target dan port yang ditampilkan di perangkat tersebut.</string>
+    <string name="connect_manual_pair">Pasangkan lewat alamat</string>
+    <string name="connect_manual_invalid">Masukkan nama host atau alamat IP dan port yang valid.</string>
+    <string name="connect_manual_enter_code">Masukkan kode enam digit yang ditampilkan di target.</string>
+    <string name="connect_manual_authenticating">Mengautentikasi target di alamat ini…</string>
+    <string name="connect_manual_unreachable">Alamat ini tidak dapat dijangkau. Periksa Tailnet, port, dan mode pemasangan.</string>
+    <string name="connect_manual_port">Port koneksi manual: %1$d</string>
+    <string name="connect_manual_rejected">Alamat tercapai, tetapi perangkat tepercaya tidak dapat diverifikasi. Periksa identitasnya atau pasangkan lagi.</string>
+    <string name="connect_manual_reconnect">Hubungkan kembali %1$s lewat alamat</string>
 </resources>

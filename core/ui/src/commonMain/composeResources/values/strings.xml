@@ -951,4 +951,14 @@
     <string name="changelog_270_media">Appears On includes track-level artist credits, desktop supports WebP artwork, and synchronized lyrics stay centered and clear between tracks.</string>
     <string name="changelog_270_beta">Android TV and Naviamp Connect remain beta while device compatibility, network recovery, and performance testing continue.</string>
     <string name="changelog_271_popups">Fixed popup menus and dialogs jumping, flickering, and responding to clicks in the wrong location.</string>
+    <string name="connect_manual_address_label">Manual address</string>
+    <string name="connect_manual_address_hint">Enter the target's Tailnet IP or hostname and the port shown on that device.</string>
+    <string name="connect_manual_pair">Pair at address</string>
+    <string name="connect_manual_invalid">Enter a valid host or IP address and port.</string>
+    <string name="connect_manual_enter_code">Enter the six-digit code shown on the target.</string>
+    <string name="connect_manual_authenticating">Authenticating the target at this address…</string>
+    <string name="connect_manual_unreachable">Could not reach that address. Check the Tailnet, port, and target pairing mode.</string>
+    <string name="connect_manual_port">Manual connection port: %1$d</string>
+    <string name="connect_manual_rejected">Reached the address, but the trusted device could not be verified. Check its identity or pair again.</string>
+    <string name="connect_manual_reconnect">Reconnect to %1$s at address</string>
 </resources>

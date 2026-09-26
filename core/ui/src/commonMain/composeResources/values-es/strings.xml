@@ -927,4 +927,14 @@
     <string name="changelog_270_media">Aparece en incluye créditos de artista por pista, el escritorio admite imágenes WebP y las letras sincronizadas permanecen centradas y se limpian entre pistas.</string>
     <string name="changelog_270_beta">Android TV y Naviamp Connect siguen en beta mientras continúan las pruebas de compatibilidad de dispositivos, recuperación de red y rendimiento.</string>
     <string name="changelog_271_popups">Se corrigieron los saltos, parpadeos y respuestas a clics en posiciones incorrectas de los menús emergentes y los cuadros de diálogo.</string>
+    <string name="connect_manual_address_label">Dirección manual</string>
+    <string name="connect_manual_address_hint">Introduce la IP o el nombre de host de Tailnet y el puerto que muestra el dispositivo de destino.</string>
+    <string name="connect_manual_pair">Vincular por dirección</string>
+    <string name="connect_manual_invalid">Introduce un nombre de host o una dirección IP y un puerto válidos.</string>
+    <string name="connect_manual_enter_code">Introduce el código de seis dígitos que muestra el dispositivo de destino.</string>
+    <string name="connect_manual_authenticating">Autenticando el dispositivo de destino en esta dirección…</string>
+    <string name="connect_manual_unreachable">No se pudo acceder a esta dirección. Comprueba Tailnet, el puerto y el modo de vinculación.</string>
+    <string name="connect_manual_port">Puerto de conexión manual: %1$d</string>
+    <string name="connect_manual_rejected">Se llegó a la dirección, pero no se pudo verificar el dispositivo de confianza. Comprueba su identidad o vuelve a vincularlo.</string>
+    <string name="connect_manual_reconnect">Reconectar con %1$s por dirección</string>
 </resources>
