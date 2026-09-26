@@ -1,7 +1,9 @@
 package app.naviamp.android
 
+import android.net.ConnectivityManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
+import android.os.SystemClock
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.naviamp.app.NaviampConnectDiscoveryListener
@@ -21,7 +23,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import kotlin.test.fail
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -43,30 +45,18 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
 
     @Test
     fun nativeDnsSdRegistrationCanStartAndStop() {
-        val registered = CountDownLatch(1)
-        var failure: String? = null
+        val registration = RegistrationOutcome()
         val effect: NaviampConnectAdvertisingEffect = AndroidNaviampConnectAdvertisingEffect(
             ApplicationProvider.getApplicationContext(),
         )
 
         val result = effect.start(
-            registrationService(),
-            object : NaviampConnectAdvertisingListener {
-                override fun onServiceRegistered(registeredServiceName: String) {
-                    registered.countDown()
-                }
-
-                override fun onRegistrationFailed(message: String) {
-                    failure = message
-                    registered.countDown()
-                }
-            },
+            registrationService("Naviamp Registration Test"), registration,
         )
 
         try {
             assertEquals(NaviampConnectAdvertisingStartResult.Started, result)
-            assertTrue(registered.await(30, TimeUnit.SECONDS), "Android did not confirm DNS-SD registration within 30 seconds.")
-            assertEquals(null, failure, "Android rejected DNS-SD registration: $failure")
+            registration.awaitSuccess("initial registration")
         } finally {
             effect.stop()
         }
@@ -76,22 +66,21 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
     fun nativeRegistrationCanRestartBeforeUnregisterCallbacksFinish() {
         val effect = AndroidNaviampConnectAdvertisingEffect(ApplicationProvider.getApplicationContext())
         try {
-            repeat(3) {
-                effect.start(registrationService(), object : NaviampConnectAdvertisingListener {
-                    override fun onServiceRegistered(registeredServiceName: String) = Unit
-                    override fun onRegistrationFailed(message: String) = Unit
-                })
+            repeat(3) { index ->
+                val registration = RegistrationOutcome()
+                assertEquals(
+                    NaviampConnectAdvertisingStartResult.Started,
+                    effect.start(registrationService("Naviamp Restart Test"), registration),
+                    "restart cycle ${index + 1} did not start: ${registration.diagnostics()}",
+                )
+                registration.awaitSuccess("restart cycle ${index + 1}")
+                // Start the next cycle immediately, while this unregister callback may still be pending.
                 effect.stop()
             }
-            val registered = CountDownLatch(1)
-            var failure: String? = null
+            val finalRegistration = RegistrationOutcome()
             assertEquals(NaviampConnectAdvertisingStartResult.Started,
-                effect.start(registrationService(), object : NaviampConnectAdvertisingListener {
-                    override fun onServiceRegistered(registeredServiceName: String) { registered.countDown() }
-                    override fun onRegistrationFailed(message: String) { failure = message; registered.countDown() }
-                }))
-            assertTrue(registered.await(30, TimeUnit.SECONDS))
-            assertEquals(null, failure)
+                effect.start(registrationService("Naviamp Restart Test"), finalRegistration))
+            finalRegistration.awaitSuccess("final restart")
         } finally { effect.stop() }
     }
 
@@ -143,7 +132,45 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
         assertEquals(NaviampConnectDiscoveryMetadata.encode(advertisement), translated.textAttributes)
     }
 
-    private fun registrationService(): NaviampConnectRegistrationService {
+    private class RegistrationOutcome : NaviampConnectAdvertisingListener {
+        private val completed = CountDownLatch(1)
+        private val startedAt = SystemClock.elapsedRealtime()
+        @Volatile private var serviceName: String? = null
+        @Volatile private var failure: String? = null
+
+        override fun onServiceRegistered(registeredServiceName: String) {
+            serviceName = registeredServiceName
+            completed.countDown()
+        }
+
+        override fun onRegistrationFailed(message: String) {
+            failure = message
+            completed.countDown()
+        }
+
+        fun awaitSuccess(stage: String) {
+            if (!completed.await(30, TimeUnit.SECONDS)) {
+                fail("$stage timed out waiting for Android DNS-SD registration: ${diagnostics()}")
+            }
+            failure?.let { fail("$stage failed: ${diagnostics()}") }
+            if (serviceName == null) fail("$stage returned no registered service name: ${diagnostics()}")
+        }
+
+        @Suppress("DEPRECATION")
+        fun diagnostics(): String {
+            val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val networks = runCatching {
+                val connectivity = context.getSystemService(ConnectivityManager::class.java)
+                connectivity.allNetworks.joinToString { network ->
+                    "$network:${connectivity.getNetworkCapabilities(network)}"
+                }
+            }.getOrElse { error -> "unavailable (${error.javaClass.simpleName}: ${error.message})" }
+            return "sdk=${Build.VERSION.SDK_INT}, elapsedMs=${SystemClock.elapsedRealtime() - startedAt}, " +
+                "registered=$serviceName, failure=$failure, networks=[$networks]"
+        }
+    }
+
+    private fun registrationService(serviceName: String = "Naviamp Instrumented TV"): NaviampConnectRegistrationService {
         val advertisement = NaviampConnectAdvertisement(
             instanceId = "instrumented-target",
             displayName = "Instrumented TV",
@@ -154,7 +181,7 @@ class AndroidNaviampConnectDiscoveryInstrumentedTest {
             expiresAtEpochMillis = Long.MAX_VALUE,
         )
         return NaviampConnectRegistrationService(
-            serviceName = "Naviamp Instrumented TV",
+            serviceName = serviceName,
             port = advertisement.port,
             textAttributes = NaviampConnectDiscoveryMetadata.encode(advertisement),
         )
