@@ -1127,6 +1127,19 @@ private fun TelevisionDisplaySettings(
                 },
             )
         }
+        item(key = "playback-source") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.settings_now_playing_show_playback_source),
+                stringResource(Res.string.settings_now_playing_show_playback_source_subtitle),
+                nowPlaying.showPlaybackSource,
+                colors,
+                {
+                    actions.onInterfaceSettingsChanged(
+                        settings.copy(nowPlaying = nowPlaying.copy(showPlaybackSource = !nowPlaying.showPlaybackSource)),
+                    )
+                },
+            )
+        }
         item(key = "track-cover") {
             TelevisionSettingsToggleRow(
                 stringResource(Res.string.tv_prefer_track_artwork),
