@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Verholpen dat pop-upmenu’s en dialoogvensters versprongen, flikkerden en op de verkeerde plek op klikken reageerden.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Audiocache via wifi verbeteren</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Verbeter audio in de cache met lagere kwaliteit indien nodig naar de huidige wifi-kwaliteit.</string>
+    <string name="connect_manual_address_label">Handmatig adres</string>
+    <string name="connect_manual_address_hint">Voer het Tailnet-IP of de hostnaam en de poort in die op het doelapparaat staan.</string>
+    <string name="connect_manual_pair">Koppelen via adres</string>
+    <string name="connect_manual_invalid">Voer een geldige hostnaam of IP-adres en poort in.</string>
+    <string name="connect_manual_enter_code">Voer de zescijferige code op het doelapparaat in.</string>
+    <string name="connect_manual_authenticating">Doelapparaat op dit adres wordt geverifieerd…</string>
+    <string name="connect_manual_unreachable">Dit adres is niet bereikbaar. Controleer Tailnet, poort en koppelmodus.</string>
+    <string name="connect_manual_port">Poort voor handmatige verbinding: %1$d</string>
+    <string name="connect_manual_rejected">Adres bereikt, maar het vertrouwde apparaat kon niet worden geverifieerd. Controleer de identiteit of koppel opnieuw.</string>
+    <string name="connect_manual_reconnect">Opnieuw verbinden met %1$s via adres</string>
 </resources>

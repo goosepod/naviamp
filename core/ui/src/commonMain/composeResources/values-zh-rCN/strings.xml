@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">修复了弹出菜单和对话框跳动、闪烁以及点击响应位置错误的问题。</string>
     <string name="settings_quality_upgrade_cache_wifi_title">通过 Wi-Fi 提升缓存音频质量</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">根据需要，使用当前 Wi-Fi 音质设置升级较低音质的缓存音频。</string>
+    <string name="connect_manual_address_label">手动地址</string>
+    <string name="connect_manual_address_hint">输入目标设备的 Tailnet IP 或主机名，以及该设备显示的端口。</string>
+    <string name="connect_manual_pair">按地址配对</string>
+    <string name="connect_manual_invalid">输入有效的主机名或 IP 地址及端口。</string>
+    <string name="connect_manual_enter_code">输入目标设备显示的六位代码。</string>
+    <string name="connect_manual_authenticating">正在验证此地址的目标设备…</string>
+    <string name="connect_manual_unreachable">无法连接到此地址。请检查 Tailnet、端口和配对模式。</string>
+    <string name="connect_manual_port">手动连接端口：%1$d</string>
+    <string name="connect_manual_rejected">已到达该地址，但无法验证受信任的设备。请检查其身份或重新配对。</string>
+    <string name="connect_manual_reconnect">按地址重新连接到%1$s</string>
 </resources>

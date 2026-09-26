@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">تم إصلاح قفز القوائم المنبثقة ومربعات الحوار ووميضها واستجابتها للنقرات في مواضع غير صحيحة.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">ترقية الصوت المخزن مؤقتًا عبر Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">استخدام جودة Wi-Fi الحالية لترقية الصوت المخزن مؤقتًا الأقل جودة عند الحاجة.</string>
+    <string name="connect_manual_address_label">العنوان اليدوي</string>
+    <string name="connect_manual_address_hint">أدخل عنوان IP الخاص بشبكة Tailnet أو اسم المضيف والمنفذ المعروض على الجهاز الهدف.</string>
+    <string name="connect_manual_pair">الإقران عبر العنوان</string>
+    <string name="connect_manual_invalid">أدخل اسم مضيف أو عنوان IP ومنفذًا صالحين.</string>
+    <string name="connect_manual_enter_code">أدخل الرمز المكون من ستة أرقام المعروض على الجهاز الهدف.</string>
+    <string name="connect_manual_authenticating">جارٍ مصادقة الجهاز الهدف عند هذا العنوان…</string>
+    <string name="connect_manual_unreachable">تعذر الوصول إلى هذا العنوان. تحقق من Tailnet والمنفذ ووضع الإقران.</string>
+    <string name="connect_manual_port">منفذ الاتصال اليدوي: %1$d</string>
+    <string name="connect_manual_rejected">تم الوصول إلى العنوان، لكن تعذر التحقق من الجهاز الموثوق. تحقق من هويته أو أعد الإقران.</string>
+    <string name="connect_manual_reconnect">أعد الاتصال بـ %1$s عبر العنوان</string>
 </resources>

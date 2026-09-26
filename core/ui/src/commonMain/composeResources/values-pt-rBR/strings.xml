@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Corrigidos os saltos, a cintilação e as respostas a cliques em locais incorretos dos menus pop-up e das caixas de diálogo.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Melhorar o áudio em cache no Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Melhorar o áudio em cache de qualidade inferior usando a qualidade Wi-Fi atual quando necessário.</string>
+    <string name="connect_manual_address_label">Endereço manual</string>
+    <string name="connect_manual_address_hint">Digite o IP ou nome do host da Tailnet e a porta exibida no dispositivo de destino.</string>
+    <string name="connect_manual_pair">Parear pelo endereço</string>
+    <string name="connect_manual_invalid">Digite um nome de host ou endereço IP e uma porta válidos.</string>
+    <string name="connect_manual_enter_code">Digite o código de seis dígitos exibido no dispositivo de destino.</string>
+    <string name="connect_manual_authenticating">Autenticando o dispositivo neste endereço…</string>
+    <string name="connect_manual_unreachable">Não foi possível acessar este endereço. Verifique a Tailnet, a porta e o modo de pareamento.</string>
+    <string name="connect_manual_port">Porta da conexão manual: %1$d</string>
+    <string name="connect_manual_rejected">O endereço foi alcançado, mas não foi possível verificar o dispositivo confiável. Confira a identidade ou pareie novamente.</string>
+    <string name="connect_manual_reconnect">Reconectar a %1$s pelo endereço</string>
 </resources>

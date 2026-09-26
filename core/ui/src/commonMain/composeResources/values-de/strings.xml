@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Behoben: Popup-Menüs und Dialoge sprangen, flackerten und reagierten an der falschen Stelle auf Klicks.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Audio-Cache über WLAN aufwerten</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Audio mit geringerer Qualität bei Bedarf auf die aktuelle WLAN-Qualität aufwerten.</string>
+    <string name="connect_manual_address_label">Manuelle Adresse</string>
+    <string name="connect_manual_address_hint">Tailnet-IP oder Hostname des Zielgeräts und den dort angezeigten Port eingeben.</string>
+    <string name="connect_manual_pair">Über Adresse koppeln</string>
+    <string name="connect_manual_invalid">Gültigen Hostnamen oder eine IP-Adresse mit Port eingeben.</string>
+    <string name="connect_manual_enter_code">Den sechsstelligen Code vom Zielgerät eingeben.</string>
+    <string name="connect_manual_authenticating">Zielgerät unter dieser Adresse wird authentifiziert…</string>
+    <string name="connect_manual_unreachable">Diese Adresse ist nicht erreichbar. Tailnet, Port und Kopplungsmodus prüfen.</string>
+    <string name="connect_manual_port">Port für manuelle Verbindung: %1$d</string>
+    <string name="connect_manual_rejected">Adresse erreicht, aber das vertrauenswürdige Gerät konnte nicht bestätigt werden. Identität prüfen oder erneut koppeln.</string>
+    <string name="connect_manual_reconnect">%1$s über Adresse erneut verbinden</string>
 </resources>

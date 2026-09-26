@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Corretti gli spostamenti improvvisi, gli sfarfallii e le risposte ai clic nella posizione sbagliata di menu a comparsa e finestre di dialogo.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Migliora la cache audio tramite Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Migliora i file nella cache di qualità inferiore usando la qualità Wi-Fi attuale quando necessario.</string>
+    <string name="connect_manual_address_label">Indirizzo manuale</string>
+    <string name="connect_manual_address_hint">Inserisci l’IP o il nome host Tailnet del dispositivo e la porta mostrata su di esso.</string>
+    <string name="connect_manual_pair">Associa tramite indirizzo</string>
+    <string name="connect_manual_invalid">Inserisci un nome host o indirizzo IP e una porta validi.</string>
+    <string name="connect_manual_enter_code">Inserisci il codice a sei cifre mostrato sul dispositivo.</string>
+    <string name="connect_manual_authenticating">Autenticazione del dispositivo a questo indirizzo…</string>
+    <string name="connect_manual_unreachable">Impossibile raggiungere l’indirizzo. Controlla Tailnet, porta e modalità di associazione.</string>
+    <string name="connect_manual_port">Porta di connessione manuale: %1$d</string>
+    <string name="connect_manual_rejected">Indirizzo raggiunto, ma non è stato possibile verificare il dispositivo attendibile. Controlla l’identità o associalo di nuovo.</string>
+    <string name="connect_manual_reconnect">Riconnetti %1$s tramite indirizzo</string>
 </resources>

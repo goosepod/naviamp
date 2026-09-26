@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Виправлено стрибки й мерехтіння спливних меню та діалогів, а також реагування на натискання в неправильному місці.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Покращувати якість аудіокешу через Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">За потреби оновлювати аудіокеш нижчої якості до поточної якості Wi-Fi.</string>
+    <string name="connect_manual_address_label">Адреса вручну</string>
+    <string name="connect_manual_address_hint">Введіть IP-адресу або ім’я хоста Tailnet і порт, показаний на цільовому пристрої.</string>
+    <string name="connect_manual_pair">Спарити за адресою</string>
+    <string name="connect_manual_invalid">Введіть дійсне ім’я хоста або IP-адресу та порт.</string>
+    <string name="connect_manual_enter_code">Введіть шестизначний код із цільового пристрою.</string>
+    <string name="connect_manual_authenticating">Автентифікація пристрою за цією адресою…</string>
+    <string name="connect_manual_unreachable">Не вдалося підключитися за цією адресою. Перевірте Tailnet, порт і режим спарювання.</string>
+    <string name="connect_manual_port">Порт ручного підключення: %1$d</string>
+    <string name="connect_manual_rejected">Адреса доступна, але не вдалося перевірити довірений пристрій. Перевірте його ідентифікатор або спаріть знову.</string>
+    <string name="connect_manual_reconnect">Повторно підключитися до %1$s за адресою</string>
 </resources>

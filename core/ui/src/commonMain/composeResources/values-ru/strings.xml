@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Исправлены скачки и мерцание всплывающих меню и диалогов, а также срабатывание нажатий в неверном месте.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Улучшать качество аудиокэша через Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">При необходимости обновлять аудиокэш низкого качества до текущего качества Wi-Fi.</string>
+    <string name="connect_manual_address_label">Адрес вручную</string>
+    <string name="connect_manual_address_hint">Введите IP-адрес или имя узла Tailnet и порт, показанный на целевом устройстве.</string>
+    <string name="connect_manual_pair">Подключить по адресу</string>
+    <string name="connect_manual_invalid">Введите допустимое имя узла или IP-адрес и порт.</string>
+    <string name="connect_manual_enter_code">Введите шестизначный код с целевого устройства.</string>
+    <string name="connect_manual_authenticating">Проверка устройства по этому адресу…</string>
+    <string name="connect_manual_unreachable">Не удалось подключиться по этому адресу. Проверьте Tailnet, порт и режим сопряжения.</string>
+    <string name="connect_manual_port">Порт ручного подключения: %1$d</string>
+    <string name="connect_manual_rejected">Адрес доступен, но не удалось проверить доверенное устройство. Проверьте его идентификатор или выполните сопряжение снова.</string>
+    <string name="connect_manual_reconnect">Подключиться к %1$s по адресу снова</string>
 </resources>

@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">Açılır menü ve iletişim kutularının yer değiştirmesi, titremesi ve yanlış konumdaki tıklamalara yanıt vermesi düzeltildi.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi üzerinden önbellekteki sesi iyileştir</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Gerektiğinde düşük kaliteli önbellek sesini mevcut Wi-Fi kalitesine yükseltir.</string>
+    <string name="connect_manual_address_label">Elle girilen adres</string>
+    <string name="connect_manual_address_hint">Hedefin Tailnet IP adresini veya ana bilgisayar adını ve cihazda gösterilen bağlantı noktasını girin.</string>
+    <string name="connect_manual_pair">Adresle eşleştir</string>
+    <string name="connect_manual_invalid">Geçerli bir ana bilgisayar adı veya IP adresi ve bağlantı noktası girin.</string>
+    <string name="connect_manual_enter_code">Hedefte gösterilen altı haneli kodu girin.</string>
+    <string name="connect_manual_authenticating">Bu adresteki hedefin kimliği doğrulanıyor…</string>
+    <string name="connect_manual_unreachable">Bu adrese ulaşılamadı. Tailnet, bağlantı noktası ve eşleştirme modunu kontrol edin.</string>
+    <string name="connect_manual_port">Elle bağlantı noktası: %1$d</string>
+    <string name="connect_manual_rejected">Adrese ulaşıldı ancak güvenilir cihaz doğrulanamadı. Kimliğini kontrol edin veya yeniden eşleştirin.</string>
+    <string name="connect_manual_reconnect">%1$s cihazına adresle yeniden bağlan</string>
 </resources>

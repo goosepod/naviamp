@@ -81,4 +81,14 @@
     <string name="changelog_271_popups">팝업 메뉴와 대화상자가 갑자기 이동하거나 깜박이고 잘못된 위치에서 클릭에 반응하던 문제를 수정했습니다.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi에서 캐시된 오디오 음질 향상</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">필요할 때 저음질 캐시 오디오를 현재 Wi-Fi 음질로 업그레이드합니다.</string>
+    <string name="connect_manual_address_label">수동 주소</string>
+    <string name="connect_manual_address_hint">대상 기기의 Tailnet IP 또는 호스트 이름과 표시된 포트를 입력하세요.</string>
+    <string name="connect_manual_pair">주소로 페어링</string>
+    <string name="connect_manual_invalid">올바른 호스트 이름 또는 IP 주소와 포트를 입력하세요.</string>
+    <string name="connect_manual_enter_code">대상 기기에 표시된 6자리 코드를 입력하세요.</string>
+    <string name="connect_manual_authenticating">이 주소의 대상 기기를 인증하는 중…</string>
+    <string name="connect_manual_unreachable">이 주소에 연결할 수 없습니다. Tailnet, 포트 및 페어링 모드를 확인하세요.</string>
+    <string name="connect_manual_port">수동 연결 포트: %1$d</string>
+    <string name="connect_manual_rejected">주소에는 연결했지만 신뢰할 수 있는 기기를 확인하지 못했습니다. 기기 ID를 확인하거나 다시 페어링하세요.</string>
+    <string name="connect_manual_reconnect">주소로 %1$s에 다시 연결</string>
 </resources>
