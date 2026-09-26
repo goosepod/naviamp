@@ -114,7 +114,7 @@ class NaviampTelevisionLocalizationTest {
                 )
             }
             onNodeWithText("URL del servidor").assertExists()
-            onNodeWithText("Contraseña").assertExists()
+            onAllNodesWithText("Contraseña").assertCountEquals(2)
             onNodeWithText("Conectar").assertExists()
             onNodeWithTag(ConnectionNameFieldTestTag).performClick().performImeAction()
             onNodeWithTag(ConnectionServerUrlFieldTestTag).assertIsFocused()

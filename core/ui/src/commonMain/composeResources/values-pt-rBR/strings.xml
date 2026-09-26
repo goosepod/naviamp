@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Melhorar o áudio em cache no Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Melhorar o áudio em cache de qualidade inferior usando a qualidade Wi-Fi atual quando necessário.</string>
     <string name="connection_password_required">Digite sua senha para se reconectar a este servidor.</string>
+    <string name="connection_api_key_required">Digite uma chave de API.</string>
+    <string name="connection_api_key_unsupported">Este servidor não oferece autenticação por chave de API.</string>
+    <string name="connection_api_key_invalid">A chave de API foi rejeitada. Verifique se ela pertence a este servidor e não foi revogada.</string>
+    <string name="connection_server_url_required">Digite a URL do servidor.</string>
+    <string name="connection_api_key_guidance">Digite uma chave de API de player do seu servidor. Não é necessário informar o nome de usuário.</string>
+    <string name="connection_api_key">Chave de API</string>
 </resources>

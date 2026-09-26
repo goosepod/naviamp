@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">通过 Wi-Fi 提升缓存音频质量</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">根据需要，使用当前 Wi-Fi 音质设置升级较低音质的缓存音频。</string>
     <string name="connection_password_required">输入密码以重新连接到此服务器。</string>
+    <string name="connection_api_key_required">输入 API 密钥。</string>
+    <string name="connection_api_key_unsupported">此服务器不支持 API 密钥身份验证。</string>
+    <string name="connection_api_key_invalid">API 密钥被拒绝。请确认它属于此服务器且未被撤销。</string>
+    <string name="connection_server_url_required">输入服务器 URL。</string>
+    <string name="connection_api_key_guidance">输入从服务器获取的播放器 API 密钥。无需用户名。</string>
+    <string name="connection_api_key">API 密钥</string>
 </resources>

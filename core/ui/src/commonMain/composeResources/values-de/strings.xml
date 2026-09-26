@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Audio-Cache über WLAN aufwerten</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Audio mit geringerer Qualität bei Bedarf auf die aktuelle WLAN-Qualität aufwerten.</string>
     <string name="connection_password_required">Gib dein Passwort ein, um die Verbindung zu diesem Server wiederherzustellen.</string>
+    <string name="connection_api_key_required">Gib einen API-Schlüssel ein.</string>
+    <string name="connection_api_key_unsupported">Dieser Server unterstützt keine Anmeldung mit API-Schlüssel.</string>
+    <string name="connection_api_key_invalid">Der API-Schlüssel wurde abgelehnt. Prüfe, ob er zu diesem Server gehört und nicht widerrufen wurde.</string>
+    <string name="connection_server_url_required">Gib eine Server-URL ein.</string>
+    <string name="connection_api_key_guidance">Gib einen Player-API-Schlüssel von deinem Server ein. Ein Benutzername ist nicht erforderlich.</string>
+    <string name="connection_api_key">API-Schlüssel</string>
 </resources>

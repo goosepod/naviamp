@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi पर कैश किए गए ऑडियो की गुणवत्ता बढ़ाएँ</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">ज़रूरत पड़ने पर कम गुणवत्ता वाले कैश किए गए ऑडियो को मौजूदा Wi-Fi गुणवत्ता में अपग्रेड करें।</string>
     <string name="connection_password_required">इस सर्वर से फिर से जुड़ने के लिए अपना पासवर्ड दर्ज करें।</string>
+    <string name="connection_api_key_required">API कुंजी दर्ज करें।</string>
+    <string name="connection_api_key_unsupported">यह सर्वर API कुंजी प्रमाणीकरण का समर्थन नहीं करता।</string>
+    <string name="connection_api_key_invalid">API कुंजी अस्वीकार कर दी गई। जाँचें कि यह इसी सर्वर की है और इसे रद्द नहीं किया गया है।</string>
+    <string name="connection_server_url_required">सर्वर URL दर्ज करें।</string>
+    <string name="connection_api_key_guidance">अपने सर्वर से प्लेयर API कुंजी दर्ज करें। उपयोगकर्ता नाम आवश्यक नहीं है।</string>
+    <string name="connection_api_key">API कुंजी</string>
 </resources>

@@ -61,6 +61,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistRule
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.ConnectionPasswordRequiredStatus
+import app.naviamp.domain.source.SubsonicAuthApiKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -137,7 +138,7 @@ class NavidromeProvider(
             supportsPlayReporting = profile.playReporting,
             supportsListenSubmission = profile.playReporting,
             supportsGenreTrackBrowsing = profile.generatedRadio,
-            supportsSmartPlaylists = profile.nativeSmartPlaylists,
+            supportsSmartPlaylists = profile.nativeSmartPlaylists && connection.authenticationMode != SubsonicAuthApiKey,
         )
     override var capabilities: ProviderCapabilities = baseCapabilities
         private set
@@ -227,6 +228,16 @@ class NavidromeProvider(
             serverVersion = root.stringValue("serverVersion"),
             apiVersion = root.stringValue("version"),
         )
+    }
+
+    suspend fun apiKeyAccountUsername(): String {
+        val extensions = openSubsonicExtensionVersions(failOnError = true)
+        if (!extensions.versions.supportsOpenSubsonicExtension("apiKeyAuthentication", 1)) {
+            throw NavidromeException("connection_api_key_unsupported")
+        }
+        val tokenInfo = get("tokenInfo.view").subsonicResponse()["tokenInfo"] as? JsonObject
+        return tokenInfo?.stringValue("username")?.takeIf(String::isNotBlank)
+            ?: throw NavidromeException("connection_api_key_invalid")
     }
 
     override suspend fun libraryScanStatus(): LibraryScanStatus? {
@@ -1579,7 +1590,7 @@ class NavidromeProvider(
     internal fun canonicalIdMigrationSupport(): NavidromeCanonicalIdMigrationSupport =
         canonicalIdMigrationSupport
 
-    private suspend fun openSubsonicExtensionVersions(): OpenSubsonicExtensions =
+    private suspend fun openSubsonicExtensionVersions(failOnError: Boolean = false): OpenSubsonicExtensions =
         try {
             val response = get("getOpenSubsonicExtensions.view")
             OpenSubsonicExtensions(
@@ -1593,7 +1604,8 @@ class NavidromeProvider(
                     .toMap(),
                 loaded = true,
             )
-        } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) {
+        } catch (cancelled: CancellationException) { throw cancelled } catch (failure: Exception) {
+            if (failOnError) throw failure
             OpenSubsonicExtensions(emptyMap(), loaded = false)
         }
 
@@ -1701,7 +1713,17 @@ class NavidromeProvider(
         if (status == "failed") {
             val error = response["error"]?.jsonObject
             val message = error?.stringValue("message") ?: "Navidrome request failed."
-            throw NavidromeException(message, error?.intValue("code"))
+            val code = error?.intValue("code")
+            throw NavidromeException(
+                when (code) {
+                    43, 44 -> if (connection.authenticationMode == SubsonicAuthApiKey) "connection_api_key_invalid" else message
+                    else -> if (connection.authenticationMode == SubsonicAuthApiKey && connection.token.isNotBlank()) {
+                        message.replace(connection.token, "<redacted>")
+                            .replace(connection.token.urlEncode(), "<redacted>")
+                    } else message
+                },
+                code,
+            )
         }
 
         return root
@@ -1891,11 +1913,15 @@ class NavidromeProvider(
 
     private val authParams: Map<String, String>
         get() = buildMap {
-            put("u", connection.username)
-            if (connection.token.isNotBlank()) {
+            if (connection.authenticationMode == SubsonicAuthApiKey) {
+                if (connection.token.isBlank()) throw NavidromeException("connection_api_key_required")
+                put("apiKey", connection.token)
+            } else if (connection.token.isNotBlank()) {
+                put("u", connection.username)
                 put("t", connection.token)
                 put("s", connection.salt)
             } else {
+                put("u", connection.username)
                 val password = connection.password?.takeIf(String::isNotBlank)
                     ?: throw NavidromePasswordRequiredException()
                 put("p", "enc:" + password.encodeToByteArray().joinToString("") {
