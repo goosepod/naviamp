@@ -2062,7 +2062,9 @@ internal fun naviampCoreConnectPlaybackRoute(
 ): NaviampCoreConnectPlaybackRoute = when {
     remoteAuthorityActive -> NaviampCoreConnectPlaybackRoute.Remote
     hasLocalCurrent && (
-        action == NowPlayingPlaybackAction.PlayCurrent || action == NowPlayingPlaybackAction.Resume
+        action == NowPlayingPlaybackAction.PlayCurrent ||
+            action == NowPlayingPlaybackAction.Resume ||
+            action == NowPlayingPlaybackAction.TogglePlayPause
     ) -> NaviampCoreConnectPlaybackRoute.InitialHandoff
     else -> NaviampCoreConnectPlaybackRoute.Local
 }

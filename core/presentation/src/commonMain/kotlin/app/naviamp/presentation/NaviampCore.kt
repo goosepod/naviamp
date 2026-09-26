@@ -101,7 +101,7 @@ class NaviampCore private constructor(
     fun handleGlobalShortcut(action: GlobalShortcutAction): NaviampCoreHostShortcutEffect? {
         if (action == GlobalShortcutAction.BringToFront) return NaviampCoreHostShortcutEffect.BringToFront
         val request = when (action) {
-            GlobalShortcutAction.PlayPause -> NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.PlayCurrent)
+            GlobalShortcutAction.PlayPause -> NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.TogglePlayPause)
             GlobalShortcutAction.NextTrack -> NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Next)
             GlobalShortcutAction.Previous -> NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Previous)
             GlobalShortcutAction.VolumeUp,

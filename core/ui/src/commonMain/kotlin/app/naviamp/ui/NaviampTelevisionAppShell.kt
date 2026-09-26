@@ -332,6 +332,7 @@ fun NaviampTelevisionAppShell(
                                         actions.navigationActions.onCloseNowPlaying()
                                     },
                                     onOpenSettings = { settingsOpen = true },
+                                    displaySettings = interfaceSettings.nowPlaying,
                                 )
                             }
                         } else Column(modifier = Modifier.fillMaxSize()) {
@@ -382,6 +383,7 @@ fun NaviampTelevisionAppShell(
                                             interactive = false,
                                             onClose = { nowPlayingPreview = false },
                                             onOpenSettings = { settingsOpen = true },
+                                            displaySettings = interfaceSettings.nowPlaying,
                                         )
                                     }
                                 } else {

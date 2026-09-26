@@ -1112,6 +1112,7 @@ data class NowPlayingUi(
     val subtitle: String,
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val stateLabel: String,
+    val queueContext: NowPlayingQueueContextUi? = null,
     val remoteOutputDeviceName: String? = null,
     val playbackOutputs: List<NaviampPlaybackOutputUi> = emptyList(),
     val coverArtUrl: String? = null,
@@ -1177,6 +1178,20 @@ data class NowPlayingUi(
     val radioDjs: List<RadioDjPreset> = emptyList(),
     val activeRadioDjId: String? = null,
 )
+
+data class NowPlayingQueueContextUi(
+    val source: app.naviamp.domain.playback.PlaybackProfileTargetType,
+    val name: String,
+)
+
+fun nowPlayingQueueContext(
+    source: app.naviamp.domain.playback.PlaybackProfileTargetType,
+    label: String?,
+    targetId: String,
+    groupId: String,
+): NowPlayingQueueContextUi? = label?.trim()
+    ?.takeIf { it.isNotEmpty() && it != targetId.trim() && it != groupId.trim() }
+    ?.let { NowPlayingQueueContextUi(source, it) }
 
 data class NaviampPlaybackOutputUi(
     val deviceId: String?,

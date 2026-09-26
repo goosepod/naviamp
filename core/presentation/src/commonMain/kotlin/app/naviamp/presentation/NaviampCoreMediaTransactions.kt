@@ -63,21 +63,20 @@ class NaviampCoreQueuePlaybackController(
         shuffle: Boolean = false,
         groupTarget: PlaybackProfileTarget? = null,
         groupLabel: String = "",
-        groupWithoutProfile: Boolean = false,
     ): Boolean {
         val selected = if (shuffle) tracks.shuffled() else tracks
         if (selected.isEmpty()) return false
         val profile = groupTarget?.let { target ->
             activeSourceId()?.let { sourceId -> profiles.playbackProfile(sourceId, target) }
         }
-        val group = if (!shuffle && groupTarget != null && (groupWithoutProfile || profile != null)) {
+        val group = if (groupTarget != null) {
             PlaybackQueueGroup(
                 id = "${groupTarget.type}:${groupTarget.id}",
                 target = groupTarget,
                 label = groupLabel,
                 startIndex = 0,
                 endIndexExclusive = selected.size,
-                profile = profile ?: PlaybackProfile(),
+                profile = if (shuffle) PlaybackProfile() else profile ?: PlaybackProfile(),
             )
         } else {
             null
@@ -120,15 +119,14 @@ class NaviampCoreQueuePlaybackController(
         target: PlaybackProfileTarget,
         label: String,
     ): PlaybackQueueGroup? {
-        val sourceId = activeSourceId() ?: return null
-        val profile = profiles.playbackProfile(sourceId, target) ?: return null
+        val profile = activeSourceId()?.let { profiles.playbackProfile(it, target) }
         return PlaybackQueueGroup(
             id = "${target.type}:${target.id}",
             target = target,
             label = label,
             startIndex = 0,
             endIndexExclusive = 0,
-            profile = profile,
+            profile = profile ?: PlaybackProfile(),
         )
     }
 }
@@ -170,7 +168,6 @@ class NaviampCoreMediaTransactions(
                 shuffle = shuffle,
                 groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
                 groupLabel = album.title,
-                groupWithoutProfile = true,
             )
         ) {
             publish("No tracks are available.")

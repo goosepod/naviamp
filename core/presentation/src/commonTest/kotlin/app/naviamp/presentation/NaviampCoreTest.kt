@@ -89,12 +89,19 @@ class NaviampCoreTest {
             core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.BringToFront),
         )
         assertEquals(null, core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.PlayPause))
+        advanceUntilIdle()
+        assertNotNull(effects.observer).onStateChanged(app.naviamp.domain.playback.PlaybackState.Playing)
+        core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.PlayPause)
+        advanceUntilIdle()
+        assertNotNull(effects.observer).onStateChanged(app.naviamp.domain.playback.PlaybackState.Paused)
+        core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.PlayPause)
         core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.Previous)
         core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.NextTrack)
         core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.VolumeDown)
         advanceUntilIdle()
 
-        assertEquals(1, effects.resumeCount)
+        assertEquals(2, effects.resumeCount)
+        assertEquals(1, effects.pauseCount)
         assertTrue(effects.navigationCommands.contains(PlaybackQueueNavigationCommand.Next))
         assertEquals(listOf(95), effects.volumes)
     }
@@ -854,11 +861,12 @@ private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     val volumes = mutableListOf<Int>()
     var startOrRestoreCount = 0
     var resumeCount = 0
+    var pauseCount = 0
     var observer: NaviampCorePlaybackObserver? = null
     override fun attach(observer: NaviampCorePlaybackObserver) {
         this.observer = observer
     }
-    override fun pause() = Unit
+    override fun pause() { pauseCount += 1 }
     override fun resume() {
         resumeCount += 1
     }

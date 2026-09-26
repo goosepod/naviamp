@@ -17,6 +17,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.groupAt
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
@@ -219,6 +220,9 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
         related = sections.related,
         volumePercent = volumePercent,
     )?.copy(
+        queueContext = if (isLiveStream) null else playbackQueue.groupAt()?.let { group ->
+            nowPlayingQueueContext(group.target.type, group.label, group.target.id, group.id)
+        },
         isLive = isLiveStream,
         radioStations = radioStations,
         radioDjs = radioDjs,

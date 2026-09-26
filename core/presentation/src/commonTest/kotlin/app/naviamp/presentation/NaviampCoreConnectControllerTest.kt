@@ -188,6 +188,14 @@ class NaviampCoreConnectControllerTest {
             ),
         )
         assertEquals(
+            NaviampCoreConnectPlaybackRoute.InitialHandoff,
+            naviampCoreConnectPlaybackRoute(
+                remoteAuthorityActive = false,
+                hasLocalCurrent = true,
+                action = app.naviamp.ui.NowPlayingPlaybackAction.TogglePlayPause,
+            ),
+        )
+        assertEquals(
             NaviampCoreConnectPlaybackRoute.Remote,
             naviampCoreConnectPlaybackRoute(
                 remoteAuthorityActive = true,
