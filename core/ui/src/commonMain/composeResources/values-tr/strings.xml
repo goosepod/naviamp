@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi üzerinden önbellekteki sesi iyileştir</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Gerektiğinde düşük kaliteli önbellek sesini mevcut Wi-Fi kalitesine yükseltir.</string>
     <string name="connection_password_required">Bu sunucuya yeniden bağlanmak için parolanızı girin.</string>
+    <string name="connection_api_key_required">Bir API anahtarı girin.</string>
+    <string name="connection_api_key_unsupported">Bu sunucu API anahtarıyla kimlik doğrulamayı desteklemiyor.</string>
+    <string name="connection_api_key_invalid">API anahtarı reddedildi. Bu sunucuya ait olduğunu ve iptal edilmediğini kontrol edin.</string>
+    <string name="connection_server_url_required">Bir sunucu URL adresi girin.</string>
+    <string name="connection_api_key_guidance">Sunucunuzdaki oynatıcı API anahtarını girin. Kullanıcı adı gerekli değildir.</string>
+    <string name="connection_api_key">API anahtarı</string>
 </resources>

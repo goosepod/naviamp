@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Улучшать качество аудиокэша через Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">При необходимости обновлять аудиокэш низкого качества до текущего качества Wi-Fi.</string>
     <string name="connection_password_required">Введите пароль, чтобы снова подключиться к этому серверу.</string>
+    <string name="connection_api_key_required">Введите ключ API.</string>
+    <string name="connection_api_key_unsupported">Этот сервер не поддерживает вход по ключу API.</string>
+    <string name="connection_api_key_invalid">Ключ API отклонён. Убедитесь, что он относится к этому серверу и не был отозван.</string>
+    <string name="connection_server_url_required">Введите URL сервера.</string>
+    <string name="connection_api_key_guidance">Введите ключ API плеера с вашего сервера. Имя пользователя не требуется.</string>
+    <string name="connection_api_key">Ключ API</string>
 </resources>

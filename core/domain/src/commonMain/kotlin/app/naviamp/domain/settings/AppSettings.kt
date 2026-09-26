@@ -61,6 +61,8 @@ data class ConnectionFormState(
     val secondaryUrls: List<ConnectionFormSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionFormHeader> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
+    val apiKey: String = "",
+    val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
 )
 
 fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState {
@@ -76,6 +78,8 @@ fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState 
         providerId = selected.id,
         serverUrl = nextServerUrl,
         password = "",
+        apiKey = "",
+        authenticationMode = app.naviamp.domain.source.SubsonicAuthToken,
         selectedMusicFolderIds = emptyList(),
     )
 }

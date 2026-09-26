@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Покращувати якість аудіокешу через Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">За потреби оновлювати аудіокеш нижчої якості до поточної якості Wi-Fi.</string>
     <string name="connection_password_required">Введіть пароль, щоб знову підключитися до цього сервера.</string>
+    <string name="connection_api_key_required">Введіть ключ API.</string>
+    <string name="connection_api_key_unsupported">Цей сервер не підтримує автентифікацію ключем API.</string>
+    <string name="connection_api_key_invalid">Ключ API відхилено. Перевірте, чи належить він цьому серверу та чи не був відкликаний.</string>
+    <string name="connection_server_url_required">Введіть URL сервера.</string>
+    <string name="connection_api_key_guidance">Введіть ключ API програвача з вашого сервера. Ім’я користувача не потрібне.</string>
+    <string name="connection_api_key">Ключ API</string>
 </resources>

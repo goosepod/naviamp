@@ -952,4 +952,10 @@
     <string name="changelog_270_beta">Android TV and Naviamp Connect remain beta while device compatibility, network recovery, and performance testing continue.</string>
     <string name="changelog_271_popups">Fixed popup menus and dialogs jumping, flickering, and responding to clicks in the wrong location.</string>
     <string name="connection_password_required">Enter your password to reconnect this server.</string>
+    <string name="connection_api_key_required">Enter an API key.</string>
+    <string name="connection_api_key_unsupported">This server does not support API key authentication.</string>
+    <string name="connection_api_key_invalid">The API key was rejected. Check that it belongs to this server and has not been revoked.</string>
+    <string name="connection_server_url_required">Enter a server URL.</string>
+    <string name="connection_api_key_guidance">Enter a player API key from your server. No username is needed.</string>
+    <string name="connection_api_key">API key</string>
 </resources>

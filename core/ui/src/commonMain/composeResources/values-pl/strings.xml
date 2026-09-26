@@ -201,4 +201,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Poprawiaj jakość bufora audio przez Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">W razie potrzeby zastępuj dźwięk o niższej jakości w buforze bieżącą jakością Wi-Fi.</string>
     <string name="connection_password_required">Wpisz hasło, aby ponownie połączyć się z tym serwerem.</string>
+    <string name="connection_api_key_required">Wpisz klucz API.</string>
+    <string name="connection_api_key_unsupported">Ten serwer nie obsługuje uwierzytelniania kluczem API.</string>
+    <string name="connection_api_key_invalid">Klucz API został odrzucony. Sprawdź, czy należy do tego serwera i nie został unieważniony.</string>
+    <string name="connection_server_url_required">Wpisz adres URL serwera.</string>
+    <string name="connection_api_key_guidance">Wpisz klucz API odtwarzacza z serwera. Nazwa użytkownika nie jest potrzebna.</string>
+    <string name="connection_api_key">Klucz API</string>
 </resources>

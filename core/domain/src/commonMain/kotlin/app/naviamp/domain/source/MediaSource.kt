@@ -79,7 +79,19 @@ data class SavedMediaSource(
     val lastSyncCompletedAtEpochMillis: Long?,
     val lastLibraryScanSignature: String? = null,
     val lastLibraryScanCheckedAtEpochMillis: Long? = null,
+    val authenticationMode: String = SubsonicAuthToken,
 )
+
+const val SubsonicAuthToken = "token"
+const val SubsonicAuthPassword = "password"
+const val SubsonicAuthApiKey = "apiKey"
+
+fun normalizedSubsonicAuthenticationMode(value: String): String =
+    when (value) {
+        SubsonicAuthPassword -> SubsonicAuthPassword
+        SubsonicAuthApiKey -> SubsonicAuthApiKey
+        else -> SubsonicAuthToken
+    }
 
 fun normalizedBaseUrl(baseUrl: String): String =
     baseUrl.trim().trimEnd('/')

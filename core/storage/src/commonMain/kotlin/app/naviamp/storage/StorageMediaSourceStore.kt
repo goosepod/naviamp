@@ -110,7 +110,7 @@ class StorageMediaSourceStore(
         val id = preferredSourceId ?: existing?.id ?: stableMediaSourceId(cacheNamespace)
         val serverConnectionKey = connection.serverConnectionKey(providerId)
         val libraryScopeKey = connection.libraryScopeKey()
-        val values = connection.toStoredValues(existing?.password)
+        val values = connection.toStoredValues(existing?.password, existing?.token, existing?.authentication_mode)
         queries.upsertMediaSource(
             id = id,
             provider_id = providerId,
@@ -123,6 +123,7 @@ class StorageMediaSourceStore(
             password = values.password,
             token = values.token,
             salt = values.salt,
+            authentication_mode = values.authenticationMode,
             native_token = values.nativeToken,
             insecure_skip_tls_verification = values.insecureSkipTlsVerification,
             custom_certificate_path = values.customCertificatePath,
@@ -150,6 +151,7 @@ class StorageMediaSourceStore(
             password = values.password,
             token = values.token,
             salt = values.salt,
+            authentication_mode = values.authenticationMode,
             native_token = values.nativeToken,
             insecure_skip_tls_verification = values.insecureSkipTlsVerification,
             custom_certificate_path = values.customCertificatePath,
@@ -218,12 +220,24 @@ class StorageMediaSourceStore(
         queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
     }
 
-    private fun ProviderMediaSourceConnection.toStoredValues(existingProtectedPassword: String?) = StoredMediaSourceValues(
-        password = password?.takeIf(String::isNotBlank)?.let {
-            protectOptionalCredential(it, "source password")
-        } ?: existingProtectedPassword,
-        token = protectRequiredCredential(token, "provider token"),
+    private fun ProviderMediaSourceConnection.toStoredValues(
+        existingProtectedPassword: String?,
+        existingProtectedToken: String?,
+        existingAuthenticationMode: String?,
+    ) = StoredMediaSourceValues(
+        password = if (authenticationMode == app.naviamp.domain.source.SubsonicAuthApiKey) {
+            null
+        } else {
+            password?.takeIf(String::isNotBlank)?.let {
+                protectOptionalCredential(it, "source password")
+            } ?: existingProtectedPassword
+        },
+        token = if (
+            authenticationMode == app.naviamp.domain.source.SubsonicAuthApiKey &&
+            token.isBlank() && existingAuthenticationMode == app.naviamp.domain.source.SubsonicAuthApiKey
+        ) existingProtectedToken.orEmpty() else protectRequiredCredential(token, "provider token"),
         salt = protectRequiredCredential(salt, "provider salt"),
+        authenticationMode = app.naviamp.domain.source.normalizedSubsonicAuthenticationMode(authenticationMode),
         nativeToken = protectOptionalCredential(nativeToken, "native provider token"),
         insecureSkipTlsVerification = if (tlsSettings.insecureSkipTlsVerification) 1 else 0,
         customCertificatePath = tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
@@ -307,6 +321,13 @@ class StorageMediaSourceStore(
             password = credentialProtector.reveal(password),
             token = credentialProtector.reveal(token).orEmpty(),
             salt = credentialProtector.reveal(salt).orEmpty(),
+            authenticationMode = app.naviamp.domain.source.normalizedSubsonicAuthenticationMode(authentication_mode)
+                .let { mode ->
+                    if (mode == app.naviamp.domain.source.SubsonicAuthToken &&
+                        credentialProtector.reveal(token).isNullOrBlank() &&
+                        !credentialProtector.reveal(password).isNullOrBlank()
+                    ) app.naviamp.domain.source.SubsonicAuthPassword else mode
+                },
             nativeToken = credentialProtector.reveal(native_token),
             tlsSettings = ConnectionTlsSettings(
                 insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
@@ -358,6 +379,7 @@ class StorageMediaSourceStore(
                 password = protectOptionalCredential(source.password, "source password"),
                 token = protectRequiredCredential(source.token, "provider token"),
                 salt = protectRequiredCredential(source.salt, "provider salt"),
+                authentication_mode = source.authentication_mode,
                 native_token = protectOptionalCredential(source.native_token, "native provider token"),
                 insecure_skip_tls_verification = source.insecure_skip_tls_verification,
                 custom_certificate_path = source.custom_certificate_path,
@@ -396,6 +418,7 @@ private data class StoredMediaSourceValues(
     val password: String?,
     val token: String,
     val salt: String,
+    val authenticationMode: String,
     val nativeToken: String?,
     val insecureSkipTlsVerification: Long,
     val customCertificatePath: String?,

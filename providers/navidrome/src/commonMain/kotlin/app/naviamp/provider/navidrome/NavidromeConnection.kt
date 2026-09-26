@@ -4,6 +4,8 @@ import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.SubsonicAuthApiKey
+import app.naviamp.domain.source.SubsonicAuthToken
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.normalizedBaseUrl
 import app.naviamp.domain.source.resolvedConnectionDisplayName
@@ -26,6 +28,7 @@ data class NavidromeConnection(
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
+    val authenticationMode: String = SubsonicAuthToken,
 ) {
     val normalizedBaseUrl: String =
         normalizedBaseUrl(baseUrl)
@@ -52,6 +55,7 @@ data class NavidromeConnection(
                     username = normalizedUsername,
                     token = navidromeMd5(normalizedPassword + salt),
                     salt = salt,
+                    authenticationMode = SubsonicAuthToken,
                     password = normalizedPassword,
                     nativeToken = null,
                     displayName = displayName,
@@ -61,6 +65,29 @@ data class NavidromeConnection(
                     selectedMusicFolderIds = selectedMusicFolderIds,
                 )
             }
+
+        fun fromApiKey(
+            providerId: String = ProviderIdNavidrome,
+            baseUrl: String,
+            apiKey: String,
+            displayName: String? = null,
+            tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
+            secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
+            customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
+            selectedMusicFolderIds: List<String> = emptyList(),
+        ): NavidromeConnection = NavidromeConnection(
+            providerId = providerId,
+            baseUrl = baseUrl,
+            username = "",
+            token = apiKey.trim(),
+            salt = "",
+            authenticationMode = SubsonicAuthApiKey,
+            displayName = displayName,
+            tlsSettings = tlsSettings,
+            secondaryUrls = secondaryUrls,
+            customHeaders = customHeaders,
+            selectedMusicFolderIds = selectedMusicFolderIds,
+        )
 
         private fun randomSalt(providerId: String): String {
             val profile = subsonicProviderProfile(providerId)
@@ -93,6 +120,7 @@ fun SavedMediaSource.toNavidromeConnection(): NavidromeConnection =
         username = username,
         token = token,
         salt = salt,
+        authenticationMode = authenticationMode,
         password = password,
         nativeToken = nativeToken,
         displayName = displayName,
