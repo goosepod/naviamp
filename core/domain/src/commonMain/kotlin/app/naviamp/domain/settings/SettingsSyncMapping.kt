@@ -79,6 +79,7 @@ fun SavedMediaSource.toSettingsSyncServerProfile(): SettingsSyncServerProfile =
         providerId = providerId,
         displayName = displayName,
         username = username,
+        authenticationMode = authenticationMode,
         primaryUrl = baseUrl,
         secondaryUrls = secondaryUrls.map { url ->
             SettingsSyncServerEndpoint(
@@ -112,6 +113,7 @@ fun SettingsSyncServerProfile.toConnectionFormState(
                 displayName = profile.displayName,
                 serverUrl = profile.primaryUrl,
                 username = profile.username,
+                authenticationMode = profile.authenticationMode,
                 password = password,
                 skipTlsVerification = profile.tls.insecureSkipTlsVerification,
                 customCertificatePath = profile.tls.customCertificatePath.orEmpty(),
@@ -160,6 +162,7 @@ private fun SettingsSyncServerProfile.toProviderMediaSourceConnection(): Provide
         displayName = displayName,
         baseUrl = primaryUrl,
         username = username,
+        authenticationMode = authenticationMode,
         token = "",
         salt = "",
         nativeToken = null,

@@ -12,6 +12,43 @@ import kotlin.test.assertNull
 
 class NavidromeConnectionPreparationTest {
     @Test
+    fun apiKeyPreparationStoresResolvedUsernameWithoutNativeLogin() = runTest {
+        var nativeCalls = 0
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                baseUrl = "https://music.example.test", username = "", password = "",
+                apiKey = "nds_secret", authenticationMode = app.naviamp.domain.source.SubsonicAuthApiKey,
+                displayName = null, tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = null,
+            ),
+            validateConnection = { assertEquals(app.naviamp.domain.source.SubsonicAuthApiKey, it.authenticationMode) },
+            resolveApiKeyUsername = { "demo" },
+            musicFolders = { emptyList() },
+            nativeTokenFromPassword = { connection, _, _ -> nativeCalls++; connection },
+        )
+        assertEquals("demo", prepared.connection.username)
+        assertEquals("nds_secret", prepared.connection.token)
+        assertEquals(0, nativeCalls)
+    }
+
+    @Test
+    fun replacementApiKeyCannotSilentlySwitchASavedSourceToAnotherAccount() = runTest {
+        val failure = assertFailsWith<NavidromeException> {
+            prepareNavidromeConnection(
+                NavidromeConnectionLoginRequest(
+                    baseUrl = "https://music.example.test", username = "demo", password = "",
+                    apiKey = "nds_other", authenticationMode = app.naviamp.domain.source.SubsonicAuthApiKey,
+                    displayName = null, tlsSettings = ConnectionTlsSettings(),
+                    savedConnectionForLogin = navidromeConnection(),
+                ),
+                validateConnection = {}, resolveApiKeyUsername = { "another-account" },
+                musicFolders = { emptyList() },
+            )
+        }
+        assertEquals("connection_api_key_invalid", failure.message)
+    }
+
+    @Test
     fun error41SelectsPasswordForAllLaterRequests() = runTest {
         val modes = mutableListOf<Boolean>()
         val prepared = prepareNavidromeConnection(

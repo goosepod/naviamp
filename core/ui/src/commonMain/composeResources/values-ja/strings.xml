@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fiでキャッシュ音声の音質を向上</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">必要に応じて低音質のキャッシュ音声を現在のWi-Fi音質に更新します。</string>
     <string name="connection_password_required">このサーバーに再接続するにはパスワードを入力してください。</string>
+    <string name="connection_api_key_required">API キーを入力してください。</string>
+    <string name="connection_api_key_unsupported">このサーバーは API キー認証に対応していません。</string>
+    <string name="connection_api_key_invalid">API キーが拒否されました。このサーバー用であり、取り消されていないことを確認してください。</string>
+    <string name="connection_server_url_required">サーバー URL を入力してください。</string>
+    <string name="connection_api_key_guidance">サーバーで作成したプレーヤーの API キーを入力してください。ユーザー名は不要です。</string>
+    <string name="connection_api_key">API キー</string>
 </resources>

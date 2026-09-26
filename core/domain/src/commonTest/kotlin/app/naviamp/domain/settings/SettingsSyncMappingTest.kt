@@ -25,6 +25,25 @@ import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
     @Test
+    fun apiKeyProfileRoundTripsModeWithoutExportingTheKey() {
+        val source = savedSource().copy(
+            authenticationMode = app.naviamp.domain.source.SubsonicAuthApiKey,
+            token = "nds_secret", password = null,
+        )
+        val encoded = SettingsSyncJson.encode(
+            buildSettingsSyncDocument(SettingsSyncLocalSnapshot(serverProfiles = listOf(source)), 1L, "test"),
+        )
+        assertFalse(encoded.contains("nds_secret"))
+        val restored = SettingsSyncJson.decode(encoded).serverProfiles.single()
+        assertEquals(app.naviamp.domain.source.SubsonicAuthApiKey, restored.authenticationMode)
+        assertEquals(app.naviamp.domain.source.SubsonicAuthApiKey, restored.toConnectionFormState().authenticationMode)
+        assertEquals("", restored.toConnectionFormState().apiKey)
+        assertEquals(app.naviamp.domain.source.SubsonicAuthToken,
+            SettingsSyncJson.decode("""{"serverProfiles":[{"id":"old","displayName":"Old","username":"a","primaryUrl":"https://example.test"}]}""")
+                .serverProfiles.single().authenticationMode)
+    }
+
+    @Test
     fun legacySyncedProfileWithoutProviderIdDefaultsToNavidrome() {
         val document = SettingsSyncJson.decode(
             """

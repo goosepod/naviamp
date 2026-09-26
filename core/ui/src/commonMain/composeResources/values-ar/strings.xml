@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">ترقية الصوت المخزن مؤقتًا عبر Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">استخدام جودة Wi-Fi الحالية لترقية الصوت المخزن مؤقتًا الأقل جودة عند الحاجة.</string>
     <string name="connection_password_required">أدخل كلمة المرور لإعادة الاتصال بهذا الخادم.</string>
+    <string name="connection_api_key_required">أدخل مفتاح API.</string>
+    <string name="connection_api_key_unsupported">هذا الخادم لا يدعم المصادقة بمفتاح API.</string>
+    <string name="connection_api_key_invalid">رفض الخادم مفتاح API. تحقق من أنه يخص هذا الخادم ولم يتم إلغاؤه.</string>
+    <string name="connection_server_url_required">أدخل عنوان URL للخادم.</string>
+    <string name="connection_api_key_guidance">أدخل مفتاح API الخاص بالمشغل من خادمك. لا يلزم اسم مستخدم.</string>
+    <string name="connection_api_key">مفتاح API</string>
 </resources>

@@ -278,6 +278,7 @@ data class ProviderMediaSourceConnection(
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
+    val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
 ) {
     fun serverConnectionKey(providerId: String): String =
         stableServerConnectionKey(

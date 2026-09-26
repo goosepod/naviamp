@@ -5,6 +5,7 @@ import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.provider.ProviderIdNavidrome
 import app.naviamp.domain.provider.providerDescriptor
+import app.naviamp.domain.source.SubsonicAuthApiKey
 
 data class NavidromeConnectionLoginRequest(
     val providerId: String = ProviderIdNavidrome,
@@ -20,6 +21,8 @@ data class NavidromeConnectionLoginRequest(
     val savedConnectionForLogin: NavidromeConnection?,
     val nativeAuthEnabled: Boolean = true,
     val nativeAuthRequired: Boolean = false,
+    val apiKey: String = "",
+    val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
 )
 
 data class PreparedNavidromeConnection(
@@ -38,6 +41,9 @@ suspend fun prepareNavidromeConnection(
     nativeTokenFromPassword: suspend (NavidromeConnection, String, Boolean) -> NavidromeConnection = { connection, password, required ->
         connection.withNativeTokenFromPassword(password, required = required)
     },
+    resolveApiKeyUsername: suspend (NavidromeConnection) -> String = { connection ->
+        NavidromeProvider(connection).apiKeyAccountUsername()
+    },
 ): PreparedNavidromeConnection {
     val normalizedSecondaryUrls = request.secondaryUrls
         .mapNotNull { it.normalized() }
@@ -48,7 +54,8 @@ suspend fun prepareNavidromeConnection(
     val reusableCredentials = request.savedConnectionForLogin?.takeIf {
         it.baseUrl == request.baseUrl &&
             it.username == request.username &&
-            request.password.isBlank()
+            it.authenticationMode == request.authenticationMode &&
+            request.password.isBlank() && request.apiKey.isBlank()
     }
     val connectionWithoutNativeRefresh = reusableCredentials?.copy(
         providerId = request.providerId,
@@ -60,7 +67,16 @@ suspend fun prepareNavidromeConnection(
         secondaryUrls = normalizedSecondaryUrls,
         customHeaders = customHeaders,
         selectedMusicFolderIds = selectedMusicFolderIds,
-    ) ?: NavidromeConnection.fromPassword(
+    ) ?: if (request.authenticationMode == SubsonicAuthApiKey) NavidromeConnection.fromApiKey(
+        providerId = request.providerId,
+        baseUrl = request.baseUrl,
+        apiKey = request.apiKey,
+        displayName = request.displayName,
+        tlsSettings = request.tlsSettings,
+        secondaryUrls = normalizedSecondaryUrls,
+        customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
+    ) else NavidromeConnection.fromPassword(
         providerId = request.providerId,
         baseUrl = request.baseUrl,
         username = request.username,
@@ -72,7 +88,7 @@ suspend fun prepareNavidromeConnection(
         selectedMusicFolderIds = selectedMusicFolderIds,
     )
     var nativeAuthErrorMessage: String? = null
-    val connection = if (request.password.isNotBlank() && request.nativeAuthEnabled) {
+    val connection = if (request.authenticationMode != SubsonicAuthApiKey && request.password.isNotBlank() && request.nativeAuthEnabled) {
         runCatching {
             nativeTokenFromPassword(
                 connectionWithoutNativeRefresh,
@@ -87,7 +103,15 @@ suspend fun prepareNavidromeConnection(
     } else {
         connectionWithoutNativeRefresh
     }
-    val activeConnection = connection.withReachableBaseUrl(validateConnection)
+    val reachableConnection = connection.withReachableBaseUrl(validateConnection)
+    val activeConnection = (if (reachableConnection.authenticationMode == SubsonicAuthApiKey) {
+        val resolvedUsername = resolveApiKeyUsername(reachableConnection)
+        val existingUsername = request.savedConnectionForLogin?.username.orEmpty()
+        if (existingUsername.isNotBlank() && existingUsername != resolvedUsername) {
+            throw NavidromeException("connection_api_key_invalid")
+        }
+        reachableConnection.copy(username = resolvedUsername)
+    } else reachableConnection)
         .withBackfilledDefaultMusicFolder(musicFolders)
     return PreparedNavidromeConnection(
         connection = activeConnection,
@@ -141,6 +165,7 @@ private suspend fun NavidromeConnection.withReachableBaseUrl(
         }.onFailure { error ->
             lastFailure = error
             if (error is NavidromeException && error.subsonicErrorCode == 41 &&
+                candidateConnection.authenticationMode != SubsonicAuthApiKey &&
                 candidateConnection.token.isNotBlank()
             ) {
                 val availablePassword = candidateConnection.password?.takeIf(String::isNotBlank)
@@ -148,6 +173,7 @@ private suspend fun NavidromeConnection.withReachableBaseUrl(
                 val passwordConnection = candidateConnection.copy(
                     token = "",
                     salt = "",
+                    authenticationMode = app.naviamp.domain.source.SubsonicAuthPassword,
                     password = availablePassword,
                 )
                 validateConnection(passwordConnection)
