@@ -79,4 +79,5 @@
     <string name="changelog_270_media">Compare in include i crediti artista dei singoli brani, il desktop supporta le immagini WebP e i testi sincronizzati restano centrati e vengono cancellati tra i brani.</string>
     <string name="changelog_270_beta">Android TV e Naviamp Connect restano in beta mentre continuano i test di compatibilità dei dispositivi, ripristino della rete e prestazioni.</string>
     <string name="changelog_271_popups">Corretti gli spostamenti improvvisi, gli sfarfallii e le risposte ai clic nella posizione sbagliata di menu a comparsa e finestre di dialogo.</string>
+    <string name="now_playing_cast_to_device">Trasmetti a un dispositivo</string>
 </resources>

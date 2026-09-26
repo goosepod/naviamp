@@ -1114,6 +1114,8 @@ data class NowPlayingUi(
     val stateLabel: String,
     val queueContext: NowPlayingQueueContextUi? = null,
     val remoteOutputDeviceName: String? = null,
+    val castAvailable: Boolean = false,
+    val castSelected: Boolean = false,
     val playbackOutputs: List<NaviampPlaybackOutputUi> = emptyList(),
     val coverArtUrl: String? = null,
     val trackCoverArtUrl: String? = coverArtUrl,
@@ -1198,6 +1200,14 @@ data class NaviampPlaybackOutputUi(
     val displayName: String,
     val selected: Boolean,
     val available: Boolean = true,
+)
+
+data class NaviampCastOutputUi(
+    val available: Boolean = false,
+    val selectedTargetName: String? = null,
+    val selected: Boolean = false,
+    val playbackActive: Boolean = false,
+    val unavailable: Boolean = false,
 )
 
 data class NaviampSleepTimerUi(

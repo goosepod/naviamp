@@ -79,4 +79,5 @@
     <string name="changelog_270_media">„Erscheint auf“ berücksichtigt Künstlernennungen einzelner Titel, Desktop unterstützt WebP-Cover und synchronisierte Liedtexte bleiben zentriert und werden zwischen Titeln geleert.</string>
     <string name="changelog_270_beta">Android TV und Naviamp Connect bleiben Beta, während Gerätekompatibilität, Netzwerkwiederherstellung und Leistung weiter getestet werden.</string>
     <string name="changelog_271_popups">Behoben: Popup-Menüs und Dialoge sprangen, flackerten und reagierten an der falschen Stelle auf Klicks.</string>
+    <string name="now_playing_cast_to_device">Auf Gerät streamen</string>
 </resources>

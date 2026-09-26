@@ -171,6 +171,7 @@ data class NaviampNowPlayingActions(
     val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
     val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
     val onRemoteOutputAction: () -> Unit = {},
+    val onCastPicker: () -> Unit = {},
     val onPlaybackOutputSelected: (String?) -> Unit = {},
     val onPlaylistMembershipToggled: (String) -> Unit = {},
     val onMembershipPlaylistCreated: (String) -> Unit = {},
@@ -1217,6 +1218,18 @@ private fun NowPlayingDetails(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.align(Alignment.CenterEnd),
                 ) {
+                    if (nowPlaying.castAvailable) {
+                        NaviampTransportIconButton(
+                            enabled = true,
+                            icon = NaviampTransportIcons.Cast,
+                            contentDescription = stringResource(Res.string.now_playing_cast_to_device),
+                            colors = colors,
+                            selected = nowPlaying.castSelected,
+                            buttonSize = bottomActionButtonSize,
+                            iconSize = bottomActionIconSize,
+                            onClick = actions.onCastPicker,
+                        )
+                    }
                     NaviampTransportIconButton(
                         enabled = nowPlaying.lyricsAvailable,
                         icon = NaviampTransportIcons.Lyrics,
@@ -1242,9 +1255,19 @@ private fun NowPlayingDetails(
                             onDismissRequest = { actionMenuExpanded = false },
                             offset = DpOffset(0.dp, 6.dp),
                         ) {
+                            if (nowPlaying.castAvailable) {
+                                NaviampDropdownMenuItem(
+                                    label = stringResource(Res.string.now_playing_cast_to_device),
+                                    icon = NaviampTransportIcons.Cast,
+                                    onClick = {
+                                        actionMenuExpanded = false
+                                        actions.onCastPicker()
+                                    },
+                                )
+                            }
                             nowPlaying.remoteOutputDeviceName?.let { deviceName ->
                                 NaviampDropdownMenuItem(
-                                    label = "Stop controlling $deviceName",
+                                    label = stringResource(Res.string.tv_stop_controlling_named, deviceName),
                                     onClick = {
                                         actionMenuExpanded = false
                                         actions.onRemoteOutputAction()
@@ -1372,7 +1395,8 @@ internal fun NowPlayingUi.selectedRemotePlaybackOutputName(): String? =
         ?.displayName
 
 internal fun nowPlayingActionMenuEnabled(nowPlaying: NowPlayingUi): Boolean =
-    nowPlaying.menuEnabled || nowPlaying.remoteOutputDeviceName != null || nowPlaying.playbackOutputs.isNotEmpty()
+    nowPlaying.menuEnabled || nowPlaying.remoteOutputDeviceName != null ||
+        nowPlaying.playbackOutputs.isNotEmpty() || nowPlaying.castAvailable
 
 @Composable
 private fun CompactMetadataRow(

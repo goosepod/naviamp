@@ -12,6 +12,7 @@ import app.naviamp.domain.network.SharedHttpResponse
 import app.naviamp.domain.provider.AlphabeticalLibraryKind
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.PlaybackReportState
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -284,6 +285,27 @@ class JellyfinProviderTest {
     }
 
     @Test
+    fun castStreamUsesAuthenticatedSessionAndForwardsByteRange() = runTest {
+        val fixture = fixture()
+        var response: ProviderMediaByteResponse? = null
+        val bytes = mutableListOf<Byte>()
+
+        assertTrue(fixture.provider.streamTrackBytes(
+            StreamRequest(TrackId("track-1"), StreamQuality.Original),
+            "bytes=20-23",
+            headOnly = false,
+            onResponse = { response = it },
+            writeChunk = { chunk, count -> bytes += chunk.take(count) },
+        ))
+
+        assertTrue(fixture.http.streamedUrl?.contains("Audio/track-1/stream") == true)
+        assertEquals("bytes=20-23", fixture.http.streamHeaders["Range"])
+        assertTrue(fixture.http.streamHeaders.getValue("Authorization").contains("Token=\"access-token\""))
+        assertEquals("bytes 20-23/100", response?.contentRange)
+        assertEquals(listOf<Byte>(4, 5, 6), bytes)
+    }
+
+    @Test
     fun exposesAndBuildsJellyfinTranscodedStreams() = runTest {
         val fixture = fixture()
 
@@ -510,6 +532,8 @@ private class FixtureJellyfinHttpClient(
     var lastBinaryHeaders: Map<String, String> = emptyMap()
     var downloadedUrl: String? = null
     var downloadHeaders: Map<String, String> = emptyMap()
+    var streamedUrl: String? = null
+    var streamHeaders: Map<String, String> = emptyMap()
 
     override suspend fun get(url: String, headers: Map<String, String>): JellyfinHttpResponse {
         requestedUrls += url
@@ -554,6 +578,20 @@ private class FixtureJellyfinHttpClient(
         downloadHeaders = headers
         val bytes = byteArrayOf(4, 5, 6)
         writeChunk(bytes, bytes.size)
+        return true
+    }
+
+    override suspend fun stream(
+        url: String,
+        headers: Map<String, String>,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean {
+        streamedUrl = url
+        streamHeaders = headers
+        onResponse(ProviderMediaByteResponse(206, "audio/mpeg", 3, "bytes 20-23/100"))
+        writeChunk(byteArrayOf(4, 5, 6), 3)
         return true
     }
 }

@@ -17,6 +17,7 @@ import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.ProviderIdSubsonic
 import app.naviamp.domain.provider.ProviderIdBandcamp
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
@@ -36,6 +37,44 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
+    @Test
+    fun castStreamKeepsAuthenticatedUrlInProviderAndForwardsRange() = runTest {
+        var requestedUrl = ""
+        var requestedRange: String? = null
+        val http = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String = error("unused")
+            override suspend fun stream(
+                url: String,
+                headers: Map<String, String>,
+                headOnly: Boolean,
+                onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+                writeChunk: suspend (ByteArray, Int) -> Unit,
+            ): Boolean {
+                requestedUrl = url
+                requestedRange = headers["Range"]
+                onResponse(ProviderMediaByteResponse(206, "audio/mpeg", 4, "bytes 10-13/100"))
+                writeChunk(byteArrayOf(1, 2, 3, 4), 4)
+                return true
+            }
+        }
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+        var response: ProviderMediaByteResponse? = null
+        val bytes = mutableListOf<Byte>()
+
+        assertTrue(provider.streamTrackBytes(
+            StreamRequest(TrackId("song"), StreamQuality.Original),
+            "bytes=10-13",
+            headOnly = false,
+            onResponse = { response = it },
+            writeChunk = { chunk, count -> bytes.addAll(chunk.take(count)) },
+        ))
+
+        assertTrue(requestedUrl.contains("t=token"))
+        assertEquals("bytes=10-13", requestedRange)
+        assertEquals("bytes 10-13/100", response?.contentRange)
+        assertEquals(listOf<Byte>(1, 2, 3, 4), bytes)
+    }
+
     @Test
     fun genericSubsonicUsesItsPersistedIdentityAndDisablesNavidromeSmartPlaylists() {
         val provider = NavidromeProvider(

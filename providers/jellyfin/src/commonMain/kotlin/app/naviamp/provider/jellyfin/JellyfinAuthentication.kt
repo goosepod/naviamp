@@ -1,5 +1,6 @@
 package app.naviamp.provider.jellyfin
 
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.network.NaviampUserAgent
 import app.naviamp.domain.network.urlEncodedParameter
 import app.naviamp.domain.provider.ProviderIdJellyfin
@@ -79,6 +80,14 @@ interface JellyfinHttpClient {
         headers: Map<String, String> = emptyMap(),
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
     ): Boolean = throw UnsupportedOperationException("Streaming download is not supported by this Jellyfin HTTP client.")
+
+    suspend fun stream(
+        url: String,
+        headers: Map<String, String>,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean = throw UnsupportedOperationException("Cast streaming is not supported by this Jellyfin HTTP client.")
 }
 
 data class JellyfinAuthenticationRequest(
@@ -186,6 +195,25 @@ class JellyfinSessionService(
         return httpClient.download(
             url = url,
             headers = requestHeaders(connection.accessToken, connection.customHeaders),
+            writeChunk = writeChunk,
+        )
+    }
+
+    internal suspend fun stream(
+        connection: JellyfinConnection,
+        url: String,
+        rangeHeader: String?,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean {
+        if (!connection.ownsUrl(url)) return false
+        return httpClient.stream(
+            url = url,
+            headers = requestHeaders(connection.accessToken, connection.customHeaders) +
+                listOfNotNull(rangeHeader?.let { "Range" to it }).toMap(),
+            headOnly = headOnly,
+            onResponse = onResponse,
             writeChunk = writeChunk,
         )
     }

@@ -134,6 +134,7 @@ dependencies {
     implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
     implementation("org.jetbrains.compose.ui:ui:$composeVersion")
     implementation(libs.kotlinx.coroutines.core)
+    implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
 
     testImplementation(project(":core:testkit"))
     testImplementation(kotlin("test"))
