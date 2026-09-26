@@ -27,6 +27,39 @@ import kotlin.test.assertTrue
 
 class NaviampConnectPairingRuntimeTest {
     @Test
+    fun manualAddressRejectsAnInvalidTargetIdentityProof() = runBlocking {
+        val controllerIdentity = TestIdentityEffect()
+        val targetIdentity = TestIdentityEffect(corruptSignatures = true)
+        val transport = JvmNaviampConnectTcpTransportFactory()
+        val listener = transport.listen()
+        val advertisement = advertisement(listener.port, targetIdentity.identity.identityFingerprint)
+        val policy = NaviampConnectTargetPairingController().apply {
+            start(advertisement, PairingSession, PairingCode, nowEpochMillis = 1_000)
+        }
+        val target = async(Dispatchers.Default) {
+            val request = assertIs<NaviampConnectTargetPairingRequestResult.AwaitingApproval>(
+                targetRuntime(targetIdentity.device("Target", NaviampConnectDeviceRole.Target), targetIdentity, policy)
+                    .receiveRequest(listener.accept(), 1_100),
+            )
+            request.request.approve(1_200, "controller-trust")
+        }
+        val controller = async(Dispatchers.Default) {
+            controllerRuntime(
+                controllerIdentity.device("Controller", NaviampConnectDeviceRole.Controller),
+                controllerIdentity, transport,
+            ).pairManual("127.0.0.1", listener.port, PairingCode.toCharArray(), 1_200, "target-trust")
+        }
+        try {
+            assertEquals(NaviampConnectErrorCode.AuthenticationRequired,
+                assertIs<NaviampConnectPairingRuntimeResult.Failed>(controller.await()).code)
+            assertIs<NaviampConnectPairingRuntimeResult.Failed>(target.await())
+            assertTrue(policy.state !is app.naviamp.domain.connect.NaviampConnectTargetPairingState.Paired)
+        } finally {
+            listener.close()
+        }
+    }
+
+    @Test
     fun manualAddressUsesTheSameCodeApprovalAndVerifiedIdentity() = runBlocking {
         val controllerIdentity = TestIdentityEffect()
         val targetIdentity = TestIdentityEffect()
