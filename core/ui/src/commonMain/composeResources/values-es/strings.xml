@@ -856,6 +856,11 @@
     <string name="settings_now_playing_split_background_opacity">Opacidad del fondo de vista dividida</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Dispositivo de reproducción: %1$s</string>
+    <string name="now_playing_from_playlist">De la lista: %1$s</string>
+    <string name="now_playing_from_album">Del álbum: %1$s</string>
+    <string name="now_playing_from_work">De la obra: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Mostrar origen de reproducción</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Muestra la colección que inició la cola actual.</string>
     <string name="smart_playlist_field_album_date_added">Fecha de adición del álbum</string>
     <string name="smart_playlist_field_album_date_modified">Fecha de modificación del álbum</string>
     <string name="smart_playlist_field_album_duration">Duración del álbum</string>

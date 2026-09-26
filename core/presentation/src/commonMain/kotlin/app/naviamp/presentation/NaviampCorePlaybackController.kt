@@ -618,6 +618,7 @@ class NaviampCorePlaybackController(
         when (request.action) {
             NowPlayingPlaybackAction.Stop -> commands.stop()
             NowPlayingPlaybackAction.Pause -> commands.pause()
+            NowPlayingPlaybackAction.TogglePlayPause -> commands.playPause()
             NowPlayingPlaybackAction.Resume,
             NowPlayingPlaybackAction.PlayCurrent,
             -> if (!commands.play()) publishStatus("Nothing is available to play.")

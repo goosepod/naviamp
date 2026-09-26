@@ -405,6 +405,7 @@ data class NowPlayingDisplaySettings(
     val albumYearPreference: NowPlayingAlbumYearPreference = NowPlayingAlbumYearPreference.Original,
     val showTrackCover: Boolean = false,
     val showAudioInfo: Boolean = true,
+    val showPlaybackSource: Boolean = false,
     val showVolumeBar: Boolean = true,
     val scrollTrackTitle: Boolean = true,
     val scrollArtistName: Boolean = false,

@@ -109,6 +109,28 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
+    fun playbackSourcePreferenceRoundTripsAndOlderExportsDefaultOff() {
+        for (enabled in listOf(false, true)) {
+            val document = buildSettingsSyncDocument(
+                SettingsSyncLocalSnapshot(
+                    interfaceSettings = InterfaceSettings(
+                        nowPlaying = NowPlayingDisplaySettings(showPlaybackSource = enabled),
+                    ),
+                ),
+                1L,
+                "test",
+            )
+            assertEquals(
+                enabled,
+                SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+                    .preferences.interfaceSettings.nowPlaying.showPlaybackSource,
+            )
+        }
+        assertFalse(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"nowPlaying":{}}}}""")
+            .preferences.interfaceSettings.nowPlaying.showPlaybackSource)
+    }
+
+    @Test
     fun sonicSimilarityChoiceRoundTripsAndOlderExportsUseAutomaticSupport() {
         val disabled = PlaybackSettings(
             sonicSimilarityEnabled = false,
@@ -261,6 +283,7 @@ class SettingsSyncDocumentTest {
                         albumYearPreference = NowPlayingAlbumYearPreference.Release,
                         showTrackCover = true,
                         showAudioInfo = false,
+                        showPlaybackSource = true,
                         showVolumeBar = false,
                         scrollTrackTitle = false,
                         scrollArtistName = true,
@@ -369,6 +392,7 @@ class SettingsSyncDocumentTest {
         assertEquals("#123456", decoded.preferences.interfaceSettings.singleColorHex)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showAlbumYear)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showAudioInfo)
+        assertTrue(decoded.preferences.interfaceSettings.nowPlaying.showPlaybackSource)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showVolumeBar)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.scrollTrackTitle)
         assertTrue(decoded.preferences.interfaceSettings.nowPlaying.scrollArtistName)
