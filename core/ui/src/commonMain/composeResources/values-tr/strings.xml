@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">Açılır menü ve iletişim kutularının yer değiştirmesi, titremesi ve yanlış konumdaki tıklamalara yanıt vermesi düzeltildi.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi üzerinden önbellekteki sesi iyileştir</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Gerektiğinde düşük kaliteli önbellek sesini mevcut Wi-Fi kalitesine yükseltir.</string>
+    <string name="connection_password_required">Bu sunucuya yeniden bağlanmak için parolanızı girin.</string>
 </resources>

@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">ポップアップメニューやダイアログの位置がずれる、ちらつく、誤った位置でクリックに反応する問題を修正しました。</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fiでキャッシュ音声の音質を向上</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">必要に応じて低音質のキャッシュ音声を現在のWi-Fi音質に更新します。</string>
+    <string name="connection_password_required">このサーバーに再接続するにはパスワードを入力してください。</string>
 </resources>

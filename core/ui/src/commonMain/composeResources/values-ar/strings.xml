@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">تم إصلاح قفز القوائم المنبثقة ومربعات الحوار ووميضها واستجابتها للنقرات في مواضع غير صحيحة.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">ترقية الصوت المخزن مؤقتًا عبر Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">استخدام جودة Wi-Fi الحالية لترقية الصوت المخزن مؤقتًا الأقل جودة عند الحاجة.</string>
+    <string name="connection_password_required">أدخل كلمة المرور لإعادة الاتصال بهذا الخادم.</string>
 </resources>

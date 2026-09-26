@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">Verholpen dat pop-upmenu’s en dialoogvensters versprongen, flikkerden en op de verkeerde plek op klikken reageerden.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Audiocache via wifi verbeteren</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Verbeter audio in de cache met lagere kwaliteit indien nodig naar de huidige wifi-kwaliteit.</string>
+    <string name="connection_password_required">Voer je wachtwoord in om opnieuw verbinding te maken met deze server.</string>
 </resources>

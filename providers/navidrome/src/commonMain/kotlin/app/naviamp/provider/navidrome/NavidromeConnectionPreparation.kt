@@ -140,6 +140,19 @@ private suspend fun NavidromeConnection.withReachableBaseUrl(
             return candidateConnection
         }.onFailure { error ->
             lastFailure = error
+            if (error is NavidromeException && error.subsonicErrorCode == 41 &&
+                candidateConnection.token.isNotBlank()
+            ) {
+                val availablePassword = candidateConnection.password?.takeIf(String::isNotBlank)
+                    ?: throw NavidromePasswordRequiredException()
+                val passwordConnection = candidateConnection.copy(
+                    token = "",
+                    salt = "",
+                    password = availablePassword,
+                )
+                validateConnection(passwordConnection)
+                return passwordConnection
+            }
         }
     }
     throw lastFailure ?: NavidromeException(

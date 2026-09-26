@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">Behoben: Popup-Menüs und Dialoge sprangen, flackerten und reagierten an der falschen Stelle auf Klicks.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Audio-Cache über WLAN aufwerten</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Audio mit geringerer Qualität bei Bedarf auf die aktuelle WLAN-Qualität aufwerten.</string>
+    <string name="connection_password_required">Gib dein Passwort ein, um die Verbindung zu diesem Server wiederherzustellen.</string>
 </resources>

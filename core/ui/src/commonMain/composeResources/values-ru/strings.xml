@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">Исправлены скачки и мерцание всплывающих меню и диалогов, а также срабатывание нажатий в неверном месте.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Улучшать качество аудиокэша через Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">При необходимости обновлять аудиокэш низкого качества до текущего качества Wi-Fi.</string>
+    <string name="connection_password_required">Введите пароль, чтобы снова подключиться к этому серверу.</string>
 </resources>
