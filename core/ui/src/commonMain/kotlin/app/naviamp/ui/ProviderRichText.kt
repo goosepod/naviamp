@@ -6,8 +6,12 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import com.mohamedrejeb.ksoup.entities.KsoupEntities
 
-/** Renders the small HTML subset returned by provider artist and album information endpoints. */
+/**
+ * The single rendering boundary for raw provider descriptions, including previously cached text.
+ * Decode text tokens without parsing decoded characters as markup. The caller remembers the result.
+ */
 internal fun String.toProviderRichText(): AnnotatedString {
     var boldDepth = 0
     var italicDepth = 0
@@ -34,7 +38,12 @@ internal fun String.toProviderRichText(): AnnotatedString {
         while (cursor < this@toProviderRichText.length) {
             when (this@toProviderRichText[cursor]) {
                 '<' -> {
-                    val closingBracket = this@toProviderRichText.indexOf('>', cursor + 1)
+                    if (this@toProviderRichText.startsWith("<!--", cursor)) {
+                        val end = this@toProviderRichText.indexOf("-->", cursor + 4)
+                        cursor = if (end < 0) this@toProviderRichText.length else end + 3
+                        continue
+                    }
+                    val closingBracket = this@toProviderRichText.providerTagEnd(cursor)
                     if (closingBracket < 0) {
                         appendStyled("<")
                         cursor++
@@ -49,6 +58,20 @@ internal fun String.toProviderRichText(): AnnotatedString {
                         .trimStart()
                         .takeWhile { it.isLetterOrDigit() }
                         .lowercase()
+                    val nameAndAttributes = contents.removePrefix("/").trimStart()
+                    if (tagName.firstOrNull()?.isLetter() != true ||
+                        nameAndAttributes.getOrNull(tagName.length)?.let { !it.isWhitespace() && it != '/' } == true
+                    ) {
+                        appendStyled("<")
+                        cursor++
+                        continue
+                    }
+                    if (!closing && tagName in setOf("script", "style")) {
+                        val end = this@toProviderRichText.indexOf("</$tagName", closingBracket + 1, ignoreCase = true)
+                        val endBracket = if (end < 0) -1 else this@toProviderRichText.providerTagEnd(end)
+                        cursor = if (endBracket < 0) this@toProviderRichText.length else endBracket + 1
+                        continue
+                    }
                     when (tagName) {
                         "b", "strong" -> if (closing) {
                             boldDepth = (boldDepth - 1).coerceAtLeast(0)
@@ -66,15 +89,27 @@ internal fun String.toProviderRichText(): AnnotatedString {
                     cursor = closingBracket + 1
                 }
                 '&' -> {
-                    val semicolon = this@toProviderRichText.indexOf(';', cursor + 1)
-                    val entity = if (semicolon in (cursor + 2)..(cursor + 12)) {
+                    var semicolon = this@toProviderRichText.providerEntityEnd(cursor + 1)
+                    val entity = if (semicolon >= 0) {
                         this@toProviderRichText.substring(cursor + 1, semicolon)
                     } else {
                         null
                     }
-                    val decoded = entity?.decodeHtmlEntity()
+                    var decoded = entity?.decodeHtmlEntity()
+                    // Some descriptions carry an escaped numeric reference, e.g. &amp;#039;.
+                    // Unwrap that one numeric token only, never recursively decode text or markup.
+                    if (decoded == "&" && this@toProviderRichText.getOrNull(semicolon + 1) == '#') {
+                        val numericEnd = this@toProviderRichText.providerEntityEnd(semicolon + 1)
+                        if (numericEnd >= 0) {
+                            this@toProviderRichText.substring(semicolon + 1, numericEnd)
+                                .decodeNumericHtmlEntity()?.let {
+                                    decoded = it
+                                    semicolon = numericEnd
+                                }
+                        }
+                    }
                     if (decoded != null) {
-                        appendStyled(decoded)
+                        appendStyled(requireNotNull(decoded))
                         cursor = semicolon + 1
                     } else {
                         appendStyled("&")
@@ -100,22 +135,48 @@ internal fun String.normalizedProviderDescription(): String =
         .replace('\r', '\n')
         .trim()
 
-private fun String.decodeHtmlEntity(): String? = when (lowercase()) {
-    "amp" -> "&"
-    "lt" -> "<"
-    "gt" -> ">"
-    "quot" -> "\""
-    "apos", "#39" -> "'"
-    "nbsp" -> " "
-    else -> decodeNumericHtmlEntity()
+private fun String.decodeHtmlEntity(): String? {
+    if (startsWith('#')) return decodeNumericHtmlEntity()
+    if (this == "nbsp") return " " // Preserve the existing description wrapping behavior.
+    val reference = "&$this;"
+    val decoded = KsoupEntities.decodeHtml(reference)
+    // A legacy semicolon-less prefix match leaves the rest of the token, including its
+    // semicolon, in the result. Only the complete &semi; entity decodes to a semicolon.
+    return decoded.takeIf { it != reference && (!it.endsWith(';') || this == "semi") }
+}
+
+private fun String.providerEntityEnd(start: Int): Int {
+    for (index in start until minOf(length, start + 33)) {
+        val character = this[index]
+        if (character == ';') return index.takeIf { it > start } ?: -1
+        if (!character.isLetterOrDigit() && character != '#') return -1
+    }
+    return -1
+}
+
+/** A > inside a quoted attribute does not end the tag. */
+private fun String.providerTagEnd(start: Int): Int {
+    var quote: Char? = null
+    for (index in start + 1 until length) {
+        val character = this[index]
+        if (quote != null) {
+            if (character == quote) quote = null
+        } else when (character) {
+            '\'', '"' -> quote = character
+            '>' -> return index
+            '<' -> return -1
+        }
+    }
+    return -1
 }
 
 private fun String.decodeNumericHtmlEntity(): String? {
-    val codePoint = when {
-        startsWith("#x", ignoreCase = true) -> drop(2).toIntOrNull(16)
-        startsWith('#') -> drop(1).toIntOrNull()
-        else -> null
-    }?.takeIf { it in 0..0x10ffff && it !in 0xd800..0xdfff } ?: return null
+    val hex = startsWith("#x", ignoreCase = true)
+    if (!startsWith('#')) return null
+    val digits = drop(if (hex) 2 else 1)
+    if (digits.isEmpty() || digits.any { it.digitToIntOrNull(if (hex) 16 else 10) == null }) return null
+    val codePoint = digits.toIntOrNull(if (hex) 16 else 10)
+        ?.takeIf { it in 1..0x10ffff && it !in 0xd800..0xdfff } ?: return null
     return if (codePoint <= 0xffff) {
         codePoint.toChar().toString()
     } else {
