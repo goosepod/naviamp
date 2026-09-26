@@ -164,6 +164,11 @@ class NaviampCoreConnectRemoteNowPlayingTest {
 
         assertEquals(NaviampConnectPause, request.toNaviampConnectPlaybackCommand(playing))
         assertEquals(NaviampConnectPlay, request.toNaviampConnectPlaybackCommand(paused))
+        val toggle = NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.TogglePlayPause)
+        assertEquals(
+            app.naviamp.domain.connect.NaviampConnectTogglePlayPause,
+            toggle.toNaviampConnectPlaybackCommand(playing),
+        )
     }
 
     @Test

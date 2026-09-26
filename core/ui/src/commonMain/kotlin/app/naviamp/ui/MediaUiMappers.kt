@@ -748,6 +748,7 @@ enum class NowPlayingPlaybackAction {
     Pause,
     Resume,
     PlayCurrent,
+    TogglePlayPause,
     Seek,
     Previous,
     Next,

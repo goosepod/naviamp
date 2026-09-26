@@ -19,6 +19,7 @@ import app.naviamp.domain.connect.NaviampConnectSetRepeat
 import app.naviamp.domain.connect.NaviampConnectSetShuffle
 import app.naviamp.domain.connect.NaviampConnectStop
 import app.naviamp.domain.connect.NaviampConnectTargetSnapshot
+import app.naviamp.domain.connect.NaviampConnectTogglePlayPause
 import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampRepeatMode
@@ -210,6 +211,7 @@ internal fun NowPlayingPlaybackActionRequest.toNaviampConnectPlaybackCommand(
     NowPlayingPlaybackAction.Stop -> NaviampConnectStop
     NowPlayingPlaybackAction.Pause -> NaviampConnectPause
     NowPlayingPlaybackAction.Resume -> NaviampConnectPlay
+    NowPlayingPlaybackAction.TogglePlayPause -> NaviampConnectTogglePlayPause
     NowPlayingPlaybackAction.PlayCurrent -> if (
         snapshot.playback.state == NaviampConnectPlaybackState.Playing
     ) {
