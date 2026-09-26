@@ -1,11 +1,14 @@
 package app.naviamp.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -21,6 +24,35 @@ import kotlin.test.Test
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRadioDjEditorTest {
+    @Test
+    fun newDjWrapsOptionsAtLargerTextSize() = runDesktopComposeUiTest(width = 420, height = 900) {
+        setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1.5f)) {
+                var editorOpen by remember { mutableStateOf(false) }
+                NaviampPlaybackSettingsSection(
+                    colors = NaviampColors.Dark,
+                    playbackSettings = PlaybackSettings(),
+                    djEditorOpen = editorOpen,
+                    onDjEditorOpenChanged = { editorOpen = it },
+                    supportsReplayGain = true,
+                    supportsGapless = true,
+                    supportsCrossfade = true,
+                    supportsEqualizer = true,
+                    onPlaybackSettingsChanged = {},
+                )
+            }
+        }
+        onNodeWithText("Radio DJs").performClick()
+        onNodeWithText("New DJ").performClick()
+        onNodeWithText("Artist blocks").assertExists()
+        val pixels = onRoot().captureToImage().toPixelMap()
+        val snapshot = java.awt.image.BufferedImage(pixels.width, pixels.height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) snapshot.setRGB(x, y, pixels[x, y].toArgb())
+        val output = java.io.File("build/reports/dj-editor/new-dj-large-text.png")
+        output.parentFile.mkdirs()
+        javax.imageio.ImageIO.write(snapshot, "png", output)
+    }
+
     @Test
     fun newDjFitsADesktopSplitPanel() = runDesktopComposeUiTest(width = 420, height = 900) {
         setContent {
