@@ -1026,6 +1026,10 @@ class NaviampCoreConnectController(
         if (!canControl) return
         val endpoint = parseNaviampConnectManualEndpoint(value)
         if (endpoint == null) {
+            selectedManualEndpoint = null
+            selectedTarget = null
+            enteredCode = ""
+            if (phase == NaviampConnectPairingUiPhase.AwaitingCode) phase = NaviampConnectPairingUiPhase.Failed
             status = null
             statusMessage = NaviampConnectStatusMessage(NaviampConnectStatusText.ManualEndpointInvalid)
             publish()

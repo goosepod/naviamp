@@ -84,6 +84,9 @@ class NaviampCoreConnectControllerTest {
         assertEquals(NaviampConnectPairingUiPhase.AwaitingCode, store.state.value.shell.connect.pairingPhase)
         assertEquals(app.naviamp.ui.NaviampConnectStatusText.ManualEndpointEnterCode,
             store.state.value.shell.connect.statusMessage?.text)
+        controller.actions.onManualEndpointSelected("bad-address")
+        assertFalse(store.state.value.shell.connect.manualEndpointAwaitingCode)
+        controller.actions.onManualEndpointSelected("100.101.102.103:45678")
         controller.actions.onPairingCodeChanged("123456")
         controller.actions.onSubmitPairingCode()
         runCurrent()
