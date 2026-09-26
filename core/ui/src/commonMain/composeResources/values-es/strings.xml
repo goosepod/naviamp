@@ -928,4 +928,10 @@
     <string name="changelog_270_beta">Android TV y Naviamp Connect siguen en beta mientras continúan las pruebas de compatibilidad de dispositivos, recuperación de red y rendimiento.</string>
     <string name="changelog_271_popups">Se corrigieron los saltos, parpadeos y respuestas a clics en posiciones incorrectas de los menús emergentes y los cuadros de diálogo.</string>
     <string name="connection_password_required">Introduce tu contraseña para volver a conectarte a este servidor.</string>
+    <string name="connection_api_key_required">Introduce una clave de API.</string>
+    <string name="connection_api_key_unsupported">Este servidor no admite la autenticación con clave de API.</string>
+    <string name="connection_api_key_invalid">Se rechazó la clave de API. Comprueba que pertenece a este servidor y que no se ha revocado.</string>
+    <string name="connection_server_url_required">Introduce la URL de un servidor.</string>
+    <string name="connection_api_key_guidance">Introduce una clave de API de reproductor de tu servidor. No hace falta un nombre de usuario.</string>
+    <string name="connection_api_key">Clave de API</string>
 </resources>

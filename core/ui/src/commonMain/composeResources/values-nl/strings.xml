@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Audiocache via wifi verbeteren</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Verbeter audio in de cache met lagere kwaliteit indien nodig naar de huidige wifi-kwaliteit.</string>
     <string name="connection_password_required">Voer je wachtwoord in om opnieuw verbinding te maken met deze server.</string>
+    <string name="connection_api_key_required">Voer een API-sleutel in.</string>
+    <string name="connection_api_key_unsupported">Deze server ondersteunt geen verificatie met een API-sleutel.</string>
+    <string name="connection_api_key_invalid">De API-sleutel is geweigerd. Controleer of deze bij de server hoort en niet is ingetrokken.</string>
+    <string name="connection_server_url_required">Voer een server-URL in.</string>
+    <string name="connection_api_key_guidance">Voer een API-sleutel voor een speler van je server in. Een gebruikersnaam is niet nodig.</string>
+    <string name="connection_api_key">API-sleutel</string>
 </resources>

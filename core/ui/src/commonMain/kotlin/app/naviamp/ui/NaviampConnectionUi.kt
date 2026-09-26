@@ -82,13 +82,20 @@ import app.naviamp.domain.provider.ProviderAvailability
 import app.naviamp.domain.provider.ProviderConnectionIcon
 import app.naviamp.domain.provider.ProviderDescriptor
 import app.naviamp.domain.provider.providerDescriptor
+import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.ProviderIdSubsonic
+import app.naviamp.domain.source.SubsonicAuthApiKey
+import app.naviamp.domain.source.SubsonicAuthToken
 
 @Composable
 private fun localizedConnectionStatus(status: String): String =
-    if (status == ConnectionPasswordRequiredStatus) {
-        stringResource(Res.string.connection_password_required)
-    } else {
-        status
+    when (status) {
+        ConnectionPasswordRequiredStatus -> stringResource(Res.string.connection_password_required)
+        "connection_api_key_required" -> stringResource(Res.string.connection_api_key_required)
+        "connection_api_key_unsupported" -> stringResource(Res.string.connection_api_key_unsupported)
+        "connection_api_key_invalid" -> stringResource(Res.string.connection_api_key_invalid)
+        "connection_server_url_required" -> stringResource(Res.string.connection_server_url_required)
+        else -> status
     }
 
 @Composable
@@ -164,7 +171,30 @@ fun NaviampConnectionForm(
             color = colors.mutedText,
             fontSize = 11.sp,
         )
-        if (isReconnect) {
+        if (form.providerId == ProviderIdNavidrome || form.providerId == ProviderIdSubsonic) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ConnectionFormTextAction(
+                    label = stringResource(Res.string.connection_password),
+                    colors = colors,
+                    selected = form.authenticationMode != SubsonicAuthApiKey,
+                    enabled = !isConnecting,
+                    onClick = { onFormChanged(form.copy(authenticationMode = SubsonicAuthToken, apiKey = "")) },
+                )
+                ConnectionFormTextAction(
+                    label = stringResource(Res.string.connection_api_key),
+                    colors = colors,
+                    selected = form.authenticationMode == SubsonicAuthApiKey,
+                    enabled = !isConnecting,
+                    onClick = { onFormChanged(form.copy(authenticationMode = SubsonicAuthApiKey, password = "")) },
+                )
+            }
+            if (form.authenticationMode == SubsonicAuthApiKey) Text(
+                stringResource(Res.string.connection_api_key_guidance),
+                color = colors.mutedText,
+                fontSize = 11.sp,
+            )
+        }
+        if (isReconnect && form.authenticationMode != SubsonicAuthApiKey) {
             Text(
                 stringResource(Res.string.connection_saved_credentials_loaded_leave_password_blank_to_reuse_them),
                 color = colors.mutedText,
@@ -201,7 +231,22 @@ fun NaviampConnectionForm(
             onImeAction = focusNext,
             modifier = Modifier.testTag(ConnectionServerUrlFieldTestTag),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        if (form.authenticationMode == SubsonicAuthApiKey) {
+            NaviampTextField(
+                value = form.apiKey,
+                onValueChange = { onFormChanged(form.copy(apiKey = it)) },
+                label = stringResource(Res.string.connection_api_key),
+                colors = colors,
+                isPassword = true,
+                forceFloatingLabel = isReconnect,
+                modifier = Modifier.testTag(ConnectionApiKeyFieldTestTag),
+                imeAction = ImeAction.Done,
+                onImeAction = {
+                    softwareKeyboardController?.hide()
+                    connectFocusRequester.requestFocus()
+                },
+            )
+        } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             NaviampTextField(
                 value = form.username,
                 onValueChange = { onFormChanged(form.copy(username = it)) },
@@ -432,6 +477,7 @@ internal const val ConnectionBackButtonTestTag = "connection-back"
 internal const val ConnectionServerUrlFieldTestTag = "connection-server-url"
 internal const val ConnectionUsernameFieldTestTag = "connection-username"
 internal const val ConnectionPasswordFieldTestTag = "connection-password"
+internal const val ConnectionApiKeyFieldTestTag = "connection-api-key"
 internal const val ConnectionAdvancedActionTestTag = "connection-advanced-action"
 internal const val ConnectionConnectButtonTestTag = "connection-connect"
 
@@ -552,6 +598,7 @@ private fun ConnectionFormTextAction(
     label: String,
     colors: NaviampColors,
     enabled: Boolean = true,
+    selected: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -559,8 +606,8 @@ private fun ConnectionFormTextAction(
         enabled = enabled,
         onClick = onClick,
         colors = ButtonDefaults.textButtonColors(
-            contentColor = colors.primaryText,
-            containerColor = colors.controlSurface.copy(alpha = 0.42f),
+            contentColor = if (selected) colors.primaryText else colors.secondaryText,
+            containerColor = if (selected) colors.accent.copy(alpha = 0.32f) else colors.controlSurface.copy(alpha = 0.42f),
             disabledContentColor = colors.secondaryText.copy(alpha = 0.78f),
             disabledContainerColor = colors.controlSurface.copy(alpha = 0.18f),
         ),

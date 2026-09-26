@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Tingkatkan kualitas cache audio melalui Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Tingkatkan audio cache berkualitas lebih rendah ke kualitas Wi-Fi saat ini sesuai kebutuhan.</string>
     <string name="connection_password_required">Masukkan kata sandi Anda untuk terhubung kembali ke server ini.</string>
+    <string name="connection_api_key_required">Masukkan kunci API.</string>
+    <string name="connection_api_key_unsupported">Server ini tidak mendukung autentikasi kunci API.</string>
+    <string name="connection_api_key_invalid">Kunci API ditolak. Pastikan kunci ini milik server tersebut dan belum dicabut.</string>
+    <string name="connection_server_url_required">Masukkan URL server.</string>
+    <string name="connection_api_key_guidance">Masukkan kunci API pemutar dari server Anda. Nama pengguna tidak diperlukan.</string>
+    <string name="connection_api_key">Kunci API</string>
 </resources>

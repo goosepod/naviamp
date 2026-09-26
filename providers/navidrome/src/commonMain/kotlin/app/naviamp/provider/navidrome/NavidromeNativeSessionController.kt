@@ -65,6 +65,7 @@ fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMediaSourceCo
         username = username,
         token = token,
         salt = salt,
+        authenticationMode = authenticationMode,
         nativeToken = nativeToken,
         tlsSettings = tlsSettings,
         secondaryUrls = secondaryUrls,
