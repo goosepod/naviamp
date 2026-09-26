@@ -227,6 +227,29 @@ jobs:
       - name: Exercise native boundaries and raster animation
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
+      - name: Repeat API 35 DNS-SD discovery tests
+        if: matrix.api-level == 35
+        run: |
+          adb install -r apps/android/build/outputs/apk/debug/android-debug.apk
+          adb install -r apps/android/build/outputs/apk/androidTest/debug/android-debug-androidTest.apk
+          for attempt in 1 2 3; do
+            echo "DNS-SD repeat $attempt of 3"
+            adb shell am instrument -w \
+              -e class app.naviamp.android.AndroidNaviampConnectDiscoveryInstrumentedTest \
+              app.naviamp.android.v2test.test/androidx.test.runner.AndroidJUnitRunner \
+              | tee "/tmp/naviamp-dnssd-repeat-$attempt.txt"
+            grep -q '^OK (5 tests)' "/tmp/naviamp-dnssd-repeat-$attempt.txt"
+          done
+
+      - name: Capture Android discovery diagnostics
+        if: failure()
+        run: |
+          mkdir -p build/android-emulator-diagnostics
+          adb shell getprop > build/android-emulator-diagnostics/properties.txt || true
+          adb shell dumpsys connectivity > build/android-emulator-diagnostics/connectivity.txt || true
+          adb shell dumpsys mdns > build/android-emulator-diagnostics/mdns.txt || true
+          adb logcat -d -t 8000 -v threadtime > build/android-emulator-diagnostics/logcat.txt || true
+
       - name: Upload device reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -238,6 +261,8 @@ jobs:
             apps/android/build/outputs/androidTest-results/**
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
+            build/android-emulator-diagnostics/**
+            /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
 
   desktop-windows:
