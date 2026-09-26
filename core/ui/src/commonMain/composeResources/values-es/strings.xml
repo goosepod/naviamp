@@ -202,6 +202,8 @@
     <string name="settings_audio_cache_prefetch_depth_subtitle">Pistas para guardar por adelantado en la cola de reproducción.</string>
     <string name="settings_audio_cache_budget_title">Presupuesto de caché de audio</string>
     <string name="settings_audio_cache_budget_subtitle">Espacio máximo para audio precargado.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Mejorar el audio en caché con Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Usar la calidad Wi-Fi actual en lugar de entradas móviles de menor calidad. Las próximas pistas se guardan de nuevo según sea necesario.</string>
     <string name="settings_tracks_count">%1$d pistas</string>
     <string name="settings_steps_count">%1$d pasos</string>
     <string name="settings_waveforms_title">Formas de onda</string>

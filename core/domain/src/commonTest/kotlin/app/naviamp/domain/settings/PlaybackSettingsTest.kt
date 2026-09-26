@@ -16,8 +16,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class PlaybackSettingsTest {
+    @Test
+    fun cachedAudioUpgradeOnlyRejectsMismatchedQualityOnTrustedNetworks() {
+        val disabled = PlaybackSettings(upgradeCachedAudioOnWifi = false)
+        val enabled = PlaybackSettings(upgradeCachedAudioOnWifi = true)
+
+        assertTrue(disabled.allowMismatchedCachedAudioForNetwork(isMobileData = false))
+        assertTrue(disabled.allowMismatchedCachedAudioForNetwork(isMobileData = true))
+        assertFalse(enabled.allowMismatchedCachedAudioForNetwork(isMobileData = false))
+        assertTrue(enabled.allowMismatchedCachedAudioForNetwork(isMobileData = true))
+    }
+
     @Test
     fun legacyLyricsPreferencesAndOnlineSourcesNormalizeToTheSharedModels() {
         val normalized = PlaybackSettings(

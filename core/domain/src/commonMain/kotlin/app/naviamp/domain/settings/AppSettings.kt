@@ -473,6 +473,7 @@ data class PlaybackSettings(
         codec = StreamingCodec.Opus,
         bitrateKbps = 192,
     ),
+    val upgradeCachedAudioOnWifi: Boolean = false,
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
     val downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     val allowMobileDownloads: Boolean = false,
@@ -766,6 +767,9 @@ fun PlaybackSettings.streamQualityForNetwork(isMobileData: Boolean): StreamQuali
     (if (isMobileData) mobileStreamingQuality else wifiStreamingQuality)
         .normalized()
         .toStreamQuality()
+
+fun PlaybackSettings.allowMismatchedCachedAudioForNetwork(isMobileData: Boolean): Boolean =
+    isMobileData || !upgradeCachedAudioOnWifi
 
 fun PlaybackSettings.downloadStreamQuality(): StreamQuality =
     downloadQuality.normalized().toStreamQuality()

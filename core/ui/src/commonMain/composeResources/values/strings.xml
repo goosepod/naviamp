@@ -208,6 +208,8 @@
     <string name="settings_audio_cache_prefetch_depth_subtitle">Tracks to cache ahead in the play queue.</string>
     <string name="settings_audio_cache_budget_title">Audio Cache Budget</string>
     <string name="settings_audio_cache_budget_subtitle">Maximum space for prefetched audio.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Upgrade cached audio on Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Use the current Wi-Fi quality instead of lower-quality mobile cache entries. Upcoming tracks are cached again as needed.</string>
     <string name="settings_tracks_count">%1$d tracks</string>
     <string name="settings_steps_count">%1$d steps</string>
     <string name="settings_waveforms_title">Waveforms</string>

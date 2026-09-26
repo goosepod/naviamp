@@ -79,4 +79,6 @@
     <string name="changelog_270_media">「参加作品」にトラック単位のアーティストクレジットが含まれ、デスクトップでWebPアートワークを表示でき、同期歌詞は中央を保って曲の切り替え時に消去されます。</string>
     <string name="changelog_270_beta">Android TVとNaviamp Connectは引き続きベータ版です。端末の互換性、ネットワーク復旧、性能のテストを継続しています。</string>
     <string name="changelog_271_popups">ポップアップメニューやダイアログの位置がずれる、ちらつく、誤った位置でクリックに反応する問題を修正しました。</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fiでキャッシュ音声の音質を向上</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">必要に応じて低音質のキャッシュ音声を現在のWi-Fi音質に更新します。</string>
 </resources>
