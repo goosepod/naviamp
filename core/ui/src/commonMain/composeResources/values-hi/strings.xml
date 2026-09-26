@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">पॉपअप मेन्यू और संवादों का अचानक खिसकना, झिलमिलाना और गलत स्थान पर क्लिक का जवाब देना ठीक किया गया।</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi पर कैश किए गए ऑडियो की गुणवत्ता बढ़ाएँ</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">ज़रूरत पड़ने पर कम गुणवत्ता वाले कैश किए गए ऑडियो को मौजूदा Wi-Fi गुणवत्ता में अपग्रेड करें।</string>
+    <string name="connection_password_required">इस सर्वर से फिर से जुड़ने के लिए अपना पासवर्ड दर्ज करें।</string>
 </resources>

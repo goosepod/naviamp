@@ -927,4 +927,5 @@
     <string name="changelog_270_media">Aparece en incluye créditos de artista por pista, el escritorio admite imágenes WebP y las letras sincronizadas permanecen centradas y se limpian entre pistas.</string>
     <string name="changelog_270_beta">Android TV y Naviamp Connect siguen en beta mientras continúan las pruebas de compatibilidad de dispositivos, recuperación de red y rendimiento.</string>
     <string name="changelog_271_popups">Se corrigieron los saltos, parpadeos y respuestas a clics en posiciones incorrectas de los menús emergentes y los cuadros de diálogo.</string>
+    <string name="connection_password_required">Introduce tu contraseña para volver a conectarte a este servidor.</string>
 </resources>

@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">Corrigidos os saltos, a cintilação e as respostas a cliques em locais incorretos dos menus pop-up e das caixas de diálogo.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Melhorar o áudio em cache no Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Melhorar o áudio em cache de qualidade inferior usando a qualidade Wi-Fi atual quando necessário.</string>
+    <string name="connection_password_required">Digite sua senha para se reconectar a este servidor.</string>
 </resources>

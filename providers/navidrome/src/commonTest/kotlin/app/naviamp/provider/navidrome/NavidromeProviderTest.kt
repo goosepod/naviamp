@@ -37,6 +37,28 @@ import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
     @Test
+    fun structuredError41IsPreservedForNegotiation() = runTest {
+        val provider = NavidromeProvider(
+            connection("https://music.example.test"),
+            FakeHttpClient("""{"subsonic-response":{"status":"failed","error":{"code":41,"message":"Token authentication not supported"}}}"""),
+        )
+        val error = assertFailsWith<NavidromeException> { provider.validateConnection() }
+        assertEquals(41, error.subsonicErrorCode)
+    }
+
+    @Test
+    fun passwordModeUsesUtf8HexWithoutTokenAndRedactsArtworkCacheKey() {
+        val provider = NavidromeProvider(connection("https://music.example.test").copy(
+            token = "", salt = "", password = "p ä&?",
+        ))
+        val url = provider.coverArtUrl("cover-1")
+        assertTrue(url.contains("u=demo&p=enc%3A7020c3a4263f"))
+        assertFalse(url.contains("&t="))
+        assertFalse(url.contains("&s="))
+        assertFalse(provider.artworkCacheKey(url).contains("enc"))
+    }
+
+    @Test
     fun genericSubsonicUsesItsPersistedIdentityAndDisablesNavidromeSmartPlaylists() {
         val provider = NavidromeProvider(
             connection("https://subsonic.example.test").copy(providerId = ProviderIdSubsonic),

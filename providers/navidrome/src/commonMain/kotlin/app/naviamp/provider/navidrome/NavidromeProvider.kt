@@ -60,6 +60,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistRule
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
+import app.naviamp.domain.source.ConnectionPasswordRequiredStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -1500,7 +1501,7 @@ class NavidromeProvider(
             .split('&')
             .filterNot { parameter ->
                 when (parameter.substringBefore('=').lowercase()) {
-                    "t", "s" -> true
+                    "t", "s", "p", "apikey" -> true
                     else -> false
                 }
             }
@@ -1889,14 +1890,22 @@ class NavidromeProvider(
         }
 
     private val authParams: Map<String, String>
-        get() = mapOf(
-            "u" to connection.username,
-            "t" to connection.token,
-            "s" to connection.salt,
-            "v" to profile.apiVersion,
-            "c" to NaviampClientName,
-            "f" to "json",
-        )
+        get() = buildMap {
+            put("u", connection.username)
+            if (connection.token.isNotBlank()) {
+                put("t", connection.token)
+                put("s", connection.salt)
+            } else {
+                val password = connection.password?.takeIf(String::isNotBlank)
+                    ?: throw NavidromePasswordRequiredException()
+                put("p", "enc:" + password.encodeToByteArray().joinToString("") {
+                    it.toUByte().toString(16).padStart(2, '0')
+                })
+            }
+            put("v", profile.apiVersion)
+            put("c", NaviampClientName)
+            put("f", "json")
+        }
 
     private fun internetRadioParams(
         name: String,
@@ -2326,6 +2335,9 @@ open class NavidromeException(
     val subsonicErrorCode: Int? = null,
 ) : RuntimeException(message)
 
+class NavidromePasswordRequiredException :
+    NavidromeException(ConnectionPasswordRequiredStatus, 41)
+
 class NavidromeHttpException(val statusCode: Int) :
     NavidromeException("Navidrome returned HTTP $statusCode.")
 
@@ -2364,7 +2376,7 @@ private fun String.sanitizedNavidromeUrl(): String =
         }
     }.getOrDefault("<unparseable url>")
 
-private val SensitiveNavidromeQueryKeys = setOf("u", "t", "s")
+private val SensitiveNavidromeQueryKeys = setOf("u", "t", "s", "p", "apiKey")
 
 private fun JsonObject.stringValue(key: String): String? =
     runCatching { this[key]?.jsonPrimitive?.contentOrNull }.getOrNull()

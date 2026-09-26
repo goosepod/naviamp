@@ -12,6 +12,76 @@ import kotlin.test.assertNull
 
 class NavidromeConnectionPreparationTest {
     @Test
+    fun error41SelectsPasswordForAllLaterRequests() = runTest {
+        val modes = mutableListOf<Boolean>()
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                baseUrl = "https://music.example.test", username = "demo", password = "p ä&?",
+                displayName = null, tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = null, nativeAuthEnabled = false,
+            ),
+            validateConnection = { candidate ->
+                modes += candidate.token.isNotBlank()
+                if (candidate.token.isNotBlank()) throw NavidromeException("unsupported", 41)
+            },
+            musicFolders = { emptyList() },
+        )
+        assertEquals(listOf(true, false), modes)
+        assertEquals("", prepared.connection.token)
+        assertEquals("p ä&?", prepared.connection.password)
+    }
+
+    @Test
+    fun savedConnectionWithoutPasswordRequiresReentryOnError41() = runTest {
+        val failure = assertFailsWith<NavidromePasswordRequiredException> {
+            prepareNavidromeConnection(
+                NavidromeConnectionLoginRequest(
+                    baseUrl = "https://music.example.test", username = "demo", password = "",
+                    displayName = null, tlsSettings = ConnectionTlsSettings(),
+                    savedConnectionForLogin = navidromeConnection(), nativeAuthEnabled = false,
+                ),
+                validateConnection = { throw NavidromeException("unsupported", 41) },
+                musicFolders = { emptyList() },
+            )
+        }
+        assertEquals(41, failure.subsonicErrorCode)
+    }
+
+    @Test
+    fun error40DoesNotRetryWithPassword() = runTest {
+        var attempts = 0
+        assertFailsWith<NavidromeException> {
+            prepareNavidromeConnection(
+                NavidromeConnectionLoginRequest(
+                    baseUrl = "https://music.example.test", username = "demo", password = "secret",
+                    displayName = null, tlsSettings = ConnectionTlsSettings(),
+                    savedConnectionForLogin = null, nativeAuthEnabled = false,
+                ),
+                validateConnection = { attempts++; throw NavidromeException("wrong password", 40) },
+                musicFolders = { emptyList() },
+            )
+        }
+        assertEquals(1, attempts)
+    }
+
+    @Test
+    fun savedPasswordModeDoesNotAttemptTokenAgain() = runTest {
+        val modes = mutableListOf<Boolean>()
+        val saved = navidromeConnection(token = "").copy(salt = "", password = "saved-secret")
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                baseUrl = saved.baseUrl, username = saved.username, password = "",
+                displayName = null, tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = saved, nativeAuthEnabled = false,
+            ),
+            validateConnection = { modes += it.token.isNotBlank() },
+            musicFolders = { emptyList() },
+        )
+        assertEquals(listOf(false), modes)
+        assertEquals("saved-secret", prepared.connection.password)
+    }
+
+    @Test
     fun reclassifyingSavedNavidromeAsSubsonicReusesPortableCredentialsAndDropsNativeToken() = runTest {
         val savedConnection = navidromeConnection(token = "saved-token", nativeToken = "navidrome-native")
         val prepared = prepareNavidromeConnection(

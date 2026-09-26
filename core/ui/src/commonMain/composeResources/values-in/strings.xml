@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">Memperbaiki menu pop-up dan dialog yang bergeser, berkedip, dan merespons klik di lokasi yang salah.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Tingkatkan kualitas cache audio melalui Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Tingkatkan audio cache berkualitas lebih rendah ke kualitas Wi-Fi saat ini sesuai kebutuhan.</string>
+    <string name="connection_password_required">Masukkan kata sandi Anda untuk terhubung kembali ke server ini.</string>
 </resources>
