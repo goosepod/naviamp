@@ -200,4 +200,5 @@
     <string name="changelog_271_popups">Naprawiono przeskakiwanie i migotanie menu podręcznych oraz okien dialogowych, a także reagowanie na kliknięcia w niewłaściwym miejscu.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Poprawiaj jakość bufora audio przez Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">W razie potrzeby zastępuj dźwięk o niższej jakości w buforze bieżącą jakością Wi-Fi.</string>
+    <string name="connection_password_required">Wpisz hasło, aby ponownie połączyć się z tym serwerem.</string>
 </resources>

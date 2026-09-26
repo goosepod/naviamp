@@ -195,7 +195,7 @@ class NavidromeCoreProviderSessionPort(
             baseUrl = form.serverUrl,
             secondaryUrls = form.secondaryUrls.toConnectionSecondaryUrls(),
             username = form.username,
-            password = form.password,
+            password = if (this is NaviampCoreConnectionRequest.Saved) "" else form.password,
             displayName = resolvedConnectionDisplayName(form.displayName, form.serverUrl),
             tlsSettings = navidromeTlsSettingsFromForm(
                 insecureSkipTlsVerification = form.skipTlsVerification,

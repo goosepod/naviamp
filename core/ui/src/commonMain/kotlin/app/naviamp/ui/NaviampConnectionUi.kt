@@ -72,6 +72,7 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.selectProvider
+import app.naviamp.domain.source.ConnectionPasswordRequiredStatus
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
@@ -81,6 +82,14 @@ import app.naviamp.domain.provider.ProviderAvailability
 import app.naviamp.domain.provider.ProviderConnectionIcon
 import app.naviamp.domain.provider.ProviderDescriptor
 import app.naviamp.domain.provider.providerDescriptor
+
+@Composable
+private fun localizedConnectionStatus(status: String): String =
+    if (status == ConnectionPasswordRequiredStatus) {
+        stringResource(Res.string.connection_password_required)
+    } else {
+        status
+    }
 
 @Composable
 internal fun RestoringConnectionCard(
@@ -141,7 +150,7 @@ fun NaviampConnectionForm(
             )
         }
         if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
-            ConnectionErrorCard(connectionStatus)
+            ConnectionErrorCard(localizedConnectionStatus(connectionStatus))
         }
         SettingsSectionTitle(stringResource(Res.string.connection_connection_details), colors)
         ProviderSelector(
@@ -386,7 +395,7 @@ fun NaviampConnectionForm(
             )
         }
         connectionStatus?.takeUnless { connectionStatusIsError }?.let {
-            Text(it, color = colors.secondaryText, fontSize = 11.sp)
+            Text(localizedConnectionStatus(it), color = colors.secondaryText, fontSize = 11.sp)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

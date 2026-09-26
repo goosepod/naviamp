@@ -81,4 +81,5 @@
     <string name="changelog_271_popups">Corretti gli spostamenti improvvisi, gli sfarfallii e le risposte ai clic nella posizione sbagliata di menu a comparsa e finestre di dialogo.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Migliora la cache audio tramite Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Migliora i file nella cache di qualità inferiore usando la qualità Wi-Fi attuale quando necessario.</string>
+    <string name="connection_password_required">Inserisci la password per riconnetterti a questo server.</string>
 </resources>
