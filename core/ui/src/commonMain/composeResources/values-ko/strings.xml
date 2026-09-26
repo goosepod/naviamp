@@ -82,4 +82,10 @@
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi에서 캐시된 오디오 음질 향상</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">필요할 때 저음질 캐시 오디오를 현재 Wi-Fi 음질로 업그레이드합니다.</string>
     <string name="connection_password_required">이 서버에 다시 연결하려면 비밀번호를 입력하세요.</string>
+    <string name="connection_api_key_required">API 키를 입력하세요.</string>
+    <string name="connection_api_key_unsupported">이 서버는 API 키 인증을 지원하지 않습니다.</string>
+    <string name="connection_api_key_invalid">API 키가 거부되었습니다. 이 서버의 키이며 취소되지 않았는지 확인하세요.</string>
+    <string name="connection_server_url_required">서버 URL을 입력하세요.</string>
+    <string name="connection_api_key_guidance">서버에서 만든 플레이어 API 키를 입력하세요. 사용자 이름은 필요하지 않습니다.</string>
+    <string name="connection_api_key">API 키</string>
 </resources>

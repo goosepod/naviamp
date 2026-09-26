@@ -29,6 +29,7 @@ class StoragePlaybackProfileStoreTest {
                 password = null,
                 token = "token",
                 salt = "salt",
+                authentication_mode = "token",
                 native_token = null,
                 insecure_skip_tls_verification = 0,
                 custom_certificate_path = null,

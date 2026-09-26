@@ -196,6 +196,8 @@ class NavidromeCoreProviderSessionPort(
             secondaryUrls = form.secondaryUrls.toConnectionSecondaryUrls(),
             username = form.username,
             password = if (this is NaviampCoreConnectionRequest.Saved) "" else form.password,
+            apiKey = if (this is NaviampCoreConnectionRequest.Saved) "" else form.apiKey,
+            authenticationMode = form.authenticationMode,
             displayName = resolvedConnectionDisplayName(form.displayName, form.serverUrl),
             tlsSettings = navidromeTlsSettingsFromForm(
                 insecureSkipTlsVerification = form.skipTlsVerification,
@@ -314,7 +316,9 @@ fun navidromeProviderSessionOpener(
             preparedConnection = { it.connection },
             provider = ::NavidromeProvider,
             mediaSourceConnection = NavidromeConnection::toProviderMediaSourceConnection,
-            sourcePassword = { it.password },
+            sourcePassword = { request ->
+                request.password.takeIf { request.authenticationMode != app.naviamp.domain.source.SubsonicAuthApiKey }
+            },
             applyTlsDefaults = { applyTlsDefaults(it) },
             smartPlaylistAuthWarning = { it.nativeAuthErrorMessage },
             preferredSourceId = login.savedSourceId,
@@ -331,6 +335,7 @@ private fun SavedMediaSource.toConnectionForm(): ConnectionFormState = Connectio
     displayName = displayName.takeUnless { it == baseUrl }.orEmpty(),
     serverUrl = baseUrl,
     username = username,
+    authenticationMode = authenticationMode,
     password = password.orEmpty(),
     skipTlsVerification = tlsSettings.insecureSkipTlsVerification,
     customCertificatePath = tlsSettings.customCertificatePath.orEmpty(),

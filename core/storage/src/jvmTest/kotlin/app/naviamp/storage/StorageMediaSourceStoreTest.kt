@@ -13,6 +13,40 @@ import kotlin.test.assertTrue
 
 class StorageMediaSourceStoreTest {
     @Test
+    fun apiKeyModeProtectsTheKeyAndDropsAnObsoletePassword() {
+        withDatabase { database ->
+            val store = StorageMediaSourceStore(
+                queries = database.naviampStorageQueries,
+                nowMillis = { 42L },
+                credentialProtector = ReversingCredentialProtector,
+            )
+            val original = store.upsertProviderMediaSource(providerConnection(), "cache", "navidrome")
+            store.upsertProviderMediaSource(
+                providerConnection().copy(
+                    token = "nds_secret", salt = "", password = null,
+                    authenticationMode = app.naviamp.domain.source.SubsonicAuthApiKey,
+                ),
+                "cache", "navidrome", preferredSourceId = original.id,
+            )
+            val raw = database.naviampStorageQueries.selectMediaSourceById(original.id).executeAsOne()
+            assertEquals(app.naviamp.domain.source.SubsonicAuthApiKey, raw.authentication_mode)
+            assertTrue(raw.token.startsWith("protected:"))
+            assertFalse(raw.token.contains("nds_secret"))
+            assertEquals(null, raw.password)
+            assertEquals("nds_secret", store.mediaSource(original.id)?.token)
+
+            store.upsertProviderMediaSource(
+                providerConnection().copy(
+                    token = "", salt = "", password = null,
+                    authenticationMode = app.naviamp.domain.source.SubsonicAuthApiKey,
+                ),
+                "cache", "navidrome", preferredSourceId = original.id,
+            )
+            assertEquals("nds_secret", store.mediaSource(original.id)?.token)
+        }
+    }
+
+    @Test
     fun providerReclassificationPreservesTheSourceAndItsRelatedHistory() {
         withDatabase { database ->
             val store = StorageMediaSourceStore(database.naviampStorageQueries, nowMillis = { 42L })
