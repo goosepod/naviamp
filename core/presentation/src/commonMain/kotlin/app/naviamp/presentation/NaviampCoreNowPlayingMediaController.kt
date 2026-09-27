@@ -8,6 +8,7 @@ import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.media.ratedTrackUpdate
 import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.cycleNaviampVisualizer
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayAction
@@ -156,6 +157,20 @@ class NaviampCoreNowPlayingMediaController(
                 } else {
                     selectVisualizer(visualizer)
                     if (visualizer == NaviampVisualizer.LyricMirrorTunnel) currentTrack()?.let { sidecars.loadLyrics(it) }
+                }
+            }
+            NowPlayingDisplayAction.CycleVisualizer -> {
+                val shell = stateStore.state.value.shell
+                val nowPlaying = shell.nowPlaying
+                if (nowPlaying?.visualizerAvailable == true && nowPlaying.visualizerVisible) {
+                    request.visualizerDirection?.let { direction ->
+                        cycleNaviampVisualizer(shell.shellChrome.selectedVisualizer, direction)?.let { visualizer ->
+                            selectVisualizer(visualizer)
+                            if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
+                                currentTrack()?.let { sidecars.loadLyrics(it) }
+                            }
+                        }
+                    }
                 }
             }
             NowPlayingDisplayAction.SelectRadioDj -> selectRadioDj(request.radioDjId)

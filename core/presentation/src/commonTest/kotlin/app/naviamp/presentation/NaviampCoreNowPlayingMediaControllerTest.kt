@@ -38,6 +38,8 @@ import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.VisualizerCycleDirection
+import app.naviamp.ui.cycleNaviampVisualizer
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayAction
@@ -566,6 +568,41 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertTrue(fixture.store.state.value.shell.nowPlaying?.favoriteActive == true)
         assertEquals(4, fixture.store.state.value.shell.nowPlaying?.userRating)
         assertEquals(listOf("current"), fixture.downloads)
+    }
+
+    @Test
+    fun visualizerSwipeCyclesOncePersistsAndIgnoresHiddenSurface() = runTest {
+        val fixture = mediaFixture(this)
+        val initial = fixture.store.state.value.shell.shellChrome.selectedVisualizer
+        val next = requireNotNull(cycleNaviampVisualizer(initial, VisualizerCycleDirection.Next))
+        val previous = requireNotNull(cycleNaviampVisualizer(next, VisualizerCycleDirection.Previous))
+
+        fun cycle(direction: VisualizerCycleDirection) = NaviampCoreCommand.NowPlaying.Display(
+            NowPlayingDisplayActionRequest(
+                NowPlayingDisplayAction.CycleVisualizer,
+                visualizerDirection = direction,
+            ),
+        )
+
+        fixture.controller.execute(cycle(VisualizerCycleDirection.Next))
+        assertEquals(initial, fixture.store.state.value.shell.shellChrome.selectedVisualizer)
+        assertEquals(emptyList(), fixture.visualizers)
+
+        fixture.controller.execute(displayCommand(NowPlayingDisplayAction.ToggleVisualizer))
+        fixture.controller.execute(cycle(VisualizerCycleDirection.Next))
+        assertEquals(next, fixture.store.state.value.shell.shellChrome.selectedVisualizer)
+        assertEquals(listOf(next), fixture.visualizers)
+
+        fixture.controller.execute(cycle(VisualizerCycleDirection.Previous))
+        assertEquals(previous, fixture.store.state.value.shell.shellChrome.selectedVisualizer)
+        assertEquals(listOf(next, previous), fixture.visualizers)
+
+        fixture.store.updateShell { shell ->
+            shell.copy(nowPlaying = shell.nowPlaying?.copy(visualizerAvailable = false))
+        }
+        fixture.controller.execute(cycle(VisualizerCycleDirection.Next))
+        assertEquals(previous, fixture.store.state.value.shell.shellChrome.selectedVisualizer)
+        assertEquals(listOf(next, previous), fixture.visualizers)
     }
 
     @Test
