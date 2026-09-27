@@ -769,6 +769,7 @@ enum class NowPlayingDisplayAction {
     SelectLyricsDisplayTiming,
     ToggleVisualizer,
     SelectVisualizer,
+    CycleVisualizer,
     SelectRadioDj,
     Collapse,
 }
@@ -778,6 +779,7 @@ data class NowPlayingDisplayActionRequest(
     val lyricsOffsetMillis: Int? = null,
     val lyricsDisplayPreference: app.naviamp.domain.settings.LyricsDisplayPreference? = null,
     val visualizer: NaviampVisualizer? = null,
+    val visualizerDirection: VisualizerCycleDirection? = null,
     val radioDjId: String? = null,
 )
 
