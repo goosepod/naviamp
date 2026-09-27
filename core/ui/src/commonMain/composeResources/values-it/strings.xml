@@ -81,6 +81,13 @@
     <string name="changelog_271_popups">Corretti gli spostamenti improvvisi, gli sfarfallii e le risposte ai clic nella posizione sbagliata di menu a comparsa e finestre di dialogo.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Migliora la cache audio tramite Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Migliora i file nella cache di qualità inferiore usando la qualità Wi-Fi attuale quando necessario.</string>
+    <string name="connection_password_required">Inserisci la password per riconnetterti a questo server.</string>
+    <string name="connection_api_key_required">Inserisci una chiave API.</string>
+    <string name="connection_api_key_unsupported">Questo server non supporta la verifica tramite chiave API.</string>
+    <string name="connection_api_key_invalid">La chiave API è stata rifiutata. Verifica che appartenga a questo server e che non sia stata revocata.</string>
+    <string name="connection_server_url_required">Inserisci un URL del server.</string>
+    <string name="connection_api_key_guidance">Inserisci una chiave API del lettore dal tuo server. Il nome utente non è necessario.</string>
+    <string name="connection_api_key">Chiave API</string>
     <string name="connect_manual_address_label">Indirizzo manuale</string>
     <string name="connect_manual_address_hint">Inserisci l’IP o il nome host Tailnet del dispositivo e la porta mostrata su di esso.</string>
     <string name="connect_manual_pair">Associa tramite indirizzo</string>

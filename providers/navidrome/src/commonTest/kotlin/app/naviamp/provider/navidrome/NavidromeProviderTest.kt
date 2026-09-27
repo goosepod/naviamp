@@ -37,6 +37,68 @@ import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
     @Test
+    fun apiKeyModeUsesOnlyKeyAndResolvesAccountThroughTokenInfo() = runTest {
+        val urls = mutableListOf<String>()
+        val client = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String {
+                urls += url
+                val payload = when {
+                    "tokenInfo.view" in url -> "\"tokenInfo\":{\"username\":\"demo\"}"
+                    "getOpenSubsonicExtensions.view" in url ->
+                        "\"openSubsonicExtensions\":[{\"name\":\"apiKeyAuthentication\",\"versions\":[1]}]"
+                    else -> ""
+                }
+                return """{"subsonic-response":{"status":"ok"${if (payload.isEmpty()) "" else ",$payload"}}}"""
+            }
+        }
+        val provider = NavidromeProvider(
+            NavidromeConnection.fromApiKey(baseUrl = "https://music.example.test", apiKey = "nds_secret"),
+            client,
+        )
+        assertFalse(provider.capabilities.supportsSmartPlaylists)
+        provider.validateConnection()
+        assertEquals("demo", provider.apiKeyAccountUsername())
+        val art = provider.coverArtUrl("cover")
+        assertTrue(art.contains("apiKey=nds_secret"))
+        assertFalse(provider.artworkCacheKey(art).contains("nds_secret"))
+        assertTrue(urls.all { it.contains("apiKey=nds_secret") })
+        assertTrue(urls.none { "&u=" in it || "&t=" in it || "&s=" in it || "&p=" in it })
+    }
+
+    @Test
+    fun revokedApiKeyReturnsActionableStatusWithoutTheSecret() = runTest {
+        val provider = NavidromeProvider(
+            NavidromeConnection.fromApiKey(baseUrl = "https://music.example.test", apiKey = "nds_secret"),
+            FakeHttpClient("""{"subsonic-response":{"status":"failed","error":{"code":44,"message":"nds_secret rejected"}}}"""),
+        )
+        val failure = assertFailsWith<NavidromeException> { provider.validateConnection() }
+        assertEquals(44, failure.subsonicErrorCode)
+        assertEquals("connection_api_key_invalid", failure.message)
+    }
+
+    @Test
+    fun structuredError41IsPreservedForNegotiation() = runTest {
+        val provider = NavidromeProvider(
+            connection("https://music.example.test"),
+            FakeHttpClient("""{"subsonic-response":{"status":"failed","error":{"code":41,"message":"Token authentication not supported"}}}"""),
+        )
+        val error = assertFailsWith<NavidromeException> { provider.validateConnection() }
+        assertEquals(41, error.subsonicErrorCode)
+    }
+
+    @Test
+    fun passwordModeUsesUtf8HexWithoutTokenAndRedactsArtworkCacheKey() {
+        val provider = NavidromeProvider(connection("https://music.example.test").copy(
+            token = "", salt = "", password = "p ä&?",
+        ))
+        val url = provider.coverArtUrl("cover-1")
+        assertTrue(url.contains("u=demo&p=enc%3A7020c3a4263f"))
+        assertFalse(url.contains("&t="))
+        assertFalse(url.contains("&s="))
+        assertFalse(provider.artworkCacheKey(url).contains("enc"))
+    }
+
+    @Test
     fun genericSubsonicUsesItsPersistedIdentityAndDisablesNavidromeSmartPlaylists() {
         val provider = NavidromeProvider(
             connection("https://subsonic.example.test").copy(providerId = ProviderIdSubsonic),

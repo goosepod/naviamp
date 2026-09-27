@@ -81,6 +81,13 @@
     <string name="changelog_271_popups">修复了弹出菜单和对话框跳动、闪烁以及点击响应位置错误的问题。</string>
     <string name="settings_quality_upgrade_cache_wifi_title">通过 Wi-Fi 提升缓存音频质量</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">根据需要，使用当前 Wi-Fi 音质设置升级较低音质的缓存音频。</string>
+    <string name="connection_password_required">输入密码以重新连接到此服务器。</string>
+    <string name="connection_api_key_required">输入 API 密钥。</string>
+    <string name="connection_api_key_unsupported">此服务器不支持 API 密钥身份验证。</string>
+    <string name="connection_api_key_invalid">API 密钥被拒绝。请确认它属于此服务器且未被撤销。</string>
+    <string name="connection_server_url_required">输入服务器 URL。</string>
+    <string name="connection_api_key_guidance">输入从服务器获取的播放器 API 密钥。无需用户名。</string>
+    <string name="connection_api_key">API 密钥</string>
     <string name="connect_manual_address_label">手动地址</string>
     <string name="connect_manual_address_hint">输入目标设备的 Tailnet IP 或主机名，以及该设备显示的端口。</string>
     <string name="connect_manual_pair">按地址配对</string>

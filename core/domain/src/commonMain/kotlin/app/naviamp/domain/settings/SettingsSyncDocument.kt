@@ -35,6 +35,7 @@ data class SettingsSyncServerProfile(
     val tls: SettingsSyncTlsSettings = SettingsSyncTlsSettings(),
     val customHeaders: List<SettingsSyncHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
+    val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
 ) {
     fun normalized(): SettingsSyncServerProfile? {
         val normalizedId = id.trim()
@@ -45,6 +46,7 @@ data class SettingsSyncServerProfile(
             providerId = providerId.trim().ifEmpty { ProviderIdNavidrome },
             displayName = displayName.trim().ifEmpty { normalizedPrimaryUrl },
             username = username.trim(),
+            authenticationMode = app.naviamp.domain.source.normalizedSubsonicAuthenticationMode(authenticationMode),
             primaryUrl = normalizedPrimaryUrl,
             secondaryUrls = secondaryUrls
                 .mapNotNull { it.normalized() }

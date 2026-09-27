@@ -81,6 +81,13 @@
     <string name="changelog_271_popups">تم إصلاح قفز القوائم المنبثقة ومربعات الحوار ووميضها واستجابتها للنقرات في مواضع غير صحيحة.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">ترقية الصوت المخزن مؤقتًا عبر Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">استخدام جودة Wi-Fi الحالية لترقية الصوت المخزن مؤقتًا الأقل جودة عند الحاجة.</string>
+    <string name="connection_password_required">أدخل كلمة المرور لإعادة الاتصال بهذا الخادم.</string>
+    <string name="connection_api_key_required">أدخل مفتاح API.</string>
+    <string name="connection_api_key_unsupported">هذا الخادم لا يدعم المصادقة بمفتاح API.</string>
+    <string name="connection_api_key_invalid">رفض الخادم مفتاح API. تحقق من أنه يخص هذا الخادم ولم يتم إلغاؤه.</string>
+    <string name="connection_server_url_required">أدخل عنوان URL للخادم.</string>
+    <string name="connection_api_key_guidance">أدخل مفتاح API الخاص بالمشغل من خادمك. لا يلزم اسم مستخدم.</string>
+    <string name="connection_api_key">مفتاح API</string>
     <string name="connect_manual_address_label">العنوان اليدوي</string>
     <string name="connect_manual_address_hint">أدخل عنوان IP الخاص بشبكة Tailnet أو اسم المضيف والمنفذ المعروض على الجهاز الهدف.</string>
     <string name="connect_manual_pair">الإقران عبر العنوان</string>

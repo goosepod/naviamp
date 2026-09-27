@@ -8,6 +8,29 @@ import kotlin.test.assertTrue
 
 class StorageDatabaseInitializerTest {
     @Test
+    fun versionTwentySixAddsAuthenticationModeAndPreservesSavedCredentials() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            NaviampStorageDatabase.Schema.create(driver)
+            driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                    username, token, salt, password, created_at_epoch_millis)
+                VALUES ('source', 'navidrome', 'cache', 'Server', 'https://example.test',
+                    'user', '', '', 'saved-password', 1)
+            """.trimIndent(), 0)
+            driver.execute(null, "PRAGMA user_version = 26", 0)
+            val database = initializeNaviampStorageDatabase(driver)
+            val source = database.naviampStorageQueries.selectMediaSourceById("source").executeAsOne()
+            assertEquals("token", source.authentication_mode)
+            assertEquals("saved-password", source.password)
+            assertEquals("", source.token)
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
     fun createsAndVersionsAFreshDatabase() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
@@ -119,6 +142,7 @@ class StorageDatabaseInitializerTest {
         try {
             NaviampStorageDatabase.Schema.create(driver)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
+            driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
             driver.execute(null, """
                 INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
                     username, token, salt, created_at_epoch_millis)
@@ -150,6 +174,7 @@ class StorageDatabaseInitializerTest {
             driver.execute(null, "DROP TABLE album_catalog_snapshot", 0)
             driver.execute(null, "DROP TABLE library_track_artist_credit", 0)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
+            driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
             driver.execute(null, "PRAGMA user_version = 24", 0)
             driver.execute(null, """
                 INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
@@ -202,6 +227,7 @@ private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFo
     execute(null, "ALTER TABLE playback_history DROP COLUMN original_release_year", 0)
     execute(null, "ALTER TABLE playback_session_state DROP COLUMN queue_groups_payload", 0)
     execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
+    execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
     execute(null, "DROP TABLE playback_profile", 0)
     execute(null, "DROP TABLE favorite_artist_activity", 0)
     execute(null, "DROP TABLE album_catalog_snapshot", 0)

@@ -200,6 +200,13 @@
     <string name="changelog_271_popups">Naprawiono przeskakiwanie i migotanie menu podręcznych oraz okien dialogowych, a także reagowanie na kliknięcia w niewłaściwym miejscu.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Poprawiaj jakość bufora audio przez Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">W razie potrzeby zastępuj dźwięk o niższej jakości w buforze bieżącą jakością Wi-Fi.</string>
+    <string name="connection_password_required">Wpisz hasło, aby ponownie połączyć się z tym serwerem.</string>
+    <string name="connection_api_key_required">Wpisz klucz API.</string>
+    <string name="connection_api_key_unsupported">Ten serwer nie obsługuje uwierzytelniania kluczem API.</string>
+    <string name="connection_api_key_invalid">Klucz API został odrzucony. Sprawdź, czy należy do tego serwera i nie został unieważniony.</string>
+    <string name="connection_server_url_required">Wpisz adres URL serwera.</string>
+    <string name="connection_api_key_guidance">Wpisz klucz API odtwarzacza z serwera. Nazwa użytkownika nie jest potrzebna.</string>
+    <string name="connection_api_key">Klucz API</string>
     <string name="connect_manual_address_label">Adres ręczny</string>
     <string name="connect_manual_address_hint">Wpisz adres IP lub nazwę hosta Tailnet oraz port wyświetlany na urządzeniu docelowym.</string>
     <string name="connect_manual_pair">Sparuj przez adres</string>
