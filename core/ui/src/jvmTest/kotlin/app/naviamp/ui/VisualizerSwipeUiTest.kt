@@ -64,7 +64,7 @@ class VisualizerSwipeUiTest {
     }
 
     @Test
-    fun mouseDragDoesNotCycle() = runComposeUiTest {
+    fun mouseDragAndTrackpadStyleScrollDoNotCycle() = runComposeUiTest {
         val directions = mutableListOf<VisualizerCycleDirection>()
         setContent { Box(Modifier.size(300.dp, 200.dp).visualizerSwipe(directions::add).testTag("visualizer")) }
         onNodeWithTag("visualizer").performMouseInput {
@@ -72,6 +72,7 @@ class VisualizerSwipeUiTest {
             press()
             moveTo(Offset(1f, center.y))
             release()
+            scroll(Offset(180f, 0f))
         }
         runOnIdle { assertEquals(emptyList(), directions) }
     }
