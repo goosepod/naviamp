@@ -88,4 +88,14 @@
     <string name="connection_server_url_required">Masukkan URL server.</string>
     <string name="connection_api_key_guidance">Masukkan kunci API pemutar dari server Anda. Nama pengguna tidak diperlukan.</string>
     <string name="connection_api_key">Kunci API</string>
+    <string name="connect_manual_address_label">Alamat manual</string>
+    <string name="connect_manual_address_hint">Masukkan IP atau nama host Tailnet target dan port yang ditampilkan di perangkat tersebut.</string>
+    <string name="connect_manual_pair">Pasangkan lewat alamat</string>
+    <string name="connect_manual_invalid">Masukkan nama host atau alamat IP dan port yang valid.</string>
+    <string name="connect_manual_enter_code">Masukkan kode enam digit yang ditampilkan di target.</string>
+    <string name="connect_manual_authenticating">Mengautentikasi target di alamat ini…</string>
+    <string name="connect_manual_unreachable">Alamat ini tidak dapat dijangkau. Periksa Tailnet, port, dan mode pemasangan.</string>
+    <string name="connect_manual_port">Port koneksi manual: %1$d</string>
+    <string name="connect_manual_rejected">Alamat tercapai, tetapi perangkat tepercaya tidak dapat diverifikasi. Periksa identitasnya atau pasangkan lagi.</string>
+    <string name="connect_manual_reconnect">Hubungkan kembali %1$s lewat alamat</string>
 </resources>

@@ -88,4 +88,14 @@
     <string name="connection_server_url_required">Saisissez l’URL du serveur.</string>
     <string name="connection_api_key_guidance">Saisissez une clé API de lecteur provenant de votre serveur. Aucun nom d’utilisateur n’est nécessaire.</string>
     <string name="connection_api_key">Clé API</string>
+    <string name="connect_manual_address_label">Adresse manuelle</string>
+    <string name="connect_manual_address_hint">Saisissez l’adresse IP ou le nom d’hôte Tailnet de la cible et le port affiché sur cet appareil.</string>
+    <string name="connect_manual_pair">Associer par adresse</string>
+    <string name="connect_manual_invalid">Saisissez un nom d’hôte ou une adresse IP et un port valides.</string>
+    <string name="connect_manual_enter_code">Saisissez le code à six chiffres affiché sur la cible.</string>
+    <string name="connect_manual_authenticating">Authentification de la cible à cette adresse…</string>
+    <string name="connect_manual_unreachable">Adresse inaccessible. Vérifiez le Tailnet, le port et le mode d’association.</string>
+    <string name="connect_manual_port">Port de connexion manuelle : %1$d</string>
+    <string name="connect_manual_rejected">Adresse atteinte, mais l’appareil de confiance n’a pas pu être vérifié. Vérifiez son identité ou associez-le à nouveau.</string>
+    <string name="connect_manual_reconnect">Reconnecter %1$s par adresse</string>
 </resources>

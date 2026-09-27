@@ -88,4 +88,14 @@
     <string name="connection_server_url_required">输入服务器 URL。</string>
     <string name="connection_api_key_guidance">输入从服务器获取的播放器 API 密钥。无需用户名。</string>
     <string name="connection_api_key">API 密钥</string>
+    <string name="connect_manual_address_label">手动地址</string>
+    <string name="connect_manual_address_hint">输入目标设备的 Tailnet IP 或主机名，以及该设备显示的端口。</string>
+    <string name="connect_manual_pair">按地址配对</string>
+    <string name="connect_manual_invalid">输入有效的主机名或 IP 地址及端口。</string>
+    <string name="connect_manual_enter_code">输入目标设备显示的六位代码。</string>
+    <string name="connect_manual_authenticating">正在验证此地址的目标设备…</string>
+    <string name="connect_manual_unreachable">无法连接到此地址。请检查 Tailnet、端口和配对模式。</string>
+    <string name="connect_manual_port">手动连接端口：%1$d</string>
+    <string name="connect_manual_rejected">已到达该地址，但无法验证受信任的设备。请检查其身份或重新配对。</string>
+    <string name="connect_manual_reconnect">按地址重新连接到%1$s</string>
 </resources>

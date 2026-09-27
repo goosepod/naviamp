@@ -934,4 +934,14 @@
     <string name="connection_server_url_required">Introduce la URL de un servidor.</string>
     <string name="connection_api_key_guidance">Introduce una clave de API de reproductor de tu servidor. No hace falta un nombre de usuario.</string>
     <string name="connection_api_key">Clave de API</string>
+    <string name="connect_manual_address_label">Dirección manual</string>
+    <string name="connect_manual_address_hint">Introduce la IP o el nombre de host de Tailnet y el puerto que muestra el dispositivo de destino.</string>
+    <string name="connect_manual_pair">Vincular por dirección</string>
+    <string name="connect_manual_invalid">Introduce un nombre de host o una dirección IP y un puerto válidos.</string>
+    <string name="connect_manual_enter_code">Introduce el código de seis dígitos que muestra el dispositivo de destino.</string>
+    <string name="connect_manual_authenticating">Autenticando el dispositivo de destino en esta dirección…</string>
+    <string name="connect_manual_unreachable">No se pudo acceder a esta dirección. Comprueba Tailnet, el puerto y el modo de vinculación.</string>
+    <string name="connect_manual_port">Puerto de conexión manual: %1$d</string>
+    <string name="connect_manual_rejected">Se llegó a la dirección, pero no se pudo verificar el dispositivo de confianza. Comprueba su identidad o vuelve a vincularlo.</string>
+    <string name="connect_manual_reconnect">Reconectar con %1$s por dirección</string>
 </resources>

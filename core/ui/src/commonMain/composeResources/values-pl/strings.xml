@@ -207,4 +207,14 @@
     <string name="connection_server_url_required">Wpisz adres URL serwera.</string>
     <string name="connection_api_key_guidance">Wpisz klucz API odtwarzacza z serwera. Nazwa użytkownika nie jest potrzebna.</string>
     <string name="connection_api_key">Klucz API</string>
+    <string name="connect_manual_address_label">Adres ręczny</string>
+    <string name="connect_manual_address_hint">Wpisz adres IP lub nazwę hosta Tailnet oraz port wyświetlany na urządzeniu docelowym.</string>
+    <string name="connect_manual_pair">Sparuj przez adres</string>
+    <string name="connect_manual_invalid">Wpisz poprawną nazwę hosta lub adres IP oraz port.</string>
+    <string name="connect_manual_enter_code">Wpisz sześciocyfrowy kod wyświetlany na urządzeniu docelowym.</string>
+    <string name="connect_manual_authenticating">Uwierzytelnianie urządzenia pod tym adresem…</string>
+    <string name="connect_manual_unreachable">Nie można połączyć się z tym adresem. Sprawdź Tailnet, port i tryb parowania.</string>
+    <string name="connect_manual_port">Port połączenia ręcznego: %1$d</string>
+    <string name="connect_manual_rejected">Adres jest osiągalny, ale nie udało się zweryfikować zaufanego urządzenia. Sprawdź tożsamość lub sparuj ponownie.</string>
+    <string name="connect_manual_reconnect">Połącz ponownie z %1$s przez adres</string>
 </resources>

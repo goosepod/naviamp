@@ -88,4 +88,14 @@
     <string name="connection_server_url_required">सर्वर URL दर्ज करें।</string>
     <string name="connection_api_key_guidance">अपने सर्वर से प्लेयर API कुंजी दर्ज करें। उपयोगकर्ता नाम आवश्यक नहीं है।</string>
     <string name="connection_api_key">API कुंजी</string>
+    <string name="connect_manual_address_label">मैन्युअल पता</string>
+    <string name="connect_manual_address_hint">लक्ष्य का Tailnet IP या होस्टनाम और उस डिवाइस पर दिखाया गया पोर्ट दर्ज करें।</string>
+    <string name="connect_manual_pair">पते से पेयर करें</string>
+    <string name="connect_manual_invalid">मान्य होस्टनाम या IP पता और पोर्ट दर्ज करें।</string>
+    <string name="connect_manual_enter_code">लक्ष्य पर दिखाया गया छह अंकों का कोड दर्ज करें।</string>
+    <string name="connect_manual_authenticating">इस पते पर लक्ष्य का प्रमाणीकरण हो रहा है…</string>
+    <string name="connect_manual_unreachable">इस पते तक नहीं पहुँचा जा सका। Tailnet, पोर्ट और पेयरिंग मोड जाँचें।</string>
+    <string name="connect_manual_port">मैन्युअल कनेक्शन पोर्ट: %1$d</string>
+    <string name="connect_manual_rejected">पते तक पहुँचे, लेकिन विश्वसनीय डिवाइस की पुष्टि नहीं हो सकी। उसकी पहचान जाँचें या फिर से पेयर करें।</string>
+    <string name="connect_manual_reconnect">%1$s से पते द्वारा फिर कनेक्ट करें</string>
 </resources>

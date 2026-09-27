@@ -88,4 +88,14 @@
     <string name="connection_server_url_required">サーバー URL を入力してください。</string>
     <string name="connection_api_key_guidance">サーバーで作成したプレーヤーの API キーを入力してください。ユーザー名は不要です。</string>
     <string name="connection_api_key">API キー</string>
+    <string name="connect_manual_address_label">手動アドレス</string>
+    <string name="connect_manual_address_hint">接続先のTailnet IPまたはホスト名と、接続先に表示されたポートを入力してください。</string>
+    <string name="connect_manual_pair">アドレスでペアリング</string>
+    <string name="connect_manual_invalid">有効なホスト名またはIPアドレスとポートを入力してください。</string>
+    <string name="connect_manual_enter_code">接続先に表示された6桁のコードを入力してください。</string>
+    <string name="connect_manual_authenticating">このアドレスの接続先を認証しています…</string>
+    <string name="connect_manual_unreachable">このアドレスに接続できません。Tailnet、ポート、ペアリングモードを確認してください。</string>
+    <string name="connect_manual_port">手動接続ポート: %1$d</string>
+    <string name="connect_manual_rejected">アドレスには接続できましたが、信頼済みデバイスを確認できませんでした。IDを確認するか、再度ペアリングしてください。</string>
+    <string name="connect_manual_reconnect">アドレスで%1$sに再接続</string>
 </resources>
