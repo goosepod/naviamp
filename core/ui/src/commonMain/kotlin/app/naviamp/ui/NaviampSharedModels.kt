@@ -89,6 +89,23 @@ enum class NaviampVisualizer(val label: String) {
     VinylGroove("Vinyl Groove"),
 }
 
+enum class VisualizerCycleDirection { Previous, Next }
+
+val orderedNaviampVisualizers: List<NaviampVisualizer> = NaviampVisualizer.entries.sortedBy { it.label }
+
+fun cycleNaviampVisualizer(
+    current: NaviampVisualizer,
+    direction: VisualizerCycleDirection,
+    available: List<NaviampVisualizer> = orderedNaviampVisualizers,
+): NaviampVisualizer? {
+    val choices = available.distinct()
+    if (choices.size < 2) return null
+    val index = choices.indexOf(current)
+    if (index < 0) return if (direction == VisualizerCycleDirection.Next) choices.first() else choices.last()
+    val step = if (direction == VisualizerCycleDirection.Next) 1 else -1
+    return choices[(index + step + choices.size) % choices.size]
+}
+
 fun naviampVisualizerFromName(name: String?): NaviampVisualizer =
     NaviampVisualizer.entries.firstOrNull { visualizer -> visualizer.name == name }
         ?: NaviampVisualizer.AudioSphere
