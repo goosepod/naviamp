@@ -37,6 +37,8 @@ and API-key connections for compatible OpenSubsonic servers.
 
 - Google Cast currently needs an Android sender, online provider media, and a receiver that can
   reach the phone on a stable local network. Further Cast scenarios are tracked in issue #168.
+- OpenSubsonic API-key login still awaits a live interoperability check with a compatible Navidrome
+  server; existing password and token connections are unaffected.
 - Android TV and Naviamp Connect remain beta. The iOS artifact is unsigned, and Windows and macOS
   packages are not publisher-signed.
 
