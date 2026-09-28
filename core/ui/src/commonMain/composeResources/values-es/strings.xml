@@ -202,6 +202,8 @@
     <string name="settings_audio_cache_prefetch_depth_subtitle">Pistas para guardar por adelantado en la cola de reproducción.</string>
     <string name="settings_audio_cache_budget_title">Presupuesto de caché de audio</string>
     <string name="settings_audio_cache_budget_subtitle">Espacio máximo para audio precargado.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Mejorar el audio en caché con Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Usar la calidad Wi-Fi actual en lugar de entradas móviles de menor calidad. Las próximas pistas se guardan de nuevo según sea necesario.</string>
     <string name="settings_tracks_count">%1$d pistas</string>
     <string name="settings_steps_count">%1$d pasos</string>
     <string name="settings_waveforms_title">Formas de onda</string>
@@ -854,6 +856,11 @@
     <string name="settings_now_playing_split_background_opacity">Opacidad del fondo de vista dividida</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Dispositivo de reproducción: %1$s</string>
+    <string name="now_playing_from_playlist">De la lista: %1$s</string>
+    <string name="now_playing_from_album">Del álbum: %1$s</string>
+    <string name="now_playing_from_work">De la obra: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Mostrar origen de reproducción</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Muestra la colección que inició la cola actual.</string>
     <string name="smart_playlist_field_album_date_added">Fecha de adición del álbum</string>
     <string name="smart_playlist_field_album_date_modified">Fecha de modificación del álbum</string>
     <string name="smart_playlist_field_album_duration">Duración del álbum</string>
@@ -920,5 +927,22 @@
     <string name="changelog_270_media">Aparece en incluye créditos de artista por pista, el escritorio admite imágenes WebP y las letras sincronizadas permanecen centradas y se limpian entre pistas.</string>
     <string name="changelog_270_beta">Android TV y Naviamp Connect siguen en beta mientras continúan las pruebas de compatibilidad de dispositivos, recuperación de red y rendimiento.</string>
     <string name="changelog_271_popups">Se corrigieron los saltos, parpadeos y respuestas a clics en posiciones incorrectas de los menús emergentes y los cuadros de diálogo.</string>
+    <string name="connection_password_required">Introduce tu contraseña para volver a conectarte a este servidor.</string>
+    <string name="connection_api_key_required">Introduce una clave de API.</string>
+    <string name="connection_api_key_unsupported">Este servidor no admite la autenticación con clave de API.</string>
+    <string name="connection_api_key_invalid">Se rechazó la clave de API. Comprueba que pertenece a este servidor y que no se ha revocado.</string>
+    <string name="connection_server_url_required">Introduce la URL de un servidor.</string>
+    <string name="connection_api_key_guidance">Introduce una clave de API de reproductor de tu servidor. No hace falta un nombre de usuario.</string>
+    <string name="connection_api_key">Clave de API</string>
+    <string name="connect_manual_address_label">Dirección manual</string>
+    <string name="connect_manual_address_hint">Introduce la IP o el nombre de host de Tailnet y el puerto que muestra el dispositivo de destino.</string>
+    <string name="connect_manual_pair">Vincular por dirección</string>
+    <string name="connect_manual_invalid">Introduce un nombre de host o una dirección IP y un puerto válidos.</string>
+    <string name="connect_manual_enter_code">Introduce el código de seis dígitos que muestra el dispositivo de destino.</string>
+    <string name="connect_manual_authenticating">Autenticando el dispositivo de destino en esta dirección…</string>
+    <string name="connect_manual_unreachable">No se pudo acceder a esta dirección. Comprueba Tailnet, el puerto y el modo de vinculación.</string>
+    <string name="connect_manual_port">Puerto de conexión manual: %1$d</string>
+    <string name="connect_manual_rejected">Se llegó a la dirección, pero no se pudo verificar el dispositivo de confianza. Comprueba su identidad o vuelve a vincularlo.</string>
+    <string name="connect_manual_reconnect">Reconectar con %1$s por dirección</string>
     <string name="now_playing_cast_to_device">Enviar a un dispositivo</string>
 </resources>

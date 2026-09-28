@@ -82,7 +82,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import kotlin.math.abs
@@ -223,6 +226,15 @@ data class NaviampNowPlayingActions(
             NowPlayingDisplayActionRequest(
                 NowPlayingDisplayAction.SelectVisualizer,
                 visualizer = visualizer,
+            ),
+        )
+    }
+
+    fun cycleVisualizer(direction: VisualizerCycleDirection) {
+        onDisplayAction(
+            NowPlayingDisplayActionRequest(
+                NowPlayingDisplayAction.CycleVisualizer,
+                visualizerDirection = direction,
             ),
         )
     }
@@ -394,6 +406,7 @@ fun NaviampNowPlayingPanel(
                                 tempoBpm = nowPlaying.bpm,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
+                                onVisualizerSwiped = actions::cycleVisualizer,
                             )
                         }
                         NowPlayingDetails(
@@ -460,6 +473,7 @@ fun NaviampNowPlayingPanel(
                         tempoBpm = nowPlaying.bpm,
                         onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                         onVisualizerSelected = actions::selectVisualizer,
+                        onVisualizerSwiped = actions::cycleVisualizer,
                     )
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
@@ -565,6 +579,7 @@ fun NaviampNowPlayingPanel(
                                 tempoBpm = nowPlaying.bpm,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
+                                onVisualizerSwiped = actions::cycleVisualizer,
                             )
                         }
                         NowPlayingDetails(
@@ -624,6 +639,7 @@ fun NaviampNowPlayingPanel(
                                 tempoBpm = nowPlaying.bpm,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
+                                onVisualizerSwiped = actions::cycleVisualizer,
                             )
                         }
                     }
@@ -705,6 +721,7 @@ private fun NowPlayingArtSurface(
     tempoBpm: Int?,
     onToggleVisualizer: () -> Unit,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
+    onVisualizerSwiped: (VisualizerCycleDirection) -> Unit,
 ) {
     val shape = RoundedCornerShape(cornerRadius)
     val toggleModifier = Modifier.clickable(enabled = visualizerAvailable, onClick = onToggleVisualizer)
@@ -722,6 +739,7 @@ private fun NowPlayingArtSurface(
                 .fillMaxWidth()
                 .height(size + NowPlayingArtShadowMargin * 2)
                 .visualizerContextMenu { visualizerMenuExpanded = true }
+                .visualizerSwipe(onVisualizerSwiped)
                 .then(toggleModifier),
         ) {
             LiveVisualizerSurface(
@@ -774,7 +792,7 @@ private fun VisualizerDropdownMenuItems(
     selectedVisualizer: NaviampVisualizer,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
 ) {
-    NaviampVisualizer.entries.sortedBy { it.label }.forEach { visualizer ->
+    orderedNaviampVisualizers.forEach { visualizer ->
         NaviampDropdownMenuItem(
             label = if (visualizer == selectedVisualizer) "${visualizer.label} ✓" else visualizer.label,
             enabled = visualizer != selectedVisualizer,
@@ -974,6 +992,17 @@ private fun NowPlayingDetails(
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum) },
                         ),
                     )
+                    nowPlaying.queueContext?.takeIf { displaySettings.showPlaybackSource }?.let { context ->
+                        Text(
+                            text = nowPlayingQueueContextLabel(context),
+                            color = colors.secondaryText,
+                            fontSize = (metadataFontSize - 1).sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = if (largePresentation) TextAlign.Start else TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().testTag("now-playing-queue-context"),
+                        )
+                    }
                 }
         }
 
@@ -1594,6 +1623,43 @@ private fun Modifier.visualizerContextMenu(onOpen: () -> Unit): Modifier =
                     onOpen()
                     event.changes.forEach { it.consume() }
                 }
+            }
+        }
+    }
+
+internal fun Modifier.visualizerSwipe(onSwiped: (VisualizerCycleDirection) -> Unit): Modifier =
+    pointerInput(onSwiped) {
+        val thresholdPx = maxOf(64.dp.toPx(), size.width * 0.15f)
+        val edgeExclusionPx = 24.dp.toPx()
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (down.type != PointerType.Touch && down.type != PointerType.Stylus) return@awaitEachGesture
+            if (down.position.x < edgeExclusionPx || down.position.x > size.width - edgeExclusionPx) {
+                return@awaitEachGesture
+            }
+            val intent = SwipeGestureIntentLock(viewConfiguration.touchSlop)
+            var horizontal = 0f
+            var vertical = 0f
+            var released = false
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.changes.count { it.pressed } > 1) break
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                val movement = change.positionChange()
+                horizontal += movement.x
+                vertical += movement.y
+                if (!change.pressed) {
+                    released = true
+                    break
+                }
+                when (intent.update(horizontal, vertical)) {
+                    SwipeGestureIntent.Horizontal -> change.consume()
+                    SwipeGestureIntent.Vertical -> break
+                    SwipeGestureIntent.Pending -> Unit
+                }
+            }
+            if (released && intent.intent == SwipeGestureIntent.Horizontal && kotlin.math.abs(horizontal) >= thresholdPx) {
+                onSwiped(if (horizontal < 0f) VisualizerCycleDirection.Next else VisualizerCycleDirection.Previous)
             }
         }
     }

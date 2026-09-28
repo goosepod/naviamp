@@ -6,6 +6,9 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 
+/** Internal status identity rendered through shared UI string resources. */
+const val ConnectionPasswordRequiredStatus = "connection_password_required"
+
 data class ProviderConnectionSession<Connection, Provider : MediaProvider>(
     val connection: Connection,
     val provider: Provider,

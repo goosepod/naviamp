@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">Bölünmüş görünüm arka plan opaklığı</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Oynatma cihazı: %1$s</string>
+    <string name="now_playing_from_playlist">Çalma listesinden: %1$s</string>
+    <string name="now_playing_from_album">Albümden: %1$s</string>
+    <string name="now_playing_from_work">Eserden: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Çalma kaynağını göster</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Geçerli kuyruğu başlatan koleksiyonu göster.</string>
     <string name="smart_playlist_field_album_date_added">Albüm eklenme tarihi</string>
     <string name="smart_playlist_field_album_date_modified">Albüm değiştirilme tarihi</string>
     <string name="smart_playlist_field_album_duration">Albüm süresi</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">Yer Aldığı Albümler parça düzeyindeki sanatçı kredilerini içeriyor, masaüstü WebP görsellerini destekliyor ve eşzamanlı şarkı sözleri ortalanıp parçalar arasında temizleniyor.</string>
     <string name="changelog_270_beta">Cihaz uyumluluğu, ağ kurtarma ve performans testleri sürerken Android TV ve Naviamp Connect beta olarak kalıyor.</string>
     <string name="changelog_271_popups">Açılır menü ve iletişim kutularının yer değiştirmesi, titremesi ve yanlış konumdaki tıklamalara yanıt vermesi düzeltildi.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi üzerinden önbellekteki sesi iyileştir</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Gerektiğinde düşük kaliteli önbellek sesini mevcut Wi-Fi kalitesine yükseltir.</string>
+    <string name="connection_password_required">Bu sunucuya yeniden bağlanmak için parolanızı girin.</string>
+    <string name="connection_api_key_required">Bir API anahtarı girin.</string>
+    <string name="connection_api_key_unsupported">Bu sunucu API anahtarıyla kimlik doğrulamayı desteklemiyor.</string>
+    <string name="connection_api_key_invalid">API anahtarı reddedildi. Bu sunucuya ait olduğunu ve iptal edilmediğini kontrol edin.</string>
+    <string name="connection_server_url_required">Bir sunucu URL adresi girin.</string>
+    <string name="connection_api_key_guidance">Sunucunuzdaki oynatıcı API anahtarını girin. Kullanıcı adı gerekli değildir.</string>
+    <string name="connection_api_key">API anahtarı</string>
+    <string name="connect_manual_address_label">Elle girilen adres</string>
+    <string name="connect_manual_address_hint">Hedefin Tailnet IP adresini veya ana bilgisayar adını ve cihazda gösterilen bağlantı noktasını girin.</string>
+    <string name="connect_manual_pair">Adresle eşleştir</string>
+    <string name="connect_manual_invalid">Geçerli bir ana bilgisayar adı veya IP adresi ve bağlantı noktası girin.</string>
+    <string name="connect_manual_enter_code">Hedefte gösterilen altı haneli kodu girin.</string>
+    <string name="connect_manual_authenticating">Bu adresteki hedefin kimliği doğrulanıyor…</string>
+    <string name="connect_manual_unreachable">Bu adrese ulaşılamadı. Tailnet, bağlantı noktası ve eşleştirme modunu kontrol edin.</string>
+    <string name="connect_manual_port">Elle bağlantı noktası: %1$d</string>
+    <string name="connect_manual_rejected">Adrese ulaşıldı ancak güvenilir cihaz doğrulanamadı. Kimliğini kontrol edin veya yeniden eşleştirin.</string>
+    <string name="connect_manual_reconnect">%1$s cihazına adresle yeniden bağlan</string>
     <string name="now_playing_cast_to_device">Cihaza yayınla</string>
 </resources>

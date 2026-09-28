@@ -45,6 +45,7 @@ kotlin {
             implementation(kotlin("test-junit"))
         }
         commonMain.dependencies {
+            implementation(libs.ksoup.entities)
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.serialization.json)
             implementation("org.jetbrains.compose.foundation:foundation:$composeVersion")

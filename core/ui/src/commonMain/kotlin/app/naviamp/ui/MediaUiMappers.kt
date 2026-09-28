@@ -748,6 +748,7 @@ enum class NowPlayingPlaybackAction {
     Pause,
     Resume,
     PlayCurrent,
+    TogglePlayPause,
     Seek,
     Previous,
     Next,
@@ -768,6 +769,7 @@ enum class NowPlayingDisplayAction {
     SelectLyricsDisplayTiming,
     ToggleVisualizer,
     SelectVisualizer,
+    CycleVisualizer,
     SelectRadioDj,
     Collapse,
 }
@@ -777,6 +779,7 @@ data class NowPlayingDisplayActionRequest(
     val lyricsOffsetMillis: Int? = null,
     val lyricsDisplayPreference: app.naviamp.domain.settings.LyricsDisplayPreference? = null,
     val visualizer: NaviampVisualizer? = null,
+    val visualizerDirection: VisualizerCycleDirection? = null,
     val radioDjId: String? = null,
 )
 
@@ -1366,6 +1369,7 @@ fun NowPlayingUi.withDisplaySettings(
         albumCoverArtUrl ?: trackCoverArtUrl
     }
     return copy(
+        queueContext = queueContext.takeIf { settings.showPlaybackSource },
         coverArtUrl = art,
         albumYear = year,
         albumLine = albumTitle.takeIf(String::isNotBlank)?.let { title ->

@@ -41,21 +41,21 @@ class NaviampCoreQueuePlaybackControllerTest {
     }
 
     @Test
-    fun unconfiguredPlaylistAndShuffledLaunchDoNotCreateGroups() {
+    fun unconfiguredPlaylistAndShuffledLaunchRetainContextWithoutApplyingProfile() {
         val target = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "playlist-1")
         val fixture = fixture()
 
         fixture.controller.play(testTracks(), groupTarget = target, groupLabel = "Playlist")
-        assertTrue(fixture.live.state.value.queue.groups.isEmpty())
+        assertEquals("Playlist", fixture.live.state.value.queue.groups.single().label)
+        assertEquals(PlaybackProfile(), fixture.live.state.value.queue.groups.single().profile)
 
         fixture.controller.play(
             testTracks(),
             shuffle = true,
             groupTarget = target,
             groupLabel = "Playlist",
-            groupWithoutProfile = true,
         )
-        assertTrue(fixture.live.state.value.queue.groups.isEmpty())
+        assertEquals("Playlist", fixture.live.state.value.queue.groups.single().label)
     }
 
     @Test
@@ -101,13 +101,14 @@ class NaviampCoreQueuePlaybackControllerTest {
     }
 
     @Test
-    fun addingUnconfiguredCollectionLeavesTracksUngrouped() {
+    fun addingUnconfiguredCollectionRetainsItsContext() {
         val target = PlaybackProfileTarget(PlaybackProfileTargetType.Album, "album-1")
         val fixture = fixture()
 
         val update = fixture.controller.addToQueue(testTracks(), target, "Album")
 
-        assertTrue(update.queue.groups.isEmpty())
+        assertEquals("Album", update.queue.groups.single().label)
+        assertEquals(PlaybackProfile(), update.queue.groups.single().profile)
     }
 }
 

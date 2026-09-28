@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">分屏视图背景不透明度</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">播放设备：%1$s</string>
+    <string name="now_playing_from_playlist">来自播放列表：%1$s</string>
+    <string name="now_playing_from_album">来自专辑：%1$s</string>
+    <string name="now_playing_from_work">来自作品：%1$s</string>
+    <string name="settings_now_playing_show_playback_source">显示播放来源</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">显示启动当前队列的音乐集合。</string>
     <string name="smart_playlist_field_album_date_added">专辑添加日期</string>
     <string name="smart_playlist_field_album_date_modified">专辑修改日期</string>
     <string name="smart_playlist_field_album_duration">专辑时长</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">“参与作品”会包含曲目级艺术家署名，桌面版支持 WebP 封面，同步歌词会保持居中并在曲目切换时清除。</string>
     <string name="changelog_270_beta">Android TV 和 Naviamp Connect 仍处于测试阶段，同时继续进行设备兼容性、网络恢复和性能测试。</string>
     <string name="changelog_271_popups">修复了弹出菜单和对话框跳动、闪烁以及点击响应位置错误的问题。</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">通过 Wi-Fi 提升缓存音频质量</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">根据需要，使用当前 Wi-Fi 音质设置升级较低音质的缓存音频。</string>
+    <string name="connection_password_required">输入密码以重新连接到此服务器。</string>
+    <string name="connection_api_key_required">输入 API 密钥。</string>
+    <string name="connection_api_key_unsupported">此服务器不支持 API 密钥身份验证。</string>
+    <string name="connection_api_key_invalid">API 密钥被拒绝。请确认它属于此服务器且未被撤销。</string>
+    <string name="connection_server_url_required">输入服务器 URL。</string>
+    <string name="connection_api_key_guidance">输入从服务器获取的播放器 API 密钥。无需用户名。</string>
+    <string name="connection_api_key">API 密钥</string>
+    <string name="connect_manual_address_label">手动地址</string>
+    <string name="connect_manual_address_hint">输入目标设备的 Tailnet IP 或主机名，以及该设备显示的端口。</string>
+    <string name="connect_manual_pair">按地址配对</string>
+    <string name="connect_manual_invalid">输入有效的主机名或 IP 地址及端口。</string>
+    <string name="connect_manual_enter_code">输入目标设备显示的六位代码。</string>
+    <string name="connect_manual_authenticating">正在验证此地址的目标设备…</string>
+    <string name="connect_manual_unreachable">无法连接到此地址。请检查 Tailnet、端口和配对模式。</string>
+    <string name="connect_manual_port">手动连接端口：%1$d</string>
+    <string name="connect_manual_rejected">已到达该地址，但无法验证受信任的设备。请检查其身份或重新配对。</string>
+    <string name="connect_manual_reconnect">按地址重新连接到%1$s</string>
     <string name="now_playing_cast_to_device">投放到设备</string>
 </resources>

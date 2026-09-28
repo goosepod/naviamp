@@ -61,6 +61,8 @@ data class ConnectionFormState(
     val secondaryUrls: List<ConnectionFormSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionFormHeader> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
+    val apiKey: String = "",
+    val authenticationMode: String = app.naviamp.domain.source.SubsonicAuthToken,
 )
 
 fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState {
@@ -76,6 +78,8 @@ fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState 
         providerId = selected.id,
         serverUrl = nextServerUrl,
         password = "",
+        apiKey = "",
+        authenticationMode = app.naviamp.domain.source.SubsonicAuthToken,
         selectedMusicFolderIds = emptyList(),
     )
 }
@@ -405,6 +409,7 @@ data class NowPlayingDisplaySettings(
     val albumYearPreference: NowPlayingAlbumYearPreference = NowPlayingAlbumYearPreference.Original,
     val showTrackCover: Boolean = false,
     val showAudioInfo: Boolean = true,
+    val showPlaybackSource: Boolean = false,
     val showVolumeBar: Boolean = true,
     val scrollTrackTitle: Boolean = true,
     val scrollArtistName: Boolean = false,
@@ -472,6 +477,7 @@ data class PlaybackSettings(
         codec = StreamingCodec.Opus,
         bitrateKbps = 192,
     ),
+    val upgradeCachedAudioOnWifi: Boolean = false,
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
     val downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     val allowMobileDownloads: Boolean = false,
@@ -765,6 +771,9 @@ fun PlaybackSettings.streamQualityForNetwork(isMobileData: Boolean): StreamQuali
     (if (isMobileData) mobileStreamingQuality else wifiStreamingQuality)
         .normalized()
         .toStreamQuality()
+
+fun PlaybackSettings.allowMismatchedCachedAudioForNetwork(isMobileData: Boolean): Boolean =
+    isMobileData || !upgradeCachedAudioOnWifi
 
 fun PlaybackSettings.downloadStreamQuality(): StreamQuality =
     downloadQuality.normalized().toStreamQuality()

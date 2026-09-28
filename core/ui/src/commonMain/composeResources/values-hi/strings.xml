@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">स्प्लिट व्यू पृष्ठभूमि की अपारदर्शिता</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">प्लेबैक डिवाइस: %1$s</string>
+    <string name="now_playing_from_playlist">प्लेलिस्ट से: %1$s</string>
+    <string name="now_playing_from_album">एल्बम से: %1$s</string>
+    <string name="now_playing_from_work">रचना से: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">प्लेबैक स्रोत दिखाएँ</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">वर्तमान कतार शुरू करने वाला संग्रह दिखाएँ।</string>
     <string name="smart_playlist_field_album_date_added">एल्बम जोड़े जाने की तारीख</string>
     <string name="smart_playlist_field_album_date_modified">एल्बम संशोधन तारीख</string>
     <string name="smart_playlist_field_album_duration">एल्बम अवधि</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">‘इसमें भी’ में ट्रैक-स्तरीय कलाकार क्रेडिट शामिल हैं, डेस्कटॉप WebP आर्टवर्क का समर्थन करता है और सिंक्रनाइज़ किए गए बोल केंद्रित रहते हैं तथा ट्रैक बदलने पर साफ़ हो जाते हैं।</string>
     <string name="changelog_270_beta">डिवाइस संगतता, नेटवर्क रिकवरी और प्रदर्शन परीक्षण जारी रहने के दौरान Android TV और Naviamp Connect बीटा में बने हुए हैं।</string>
     <string name="changelog_271_popups">पॉपअप मेन्यू और संवादों का अचानक खिसकना, झिलमिलाना और गलत स्थान पर क्लिक का जवाब देना ठीक किया गया।</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi पर कैश किए गए ऑडियो की गुणवत्ता बढ़ाएँ</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">ज़रूरत पड़ने पर कम गुणवत्ता वाले कैश किए गए ऑडियो को मौजूदा Wi-Fi गुणवत्ता में अपग्रेड करें।</string>
+    <string name="connection_password_required">इस सर्वर से फिर से जुड़ने के लिए अपना पासवर्ड दर्ज करें।</string>
+    <string name="connection_api_key_required">API कुंजी दर्ज करें।</string>
+    <string name="connection_api_key_unsupported">यह सर्वर API कुंजी प्रमाणीकरण का समर्थन नहीं करता।</string>
+    <string name="connection_api_key_invalid">API कुंजी अस्वीकार कर दी गई। जाँचें कि यह इसी सर्वर की है और इसे रद्द नहीं किया गया है।</string>
+    <string name="connection_server_url_required">सर्वर URL दर्ज करें।</string>
+    <string name="connection_api_key_guidance">अपने सर्वर से प्लेयर API कुंजी दर्ज करें। उपयोगकर्ता नाम आवश्यक नहीं है।</string>
+    <string name="connection_api_key">API कुंजी</string>
+    <string name="connect_manual_address_label">मैन्युअल पता</string>
+    <string name="connect_manual_address_hint">लक्ष्य का Tailnet IP या होस्टनाम और उस डिवाइस पर दिखाया गया पोर्ट दर्ज करें।</string>
+    <string name="connect_manual_pair">पते से पेयर करें</string>
+    <string name="connect_manual_invalid">मान्य होस्टनाम या IP पता और पोर्ट दर्ज करें।</string>
+    <string name="connect_manual_enter_code">लक्ष्य पर दिखाया गया छह अंकों का कोड दर्ज करें।</string>
+    <string name="connect_manual_authenticating">इस पते पर लक्ष्य का प्रमाणीकरण हो रहा है…</string>
+    <string name="connect_manual_unreachable">इस पते तक नहीं पहुँचा जा सका। Tailnet, पोर्ट और पेयरिंग मोड जाँचें।</string>
+    <string name="connect_manual_port">मैन्युअल कनेक्शन पोर्ट: %1$d</string>
+    <string name="connect_manual_rejected">पते तक पहुँचे, लेकिन विश्वसनीय डिवाइस की पुष्टि नहीं हो सकी। उसकी पहचान जाँचें या फिर से पेयर करें।</string>
+    <string name="connect_manual_reconnect">%1$s से पते द्वारा फिर कनेक्ट करें</string>
     <string name="now_playing_cast_to_device">डिवाइस पर कास्ट करें</string>
 </resources>

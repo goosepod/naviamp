@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">Непрозрачность фона в режиме разделённого экрана</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Устройство воспроизведения: %1$s</string>
+    <string name="now_playing_from_playlist">Из плейлиста: %1$s</string>
+    <string name="now_playing_from_album">Из альбома: %1$s</string>
+    <string name="now_playing_from_work">Из произведения: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Показывать источник воспроизведения</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Показывать коллекцию, с которой началась текущая очередь.</string>
     <string name="smart_playlist_field_album_date_added">Дата добавления альбома</string>
     <string name="smart_playlist_field_album_date_modified">Дата изменения альбома</string>
     <string name="smart_playlist_field_album_duration">Длительность альбома</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">В раздел «Участвует в» входят упоминания исполнителя на уровне треков, настольная версия поддерживает обложки WebP, а синхронизированные тексты остаются по центру и очищаются между треками.</string>
     <string name="changelog_270_beta">Android TV и Naviamp Connect остаются в бета-версии, пока продолжается тестирование совместимости устройств, восстановления сети и производительности.</string>
     <string name="changelog_271_popups">Исправлены скачки и мерцание всплывающих меню и диалогов, а также срабатывание нажатий в неверном месте.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Улучшать качество аудиокэша через Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">При необходимости обновлять аудиокэш низкого качества до текущего качества Wi-Fi.</string>
+    <string name="connection_password_required">Введите пароль, чтобы снова подключиться к этому серверу.</string>
+    <string name="connection_api_key_required">Введите ключ API.</string>
+    <string name="connection_api_key_unsupported">Этот сервер не поддерживает вход по ключу API.</string>
+    <string name="connection_api_key_invalid">Ключ API отклонён. Убедитесь, что он относится к этому серверу и не был отозван.</string>
+    <string name="connection_server_url_required">Введите URL сервера.</string>
+    <string name="connection_api_key_guidance">Введите ключ API плеера с вашего сервера. Имя пользователя не требуется.</string>
+    <string name="connection_api_key">Ключ API</string>
+    <string name="connect_manual_address_label">Адрес вручную</string>
+    <string name="connect_manual_address_hint">Введите IP-адрес или имя узла Tailnet и порт, показанный на целевом устройстве.</string>
+    <string name="connect_manual_pair">Подключить по адресу</string>
+    <string name="connect_manual_invalid">Введите допустимое имя узла или IP-адрес и порт.</string>
+    <string name="connect_manual_enter_code">Введите шестизначный код с целевого устройства.</string>
+    <string name="connect_manual_authenticating">Проверка устройства по этому адресу…</string>
+    <string name="connect_manual_unreachable">Не удалось подключиться по этому адресу. Проверьте Tailnet, порт и режим сопряжения.</string>
+    <string name="connect_manual_port">Порт ручного подключения: %1$d</string>
+    <string name="connect_manual_rejected">Адрес доступен, но не удалось проверить доверенное устройство. Проверьте его идентификатор или выполните сопряжение снова.</string>
+    <string name="connect_manual_reconnect">Подключиться к %1$s по адресу снова</string>
     <string name="now_playing_cast_to_device">Трансляция на устройство</string>
 </resources>

@@ -89,6 +89,23 @@ enum class NaviampVisualizer(val label: String) {
     VinylGroove("Vinyl Groove"),
 }
 
+enum class VisualizerCycleDirection { Previous, Next }
+
+val orderedNaviampVisualizers: List<NaviampVisualizer> = NaviampVisualizer.entries.sortedBy { it.label }
+
+fun cycleNaviampVisualizer(
+    current: NaviampVisualizer,
+    direction: VisualizerCycleDirection,
+    available: List<NaviampVisualizer> = orderedNaviampVisualizers,
+): NaviampVisualizer? {
+    val choices = available.distinct()
+    if (choices.size < 2) return null
+    val index = choices.indexOf(current)
+    if (index < 0) return if (direction == VisualizerCycleDirection.Next) choices.first() else choices.last()
+    val step = if (direction == VisualizerCycleDirection.Next) 1 else -1
+    return choices[(index + step + choices.size) % choices.size]
+}
+
 fun naviampVisualizerFromName(name: String?): NaviampVisualizer =
     NaviampVisualizer.entries.firstOrNull { visualizer -> visualizer.name == name }
         ?: NaviampVisualizer.AudioSphere
@@ -1112,6 +1129,7 @@ data class NowPlayingUi(
     val subtitle: String,
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val stateLabel: String,
+    val queueContext: NowPlayingQueueContextUi? = null,
     val remoteOutputDeviceName: String? = null,
     val castAvailable: Boolean = false,
     val castSelected: Boolean = false,
@@ -1179,6 +1197,20 @@ data class NowPlayingUi(
     val radioDjs: List<RadioDjPreset> = emptyList(),
     val activeRadioDjId: String? = null,
 )
+
+data class NowPlayingQueueContextUi(
+    val source: app.naviamp.domain.playback.PlaybackProfileTargetType,
+    val name: String,
+)
+
+fun nowPlayingQueueContext(
+    source: app.naviamp.domain.playback.PlaybackProfileTargetType,
+    label: String?,
+    targetId: String,
+    groupId: String,
+): NowPlayingQueueContextUi? = label?.trim()
+    ?.takeIf { it.isNotEmpty() && it != targetId.trim() && it != groupId.trim() }
+    ?.let { NowPlayingQueueContextUi(source, it) }
 
 data class NaviampPlaybackOutputUi(
     val deviceId: String?,

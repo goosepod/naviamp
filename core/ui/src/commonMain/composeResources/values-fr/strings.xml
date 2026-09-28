@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">Opacité de l’arrière-plan de la vue fractionnée</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Appareil de lecture : %1$s</string>
+    <string name="now_playing_from_playlist">Depuis la playlist : %1$s</string>
+    <string name="now_playing_from_album">Depuis l’album : %1$s</string>
+    <string name="now_playing_from_work">Depuis l’œuvre : %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Afficher la source de lecture</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Afficher la collection à l’origine de la file d’attente actuelle.</string>
     <string name="smart_playlist_field_album_date_added">Date d’ajout de l’album</string>
     <string name="smart_playlist_field_album_date_modified">Date de modification de l’album</string>
     <string name="smart_playlist_field_album_duration">Durée de l’album</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">Apparaît sur inclut les crédits d’artiste au niveau des titres, le bureau prend en charge les images WebP et les paroles synchronisées restent centrées et sont effacées entre les titres.</string>
     <string name="changelog_270_beta">Android TV et Naviamp Connect restent en bêta pendant la poursuite des tests de compatibilité des appareils, de récupération réseau et de performances.</string>
     <string name="changelog_271_popups">Correction des menus contextuels et des boîtes de dialogue qui se déplaçaient, clignotaient et réagissaient aux clics au mauvais endroit.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Améliorer le cache audio en Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Améliorer au besoin les fichiers en cache de qualité inférieure selon la qualité Wi-Fi actuelle.</string>
+    <string name="connection_password_required">Saisissez votre mot de passe pour vous reconnecter à ce serveur.</string>
+    <string name="connection_api_key_required">Saisissez une clé API.</string>
+    <string name="connection_api_key_unsupported">Ce serveur ne prend pas en charge l’authentification par clé API.</string>
+    <string name="connection_api_key_invalid">La clé API a été refusée. Vérifiez qu’elle appartient à ce serveur et qu’elle n’a pas été révoquée.</string>
+    <string name="connection_server_url_required">Saisissez l’URL du serveur.</string>
+    <string name="connection_api_key_guidance">Saisissez une clé API de lecteur provenant de votre serveur. Aucun nom d’utilisateur n’est nécessaire.</string>
+    <string name="connection_api_key">Clé API</string>
+    <string name="connect_manual_address_label">Adresse manuelle</string>
+    <string name="connect_manual_address_hint">Saisissez l’adresse IP ou le nom d’hôte Tailnet de la cible et le port affiché sur cet appareil.</string>
+    <string name="connect_manual_pair">Associer par adresse</string>
+    <string name="connect_manual_invalid">Saisissez un nom d’hôte ou une adresse IP et un port valides.</string>
+    <string name="connect_manual_enter_code">Saisissez le code à six chiffres affiché sur la cible.</string>
+    <string name="connect_manual_authenticating">Authentification de la cible à cette adresse…</string>
+    <string name="connect_manual_unreachable">Adresse inaccessible. Vérifiez le Tailnet, le port et le mode d’association.</string>
+    <string name="connect_manual_port">Port de connexion manuelle : %1$d</string>
+    <string name="connect_manual_rejected">Adresse atteinte, mais l’appareil de confiance n’a pas pu être vérifié. Vérifiez son identité ou associez-le à nouveau.</string>
+    <string name="connect_manual_reconnect">Reconnecter %1$s par adresse</string>
     <string name="now_playing_cast_to_device">Caster sur un appareil</string>
 </resources>

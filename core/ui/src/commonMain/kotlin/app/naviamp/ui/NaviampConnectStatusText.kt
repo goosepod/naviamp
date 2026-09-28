@@ -9,6 +9,11 @@ import org.jetbrains.compose.resources.stringResource
 data class NaviampConnectStatusMessage(val text: NaviampConnectStatusText, val arguments: List<String?> = emptyList())
 
 enum class NaviampConnectStatusText(val resource: StringResource) {
+    ManualEndpointInvalid(Res.string.connect_manual_invalid),
+    ManualEndpointEnterCode(Res.string.connect_manual_enter_code),
+    ManualEndpointAuthenticating(Res.string.connect_manual_authenticating),
+    ManualEndpointUnreachable(Res.string.connect_manual_unreachable),
+    ManualEndpointRejected(Res.string.connect_manual_rejected),
     SetupNewCodeRequired(Res.string.connect_setup_new_code_required),
     SetupPasswordRequired(Res.string.connect_setup_password_required),
     PlaybackWillStayOnDevice(Res.string.connect_status_playback_will_stay_on_device),

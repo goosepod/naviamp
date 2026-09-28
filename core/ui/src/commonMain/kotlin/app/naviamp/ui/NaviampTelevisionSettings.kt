@@ -472,7 +472,10 @@ private fun TelevisionControllersSettings(
             item(key = "pairing-mode") {
                 TelevisionSettingsRow(
                     title = if (connect.pairingActive) stringResource(Res.string.tv_stop_pairing) else stringResource(Res.string.tv_pair_a_controller),
-                    subtitle = stringResource(Res.string.connect_setup_code_consent),
+                    subtitle = stringResource(Res.string.connect_setup_code_consent) +
+                        (connect.listeningPort?.let { port ->
+                            "\n" + stringResource(Res.string.connect_manual_port, port)
+                        } ?: ""),
                     value = connect.pairingCode?.let(::formatNaviampConnectPairingCode),
                     icon = NaviampIcons.Player,
                     selected = connect.pairingActive,
@@ -1123,6 +1126,19 @@ private fun TelevisionDisplaySettings(
                 {
                     actions.onInterfaceSettingsChanged(
                         settings.copy(nowPlaying = nowPlaying.copy(showAudioInfo = !nowPlaying.showAudioInfo)),
+                    )
+                },
+            )
+        }
+        item(key = "playback-source") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.settings_now_playing_show_playback_source),
+                stringResource(Res.string.settings_now_playing_show_playback_source_subtitle),
+                nowPlaying.showPlaybackSource,
+                colors,
+                {
+                    actions.onInterfaceSettingsChanged(
+                        settings.copy(nowPlaying = nowPlaying.copy(showPlaybackSource = !nowPlaying.showPlaybackSource)),
                     )
                 },
             )

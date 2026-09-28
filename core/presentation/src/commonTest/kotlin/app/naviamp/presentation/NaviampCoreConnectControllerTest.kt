@@ -56,6 +56,100 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreConnectControllerTest {
     @Test
+    fun manualTrustedReconnectUsesChangedAddressWithoutDiscoveryOrAutomaticRetry() = runTest {
+        var storedTrust: String? = null
+        val trust = NaviampConnectTrustRepository(object : NaviampConnectTrustStorageEffect {
+            override fun read() = storedTrust
+            override fun write(value: String) { storedTrust = value }
+        })
+        val target = NaviampConnectDevice("tv", "Living Room TV", NaviampConnectDeviceRole.Target)
+        trust.upsert(NaviampConnectTrustRecord("trusted-tv", target, "fingerprint", "public-key", 1L))
+        val credentials = app.naviamp.app.NaviampConnectSessionCredentialRepository(
+            object : app.naviamp.app.NaviampConnectSessionCredentialStorageEffect {
+                override fun read(peerDeviceId: String) = byteArrayOf(1, 2, 3)
+                override fun write(peerDeviceId: String, value: ByteArray) = Unit
+                override fun remove(peerDeviceId: String) = Unit
+                override fun contains(peerDeviceId: String) = true
+            },
+        )
+        val discovery = RecordingDiscoveryEffect()
+        val attemptedAddresses = mutableListOf<Pair<String, Int>>()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+            deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
+            displayName = "Pixel", identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
+            transport = object : NaviampConnectTransportFactory {
+                override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection {
+                    attemptedAddresses += host to port
+                    error("unreachable")
+                }
+                override fun listen(port: Int): NaviampConnectTransportListener = error("unused")
+            },
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
+            trust = trust, credentials = credentials, discovery = discovery,
+            newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+            nowEpochMillis = { testScheduler.currentTime }, pairingHandshakeTimeoutMillis = 100L,
+        ))
+        val device = store.state.value.shell.connect.trustedDevices.single()
+        controller.actions.onManualTrustedEndpointSelected(device, "missing-port")
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ManualEndpointInvalid,
+            store.state.value.shell.connect.statusMessage?.text)
+        controller.actions.onManualTrustedEndpointSelected(device, "100.101.102.103:45678")
+        runCurrent()
+        assertEquals(listOf("100.101.102.103" to 45678), attemptedAddresses)
+        assertEquals(0, discovery.startCount)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ManualEndpointUnreachable,
+            store.state.value.shell.connect.statusMessage?.text)
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertEquals(1, attemptedAddresses.size)
+        controller.close()
+    }
+
+    @Test
+    fun manualAddressCanOpenCodePairingWithoutDiscovery() = runTest {
+        val store = NaviampCoreStateStore()
+        var attemptedAddress: Pair<String, Int>? = null
+        val controller = NaviampCoreConnectController(this, store, NaviampCoreConnectServices(
+            networkDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+            deviceCapabilities = setOf(NaviampConnectDeviceCapability.ControlPlayback),
+            displayName = "Controller",
+            identity = FakeIdentity, identityVerifier = FakeIdentityVerifier,
+            transport = object : NaviampConnectTransportFactory {
+                override suspend fun connect(host: String, port: Int): NaviampConnectTransportConnection {
+                    attemptedAddress = host to port
+                    error("unreachable")
+                }
+                override fun listen(port: Int): NaviampConnectTransportListener = error("unused")
+            },
+            pake = UnusedPakeFactory, cipher = UnusedCipherFactory,
+            trust = NaviampConnectTrustRepository(NaviampConnectTrustStorageEffect {}),
+            newOpaqueId = { "opaque" }, newPairingCode = { "123456" },
+            nowEpochMillis = { testScheduler.currentTime },
+        ))
+        controller.actions.onManualEndpointSelected("missing-port")
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ManualEndpointInvalid,
+            store.state.value.shell.connect.statusMessage?.text)
+        controller.actions.onManualEndpointSelected("100.101.102.103:45678")
+        assertTrue(store.state.value.shell.connect.manualEndpointAwaitingCode)
+        assertEquals(NaviampConnectPairingUiPhase.AwaitingCode, store.state.value.shell.connect.pairingPhase)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ManualEndpointEnterCode,
+            store.state.value.shell.connect.statusMessage?.text)
+        controller.actions.onManualEndpointSelected("bad-address")
+        assertFalse(store.state.value.shell.connect.manualEndpointAwaitingCode)
+        controller.actions.onManualEndpointSelected("100.101.102.103:45678")
+        controller.actions.onPairingCodeChanged("123456")
+        controller.actions.onSubmitPairingCode()
+        runCurrent()
+        assertEquals("100.101.102.103" to 45678, attemptedAddress)
+        assertEquals(NaviampConnectPairingUiPhase.Failed, store.state.value.shell.connect.pairingPhase)
+        assertEquals(app.naviamp.ui.NaviampConnectStatusText.ManualEndpointUnreachable,
+            store.state.value.shell.connect.statusMessage?.text)
+        controller.close()
+    }
+
+    @Test
     fun advertisingPermissionRecoveryClosesFailedListenerAndCreatesFreshPairingOffer() = runTest {
         var denied = true
         var opens = 0
@@ -101,6 +195,7 @@ class NaviampCoreConnectControllerTest {
         assertEquals(app.naviamp.ui.NaviampConnectStatusText.ReadyForAControllerOnThisLocalNetwork,
             store.state.value.shell.connect.statusMessage?.text)
         assertEquals(2, listeners.size)
+        assertEquals(42424, store.state.value.shell.connect.listeningPort)
         controller.close()
     }
 
@@ -185,6 +280,14 @@ class NaviampCoreConnectControllerTest {
                 remoteAuthorityActive = false,
                 hasLocalCurrent = true,
                 action = app.naviamp.ui.NowPlayingPlaybackAction.PlayCurrent,
+            ),
+        )
+        assertEquals(
+            NaviampCoreConnectPlaybackRoute.InitialHandoff,
+            naviampCoreConnectPlaybackRoute(
+                remoteAuthorityActive = false,
+                hasLocalCurrent = true,
+                action = app.naviamp.ui.NowPlayingPlaybackAction.TogglePlayPause,
             ),
         )
         assertEquals(

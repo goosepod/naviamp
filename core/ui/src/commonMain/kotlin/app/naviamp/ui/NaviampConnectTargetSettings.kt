@@ -39,6 +39,9 @@ internal fun NaviampConnectTargetSettings(
             Text(formatNaviampConnectPairingCode(code), color = colors.primaryText,
                 fontSize = 32.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("connect-target-code"))
+            connect.listeningPort?.let { port ->
+                Text(stringResource(Res.string.connect_manual_port, port), color = colors.secondaryText)
+            }
         }
         if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingApproval &&
             connect.pendingControllerName != null

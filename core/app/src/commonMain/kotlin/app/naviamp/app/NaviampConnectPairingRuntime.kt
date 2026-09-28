@@ -167,6 +167,33 @@ class NaviampConnectControllerPairingRuntime(
         pairingCode: CharArray,
         pairedAtEpochMillis: Long,
         trustedDeviceId: String,
+    ): NaviampConnectPairingRuntimeResult = pairAtEndpoint(
+        host, advertisement.port, advertisement.protocolRange, advertisement.identityFingerprint,
+        pairingCode, pairedAtEpochMillis, trustedDeviceId, {},
+    )
+
+    /** Manual addresses supply a route only; the code exchange and signed identity establish trust. */
+    suspend fun pairManual(
+        host: String,
+        port: Int,
+        pairingCode: CharArray,
+        pairedAtEpochMillis: Long,
+        trustedDeviceId: String,
+        onConnectionOpened: (NaviampConnectTransportConnection) -> Unit = {},
+    ): NaviampConnectPairingRuntimeResult = pairAtEndpoint(
+        host, port, localProtocolRange, null, pairingCode, pairedAtEpochMillis, trustedDeviceId,
+        onConnectionOpened,
+    )
+
+    private suspend fun pairAtEndpoint(
+        host: String,
+        port: Int,
+        remoteProtocolRange: NaviampConnectProtocolRange,
+        expectedIdentityFingerprint: String?,
+        pairingCode: CharArray,
+        pairedAtEpochMillis: Long,
+        trustedDeviceId: String,
+        onConnectionOpened: (NaviampConnectTransportConnection) -> Unit,
     ): NaviampConnectPairingRuntimeResult {
         var connection: NaviampConnectTransportConnection? = null
         var pake: NaviampConnectPakeSession? = null
@@ -178,13 +205,14 @@ class NaviampConnectControllerPairingRuntime(
             requireIdentity(localIdentity, localDevice, identityVerifier)
             val expectedProtocolVersion = negotiateNaviampConnectProtocol(
                 localProtocolRange,
-                advertisement.protocolRange,
+                remoteProtocolRange,
             ) ?: run {
                 pairingCode.fill('\u0000')
                 return NaviampConnectPairingRuntimeResult.Failed(NaviampConnectErrorCode.IncompatibleProtocol)
             }
             failureStage = NaviampConnectPairingFailureStage.TransportConnect
-            connection = transportFactory.connect(host, advertisement.port)
+            connection = transportFactory.connect(host, port)
+            onConnectionOpened(checkNotNull(connection))
             failureStage = NaviampConnectPairingFailureStage.PairingOffer
             var outboundSequence = 0L
             connection.sendPlaintext(
@@ -207,7 +235,8 @@ class NaviampConnectControllerPairingRuntime(
                 offerEnvelope.sessionId != offer.pairingSessionId ||
                 offer.target.role != NaviampConnectDeviceRole.Target ||
                 offer.identity.deviceId != offer.target.deviceId ||
-                offer.identity.identityFingerprint != advertisement.identityFingerprint ||
+                (expectedIdentityFingerprint != null &&
+                    offer.identity.identityFingerprint != expectedIdentityFingerprint) ||
                 identityVerifier.fingerprint(offer.identity.publicKeyBase64) != offer.identity.identityFingerprint
             ) {
                 return failure(

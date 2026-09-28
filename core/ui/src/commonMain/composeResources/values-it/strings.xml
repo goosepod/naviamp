@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">Opacità dello sfondo della vista divisa</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Dispositivo di riproduzione: %1$s</string>
+    <string name="now_playing_from_playlist">Dalla playlist: %1$s</string>
+    <string name="now_playing_from_album">Dall’album: %1$s</string>
+    <string name="now_playing_from_work">Dall’opera: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Mostra la sorgente di riproduzione</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Mostra la raccolta da cui è iniziata la coda corrente.</string>
     <string name="smart_playlist_field_album_date_added">Data di aggiunta dell’album</string>
     <string name="smart_playlist_field_album_date_modified">Data di modifica dell’album</string>
     <string name="smart_playlist_field_album_duration">Durata dell’album</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">Compare in include i crediti artista dei singoli brani, il desktop supporta le immagini WebP e i testi sincronizzati restano centrati e vengono cancellati tra i brani.</string>
     <string name="changelog_270_beta">Android TV e Naviamp Connect restano in beta mentre continuano i test di compatibilità dei dispositivi, ripristino della rete e prestazioni.</string>
     <string name="changelog_271_popups">Corretti gli spostamenti improvvisi, gli sfarfallii e le risposte ai clic nella posizione sbagliata di menu a comparsa e finestre di dialogo.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Migliora la cache audio tramite Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Migliora i file nella cache di qualità inferiore usando la qualità Wi-Fi attuale quando necessario.</string>
+    <string name="connection_password_required">Inserisci la password per riconnetterti a questo server.</string>
+    <string name="connection_api_key_required">Inserisci una chiave API.</string>
+    <string name="connection_api_key_unsupported">Questo server non supporta la verifica tramite chiave API.</string>
+    <string name="connection_api_key_invalid">La chiave API è stata rifiutata. Verifica che appartenga a questo server e che non sia stata revocata.</string>
+    <string name="connection_server_url_required">Inserisci un URL del server.</string>
+    <string name="connection_api_key_guidance">Inserisci una chiave API del lettore dal tuo server. Il nome utente non è necessario.</string>
+    <string name="connection_api_key">Chiave API</string>
+    <string name="connect_manual_address_label">Indirizzo manuale</string>
+    <string name="connect_manual_address_hint">Inserisci l’IP o il nome host Tailnet del dispositivo e la porta mostrata su di esso.</string>
+    <string name="connect_manual_pair">Associa tramite indirizzo</string>
+    <string name="connect_manual_invalid">Inserisci un nome host o indirizzo IP e una porta validi.</string>
+    <string name="connect_manual_enter_code">Inserisci il codice a sei cifre mostrato sul dispositivo.</string>
+    <string name="connect_manual_authenticating">Autenticazione del dispositivo a questo indirizzo…</string>
+    <string name="connect_manual_unreachable">Impossibile raggiungere l’indirizzo. Controlla Tailnet, porta e modalità di associazione.</string>
+    <string name="connect_manual_port">Porta di connessione manuale: %1$d</string>
+    <string name="connect_manual_rejected">Indirizzo raggiunto, ma non è stato possibile verificare il dispositivo attendibile. Controlla l’identità o associalo di nuovo.</string>
+    <string name="connect_manual_reconnect">Riconnetti %1$s tramite indirizzo</string>
     <string name="now_playing_cast_to_device">Trasmetti a un dispositivo</string>
 </resources>

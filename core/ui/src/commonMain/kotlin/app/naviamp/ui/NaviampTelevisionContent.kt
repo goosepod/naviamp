@@ -1,4 +1,5 @@
 package app.naviamp.ui
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.*
@@ -1358,6 +1359,7 @@ internal fun TelevisionNowPlaying(
     interactive: Boolean = true,
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
+    displaySettings: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
 ) {
     val queueButtonFocusRequester = remember { FocusRequester() }
     var queueOpen by remember { mutableStateOf(false) }
@@ -1541,6 +1543,16 @@ internal fun TelevisionNowPlaying(
                         val album = nowPlaying.albumLine.ifBlank { nowPlaying.albumTitle }
                         if (album.isNotBlank()) {
                             Text(album, color = colors.mutedText, fontSize = 18.sp, maxLines = 1)
+                        }
+                        nowPlaying.queueContext?.takeIf { displaySettings.showPlaybackSource }?.let { context ->
+                            Text(
+                                nowPlayingQueueContextLabel(context),
+                                color = colors.secondaryText,
+                                fontSize = 17.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.testTag("tv-now-playing-queue-context"),
+                            )
                         }
                         if (nowPlaying.audioInfo.isNotBlank()) {
                             Text(nowPlaying.audioInfo, color = colors.mutedText, fontSize = 15.sp)

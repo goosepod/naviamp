@@ -32,6 +32,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,11 +40,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -286,10 +289,14 @@ fun NaviampSharedSettingsContent(
     connectActions: NaviampConnectSettingsActions? = null,
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf<NaviampSettingsCategory?>(null) }
+    var djEditorOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
     var contentViewport by remember { mutableStateOf(Rect.Zero) }
-    LaunchedEffect(selectedCategory) { contentScrollState.scrollTo(0) }
-    NaviampSystemBackHandler(enabled = selectedCategory != null) { selectedCategory = null }
+    LaunchedEffect(selectedCategory) {
+        contentScrollState.scrollTo(0)
+        djEditorOpen = false
+    }
+    NaviampSystemBackHandler(enabled = selectedCategory != null && !djEditorOpen) { selectedCategory = null }
     val languagePack = remember(interfaceSettings.language) {
         naviampLanguagePack(interfaceSettings.language)
     }
@@ -301,14 +308,16 @@ fun NaviampSharedSettingsContent(
             .background(colors.background.copy(alpha = 0.82f), RoundedCornerShape(12.dp))
             .padding(vertical = 4.dp),
     ) {
-        selectedCategory?.let { category ->
+        if (selectedCategory == null) {
+            NaviampPageTitle(languagePack.settingsTitle(), colors)
+        } else if (!djEditorOpen) {
             SettingsDetailHeader(
-                category = category,
+                category = selectedCategory!!,
                 languagePack = languagePack,
                 colors = colors,
                 onBack = { selectedCategory = null },
             )
-        } ?: NaviampPageTitle(languagePack.settingsTitle(), colors)
+        }
         Column(
             verticalArrangement = Arrangement.spacedBy(
                 if (selectedCategory == null) 2.dp else SettingsDetailItemSpacing,
@@ -379,6 +388,8 @@ fun NaviampSharedSettingsContent(
                 NaviampSettingsCategory.Playback -> NaviampPlaybackSettingsSection(
                     colors = colors,
                     playbackSettings = playbackSettings,
+                    djEditorOpen = djEditorOpen,
+                    onDjEditorOpenChanged = { djEditorOpen = it },
                     supportsReplayGain = supportsReplayGain,
                     supportsGapless = supportsGapless,
                     supportsCrossfade = supportsCrossfade,
@@ -492,6 +503,7 @@ internal fun NaviampConnectSettingsSection(
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
     ) {
         var localDeviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
+        var manualAddress by rememberSaveable { mutableStateOf("") }
         SettingsSectionTitle("This device", colors)
         OutlinedTextField(
             value = localDeviceName,
@@ -554,6 +566,19 @@ internal fun NaviampConnectSettingsSection(
         }
         if (connect.canDiscover) {
             PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = actions.onRefreshTargets)
+            Text(stringResource(Res.string.connect_manual_address_hint), color = colors.secondaryText, fontSize = 12.sp)
+            OutlinedTextField(
+                value = manualAddress,
+                onValueChange = { manualAddress = it },
+                singleLine = true,
+                label = { Text(stringResource(Res.string.connect_manual_address_label)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PrimaryButton(
+                stringResource(Res.string.connect_manual_pair), colors,
+                enabled = manualAddress.isNotBlank(),
+                onClick = { actions.onManualEndpointSelected(manualAddress) },
+            )
             connect.discoveredTargets.forEach { target ->
                 PrimaryButton(
                     label = if (target.instanceId == connect.selectedTargetId) {
@@ -567,7 +592,7 @@ internal fun NaviampConnectSettingsSection(
                 )
             }
             if (connect.pairingPhase == NaviampConnectPairingUiPhase.AwaitingCode ||
-                connect.selectedTargetId != null
+                connect.selectedTargetId != null || connect.manualEndpointAwaitingCode
             ) {
                 OutlinedTextField(
                     value = connect.enteredPairingCode,
@@ -595,6 +620,13 @@ internal fun NaviampConnectSettingsSection(
                     enabled = device.reconnectAvailable,
                     onClick = { actions.onTrustedDeviceSelected(device) },
                 )
+                if (manualAddress.isNotBlank() && device.reconnectAvailable) {
+                    PrimaryButton(
+                        label = stringResource(Res.string.connect_manual_reconnect, device.displayName),
+                        colors = colors,
+                        onClick = { actions.onManualTrustedEndpointSelected(device, manualAddress) },
+                    )
+                }
                 OutlinedTextField(
                     value = alias,
                     onValueChange = { if (it.length <= 64) alias = it },
@@ -2011,6 +2043,13 @@ private fun NowPlayingDisplaySettings(
         checked = settings.showAudioInfo,
         label = stringResource(Res.string.settings_now_playing_show_audio_info),
         onCheckedChange = { enabled -> update { it.copy(showAudioInfo = enabled) } },
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.showPlaybackSource,
+        label = stringResource(Res.string.settings_now_playing_show_playback_source),
+        subtitle = stringResource(Res.string.settings_now_playing_show_playback_source_subtitle),
+        onCheckedChange = { enabled -> update { it.copy(showPlaybackSource = enabled) } },
     )
     if (showSoftwareVolumePreference) {
         SettingsCheckboxRow(
@@ -3488,6 +3527,8 @@ private fun SharedLocalDataAction.confirmLabel(): String =
 fun NaviampPlaybackSettingsSection(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
+    djEditorOpen: Boolean = false,
+    onDjEditorOpenChanged: (Boolean) -> Unit = {},
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
@@ -3506,7 +3547,7 @@ fun NaviampPlaybackSettingsSection(
     downloadBytes: Long = 0L,
 ) {
     var selectedSection by rememberSaveable { mutableStateOf<NaviampPlaybackSettingsSection?>(null) }
-    NaviampSystemBackHandler(enabled = selectedSection != null) { selectedSection = null }
+    NaviampSystemBackHandler(enabled = selectedSection != null && !djEditorOpen) { selectedSection = null }
 
     selectedSection?.let { section ->
         if (section == NaviampPlaybackSettingsSection.AudioOutput) {
@@ -3520,7 +3561,9 @@ fun NaviampPlaybackSettingsSection(
             )
             return@let
         }
-        SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
+        if (!(section == NaviampPlaybackSettingsSection.DjBuilder && djEditorOpen)) {
+            SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
+        }
         when (section) {
             NaviampPlaybackSettingsSection.AudioOutput -> Unit
             NaviampPlaybackSettingsSection.AudioQuality -> StreamingQualitySettings(
@@ -3552,6 +3595,7 @@ fun NaviampPlaybackSettingsSection(
                 colors = colors,
                 playbackSettings = playbackSettings,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                onEditorOpenChanged = onDjEditorOpenChanged,
             )
         }
     } ?: run {
@@ -4398,29 +4442,39 @@ private fun RadioTuningControls(
     tuning: RadioTuningSettings,
     onTuningChanged: (RadioTuningSettings) -> Unit,
 ) {
-    Text(stringResource(Res.string.settings_radio_familiarity), color = colors.secondaryText, fontSize = 12.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        RadioFamiliarity.entries.forEach { familiarity ->
-            FilterChip(
-                selected = tuning.familiarity == familiarity,
-                onClick = { onTuningChanged(tuning.copy(familiarity = familiarity)) },
-                label = { Text(familiarity.label, fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
+    val chipColors = FilterChipDefaults.filterChipColors(
+        containerColor = colors.controlSurface.copy(alpha = 0.55f),
+        labelColor = colors.primaryText,
+        selectedContainerColor = colors.accent.copy(alpha = 0.30f),
+        selectedLabelColor = colors.primaryText,
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(Res.string.settings_radio_familiarity), color = colors.primaryText, fontSize = 14.sp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            RadioFamiliarity.entries.forEach { familiarity ->
+                FilterChip(
+                    selected = tuning.familiarity == familiarity,
+                    onClick = { onTuningChanged(tuning.copy(familiarity = familiarity)) },
+                    label = { Text(familiarity.label) },
+                    colors = chipColors,
+                )
+            }
         }
     }
-    Text(stringResource(Res.string.settings_radio_artist_spread), color = colors.secondaryText, fontSize = 12.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        RadioArtistSpread.entries.forEach { spread ->
-            FilterChip(
-                selected = tuning.artistSpread == spread,
-                onClick = { onTuningChanged(tuning.copy(artistSpread = spread)) },
-                label = { Text(spread.label, fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(Res.string.settings_radio_artist_spread), color = colors.primaryText, fontSize = 14.sp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            RadioArtistSpread.entries.forEach { spread ->
+                FilterChip(
+                    selected = tuning.artistSpread == spread,
+                    onClick = { onTuningChanged(tuning.copy(artistSpread = spread)) },
+                    label = { Text(spread.label) },
+                    colors = chipColors,
+                )
+            }
         }
     }
-    SettingsCheckboxRow(
+    InlineSettingsToggleRow(
         colors = colors,
         checked = tuning.sameDecadeOnly,
         label = stringResource(Res.string.settings_radio_stay_in_decade),
@@ -4428,30 +4482,32 @@ private fun RadioTuningControls(
             onTuningChanged(tuning.copy(sameDecadeOnly = enabled))
         },
     )
-    Text(stringResource(Res.string.settings_radio_artist_runs), color = colors.secondaryText, fontSize = 12.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        RadioArtistRunMode.entries.forEach { mode ->
-            FilterChip(
-                selected = tuning.artistRunMode == mode,
-                onClick = { onTuningChanged(tuning.copy(artistRunMode = mode)) },
-                label = { Text(mode.label, fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(Res.string.settings_radio_artist_runs), color = colors.primaryText, fontSize = 14.sp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            RadioArtistRunMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = tuning.artistRunMode == mode,
+                    onClick = { onTuningChanged(tuning.copy(artistRunMode = mode)) },
+                    label = { Text(mode.label) },
+                    colors = chipColors,
+                )
+            }
+        }
+        if (tuning.artistRunMode == RadioArtistRunMode.ArtistBlocks) {
+            SettingsNumberSlider(
+                colors = colors,
+                label = stringResource(Res.string.settings_radio_same_artist_run),
+                value = tuning.sameArtistRunLength,
+                onValueChanged = { value -> onTuningChanged(tuning.copy(sameArtistRunLength = value)) },
+            )
+            SettingsNumberSlider(
+                colors = colors,
+                label = stringResource(Res.string.settings_radio_other_artists_run),
+                value = tuning.otherArtistRunLength,
+                onValueChanged = { value -> onTuningChanged(tuning.copy(otherArtistRunLength = value)) },
             )
         }
-    }
-    if (tuning.artistRunMode == RadioArtistRunMode.ArtistBlocks) {
-        SettingsNumberSlider(
-            colors = colors,
-            label = stringResource(Res.string.settings_radio_same_artist_run),
-            value = tuning.sameArtistRunLength,
-            onValueChanged = { value -> onTuningChanged(tuning.copy(sameArtistRunLength = value)) },
-        )
-        SettingsNumberSlider(
-            colors = colors,
-            label = stringResource(Res.string.settings_radio_other_artists_run),
-            value = tuning.otherArtistRunLength,
-            onValueChanged = { value -> onTuningChanged(tuning.copy(otherArtistRunLength = value)) },
-        )
     }
 }
 
@@ -4490,77 +4546,101 @@ private fun RadioDjSettingsSection(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onEditorOpenChanged: (Boolean) -> Unit,
 ) {
     var editingId by remember { mutableStateOf<String?>(null) }
     var draftName by remember { mutableStateOf("") }
     var draftTuning by remember { mutableStateOf(playbackSettings.radioTuning) }
     val editingPreset = editingId?.let { id -> playbackSettings.radioDjs.firstOrNull { it.id == id } }
+    NaviampSystemBackHandler(enabled = editingId != null) {
+        editingId = null
+        onEditorOpenChanged(false)
+    }
 
     if (editingId != null) {
-        SettingsSubsectionHeader(
-            title = if (editingPreset == null) stringResource(Res.string.settings_radio_new_dj) else editingPreset.name,
-            subtitle = stringResource(Res.string.settings_radio_edit_dj_subtitle),
-            colors = colors,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            editingId = null
-        }
-        OutlinedTextField(
-            value = draftName,
-            onValueChange = { draftName = it },
-            singleLine = true,
-            label = { Text(stringResource(Res.string.settings_radio_dj_name)) },
-            modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
-        )
-        RadioTuningControls(
-            colors = colors,
-            tuning = draftTuning,
-            onTuningChanged = { draftTuning = it },
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(
-                enabled = draftName.isNotBlank(),
-                onClick = {
-                    val preset = RadioDjPreset(
-                        id = editingPreset?.id ?: radioDjIdFor(draftName, playbackSettings.radioDjs),
-                        name = draftName,
-                        tuning = draftTuning,
-                    ).normalized()
-                    val updated = if (editingPreset == null) {
-                        playbackSettings.radioDjs + preset
-                    } else {
-                        playbackSettings.radioDjs.map { if (it.id == preset.id) preset else it }
-                    }
-                    onPlaybackSettingsChanged(
-                        playbackSettings.copy(
-                            radioDjs = updated,
-                            activeRadioDjId = playbackSettings.activeRadioDjId?.takeIf { id ->
-                                updated.any { it.id == id }
-                            },
-                        ),
-                    )
-                    editingId = null
-                },
+            Column(
+                modifier = Modifier.widthIn(max = 680.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(stringResource(Res.string.common_save), color = if (draftName.isNotBlank()) colors.primaryText else colors.mutedText)
-            }
-            if (editingPreset != null) {
-                TextButton(
-                    onClick = {
-                        val updated = playbackSettings.radioDjs.filterNot { it.id == editingPreset.id }
-                        onPlaybackSettingsChanged(
-                            playbackSettings.copy(
-                                radioDjs = updated,
-                                activeRadioDjId = playbackSettings.activeRadioDjId?.takeIf { it != editingPreset.id },
-                            ),
-                        )
-                        editingId = null
-                    },
+                SettingsSubsectionHeader(
+                    title = if (editingPreset == null) stringResource(Res.string.settings_radio_new_dj) else editingPreset.name,
+                    subtitle = stringResource(Res.string.settings_radio_edit_dj_subtitle),
+                    colors = colors,
                 ) {
-                    Text(stringResource(Res.string.common_delete), color = colors.primaryText)
+                    editingId = null
+                    onEditorOpenChanged(false)
                 }
-            }
-            TextButton(onClick = { editingId = null }) {
-                Text(stringResource(Res.string.common_cancel), color = colors.secondaryText)
+                OutlinedTextField(
+                    value = draftName,
+                    onValueChange = { draftName = it },
+                    singleLine = true,
+                    label = { Text(stringResource(Res.string.settings_radio_dj_name)) },
+                    modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
+                )
+                RadioTuningControls(
+                    colors = colors,
+                    tuning = draftTuning,
+                    onTuningChanged = { draftTuning = it },
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    PrimaryButton(
+                        label = stringResource(Res.string.common_save),
+                        colors = colors,
+                        enabled = draftName.isNotBlank(),
+                        onClick = {
+                            val preset = RadioDjPreset(
+                                id = editingPreset?.id ?: radioDjIdFor(draftName, playbackSettings.radioDjs),
+                                name = draftName,
+                                tuning = draftTuning,
+                            ).normalized()
+                            val updated = if (editingPreset == null) {
+                                playbackSettings.radioDjs + preset
+                            } else {
+                                playbackSettings.radioDjs.map { if (it.id == preset.id) preset else it }
+                            }
+                            onPlaybackSettingsChanged(
+                                playbackSettings.copy(
+                                    radioDjs = updated,
+                                    activeRadioDjId = playbackSettings.activeRadioDjId?.takeIf { id ->
+                                        updated.any { it.id == id }
+                                    },
+                                ),
+                            )
+                            editingId = null
+                            onEditorOpenChanged(false)
+                        },
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        TextButton(onClick = {
+                            editingId = null
+                            onEditorOpenChanged(false)
+                        }) {
+                            Text(stringResource(Res.string.common_cancel), color = colors.secondaryText)
+                        }
+                        if (editingPreset != null) {
+                            TextButton(onClick = {
+                                val updated = playbackSettings.radioDjs.filterNot { it.id == editingPreset.id }
+                                onPlaybackSettingsChanged(
+                                    playbackSettings.copy(
+                                        radioDjs = updated,
+                                        activeRadioDjId = playbackSettings.activeRadioDjId?.takeIf { it != editingPreset.id },
+                                    ),
+                                )
+                                editingId = null
+                                onEditorOpenChanged(false)
+                            }) {
+                                Text(stringResource(Res.string.common_delete), color = colors.primaryText)
+                            }
+                        }
+                    }
+                }
             }
         }
         return
@@ -4574,6 +4654,7 @@ private fun RadioDjSettingsSection(
                 editingId = preset.id
                 draftName = preset.name
                 draftTuning = preset.tuning
+                onEditorOpenChanged(true)
             }
         }
     }
@@ -4581,6 +4662,7 @@ private fun RadioDjSettingsSection(
         editingId = NewRadioDjId
         draftName = ""
         draftTuning = playbackSettings.radioTuning
+        onEditorOpenChanged(true)
     }
 }
 
@@ -5214,7 +5296,7 @@ private fun EqualizerSettingsPage.subtitle(): String =
     }
 
 @Composable
-private fun StreamingQualitySettings(
+internal fun StreamingQualitySettings(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     showMobileNetworkQuality: Boolean,
@@ -5261,6 +5343,15 @@ private fun StreamingQualitySettings(
             selectedPage = StreamingQualitySettingsPage.Mobile
         }
     }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.upgradeCachedAudioOnWifi,
+        label = stringResource(Res.string.settings_quality_upgrade_cache_wifi_title),
+        subtitle = stringResource(Res.string.settings_quality_upgrade_cache_wifi_subtitle),
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(playbackSettings.copy(upgradeCachedAudioOnWifi = enabled))
+        },
+    )
 }
 
 private enum class StreamingQualitySettingsPage(

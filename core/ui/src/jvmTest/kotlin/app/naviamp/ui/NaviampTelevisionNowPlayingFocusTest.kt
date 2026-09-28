@@ -16,6 +16,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.CompositionLocalProvider
+import app.naviamp.domain.playback.PlaybackProfileTargetType
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -53,6 +55,7 @@ class NaviampTelevisionNowPlayingFocusTest {
                     title = "Track",
                     subtitle = "Artist",
                     stateLabel = "Playing",
+                    queueContext = NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),
                     isPlaying = true,
                     canPlayPause = true,
                 ),
@@ -69,11 +72,13 @@ class NaviampTelevisionNowPlayingFocusTest {
                 ),
                 onClose = {},
                 onOpenSettings = {},
+                displaySettings = NowPlayingDisplaySettings(showPlaybackSource = true),
             )
         }
         mainClock.advanceTimeBy(200)
 
         onNodeWithContentDescription("Pause").assertIsFocused()
+        onNodeWithTag("tv-now-playing-queue-context").assertExists()
         onNodeWithContentDescription("Settings").assertExists()
         onNodeWithContentDescription("Search").assertDoesNotExist()
     }

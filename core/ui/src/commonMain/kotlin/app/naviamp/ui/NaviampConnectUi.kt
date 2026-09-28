@@ -107,6 +107,8 @@ data class NaviampConnectSettingsUi(
     val pendingProvisioningConnectionName: String? = null,
     val discoveredTargets: List<NaviampConnectDiscoveredTargetUi> = emptyList(),
     val trustedDevices: List<NaviampConnectTrustedDeviceUi> = emptyList(),
+    val listeningPort: Int? = null,
+    val manualEndpointAwaitingCode: Boolean = false,
 ) {
     val remoteOutputSelected: Boolean
         get() = playbackDestinationStatus != NaviampConnectPlaybackDestinationUiStatus.Local
@@ -151,6 +153,8 @@ data class NaviampConnectSettingsActions(
     val onCancelProvisioningCredential: () -> Unit = {},
     val onRetryConnection: () -> Unit = {},
     val onOpenPermissionSettings: () -> Unit = {},
+    val onManualEndpointSelected: (String) -> Unit = {},
+    val onManualTrustedEndpointSelected: (NaviampConnectTrustedDeviceUi, String) -> Unit = { _, _ -> },
 )
 
 fun disambiguateNaviampConnectDeviceNames(names: List<String>): List<String> {

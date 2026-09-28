@@ -136,6 +136,11 @@
     <string name="settings_now_playing_split_background_opacity">Krycie tła widoku podzielonego</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Urządzenie odtwarzające: %1$s</string>
+    <string name="now_playing_from_playlist">Z playlisty: %1$s</string>
+    <string name="now_playing_from_album">Z albumu: %1$s</string>
+    <string name="now_playing_from_work">Z utworu: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Pokaż źródło odtwarzania</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Pokaż kolekcję, od której rozpoczęła się bieżąca kolejka.</string>
     <string name="smart_playlist_field_album_date_added">Data dodania albumu</string>
     <string name="smart_playlist_field_album_date_modified">Data modyfikacji albumu</string>
     <string name="smart_playlist_field_album_duration">Czas trwania albumu</string>
@@ -193,5 +198,24 @@
     <string name="changelog_270_media">Sekcja Występuje na uwzględnia wykonawców przypisanych do utworów, wersja komputerowa obsługuje grafiki WebP, a zsynchronizowane teksty pozostają wyśrodkowane i są czyszczone między utworami.</string>
     <string name="changelog_270_beta">Android TV i Naviamp Connect pozostają w wersji beta podczas dalszych testów zgodności urządzeń, odzyskiwania sieci i wydajności.</string>
     <string name="changelog_271_popups">Naprawiono przeskakiwanie i migotanie menu podręcznych oraz okien dialogowych, a także reagowanie na kliknięcia w niewłaściwym miejscu.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Poprawiaj jakość bufora audio przez Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">W razie potrzeby zastępuj dźwięk o niższej jakości w buforze bieżącą jakością Wi-Fi.</string>
+    <string name="connection_password_required">Wpisz hasło, aby ponownie połączyć się z tym serwerem.</string>
+    <string name="connection_api_key_required">Wpisz klucz API.</string>
+    <string name="connection_api_key_unsupported">Ten serwer nie obsługuje uwierzytelniania kluczem API.</string>
+    <string name="connection_api_key_invalid">Klucz API został odrzucony. Sprawdź, czy należy do tego serwera i nie został unieważniony.</string>
+    <string name="connection_server_url_required">Wpisz adres URL serwera.</string>
+    <string name="connection_api_key_guidance">Wpisz klucz API odtwarzacza z serwera. Nazwa użytkownika nie jest potrzebna.</string>
+    <string name="connection_api_key">Klucz API</string>
+    <string name="connect_manual_address_label">Adres ręczny</string>
+    <string name="connect_manual_address_hint">Wpisz adres IP lub nazwę hosta Tailnet oraz port wyświetlany na urządzeniu docelowym.</string>
+    <string name="connect_manual_pair">Sparuj przez adres</string>
+    <string name="connect_manual_invalid">Wpisz poprawną nazwę hosta lub adres IP oraz port.</string>
+    <string name="connect_manual_enter_code">Wpisz sześciocyfrowy kod wyświetlany na urządzeniu docelowym.</string>
+    <string name="connect_manual_authenticating">Uwierzytelnianie urządzenia pod tym adresem…</string>
+    <string name="connect_manual_unreachable">Nie można połączyć się z tym adresem. Sprawdź Tailnet, port i tryb parowania.</string>
+    <string name="connect_manual_port">Port połączenia ręcznego: %1$d</string>
+    <string name="connect_manual_rejected">Adres jest osiągalny, ale nie udało się zweryfikować zaufanego urządzenia. Sprawdź tożsamość lub sparuj ponownie.</string>
+    <string name="connect_manual_reconnect">Połącz ponownie z %1$s przez adres</string>
     <string name="now_playing_cast_to_device">Przesyłaj na urządzenie</string>
 </resources>

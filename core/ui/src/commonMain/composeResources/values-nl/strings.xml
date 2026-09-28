@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">Dekking van achtergrond in gesplitste weergave</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">Afspeelapparaat: %1$s</string>
+    <string name="now_playing_from_playlist">Uit afspeellijst: %1$s</string>
+    <string name="now_playing_from_album">Uit album: %1$s</string>
+    <string name="now_playing_from_work">Uit werk: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">Afspeelbron tonen</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">Toon de verzameling waarmee de huidige wachtrij begon.</string>
     <string name="smart_playlist_field_album_date_added">Datum album toegevoegd</string>
     <string name="smart_playlist_field_album_date_modified">Datum album gewijzigd</string>
     <string name="smart_playlist_field_album_duration">Albumduur</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">Verschenen op bevat artiestcredits per track, desktop ondersteunt WebP-afbeeldingen en gesynchroniseerde songteksten blijven gecentreerd en worden tussen tracks gewist.</string>
     <string name="changelog_270_beta">Android TV en Naviamp Connect blijven bèta terwijl tests voor apparaatcompatibiliteit, netwerkherstel en prestaties doorgaan.</string>
     <string name="changelog_271_popups">Verholpen dat pop-upmenu’s en dialoogvensters versprongen, flikkerden en op de verkeerde plek op klikken reageerden.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Audiocache via wifi verbeteren</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">Verbeter audio in de cache met lagere kwaliteit indien nodig naar de huidige wifi-kwaliteit.</string>
+    <string name="connection_password_required">Voer je wachtwoord in om opnieuw verbinding te maken met deze server.</string>
+    <string name="connection_api_key_required">Voer een API-sleutel in.</string>
+    <string name="connection_api_key_unsupported">Deze server ondersteunt geen verificatie met een API-sleutel.</string>
+    <string name="connection_api_key_invalid">De API-sleutel is geweigerd. Controleer of deze bij de server hoort en niet is ingetrokken.</string>
+    <string name="connection_server_url_required">Voer een server-URL in.</string>
+    <string name="connection_api_key_guidance">Voer een API-sleutel voor een speler van je server in. Een gebruikersnaam is niet nodig.</string>
+    <string name="connection_api_key">API-sleutel</string>
+    <string name="connect_manual_address_label">Handmatig adres</string>
+    <string name="connect_manual_address_hint">Voer het Tailnet-IP of de hostnaam en de poort in die op het doelapparaat staan.</string>
+    <string name="connect_manual_pair">Koppelen via adres</string>
+    <string name="connect_manual_invalid">Voer een geldige hostnaam of IP-adres en poort in.</string>
+    <string name="connect_manual_enter_code">Voer de zescijferige code op het doelapparaat in.</string>
+    <string name="connect_manual_authenticating">Doelapparaat op dit adres wordt geverifieerd…</string>
+    <string name="connect_manual_unreachable">Dit adres is niet bereikbaar. Controleer Tailnet, poort en koppelmodus.</string>
+    <string name="connect_manual_port">Poort voor handmatige verbinding: %1$d</string>
+    <string name="connect_manual_rejected">Adres bereikt, maar het vertrouwde apparaat kon niet worden geverifieerd. Controleer de identiteit of koppel opnieuw.</string>
+    <string name="connect_manual_reconnect">Opnieuw verbinden met %1$s via adres</string>
     <string name="now_playing_cast_to_device">Casten naar apparaat</string>
 </resources>

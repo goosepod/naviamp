@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">عتامة خلفية العرض المنقسم</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">جهاز التشغيل: %1$s</string>
+    <string name="now_playing_from_playlist">تشغيل من قائمة التشغيل: %1$s</string>
+    <string name="now_playing_from_album">تشغيل من الألبوم: %1$s</string>
+    <string name="now_playing_from_work">تشغيل من العمل: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">إظهار مصدر التشغيل</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">إظهار المجموعة التي بدأت قائمة التشغيل الحالية.</string>
     <string name="smart_playlist_field_album_date_added">تاريخ إضافة الألبوم</string>
     <string name="smart_playlist_field_album_date_modified">تاريخ تعديل الألبوم</string>
     <string name="smart_playlist_field_album_duration">مدة الألبوم</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">يتضمن قسم «يظهر في» نسب الفنان على مستوى المقاطع، ويدعم سطح المكتب صور WebP، وتبقى الكلمات المتزامنة في المنتصف وتُمسح بين المقاطع.</string>
     <string name="changelog_270_beta">لا يزال Android TV وNaviamp Connect في المرحلة التجريبية مع استمرار اختبارات توافق الأجهزة واستعادة الشبكة والأداء.</string>
     <string name="changelog_271_popups">تم إصلاح قفز القوائم المنبثقة ومربعات الحوار ووميضها واستجابتها للنقرات في مواضع غير صحيحة.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">ترقية الصوت المخزن مؤقتًا عبر Wi-Fi</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">استخدام جودة Wi-Fi الحالية لترقية الصوت المخزن مؤقتًا الأقل جودة عند الحاجة.</string>
+    <string name="connection_password_required">أدخل كلمة المرور لإعادة الاتصال بهذا الخادم.</string>
+    <string name="connection_api_key_required">أدخل مفتاح API.</string>
+    <string name="connection_api_key_unsupported">هذا الخادم لا يدعم المصادقة بمفتاح API.</string>
+    <string name="connection_api_key_invalid">رفض الخادم مفتاح API. تحقق من أنه يخص هذا الخادم ولم يتم إلغاؤه.</string>
+    <string name="connection_server_url_required">أدخل عنوان URL للخادم.</string>
+    <string name="connection_api_key_guidance">أدخل مفتاح API الخاص بالمشغل من خادمك. لا يلزم اسم مستخدم.</string>
+    <string name="connection_api_key">مفتاح API</string>
+    <string name="connect_manual_address_label">العنوان اليدوي</string>
+    <string name="connect_manual_address_hint">أدخل عنوان IP الخاص بشبكة Tailnet أو اسم المضيف والمنفذ المعروض على الجهاز الهدف.</string>
+    <string name="connect_manual_pair">الإقران عبر العنوان</string>
+    <string name="connect_manual_invalid">أدخل اسم مضيف أو عنوان IP ومنفذًا صالحين.</string>
+    <string name="connect_manual_enter_code">أدخل الرمز المكون من ستة أرقام المعروض على الجهاز الهدف.</string>
+    <string name="connect_manual_authenticating">جارٍ مصادقة الجهاز الهدف عند هذا العنوان…</string>
+    <string name="connect_manual_unreachable">تعذر الوصول إلى هذا العنوان. تحقق من Tailnet والمنفذ ووضع الإقران.</string>
+    <string name="connect_manual_port">منفذ الاتصال اليدوي: %1$d</string>
+    <string name="connect_manual_rejected">تم الوصول إلى العنوان، لكن تعذر التحقق من الجهاز الموثوق. تحقق من هويته أو أعد الإقران.</string>
+    <string name="connect_manual_reconnect">أعد الاتصال بـ %1$s عبر العنوان</string>
     <string name="now_playing_cast_to_device">البث إلى جهاز</string>
 </resources>

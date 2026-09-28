@@ -17,6 +17,11 @@
     <string name="settings_now_playing_split_background_opacity">분할 보기 배경 불투명도</string>
     <string name="settings_now_playing_split_background_opacity_value">%1$d%</string>
     <string name="now_playing_playback_device">재생 기기: %1$s</string>
+    <string name="now_playing_from_playlist">재생목록에서 재생: %1$s</string>
+    <string name="now_playing_from_album">앨범에서 재생: %1$s</string>
+    <string name="now_playing_from_work">작품에서 재생: %1$s</string>
+    <string name="settings_now_playing_show_playback_source">재생 출처 표시</string>
+    <string name="settings_now_playing_show_playback_source_subtitle">현재 대기열을 시작한 모음을 표시합니다.</string>
     <string name="smart_playlist_field_album_date_added">앨범 추가 날짜</string>
     <string name="smart_playlist_field_album_date_modified">앨범 수정 날짜</string>
     <string name="smart_playlist_field_album_duration">앨범 재생 시간</string>
@@ -74,5 +79,24 @@
     <string name="changelog_270_media">참여 앨범에 트랙별 아티스트 크레딧이 포함되고, 데스크톱에서 WebP 아트워크를 지원하며, 동기화 가사는 가운데를 유지하고 트랙 사이에서 지워집니다.</string>
     <string name="changelog_270_beta">기기 호환성, 네트워크 복구와 성능 테스트가 계속되는 동안 Android TV와 Naviamp Connect는 베타로 유지됩니다.</string>
     <string name="changelog_271_popups">팝업 메뉴와 대화상자가 갑자기 이동하거나 깜박이고 잘못된 위치에서 클릭에 반응하던 문제를 수정했습니다.</string>
+    <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi에서 캐시된 오디오 음질 향상</string>
+    <string name="settings_quality_upgrade_cache_wifi_subtitle">필요할 때 저음질 캐시 오디오를 현재 Wi-Fi 음질로 업그레이드합니다.</string>
+    <string name="connection_password_required">이 서버에 다시 연결하려면 비밀번호를 입력하세요.</string>
+    <string name="connection_api_key_required">API 키를 입력하세요.</string>
+    <string name="connection_api_key_unsupported">이 서버는 API 키 인증을 지원하지 않습니다.</string>
+    <string name="connection_api_key_invalid">API 키가 거부되었습니다. 이 서버의 키이며 취소되지 않았는지 확인하세요.</string>
+    <string name="connection_server_url_required">서버 URL을 입력하세요.</string>
+    <string name="connection_api_key_guidance">서버에서 만든 플레이어 API 키를 입력하세요. 사용자 이름은 필요하지 않습니다.</string>
+    <string name="connection_api_key">API 키</string>
+    <string name="connect_manual_address_label">수동 주소</string>
+    <string name="connect_manual_address_hint">대상 기기의 Tailnet IP 또는 호스트 이름과 표시된 포트를 입력하세요.</string>
+    <string name="connect_manual_pair">주소로 페어링</string>
+    <string name="connect_manual_invalid">올바른 호스트 이름 또는 IP 주소와 포트를 입력하세요.</string>
+    <string name="connect_manual_enter_code">대상 기기에 표시된 6자리 코드를 입력하세요.</string>
+    <string name="connect_manual_authenticating">이 주소의 대상 기기를 인증하는 중…</string>
+    <string name="connect_manual_unreachable">이 주소에 연결할 수 없습니다. Tailnet, 포트 및 페어링 모드를 확인하세요.</string>
+    <string name="connect_manual_port">수동 연결 포트: %1$d</string>
+    <string name="connect_manual_rejected">주소에는 연결했지만 신뢰할 수 있는 기기를 확인하지 못했습니다. 기기 ID를 확인하거나 다시 페어링하세요.</string>
+    <string name="connect_manual_reconnect">주소로 %1$s에 다시 연결</string>
     <string name="now_playing_cast_to_device">기기로 전송</string>
 </resources>
