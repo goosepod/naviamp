@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">Знайдено кілька збігів. Назвіть точнішу назву.</string>
     <string name="voice_unsupported">Радіо виконавця недоступне для цього джерела.</string>
     <string name="voice_playback_failed">Не вдалося почати відтворення. Спробуйте ще раз.</string>
+    <string name="voice_siri_usage_description">Використовуйте Siri для відтворення музики з підключеної бібліотеки.</string>
 </resources>

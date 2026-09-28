@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">कई परिणाम मिले। अधिक विशिष्ट नाम बोलें।</string>
     <string name="voice_unsupported">इस स्रोत पर कलाकार रेडियो उपलब्ध नहीं है।</string>
     <string name="voice_playback_failed">प्लेबैक शुरू नहीं हो सका। फिर कोशिश करें।</string>
+    <string name="voice_siri_usage_description">अपनी कनेक्ट की गई लाइब्रेरी से संगीत चलाने के लिए Siri का उपयोग करें।</string>
 </resources>

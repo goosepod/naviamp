@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">找到多个匹配项。请说出更具体的名称。</string>
     <string name="voice_unsupported">此来源不支持艺人电台。</string>
     <string name="voice_playback_failed">无法开始播放。请重试。</string>
+    <string name="voice_siri_usage_description">使用 Siri 播放已连接音乐库中的音乐。</string>
 </resources>

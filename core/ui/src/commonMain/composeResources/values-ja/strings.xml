@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">複数の候補が見つかりました。より具体的な名前を言ってください。</string>
     <string name="voice_unsupported">このソースではアーティストラジオを利用できません。</string>
     <string name="voice_playback_failed">再生を開始できませんでした。もう一度お試しください。</string>
+    <string name="voice_siri_usage_description">接続したライブラリの音楽をSiriで再生します。</string>
 </resources>

@@ -956,4 +956,5 @@
     <string name="voice_ambiguous">Se encontraron varias coincidencias. Di un nombre más específico.</string>
     <string name="voice_unsupported">La radio de artista no está disponible para esta fuente.</string>
     <string name="voice_playback_failed">No se pudo iniciar la reproducción. Inténtalo de nuevo.</string>
+    <string name="voice_siri_usage_description">Usa Siri para reproducir música de tu biblioteca conectada.</string>
 </resources>

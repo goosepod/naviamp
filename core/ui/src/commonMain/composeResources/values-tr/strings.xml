@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">Birden fazla sonuç bulundu. Daha belirgin bir ad söyleyin.</string>
     <string name="voice_unsupported">Sanatçı radyosu bu kaynakta kullanılamıyor.</string>
     <string name="voice_playback_failed">Oynatma başlatılamadı. Tekrar deneyin.</string>
+    <string name="voice_siri_usage_description">Bağlı kitaplığınızdaki müzikleri çalmak için Siri’yi kullanın.</string>
 </resources>

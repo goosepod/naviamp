@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">Ada beberapa hasil. Ucapkan nama yang lebih spesifik.</string>
     <string name="voice_unsupported">Radio artis tidak tersedia untuk sumber ini.</string>
     <string name="voice_playback_failed">Pemutaran tidak dapat dimulai. Coba lagi.</string>
+    <string name="voice_siri_usage_description">Gunakan Siri untuk memutar musik dari perpustakaan yang terhubung.</string>
 </resources>

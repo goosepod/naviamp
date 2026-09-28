@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">Meerdere resultaten gevonden. Zeg een specifiekere naam.</string>
     <string name="voice_unsupported">Artiestenradio is niet beschikbaar voor deze bron.</string>
     <string name="voice_playback_failed">Afspelen kon niet worden gestart. Probeer het opnieuw.</string>
+    <string name="voice_siri_usage_description">Gebruik Siri om muziek uit je verbonden bibliotheek af te spelen.</string>
 </resources>

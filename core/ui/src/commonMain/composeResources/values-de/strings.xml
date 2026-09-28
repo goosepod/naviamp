@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">Mehrere Treffer gefunden. Nenne einen genaueren Namen.</string>
     <string name="voice_unsupported">Künstlerradio ist für diese Quelle nicht verfügbar.</string>
     <string name="voice_playback_failed">Wiedergabe konnte nicht gestartet werden. Versuche es erneut.</string>
+    <string name="voice_siri_usage_description">Verwende Siri, um Musik aus deiner verbundenen Mediathek abzuspielen.</string>
 </resources>

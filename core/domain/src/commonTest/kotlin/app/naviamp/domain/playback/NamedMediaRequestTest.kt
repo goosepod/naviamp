@@ -23,6 +23,8 @@ class NamedMediaRequestTest {
             namedMediaRequest("CamelPhat radio", NamedMediaKind.Artist, "CamelPhat")?.kind)
         assertEquals(NamedMediaRequest(NamedMediaKind.Artist, "The Album Leaf", "The Album Leaf"),
             namedMediaRequest("The Album Leaf", NamedMediaKind.Artist, "The Album Leaf"))
+        assertEquals("CamelPhat", namedMediaRequest("CamelPhat", NamedMediaKind.ArtistRadio)?.name)
+        assertEquals("Road Trip", namedMediaRequest("Road Trip", NamedMediaKind.Playlist)?.name)
     }
 
     @Test fun tiesNeverSelectAnUnrelatedItem() {

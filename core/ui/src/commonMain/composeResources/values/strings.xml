@@ -980,4 +980,5 @@
     <string name="voice_ambiguous">Several matches found. Say a more specific name.</string>
     <string name="voice_unsupported">Artist radio is unavailable for this source.</string>
     <string name="voice_playback_failed">Could not start playback. Try again.</string>
+    <string name="voice_siri_usage_description">Use Siri to play music from your connected library.</string>
 </resources>

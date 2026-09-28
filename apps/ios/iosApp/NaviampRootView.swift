@@ -2,19 +2,16 @@ import NaviampShared
 import SwiftUI
 
 struct NaviampRootView: UIViewControllerRepresentable {
-    final class Coordinator {
-        let application = NaviampIosApplication(
-            applicationSupportDirectory: IosApplicationDirectories.supportDirectory(),
-            credentialProtector: IosKeychainCredentialProtector()
-        )
+    let application: NaviampIosApplication
 
-        deinit {
-            application.close()
-        }
+    final class Coordinator {
+        let application: NaviampIosApplication
+
+        init(application: NaviampIosApplication) { self.application = application }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(application: application)
     }
 
     func makeUIViewController(context: Context) -> UIViewController {

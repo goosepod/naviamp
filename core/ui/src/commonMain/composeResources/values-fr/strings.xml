@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">Plusieurs résultats trouvés. Dites un nom plus précis.</string>
     <string name="voice_unsupported">La radio de cet artiste est indisponible pour cette source.</string>
     <string name="voice_playback_failed">Impossible de lancer la lecture. Réessayez.</string>
+    <string name="voice_siri_usage_description">Utilisez Siri pour écouter la musique de votre bibliothèque connectée.</string>
 </resources>

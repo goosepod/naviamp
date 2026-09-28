@@ -229,4 +229,5 @@
     <string name="voice_ambiguous">Znaleziono kilka wyników. Podaj dokładniejszą nazwę.</string>
     <string name="voice_unsupported">Radio wykonawcy jest niedostępne dla tego źródła.</string>
     <string name="voice_playback_failed">Nie udało się rozpocząć odtwarzania. Spróbuj ponownie.</string>
+    <string name="voice_siri_usage_description">Użyj Siri do odtwarzania muzyki z połączonej biblioteki.</string>
 </resources>

@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">Trovate più corrispondenze. Pronuncia un nome più preciso.</string>
     <string name="voice_unsupported">La radio artista non è disponibile per questa sorgente.</string>
     <string name="voice_playback_failed">Impossibile avviare la riproduzione. Riprova.</string>
+    <string name="voice_siri_usage_description">Usa Siri per riprodurre musica dalla libreria connessa.</string>
 </resources>

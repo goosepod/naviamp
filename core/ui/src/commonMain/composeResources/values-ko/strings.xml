@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">여러 결과를 찾았습니다. 더 구체적인 이름을 말하세요.</string>
     <string name="voice_unsupported">이 소스에서는 아티스트 라디오를 사용할 수 없습니다.</string>
     <string name="voice_playback_failed">재생을 시작하지 못했습니다. 다시 시도하세요.</string>
+    <string name="voice_siri_usage_description">Siri를 사용하여 연결된 라이브러리의 음악을 재생합니다.</string>
 </resources>

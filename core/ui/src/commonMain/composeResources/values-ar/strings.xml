@@ -110,4 +110,5 @@
     <string name="voice_ambiguous">تم العثور على عدة نتائج. قل اسما أكثر تحديدا.</string>
     <string name="voice_unsupported">راديو الفنان غير متاح لهذا المصدر.</string>
     <string name="voice_playback_failed">تعذر بدء التشغيل. حاول مرة أخرى.</string>
+    <string name="voice_siri_usage_description">استخدم Siri لتشغيل الموسيقى من مكتبتك المتصلة.</string>
 </resources>
