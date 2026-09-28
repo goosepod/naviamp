@@ -99,4 +99,10 @@
     <string name="connect_manual_rejected">Adresse erreicht, aber das vertrauenswürdige Gerät konnte nicht bestätigt werden. Identität prüfen oder erneut koppeln.</string>
     <string name="connect_manual_reconnect">%1$s über Adresse erneut verbinden</string>
     <string name="now_playing_cast_to_device">Auf Gerät streamen</string>
+    <string name="changelog_280_cast">Streame Online-Musik von Android an einen Google Cast-Empfänger, steuere die Wiedergabe am Telefon und setze sie lokal an derselben Stelle fort.</string>
+    <string name="changelog_280_connect">Verbinde Naviamp Connect-Geräte über Tailnets durch Eingabe einer Adresse, mit sicherer Kopplung und vertrauenswürdiger Wiederverbindung.</string>
+    <string name="changelog_280_api_key">Verbinde dich mit kompatiblen Navidrome-Servern per OpenSubsonic-API-Schlüssel; ältere Anmeldemethoden bleiben verfügbar.</string>
+    <string name="changelog_280_visualizer">Wische über die Visualisierung, um zur nächsten oder vorherigen Ansicht zu wechseln.</string>
+    <string name="changelog_280_improvements">Aktualisiere auf Wunsch zwischengespeicherte Audiodateien geringerer Qualität im WLAN, navigiere leichter im DJ-Editor und sieh die aktive Playlist in „Aktuelle Wiedergabe“.</string>
+    <string name="changelog_280_fixes">Behoben: Subsonic-Passwortfallback, Pausieren mit der Leertaste auf dem Desktop und kodierter Text in Künstler- und Albumbeschreibungen.</string>
 </resources>

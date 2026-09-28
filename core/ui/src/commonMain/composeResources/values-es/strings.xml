@@ -945,4 +945,10 @@
     <string name="connect_manual_rejected">Se llegó a la dirección, pero no se pudo verificar el dispositivo de confianza. Comprueba su identidad o vuelve a vincularlo.</string>
     <string name="connect_manual_reconnect">Reconectar con %1$s por dirección</string>
     <string name="now_playing_cast_to_device">Enviar a un dispositivo</string>
+    <string name="changelog_280_cast">Envía música en línea desde Android a un receptor Google Cast, controla la reproducción desde el teléfono y vuelve a escucharla localmente en la posición actual.</string>
+    <string name="changelog_280_connect">Vincula dispositivos Naviamp Connect entre Tailnets introduciendo una dirección, con emparejamiento seguro y reconexiones de confianza.</string>
+    <string name="changelog_280_api_key">Conéctate a servidores Navidrome compatibles con una clave API de OpenSubsonic; los métodos de autenticación anteriores siguen disponibles.</string>
+    <string name="changelog_280_visualizer">Desliza sobre el visualizador para elegir la visualización anterior o siguiente.</string>
+    <string name="changelog_280_improvements">Actualiza opcionalmente el audio en caché de menor calidad por Wi-Fi, navega con más facilidad por el editor de DJ y consulta la lista activa en Reproduciendo.</string>
+    <string name="changelog_280_fixes">Se corrigieron el uso alternativo de contraseña de Subsonic, la pausa con la barra espaciadora en escritorio y el texto codificado en descripciones de artistas y álbumes.</string>
 </resources>

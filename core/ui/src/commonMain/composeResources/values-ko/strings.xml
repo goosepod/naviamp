@@ -99,4 +99,10 @@
     <string name="connect_manual_rejected">주소에는 연결했지만 신뢰할 수 있는 기기를 확인하지 못했습니다. 기기 ID를 확인하거나 다시 페어링하세요.</string>
     <string name="connect_manual_reconnect">주소로 %1$s에 다시 연결</string>
     <string name="now_playing_cast_to_device">기기로 전송</string>
+    <string name="changelog_280_cast">Android에서 Google Cast 수신기로 온라인 음악을 보내고 휴대전화에서 재생을 제어한 뒤 현재 위치에서 로컬 재생으로 돌아올 수 있습니다.</string>
+    <string name="changelog_280_connect">주소를 입력해 Tailnet 간 Naviamp Connect 기기를 안전하게 페어링하고 신뢰된 연결로 다시 접속할 수 있습니다.</string>
+    <string name="changelog_280_api_key">호환되는 Navidrome 서버에 OpenSubsonic API 키로 연결할 수 있으며 기존 인증 방식도 계속 사용할 수 있습니다.</string>
+    <string name="changelog_280_visualizer">시각화 화면을 스와이프해 다음 또는 이전 시각화를 선택할 수 있습니다.</string>
+    <string name="changelog_280_improvements">Wi-Fi에서 낮은 품질의 캐시 오디오를 선택적으로 새로 받고, DJ 편집기를 더 쉽게 탐색하며, 지금 재생 중인 재생목록을 볼 수 있습니다.</string>
+    <string name="changelog_280_fixes">Subsonic 비밀번호 대체 인증, 데스크톱 스페이스 키 일시정지, 아티스트 및 앨범 설명의 인코딩된 텍스트를 수정했습니다.</string>
 </resources>

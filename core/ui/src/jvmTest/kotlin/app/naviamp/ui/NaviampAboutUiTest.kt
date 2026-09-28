@@ -39,6 +39,6 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Fixed popup menus and dialogs jumping, flickering, and responding to clicks in the wrong location.").assertIsDisplayed()
+        onNodeWithText("Cast online music from Android to a Google Cast receiver, control playback from your phone, and return to local listening at the current position.").assertIsDisplayed()
     }
 }

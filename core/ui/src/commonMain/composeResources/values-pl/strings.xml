@@ -218,4 +218,10 @@
     <string name="connect_manual_rejected">Adres jest osiągalny, ale nie udało się zweryfikować zaufanego urządzenia. Sprawdź tożsamość lub sparuj ponownie.</string>
     <string name="connect_manual_reconnect">Połącz ponownie z %1$s przez adres</string>
     <string name="now_playing_cast_to_device">Przesyłaj na urządzenie</string>
+    <string name="changelog_280_cast">Przesyłaj muzykę online z Androida do odbiornika Google Cast, steruj odtwarzaniem z telefonu i wróć do słuchania lokalnego od bieżącej pozycji.</string>
+    <string name="changelog_280_connect">Paruj urządzenia Naviamp Connect w różnych sieciach Tailnet, wpisując adres, z bezpiecznym parowaniem i zaufanym ponownym połączeniem.</string>
+    <string name="changelog_280_api_key">Łącz się ze zgodnymi serwerami Navidrome za pomocą klucza API OpenSubsonic; starsze metody uwierzytelniania pozostają dostępne.</string>
+    <string name="changelog_280_visualizer">Przesuń palcem po wizualizatorze, aby wybrać następną lub poprzednią wizualizację.</string>
+    <string name="changelog_280_improvements">Opcjonalnie odświeżaj dźwięk zapisany w niższej jakości przez Wi-Fi, łatwiej poruszaj się po edytorze DJ i oglądaj aktywną playlistę w Teraz odtwarzane.</string>
+    <string name="changelog_280_fixes">Naprawiono zastępcze logowanie hasłem Subsonic, pauzę spacją na komputerze i zakodowany tekst w opisach wykonawców i albumów.</string>
 </resources>

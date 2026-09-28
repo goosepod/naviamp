@@ -6,6 +6,42 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.8.0
+
+Naviamp 2.8.0 adds Android Google Cast playback, manual Naviamp Connect pairing across Tailnets,
+and API-key connections for compatible OpenSubsonic servers.
+
+### Features
+
+- Cast online music and artwork from Android to a receiver on a reachable local network, control
+  playback from the phone, and return to local listening at the current position.
+- Pair Naviamp Connect devices across Tailnets by entering an address, with secure pairing and
+  trusted reconnect at a changed address.
+- Connect to compatible Navidrome servers with an OpenSubsonic API key while preserving existing
+  password and token connections.
+- Swipe across the visualizer to choose the next or previous visualization.
+
+### Improvements
+
+- Optionally upgrade lower-quality cached audio when the current Wi-Fi or wired quality setting
+  calls for better audio; the option is off by default.
+- Navigate the DJ editor more easily and see the active playlist in Now Playing.
+
+### Bug fixes
+
+- Fall back to password authentication when a Subsonic server rejects tokens with error 41.
+- Make Space pause as well as start playback on macOS and Windows.
+- Decode artist and album description entities without changing literal text.
+
+### Known issues
+
+- Google Cast currently needs an Android sender, online provider media, and a receiver that can
+  reach the phone on a stable local network. Further Cast scenarios are tracked in issue #168.
+- Android TV and Naviamp Connect remain beta. The iOS artifact is unsigned, and Windows and macOS
+  packages are not publisher-signed.
+
+See [full release notes](.github/releases/v2.8.0.md) for compatibility and download details.
+
 ## v2.7.1
 
 - Fixed popup menus and dialogs jumping, flickering, and responding to clicks in the wrong location.

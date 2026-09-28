@@ -99,4 +99,10 @@
     <string name="connect_manual_rejected">पते तक पहुँचे, लेकिन विश्वसनीय डिवाइस की पुष्टि नहीं हो सकी। उसकी पहचान जाँचें या फिर से पेयर करें।</string>
     <string name="connect_manual_reconnect">%1$s से पते द्वारा फिर कनेक्ट करें</string>
     <string name="now_playing_cast_to_device">डिवाइस पर कास्ट करें</string>
+    <string name="changelog_280_cast">Android से ऑनलाइन संगीत Google Cast रिसीवर पर चलाएँ, फ़ोन से प्लेबैक नियंत्रित करें और मौजूदा स्थान से फ़ोन पर फिर सुनें।</string>
+    <string name="changelog_280_connect">पता दर्ज करके Tailnet पर Naviamp Connect डिवाइस जोड़ें, सुरक्षित पेयरिंग और विश्वसनीय दोबारा कनेक्शन के साथ।</string>
+    <string name="changelog_280_api_key">संगत Navidrome सर्वर से OpenSubsonic API कुंजी द्वारा जुड़ें; पुराने प्रमाणीकरण तरीके उपलब्ध रहेंगे।</string>
+    <string name="changelog_280_visualizer">अगला या पिछला विज़ुअलाइज़र चुनने के लिए उस पर स्वाइप करें।</string>
+    <string name="changelog_280_improvements">वैकल्पिक रूप से Wi-Fi पर कम गुणवत्ता वाला कैश ऑडियो अपडेट करें, DJ एडिटर में आसानी से जाएँ और Now Playing में सक्रिय प्लेलिस्ट देखें।</string>
+    <string name="changelog_280_fixes">Subsonic पासवर्ड फ़ॉलबैक, डेस्कटॉप पर स्पेस कुंजी से पॉज़ और कलाकार व एल्बम विवरण में एन्कोडेड टेक्स्ट ठीक किया गया।</string>
 </resources>

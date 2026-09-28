@@ -969,4 +969,10 @@
     <string name="connect_manual_rejected">Reached the address, but the trusted device could not be verified. Check its identity or pair again.</string>
     <string name="connect_manual_reconnect">Reconnect to %1$s at address</string>
     <string name="now_playing_cast_to_device">Cast to a device</string>
+    <string name="changelog_280_cast">Cast online music from Android to a Google Cast receiver, control playback from your phone, and return to local listening at the current position.</string>
+    <string name="changelog_280_connect">Pair Naviamp Connect devices across Tailnets by entering an address, with secure pairing and trusted reconnects.</string>
+    <string name="changelog_280_api_key">Connect with an OpenSubsonic API key on compatible Navidrome servers while older authentication methods remain available.</string>
+    <string name="changelog_280_visualizer">Swipe across the visualizer to choose the next or previous visualization.</string>
+    <string name="changelog_280_improvements">Optionally refresh lower-quality cached audio on Wi-Fi, navigate the DJ editor more easily, and see the active playlist in Now Playing.</string>
+    <string name="changelog_280_fixes">Fixed Subsonic password fallback, Space-key pause on desktop, and encoded text in artist and album descriptions.</string>
 </resources>

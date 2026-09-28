@@ -99,4 +99,10 @@
     <string name="connect_manual_rejected">已到达该地址，但无法验证受信任的设备。请检查其身份或重新配对。</string>
     <string name="connect_manual_reconnect">按地址重新连接到%1$s</string>
     <string name="now_playing_cast_to_device">投放到设备</string>
+    <string name="changelog_280_cast">将 Android 上的在线音乐投放到 Google Cast 接收设备，在手机上控制播放，并从当前进度切回本机收听。</string>
+    <string name="changelog_280_connect">输入地址即可跨 Tailnet 配对 Naviamp Connect 设备，支持安全配对和可信重新连接。</string>
+    <string name="changelog_280_api_key">可使用 OpenSubsonic API 密钥连接兼容的 Navidrome 服务器，同时保留旧版身份验证方式。</string>
+    <string name="changelog_280_visualizer">在可视化效果上滑动，即可选择下一个或上一个效果。</string>
+    <string name="changelog_280_improvements">可选择通过 Wi-Fi 更新低音质的缓存音频，更方便地浏览 DJ 编辑器，并在“正在播放”中查看当前播放列表。</string>
+    <string name="changelog_280_fixes">修复了 Subsonic 密码回退、桌面端空格键暂停以及艺术家和专辑简介中的编码文本问题。</string>
 </resources>

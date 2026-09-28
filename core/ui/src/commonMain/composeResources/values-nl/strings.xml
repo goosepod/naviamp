@@ -99,4 +99,10 @@
     <string name="connect_manual_rejected">Adres bereikt, maar het vertrouwde apparaat kon niet worden geverifieerd. Controleer de identiteit of koppel opnieuw.</string>
     <string name="connect_manual_reconnect">Opnieuw verbinden met %1$s via adres</string>
     <string name="now_playing_cast_to_device">Casten naar apparaat</string>
+    <string name="changelog_280_cast">Cast online muziek vanaf Android naar een Google Cast-ontvanger, bedien het afspelen op je telefoon en luister lokaal verder vanaf de huidige positie.</string>
+    <string name="changelog_280_connect">Koppel Naviamp Connect-apparaten via Tailnets door een adres in te voeren, met veilig koppelen en vertrouwd opnieuw verbinden.</string>
+    <string name="changelog_280_api_key">Maak verbinding met compatibele Navidrome-servers via een OpenSubsonic-API-sleutel; oudere aanmeldmethoden blijven beschikbaar.</string>
+    <string name="changelog_280_visualizer">Veeg over de visualizer om de volgende of vorige visualisatie te kiezen.</string>
+    <string name="changelog_280_improvements">Vernieuw desgewenst audio in lagere kwaliteit in de cache via wifi, navigeer eenvoudiger door de DJ-editor en zie de actieve afspeellijst in Nu afspelen.</string>
+    <string name="changelog_280_fixes">Opgelost: terugvallen op het Subsonic-wachtwoord, pauzeren met de spatiebalk op desktop en gecodeerde tekst in artiest- en albumbeschrijvingen.</string>
 </resources>
