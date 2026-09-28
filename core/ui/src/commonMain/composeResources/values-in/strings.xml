@@ -99,4 +99,10 @@
     <string name="connect_manual_rejected">Alamat tercapai, tetapi perangkat tepercaya tidak dapat diverifikasi. Periksa identitasnya atau pasangkan lagi.</string>
     <string name="connect_manual_reconnect">Hubungkan kembali %1$s lewat alamat</string>
     <string name="now_playing_cast_to_device">Transmisikan ke perangkat</string>
+    <string name="changelog_280_cast">Putar musik online dari Android ke penerima Google Cast, kendalikan pemutaran dari ponsel, lalu kembali mendengarkan secara lokal pada posisi saat ini.</string>
+    <string name="changelog_280_connect">Pasangkan perangkat Naviamp Connect melalui Tailnet dengan memasukkan alamat, menggunakan pemasangan aman dan penyambungan ulang tepercaya.</string>
+    <string name="changelog_280_api_key">Hubungkan ke server Navidrome yang kompatibel dengan kunci API OpenSubsonic; metode autentikasi lama tetap tersedia.</string>
+    <string name="changelog_280_visualizer">Usap visualizer untuk memilih tampilan berikutnya atau sebelumnya.</string>
+    <string name="changelog_280_improvements">Perbarui audio cache berkualitas rendah melalui Wi-Fi bila diinginkan, navigasikan editor DJ dengan lebih mudah, dan lihat daftar putar aktif di Sedang Diputar.</string>
+    <string name="changelog_280_fixes">Memperbaiki fallback kata sandi Subsonic, jeda dengan tombol Spasi di desktop, dan teks terenkode dalam deskripsi artis dan album.</string>
 </resources>

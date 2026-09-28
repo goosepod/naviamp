@@ -2760,8 +2760,21 @@ private val DefaultNaviampLibraries = listOf(
 
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
+        title = Res.string.changelog_features,
+        entries = listOf(
+            Res.string.changelog_280_cast,
+            Res.string.changelog_280_connect,
+            Res.string.changelog_280_api_key,
+            Res.string.changelog_280_visualizer,
+        ),
+    ),
+    NaviampChangelogSectionUi(
+        title = Res.string.changelog_improvements,
+        entries = listOf(Res.string.changelog_280_improvements),
+    ),
+    NaviampChangelogSectionUi(
         title = Res.string.changelog_bug_fixes,
-        entries = listOf(Res.string.changelog_271_popups),
+        entries = listOf(Res.string.changelog_280_fixes),
     ),
 )
 
