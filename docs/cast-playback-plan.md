@@ -12,8 +12,8 @@ and transport commands from local audio while Cast is selected. Core creates a p
 from an opaque track URL, stops local audio only after the load is accepted, and then starts the
 receiver. Receiver status drives shared progress and queue completion; returning to local restores
 the receiver position. The shared Now Playing menu opens the Android SDK route picker. Physical
-Android testing has confirmed playback on Roku and Onn 4K Pro receivers. The PR remains draft
-pending return-to-local verification, lifecycle checks, and broader platform coverage.
+Android testing has confirmed playback on Roku and Onn 4K Pro receivers, and return-to-local
+handoff on the Onn. The PR remains draft pending lifecycle checks and broader platform coverage.
 
 ## Existing shared owners
 
@@ -100,8 +100,12 @@ expected to use a stable network; preserving them across network changes is out 
 
 The same run exposed a return handoff bug. After using the route picker to stop casting, the native
 route disconnected but Naviamp still displayed the Onn as the playback device and local playback
-did not resume at the receiver position. Core and the Android SDK callback mapping have been
-adjusted; physical verification is pending because the TV is currently in use.
+did not resume at the receiver position. Core and the Android SDK callback mapping were adjusted.
+On 2026-09-27, the Pixel 6a and Onn verified the fix with the updated build: stopping Cast during
+receiver playback cleared the TV output and started local audio near the receiver position. The
+Pixel audio player was active. Stopping Cast while the receiver was paused cleared the TV output,
+kept the receiver position (2:19), and left local playback paused. In both cases the TV returned
+to its home screen. Background and lifecycle behavior remain to be verified.
 
 ## First implementation sequence
 
