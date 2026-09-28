@@ -11,9 +11,9 @@ Android binds a receiver-reachable socket. The shared output router now diverts 
 and transport commands from local audio while Cast is selected. Core creates a paused receiver load
 from an opaque track URL, stops local audio only after the load is accepted, and then starts the
 receiver. Receiver status drives shared progress and queue completion; returning to local restores
-the receiver position. The shared Now Playing menu opens the Android SDK route picker. A user test
-has now confirmed playback on a Roku TV, while an Onn 4K Pro receiver connects without starting
-playback; the PR remains draft pending investigation and broader receiver verification.
+the receiver position. The shared Now Playing menu opens the Android SDK route picker. Physical
+Android testing has confirmed playback on Roku and Onn 4K Pro receivers. The PR remains draft
+pending return-to-local verification, lifecycle checks, and broader platform coverage.
 
 ## Existing shared owners
 
@@ -26,9 +26,9 @@ playback; the PR remains draft pending investigation and broader receiver verifi
 
 The first implementation target is a receiver-reachable, short-lived media endpoint controlled by Naviamp. Core owns its lease lifetime, allowed media identity, playback quality, expiry, invalidation, and recovery. A narrow host effect binds a listening socket and serves byte-range requests. It fetches provider bytes through the existing shared provider contract, keeping provider credentials on the sender. Receiver-visible URLs contain only scoped opaque tokens; never provider tokens, API keys, or session credentials. Artwork needs the same access policy. The endpoint must keep working while the sender is backgrounded for as long as the host can retain its required native service; this is a physical-device acceptance gate, especially on iOS.
 
-The socket has been proven reachable from the Mac over the local Wi-Fi network. Receiver
-reachability, codec/container support, provider range behavior, and background lifetime still need
-physical receiver verification. If a host cannot sustain the endpoint, define one common product
+The socket and authenticated Navidrome MP3 playback have been verified with an Onn 4K Pro over
+local Wi-Fi. Background lifetime and other providers and formats still need physical receiver
+verification. If a host cannot sustain the endpoint, define one common product
 behavior for that capability instead of silently exposing different Cast features by platform.
 
 The initial receiver load requests MP3 transcoding at 320 kbps when the provider supports it, or
@@ -83,10 +83,25 @@ with an Onn 4K Pro TV box connected to it. These are separate Cast targets:
 - **Onn 4K Pro:** Naviamp reported that it was controlling the Onn, but nothing played on the box.
   The Onn uses the Projectivy launcher. Whether that launcher affects receiver behavior is unknown.
 
-Follow up by capturing sender session/load/status callbacks and receiver-side behavior for the Onn,
-then compare with the working Roku path. Check whether the Onn requests the scoped media URL and
-whether the failure is in receiver launch, media loading, network access, or playback. Retest with
-the stock launcher if feasible. Do not treat a connected session alone as successful playback.
+This prompted a receiver-side check of scoped media URL reachability, media loading, and playback.
+A connected Cast session alone does not establish successful playback.
+
+### Physical receiver retest (2026-09-27)
+
+On a Pixel 6a with a fresh Navidrome test account, the Onn 4K Pro launched the Default Media
+Receiver and accepted LOAD and PLAY. At first it could not fetch the phone's scoped media endpoint:
+TCP connections from both the receiver and another LAN host to the phone's Wi-Fi address timed out
+while the phone's Tailscale exit node was active. With the exit node disconnected, both hosts could
+reach the endpoint. On the stable local Wi-Fi network, the receiver fetched and played authenticated
+Navidrome MP3, displayed album art, reported progress to the phone, honored seek and pause/resume,
+and advanced a multi-track queue. This verifies Onn playback with the current shared media path;
+the earlier silence was caused by endpoint reachability in that test network. Cast sessions are
+expected to use a stable network; preserving them across network changes is out of scope.
+
+The same run exposed a return handoff bug. After using the route picker to stop casting, the native
+route disconnected but Naviamp still displayed the Onn as the playback device and local playback
+did not resume at the receiver position. Core and the Android SDK callback mapping have been
+adjusted; physical verification is pending because the TV is currently in use.
 
 ## First implementation sequence
 

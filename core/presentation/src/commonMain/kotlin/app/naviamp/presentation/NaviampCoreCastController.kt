@@ -143,6 +143,9 @@ internal class NaviampCoreCastController(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
+                if (revision == requestRevision && sessions.currentConnectedSelectionId() == selected) {
+                    sessions.selectLocal()
+                }
                 return@launch
             }
             val loaded = try {
@@ -152,10 +155,14 @@ internal class NaviampCoreCastController(
             } catch (_: Exception) {
                 false
             }
-            if (!loaded || revision != requestRevision ||
+            if (revision != requestRevision ||
                 providers.current()?.cacheNamespace != provider.cacheNamespace ||
                 playback.state.value.queue.current?.id != track.id
             ) return@launch
+            if (!loaded) {
+                if (sessions.currentConnectedSelectionId() == selected) sessions.selectLocal()
+                return@launch
+            }
             if (!sessions.activatePlaybackAuthority(selected)) return@launch
             activeMediaUrl = media.mediaUrl
             finishedMediaUrl = null
@@ -203,11 +210,18 @@ internal class NaviampCoreCastController(
 
     private fun receiverStatus(status: NaviampCastReceiverStatus) {
         if (!outputs.hasRemotePlaybackAuthority() || status.mediaUrl != activeMediaUrl) return
-        remoteWasPlaying = status.finished || status.playerState in setOf(
+        if (status.playerState == NaviampCastReceiverPlayerState.Failed) {
+            sessions.selectLocal()
+            return
+        }
+        remoteWasPlaying = when (status.playerState) {
             NaviampCastReceiverPlayerState.Playing,
             NaviampCastReceiverPlayerState.Buffering,
-            NaviampCastReceiverPlayerState.Loading,
-        )
+            NaviampCastReceiverPlayerState.Loading -> true
+            NaviampCastReceiverPlayerState.Paused -> false
+            NaviampCastReceiverPlayerState.Idle -> status.finished || remoteWasPlaying
+            NaviampCastReceiverPlayerState.Failed -> remoteWasPlaying
+        }
         playback.replace(playback.state.value.copy(
             playbackState = when (status.playerState) {
                 NaviampCastReceiverPlayerState.Playing -> PlaybackState.Playing
@@ -233,7 +247,7 @@ internal class NaviampCoreCastController(
                     playback.updateCurrentTrack(next.queue.current)
                     loadCurrent(0.0)
                 }
-                PlaybackQueueFinishedCommand.None -> Unit
+                PlaybackQueueFinishedCommand.None -> { remoteWasPlaying = false }
             }
         }
     }

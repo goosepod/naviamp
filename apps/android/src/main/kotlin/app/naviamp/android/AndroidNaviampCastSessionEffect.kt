@@ -13,7 +13,6 @@ import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaStatus
-import com.google.android.gms.cast.CastStatusCodes
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -84,8 +83,8 @@ class AndroidNaviampCastSessionEffect(context: Context) : NaviampCastSessionEffe
         override fun onSessionEnded(session: CastSession, error: Int) {
             val id = selectionFor(session) ?: return
             unobserveMedia()
-            if (error == CastStatusCodes.SUCCESS) listener?.onStopped(id)
-            else listener?.onDisconnected(id)
+            // An ended SDK session no longer owns the route, regardless of its result code.
+            listener?.onStopped(id)
             activeSession = null
             activeSelectionId = null
         }

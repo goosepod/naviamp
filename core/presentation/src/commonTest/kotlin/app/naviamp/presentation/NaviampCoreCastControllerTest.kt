@@ -17,6 +17,7 @@ import app.naviamp.app.NaviampCastTarget
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackOutputSelectionController
+import app.naviamp.app.NaviampPlaybackOutputSelection
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampRemoteOutputKind
 import app.naviamp.app.NaviampRemoteOutputTarget
@@ -144,31 +145,38 @@ class NaviampCoreCastControllerTest {
         advanceUntilIdle()
         assertEquals(0, local.stops)
         assertFalse(outputs.hasRemotePlaybackAuthority())
+        assertEquals(NaviampPlaybackOutputSelection.Local, outputs.state.value)
 
         native.loadResult = true
-        assertTrue(cast.loadCurrent())
+        val activeSelection = sessions.onTargetSelected(NaviampCastTarget("tv", "TV"))
+        sessions.onConnected(activeSelection, "TV")
         advanceUntilIdle()
         assertTrue(outputs.hasRemotePlaybackAuthority())
         assertEquals(1, local.stops)
         assertEquals(12_000, native.loaded.singleOrNull()?.positionMillis ?: native.loaded.last().positionMillis)
         val url = native.loaded.last().mediaUrl
-        sessions.onMediaStatus(selection, NaviampCastReceiverStatus(
+        sessions.onMediaStatus(activeSelection, NaviampCastReceiverStatus(
             NaviampCastReceiverPlayerState.Playing, 30_000, 180_000, 75, mediaUrl = url,
         ))
         advanceUntilIdle()
         assertEquals(30.0, live.state.value.progress.positionSeconds)
         assertEquals(PlaybackState.Playing, live.state.value.playbackState)
 
-        sessions.onDisconnected(selection)
+        sessions.onDisconnected(activeSelection)
         advanceUntilIdle()
         assertFalse(outputs.hasRemotePlaybackAuthority())
         assertEquals(PlaybackState.Paused, live.state.value.playbackState)
-        sessions.onConnected(selection, "TV")
+        sessions.onConnected(activeSelection, "TV")
         advanceUntilIdle()
         assertTrue(outputs.hasRemotePlaybackAuthority())
         assertEquals(30_000, native.loaded.last().positionMillis)
 
-        cast.selectLocal()
+        sessions.onMediaStatus(activeSelection, NaviampCastReceiverStatus(
+            NaviampCastReceiverPlayerState.Idle, 30_000, 180_000, 75, mediaUrl = native.loaded.last().mediaUrl,
+        ))
+        advanceUntilIdle()
+
+        sessions.onStopped(activeSelection)
         advanceUntilIdle()
         assertEquals(30.0, local.restoredAt)
         assertEquals(1, local.starts)
@@ -181,6 +189,37 @@ class NaviampCoreCastControllerTest {
         advanceUntilIdle()
         assertEquals(1, local.starts)
         assertTrue(native.disconnects > 1)
+
+        val failedSelection = sessions.onTargetSelected(NaviampCastTarget("tv", "TV"))
+        sessions.onConnected(failedSelection, "TV")
+        advanceUntilIdle()
+        val failedUrl = native.loaded.last().mediaUrl
+        sessions.onMediaStatus(failedSelection, NaviampCastReceiverStatus(
+            NaviampCastReceiverPlayerState.Playing, 30_000, 180_000, 75, mediaUrl = failedUrl,
+        ))
+        advanceUntilIdle()
+        sessions.onMediaStatus(failedSelection, NaviampCastReceiverStatus(
+            NaviampCastReceiverPlayerState.Failed, 0, null, null, mediaUrl = url,
+        ))
+        advanceUntilIdle()
+        assertTrue(outputs.hasRemotePlaybackAuthority())
+        sessions.onMediaStatus(failedSelection, NaviampCastReceiverStatus(
+            NaviampCastReceiverPlayerState.Failed, 0, null, null, mediaUrl = failedUrl,
+        ))
+        advanceUntilIdle()
+        assertEquals(NaviampPlaybackOutputSelection.Local, outputs.state.value)
+        assertEquals(2, local.starts)
+        assertEquals(30.0, local.restoredAt)
+
+        val loadFailureSelection = sessions.onTargetSelected(NaviampCastTarget("tv", "TV"))
+        sessions.onConnected(loadFailureSelection, "TV")
+        advanceUntilIdle()
+        native.loadResult = false
+        assertTrue(cast.loadCurrent())
+        advanceUntilIdle()
+        assertEquals(NaviampPlaybackOutputSelection.Local, outputs.state.value)
+        assertEquals(3, local.starts)
+        assertEquals(30.0, local.restoredAt)
         castScope.cancel()
     }
 
