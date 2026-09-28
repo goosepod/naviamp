@@ -101,6 +101,44 @@ class NaviampConnectPlaybackDestinationControllerTest {
         }
     }
 
+    @Test
+    fun castSelectionDisplacesConnectWithoutOldSessionClearingCastOutput() {
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val controller = NaviampConnectPlaybackDestinationController(outputs)
+        controller.select(targetTrust())
+        assertTrue(controller.connected(targetTrust().peerDevice))
+        assertTrue(controller.activatePlaybackAuthority("trusted-speakers"))
+
+        val castSelection = outputs.select(NaviampRemoteOutputTarget(
+            NaviampRemoteOutputKind.Cast, "cast-speaker", "Cast Speaker",
+        ))
+
+        assertEquals(NaviampConnectPlaybackDestination.Local, controller.snapshot())
+        assertEquals(null, controller.selectedTrustedDeviceId())
+        assertFalse(controller.hasRemotePlaybackAuthority())
+        assertFalse(controller.connected(targetTrust().peerDevice))
+        controller.selectLocal()
+        assertEquals(castSelection,
+            (outputs.state.value as NaviampPlaybackOutputSelection.Remote).selectionId)
+        assertEquals(NaviampRemoteOutputKind.Cast,
+            (outputs.state.value as NaviampPlaybackOutputSelection.Remote).target.kind)
+    }
+
+    @Test
+    fun selectingConnectDisplacesExistingCastOutput() {
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val castSelection = outputs.select(NaviampRemoteOutputTarget(
+            NaviampRemoteOutputKind.Cast, "cast-speaker", "Cast Speaker",
+        ))
+        val controller = NaviampConnectPlaybackDestinationController(outputs)
+
+        controller.select(targetTrust())
+
+        assertFalse(outputs.connected(castSelection))
+        assertEquals(NaviampRemoteOutputKind.Connect,
+            (outputs.state.value as NaviampPlaybackOutputSelection.Remote).target.kind)
+    }
+
     private fun targetTrust(
         trustedDeviceId: String = "trusted-speakers",
         deviceId: String = "speakers",

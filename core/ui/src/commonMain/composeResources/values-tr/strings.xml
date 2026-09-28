@@ -98,4 +98,5 @@
     <string name="connect_manual_port">Elle bağlantı noktası: %1$d</string>
     <string name="connect_manual_rejected">Adrese ulaşıldı ancak güvenilir cihaz doğrulanamadı. Kimliğini kontrol edin veya yeniden eşleştirin.</string>
     <string name="connect_manual_reconnect">%1$s cihazına adresle yeniden bağlan</string>
+    <string name="now_playing_cast_to_device">Cihaza yayınla</string>
 </resources>

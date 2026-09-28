@@ -49,9 +49,10 @@ sealed interface NaviampConnectPlaybackDestination {
  * ownership to this device.
  */
 class NaviampConnectPlaybackDestinationController(
-    initialDestination: NaviampConnectPlaybackDestination = NaviampConnectPlaybackDestination.Local,
+    val outputSelection: NaviampPlaybackOutputSelectionController = NaviampPlaybackOutputSelectionController(),
 ) {
-    private val mutableState = MutableStateFlow(initialDestination)
+    private val mutableState = MutableStateFlow<NaviampConnectPlaybackDestination>(NaviampConnectPlaybackDestination.Local)
+    private var selectionId: Long? = null
 
     val state: StateFlow<NaviampConnectPlaybackDestination> = mutableState.asStateFlow()
 
@@ -59,20 +60,31 @@ class NaviampConnectPlaybackDestinationController(
         require(trust.peerDevice.canActAs(NaviampConnectDeviceRole.Target)) {
             "The selected device cannot act as a playback target."
         }
+        selectionId = outputSelection.select(NaviampRemoteOutputTarget(
+            kind = NaviampRemoteOutputKind.Connect,
+            id = trust.trustedDeviceId,
+            displayName = trust.visibleDisplayName(),
+        ))
         mutableState.value = NaviampConnectPlaybackDestination.Remote(
             device = trust.toSelectedPlaybackDevice(),
             status = NaviampConnectRemoteOutputStatus.Armed,
         )
     }
 
-    fun connecting(trustedDeviceId: String): Boolean = updateRemote(trustedDeviceId) { remote ->
-        remote.copy(status = NaviampConnectRemoteOutputStatus.Connecting)
+    fun connecting(trustedDeviceId: String): Boolean {
+        if (currentSelectionId() == null) return false
+        return updateRemote(trustedDeviceId) { remote ->
+            if (selectionId?.let(outputSelection::connecting) != true) remote
+            else remote.copy(status = NaviampConnectRemoteOutputStatus.Connecting, playbackAuthorityActive = false)
+        }
     }
 
     fun connected(device: NaviampConnectDevice): Boolean {
         if (!device.canActAs(NaviampConnectDeviceRole.Target)) return false
+        if (currentSelectionId() == null) return false
         return updateRemoteByDeviceId(device.deviceId) { remote ->
-            remote.copy(
+            if (selectionId?.let { outputSelection.connected(it, device.displayName) } != true) remote
+            else remote.copy(
                 device = remote.device.copy(displayName = device.displayName),
                 status = NaviampConnectRemoteOutputStatus.Connected,
             )
@@ -80,43 +92,70 @@ class NaviampConnectPlaybackDestinationController(
     }
 
     fun activatePlaybackAuthority(trustedDeviceId: String): Boolean {
-        val current = mutableState.value as? NaviampConnectPlaybackDestination.Remote ?: return false
+        val current = snapshot() as? NaviampConnectPlaybackDestination.Remote ?: return false
         if (current.device.trustedDeviceId != trustedDeviceId ||
             current.status != NaviampConnectRemoteOutputStatus.Connected
         ) {
             return false
         }
+        if (selectionId?.let(outputSelection::activatePlaybackAuthority) != true) return false
         mutableState.value = current.copy(playbackAuthorityActive = true)
         return true
     }
 
-    fun reconnecting(): Boolean = updateRemote { remote ->
-        remote.copy(status = NaviampConnectRemoteOutputStatus.Reconnecting)
+    fun reconnecting(): Boolean {
+        if (currentSelectionId() == null) return false
+        return updateRemote { remote ->
+            outputSelection.reconnecting(requireNotNull(selectionId))
+            remote.copy(status = NaviampConnectRemoteOutputStatus.Reconnecting, playbackAuthorityActive = false)
+        }
     }
 
-    fun unavailable(): Boolean = updateRemote { remote ->
-        remote.copy(status = NaviampConnectRemoteOutputStatus.Unavailable)
+    fun unavailable(): Boolean {
+        if (currentSelectionId() == null) return false
+        return updateRemote { remote ->
+            outputSelection.unavailable(requireNotNull(selectionId))
+            remote.copy(status = NaviampConnectRemoteOutputStatus.Unavailable, playbackAuthorityActive = false)
+        }
     }
 
-    fun incompatible(): Boolean = updateRemote { remote ->
-        remote.copy(status = NaviampConnectRemoteOutputStatus.Incompatible)
+    fun incompatible(): Boolean {
+        if (currentSelectionId() == null) return false
+        return updateRemote { remote ->
+            outputSelection.incompatible(requireNotNull(selectionId))
+            remote.copy(status = NaviampConnectRemoteOutputStatus.Incompatible, playbackAuthorityActive = false)
+        }
     }
 
     fun selectLocal() {
+        if (currentSelectionId() != null) outputSelection.selectLocal()
+        selectionId = null
         mutableState.value = NaviampConnectPlaybackDestination.Local
     }
 
     fun selectedTrustedDeviceId(): String? =
-        (mutableState.value as? NaviampConnectPlaybackDestination.Remote)?.device?.trustedDeviceId
+        (snapshot() as? NaviampConnectPlaybackDestination.Remote)?.device?.trustedDeviceId
 
     fun isConnectedRemote(): Boolean =
-        (mutableState.value as? NaviampConnectPlaybackDestination.Remote)?.status ==
+        (snapshot() as? NaviampConnectPlaybackDestination.Remote)?.status ==
             NaviampConnectRemoteOutputStatus.Connected
 
     fun hasRemotePlaybackAuthority(): Boolean =
-        (mutableState.value as? NaviampConnectPlaybackDestination.Remote)?.let { remote ->
-            remote.status == NaviampConnectRemoteOutputStatus.Connected && remote.playbackAuthorityActive
+        (snapshot() as? NaviampConnectPlaybackDestination.Remote)?.let { remote ->
+            remote.status == NaviampConnectRemoteOutputStatus.Connected &&
+                remote.playbackAuthorityActive && outputSelection.hasRemotePlaybackAuthority() &&
+                (outputSelection.state.value as? NaviampPlaybackOutputSelection.Remote)
+                    ?.target?.kind == NaviampRemoteOutputKind.Connect
         } == true
+
+    fun snapshot(): NaviampConnectPlaybackDestination =
+        mutableState.value.takeIf { currentSelectionId() != null } ?: NaviampConnectPlaybackDestination.Local
+
+    private fun currentSelectionId(): Long? = selectionId?.takeIf { id ->
+        (outputSelection.state.value as? NaviampPlaybackOutputSelection.Remote)?.let { selection ->
+            selection.selectionId == id && selection.target.kind == NaviampRemoteOutputKind.Connect
+        } == true
+    }
 
     private fun updateRemote(
         transform: (NaviampConnectPlaybackDestination.Remote) -> NaviampConnectPlaybackDestination.Remote,

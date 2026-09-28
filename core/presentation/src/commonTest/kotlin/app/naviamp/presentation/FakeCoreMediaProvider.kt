@@ -13,6 +13,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.provider.SonicPathMatch
@@ -27,6 +28,7 @@ internal class FakeCoreMediaProvider(
 ) : MediaProvider {
     val nowPlayingReports = mutableListOf<TrackId>()
     val streamRequests = mutableListOf<StreamRequest>()
+    var castRangeHeader: String? = null
     val artist = Artist(ArtistId("core-artist"), "Core Artist")
     val album = Album(
         id = AlbumId("core-album"),
@@ -109,6 +111,19 @@ internal class FakeCoreMediaProvider(
     override suspend fun streamUrl(request: StreamRequest): String {
         streamRequests += request
         return "https://example.test/${request.trackId.value}"
+    }
+    override suspend fun streamTrackBytes(
+        request: StreamRequest,
+        rangeHeader: String?,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (ByteArray, Int) -> Unit,
+    ): Boolean {
+        streamRequests += request
+        castRangeHeader = rangeHeader
+        onResponse(ProviderMediaByteResponse(206, "audio/mpeg", 3, "bytes 10-12/100"))
+        if (!headOnly) writeChunk(byteArrayOf(1, 2, 3), 3)
+        return true
     }
     override fun coverArtUrl(coverArtId: String) = "https://example.test/art/$coverArtId"
     override suspend fun bytesForOwnedUrl(url: String): ByteArray? = ownedArtworkBytes

@@ -98,4 +98,5 @@
     <string name="connect_manual_port">Port für manuelle Verbindung: %1$d</string>
     <string name="connect_manual_rejected">Adresse erreicht, aber das vertrauenswürdige Gerät konnte nicht bestätigt werden. Identität prüfen oder erneut koppeln.</string>
     <string name="connect_manual_reconnect">%1$s über Adresse erneut verbinden</string>
+    <string name="now_playing_cast_to_device">Auf Gerät streamen</string>
 </resources>

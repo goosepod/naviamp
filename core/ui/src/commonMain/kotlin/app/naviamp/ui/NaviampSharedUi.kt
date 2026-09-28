@@ -78,6 +78,9 @@ fun NaviampSharedAppShell(
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
+    castOutput: NaviampCastOutputUi = NaviampCastOutputUi(),
+    onCastPicker: () -> Unit = {},
+    onCastSelectLocal: () -> Unit = {},
 ) {
     val navigationActions = actions.navigationActions
     val connectionActions = actions.connectionActions
@@ -119,8 +122,12 @@ fun NaviampSharedAppShell(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val remoteNowPlaying = uiState.connect.remoteNowPlaying
+    val remoteNowPlaying = uiState.connect.remoteNowPlaying.takeUnless { castOutput.selected }
     val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
+        ?.withCastOutput(
+            castOutput,
+            stringResource(Res.string.connect_remote_unavailable).takeIf { castOutput.unavailable },
+        )
         ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
     val nowPlayingActions = (if (remoteNowPlaying != null) {
         connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
@@ -128,6 +135,7 @@ fun NaviampSharedAppShell(
     } else {
         actions.nowPlayingActions
     }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
+        .withCastOutputActions(castOutput, onCastPicker, onCastSelectLocal)
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
@@ -324,6 +332,9 @@ fun NaviampSharedAppShell(
                             settingsSync = settingsSync,
                             actions = actions,
                             syncActions = syncActions,
+                            castOutput = castOutput,
+                            onCastPicker = onCastPicker,
+                            onCastSelectLocal = onCastSelectLocal,
                         )
                     }
                 }
@@ -447,6 +458,9 @@ internal fun ConnectedContent(
     settingsSync: NaviampSettingsSyncUi,
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
+    castOutput: NaviampCastOutputUi = NaviampCastOutputUi(),
+    onCastPicker: () -> Unit = {},
+    onCastSelectLocal: () -> Unit = {},
 ) {
     val connectionActions = actions.connectionActions
     val valueActions = actions.valueActions
@@ -487,8 +501,12 @@ internal fun ConnectedContent(
     val albumDetail = uiState.albumDetail
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
-    val remoteNowPlaying = uiState.connect.remoteNowPlaying
+    val remoteNowPlaying = uiState.connect.remoteNowPlaying.takeUnless { castOutput.selected }
     val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
+        ?.withCastOutput(
+            castOutput,
+            stringResource(Res.string.connect_remote_unavailable).takeIf { castOutput.unavailable },
+        )
         ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
     val nowPlayingActions = (if (remoteNowPlaying != null) {
         connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
@@ -496,6 +514,7 @@ internal fun ConnectedContent(
     } else {
         actions.nowPlayingActions
     }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
+        .withCastOutputActions(castOutput, onCastPicker, onCastSelectLocal)
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
@@ -900,6 +919,26 @@ internal fun NaviampNowPlayingActions.withSelectedRemoteOutputAction(
         onPlaybackOutputSelected = connectActions.onPlaybackDeviceSelected,
     )
 }
+
+internal fun NowPlayingUi.withCastOutput(
+    cast: NaviampCastOutputUi,
+    unavailableLabel: String?,
+): NowPlayingUi = copy(
+    castAvailable = cast.available,
+    castSelected = cast.selected,
+    remoteOutputDeviceName = if (cast.selected) cast.selectedTargetName else remoteOutputDeviceName,
+    stateLabel = unavailableLabel ?: stateLabel,
+    playbackOutputs = if (cast.selected) playbackOutputs.map { it.copy(selected = false) } else playbackOutputs,
+)
+
+internal fun NaviampNowPlayingActions.withCastOutputActions(
+    cast: NaviampCastOutputUi,
+    onPicker: () -> Unit,
+    onSelectLocal: () -> Unit,
+): NaviampNowPlayingActions = copy(
+    onCastPicker = onPicker,
+    onRemoteOutputAction = if (cast.selected) onSelectLocal else onRemoteOutputAction,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

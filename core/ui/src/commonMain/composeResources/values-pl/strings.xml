@@ -217,4 +217,5 @@
     <string name="connect_manual_port">Port połączenia ręcznego: %1$d</string>
     <string name="connect_manual_rejected">Adres jest osiągalny, ale nie udało się zweryfikować zaufanego urządzenia. Sprawdź tożsamość lub sparuj ponownie.</string>
     <string name="connect_manual_reconnect">Połącz ponownie z %1$s przez adres</string>
+    <string name="now_playing_cast_to_device">Przesyłaj na urządzenie</string>
 </resources>

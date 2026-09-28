@@ -1,5 +1,5 @@
 <resources>
-    <style name="NaviampTheme" parent="android:style/Theme.Material.NoActionBar">
+    <style name="NaviampTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">#120F13</item>
         <item name="android:statusBarColor">#120F13</item>

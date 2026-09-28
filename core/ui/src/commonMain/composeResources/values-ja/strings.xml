@@ -98,4 +98,5 @@
     <string name="connect_manual_port">手動接続ポート: %1$d</string>
     <string name="connect_manual_rejected">アドレスには接続できましたが、信頼済みデバイスを確認できませんでした。IDを確認するか、再度ペアリングしてください。</string>
     <string name="connect_manual_reconnect">アドレスで%1$sに再接続</string>
+    <string name="now_playing_cast_to_device">デバイスにキャスト</string>
 </resources>

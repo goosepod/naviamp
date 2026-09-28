@@ -1,5 +1,6 @@
 package app.naviamp.provider.jellyfin
 
+import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.network.isHttpDownloadComplete
 import io.ktor.http.HttpHeaders
 import io.ktor.client.HttpClient
@@ -50,6 +51,45 @@ class KtorJellyfinHttpClient(
         headers { headers.forEach { (name, value) -> append(name, value) } }
     }.execute { response ->
         if (response.status.value !in 200..299) return@execute false
+        val channel = response.bodyAsChannel()
+        val buffer = ByteArray(64 * 1024)
+        var receivedBytes = 0L
+        while (!channel.isClosedForRead) {
+            val count = channel.readAvailable(buffer, 0, buffer.size)
+            if (count == -1) break
+            if (count > 0) {
+                writeChunk(buffer, count)
+                receivedBytes += count
+            }
+        }
+        channel.closedCause?.let { throw it }
+        isHttpDownloadComplete(response.headers[HttpHeaders.ContentLength],
+            response.headers[HttpHeaders.ContentEncoding], receivedBytes)
+    }
+
+    override suspend fun stream(
+        url: String,
+        headers: Map<String, String>,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean = client.prepareGet(url) {
+        headers { (headers + (HttpHeaders.AcceptEncoding to "identity")).forEach { (name, value) -> append(name, value) } }
+    }.execute { response ->
+        if (response.status.value == 416) {
+            onResponse(ProviderMediaByteResponse(416, null, 0, response.headers[HttpHeaders.ContentRange]))
+            return@execute true
+        }
+        if (response.status.value !in 200..299) return@execute false
+        if (response.headers[HttpHeaders.ContentEncoding]?.equals("identity", ignoreCase = true) == false)
+            return@execute false
+        onResponse(ProviderMediaByteResponse(
+            statusCode = response.status.value,
+            contentType = response.headers[HttpHeaders.ContentType],
+            contentLength = response.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
+            contentRange = response.headers[HttpHeaders.ContentRange],
+        ))
+        if (headOnly) return@execute true
         val channel = response.bodyAsChannel()
         val buffer = ByteArray(64 * 1024)
         var receivedBytes = 0L

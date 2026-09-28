@@ -185,6 +185,15 @@ interface MediaProvider {
     ): Boolean =
         httpClient.download(url, writeChunk = writeChunk)
 
+    /** Streams provider-owned track bytes without exposing the authenticated URL to a receiver. */
+    suspend fun streamTrackBytes(
+        request: StreamRequest,
+        rangeHeader: String?,
+        headOnly: Boolean,
+        onResponse: suspend (ProviderMediaByteResponse) -> Unit,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean = false
+
     /** Returns bytes only when [url] belongs to this provider's authenticated server. */
     suspend fun bytesForOwnedUrl(url: String): ByteArray? = null
 
@@ -206,6 +215,13 @@ interface MediaProvider {
     fun coverArtUrl(coverArtId: String): String
     fun coverArtUrl(coverArtId: String, size: CoverArtSize): String = coverArtUrl(coverArtId)
 }
+
+data class ProviderMediaByteResponse(
+    val statusCode: Int,
+    val contentType: String?,
+    val contentLength: Long?,
+    val contentRange: String?,
+)
 
 enum class AlphabeticalLibraryKind {
     Albums,

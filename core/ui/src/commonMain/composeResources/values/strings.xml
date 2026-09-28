@@ -968,4 +968,5 @@
     <string name="connect_manual_port">Manual connection port: %1$d</string>
     <string name="connect_manual_rejected">Reached the address, but the trusted device could not be verified. Check its identity or pair again.</string>
     <string name="connect_manual_reconnect">Reconnect to %1$s at address</string>
+    <string name="now_playing_cast_to_device">Cast to a device</string>
 </resources>
