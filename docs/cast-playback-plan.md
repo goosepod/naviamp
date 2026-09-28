@@ -13,7 +13,8 @@ from an opaque track URL, stops local audio only after the load is accepted, and
 receiver. Receiver status drives shared progress and queue completion; returning to local restores
 the receiver position. The shared Now Playing menu opens the Android SDK route picker. Physical
 Android testing has confirmed playback on Roku and Onn 4K Pro receivers, and return-to-local
-handoff on the Onn. The PR remains draft pending lifecycle checks and broader platform coverage.
+handoff on the Onn. The v2.8.0 scope is the Android sender on a stable local network with an
+online provider. Expanded lifecycle, offline, and other platform work is tracked in #168.
 
 ## Existing shared owners
 
@@ -43,13 +44,13 @@ provider ID or credential. The provider byte source streams track chunks through
 authenticated client and caps buffered artwork at 8 MiB. The Android socket binds only to a local
 Wi-Fi or Ethernet address and forwards the shared response headers and chunks.
 
-## Sender and receiver matrix to verify
+## Sender and receiver matrix
 
 | Sender | Native boundary | Initial verification |
 | --- | --- | --- |
-| Android | Cast SDK discovery, session callbacks, permissions, and foreground lifecycle | Physical Android sender and Cast audio/video receiver |
-| iOS | Cast SDK discovery, session callbacks, local-network permission, and background lifecycle | Physical iPhone/iPad and Cast receiver |
-| Desktop | No native desktop sender SDK is listed in Google's sender matrix; investigate a supported browser/Web Sender bridge or another documented route before promising native Desktop Cast | Windows, macOS, and Linux with physical receiver |
+| Android | Cast SDK discovery, session callbacks, permissions, and foreground lifecycle | Pixel 6a to Onn 4K Pro verified; Roku playback reported by user |
+| iOS | Cast SDK discovery, session callbacks, local-network permission, and background lifecycle | Deferred to #168 |
+| Desktop | No native desktop sender SDK is listed in Google's sender matrix; investigate a supported browser/Web Sender bridge or another documented route before promising native Desktop Cast | Deferred to #168 |
 
 Google documents Android, iOS, and Web sender SDKs. Its Android framework owns discovery and starts
 a session when a user picks a route; the Android adapter reports that choice to Core instead of
