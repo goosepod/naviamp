@@ -105,4 +105,9 @@
     <string name="changelog_280_visualizer">Scorri sul visualizzatore per scegliere la visualizzazione successiva o precedente.</string>
     <string name="changelog_280_improvements">Aggiorna facoltativamente l’audio nella cache di qualità inferiore tramite Wi-Fi, naviga più facilmente nell’editor DJ e vedi la playlist attiva in In riproduzione.</string>
     <string name="changelog_280_fixes">Corretti il fallback alla password Subsonic, la pausa con la barra spaziatrice su desktop e il testo codificato nelle descrizioni di artisti e album.</string>
+    <string name="voice_no_source">Connettiti a un server musicale e riprova.</string>
+    <string name="voice_no_match">Nessuna musica corrispondente trovata.</string>
+    <string name="voice_ambiguous">Trovate più corrispondenze. Pronuncia un nome più preciso.</string>
+    <string name="voice_unsupported">La radio artista non è disponibile per questa sorgente.</string>
+    <string name="voice_playback_failed">Impossibile avviare la riproduzione. Riprova.</string>
 </resources>

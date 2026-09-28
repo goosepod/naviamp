@@ -224,4 +224,9 @@
     <string name="changelog_280_visualizer">Przesuń palcem po wizualizatorze, aby wybrać następną lub poprzednią wizualizację.</string>
     <string name="changelog_280_improvements">Opcjonalnie odświeżaj dźwięk zapisany w niższej jakości przez Wi-Fi, łatwiej poruszaj się po edytorze DJ i oglądaj aktywną playlistę w Teraz odtwarzane.</string>
     <string name="changelog_280_fixes">Naprawiono zastępcze logowanie hasłem Subsonic, pauzę spacją na komputerze i zakodowany tekst w opisach wykonawców i albumów.</string>
+    <string name="voice_no_source">Połącz się z serwerem muzycznym i spróbuj ponownie.</string>
+    <string name="voice_no_match">Nie znaleziono pasującej muzyki.</string>
+    <string name="voice_ambiguous">Znaleziono kilka wyników. Podaj dokładniejszą nazwę.</string>
+    <string name="voice_unsupported">Radio wykonawcy jest niedostępne dla tego źródła.</string>
+    <string name="voice_playback_failed">Nie udało się rozpocząć odtwarzania. Spróbuj ponownie.</string>
 </resources>

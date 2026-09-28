@@ -105,4 +105,9 @@
     <string name="changelog_280_visualizer">在可视化效果上滑动，即可选择下一个或上一个效果。</string>
     <string name="changelog_280_improvements">可选择通过 Wi-Fi 更新低音质的缓存音频，更方便地浏览 DJ 编辑器，并在“正在播放”中查看当前播放列表。</string>
     <string name="changelog_280_fixes">修复了 Subsonic 密码回退、桌面端空格键暂停以及艺术家和专辑简介中的编码文本问题。</string>
+    <string name="voice_no_source">请连接音乐服务器后重试。</string>
+    <string name="voice_no_match">未找到匹配的音乐。</string>
+    <string name="voice_ambiguous">找到多个匹配项。请说出更具体的名称。</string>
+    <string name="voice_unsupported">此来源不支持艺人电台。</string>
+    <string name="voice_playback_failed">无法开始播放。请重试。</string>
 </resources>

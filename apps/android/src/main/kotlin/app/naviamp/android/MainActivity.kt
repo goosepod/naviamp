@@ -1,10 +1,13 @@
 package app.naviamp.android
 
+import android.app.SearchManager
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -33,16 +36,20 @@ import androidx.mediarouter.app.MediaRouteButton
 import com.google.android.gms.cast.framework.CastButtonFactory
 import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreCommand
+import app.naviamp.presentation.externalPlaybackBridge
+import app.naviamp.presentation.voiceFailure
 import app.naviamp.presentation.systemBackCommand
 import app.naviamp.ui.LocalNaviampSystemBackDispatcher
 import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.NaviampAndroidRasterHost
 import app.naviamp.ui.NaviampSystemBackDispatcher
+import app.naviamp.ui.naviampVoiceMessage
 
 /** Thin Android window and intent/permission boundary for the process-owned Core app. */
 class MainActivity : FragmentActivity() {
     private var openNowPlayingRequest by mutableIntStateOf(0)
     private var settingsImportRequest by mutableStateOf<String?>(null)
+    private var mediaSearchIntent by mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,6 +78,20 @@ class MainActivity : FragmentActivity() {
                     runtime.core.dispatch(NaviampCoreCommand.SettingsSync.ImportFilePath(path))
                     settingsImportRequest = null
                 }
+            }
+            LaunchedEffect(runtime, mediaSearchIntent) {
+                val request = mediaSearchIntent ?: return@LaunchedEffect
+                val query = request.getStringExtra(SearchManager.QUERY).orEmpty()
+                val bridge = runtime.core.externalPlaybackBridge()
+                val named = androidNamedMediaRequest(query, request.extras)
+                if (named == null) {
+                    if (query.isBlank()) bridge.play() else bridge.playSearch(query)
+                } else {
+                    bridge.playNamedMedia(named).status.voiceFailure()?.let { failure ->
+                        Toast.makeText(this@MainActivity, naviampVoiceMessage(failure), Toast.LENGTH_LONG).show()
+                    }
+                }
+                if (mediaSearchIntent === request) mediaSearchIntent = null
             }
             AndroidNaviampPlaybackLifecycle(runtime.core)
             CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides systemBackDispatcher) {
@@ -107,6 +128,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.action == MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH) {
+            mediaSearchIntent = intent
+        }
         if (intent?.getBooleanExtra(IntentExtraOpenNowPlaying, false) == true) {
             openNowPlayingRequest += 1
         }

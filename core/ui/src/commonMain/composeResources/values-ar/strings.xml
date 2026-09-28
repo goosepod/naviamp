@@ -105,4 +105,9 @@
     <string name="changelog_280_visualizer">اسحب عبر المرئيات لاختيار العرض التالي أو السابق.</string>
     <string name="changelog_280_improvements">يمكنك تحديث الصوت المخزن بجودة أقل عبر Wi-Fi، والتنقل بسهولة أكبر في محرر DJ، ورؤية قائمة التشغيل النشطة في شاشة التشغيل.</string>
     <string name="changelog_280_fixes">أُصلح الرجوع إلى كلمة مرور Subsonic، والإيقاف المؤقت بمفتاح المسافة على سطح المكتب، والنص المشفر في أوصاف الفنانين والألبومات.</string>
+    <string name="voice_no_source">اتصل بخادم موسيقى ثم حاول مرة أخرى.</string>
+    <string name="voice_no_match">لم يتم العثور على موسيقى مطابقة.</string>
+    <string name="voice_ambiguous">تم العثور على عدة نتائج. قل اسما أكثر تحديدا.</string>
+    <string name="voice_unsupported">راديو الفنان غير متاح لهذا المصدر.</string>
+    <string name="voice_playback_failed">تعذر بدء التشغيل. حاول مرة أخرى.</string>
 </resources>
