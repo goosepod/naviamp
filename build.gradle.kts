@@ -54,12 +54,17 @@ val hostProductionSources = fileTree(layout.projectDirectory) {
 }
 
 val existingHostProductDebt = emptySet<String>()
+// MediaRouteButton is an Android SDK view; this adapter only opens its native Cast picker.
+val nativeHostBoundaryExceptions = setOf(
+    "apps/android/src/main/kotlin/app/naviamp/android/AndroidNaviampCastRoutePickerEffect.kt",
+)
 
 tasks.register("verifyCoreFirstArchitecture") {
     group = "verification"
     description = "Rejects platform APIs in common code and new host-owned product surfaces."
     inputs.files(commonProductionSources, hostProductionSources)
     inputs.property("existingHostProductDebt", existingHostProductDebt.sorted())
+    inputs.property("nativeHostBoundaryExceptions", nativeHostBoundaryExceptions.sorted())
 
     doLast {
         val failures = mutableListOf<String>()
@@ -87,6 +92,7 @@ tasks.register("verifyCoreFirstArchitecture") {
             .map { it.relativeTo(projectDir).invariantSeparatorsPath }
             .filter { productFileName.matches(it.substringAfterLast('/')) }
             .filterNot(existingHostProductDebt::contains)
+            .filterNot(nativeHostBoundaryExceptions::contains)
             .sorted()
             .forEach { path -> failures += "$path: new host-owned product surface is not allowlisted" }
 
