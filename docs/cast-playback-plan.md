@@ -105,7 +105,9 @@ On 2026-09-27, the Pixel 6a and Onn verified the fix with the updated build: sto
 receiver playback cleared the TV output and started local audio near the receiver position. The
 Pixel audio player was active. Stopping Cast while the receiver was paused cleared the TV output,
 kept the receiver position (2:19), and left local playback paused. In both cases the TV returned
-to its home screen. Background and lifecycle behavior remain to be verified.
+to its home screen. With Naviamp on the Pixel home screen for 20 seconds, the Onn Cast media
+session remained playing and its music audio output stayed active. Longer background runs, screen
+lock, process recreation, and other lifecycle cases remain to be verified.
 
 ## First implementation sequence
 
