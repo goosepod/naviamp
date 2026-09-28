@@ -18,25 +18,31 @@ data class NamedMediaMatch<T>(
 /** Explicit media types take precedence over the native assistant's broad search hint. */
 fun namedMediaRequest(query: String, hintedKind: NamedMediaKind? = null, hintedName: String? = null): NamedMediaRequest? {
     val spoken = query.trim()
+    if (hintedKind != null && !hintedName.isNullOrBlank() && spoken.equals(hintedName.trim(), ignoreCase = true)) {
+        return NamedMediaRequest(hintedKind, hintedName.trim(), spoken)
+    }
     val words = spoken
         .replace(Regex("(?i)^\\s*(hey google|hey siri)[, ]*"), "")
         .replace(Regex("(?i)\\s+on naviamp\\s*$"), "")
         .replace(Regex("(?i)^\\s*(play|start|listen to)\\s+"), "")
         .replace(Regex("(?i)^\\s*(my|the|some)\\s+"), "")
         .trim()
+    val radio = Regex("(?i)^(.+?)\\s+radio$").matchEntire(words)
+    val typed = Regex("(?i)^(artist|album|playlist)\\s+(.+)$").matchEntire(words)
     val explicit = when {
-        Regex("(?i)\\bradio\\b").containsMatchIn(words) &&
-            !Regex("(?i)\\b(station|internet radio)\\b").containsMatchIn(words) -> NamedMediaKind.ArtistRadio
-        Regex("(?i)\\bplaylist\\b").containsMatchIn(words) -> NamedMediaKind.Playlist
-        Regex("(?i)\\balbum\\b").containsMatchIn(words) -> NamedMediaKind.Album
-        Regex("(?i)\\bartist\\b").containsMatchIn(words) -> NamedMediaKind.Artist
+        radio != null -> NamedMediaKind.ArtistRadio
+        typed?.groupValues?.get(1)?.equals("artist", ignoreCase = true) == true -> NamedMediaKind.Artist
+        typed?.groupValues?.get(1)?.equals("album", ignoreCase = true) == true -> NamedMediaKind.Album
+        typed?.groupValues?.get(1)?.equals("playlist", ignoreCase = true) == true -> NamedMediaKind.Playlist
         else -> null
     }
     val kind = explicit ?: hintedKind ?: return null
-    val name = if (explicit == null && !hintedName.isNullOrBlank()) hintedName.trim() else words
-        .replace(Regex("(?i)\\b(artist|album|playlist|radio)\\b"), " ")
-        .replace(Regex("\\s+"), " ")
-        .trim()
+    val name = when {
+        radio != null -> radio.groupValues[1].replace(Regex("(?i)^artist\\s+"), "").trim()
+        typed != null -> typed.groupValues[2].trim()
+        !hintedName.isNullOrBlank() -> hintedName.trim()
+        else -> words
+    }
     return name.takeIf(String::isNotBlank)?.let { NamedMediaRequest(kind, it, spoken) }
 }
 
