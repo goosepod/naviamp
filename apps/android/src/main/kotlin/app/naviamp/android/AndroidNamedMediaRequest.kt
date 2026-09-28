@@ -22,3 +22,27 @@ internal fun androidNamedMediaRequest(query: String, extras: Bundle?): NamedMedi
     }
     return namedMediaRequest(query, hintedKind, hintedName)
 }
+
+/** App Actions deliver a structured media name through an explicit Android activity action. */
+internal fun androidAppActionNamedMediaRequest(action: String?, extras: Bundle?): NamedMediaRequest? {
+    val kind = when (action) {
+        AppActionPlayArtistRadio -> NamedMediaKind.ArtistRadio
+        AppActionPlayArtist -> NamedMediaKind.Artist
+        AppActionPlayAlbum -> NamedMediaKind.Album
+        AppActionPlayPlaylist -> NamedMediaKind.Playlist
+        else -> return null
+    }
+    val name = extras?.getString(AppActionMediaName).orEmpty()
+    return namedMediaRequest(name, kind, name)
+}
+
+internal fun isAndroidNamedMediaAppAction(action: String?): Boolean = when (action) {
+    AppActionPlayArtistRadio, AppActionPlayArtist, AppActionPlayAlbum, AppActionPlayPlaylist -> true
+    else -> false
+}
+
+internal const val AppActionPlayArtistRadio = "app.naviamp.android.action.PLAY_ARTIST_RADIO"
+internal const val AppActionPlayArtist = "app.naviamp.android.action.PLAY_ARTIST"
+internal const val AppActionPlayAlbum = "app.naviamp.android.action.PLAY_ALBUM"
+internal const val AppActionPlayPlaylist = "app.naviamp.android.action.PLAY_PLAYLIST"
+internal const val AppActionMediaName = "app.naviamp.android.extra.MEDIA_NAME"

@@ -43,6 +43,7 @@ import app.naviamp.ui.LocalNaviampSystemBackDispatcher
 import app.naviamp.ui.NaviampApplicationSurface
 import app.naviamp.ui.NaviampAndroidRasterHost
 import app.naviamp.ui.NaviampSystemBackDispatcher
+import app.naviamp.ui.NaviampVoiceFailure
 import app.naviamp.ui.naviampVoiceMessage
 
 /** Thin Android window and intent/permission boundary for the process-owned Core app. */
@@ -83,9 +84,20 @@ class MainActivity : FragmentActivity() {
                 val request = mediaSearchIntent ?: return@LaunchedEffect
                 val query = request.getStringExtra(SearchManager.QUERY).orEmpty()
                 val bridge = runtime.core.externalPlaybackBridge()
-                val named = androidNamedMediaRequest(query, request.extras)
+                val appAction = isAndroidNamedMediaAppAction(request.action)
+                val named = if (appAction) {
+                    androidAppActionNamedMediaRequest(request.action, request.extras)
+                } else {
+                    androidNamedMediaRequest(query, request.extras)
+                }
                 if (named == null) {
-                    if (query.isBlank()) bridge.play() else bridge.playSearch(query)
+                    if (appAction) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            naviampVoiceMessage(NaviampVoiceFailure.NoMatch),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    } else if (query.isBlank()) bridge.play() else bridge.playSearch(query)
                 } else {
                     bridge.playNamedMedia(named).status.voiceFailure()?.let { failure ->
                         Toast.makeText(this@MainActivity, naviampVoiceMessage(failure), Toast.LENGTH_LONG).show()
@@ -128,7 +140,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH) {
+        if (intent?.action == MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH ||
+            isAndroidNamedMediaAppAction(intent?.action)
+        ) {
             mediaSearchIntent = intent
         }
         if (intent?.getBooleanExtra(IntentExtraOpenNowPlaying, false) == true) {

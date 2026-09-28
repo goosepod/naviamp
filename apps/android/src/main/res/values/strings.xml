@@ -1,0 +1,19 @@
+<resources>
+    <!-- Google custom App Actions currently support en-US query patterns only. -->
+    <string-array name="app_action_artist_radio_queries">
+        <item>play $artist radio</item>
+        <item>start $artist radio</item>
+    </string-array>
+    <string-array name="app_action_artist_queries">
+        <item>play the artist $artist</item>
+        <item>play artist $artist</item>
+    </string-array>
+    <string-array name="app_action_album_queries">
+        <item>play the album $album</item>
+        <item>play album $album</item>
+    </string-array>
+    <string-array name="app_action_playlist_queries">
+        <item>start the playlist $playlist</item>
+        <item>play the playlist $playlist</item>
+    </string-array>
+</resources>
