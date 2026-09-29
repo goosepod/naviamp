@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS download_retention (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  retention_kind TEXT NOT NULL,
+  retention_id TEXT NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, retention_kind, retention_id)
+);
+
+CREATE INDEX IF NOT EXISTS download_retention_track
+ON download_retention(source_id, remote_track_id);
+
+-- Historical manual and policy-owned bytes are indistinguishable. Preserve them all until the
+-- user explicitly changes their retention choice. DISTINCT covers multiple saved qualities.
+INSERT OR IGNORE INTO download_retention(source_id, remote_track_id, retention_kind, retention_id)
+SELECT DISTINCT source_id, remote_track_id, 'Manual', 'legacy'
+FROM downloaded_audio;

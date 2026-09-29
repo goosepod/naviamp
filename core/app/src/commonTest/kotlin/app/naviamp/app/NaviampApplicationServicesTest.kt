@@ -273,6 +273,9 @@ private object EmptyDownloadStore :
     override fun managedKeepDownloadedTrackIds(sourceId: String) = emptySet<String>()
     override fun markManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) = Unit
     override fun unmarkManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) = Unit
+    override fun manuallyRetainedTrackIds(sourceId: String) = emptySet<String>()
+    override fun retainManualTrack(sourceId: String, trackId: String) = Unit
+    override fun releaseTrackRetention(sourceId: String, trackId: String) = Unit
 }
 
 private class RecordingDownloadStore :

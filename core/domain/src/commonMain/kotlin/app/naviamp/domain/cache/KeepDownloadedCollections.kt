@@ -49,6 +49,13 @@ interface KeepDownloadedRepository {
     fun markManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>)
 
     fun unmarkManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>)
+
+    /** Explicit and upgraded manual downloads survive removal from automatic collections. */
+    fun manuallyRetainedTrackIds(sourceId: String): Set<String>
+
+    fun retainManualTrack(sourceId: String, trackId: String)
+
+    fun releaseTrackRetention(sourceId: String, trackId: String)
 }
 
 data class KeepDownloadedReconciliationPlan(
@@ -63,6 +70,7 @@ fun planKeepDownloadedReconciliation(
     downloadedTrackIds: Set<String>,
     managedTrackIds: Set<String>,
     trackIdsRequiredByOtherPolicies: Set<String>,
+    manuallyRetainedTrackIds: Set<String> = emptySet(),
     removeUnneededFiles: Boolean,
 ): KeepDownloadedReconciliationPlan {
     val distinctTracks = tracks.distinctBy { it.id }
@@ -72,6 +80,7 @@ fun planKeepDownloadedReconciliation(
         (previousTrackIds - nextTrackIds)
             .intersect(managedTrackIds)
             .minus(trackIdsRequiredByOtherPolicies)
+            .minus(manuallyRetainedTrackIds)
     } else {
         emptySet()
     }

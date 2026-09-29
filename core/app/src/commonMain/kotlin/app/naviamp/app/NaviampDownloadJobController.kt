@@ -30,6 +30,7 @@ data class NaviampDownloadRetry(
     val label: String,
     val tracks: List<Track>,
     val replaceExisting: Boolean,
+    val manualRetention: Boolean = true,
 )
 
 fun naviampDownloadPreflightStatus(
@@ -75,14 +76,21 @@ class NaviampDownloadJobController(
 ) {
     private val cancellations = mutableMapOf<String, () -> Unit>()
     private val replacementJobs = mutableSetOf<String>()
+    private val subscriptionJobs = mutableSetOf<String>()
     private var nextJobId = 0L
 
     val currentJobs: List<DownloadJob> get() = jobs()
 
-    fun create(label: String, tracks: List<Track>, replaceExisting: Boolean): DownloadJob? {
+    fun create(
+        label: String,
+        tracks: List<Track>,
+        replaceExisting: Boolean,
+        manualRetention: Boolean = true,
+    ): DownloadJob? {
         val job = createDownloadJob(newJobId(), label, tracks).takeIf { it.items.isNotEmpty() } ?: return null
         setJobs(jobs().withDownloadJob(job))
         if (replaceExisting) replacementJobs += job.id
+        if (!manualRetention) subscriptionJobs += job.id
         return job
     }
 
@@ -94,6 +102,10 @@ class NaviampDownloadJobController(
 
     fun complete(jobId: String) {
         cancellations.remove(jobId)
+        if (jobs().none { it.id == jobId && it.canRetry }) {
+            replacementJobs.remove(jobId)
+            subscriptionJobs.remove(jobId)
+        }
     }
 
     fun update(jobId: String, update: DownloadJobUpdate) {
@@ -114,12 +126,14 @@ class NaviampDownloadJobController(
             label = job.label,
             tracks = job.retryTracks,
             replaceExisting = jobId in replacementJobs,
+            manualRetention = jobId !in subscriptionJobs,
         )
     }
 
     fun dismiss(jobId: String) {
         cancellations.remove(jobId)
         replacementJobs.remove(jobId)
+        subscriptionJobs.remove(jobId)
         setJobs(jobs().filterNot { it.id == jobId })
     }
 
@@ -141,6 +155,7 @@ data class NaviampDownloadExecutionRequest(
     val isActiveNetworkMobileData: Boolean = false,
     val allowMobileDownloads: Boolean = true,
     val includeCompletedCount: Boolean = true,
+    val manualRetention: Boolean = true,
     val refreshDownloadsAfter: (DownloadTracksResult) -> Boolean = ::shouldRefreshDownloadsAfter,
 )
 
@@ -190,7 +205,7 @@ class NaviampDownloadCoordinator<DownloadedFile, DownloadedTrack, Stats>(
                 isActiveNetworkMobileData = request.isActiveNetworkMobileData,
                 allowMobileDownloads = request.allowMobileDownloads,
                 setStatus = setStatus,
-                onJobUpdate = { update -> jobs.update(request.jobId, update) },
+                onJobUpdate = { update -> recordDownloadUpdate(request, update) },
                 loadStats = loadStats,
             )
         } else {
@@ -205,11 +220,18 @@ class NaviampDownloadCoordinator<DownloadedFile, DownloadedTrack, Stats>(
                 allowMobileDownloads = request.allowMobileDownloads,
                 includeCompletedCount = request.includeCompletedCount,
                 setStatus = setStatus,
-                onJobUpdate = { update -> jobs.update(request.jobId, update) },
+                onJobUpdate = { update -> recordDownloadUpdate(request, update) },
                 shouldRefreshDownloads = request.refreshDownloadsAfter,
                 loadStats = loadStats,
             )
         }
+
+    private fun recordDownloadUpdate(request: NaviampDownloadExecutionRequest, update: DownloadJobUpdate) {
+        if (request.manualRetention && update is DownloadJobUpdate.TrackCompleted) {
+            request.sourceId?.let { keepDownloadedRepository.retainManualTrack(it, update.trackId) }
+        }
+        jobs.update(request.jobId, update)
+    }
 
     fun reconcile(
         policy: KeepDownloadedCollectionPolicy,
@@ -236,6 +258,7 @@ class NaviampDownloadCoordinator<DownloadedFile, DownloadedTrack, Stats>(
             downloadedTrackIds = downloadedIds,
             managedTrackIds = keepDownloadedRepository.managedKeepDownloadedTrackIds(policy.sourceId),
             trackIdsRequiredByOtherPolicies = otherRequiredIds,
+            manuallyRetainedTrackIds = keepDownloadedRepository.manuallyRetainedTrackIds(policy.sourceId),
             removeUnneededFiles = policy.removeUnneededFiles,
         )
         keepDownloadedRepository.replaceKeepDownloadedTrackIds(policy, plan.nextTrackIds)

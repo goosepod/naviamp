@@ -37,6 +37,21 @@ class KeepDownloadedCollectionsTest {
         assertEquals(setOf("managed"), plan.trackIdsToRemove)
     }
 
+    @Test
+    fun cleanupPreservesManualDownloadsEvenWhenAnAutomaticCollectionPreviouslyManagedThem() {
+        val plan = planKeepDownloadedReconciliation(
+            tracks = emptyList(),
+            previousTrackIds = setOf("legacy", "manual", "other-policy", "unneeded"),
+            downloadedTrackIds = setOf("legacy", "manual", "other-policy", "unneeded"),
+            managedTrackIds = setOf("legacy", "manual", "other-policy", "unneeded"),
+            trackIdsRequiredByOtherPolicies = setOf("other-policy"),
+            manuallyRetainedTrackIds = setOf("legacy", "manual"),
+            removeUnneededFiles = true,
+        )
+
+        assertEquals(setOf("unneeded"), plan.trackIdsToRemove)
+    }
+
     private fun track(id: String) = Track(
         id = TrackId(id),
         title = id,

@@ -102,6 +102,7 @@ class NaviampCoreDownloadsController(
         tracks: List<Track>,
         replaceExisting: Boolean = false,
         includeCompletedCount: Boolean = true,
+        manualRetention: Boolean = true,
     ): Boolean {
         val provider = providerSource.current()
         val sourceId = currentSourceId()
@@ -117,7 +118,7 @@ class NaviampCoreDownloadsController(
             publishStatus(blocked)
             return false
         }
-        val job = jobController.create(label, tracks, replaceExisting)
+        val job = jobController.create(label, tracks, replaceExisting, manualRetention)
         if (job == null) {
             publishStatus(noTracksToDownloadStatus())
             return false
@@ -142,6 +143,7 @@ class NaviampCoreDownloadsController(
                         allowMobileDownloads = playbackSettings.allowMobileDownloads,
                         isActiveNetworkMobileData = isMobile,
                         includeCompletedCount = includeCompletedCount,
+                        manualRetention = manualRetention,
                     ),
                     onStatus = { message ->
                         if (currentSourceId() == activeSourceId) publishStatus(message)
@@ -289,7 +291,9 @@ class NaviampCoreDownloadsController(
         val application = keepDownloaded.reconcile(policy, tracks)
         reloadPolicies(policy.sourceId)
         application.status?.let(::publishStatus)
-        application.downloadLabel?.let { label -> downloadTracks(label, application.tracksToDownload) }
+        application.downloadLabel?.let { label ->
+            downloadTracks(label, application.tracksToDownload, manualRetention = false)
+        }
         if (application.refreshDownloads) scope.launch { loadSnapshot(policy.sourceId) }
     }
 
@@ -307,7 +311,7 @@ class NaviampCoreDownloadsController(
             publishStatus("Download job cannot be retried.")
             return
         }
-        if (downloadTracks(retry.label, retry.tracks, retry.replaceExisting)) {
+        if (downloadTracks(retry.label, retry.tracks, retry.replaceExisting, manualRetention = retry.manualRetention)) {
             jobController.dismiss(jobId)
             jobSources.remove(jobId)
         }

@@ -41,6 +41,7 @@ data class NaviampCoreDownloadTransferRequest(
     val allowMobileDownloads: Boolean,
     val isActiveNetworkMobileData: Boolean,
     val includeCompletedCount: Boolean,
+    val manualRetention: Boolean = true,
 )
 
 data class NaviampCoreDownloadTransferResult(val refreshDownloads: Boolean)

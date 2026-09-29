@@ -38,4 +38,28 @@ class StorageKeepDownloadedStoreTest {
             driver.close()
         }
     }
+
+    @Test
+    fun manualRetentionIsSourceScopedAndCanBeReleased() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            NaviampStorageDatabase.Schema.create(driver)
+            val store = StorageKeepDownloadedStore(
+                NaviampStorageDatabase(driver).naviampStorageQueries,
+                nowEpochMillis = { 42L },
+            )
+
+            store.retainManualTrack("one", "same-track")
+            store.retainManualTrack("one", "same-track")
+            store.retainManualTrack("two", "same-track")
+            assertEquals(setOf("same-track"), store.manuallyRetainedTrackIds("one"))
+            assertEquals(setOf("same-track"), store.manuallyRetainedTrackIds("two"))
+
+            store.releaseTrackRetention("one", "same-track")
+            assertEquals(emptySet(), store.manuallyRetainedTrackIds("one"))
+            assertEquals(setOf("same-track"), store.manuallyRetainedTrackIds("two"))
+        } finally {
+            driver.close()
+        }
+    }
 }

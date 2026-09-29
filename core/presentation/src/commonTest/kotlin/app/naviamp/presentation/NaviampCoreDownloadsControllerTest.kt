@@ -179,6 +179,7 @@ class NaviampCoreDownloadsControllerTest {
 
         assertEquals(listOf("favorite"), fixture.keep.reconciledTracks.map { it.id.value })
         assertEquals("Keeping Favorite tracks downloaded", fixture.transfer.requests.single().label)
+        assertFalse(fixture.transfer.requests.single().manualRetention)
         assertTrue(fixture.store.state.value.shell.downloads.keepFavoritesDownloaded)
     }
 
@@ -195,7 +196,23 @@ class NaviampCoreDownloadsControllerTest {
 
         assertEquals(listOf("one", "two"), fixture.keep.reconciledTracks.map { it.id.value })
         assertEquals("Keeping Road Trip downloaded", fixture.transfer.requests.single().label)
+        assertFalse(fixture.transfer.requests.single().manualRetention)
         assertTrue(fixture.keep.policies("source").any { it.collectionId == "road-trip" })
+    }
+
+    @Test
+    fun retryOfSubscriptionDownloadDoesNotTurnItIntoManualRetention() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.transfer.failNext = true
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ToggleKeepFavorites)
+        advanceUntilIdle()
+        val failed = fixture.store.state.value.shell.downloads.jobs.single()
+        fixture.controller.execute(NaviampCoreCommand.Downloads.RetryJob(failed.id))
+        advanceUntilIdle()
+
+        assertEquals(2, fixture.transfer.requests.size)
+        assertTrue(fixture.transfer.requests.none { it.manualRetention })
     }
 
     @Test

@@ -65,6 +65,17 @@ class StorageKeepDownloadedStore(
         queries.transaction { trackIds.forEach { queries.deleteManagedKeepDownloadedTrack(sourceId, it) } }
     }
 
+    override fun manuallyRetainedTrackIds(sourceId: String): Set<String> =
+        queries.selectManualDownloadRetentionTrackIds(sourceId).executeAsList().toSet()
+
+    override fun retainManualTrack(sourceId: String, trackId: String) {
+        queries.insertManualDownloadRetention(sourceId, trackId)
+    }
+
+    override fun releaseTrackRetention(sourceId: String, trackId: String) {
+        queries.deleteDownloadRetentionForTrack(sourceId, trackId)
+    }
+
     private fun toPolicy(row: Keep_downloaded_collection) = KeepDownloadedCollectionPolicy(
         sourceId = row.source_id,
         kind = KeepDownloadedCollectionKind.valueOf(row.collection_kind),

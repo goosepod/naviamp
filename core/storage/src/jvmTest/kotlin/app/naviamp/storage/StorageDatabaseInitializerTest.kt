@@ -1,12 +1,58 @@
 package app.naviamp.storage
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.cash.sqldelight.db.QueryResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class StorageDatabaseInitializerTest {
+    @Test
+    fun existingDownloadsUpgradeWithoutMovingFilesOrLosingMultipleQualities() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            // Recreate main's immediate pre-migration schema from the canonical schema.
+            NaviampStorageDatabase.Schema.create(driver)
+            driver.execute(null, "DROP TABLE download_retention", 0)
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                    username, token, salt, created_at_epoch_millis, authentication_mode)
+                VALUES ('source', 'navidrome', 'cache', 'Server', 'https://example.test',
+                    'user', '', '', 1, 'token')
+            """.trimIndent(), 0)
+            listOf("original" to "/music/original.flac", "transcoded:mp3:192" to "/music/copy.mp3")
+                .forEach { (quality, path) ->
+                    driver.execute(null, """
+                        INSERT INTO downloaded_audio(source_id, remote_track_id, quality_key,
+                            file_path, size_bytes, title, artist_name, downloaded_at_epoch_millis)
+                        VALUES ('source', 'track', '$quality', '$path', 123, 'Song', 'Artist', 2)
+                    """.trimIndent(), 0)
+                }
+            driver.execute(null, "PRAGMA user_version = 27", 0)
+
+            val database = initializeNaviampStorageDatabase(driver)
+            val downloads = database.naviampStorageQueries.selectDownloadedAudio("source").executeAsList()
+            assertEquals(setOf("/music/original.flac", "/music/copy.mp3"), downloads.map { it.file_path }.toSet())
+            assertEquals(246L, downloads.sumOf { it.size_bytes })
+            val retained = driver.executeQuery(null,
+                "SELECT source_id, remote_track_id, retention_kind, retention_id FROM download_retention",
+                mapper = { cursor ->
+                    val rows = mutableListOf<List<String>>()
+                    while (cursor.next().value) {
+                        rows += (0..3).map { index -> requireNotNull(cursor.getString(index)) }
+                    }
+                    QueryResult.Value(rows)
+                },
+                parameters = 0,
+            ).value
+            assertEquals(listOf(listOf("source", "track", "Manual", "legacy")), retained)
+            assertEquals(NaviampStorageSchema.version, driver.userVersion())
+        } finally {
+            driver.close()
+        }
+    }
+
     @Test
     fun versionTwentySixAddsAuthenticationModeAndPreservesSavedCredentials() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
