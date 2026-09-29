@@ -85,5 +85,7 @@ The first shared foundation is in progress on `feature/150-artist-album-download
 - Reconciliation preserves a managed track when manual retention or another policy still requires it.
   Explicit removal releases retention only after the stored download is gone.
 - JVM tests cover migration, source isolation, overlap, and retry classification. Artist and album
-  subscription discovery, large-download planning, persisted jobs, UI, cross-platform compilation,
-  and an actual previous-release database fixture remain outstanding.
+  favorite catalog enumeration tests now cover complete pages, explicit bounds, unsupported
+  providers, and Navidrome/Jellyfin mapping. Subscription selection and planning, persisted jobs,
+  UI, cross-platform compilation, and an actual previous-release database fixture remain
+  outstanding.

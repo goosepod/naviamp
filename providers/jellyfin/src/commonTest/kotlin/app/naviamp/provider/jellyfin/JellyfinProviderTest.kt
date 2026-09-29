@@ -24,6 +24,18 @@ import kotlin.test.assertFailsWith
 
 class JellyfinProviderTest {
     @Test
+    fun favoriteDownloadPagesRequestFilteredAlbumsAndArtists() = runTest {
+        val fixture = fixture(responses = mapOf(
+            "includeItemTypes=MusicAlbum" to """{"Items":[{"Id":"album","Name":"Album"}],"TotalRecordCount":1}""",
+            "includeItemTypes=MusicArtist" to """{"Items":[{"Id":"artist","Name":"Artist"}],"TotalRecordCount":1}""",
+        ))
+
+        assertEquals("album", fixture.provider.favoriteAlbumsPage(MediaPageRequest(limit = 2)).items.single().id.value)
+        assertEquals("artist", fixture.provider.favoriteArtistsPage(MediaPageRequest(limit = 2)).items.single().id.value)
+        assertTrue(fixture.http.requestedUrls.all { "isFavorite=true" in it })
+    }
+
+    @Test
     fun appearanceQueryFailureKeepsPrimaryDiscographyAvailable() = runTest {
         val fixture = fixture(responses = mapOf(
             "/Items/artist?" to """{"Id":"artist","Name":"Artist"}""",

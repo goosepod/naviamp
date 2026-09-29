@@ -34,6 +34,7 @@ import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaPage
 import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.provider.toMediaPage
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.ProviderMediaByteResponse
 import app.naviamp.domain.provider.MediaSearchResults
@@ -941,6 +942,20 @@ class NavidromeProvider(
     override suspend fun favoriteArtists(limit: Int): List<Artist> =
         starredSnapshot().flatMap { it.arrayValue("artist") }
             .mapNotNull { (it as? JsonObject)?.toArtist() }.distinctBy { it.id }.take(limit)
+
+    override suspend fun favoriteArtistsPage(request: MediaPageRequest): MediaPage<Artist> =
+        request.toMediaPage(
+            starredSnapshot().flatMap { it.arrayValue("artist") }
+                .mapNotNull { (it as? JsonObject)?.toArtist() }.distinctBy { it.id }
+                .drop(request.offset).take(request.limit),
+        )
+
+    override suspend fun favoriteAlbumsPage(request: MediaPageRequest): MediaPage<Album> =
+        request.toMediaPage(
+            starredSnapshot().flatMap { it.arrayValue("album") }
+                .mapNotNull { (it as? JsonObject)?.toAlbum() }.distinctBy { it.id }
+                .drop(request.offset).take(request.limit),
+        )
     private suspend fun playlistTracksForMusicFolder(playlistId: String, musicFolderId: String?): List<Track> {
         val response = get(
             endpoint = "getPlaylist.view",

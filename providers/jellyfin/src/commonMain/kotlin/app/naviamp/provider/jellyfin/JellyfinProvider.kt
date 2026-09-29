@@ -148,10 +148,21 @@ class JellyfinProvider(
         )
         }
 
+    override suspend fun favoriteArtistsPage(request: MediaPageRequest): MediaPage<Artist> =
+        itemPage(
+            request = request,
+            includeItemTypes = "MusicArtist",
+            extraParameters = listOf("isFavorite" to "true"),
+            mapper = { it.toArtist() },
+        )
+
     override suspend fun albums(limit: Int, offset: Int): List<Album> =
         albumsPage(MediaPageRequest(offset = offset, limit = limit.coerceIn(1, 200))).items
 
     override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> = albumPage(request)
+
+    override suspend fun favoriteAlbumsPage(request: MediaPageRequest): MediaPage<Album> =
+        albumPage(request, extraParameters = listOf("isFavorite" to "true"))
 
     override suspend fun albumList(type: AlbumListType, limit: Int): List<Album> {
         val request = MediaPageRequest(limit = limit.coerceIn(1, 200))
