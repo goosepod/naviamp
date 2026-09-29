@@ -123,6 +123,7 @@ fun NaviampSharedAppShell(
     val artistDetail = uiState.artistDetail
     val playlistDetail = uiState.playlistDetail
     val remoteNowPlaying = uiState.connect.remoteNowPlaying.takeUnless { castOutput.selected }
+    var radioDjCreationOpen by remember { mutableStateOf(false) }
     val nowPlaying = (remoteNowPlaying ?: uiState.nowPlaying)?.withSelectedRemoteOutput(uiState.connect)
         ?.withCastOutput(
             castOutput,
@@ -136,6 +137,7 @@ fun NaviampSharedAppShell(
         actions.nowPlayingActions
     }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
         .withCastOutputActions(castOutput, onCastPicker, onCastSelectLocal)
+        .copy(onCreateRadioDj = { radioDjCreationOpen = true })
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     PreloadNaviampNowPlayingArtwork(nowPlaying)
     val supportsDownloads = shellChrome.supportsDownloads
@@ -335,6 +337,7 @@ fun NaviampSharedAppShell(
                             castOutput = castOutput,
                             onCastPicker = onCastPicker,
                             onCastSelectLocal = onCastSelectLocal,
+                            onCreateRadioDj = { radioDjCreationOpen = true },
                         )
                     }
                 }
@@ -361,6 +364,14 @@ fun NaviampSharedAppShell(
                     )
                 }
             }
+        }
+        if (radioDjCreationOpen) {
+            NaviampRadioDjCreationDialog(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                onPlaybackSettingsChanged = valueActions.onPlaybackSettingsChanged,
+                onDismissRequest = { radioDjCreationOpen = false },
+            )
         }
         uiState.connect.sourceMismatchRecovery?.let { recovery ->
             NaviampConnectSourceMismatchDialog(
@@ -461,6 +472,7 @@ internal fun ConnectedContent(
     castOutput: NaviampCastOutputUi = NaviampCastOutputUi(),
     onCastPicker: () -> Unit = {},
     onCastSelectLocal: () -> Unit = {},
+    onCreateRadioDj: () -> Unit = {},
 ) {
     val connectionActions = actions.connectionActions
     val valueActions = actions.valueActions
@@ -515,6 +527,7 @@ internal fun ConnectedContent(
         actions.nowPlayingActions
     }).withSelectedRemoteOutputAction(uiState.connect, connectActions)
         .withCastOutputActions(castOutput, onCastPicker, onCastSelectLocal)
+        .copy(onCreateRadioDj = onCreateRadioDj)
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen

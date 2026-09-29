@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_radio_new_dj">新しいDJ</string>
     <string name="tv_percentage_value">%1$d%</string>
     <string name="tv_album_sort_order">アルバムの並び順</string>
     <string name="tv_album_sort_order_description">アーティストのリリースの並び順を選択</string>

@@ -181,6 +181,7 @@ data class NaviampNowPlayingActions(
     val onPlaylistMembershipRetried: () -> Unit = {},
     val onPlaylistMembershipApplied: () -> Unit = {},
     val onPlaylistMembershipDismissed: () -> Unit = {},
+    val onCreateRadioDj: () -> Unit = {},
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -1213,8 +1214,26 @@ private fun NowPlayingDetails(
                                     )
                                 }
                             }
+                            NaviampDropdownMenuItem(
+                                label = stringResource(Res.string.settings_radio_new_dj),
+                                icon = NaviampIcons.Turntable,
+                                enabled = true,
+                                onClick = {
+                                    radioDjMenuExpanded = false
+                                    actions.onCreateRadioDj()
+                                },
+                            )
                         }
                     }
+                    NaviampTransportIconButton(
+                        enabled = true,
+                        icon = NaviampIcons.Plus,
+                        contentDescription = stringResource(Res.string.settings_radio_new_dj),
+                        colors = colors,
+                        buttonSize = bottomActionButtonSize,
+                        iconSize = bottomActionIconSize,
+                        onClick = actions.onCreateRadioDj,
+                    )
                 }
                 if (showCollapse) Box(modifier = Modifier.align(Alignment.Center)) {
                     NaviampTooltip("Collapse player", colors) {
