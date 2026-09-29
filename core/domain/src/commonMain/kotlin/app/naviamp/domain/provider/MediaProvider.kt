@@ -34,8 +34,12 @@ interface MediaProvider {
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
+    /** Complete paged album membership for downloads; null when the source cannot guarantee it. */
+    suspend fun albumTracksPage(albumId: AlbumId, request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun albumInfo(albumId: AlbumId): AlbumInfo? = null
     suspend fun artist(artistId: ArtistId): ArtistDetails
+    /** Primary artist releases only, paged so large catalogs cannot be silently truncated. */
+    suspend fun artistAlbumsPage(artistId: ArtistId, request: MediaPageRequest): MediaPage<Album>? = null
     suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography =
         ArtistDiscography(primary = artist(artistId))
     suspend fun artists(limit: Int = 50): List<Artist>

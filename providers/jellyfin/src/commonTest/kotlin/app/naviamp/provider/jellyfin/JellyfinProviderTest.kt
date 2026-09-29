@@ -36,6 +36,24 @@ class JellyfinProviderTest {
     }
 
     @Test
+    fun downloadMemberPagesUseAlbumAndArtistFiltersWithoutDetailLimits() = runTest {
+        val fixture = fixture(responses = mapOf(
+            "includeItemTypes=Audio" to """{"Items":[{"Id":"track","Name":"Track"}],"TotalRecordCount":401}""",
+            "includeItemTypes=MusicAlbum" to """{"Items":[{"Id":"album","Name":"Album"}],"TotalRecordCount":301}""",
+        ))
+
+        val tracks = fixture.provider.albumTracksPage(AlbumId("album"), MediaPageRequest(offset = 200, limit = 200))
+        val albums = fixture.provider.artistAlbumsPage(ArtistId("artist"), MediaPageRequest(offset = 200, limit = 200))
+
+        assertEquals("track", tracks.items.single().id.value)
+        assertTrue(tracks.hasMore)
+        assertEquals("album", albums.items.single().id.value)
+        assertTrue(albums.hasMore)
+        assertTrue(fixture.http.requestedUrls.any { "parentId=album" in it && "startIndex=200" in it })
+        assertTrue(fixture.http.requestedUrls.any { "albumArtistIds=artist" in it && "startIndex=200" in it })
+    }
+
+    @Test
     fun appearanceQueryFailureKeepsPrimaryDiscographyAvailable() = runTest {
         val fixture = fixture(responses = mapOf(
             "/Items/artist?" to """{"Id":"artist","Name":"Artist"}""",

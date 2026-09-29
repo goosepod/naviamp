@@ -86,6 +86,11 @@ The first shared foundation is in progress on `feature/150-artist-album-download
   Explicit removal releases retention only after the stored download is gone.
 - JVM tests cover migration, source isolation, overlap, and retry classification. Artist and album
   favorite catalog enumeration tests now cover complete pages, explicit bounds, unsupported
-  providers, and Navidrome/Jellyfin mapping. Subscription selection and planning, persisted jobs,
+  providers, and Navidrome/Jellyfin mapping. Subscription selection, persisted jobs,
   UI, cross-platform compilation, and an actual previous-release database fixture remain
   outstanding.
+- Complete album-track and primary artist-album pages now feed a shared preview planner. It
+  deduplicates overlapping tracks, counts existing downloads, estimates new bytes when metadata
+  permits, and rejects catalogs over 200 artist albums or 2,000 tracks before transfer. Provider
+  fixtures verify the paged member queries. The preview still needs shared UI and subscription
+  dispatch before it can be used by listeners.

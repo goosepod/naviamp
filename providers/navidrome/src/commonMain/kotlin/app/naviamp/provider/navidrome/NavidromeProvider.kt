@@ -361,8 +361,14 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun albumTracksPage(albumId: AlbumId, request: MediaPageRequest): MediaPage<Track> =
+        request.toMediaPage(album(albumId).tracks.drop(request.offset).take(request.limit))
+
     override suspend fun artist(artistId: ArtistId): ArtistDetails =
         loadArtistCatalog(artistId).primary
+
+    override suspend fun artistAlbumsPage(artistId: ArtistId, request: MediaPageRequest): MediaPage<Album> =
+        request.toMediaPage(artist(artistId).albums.drop(request.offset).take(request.limit))
 
     override suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography {
         val catalog = loadArtistCatalog(artistId)

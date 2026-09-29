@@ -348,6 +348,9 @@ class JellyfinProvider(
         return AlbumDetails(albumObject.toAlbum(), tracks)
     }
 
+    override suspend fun albumTracksPage(albumId: AlbumId, request: MediaPageRequest): MediaPage<Track> =
+        trackPage(request = request, parentId = albumId.value)
+
     override suspend fun artist(artistId: ArtistId): ArtistDetails {
         val artistObject = item(artistId.value)
         val albums = albumPage(
@@ -356,6 +359,9 @@ class JellyfinProvider(
         ).items
         return ArtistDetails(artistObject.toArtist(), albums)
     }
+
+    override suspend fun artistAlbumsPage(artistId: ArtistId, request: MediaPageRequest): MediaPage<Album> =
+        albumPage(request = request, albumArtistId = artistId.value)
 
     override suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography {
         val artistObject = item(artistId.value)
