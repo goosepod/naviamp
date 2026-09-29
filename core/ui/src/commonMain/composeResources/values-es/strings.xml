@@ -952,4 +952,9 @@
     <string name="changelog_280_visualizer">Desliza sobre el visualizador para elegir la visualización anterior o siguiente.</string>
     <string name="changelog_280_improvements">Actualiza opcionalmente el audio en caché de menor calidad por Wi-Fi, navega con más facilidad por el editor de DJ y consulta la lista activa en Reproduciendo.</string>
     <string name="changelog_280_fixes">Se corrigieron el uso alternativo de contraseña de Subsonic, la pausa con la barra espaciadora en escritorio y el texto codificado en descripciones de artistas y álbumes.</string>
+    <string name="voice_no_source">Conéctate a un servidor de música e inténtalo de nuevo.</string>
+    <string name="voice_no_match">No se encontró música que coincida.</string>
+    <string name="voice_ambiguous">Se encontraron varias coincidencias. Di un nombre más específico.</string>
+    <string name="voice_unsupported">La radio de artista no está disponible para esta fuente.</string>
+    <string name="voice_playback_failed">No se pudo iniciar la reproducción. Inténtalo de nuevo.</string>
 </resources>

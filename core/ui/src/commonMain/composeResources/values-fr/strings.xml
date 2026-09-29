@@ -107,4 +107,9 @@
     <string name="changelog_280_visualizer">Balayez le visualiseur pour choisir la visualisation suivante ou précédente.</string>
     <string name="changelog_280_improvements">Actualisez si vous le souhaitez les fichiers audio en cache de moindre qualité sur Wi-Fi, parcourez plus facilement l’éditeur DJ et voyez la playlist active dans Lecture en cours.</string>
     <string name="changelog_280_fixes">Correction du repli sur le mot de passe Subsonic, de la pause avec la barre d’espace sur ordinateur et du texte encodé dans les descriptions d’artistes et d’albums.</string>
+    <string name="voice_no_source">Connectez-vous à un serveur de musique et réessayez.</string>
+    <string name="voice_no_match">Aucune musique correspondante trouvée.</string>
+    <string name="voice_ambiguous">Plusieurs résultats trouvés. Dites un nom plus précis.</string>
+    <string name="voice_unsupported">La radio de cet artiste est indisponible pour cette source.</string>
+    <string name="voice_playback_failed">Impossible de lancer la lecture. Réessayez.</string>
 </resources>

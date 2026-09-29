@@ -107,4 +107,9 @@
     <string name="changelog_280_visualizer">Veeg over de visualizer om de volgende of vorige visualisatie te kiezen.</string>
     <string name="changelog_280_improvements">Vernieuw desgewenst audio in lagere kwaliteit in de cache via wifi, navigeer eenvoudiger door de DJ-editor en zie de actieve afspeellijst in Nu afspelen.</string>
     <string name="changelog_280_fixes">Opgelost: terugvallen op het Subsonic-wachtwoord, pauzeren met de spatiebalk op desktop en gecodeerde tekst in artiest- en albumbeschrijvingen.</string>
+    <string name="voice_no_source">Maak verbinding met een muziekserver en probeer het opnieuw.</string>
+    <string name="voice_no_match">Geen overeenkomende muziek gevonden.</string>
+    <string name="voice_ambiguous">Meerdere resultaten gevonden. Zeg een specifiekere naam.</string>
+    <string name="voice_unsupported">Artiestenradio is niet beschikbaar voor deze bron.</string>
+    <string name="voice_playback_failed">Afspelen kon niet worden gestart. Probeer het opnieuw.</string>
 </resources>

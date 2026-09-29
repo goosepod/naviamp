@@ -107,4 +107,9 @@
     <string name="changelog_280_visualizer">시각화 화면을 스와이프해 다음 또는 이전 시각화를 선택할 수 있습니다.</string>
     <string name="changelog_280_improvements">Wi-Fi에서 낮은 품질의 캐시 오디오를 선택적으로 새로 받고, DJ 편집기를 더 쉽게 탐색하며, 지금 재생 중인 재생목록을 볼 수 있습니다.</string>
     <string name="changelog_280_fixes">Subsonic 비밀번호 대체 인증, 데스크톱 스페이스 키 일시정지, 아티스트 및 앨범 설명의 인코딩된 텍스트를 수정했습니다.</string>
+    <string name="voice_no_source">음악 서버에 연결한 후 다시 시도하세요.</string>
+    <string name="voice_no_match">일치하는 음악을 찾지 못했습니다.</string>
+    <string name="voice_ambiguous">여러 결과를 찾았습니다. 더 구체적인 이름을 말하세요.</string>
+    <string name="voice_unsupported">이 소스에서는 아티스트 라디오를 사용할 수 없습니다.</string>
+    <string name="voice_playback_failed">재생을 시작하지 못했습니다. 다시 시도하세요.</string>
 </resources>

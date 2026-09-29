@@ -293,7 +293,7 @@ class NaviampCorePlaylistTransactionController(
         return provider
     }
 
-    private suspend fun recordPlayed(playlistId: String) {
+    internal suspend fun recordPlayed(playlistId: String) {
         val current = stateStore.state.value.shell.playlists.recentPlaylistIds
         val updated = history.recordPlayed(current, playlistId)
         stateStore.updateShell { shell ->

@@ -107,4 +107,9 @@
     <string name="changelog_280_visualizer">Проведите пальцем по визуализатору, чтобы выбрать следующую или предыдущую визуализацию.</string>
     <string name="changelog_280_improvements">По желанию обновляйте аудио низкого качества в кеше через Wi-Fi, проще перемещайтесь по редактору DJ и смотрите активный плейлист на экране воспроизведения.</string>
     <string name="changelog_280_fixes">Исправлены переход на пароль Subsonic, пауза по пробелу на компьютере и кодированный текст в описаниях исполнителей и альбомов.</string>
+    <string name="voice_no_source">Подключитесь к музыкальному серверу и повторите попытку.</string>
+    <string name="voice_no_match">Подходящая музыка не найдена.</string>
+    <string name="voice_ambiguous">Найдено несколько совпадений. Назовите более точное имя.</string>
+    <string name="voice_unsupported">Радио исполнителя недоступно для этого источника.</string>
+    <string name="voice_playback_failed">Не удалось начать воспроизведение. Повторите попытку.</string>
 </resources>
