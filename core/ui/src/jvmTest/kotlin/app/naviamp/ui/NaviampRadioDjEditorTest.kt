@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
@@ -30,7 +31,7 @@ import kotlin.test.assertFalse
 @OptIn(ExperimentalTestApi::class)
 class NaviampRadioDjEditorTest {
     @Test
-    fun compactPlayerOpensDjEditorDirectly() = runDesktopComposeUiTest(width = 360, height = 640) {
+    fun compactPlayerOpensDjEditorFromMenu() = runDesktopComposeUiTest(width = 360, height = 640) {
         val editorOpen = mutableStateOf(false)
         setContent {
             NaviampNowPlayingPanel(
@@ -49,7 +50,9 @@ class NaviampRadioDjEditorTest {
             }
         }
 
-        onNodeWithContentDescription("New DJ").performClick()
+        onAllNodesWithContentDescription("New DJ").assertCountEquals(0)
+        onNodeWithContentDescription("DJs").performClick()
+        onNodeWithText("Create new DJ").performClick()
         onNodeWithText("DJ name").assertExists()
         onNodeWithText("Cancel").performScrollTo().performClick()
         assertFalse(editorOpen.value)
@@ -92,7 +95,8 @@ class NaviampRadioDjEditorTest {
             }
         }
 
-        onNodeWithContentDescription("New DJ").performClick()
+        onNodeWithContentDescription("DJs").performClick()
+        onNodeWithText("Create new DJ").performClick()
         onNodeWithText("DJ name").performTextInput("Evening")
         onNodeWithText("Save").performClick()
         waitForIdle()

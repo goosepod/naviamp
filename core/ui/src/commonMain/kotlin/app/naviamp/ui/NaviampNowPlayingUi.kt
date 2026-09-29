@@ -1227,15 +1227,6 @@ private fun NowPlayingDetails(
                             )
                         }
                     }
-                    NaviampTransportIconButton(
-                        enabled = true,
-                        icon = NaviampIcons.Plus,
-                        contentDescription = stringResource(Res.string.settings_radio_new_dj),
-                        colors = colors,
-                        buttonSize = bottomActionButtonSize,
-                        iconSize = bottomActionIconSize,
-                        onClick = actions.onCreateRadioDj,
-                    )
                 }
                 if (showCollapse) Box(modifier = Modifier.align(Alignment.Center)) {
                     NaviampTooltip("Collapse player", colors) {
