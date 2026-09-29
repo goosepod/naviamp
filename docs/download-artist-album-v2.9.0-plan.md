@@ -97,5 +97,7 @@ The first shared foundation is in progress on `feature/150-artist-album-download
   tracks, existing downloads, and estimated new bytes before confirmation; confirmation persists
   the policy and starts reconciliation. Removing the policy leaves existing files in place.
   Storage and controller tests cover policy recreation, preview gating, source isolation, and
-  oversized artist rejection. Persisted jobs, a previous-release database fixture, and full
-  Android/iOS verification remain outstanding.
+  oversized artist rejection. A fixture derived from the v2.8.0 release schema now verifies
+  paths, byte counts, album metadata, overlapping policy membership, and idempotent startup.
+  Shared Android, JVM, and iOS simulator builds pass. Persisted transfer jobs and physical-file
+  cold-launch checks remain outstanding.

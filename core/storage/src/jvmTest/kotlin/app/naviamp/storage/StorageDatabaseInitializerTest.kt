@@ -9,6 +9,39 @@ import kotlin.test.assertTrue
 
 class StorageDatabaseInitializerTest {
     @Test
+    fun v280ReleaseDatabasePreservesDownloadsAndOverlappingMemberships() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            val releaseSql = checkNotNull(javaClass.getResource("/v2.8.0-download-upgrade.sql"))
+                .readText()
+            releaseSql.split(';').map(String::trim).filter(String::isNotEmpty).forEach { statement ->
+                driver.execute(null, statement, 0)
+            }
+
+            val database = initializeNaviampStorageDatabase(driver)
+            val queries = database.naviampStorageQueries
+            val downloads = queries.selectDownloadedAudio("source").executeAsList()
+            assertEquals(setOf("/fixture/one.flac", "/fixture/one.mp3", "/fixture/two.flac"),
+                downloads.map { it.file_path }.toSet())
+            assertEquals(300L, downloads.sumOf { it.size_bytes })
+            assertEquals(setOf("album"), downloads.mapNotNull { it.album_id }.toSet())
+            val store = StorageKeepDownloadedStore(queries, nowEpochMillis = { 7L })
+            assertEquals(setOf("one", "two"), store.manuallyRetainedTrackIds("source"))
+            assertEquals(setOf("one"), store.managedKeepDownloadedTrackIds("source"))
+            assertEquals(setOf("one", "two"), store.keepDownloadedTrackIds(
+                "source", app.naviamp.domain.cache.KeepDownloadedCollectionKind.Playlist, "playlist"))
+            assertEquals(setOf("one"), store.keepDownloadedTrackIds(
+                "source", app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites, "favorite-tracks"))
+
+            initializeNaviampStorageDatabase(driver)
+            assertEquals(setOf("one", "two"), store.manuallyRetainedTrackIds("source"))
+            assertEquals(3, queries.selectDownloadedAudio("source").executeAsList().size)
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
     fun existingDownloadsUpgradeWithoutMovingFilesOrLosingMultipleQualities() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {

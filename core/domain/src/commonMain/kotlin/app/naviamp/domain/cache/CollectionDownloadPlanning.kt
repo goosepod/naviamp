@@ -74,7 +74,9 @@ suspend fun planArtistDownload(
             maximumItems = remaining,
             loadPage = { request -> loadTracksPage(album.id, request) },
         )) {
-            is FavoriteDownloadCatalog.Complete -> catalog.items.forEach { track -> tracks.putIfAbsent(track.id, track) }
+            is FavoriteDownloadCatalog.Complete -> catalog.items.forEach { track ->
+                if (track.id !in tracks) tracks[track.id] = track
+            }
             is FavoriteDownloadCatalog.TooLarge -> return CollectionDownloadPlanningResult.TooLarge(MaximumSubscribedCollectionTracks)
             FavoriteDownloadCatalog.Unsupported -> return CollectionDownloadPlanningResult.Unsupported
         }
