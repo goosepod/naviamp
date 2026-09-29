@@ -325,6 +325,7 @@
     <string name="settings_radio_same_artist_run">Racha del mismo artista</string>
     <string name="settings_radio_other_artists_run">Racha de otros artistas</string>
     <string name="settings_radio_new_dj">Nuevo DJ</string>
+    <string name="settings_radio_create_dj">Crear nuevo DJ</string>
     <string name="settings_radio_edit_dj_subtitle">Ajuste de Radio DJ</string>
     <string name="settings_radio_dj_name">Nombre del DJ</string>
     <string name="settings_radio_no_djs">No hay DJs guardados.</string>

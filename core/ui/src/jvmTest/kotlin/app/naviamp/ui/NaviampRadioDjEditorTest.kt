@@ -62,7 +62,13 @@ class NaviampRadioDjEditorTest {
         var playbackCommands = 0
         setContent {
             NaviampNowPlayingPanel(
-                nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Playing"),
+                nowPlaying = NowPlayingUi(
+                    id = "song",
+                    title = "Song",
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    radioDjs = settings.value.radioDjs,
+                ),
                 colors = NaviampColors.Dark,
                 actions = NaviampNowPlayingActions(
                     onPlaybackAction = { playbackCommands++ },
@@ -95,7 +101,8 @@ class NaviampRadioDjEditorTest {
         assertEquals(0, playbackCommands)
 
         onNodeWithContentDescription("DJs").performClick()
-        onNodeWithText("New DJ").performClick()
+        onNodeWithText("Evening").assertExists()
+        onNodeWithText("Create new DJ").performClick()
         onNodeWithText("Cancel").performClick()
         waitForIdle()
         assertEquals(1, settings.value.radioDjs.size)

@@ -538,6 +538,7 @@ class NaviampCorePlaybackController(
     }
 
     fun playbackSettingsChanged(previous: PlaybackSettings, current: PlaybackSettings) {
+        presenter.publish(display)
         if (previous.effectiveSonicSimilarityEnabled() == current.effectiveSonicSimilarityEnabled()) return
         sidecarTrackId = null
         loadCurrentTrackSidecars()

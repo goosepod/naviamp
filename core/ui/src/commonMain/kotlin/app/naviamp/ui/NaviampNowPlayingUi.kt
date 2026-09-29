@@ -48,6 +48,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -1214,9 +1215,10 @@ private fun NowPlayingDetails(
                                     )
                                 }
                             }
+                            HorizontalDivider()
                             NaviampDropdownMenuItem(
-                                label = stringResource(Res.string.settings_radio_new_dj),
-                                icon = NaviampIcons.Turntable,
+                                label = stringResource(Res.string.settings_radio_create_dj),
+                                icon = NaviampIcons.Plus,
                                 enabled = true,
                                 onClick = {
                                     radioDjMenuExpanded = false

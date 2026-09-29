@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_radio_new_dj">DJ baru</string>
+    <string name="settings_radio_create_dj">Buat DJ baru</string>
     <string name="tv_percentage_value">%1$d%</string>
     <string name="tv_album_sort_order">Urutan album</string>
     <string name="tv_album_sort_order_description">Pilih urutan rilisan artis</string>
