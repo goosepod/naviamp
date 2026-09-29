@@ -66,6 +66,7 @@ class NaviampCoreDownloadsController(
     private var downloadedTracks = emptyList<NaviampCoreDownloadedTrack>()
     private var policies = emptyList<KeepDownloadedCollectionPolicy>()
     private var pendingCollection: PendingCollectionDownload? = null
+    private var pendingRemoval: KeepDownloadedCollectionPolicy? = null
     private var jobs = emptyList<app.naviamp.domain.cache.DownloadJob>()
     private var snapshotGeneration = 0L
     private val jobSources = mutableMapOf<String, String>()
@@ -99,6 +100,7 @@ class NaviampCoreDownloadsController(
         downloadedTracks = emptyList()
         policies = emptyList()
         pendingCollection = null
+        pendingRemoval = null
         stateStore.updateShell { shell -> shell.copy(downloads = app.naviamp.ui.NaviampDownloadsScreenUi()) }
     }
 
@@ -113,6 +115,7 @@ class NaviampCoreDownloadsController(
             is NaviampCoreCommand.Downloads.PrepareArtist ->
                 prepareCollection(KeepDownloadedCollectionKind.Artist, command.id, command.title)
             NaviampCoreCommand.Downloads.ConfirmCollection -> confirmCollection()
+            is NaviampCoreCommand.Downloads.StopCollection -> stopKeepingCollection(command.removeUnneededFiles)
             NaviampCoreCommand.Downloads.DismissCollection -> dismissCollection()
             is NaviampCoreCommand.Downloads.TrackAction -> executeTrackAction(command.request)
             is NaviampCoreCommand.Downloads.CancelJob -> cancel(command.id)
@@ -135,9 +138,13 @@ class NaviampCoreDownloadsController(
             else -> return
         }
         if (keepDownloaded.policies(sourceId).any { it.kind == kind && it.collectionId == id }) {
-            keepDownloaded.toggle(policy)
-            reloadPolicies(sourceId)
-            publishStatus(keepDownloadedDisabledStatus(title))
+            pendingRemoval = policy
+            stateStore.updateShell { shell ->
+                shell.copy(downloads = shell.downloads.copy(collectionRemoval =
+                    app.naviamp.ui.NaviampCollectionDownloadRemovalUi(title,
+                        if (kind == KeepDownloadedCollectionKind.Album) NaviampCollectionDownloadKind.Album
+                        else NaviampCollectionDownloadKind.Artist)))
+            }
             return
         }
         if (!loadSnapshot(sourceId)) return
@@ -196,8 +203,27 @@ class NaviampCoreDownloadsController(
 
     private fun dismissCollection() {
         pendingCollection = null
+        pendingRemoval = null
         stateStore.updateShell { shell ->
-            shell.copy(downloads = shell.downloads.copy(collectionPreview = null))
+            shell.copy(downloads = shell.downloads.copy(collectionPreview = null, collectionRemoval = null))
+        }
+    }
+
+    private suspend fun stopKeepingCollection(removeUnneededFiles: Boolean) {
+        val policy = pendingRemoval ?: return dismissCollection()
+        dismissCollection()
+        if (currentSourceId() != policy.sourceId) return
+        if (keepDownloaded.policies(policy.sourceId).none {
+                it.kind == policy.kind && it.collectionId == policy.collectionId
+            }) return
+        if (removeUnneededFiles) {
+            runCatching { keepDownloaded.reconcile(policy.copy(removeUnneededFiles = true), emptyList()) }
+                .onFailure { publishStatus(keepDownloadedRefreshErrorStatus(policy.name, it)); return }
+        }
+        if (keepDownloaded.toggle(policy) == NaviampKeepDownloadedToggleResult.Disabled) {
+            reloadPolicies(policy.sourceId)
+            if (removeUnneededFiles) loadSnapshot(policy.sourceId)
+            publishStatus(keepDownloadedDisabledStatus(policy.name))
         }
     }
 

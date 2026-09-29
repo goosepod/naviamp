@@ -99,6 +99,10 @@
     <string name="album_artwork_album">Copertina dell’album</string>
     <string name="album_settings">Impostazioni album</string>
     <string name="album_settings_description">Scegli quali impostazioni personalizzare per questo album. I valori ereditati seguono le impostazioni globali.</string>
+    <string name="download_stop_title">Interrompere il download permanente di %1$s?</string>
+    <string name="download_stop_summary">I file esistenti possono restare sul dispositivo o essere rimossi se non servono altrove.</string>
+    <string name="download_stop_keep_files">Conserva i file</string>
+    <string name="download_stop_remove_files">Rimuovi i file non necessari</string>
     <string name="download_stop_keeping_collection">Interrompi il mantenimento del download</string>
     <string name="download_keep_collection">Mantieni scaricato</string>
     <string name="download_preview_title">Mantenere %1$s scaricato?</string>

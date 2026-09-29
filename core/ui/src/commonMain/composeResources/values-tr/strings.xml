@@ -99,6 +99,10 @@
     <string name="album_artwork_album">Albüm kapağı</string>
     <string name="album_settings">Albüm ayarları</string>
     <string name="album_settings_description">Bu albümün hangi ayarları geçersiz kılacağını seçin. Devralınan değerler genel ayarları izler.</string>
+    <string name="download_stop_title">%1$s indirmesini tutmayı bırak?</string>
+    <string name="download_stop_summary">Mevcut dosyalar bu cihazda kalabilir veya başka bir yerde gerekmiyorsa kaldırılabilir.</string>
+    <string name="download_stop_keep_files">Dosyaları tut</string>
+    <string name="download_stop_remove_files">Gereksiz dosyaları kaldır</string>
     <string name="download_stop_keeping_collection">İndirilenleri tutmayı bırak</string>
     <string name="download_keep_collection">İndirilenleri koru</string>
     <string name="download_preview_title">%1$s indirilmiş olarak tutulsun mu?</string>

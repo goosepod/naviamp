@@ -322,11 +322,14 @@ data class NaviampDownloadsScreenUi(
     val keptAlbumIds: Set<String> = emptySet(),
     val keptArtistIds: Set<String> = emptySet(),
     val collectionPreview: NaviampCollectionDownloadPreviewUi? = null,
+    val collectionRemoval: NaviampCollectionDownloadRemovalUi? = null,
 )
 
 enum class NaviampCollectionDownloadKind { Album, Artist }
 
 enum class NaviampCollectionDownloadPreviewError { TooLarge, Unsupported, Empty, StorageLimit }
+
+data class NaviampCollectionDownloadRemovalUi(val title: String, val kind: NaviampCollectionDownloadKind)
 
 data class NaviampCollectionDownloadPreviewUi(
     val title: String,
@@ -349,6 +352,7 @@ data class NaviampDownloadsActions(
     val onToggleKeepFavoritesDownloaded: () -> Unit,
     val onDeleteAll: () -> Unit,
     val onConfirmCollection: () -> Unit = {},
+    val onStopCollection: (Boolean) -> Unit = {},
     val onDismissCollection: () -> Unit = {},
 )
 

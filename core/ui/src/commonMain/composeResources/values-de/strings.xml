@@ -931,6 +931,10 @@
     </plurals>
     <string name="album_settings">Albumeinstellungen</string>
     <string name="album_settings_description">Wähle, welche Einstellungen dieses Album überschreibt. Übernommene Werte folgen den globalen Einstellungen.</string>
+    <string name="download_stop_title">%1$s nicht mehr heruntergeladen halten?</string>
+    <string name="download_stop_summary">Vorhandene Dateien können auf diesem Gerät bleiben oder entfernt werden, wenn sie nicht anderweitig benötigt werden.</string>
+    <string name="download_stop_keep_files">Dateien behalten</string>
+    <string name="download_stop_remove_files">Nicht benötigte Dateien entfernen</string>
     <string name="download_stop_keeping_collection">Nicht mehr heruntergeladen halten</string>
     <string name="download_keep_collection">Heruntergeladen behalten</string>
     <string name="download_preview_title">%1$s heruntergeladen behalten?</string>

@@ -99,6 +99,10 @@
     <string name="album_artwork_album">Albumhoes</string>
     <string name="album_settings">Albuminstellingen</string>
     <string name="album_settings_description">Kies welke instellingen dit album overschrijft. Overgenomen waarden volgen de algemene instellingen.</string>
+    <string name="download_stop_title">%1$s niet meer gedownload houden?</string>
+    <string name="download_stop_summary">Bestaande bestanden kunnen op dit apparaat blijven of worden verwijderd als ze nergens anders voor nodig zijn.</string>
+    <string name="download_stop_keep_files">Bestanden behouden</string>
+    <string name="download_stop_remove_files">Onnodige bestanden verwijderen</string>
     <string name="download_stop_keeping_collection">Niet meer gedownload houden</string>
     <string name="download_keep_collection">Gedownload houden</string>
     <string name="download_preview_title">%1$s gedownload houden?</string>

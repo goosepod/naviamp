@@ -185,6 +185,7 @@ fun createNaviampCoreActions(
             onToggleKeepFavoritesDownloaded = { send(NaviampCoreCommand.Downloads.ToggleKeepFavorites) },
             onDeleteAll = { send(NaviampCoreCommand.Downloads.DeleteAll) },
             onConfirmCollection = { send(NaviampCoreCommand.Downloads.ConfirmCollection) },
+            onStopCollection = { send(NaviampCoreCommand.Downloads.StopCollection(it)) },
             onDismissCollection = { send(NaviampCoreCommand.Downloads.DismissCollection) },
         ),
         libraryActions = NaviampLibraryActions(

@@ -99,6 +99,10 @@
     <string name="album_artwork_album">专辑封面</string>
     <string name="album_settings">专辑设置</string>
     <string name="album_settings_description">选择此专辑要覆盖的设置。继承的值遵循全局设置。</string>
+    <string name="download_stop_title">停止保留 %1$s 的下载？</string>
+    <string name="download_stop_summary">现有文件可以留在此设备上，或在其他项目不再需要时删除。</string>
+    <string name="download_stop_keep_files">保留文件</string>
+    <string name="download_stop_remove_files">删除不再需要的文件</string>
     <string name="download_stop_keeping_collection">停止保留下载</string>
     <string name="download_keep_collection">保持下载</string>
     <string name="download_preview_title">保持下载 %1$s？</string>

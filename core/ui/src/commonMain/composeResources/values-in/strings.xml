@@ -99,6 +99,10 @@
     <string name="album_artwork_album">Sampul album</string>
     <string name="album_settings">Pengaturan album</string>
     <string name="album_settings_description">Pilih pengaturan yang diganti untuk album ini. Nilai yang diwarisi mengikuti pengaturan global.</string>
+    <string name="download_stop_title">Berhenti menyimpan unduhan %1$s?</string>
+    <string name="download_stop_summary">File yang ada dapat tetap tersimpan di perangkat ini atau dihapus jika tidak diperlukan lagi.</string>
+    <string name="download_stop_keep_files">Simpan file</string>
+    <string name="download_stop_remove_files">Hapus file yang tidak diperlukan</string>
     <string name="download_stop_keeping_collection">Berhenti menyimpan unduhan</string>
     <string name="download_keep_collection">Simpan unduhan</string>
     <string name="download_preview_title">Simpan %1$s sebagai unduhan?</string>

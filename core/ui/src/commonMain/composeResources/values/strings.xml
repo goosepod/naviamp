@@ -959,6 +959,10 @@
     <string name="album_artwork_album">Album cover</string>
     <string name="album_settings">Album Settings</string>
     <string name="album_settings_description">Choose which settings this album overrides. Inherited values follow your global settings.</string>
+    <string name="download_stop_title">Stop keeping %1$s downloaded?</string>
+    <string name="download_stop_summary">Existing files can stay on this device or be removed when nothing else needs them.</string>
+    <string name="download_stop_keep_files">Keep files</string>
+    <string name="download_stop_remove_files">Remove unneeded files</string>
     <string name="download_stop_keeping_collection">Stop keeping downloaded</string>
     <string name="download_keep_collection">Keep downloaded</string>
     <string name="download_preview_title">Keep %1$s downloaded?</string>

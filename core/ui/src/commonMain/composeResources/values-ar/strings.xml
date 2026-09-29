@@ -99,6 +99,10 @@
     <string name="album_artwork_album">غلاف الألبوم</string>
     <string name="album_settings">إعدادات الألبوم</string>
     <string name="album_settings_description">اختر الإعدادات التي يتجاوزها هذا الألبوم. تتبع القيم الموروثة الإعدادات العامة.</string>
+    <string name="download_stop_title">إيقاف الاحتفاظ بتنزيل %1$s؟</string>
+    <string name="download_stop_summary">يمكن إبقاء الملفات الحالية على هذا الجهاز أو حذفها إذا لم تعد هناك حاجة إليها.</string>
+    <string name="download_stop_keep_files">الاحتفاظ بالملفات</string>
+    <string name="download_stop_remove_files">حذف الملفات غير اللازمة</string>
     <string name="download_stop_keeping_collection">إيقاف الاحتفاظ بالتنزيل</string>
     <string name="download_keep_collection">الاحتفاظ بالتنزيل</string>
     <string name="download_preview_title">هل تريد الاحتفاظ بتنزيل %1$s؟</string>

@@ -37,6 +37,10 @@ import app.naviamp.ui.generated.resources.download_preview_too_large
 import app.naviamp.ui.generated.resources.download_preview_unsupported
 import app.naviamp.ui.generated.resources.download_preview_empty
 import app.naviamp.ui.generated.resources.download_preview_storage_limit
+import app.naviamp.ui.generated.resources.download_stop_title
+import app.naviamp.ui.generated.resources.download_stop_keep_files
+import app.naviamp.ui.generated.resources.download_stop_remove_files
+import app.naviamp.ui.generated.resources.download_stop_summary
 import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ColumnScope.NaviampProductRouteContent(
@@ -398,6 +402,28 @@ fun ColumnScope.NaviampProductRouteContent(
                 }
             },
             dismissButton = {
+                TextButton(onClick = shellActions.downloadsActions.onDismissCollection) {
+                    Text(stringResource(Res.string.common_cancel))
+                }
+            },
+        )
+    }
+    shellState.downloads.collectionRemoval?.let { removal ->
+        NaviampPopupPresence()
+        AlertDialog(
+            onDismissRequest = shellActions.downloadsActions.onDismissCollection,
+            containerColor = colors.controlSurface,
+            title = { Text(stringResource(Res.string.download_stop_title, removal.title), color = colors.primaryText) },
+            text = { Text(stringResource(Res.string.download_stop_summary), color = colors.secondaryText) },
+            confirmButton = {
+                TextButton(onClick = { shellActions.downloadsActions.onStopCollection(false) }) {
+                    Text(stringResource(Res.string.download_stop_keep_files))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { shellActions.downloadsActions.onStopCollection(true) }) {
+                    Text(stringResource(Res.string.download_stop_remove_files))
+                }
                 TextButton(onClick = shellActions.downloadsActions.onDismissCollection) {
                     Text(stringResource(Res.string.common_cancel))
                 }

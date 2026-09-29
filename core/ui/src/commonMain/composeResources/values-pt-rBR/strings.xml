@@ -99,6 +99,10 @@
     <string name="album_artwork_album">Capa do álbum</string>
     <string name="album_settings">Configurações do álbum</string>
     <string name="album_settings_description">Escolha quais configurações este álbum substitui. Os valores herdados seguem as configurações globais.</string>
+    <string name="download_stop_title">Parar de manter %1$s baixado?</string>
+    <string name="download_stop_summary">Os arquivos atuais podem permanecer neste dispositivo ou ser removidos se não forem mais necessários.</string>
+    <string name="download_stop_keep_files">Manter arquivos</string>
+    <string name="download_stop_remove_files">Remover arquivos desnecessários</string>
     <string name="download_stop_keeping_collection">Parar de manter baixado</string>
     <string name="download_keep_collection">Manter baixado</string>
     <string name="download_preview_title">Manter %1$s baixado?</string>

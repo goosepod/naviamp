@@ -95,7 +95,8 @@ The first shared foundation is in progress on `feature/150-artist-album-download
   fixtures verify the paged member queries.
 - Shared album and artist detail actions now show subscription state. A bounded preview counts
   tracks, existing downloads, and estimated new bytes before confirmation; confirmation persists
-  the policy and starts reconciliation. Removing the policy leaves existing files in place.
+  the policy and starts reconciliation. Stopping a subscription asks whether to keep its files or
+  remove files with no other retention reason; upgraded legacy downloads stay protected.
   Storage and controller tests cover policy recreation, preview gating, source isolation, and
   oversized artist rejection. A fixture derived from the v2.8.0 release schema now verifies
   paths, byte counts, album metadata, overlapping policy membership, and idempotent startup.

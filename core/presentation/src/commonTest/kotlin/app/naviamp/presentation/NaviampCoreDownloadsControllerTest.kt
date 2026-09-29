@@ -68,9 +68,28 @@ class NaviampCoreDownloadsControllerTest {
 
         fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareAlbum("album", "Album"))
         advanceUntilIdle()
+        assertEquals("Album", fixture.store.state.value.shell.downloads.collectionRemoval?.title)
+        fixture.controller.execute(NaviampCoreCommand.Downloads.StopCollection(false))
+        advanceUntilIdle()
         assertTrue(fixture.store.state.value.shell.downloads.keptAlbumIds.isEmpty())
         assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Album })
         assertEquals(1, fixture.transfer.requests.size)
+    }
+
+    @Test
+    fun removingSubscriptionFilesReconcilesOnlyAfterExplicitChoice() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        val policy = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Album, "album", "Album")
+        fixture.keep.reconcile(policy, listOf(downloadTrack("one")))
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareAlbum("album", "Album"))
+        advanceUntilIdle()
+        assertTrue(fixture.keep.policies("source").any { it.kind == KeepDownloadedCollectionKind.Album })
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.StopCollection(true))
+        advanceUntilIdle()
+        assertEquals(emptyList(), fixture.keep.reconciledTracks)
+        assertTrue(fixture.keep.lastReconciledPolicy?.removeUnneededFiles == true)
+        assertTrue(fixture.store.state.value.shell.downloads.keptAlbumIds.isEmpty())
     }
 
     @Test
@@ -455,6 +474,7 @@ private class DownloadsTestKeep(
     private val policies = mutableListOf<KeepDownloadedCollectionPolicy>()
     private val saved = mutableMapOf<String, PersistedDownloadJob>()
     var reconciledTracks = emptyList<Track>()
+    var lastReconciledPolicy: KeepDownloadedCollectionPolicy? = null
     init {
         if (initialFavoritesPolicy) policies += favoritePolicy()
         if (initialPlaylistPolicy) policies += playlistPolicy()
@@ -475,6 +495,7 @@ private class DownloadsTestKeep(
     ): NaviampKeepDownloadedReconciliationApplication {
         if (policies.none { it.kind == policy.kind && it.collectionId == policy.collectionId }) policies += policy
         reconciledTracks = tracks
+        lastReconciledPolicy = policy
         return NaviampKeepDownloadedReconciliationApplication(
             tracksToDownload = tracks,
             downloadLabel = "Keeping ${policy.name} downloaded",
