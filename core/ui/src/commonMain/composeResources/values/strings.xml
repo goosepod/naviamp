@@ -897,15 +897,6 @@
     <string name="connect_pairing_code">Pairing code</string>
     <string name="connect_devices_description">Control and pair Naviamp devices on this network</string>
     <string name="connect_setup_timed_out">Device setup timed out. Check the playback device, then retry.</string>
-    <string name="changelog_features">Features</string>
-    <string name="changelog_improvements">Improvements</string>
-    <string name="changelog_bug_fixes">Bug fixes</string>
-    <string name="changelog_known_issues">Known issues</string>
-    <string name="changelog_260_tv">Android TV and Google TV support (beta): browse, search, manage your queue, and play music with a remote. One Android app automatically adapts to phones, tablets, and TVs.</string>
-    <string name="changelog_260_connect">Naviamp Connect (beta): pair Android and desktop devices on your local network to control playback, transfer queues, and set up another device.</string>
-    <string name="changelog_260_screen_awake">Choose whether Naviamp keeps the screen awake while the app is open. The preference is included in settings export, import, and sync.</string>
-    <string name="changelog_260_playback_recovery">Improve playback recovery after audio interruptions and keep interrupted live radio streams available to retry.</string>
-    <string name="changelog_260_beta">Android TV and Naviamp Connect are beta. Device compatibility, network recovery, and performance are still being refined.</string>
     <string name="library_sort_title">Sort albums: Title</string>
     <string name="library_sort_recently_added">Sort albums: Recently added</string>
     <string name="library_sources_choose">Choose libraries</string>
@@ -944,14 +935,6 @@
     <string name="settings_font_size_large_subtitle">Improves readability with larger text.</string>
     <string name="description_less">Less</string>
     <string name="description_more">More…</string>
-    <string name="changelog_270_font_sizes">Choose Small, Standard, or Large text independently for Now Playing and the rest of the interface, while retaining the system accessibility scale.</string>
-    <string name="changelog_270_animations">Scrolling titles and smooth waveform progress now use cached platform surfaces for lower CPU use and smoother animation on Android, iOS, macOS, Windows, and Linux.</string>
-    <string name="changelog_270_library">Recently added albums refresh correctly, Library can sort by date added, and source libraries can be selected from the Library page.</string>
-    <string name="changelog_270_usability">Sonic similarity turns on automatically when supported, swipe actions wait for deliberate horizontal movement, and Android release downloads are smaller.</string>
-    <string name="changelog_270_playback">Navidrome listen reporting is more reliable, and refreshing track radio preserves the current track, position, pause state, and history.</string>
-    <string name="changelog_270_media">Appears On includes track-level artist credits, desktop supports WebP artwork, and synchronized lyrics stay centered and clear between tracks.</string>
-    <string name="changelog_270_beta">Android TV and Naviamp Connect remain beta while device compatibility, network recovery, and performance testing continue.</string>
-    <string name="changelog_271_popups">Fixed popup menus and dialogs jumping, flickering, and responding to clicks in the wrong location.</string>
     <string name="connection_password_required">Enter your password to reconnect this server.</string>
     <string name="connection_api_key_required">Enter an API key.</string>
     <string name="connection_api_key_unsupported">This server does not support API key authentication.</string>
@@ -970,10 +953,9 @@
     <string name="connect_manual_rejected">Reached the address, but the trusted device could not be verified. Check its identity or pair again.</string>
     <string name="connect_manual_reconnect">Reconnect to %1$s at address</string>
     <string name="now_playing_cast_to_device">Cast to a device</string>
-    <string name="changelog_280_cast">Cast online music from Android to a Google Cast receiver, control playback from your phone, and return to local listening at the current position.</string>
-    <string name="changelog_280_connect">Pair Naviamp Connect devices across Tailnets by entering an address, with secure pairing and trusted reconnects.</string>
-    <string name="changelog_280_api_key">Connect with an OpenSubsonic API key on compatible Navidrome servers while older authentication methods remain available.</string>
-    <string name="changelog_280_visualizer">Swipe across the visualizer to choose the next or previous visualization.</string>
-    <string name="changelog_280_improvements">Optionally refresh lower-quality cached audio on Wi-Fi, navigate the DJ editor more easily, and see the active playlist in Now Playing.</string>
-    <string name="changelog_280_fixes">Fixed Subsonic password fallback, Space-key pause on desktop, and encoded text in artist and album descriptions.</string>
+    <string name="album_artwork_preference">Album artwork preference</string>
+    <string name="album_artwork_inherit">Use global preference</string>
+    <string name="album_artwork_track">Track cover</string>
+    <string name="album_artwork_album">Album cover</string>
+    <string name="album_artwork_description">Choose which cover appears for tracks from this album.</string>
 </resources>

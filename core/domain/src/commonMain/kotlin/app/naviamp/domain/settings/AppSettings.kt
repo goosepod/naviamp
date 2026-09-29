@@ -189,6 +189,7 @@ data class InterfaceSettings(
     val homeSectionOrder: List<String> = emptyList(),
     val globalKeyboardShortcuts: GlobalKeyboardShortcutSettings = GlobalKeyboardShortcutSettings(),
     val nowPlaying: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
+    val albumArtworkOverrides: List<AlbumArtworkOverride> = emptyList(),
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
     fun normalized(): InterfaceSettings = copy(
@@ -197,6 +198,8 @@ data class InterfaceSettings(
         albumBlurRadiusDp = albumBlurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp),
         singleColorHex = normalizedSingleColorHex(singleColorHex),
         nowPlaying = nowPlaying.normalized(),
+        albumArtworkOverrides = albumArtworkOverrides.mapNotNull(AlbumArtworkOverride::normalized)
+            .distinctBy { it.sourceId to it.albumId },
         homeSectionPresentations = homeSectionPresentations
             .filterKeys { it.isNotBlank() }
             .map { (id, presentation) -> id.trim() to presentation.normalized(id.trim()) }

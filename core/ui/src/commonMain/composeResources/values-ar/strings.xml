@@ -73,14 +73,6 @@
     <string name="settings_font_size_large_subtitle">يحسن القراءة بنص أكبر.</string>
     <string name="description_less">أقل</string>
     <string name="description_more">المزيد…</string>
-    <string name="changelog_270_font_sizes">اختر نصًا صغيرًا أو قياسيًا أو كبيرًا بشكل مستقل لشاشة التشغيل الآن ولبقية الواجهة، مع الحفاظ على مقياس تسهيلات الاستخدام في النظام.</string>
-    <string name="changelog_270_animations">تستخدم العناوين المتحركة وتقدم شكل الموجة السلس الآن أسطحًا مخزنة مؤقتًا خاصة بالنظام لتقليل استهلاك المعالج وتحسين سلاسة الحركة على Android وiOS وmacOS وWindows وLinux.</string>
-    <string name="changelog_270_library">يتم تحديث الألبومات المضافة حديثًا بصورة صحيحة، ويمكن فرز المكتبة حسب تاريخ الإضافة واختيار مكتبات المصدر من صفحة المكتبة.</string>
-    <string name="changelog_270_usability">يتم تشغيل تشابه Sonic تلقائيًا عند دعمه، وتنتظر إجراءات السحب حركة أفقية مقصودة، كما أصبحت تنزيلات إصدار Android أصغر.</string>
-    <string name="changelog_270_playback">أصبح الإبلاغ عن الاستماع في Navidrome أكثر موثوقية، ويحافظ تحديث راديو المقطع على المقطع الحالي والموضع وحالة الإيقاف المؤقت والسجل.</string>
-    <string name="changelog_270_media">يتضمن قسم «يظهر في» نسب الفنان على مستوى المقاطع، ويدعم سطح المكتب صور WebP، وتبقى الكلمات المتزامنة في المنتصف وتُمسح بين المقاطع.</string>
-    <string name="changelog_270_beta">لا يزال Android TV وNaviamp Connect في المرحلة التجريبية مع استمرار اختبارات توافق الأجهزة واستعادة الشبكة والأداء.</string>
-    <string name="changelog_271_popups">تم إصلاح قفز القوائم المنبثقة ومربعات الحوار ووميضها واستجابتها للنقرات في مواضع غير صحيحة.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">ترقية الصوت المخزن مؤقتًا عبر Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">استخدام جودة Wi-Fi الحالية لترقية الصوت المخزن مؤقتًا الأقل جودة عند الحاجة.</string>
     <string name="connection_password_required">أدخل كلمة المرور لإعادة الاتصال بهذا الخادم.</string>
@@ -101,10 +93,9 @@
     <string name="connect_manual_rejected">تم الوصول إلى العنوان، لكن تعذر التحقق من الجهاز الموثوق. تحقق من هويته أو أعد الإقران.</string>
     <string name="connect_manual_reconnect">أعد الاتصال بـ %1$s عبر العنوان</string>
     <string name="now_playing_cast_to_device">البث إلى جهاز</string>
-    <string name="changelog_280_cast">أرسل الموسيقى عبر الإنترنت من Android إلى جهاز Google Cast، وتحكم بالتشغيل من هاتفك، ثم عُد إلى الاستماع المحلي من الموضع الحالي.</string>
-    <string name="changelog_280_connect">اربط أجهزة Naviamp Connect عبر شبكات Tailnet بإدخال عنوان، مع اقتران آمن وإعادة اتصال موثوقة.</string>
-    <string name="changelog_280_api_key">اتصل بخوادم Navidrome المتوافقة باستخدام مفتاح OpenSubsonic API، مع استمرار دعم طرق المصادقة الأقدم.</string>
-    <string name="changelog_280_visualizer">اسحب عبر المرئيات لاختيار العرض التالي أو السابق.</string>
-    <string name="changelog_280_improvements">يمكنك تحديث الصوت المخزن بجودة أقل عبر Wi-Fi، والتنقل بسهولة أكبر في محرر DJ، ورؤية قائمة التشغيل النشطة في شاشة التشغيل.</string>
-    <string name="changelog_280_fixes">أُصلح الرجوع إلى كلمة مرور Subsonic، والإيقاف المؤقت بمفتاح المسافة على سطح المكتب، والنص المشفر في أوصاف الفنانين والألبومات.</string>
+    <string name="album_artwork_preference">تفضيل غلاف الألبوم</string>
+    <string name="album_artwork_inherit">استخدام التفضيل العام</string>
+    <string name="album_artwork_track">غلاف المقطع</string>
+    <string name="album_artwork_album">غلاف الألبوم</string>
+    <string name="album_artwork_description">اختر الغلاف الذي يظهر لمقاطع هذا الألبوم.</string>
 </resources>

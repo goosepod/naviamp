@@ -244,6 +244,7 @@ class SharedActionSourcesTest {
             onAddToPlaylist = { _, target -> dispatched += "add:${target.id}" },
             onCreatePlaylistAndAdd = { _, name -> dispatched += "create:$name" },
             onToggleFavorite = { dispatched += "favorite" },
+            onSaveArtworkPreference = { _, preference -> dispatched += "artwork:${preference.name}" },
         )
         val requests = listOf(
             NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.Play(false)),
@@ -254,6 +255,12 @@ class SharedActionSourcesTest {
             NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.AddToPlaylist(choice)),
             NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.CreatePlaylistAndAdd("New")),
             NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.ToggleFavorite),
+            NaviampAlbumDetailActionRequest(
+                item,
+                NaviampAlbumDetailCommand.SaveArtworkPreference(
+                    app.naviamp.domain.settings.AlbumArtworkPreference.Track,
+                ),
+            ),
         )
 
         val results = requests.map { dispatchResolvedAlbumDetailAction(it, album, handlers) }
@@ -269,6 +276,7 @@ class SharedActionSourcesTest {
                 "add:target",
                 "create:New",
                 "favorite",
+                "artwork:Track",
             ),
             dispatched,
         )

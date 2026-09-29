@@ -1,27 +1,23 @@
 package app.naviamp.ui
 
-import app.naviamp.ui.generated.resources.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class NaviampChangelogTest {
     @Test
     fun release280ContainsTheImportantPublicChangesInSignificanceOrder() {
         val changelog = NaviampAboutUi().changelog
         assertEquals(
-            listOf(Res.string.changelog_features, Res.string.changelog_improvements, Res.string.changelog_bug_fixes),
+            listOf("Features", "Improvements", "Bug fixes"),
             changelog.map { it.title },
         )
-        assertEquals(
-            listOf(
-                Res.string.changelog_280_cast,
-                Res.string.changelog_280_connect,
-                Res.string.changelog_280_api_key,
-                Res.string.changelog_280_visualizer,
-            ),
-            changelog[0].entries,
-        )
-        assertEquals(listOf(Res.string.changelog_280_improvements), changelog[1].entries)
-        assertEquals(listOf(Res.string.changelog_280_fixes), changelog[2].entries)
+        assertEquals(4, changelog[0].entries.size)
+        assertTrue(changelog[0].entries[0].contains("Google Cast"))
+        assertTrue(changelog[0].entries[1].contains("Tailnets"))
+        assertTrue(changelog[0].entries[2].contains("OpenSubsonic API key"))
+        assertTrue(changelog[0].entries[3].contains("visualizer"))
+        assertTrue(changelog[1].entries.single().contains("cached audio"))
+        assertTrue(changelog[2].entries.single().contains("Subsonic password fallback"))
     }
 }

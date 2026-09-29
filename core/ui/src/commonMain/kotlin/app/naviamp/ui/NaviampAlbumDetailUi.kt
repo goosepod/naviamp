@@ -21,11 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
@@ -58,6 +60,14 @@ import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
+import app.naviamp.domain.settings.AlbumArtworkPreference
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.album_artwork_preference
+import app.naviamp.ui.generated.resources.album_artwork_inherit
+import app.naviamp.ui.generated.resources.album_artwork_track
+import app.naviamp.ui.generated.resources.album_artwork_album
+import app.naviamp.ui.generated.resources.album_artwork_description
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun NaviampAlbumDetailContent(
@@ -66,6 +76,7 @@ fun NaviampAlbumDetailContent(
     actions: NaviampAlbumDetailActions,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     playlistActionStatus: String? = null,
+    albumArtworkPreference: AlbumArtworkPreference = AlbumArtworkPreference.Inherit,
 ) {
     val detail = screen.detail
     if (detail == null) {
@@ -142,6 +153,15 @@ fun NaviampAlbumDetailContent(
                 ),
             )
         },
+        albumArtworkPreference = albumArtworkPreference,
+        onArtworkPreferenceSaved = { preference ->
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(
+                    detail.album,
+                    NaviampAlbumDetailCommand.SaveArtworkPreference(preference),
+                ),
+            )
+        },
         onArtistSelected = actions.onArtistSelected,
         onTrackAction = actions.onTrackAction,
         playlistChoices = playlistChoices,
@@ -165,6 +185,8 @@ private fun AlbumDetailContent(
     playbackProfile: app.naviamp.domain.playback.PlaybackProfile,
     playbackProfileStatus: String?,
     onPlaybackProfileSaved: (app.naviamp.domain.playback.PlaybackProfile) -> Unit,
+    albumArtworkPreference: AlbumArtworkPreference,
+    onArtworkPreferenceSaved: (AlbumArtworkPreference) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
@@ -173,6 +195,7 @@ private fun AlbumDetailContent(
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
     var albumImageOpen by remember(detail.album.id) { mutableStateOf(false) }
     var playbackProfileOpen by remember(detail.album.id) { mutableStateOf(false) }
+    var artworkPreferenceOpen by remember(detail.album.id) { mutableStateOf(false) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -242,6 +265,7 @@ private fun AlbumDetailContent(
                         NaviampDetailAction("Add album to queue", NaviampIcons.Queue, onAlbumAddToQueue, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Add album to playlist", NaviampIcons.Playlist, { addAlbumToPlaylistOpen = true }, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction(stringResource(Res.string.album_artwork_preference), NaviampIcons.Settings, { artworkPreferenceOpen = true }, true),
                         NaviampDetailAction(
                             if (detail.album.favoriteActive) "Remove album favorite" else "Favorite album",
                             if (detail.album.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
@@ -328,6 +352,36 @@ private fun AlbumDetailContent(
             colors = colors,
             onDismissRequest = { playbackProfileOpen = false },
             onSave = onPlaybackProfileSaved,
+        )
+    }
+    if (artworkPreferenceOpen) {
+        val choices = listOf(
+            AlbumArtworkPreference.Inherit to stringResource(Res.string.album_artwork_inherit),
+            AlbumArtworkPreference.Track to stringResource(Res.string.album_artwork_track),
+            AlbumArtworkPreference.Album to stringResource(Res.string.album_artwork_album),
+        )
+        AlertDialog(
+            onDismissRequest = { artworkPreferenceOpen = false },
+            containerColor = colors.controlSurface,
+            title = { Text(stringResource(Res.string.album_artwork_preference), color = colors.primaryText) },
+            text = {
+                Column {
+                    Text(stringResource(Res.string.album_artwork_description), color = colors.secondaryText)
+                    choices.forEach { (choice, label) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                onArtworkPreferenceSaved(choice)
+                                artworkPreferenceOpen = false
+                            },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = albumArtworkPreference == choice, onClick = null)
+                            Text(label, color = colors.primaryText)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
         )
     }
 }

@@ -2,6 +2,8 @@ package app.naviamp.presentation
 
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.AlbumArtworkPreference
+import app.naviamp.domain.settings.albumArtworkPreference
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.PlaybackSettings
@@ -21,6 +23,22 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreSettingsControllerTest {
+    @Test
+    fun savesAlbumArtworkChoiceForTheCurrentSourceAndCanClearIt() {
+        val fixture = fixture()
+        fixture.store.updateShell { shell ->
+            shell.copy(connectionSettings = shell.connectionSettings.copy(currentSourceId = "source-a"))
+        }
+
+        fixture.controller.saveAlbumArtworkPreference("edition-1", AlbumArtworkPreference.Track)
+        assertEquals(AlbumArtworkPreference.Track,
+            fixture.savedInterface.last().albumArtworkPreference("source-a", "edition-1"))
+        fixture.controller.saveAlbumArtworkPreference("edition-1", AlbumArtworkPreference.Inherit)
+        assertEquals(AlbumArtworkPreference.Inherit,
+            fixture.savedInterface.last().albumArtworkPreference("source-a", "edition-1"))
+        assertTrue(fixture.savedInterface.last().albumArtworkOverrides.isEmpty())
+    }
+
     @Test
     fun dedicatedHomeSectionPageLayoutIsPersistedInInterfaceSettings() {
         val fixture = fixture()

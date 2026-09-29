@@ -73,14 +73,6 @@
     <string name="settings_font_size_large_subtitle">Покращує читабельність завдяки більшому тексту.</string>
     <string name="description_less">Згорнути</string>
     <string name="description_more">Ще…</string>
-    <string name="changelog_270_font_sizes">Окремо вибирайте малий, стандартний або великий текст для екрана «Зараз грає» та решти інтерфейсу зі збереженням системного масштабу доступності.</string>
-    <string name="changelog_270_animations">Рухомі назви та плавний індикатор хвилі тепер використовують кешовані поверхні платформи, зменшуючи навантаження на процесор і покращуючи анімацію в Android, iOS, macOS, Windows і Linux.</string>
-    <string name="changelog_270_library">Нещодавно додані альбоми оновлюються правильно, бібліотеку можна сортувати за датою додавання, а вихідні бібліотеки вибирати на сторінці бібліотеки.</string>
-    <string name="changelog_270_usability">Подібність Sonic вмикається автоматично, якщо підтримується, дії гортання чекають навмисного горизонтального руху, а завантаження випуску Android стали меншими.</string>
-    <string name="changelog_270_playback">Звітування про прослуховування Navidrome стало надійнішим, а оновлення радіо треку зберігає поточний трек, позицію, стан паузи та історію.</string>
-    <string name="changelog_270_media">До розділу «Бере участь» входять згадки виконавця на рівні треків, настільна версія підтримує обкладинки WebP, а синхронізовані тексти залишаються по центру й очищуються між треками.</string>
-    <string name="changelog_270_beta">Android TV і Naviamp Connect залишаються в бета-версії, поки триває тестування сумісності пристроїв, відновлення мережі та продуктивності.</string>
-    <string name="changelog_271_popups">Виправлено стрибки й мерехтіння спливних меню та діалогів, а також реагування на натискання в неправильному місці.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Покращувати якість аудіокешу через Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">За потреби оновлювати аудіокеш нижчої якості до поточної якості Wi-Fi.</string>
     <string name="connection_password_required">Введіть пароль, щоб знову підключитися до цього сервера.</string>
@@ -101,10 +93,9 @@
     <string name="connect_manual_rejected">Адреса доступна, але не вдалося перевірити довірений пристрій. Перевірте його ідентифікатор або спаріть знову.</string>
     <string name="connect_manual_reconnect">Повторно підключитися до %1$s за адресою</string>
     <string name="now_playing_cast_to_device">Транслювати на пристрій</string>
-    <string name="changelog_280_cast">Транслюйте музику онлайн з Android на пристрій Google Cast, керуйте відтворенням з телефона й повертайтеся до локального прослуховування з поточної позиції.</string>
-    <string name="changelog_280_connect">З’єднуйте пристрої Naviamp Connect між мережами Tailnet, вводячи адресу, із захищеним сполученням і довіреним повторним підключенням.</string>
-    <string name="changelog_280_api_key">Підключайтеся до сумісних серверів Navidrome за допомогою ключа API OpenSubsonic; попередні способи автентифікації залишаються доступними.</string>
-    <string name="changelog_280_visualizer">Проведіть по візуалізатору, щоб вибрати наступну або попередню візуалізацію.</string>
-    <string name="changelog_280_improvements">За бажанням оновлюйте кешоване аудіо нижчої якості через Wi-Fi, простіше користуйтеся редактором DJ і переглядайте активний плейлист на екрані відтворення.</string>
-    <string name="changelog_280_fixes">Виправлено перехід на пароль Subsonic, паузу клавішею пробілу на комп’ютері й закодований текст в описах виконавців та альбомів.</string>
+    <string name="album_artwork_preference">Налаштування обкладинки альбому</string>
+    <string name="album_artwork_inherit">Використовувати загальне налаштування</string>
+    <string name="album_artwork_track">Обкладинка треку</string>
+    <string name="album_artwork_album">Обкладинка альбому</string>
+    <string name="album_artwork_description">Виберіть обкладинку для треків цього альбому.</string>
 </resources>

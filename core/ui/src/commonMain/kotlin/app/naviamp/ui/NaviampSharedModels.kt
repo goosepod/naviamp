@@ -372,6 +372,9 @@ sealed interface NaviampAlbumDetailCommand {
     data class CreatePlaylistAndAdd(val name: String) : NaviampAlbumDetailCommand
     data object ToggleFavorite : NaviampAlbumDetailCommand
     data class SavePlaybackProfile(val profile: PlaybackProfile) : NaviampAlbumDetailCommand
+    data class SaveArtworkPreference(
+        val preference: app.naviamp.domain.settings.AlbumArtworkPreference,
+    ) : NaviampAlbumDetailCommand
 }
 
 data class NaviampAlbumDetailActionRequest(
@@ -1125,6 +1128,7 @@ data class NaviampTrackPlaylistMembershipUi(
 
 data class NowPlayingUi(
     val id: String = "",
+    val albumId: String? = null,
     val title: String,
     val subtitle: String,
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),

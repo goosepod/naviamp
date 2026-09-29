@@ -73,14 +73,6 @@
     <string name="settings_font_size_large_subtitle">Migliora la leggibilità con testo più grande.</string>
     <string name="description_less">Meno</string>
     <string name="description_more">Altro…</string>
-    <string name="changelog_270_font_sizes">Scegli separatamente testo Piccolo, Standard o Grande per In riproduzione e per il resto dell’interfaccia, mantenendo la scala di accessibilità del sistema.</string>
-    <string name="changelog_270_animations">I titoli scorrevoli e l’avanzamento fluido della forma d’onda ora usano superfici di piattaforma memorizzate nella cache, riducendo l’uso della CPU e rendendo più fluide le animazioni su Android, iOS, macOS, Windows e Linux.</string>
-    <string name="changelog_270_library">Gli album aggiunti di recente si aggiornano correttamente, la Libreria può essere ordinata per data di aggiunta e le librerie sorgente possono essere selezionate dalla pagina Libreria.</string>
-    <string name="changelog_270_usability">La similarità Sonic si attiva automaticamente quando supportata, le azioni di scorrimento attendono un movimento orizzontale intenzionale e i download Android sono più piccoli.</string>
-    <string name="changelog_270_playback">La segnalazione degli ascolti Navidrome è più affidabile e l’aggiornamento della radio di un brano conserva brano corrente, posizione, stato di pausa e cronologia.</string>
-    <string name="changelog_270_media">Compare in include i crediti artista dei singoli brani, il desktop supporta le immagini WebP e i testi sincronizzati restano centrati e vengono cancellati tra i brani.</string>
-    <string name="changelog_270_beta">Android TV e Naviamp Connect restano in beta mentre continuano i test di compatibilità dei dispositivi, ripristino della rete e prestazioni.</string>
-    <string name="changelog_271_popups">Corretti gli spostamenti improvvisi, gli sfarfallii e le risposte ai clic nella posizione sbagliata di menu a comparsa e finestre di dialogo.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Migliora la cache audio tramite Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Migliora i file nella cache di qualità inferiore usando la qualità Wi-Fi attuale quando necessario.</string>
     <string name="connection_password_required">Inserisci la password per riconnetterti a questo server.</string>
@@ -101,10 +93,9 @@
     <string name="connect_manual_rejected">Indirizzo raggiunto, ma non è stato possibile verificare il dispositivo attendibile. Controlla l’identità o associalo di nuovo.</string>
     <string name="connect_manual_reconnect">Riconnetti %1$s tramite indirizzo</string>
     <string name="now_playing_cast_to_device">Trasmetti a un dispositivo</string>
-    <string name="changelog_280_cast">Trasmetti musica online da Android a un ricevitore Google Cast, controlla la riproduzione dal telefono e riprendi l’ascolto locale dalla posizione corrente.</string>
-    <string name="changelog_280_connect">Associa dispositivi Naviamp Connect tra Tailnet inserendo un indirizzo, con associazione sicura e riconnessioni attendibili.</string>
-    <string name="changelog_280_api_key">Connettiti ai server Navidrome compatibili con una chiave API OpenSubsonic; i metodi di autenticazione precedenti restano disponibili.</string>
-    <string name="changelog_280_visualizer">Scorri sul visualizzatore per scegliere la visualizzazione successiva o precedente.</string>
-    <string name="changelog_280_improvements">Aggiorna facoltativamente l’audio nella cache di qualità inferiore tramite Wi-Fi, naviga più facilmente nell’editor DJ e vedi la playlist attiva in In riproduzione.</string>
-    <string name="changelog_280_fixes">Corretti il fallback alla password Subsonic, la pausa con la barra spaziatrice su desktop e il testo codificato nelle descrizioni di artisti e album.</string>
+    <string name="album_artwork_preference">Preferenza copertina album</string>
+    <string name="album_artwork_inherit">Usa la preferenza globale</string>
+    <string name="album_artwork_track">Copertina del brano</string>
+    <string name="album_artwork_album">Copertina dell’album</string>
+    <string name="album_artwork_description">Scegli la copertina mostrata per i brani di questo album.</string>
 </resources>

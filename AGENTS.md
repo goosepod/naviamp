@@ -32,6 +32,10 @@ Every new user-facing string must be defined in the project's string resource fi
 `strings.xml` and each maintained translation. Do not hardcode new UI copy in Kotlin or
 platform-specific source files.
 
+Release changelog content is the exception: it is published in English in the shared About UI and
+must never be added to `strings.xml` or any translation file. Keep the About page's general
+navigation and control labels translatable.
+
 ## Settings Export and Import
 
 Every new or changed setting that is usable across platforms must be included in shared settings

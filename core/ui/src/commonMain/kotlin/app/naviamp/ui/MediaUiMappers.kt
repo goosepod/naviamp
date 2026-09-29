@@ -30,6 +30,7 @@ import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.lyrics.timing
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.resolvePreferTrack
 import app.naviamp.domain.radio.sessionSubtitle
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.homeSectionPresentation
@@ -1288,6 +1289,7 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi {
     val defaultAlbumYear = resolvedAlbumOriginalReleaseYear ?: resolvedAlbumReleaseYear
     return NowPlayingUi(
         id = id.value,
+        albumId = albumId?.value,
         title = title,
         subtitle = artistName,
         artistCredits = toSharedArtistCreditUis(),
@@ -1355,6 +1357,8 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi {
 
 fun NowPlayingUi.withDisplaySettings(
     settings: app.naviamp.domain.settings.NowPlayingDisplaySettings,
+    albumArtworkPreference: app.naviamp.domain.settings.AlbumArtworkPreference =
+        app.naviamp.domain.settings.AlbumArtworkPreference.Inherit,
 ): NowPlayingUi {
     if (isLive) return this
     val year = when (settings.albumYearPreference) {
@@ -1363,7 +1367,8 @@ fun NowPlayingUi.withDisplaySettings(
         app.naviamp.domain.settings.NowPlayingAlbumYearPreference.Release ->
             albumReleaseYear ?: albumOriginalReleaseYear
     }
-    val art = if (settings.showTrackCover) {
+    val preferTrack = albumArtworkPreference.resolvePreferTrack(settings.showTrackCover)
+    val art = if (preferTrack) {
         trackCoverArtUrl ?: albumCoverArtUrl
     } else {
         albumCoverArtUrl ?: trackCoverArtUrl
