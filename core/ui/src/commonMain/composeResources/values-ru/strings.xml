@@ -73,14 +73,6 @@
     <string name="settings_font_size_large_subtitle">Улучшает читаемость благодаря крупному тексту.</string>
     <string name="description_less">Свернуть</string>
     <string name="description_more">Ещё…</string>
-    <string name="changelog_270_font_sizes">Независимо выбирайте мелкий, стандартный или крупный текст для экрана «Сейчас играет» и остального интерфейса с сохранением системного масштаба специальных возможностей.</string>
-    <string name="changelog_270_animations">Прокручиваемые названия и плавный индикатор волны теперь используют кэшированные поверхности платформы, снижая нагрузку на процессор и улучшая анимацию в Android, iOS, macOS, Windows и Linux.</string>
-    <string name="changelog_270_library">Недавно добавленные альбомы обновляются правильно, библиотеку можно сортировать по дате добавления, а исходные библиотеки выбирать на странице библиотеки.</string>
-    <string name="changelog_270_usability">Сходство Sonic включается автоматически при поддержке, действия смахивания ждут намеренного горизонтального движения, а загрузки выпуска для Android стали меньше.</string>
-    <string name="changelog_270_playback">Отчёты о прослушиваниях Navidrome стали надёжнее, а обновление радио трека сохраняет текущий трек, позицию, состояние паузы и историю.</string>
-    <string name="changelog_270_media">В раздел «Участвует в» входят упоминания исполнителя на уровне треков, настольная версия поддерживает обложки WebP, а синхронизированные тексты остаются по центру и очищаются между треками.</string>
-    <string name="changelog_270_beta">Android TV и Naviamp Connect остаются в бета-версии, пока продолжается тестирование совместимости устройств, восстановления сети и производительности.</string>
-    <string name="changelog_271_popups">Исправлены скачки и мерцание всплывающих меню и диалогов, а также срабатывание нажатий в неверном месте.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Улучшать качество аудиокэша через Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">При необходимости обновлять аудиокэш низкого качества до текущего качества Wi-Fi.</string>
     <string name="connection_password_required">Введите пароль, чтобы снова подключиться к этому серверу.</string>
@@ -101,10 +93,10 @@
     <string name="connect_manual_rejected">Адрес доступен, но не удалось проверить доверенное устройство. Проверьте его идентификатор или выполните сопряжение снова.</string>
     <string name="connect_manual_reconnect">Подключиться к %1$s по адресу снова</string>
     <string name="now_playing_cast_to_device">Трансляция на устройство</string>
-    <string name="changelog_280_cast">Передавайте музыку онлайн с Android на устройство Google Cast, управляйте воспроизведением с телефона и возвращайтесь к прослушиванию на нём с текущей позиции.</string>
-    <string name="changelog_280_connect">Подключайте устройства Naviamp Connect через Tailnet, вводя адрес, с безопасным сопряжением и доверенным повторным подключением.</string>
-    <string name="changelog_280_api_key">Подключайтесь к совместимым серверам Navidrome по ключу API OpenSubsonic; прежние способы входа остаются доступны.</string>
-    <string name="changelog_280_visualizer">Проведите пальцем по визуализатору, чтобы выбрать следующую или предыдущую визуализацию.</string>
-    <string name="changelog_280_improvements">По желанию обновляйте аудио низкого качества в кеше через Wi-Fi, проще перемещайтесь по редактору DJ и смотрите активный плейлист на экране воспроизведения.</string>
-    <string name="changelog_280_fixes">Исправлены переход на пароль Subsonic, пауза по пробелу на компьютере и кодированный текст в описаниях исполнителей и альбомов.</string>
+    <string name="album_artwork_preference">Настройка обложки альбома</string>
+    <string name="album_artwork_inherit">Наследовать</string>
+    <string name="album_artwork_track">Обложка трека</string>
+    <string name="album_artwork_album">Обложка альбома</string>
+    <string name="album_settings">Настройки альбома</string>
+    <string name="album_settings_description">Выберите параметры, которые этот альбом переопределяет. Унаследованные значения следуют общим настройкам.</string>
 </resources>

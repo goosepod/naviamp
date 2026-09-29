@@ -19,6 +19,7 @@ class NaviampCoreCollectionActionController(
     private val transactions: NaviampCoreMediaTransactions,
     private val mediaDetails: NaviampCoreMediaDetailController,
     private val playbackProfiles: NaviampCorePlaybackProfileController? = null,
+    private val settings: NaviampCoreSettingsController? = null,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Home.SelectStation,
@@ -105,6 +106,8 @@ class NaviampCoreCollectionActionController(
             NaviampAlbumDetailCommand.ToggleFavorite -> transactions.toggleFavorite(album)
             is NaviampAlbumDetailCommand.SavePlaybackProfile ->
                 playbackProfiles?.saveAlbumProfile(album.id.value, command.profile)
+            is NaviampAlbumDetailCommand.SaveArtworkPreference ->
+                settings?.saveAlbumArtworkPreference(album.id.value, command.preference)
         }
     }
 

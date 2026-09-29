@@ -503,6 +503,7 @@ class NaviampCore private constructor(
                 mediaTransactions,
                 mediaDetails,
                 playbackProfiles,
+                settings,
             )
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
                 sessionPort = services.connection,

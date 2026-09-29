@@ -30,6 +30,13 @@ import app.naviamp.domain.playback.MinPlaybackProfileCrossfadeSeconds
 import app.naviamp.domain.playback.PlaybackProfile
 import app.naviamp.domain.playback.PlaybackReplayGainMode
 import app.naviamp.domain.playback.PlaybackTransitionMode
+import app.naviamp.domain.settings.AlbumArtworkPreference
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.album_artwork_album
+import app.naviamp.ui.generated.resources.album_artwork_inherit
+import app.naviamp.ui.generated.resources.album_artwork_preference
+import app.naviamp.ui.generated.resources.album_artwork_track
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun PlaybackProfileDialog(
@@ -38,12 +45,18 @@ fun PlaybackProfileDialog(
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
     onSave: (PlaybackProfile) -> Unit,
+    initialArtworkPreference: AlbumArtworkPreference? = null,
+    onSaveArtworkPreference: ((AlbumArtworkPreference) -> Unit)? = null,
+    description: String = "Choose only the values this sequence should override. Inherited values continue to follow global playback settings.",
 ) {
     val normalized = initialProfile.normalized()
     var transition by remember(title, normalized) { mutableStateOf(normalized.transitionMode) }
     var replayGain by remember(title, normalized) { mutableStateOf(normalized.replayGainMode) }
     var crossfadeSeconds by remember(title, normalized) {
         mutableStateOf(normalized.crossfadeDurationSeconds ?: DefaultPlaybackProfileCrossfadeSeconds)
+    }
+    var artworkPreference by remember(title, initialArtworkPreference) {
+        mutableStateOf(initialArtworkPreference ?: AlbumArtworkPreference.Inherit)
     }
 
     NaviampPopupPresence()
@@ -55,7 +68,7 @@ fun PlaybackProfileDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    "Choose only the values this sequence should override. Inherited values continue to follow global playback settings.",
+                    description,
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )
@@ -107,12 +120,28 @@ fun PlaybackProfileDialog(
                     colors = colors,
                     onSelected = { replayGain = it },
                 )
+                if (initialArtworkPreference != null) {
+                    ProfileChoiceSection(
+                        label = stringResource(Res.string.album_artwork_preference),
+                        choices = listOf(
+                            AlbumArtworkPreference.Inherit to stringResource(Res.string.album_artwork_inherit),
+                            AlbumArtworkPreference.Track to stringResource(Res.string.album_artwork_track),
+                            AlbumArtworkPreference.Album to stringResource(Res.string.album_artwork_album),
+                        ),
+                        selected = artworkPreference,
+                        colors = colors,
+                        onSelected = { artworkPreference = it },
+                    )
+                }
             }
         },
         dismissButton = {
             Row {
                 TextButton(
                     onClick = {
+                        if (initialArtworkPreference != null && initialArtworkPreference != AlbumArtworkPreference.Inherit) {
+                            onSaveArtworkPreference?.invoke(AlbumArtworkPreference.Inherit)
+                        }
                         onSave(PlaybackProfile())
                         onDismissRequest()
                     },
@@ -123,6 +152,9 @@ fun PlaybackProfileDialog(
         confirmButton = {
             TextButton(
                 onClick = {
+                    if (initialArtworkPreference != null && artworkPreference != initialArtworkPreference) {
+                        onSaveArtworkPreference?.invoke(artworkPreference)
+                    }
                     onSave(
                         PlaybackProfile(
                             transitionMode = transition,

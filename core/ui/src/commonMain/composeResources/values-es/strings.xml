@@ -873,15 +873,6 @@
     <string name="connect_pairing_code">Código de emparejamiento</string>
     <string name="connect_devices_description">Controla y empareja dispositivos Naviamp en esta red</string>
     <string name="connect_setup_timed_out">La configuración del dispositivo agotó el tiempo de espera. Comprueba el dispositivo de reproducción y vuelve a intentarlo.</string>
-    <string name="changelog_features">Novedades</string>
-    <string name="changelog_improvements">Mejoras</string>
-    <string name="changelog_bug_fixes">Correcciones</string>
-    <string name="changelog_known_issues">Problemas conocidos</string>
-    <string name="changelog_260_tv">Compatibilidad con Android TV y Google TV (beta): explora, busca, gestiona la cola y reproduce música con un mando. Una sola aplicación Android se adapta automáticamente a teléfonos, tabletas y televisores.</string>
-    <string name="changelog_260_connect">Naviamp Connect (beta): vincula dispositivos Android y de escritorio en tu red local para controlar la reproducción, transferir colas y configurar otro dispositivo.</string>
-    <string name="changelog_260_screen_awake">Elige si Naviamp mantiene la pantalla encendida mientras la aplicación está abierta. La preferencia se incluye al exportar, importar y sincronizar ajustes.</string>
-    <string name="changelog_260_playback_recovery">Mejora la recuperación de la reproducción tras interrupciones de audio y permite reintentar las emisoras de radio en directo interrumpidas.</string>
-    <string name="changelog_260_beta">Android TV y Naviamp Connect están en beta. La compatibilidad con dispositivos, la recuperación de la red y el rendimiento siguen mejorándose.</string>
     <string name="library_sort_title">Ordenar álbumes: Título</string>
     <string name="library_sort_recently_added">Ordenar álbumes: Añadidos recientemente</string>
     <string name="diagnostics_listen_reporting_mode">Modo de registro de escuchas</string>
@@ -920,14 +911,6 @@
     <string name="settings_font_size_large_subtitle">Mejora la legibilidad con texto más grande.</string>
     <string name="description_less">Menos</string>
     <string name="description_more">Más…</string>
-    <string name="changelog_270_font_sizes">Elige texto Pequeño, Estándar o Grande de forma independiente para Ahora suena y para el resto de la interfaz, manteniendo la escala de accesibilidad del sistema.</string>
-    <string name="changelog_270_animations">Los títulos desplazables y el progreso fluido de la forma de onda ahora usan superficies de plataforma almacenadas en caché para reducir el uso de CPU y mejorar las animaciones en Android, iOS, macOS, Windows y Linux.</string>
-    <string name="changelog_270_library">Los álbumes añadidos recientemente se actualizan correctamente, la Biblioteca puede ordenar por fecha de adición y las bibliotecas de origen se pueden elegir desde la página Biblioteca.</string>
-    <string name="changelog_270_usability">La similitud de Sonic se activa automáticamente cuando está disponible, los gestos de deslizamiento esperan un movimiento horizontal deliberado y las descargas de Android son más pequeñas.</string>
-    <string name="changelog_270_playback">El informe de escuchas de Navidrome es más fiable y actualizar la radio de una pista conserva la pista actual, la posición, el estado de pausa y el historial.</string>
-    <string name="changelog_270_media">Aparece en incluye créditos de artista por pista, el escritorio admite imágenes WebP y las letras sincronizadas permanecen centradas y se limpian entre pistas.</string>
-    <string name="changelog_270_beta">Android TV y Naviamp Connect siguen en beta mientras continúan las pruebas de compatibilidad de dispositivos, recuperación de red y rendimiento.</string>
-    <string name="changelog_271_popups">Se corrigieron los saltos, parpadeos y respuestas a clics en posiciones incorrectas de los menús emergentes y los cuadros de diálogo.</string>
     <string name="connection_password_required">Introduce tu contraseña para volver a conectarte a este servidor.</string>
     <string name="connection_api_key_required">Introduce una clave de API.</string>
     <string name="connection_api_key_unsupported">Este servidor no admite la autenticación con clave de API.</string>
@@ -946,10 +929,10 @@
     <string name="connect_manual_rejected">Se llegó a la dirección, pero no se pudo verificar el dispositivo de confianza. Comprueba su identidad o vuelve a vincularlo.</string>
     <string name="connect_manual_reconnect">Reconectar con %1$s por dirección</string>
     <string name="now_playing_cast_to_device">Enviar a un dispositivo</string>
-    <string name="changelog_280_cast">Envía música en línea desde Android a un receptor Google Cast, controla la reproducción desde el teléfono y vuelve a escucharla localmente en la posición actual.</string>
-    <string name="changelog_280_connect">Vincula dispositivos Naviamp Connect entre Tailnets introduciendo una dirección, con emparejamiento seguro y reconexiones de confianza.</string>
-    <string name="changelog_280_api_key">Conéctate a servidores Navidrome compatibles con una clave API de OpenSubsonic; los métodos de autenticación anteriores siguen disponibles.</string>
-    <string name="changelog_280_visualizer">Desliza sobre el visualizador para elegir la visualización anterior o siguiente.</string>
-    <string name="changelog_280_improvements">Actualiza opcionalmente el audio en caché de menor calidad por Wi-Fi, navega con más facilidad por el editor de DJ y consulta la lista activa en Reproduciendo.</string>
-    <string name="changelog_280_fixes">Se corrigieron el uso alternativo de contraseña de Subsonic, la pausa con la barra espaciadora en escritorio y el texto codificado en descripciones de artistas y álbumes.</string>
+    <string name="album_artwork_preference">Preferencia de carátula del álbum</string>
+    <string name="album_artwork_inherit">Heredar</string>
+    <string name="album_artwork_track">Carátula de pista</string>
+    <string name="album_artwork_album">Carátula del álbum</string>
+    <string name="album_settings">Configuración del álbum</string>
+    <string name="album_settings_description">Elige qué ajustes modifica este álbum. Los valores heredados siguen los ajustes globales.</string>
 </resources>

@@ -9,6 +9,8 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.AlbumArtworkPreference
+import app.naviamp.domain.settings.withAlbumArtworkPreference
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.withHomeSectionPresentation
@@ -90,6 +92,16 @@ class NaviampCoreSettingsController(
     private val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
     private val onPlaybackSettingsChanged: (previous: PlaybackSettings, current: PlaybackSettings) -> Unit = { _, _ -> },
 ) : NaviampCoreCommandController {
+    fun saveAlbumArtworkPreference(albumId: String, preference: AlbumArtworkPreference) {
+        val shell = stateStore.state.value.shell
+        val sourceId = shell.connectionSettings.currentSourceId ?: return
+        changeInterface(
+            NaviampCoreCommand.Settings.ChangeInterface(
+                shell.general.interfaceSettings.withAlbumArtworkPreference(sourceId, albumId, preference),
+            ),
+        )
+    }
+
     internal fun applyConnectPortableSettings(settings: app.naviamp.domain.connect.NaviampConnectPortableSettings) {
         val shell = stateStore.state.value.shell
         changeInterface(

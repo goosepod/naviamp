@@ -9,6 +9,7 @@ data class ResolvedAlbumDetailActionHandlers<T>(
     val onCreatePlaylistAndAdd: (T, String) -> Unit,
     val onToggleFavorite: (T) -> Unit,
     val onSavePlaybackProfile: (T, app.naviamp.domain.playback.PlaybackProfile) -> Unit = { _, _ -> },
+    val onSaveArtworkPreference: (T, app.naviamp.domain.settings.AlbumArtworkPreference) -> Unit = { _, _ -> },
 )
 
 enum class AlbumDetailActionDispatchResult {
@@ -37,6 +38,8 @@ fun <T> dispatchResolvedAlbumDetailAction(
         NaviampAlbumDetailCommand.ToggleFavorite -> handlers.onToggleFavorite(album).dispatchedAlbumAction()
         is NaviampAlbumDetailCommand.SavePlaybackProfile ->
             handlers.onSavePlaybackProfile(album, command.profile).dispatchedAlbumAction()
+        is NaviampAlbumDetailCommand.SaveArtworkPreference ->
+            handlers.onSaveArtworkPreference(album, command.preference).dispatchedAlbumAction()
     }
 }
 

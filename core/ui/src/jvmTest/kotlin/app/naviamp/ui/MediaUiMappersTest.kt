@@ -30,6 +30,7 @@ import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.settings.HomeSectionIds
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.AlbumArtworkPreference
 import app.naviamp.domain.settings.NowPlayingAlbumYearPreference
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.HomeSectionPresentationSettings
@@ -984,6 +985,30 @@ class MediaUiMappersTest {
         assertEquals(2017, ui.albumYear)
         assertEquals("World Clique (2017)", ui.albumLine)
         assertEquals("cover://track", ui.coverArtUrl)
+    }
+
+    @Test
+    fun perAlbumArtworkChoiceOverridesGlobalAndFallsBackWhenArtworkIsMissing() {
+        val playing = NowPlayingUi(
+            albumId = "edition-1",
+            title = "Song",
+            subtitle = "Artist",
+            stateLabel = "Playing",
+            trackCoverArtUrl = "cover://track",
+            albumCoverArtUrl = "cover://album",
+        )
+        assertEquals("cover://track", playing.withDisplaySettings(
+            NowPlayingDisplaySettings(showTrackCover = false), AlbumArtworkPreference.Track,
+        ).coverArtUrl)
+        assertEquals("cover://album", playing.withDisplaySettings(
+            NowPlayingDisplaySettings(showTrackCover = true), AlbumArtworkPreference.Album,
+        ).coverArtUrl)
+        assertEquals("cover://track", playing.copy(albumCoverArtUrl = null).withDisplaySettings(
+            NowPlayingDisplaySettings(), AlbumArtworkPreference.Album,
+        ).coverArtUrl)
+        assertEquals("cover://album", playing.copy(trackCoverArtUrl = null).withDisplaySettings(
+            NowPlayingDisplaySettings(), AlbumArtworkPreference.Track,
+        ).coverArtUrl)
     }
 
     @Test

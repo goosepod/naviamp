@@ -192,8 +192,8 @@ data class NaviampAboutUi(
 )
 
 data class NaviampChangelogSectionUi(
-    val title: org.jetbrains.compose.resources.StringResource,
-    val entries: List<org.jetbrains.compose.resources.StringResource>,
+    val title: String,
+    val entries: List<String>,
 )
 
 data class NaviampSavedConnectionUi(
@@ -2250,7 +2250,7 @@ fun NaviampAboutSettingsSection(
                     } else {
                         about.changelog.forEach { section ->
                             Text(
-                                stringResource(section.title),
+                                section.title,
                                 color = colors.primaryText,
                                 fontSize = SettingsDetailRowTitleSize,
                                 fontWeight = FontWeight.SemiBold,
@@ -2262,7 +2262,7 @@ fun NaviampAboutSettingsSection(
                                 ) {
                                     Text("•", color = colors.primaryText, fontSize = SettingsDetailRowSubtitleSize)
                                     Text(
-                                        stringResource(entry),
+                                        entry,
                                         color = colors.secondaryText,
                                         fontSize = SettingsDetailRowSubtitleSize,
                                         modifier = Modifier.weight(1f),
@@ -2762,23 +2762,24 @@ private val DefaultNaviampLibraries = listOf(
     "MusicBrainz genre ontology (CC0)",
 )
 
+// Release notes stay in English and out of localized string resources.
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
-        title = Res.string.changelog_features,
+        title = "Features",
         entries = listOf(
-            Res.string.changelog_280_cast,
-            Res.string.changelog_280_connect,
-            Res.string.changelog_280_api_key,
-            Res.string.changelog_280_visualizer,
+            "Cast online music from Android to a Google Cast receiver, control playback from your phone, and return to local listening at the current position.",
+            "Pair Naviamp Connect devices across Tailnets by entering an address, with secure pairing and trusted reconnects.",
+            "Connect with an OpenSubsonic API key on compatible Navidrome servers while older authentication methods remain available.",
+            "Swipe across the visualizer to choose the next or previous visualization.",
         ),
     ),
     NaviampChangelogSectionUi(
-        title = Res.string.changelog_improvements,
-        entries = listOf(Res.string.changelog_280_improvements),
+        title = "Improvements",
+        entries = listOf("Optionally refresh lower-quality cached audio on Wi-Fi, navigate the DJ editor more easily, and see the active playlist in Now Playing."),
     ),
     NaviampChangelogSectionUi(
-        title = Res.string.changelog_bug_fixes,
-        entries = listOf(Res.string.changelog_280_fixes),
+        title = "Bug fixes",
+        entries = listOf("Fixed Subsonic password fallback, Space-key pause on desktop, and encoded text in artist and album descriptions."),
     ),
 )
 

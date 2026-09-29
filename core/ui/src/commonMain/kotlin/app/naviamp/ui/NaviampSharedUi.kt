@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import app.naviamp.domain.settings.WideNowPlayingLayout
+import app.naviamp.domain.settings.albumArtworkPreference
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,7 +130,12 @@ fun NaviampSharedAppShell(
             castOutput,
             stringResource(Res.string.connect_remote_unavailable).takeIf { castOutput.unavailable },
         )
-        ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+        ?.let { playing ->
+            playing.withDisplaySettings(
+                general.interfaceSettings.nowPlaying,
+                general.interfaceSettings.albumArtworkPreference(connectionSettings.currentSourceId, playing.albumId),
+            )
+        }
     val nowPlayingActions = (if (remoteNowPlaying != null) {
         connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
             ?: actions.nowPlayingActions
@@ -519,7 +525,12 @@ internal fun ConnectedContent(
             castOutput,
             stringResource(Res.string.connect_remote_unavailable).takeIf { castOutput.unavailable },
         )
-        ?.withDisplaySettings(general.interfaceSettings.nowPlaying)
+        ?.let { playing ->
+            playing.withDisplaySettings(
+                general.interfaceSettings.nowPlaying,
+                general.interfaceSettings.albumArtworkPreference(connectionSettings.currentSourceId, playing.albumId),
+            )
+        }
     val nowPlayingActions = (if (remoteNowPlaying != null) {
         connectActions?.remoteNowPlayingActions?.withLocalDisplayActions(actions.nowPlayingActions)
             ?: actions.nowPlayingActions
@@ -589,6 +600,10 @@ internal fun ConnectedContent(
             colors = colors,
             screen = albumDetail,
             actions = albumDetailActions,
+            albumArtworkPreference = general.interfaceSettings.albumArtworkPreference(
+                connectionSettings.currentSourceId,
+                albumDetail.selectedAlbum.id,
+            ),
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )

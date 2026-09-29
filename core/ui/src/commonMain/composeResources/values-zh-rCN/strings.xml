@@ -73,14 +73,6 @@
     <string name="settings_font_size_large_subtitle">使用更大的文字提高可读性。</string>
     <string name="description_less">收起</string>
     <string name="description_more">更多…</string>
-    <string name="changelog_270_font_sizes">可分别为“正在播放”和界面其他部分选择小号、标准或大号文字，同时保留系统无障碍缩放设置。</string>
-    <string name="changelog_270_animations">滚动标题和平滑的波形进度现在使用缓存的平台表面，从而降低 Android、iOS、macOS、Windows 和 Linux 上的 CPU 占用并提升动画流畅度。</string>
-    <string name="changelog_270_library">最近添加的专辑可以正确刷新，媒体库可按添加日期排序，并可从媒体库页面选择来源媒体库。</string>
-    <string name="changelog_270_usability">服务器支持时会自动启用 Sonic 相似度，滑动操作会等待明确的水平移动，并且 Android 发行版下载体积更小。</string>
-    <string name="changelog_270_playback">Navidrome 收听记录上报更加可靠，刷新曲目电台时会保留当前曲目、播放位置、暂停状态和历史记录。</string>
-    <string name="changelog_270_media">“参与作品”会包含曲目级艺术家署名，桌面版支持 WebP 封面，同步歌词会保持居中并在曲目切换时清除。</string>
-    <string name="changelog_270_beta">Android TV 和 Naviamp Connect 仍处于测试阶段，同时继续进行设备兼容性、网络恢复和性能测试。</string>
-    <string name="changelog_271_popups">修复了弹出菜单和对话框跳动、闪烁以及点击响应位置错误的问题。</string>
     <string name="settings_quality_upgrade_cache_wifi_title">通过 Wi-Fi 提升缓存音频质量</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">根据需要，使用当前 Wi-Fi 音质设置升级较低音质的缓存音频。</string>
     <string name="connection_password_required">输入密码以重新连接到此服务器。</string>
@@ -101,10 +93,10 @@
     <string name="connect_manual_rejected">已到达该地址，但无法验证受信任的设备。请检查其身份或重新配对。</string>
     <string name="connect_manual_reconnect">按地址重新连接到%1$s</string>
     <string name="now_playing_cast_to_device">投放到设备</string>
-    <string name="changelog_280_cast">将 Android 上的在线音乐投放到 Google Cast 接收设备，在手机上控制播放，并从当前进度切回本机收听。</string>
-    <string name="changelog_280_connect">输入地址即可跨 Tailnet 配对 Naviamp Connect 设备，支持安全配对和可信重新连接。</string>
-    <string name="changelog_280_api_key">可使用 OpenSubsonic API 密钥连接兼容的 Navidrome 服务器，同时保留旧版身份验证方式。</string>
-    <string name="changelog_280_visualizer">在可视化效果上滑动，即可选择下一个或上一个效果。</string>
-    <string name="changelog_280_improvements">可选择通过 Wi-Fi 更新低音质的缓存音频，更方便地浏览 DJ 编辑器，并在“正在播放”中查看当前播放列表。</string>
-    <string name="changelog_280_fixes">修复了 Subsonic 密码回退、桌面端空格键暂停以及艺术家和专辑简介中的编码文本问题。</string>
+    <string name="album_artwork_preference">专辑封面偏好</string>
+    <string name="album_artwork_inherit">继承</string>
+    <string name="album_artwork_track">曲目封面</string>
+    <string name="album_artwork_album">专辑封面</string>
+    <string name="album_settings">专辑设置</string>
+    <string name="album_settings_description">选择此专辑要覆盖的设置。继承的值遵循全局设置。</string>
 </resources>

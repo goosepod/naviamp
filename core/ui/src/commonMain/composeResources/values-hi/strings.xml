@@ -73,14 +73,6 @@
     <string name="settings_font_size_large_subtitle">बड़े टेक्स्ट से पढ़ना आसान बनाता है।</string>
     <string name="description_less">कम</string>
     <string name="description_more">और…</string>
-    <string name="changelog_270_font_sizes">अभी चल रहा है और बाकी इंटरफ़ेस के लिए अलग-अलग छोटा, मानक या बड़ा टेक्स्ट चुनें, जबकि सिस्टम की ऐक्सेसिबिलिटी स्केल बनी रहती है।</string>
-    <string name="changelog_270_animations">स्क्रॉल होने वाले शीर्षक और सुचारु वेवफ़ॉर्म प्रगति अब कैश की गई प्लेटफ़ॉर्म सतहों का उपयोग करते हैं, जिससे Android, iOS, macOS, Windows और Linux पर CPU उपयोग कम और ऐनिमेशन बेहतर होता है।</string>
-    <string name="changelog_270_library">हाल में जोड़े गए एल्बम सही ढंग से रीफ़्रेश होते हैं, लाइब्रेरी को जोड़ने की तारीख के अनुसार क्रमबद्ध किया जा सकता है और स्रोत लाइब्रेरी लाइब्रेरी पेज से चुनी जा सकती हैं।</string>
-    <string name="changelog_270_usability">समर्थित होने पर Sonic समानता अपने-आप चालू होती है, स्वाइप क्रियाएँ जानबूझकर किए गए क्षैतिज मूवमेंट की प्रतीक्षा करती हैं और Android रिलीज़ डाउनलोड छोटे हैं।</string>
-    <string name="changelog_270_playback">Navidrome सुनने की रिपोर्ट अधिक भरोसेमंद है और ट्रैक रेडियो रीफ़्रेश करने पर मौजूदा ट्रैक, स्थिति, पॉज़ अवस्था और इतिहास सुरक्षित रहते हैं।</string>
-    <string name="changelog_270_media">‘इसमें भी’ में ट्रैक-स्तरीय कलाकार क्रेडिट शामिल हैं, डेस्कटॉप WebP आर्टवर्क का समर्थन करता है और सिंक्रनाइज़ किए गए बोल केंद्रित रहते हैं तथा ट्रैक बदलने पर साफ़ हो जाते हैं।</string>
-    <string name="changelog_270_beta">डिवाइस संगतता, नेटवर्क रिकवरी और प्रदर्शन परीक्षण जारी रहने के दौरान Android TV और Naviamp Connect बीटा में बने हुए हैं।</string>
-    <string name="changelog_271_popups">पॉपअप मेन्यू और संवादों का अचानक खिसकना, झिलमिलाना और गलत स्थान पर क्लिक का जवाब देना ठीक किया गया।</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Wi-Fi पर कैश किए गए ऑडियो की गुणवत्ता बढ़ाएँ</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">ज़रूरत पड़ने पर कम गुणवत्ता वाले कैश किए गए ऑडियो को मौजूदा Wi-Fi गुणवत्ता में अपग्रेड करें।</string>
     <string name="connection_password_required">इस सर्वर से फिर से जुड़ने के लिए अपना पासवर्ड दर्ज करें।</string>
@@ -101,10 +93,10 @@
     <string name="connect_manual_rejected">पते तक पहुँचे, लेकिन विश्वसनीय डिवाइस की पुष्टि नहीं हो सकी। उसकी पहचान जाँचें या फिर से पेयर करें।</string>
     <string name="connect_manual_reconnect">%1$s से पते द्वारा फिर कनेक्ट करें</string>
     <string name="now_playing_cast_to_device">डिवाइस पर कास्ट करें</string>
-    <string name="changelog_280_cast">Android से ऑनलाइन संगीत Google Cast रिसीवर पर चलाएँ, फ़ोन से प्लेबैक नियंत्रित करें और मौजूदा स्थान से फ़ोन पर फिर सुनें।</string>
-    <string name="changelog_280_connect">पता दर्ज करके Tailnet पर Naviamp Connect डिवाइस जोड़ें, सुरक्षित पेयरिंग और विश्वसनीय दोबारा कनेक्शन के साथ।</string>
-    <string name="changelog_280_api_key">संगत Navidrome सर्वर से OpenSubsonic API कुंजी द्वारा जुड़ें; पुराने प्रमाणीकरण तरीके उपलब्ध रहेंगे।</string>
-    <string name="changelog_280_visualizer">अगला या पिछला विज़ुअलाइज़र चुनने के लिए उस पर स्वाइप करें।</string>
-    <string name="changelog_280_improvements">वैकल्पिक रूप से Wi-Fi पर कम गुणवत्ता वाला कैश ऑडियो अपडेट करें, DJ एडिटर में आसानी से जाएँ और Now Playing में सक्रिय प्लेलिस्ट देखें।</string>
-    <string name="changelog_280_fixes">Subsonic पासवर्ड फ़ॉलबैक, डेस्कटॉप पर स्पेस कुंजी से पॉज़ और कलाकार व एल्बम विवरण में एन्कोडेड टेक्स्ट ठीक किया गया।</string>
+    <string name="album_artwork_preference">एल्बम कवर की प्राथमिकता</string>
+    <string name="album_artwork_inherit">विरासत में लें</string>
+    <string name="album_artwork_track">ट्रैक कवर</string>
+    <string name="album_artwork_album">एल्बम कवर</string>
+    <string name="album_settings">एल्बम सेटिंग</string>
+    <string name="album_settings_description">चुनें कि इस एल्बम के लिए कौन-सी सेटिंग वैश्विक सेटिंग को बदलें। विरासत में मिले मान वैश्विक सेटिंग का पालन करते हैं।</string>
 </resources>

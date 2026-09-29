@@ -73,14 +73,6 @@
     <string name="settings_font_size_large_subtitle">Améliore la lisibilité avec un texte plus grand.</string>
     <string name="description_less">Moins</string>
     <string name="description_more">Plus…</string>
-    <string name="changelog_270_font_sizes">Choisissez indépendamment un texte Petit, Standard ou Grand pour Lecture en cours et pour le reste de l’interface, tout en conservant l’échelle d’accessibilité du système.</string>
-    <string name="changelog_270_animations">Les titres défilants et la progression fluide de la forme d’onde utilisent désormais des surfaces de plateforme mises en cache pour réduire l’utilisation du processeur et fluidifier les animations sur Android, iOS, macOS, Windows et Linux.</string>
-    <string name="changelog_270_library">Les albums ajoutés récemment s’actualisent correctement, la Bibliothèque peut être triée par date d’ajout et les bibliothèques sources peuvent être choisies depuis la page Bibliothèque.</string>
-    <string name="changelog_270_usability">La similarité Sonic s’active automatiquement lorsqu’elle est disponible, les actions de balayage attendent un mouvement horizontal volontaire et les téléchargements Android sont plus petits.</string>
-    <string name="changelog_270_playback">Le signalement des écoutes Navidrome est plus fiable et l’actualisation de la radio d’un titre conserve le titre actuel, la position, l’état de pause et l’historique.</string>
-    <string name="changelog_270_media">Apparaît sur inclut les crédits d’artiste au niveau des titres, le bureau prend en charge les images WebP et les paroles synchronisées restent centrées et sont effacées entre les titres.</string>
-    <string name="changelog_270_beta">Android TV et Naviamp Connect restent en bêta pendant la poursuite des tests de compatibilité des appareils, de récupération réseau et de performances.</string>
-    <string name="changelog_271_popups">Correction des menus contextuels et des boîtes de dialogue qui se déplaçaient, clignotaient et réagissaient aux clics au mauvais endroit.</string>
     <string name="settings_quality_upgrade_cache_wifi_title">Améliorer le cache audio en Wi-Fi</string>
     <string name="settings_quality_upgrade_cache_wifi_subtitle">Améliorer au besoin les fichiers en cache de qualité inférieure selon la qualité Wi-Fi actuelle.</string>
     <string name="connection_password_required">Saisissez votre mot de passe pour vous reconnecter à ce serveur.</string>
@@ -101,10 +93,10 @@
     <string name="connect_manual_rejected">Adresse atteinte, mais l’appareil de confiance n’a pas pu être vérifié. Vérifiez son identité ou associez-le à nouveau.</string>
     <string name="connect_manual_reconnect">Reconnecter %1$s par adresse</string>
     <string name="now_playing_cast_to_device">Caster sur un appareil</string>
-    <string name="changelog_280_cast">Diffusez de la musique en ligne depuis Android vers un récepteur Google Cast, contrôlez la lecture sur votre téléphone et reprenez en local à la position actuelle.</string>
-    <string name="changelog_280_connect">Associez des appareils Naviamp Connect entre Tailnets en saisissant une adresse, avec un appairage sécurisé et une reconnexion de confiance.</string>
-    <string name="changelog_280_api_key">Connectez-vous aux serveurs Navidrome compatibles avec une clé API OpenSubsonic ; les anciennes méthodes d’authentification restent disponibles.</string>
-    <string name="changelog_280_visualizer">Balayez le visualiseur pour choisir la visualisation suivante ou précédente.</string>
-    <string name="changelog_280_improvements">Actualisez si vous le souhaitez les fichiers audio en cache de moindre qualité sur Wi-Fi, parcourez plus facilement l’éditeur DJ et voyez la playlist active dans Lecture en cours.</string>
-    <string name="changelog_280_fixes">Correction du repli sur le mot de passe Subsonic, de la pause avec la barre d’espace sur ordinateur et du texte encodé dans les descriptions d’artistes et d’albums.</string>
+    <string name="album_artwork_preference">Préférence de pochette de l’album</string>
+    <string name="album_artwork_inherit">Hériter</string>
+    <string name="album_artwork_track">Pochette du titre</string>
+    <string name="album_artwork_album">Pochette de l’album</string>
+    <string name="album_settings">Paramètres de l’album</string>
+    <string name="album_settings_description">Choisissez les réglages que cet album remplace. Les valeurs héritées suivent les réglages globaux.</string>
 </resources>

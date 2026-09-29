@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.settings.albumArtworkPreference
+
 import app.naviamp.ui.generated.resources.connect_setup_code_consent
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.*
@@ -82,7 +84,12 @@ fun NaviampTelevisionAppShell(
     val colors = NaviampTelevisionColors
     val connection = uiState.connectionSettings.connection
     val interfaceSettings = uiState.general.interfaceSettings
-    val nowPlaying = uiState.nowPlaying?.withDisplaySettings(interfaceSettings.nowPlaying)
+    val nowPlaying = uiState.nowPlaying?.let { playing ->
+        playing.withDisplaySettings(
+            interfaceSettings.nowPlaying,
+            interfaceSettings.albumArtworkPreference(uiState.connectionSettings.currentSourceId, playing.albumId),
+        )
+    }
     PreloadNaviampNowPlayingArtwork(nowPlaying)
     val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
     val appBackground = naviampAppBackgroundUi(

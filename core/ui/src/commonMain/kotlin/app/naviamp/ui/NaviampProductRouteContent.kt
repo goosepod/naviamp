@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.settings.albumArtworkPreference
+
 import app.naviamp.domain.app.NaviampRoute
 
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +66,10 @@ fun ColumnScope.NaviampProductRouteContent(
                     colors = colors,
                     screen = shellState.albumDetail,
                     actions = shellActions.albumDetailActions,
+                    albumArtworkPreference = shellState.general.interfaceSettings.albumArtworkPreference(
+                        shellState.connectionSettings.currentSourceId,
+                        shellState.albumDetail.selectedAlbum?.id,
+                    ),
                     playlistChoices = shellState.playlistChoices,
                     playlistActionStatus = shellState.playlists.status,
                 )
