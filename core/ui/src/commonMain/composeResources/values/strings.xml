@@ -954,8 +954,10 @@
     <string name="connect_manual_reconnect">Reconnect to %1$s at address</string>
     <string name="now_playing_cast_to_device">Cast to a device</string>
     <string name="album_artwork_preference">Album artwork preference</string>
-    <string name="album_artwork_inherit">Use global preference</string>
+    <string name="album_artwork_inherit">Inherit</string>
     <string name="album_artwork_track">Track cover</string>
     <string name="album_artwork_album">Album cover</string>
     <string name="album_artwork_description">Choose which cover appears for tracks from this album.</string>
+    <string name="album_settings">Album Settings</string>
+    <string name="album_settings_description">Choose which settings this album overrides. Inherited values follow your global settings.</string>
 </resources>

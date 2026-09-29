@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">Riconnetti %1$s tramite indirizzo</string>
     <string name="now_playing_cast_to_device">Trasmetti a un dispositivo</string>
     <string name="album_artwork_preference">Preferenza copertina album</string>
-    <string name="album_artwork_inherit">Usa la preferenza globale</string>
+    <string name="album_artwork_inherit">Eredita</string>
     <string name="album_artwork_track">Copertina del brano</string>
     <string name="album_artwork_album">Copertina dell’album</string>
     <string name="album_artwork_description">Scegli la copertina mostrata per i brani di questo album.</string>
+    <string name="album_settings">Impostazioni album</string>
+    <string name="album_settings_description">Scegli quali impostazioni personalizzare per questo album. I valori ereditati seguono le impostazioni globali.</string>
 </resources>

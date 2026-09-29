@@ -59,6 +59,10 @@ import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.settings.AlbumArtworkPreference
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.album_settings
+import app.naviamp.ui.generated.resources.album_settings_description
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun NaviampAlbumDetailContent(
@@ -254,7 +258,7 @@ private fun AlbumDetailContent(
                         NaviampDetailAction("Download album", NaviampIcons.Downloads, onAlbumDownload, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Add album to queue", NaviampIcons.Queue, onAlbumAddToQueue, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Add album to playlist", NaviampIcons.Playlist, { addAlbumToPlaylistOpen = true }, detail.tracks.isNotEmpty()),
-                        NaviampDetailAction("Playback profile", NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction(stringResource(Res.string.album_settings), NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()),
                         NaviampDetailAction(
                             if (detail.album.favoriteActive) "Remove album favorite" else "Favorite album",
                             if (detail.album.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
@@ -336,7 +340,8 @@ private fun AlbumDetailContent(
     }
     if (playbackProfileOpen) {
         PlaybackProfileDialog(
-            title = "${detail.album.title} playback profile",
+            title = stringResource(Res.string.album_settings),
+            description = stringResource(Res.string.album_settings_description),
             initialProfile = playbackProfile,
             initialArtworkPreference = albumArtworkPreference,
             colors = colors,

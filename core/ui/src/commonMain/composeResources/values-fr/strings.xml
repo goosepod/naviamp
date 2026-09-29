@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">Reconnecter %1$s par adresse</string>
     <string name="now_playing_cast_to_device">Caster sur un appareil</string>
     <string name="album_artwork_preference">Préférence de pochette de l’album</string>
-    <string name="album_artwork_inherit">Utiliser le réglage global</string>
+    <string name="album_artwork_inherit">Hériter</string>
     <string name="album_artwork_track">Pochette du titre</string>
     <string name="album_artwork_album">Pochette de l’album</string>
     <string name="album_artwork_description">Choisissez la pochette affichée pour les titres de cet album.</string>
+    <string name="album_settings">Paramètres de l’album</string>
+    <string name="album_settings_description">Choisissez les réglages que cet album remplace. Les valeurs héritées suivent les réglages globaux.</string>
 </resources>

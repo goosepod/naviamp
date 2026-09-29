@@ -48,6 +48,7 @@ fun PlaybackProfileDialog(
     onSave: (PlaybackProfile) -> Unit,
     initialArtworkPreference: AlbumArtworkPreference? = null,
     onSaveArtworkPreference: ((AlbumArtworkPreference) -> Unit)? = null,
+    description: String = "Choose only the values this sequence should override. Inherited values continue to follow global playback settings.",
 ) {
     val normalized = initialProfile.normalized()
     var transition by remember(title, normalized) { mutableStateOf(normalized.transitionMode) }
@@ -68,7 +69,7 @@ fun PlaybackProfileDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    "Choose only the values this sequence should override. Inherited values continue to follow global playback settings.",
+                    description,
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )

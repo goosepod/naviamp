@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">按地址重新连接到%1$s</string>
     <string name="now_playing_cast_to_device">投放到设备</string>
     <string name="album_artwork_preference">专辑封面偏好</string>
-    <string name="album_artwork_inherit">使用全局偏好</string>
+    <string name="album_artwork_inherit">继承</string>
     <string name="album_artwork_track">曲目封面</string>
     <string name="album_artwork_album">专辑封面</string>
     <string name="album_artwork_description">选择此专辑曲目显示的封面。</string>
+    <string name="album_settings">专辑设置</string>
+    <string name="album_settings_description">选择此专辑要覆盖的设置。继承的值遵循全局设置。</string>
 </resources>

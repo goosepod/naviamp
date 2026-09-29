@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">Повторно підключитися до %1$s за адресою</string>
     <string name="now_playing_cast_to_device">Транслювати на пристрій</string>
     <string name="album_artwork_preference">Налаштування обкладинки альбому</string>
-    <string name="album_artwork_inherit">Використовувати загальне налаштування</string>
+    <string name="album_artwork_inherit">Успадкувати</string>
     <string name="album_artwork_track">Обкладинка треку</string>
     <string name="album_artwork_album">Обкладинка альбому</string>
     <string name="album_artwork_description">Виберіть обкладинку для треків цього альбому.</string>
+    <string name="album_settings">Налаштування альбому</string>
+    <string name="album_settings_description">Виберіть налаштування, які цей альбом перевизначає. Успадковані значення відповідають загальним налаштуванням.</string>
 </resources>

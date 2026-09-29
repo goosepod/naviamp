@@ -213,8 +213,10 @@
     <string name="connect_manual_reconnect">Połącz ponownie z %1$s przez adres</string>
     <string name="now_playing_cast_to_device">Przesyłaj na urządzenie</string>
     <string name="album_artwork_preference">Preferencja okładki albumu</string>
-    <string name="album_artwork_inherit">Użyj ustawienia globalnego</string>
+    <string name="album_artwork_inherit">Dziedzicz</string>
     <string name="album_artwork_track">Okładka utworu</string>
     <string name="album_artwork_album">Okładka albumu</string>
     <string name="album_artwork_description">Wybierz okładkę wyświetlaną dla utworów z tego albumu.</string>
+    <string name="album_settings">Ustawienia albumu</string>
+    <string name="album_settings_description">Wybierz ustawienia, które ten album ma nadpisywać. Dziedziczone wartości są zgodne z ustawieniami globalnymi.</string>
 </resources>

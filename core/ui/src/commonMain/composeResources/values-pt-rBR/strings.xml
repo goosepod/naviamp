@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">Reconectar a %1$s pelo endereço</string>
     <string name="now_playing_cast_to_device">Transmitir para um dispositivo</string>
     <string name="album_artwork_preference">Preferência de capa do álbum</string>
-    <string name="album_artwork_inherit">Usar preferência global</string>
+    <string name="album_artwork_inherit">Herdar</string>
     <string name="album_artwork_track">Capa da faixa</string>
     <string name="album_artwork_album">Capa do álbum</string>
     <string name="album_artwork_description">Escolha qual capa aparece para as faixas deste álbum.</string>
+    <string name="album_settings">Configurações do álbum</string>
+    <string name="album_settings_description">Escolha quais configurações este álbum substitui. Os valores herdados seguem as configurações globais.</string>
 </resources>

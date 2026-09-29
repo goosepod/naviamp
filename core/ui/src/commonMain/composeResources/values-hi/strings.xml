@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">%1$s से पते द्वारा फिर कनेक्ट करें</string>
     <string name="now_playing_cast_to_device">डिवाइस पर कास्ट करें</string>
     <string name="album_artwork_preference">एल्बम कवर की प्राथमिकता</string>
-    <string name="album_artwork_inherit">वैश्विक प्राथमिकता का उपयोग करें</string>
+    <string name="album_artwork_inherit">विरासत में लें</string>
     <string name="album_artwork_track">ट्रैक कवर</string>
     <string name="album_artwork_album">एल्बम कवर</string>
     <string name="album_artwork_description">चुनें कि इस एल्बम के ट्रैक के लिए कौन सा कवर दिखे।</string>
+    <string name="album_settings">एल्बम सेटिंग</string>
+    <string name="album_settings_description">चुनें कि इस एल्बम के लिए कौन-सी सेटिंग वैश्विक सेटिंग को बदलें। विरासत में मिले मान वैश्विक सेटिंग का पालन करते हैं।</string>
 </resources>

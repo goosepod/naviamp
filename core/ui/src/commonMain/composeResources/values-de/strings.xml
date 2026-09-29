@@ -94,7 +94,7 @@
     <string name="connect_manual_reconnect">%1$s über Adresse erneut verbinden</string>
     <string name="now_playing_cast_to_device">Auf Gerät streamen</string>
     <string name="album_artwork_preference">Albumcover-Einstellung</string>
-    <string name="album_artwork_inherit">Globale Einstellung verwenden</string>
+    <string name="album_artwork_inherit">Übernehmen</string>
     <string name="album_artwork_track">Titelcover</string>
     <string name="album_artwork_album">Albumcover</string>
     <string name="album_artwork_description">Wähle, welches Cover für Titel dieses Albums angezeigt wird.</string>
@@ -930,4 +930,6 @@
         <item quantity="one">%1$d Element</item>
         <item quantity="other">%1$d Elemente</item>
     </plurals>
+    <string name="album_settings">Albumeinstellungen</string>
+    <string name="album_settings_description">Wähle, welche Einstellungen dieses Album überschreibt. Übernommene Werte folgen den globalen Einstellungen.</string>
 </resources>

@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">アドレスで%1$sに再接続</string>
     <string name="now_playing_cast_to_device">デバイスにキャスト</string>
     <string name="album_artwork_preference">アルバムアートワークの設定</string>
-    <string name="album_artwork_inherit">全体の設定を使用</string>
+    <string name="album_artwork_inherit">引き継ぐ</string>
     <string name="album_artwork_track">曲のカバー</string>
     <string name="album_artwork_album">アルバムのカバー</string>
     <string name="album_artwork_description">このアルバムの曲に表示するカバーを選択します。</string>
+    <string name="album_settings">アルバム設定</string>
+    <string name="album_settings_description">このアルバムで上書きする設定を選択します。引き継いだ値には全体設定が適用されます。</string>
 </resources>

@@ -930,8 +930,10 @@
     <string name="connect_manual_reconnect">Reconectar con %1$s por dirección</string>
     <string name="now_playing_cast_to_device">Enviar a un dispositivo</string>
     <string name="album_artwork_preference">Preferencia de carátula del álbum</string>
-    <string name="album_artwork_inherit">Usar preferencia global</string>
+    <string name="album_artwork_inherit">Heredar</string>
     <string name="album_artwork_track">Carátula de pista</string>
     <string name="album_artwork_album">Carátula del álbum</string>
     <string name="album_artwork_description">Elige qué carátula se muestra para las pistas de este álbum.</string>
+    <string name="album_settings">Configuración del álbum</string>
+    <string name="album_settings_description">Elige qué ajustes modifica este álbum. Los valores heredados siguen los ajustes globales.</string>
 </resources>

@@ -3,6 +3,7 @@ package app.naviamp.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -47,12 +48,14 @@ class NaviampAlbumArtworkPreferenceUiTest {
         }
 
         onNodeWithContentDescription("Album artwork preference").assertDoesNotExist()
-        onNodeWithContentDescription("Playback profile").performClick()
+        onNodeWithContentDescription("Album Settings").performClick()
+        onNodeWithText("Album artwork preference").assertIsDisplayed()
+        onNodeWithText("Use global preference").assertDoesNotExist()
         onNodeWithText("Track cover").performClick()
         onNodeWithText("Save").performClick()
         assertEquals(listOf(AlbumArtworkPreference.Track), saved)
 
-        onNodeWithContentDescription("Playback profile").performClick()
+        onNodeWithContentDescription("Album Settings").performClick()
         onNodeWithText("Use global settings").performClick()
         assertEquals(listOf(AlbumArtworkPreference.Track, AlbumArtworkPreference.Inherit), saved)
     }

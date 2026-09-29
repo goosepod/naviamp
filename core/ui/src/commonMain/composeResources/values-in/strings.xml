@@ -94,8 +94,10 @@
     <string name="connect_manual_reconnect">Hubungkan kembali %1$s lewat alamat</string>
     <string name="now_playing_cast_to_device">Transmisikan ke perangkat</string>
     <string name="album_artwork_preference">Preferensi sampul album</string>
-    <string name="album_artwork_inherit">Gunakan preferensi global</string>
+    <string name="album_artwork_inherit">Warisi</string>
     <string name="album_artwork_track">Sampul lagu</string>
     <string name="album_artwork_album">Sampul album</string>
     <string name="album_artwork_description">Pilih sampul yang ditampilkan untuk lagu dalam album ini.</string>
+    <string name="album_settings">Pengaturan album</string>
+    <string name="album_settings_description">Pilih pengaturan yang diganti untuk album ini. Nilai yang diwarisi mengikuti pengaturan global.</string>
 </resources>
