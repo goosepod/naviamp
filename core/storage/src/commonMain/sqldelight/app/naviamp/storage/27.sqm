@@ -14,3 +14,10 @@ ON download_retention(source_id, remote_track_id);
 INSERT OR IGNORE INTO download_retention(source_id, remote_track_id, retention_kind, retention_id)
 SELECT DISTINCT source_id, remote_track_id, 'Manual', 'legacy'
 FROM downloaded_audio;
+
+CREATE TABLE IF NOT EXISTS download_job (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL,
+  request_json TEXT NOT NULL,
+  PRIMARY KEY(source_id, job_id)
+);

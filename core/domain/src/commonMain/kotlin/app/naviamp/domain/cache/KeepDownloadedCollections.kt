@@ -19,6 +19,12 @@ data class KeepDownloadedCollectionPolicy(
 )
 
 interface KeepDownloadedRepository {
+    fun savedDownloadJobs(sourceId: String): List<PersistedDownloadJob>
+
+    fun saveDownloadJob(job: PersistedDownloadJob)
+
+    fun deleteDownloadJob(sourceId: String, jobId: String)
+
     fun keepDownloadedPolicies(sourceId: String): List<KeepDownloadedCollectionPolicy>
 
     fun keepDownloadedPolicy(

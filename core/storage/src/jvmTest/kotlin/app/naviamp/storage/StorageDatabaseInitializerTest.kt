@@ -26,6 +26,7 @@ class StorageDatabaseInitializerTest {
             assertEquals(300L, downloads.sumOf { it.size_bytes })
             assertEquals(setOf("album"), downloads.mapNotNull { it.album_id }.toSet())
             val store = StorageKeepDownloadedStore(queries, nowEpochMillis = { 7L })
+            assertEquals(emptyList(), store.savedDownloadJobs("source"))
             assertEquals(setOf("one", "two"), store.manuallyRetainedTrackIds("source"))
             assertEquals(setOf("one"), store.managedKeepDownloadedTrackIds("source"))
             assertEquals(setOf("one", "two"), store.keepDownloadedTrackIds(

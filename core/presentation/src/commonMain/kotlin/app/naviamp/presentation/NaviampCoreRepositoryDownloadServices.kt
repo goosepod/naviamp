@@ -102,6 +102,12 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
         NaviampCoreDownloadTransferResult(shouldRefreshDownloadsAfter(result))
     }
     val keepDownloaded = object : NaviampCoreKeepDownloadedPort {
+        override fun savedJobs(sourceId: String) = keepDownloadedRepository.savedDownloadJobs(sourceId)
+        override fun saveJob(job: app.naviamp.domain.cache.PersistedDownloadJob) =
+            keepDownloadedRepository.saveDownloadJob(job)
+        override fun deleteJob(sourceId: String, jobId: String) =
+            keepDownloadedRepository.deleteDownloadJob(sourceId, jobId)
+
         override fun policies(sourceId: String) = keepDownloadedRepository.keepDownloadedPolicies(sourceId)
 
         override fun toggle(policy: KeepDownloadedCollectionPolicy): NaviampKeepDownloadedToggleResult {

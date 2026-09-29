@@ -3,11 +3,44 @@ package app.naviamp.storage
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.PersistedDownloadJob
+import app.naviamp.domain.cache.createDownloadJob
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class StorageKeepDownloadedStoreTest {
+    @Test
+    fun interruptedJobRequestSurvivesStoreRecreationWithItsQualityAndTracks() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            NaviampStorageDatabase.Schema.create(driver)
+            val queries = NaviampStorageDatabase(driver).naviampStorageQueries
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                    username, token, salt, created_at_epoch_millis)
+                VALUES ('source', 'navidrome', 'cache', 'Server', 'https://example.test',
+                    'user', '', '', 1)
+            """.trimIndent(), 0)
+            val first = StorageKeepDownloadedStore(queries, nowEpochMillis = { 42L })
+            val track = Track(TrackId("three"), "Three", artistName = "Artist", albumTitle = "Album",
+                durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
+            val saved = PersistedDownloadJob("source", createDownloadJob("download-000000000001", "Album", listOf(track)),
+                "transcoded:mp3:192", replaceExisting = false, manualRetention = true,
+                includeCompletedCount = true)
+            first.saveDownloadJob(saved)
+
+            val restarted = StorageKeepDownloadedStore(queries, nowEpochMillis = { 43L })
+            assertEquals(listOf(saved), restarted.savedDownloadJobs("source"))
+            restarted.deleteDownloadJob("source", saved.job.id)
+            assertEquals(emptyList(), restarted.savedDownloadJobs("source"))
+        } finally {
+            driver.close()
+        }
+    }
+
     @Test
     fun albumAndArtistSubscriptionsSurviveStoreRecreationWithMembership() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)

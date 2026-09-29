@@ -18,6 +18,11 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.DownloadJobStatus
+import app.naviamp.domain.cache.PersistedDownloadJob
+import app.naviamp.domain.cache.storedAudioQualityKey
+import app.naviamp.domain.cache.toStoredAudioQuality
+import app.naviamp.domain.cache.updated
 import app.naviamp.domain.cache.CollectionDownloadPlanningResult
 import app.naviamp.domain.cache.planAlbumDownload
 import app.naviamp.domain.cache.planArtistDownload
@@ -64,11 +69,26 @@ class NaviampCoreDownloadsController(
     private var jobs = emptyList<app.naviamp.domain.cache.DownloadJob>()
     private var snapshotGeneration = 0L
     private val jobSources = mutableMapOf<String, String>()
+    private val persistedJobs = mutableMapOf<String, PersistedDownloadJob>()
     private val runningJobs = mutableMapOf<String, Job>()
     private val jobController = NaviampDownloadJobController(
         jobs = { jobs },
         setJobs = { updated ->
             jobs = updated
+            val currentIds = updated.mapTo(mutableSetOf()) { it.id }
+            persistedJobs.keys.toList().filterNot { it in currentIds }.forEach { id ->
+                val saved = persistedJobs.remove(id) ?: return@forEach
+                runCatching { keepDownloaded.deleteJob(saved.sourceId, id) }
+                    .onFailure { publishStatus(keepDownloadedErrorStatus(saved.job.label, it)) }
+            }
+            updated.forEach { job ->
+                persistedJobs[job.id]?.let { saved ->
+                    val replacement = saved.copy(job = job)
+                    persistedJobs[job.id] = replacement
+                    runCatching { keepDownloaded.saveJob(replacement) }
+                        .onFailure { publishStatus(keepDownloadedErrorStatus(job.label, it)) }
+                }
+            }
             jobSources.keys.retainAll(updated.map { it.id }.toSet())
             publishJobs()
         },
@@ -191,6 +211,7 @@ class NaviampCoreDownloadsController(
         runCatching {
             val removed = storage.pruneMissing(sourceId)
             if (!loadSnapshot(sourceId)) return
+            restoreSavedJobs(sourceId)
             publishStatus(status ?: downloadsRefreshStatus(removed))
             if (reconcile) reconcilePolicies(sourceId)
         }.onFailure { cause -> publishStatus(cause.message ?: "Could not refresh downloads.") }
@@ -202,6 +223,7 @@ class NaviampCoreDownloadsController(
         replaceExisting: Boolean = false,
         includeCompletedCount: Boolean = true,
         manualRetention: Boolean = true,
+        qualityOverride: app.naviamp.domain.StreamQuality? = null,
     ): Boolean {
         val provider = providerSource.current()
         val sourceId = currentSourceId()
@@ -217,13 +239,31 @@ class NaviampCoreDownloadsController(
             publishStatus(blocked)
             return false
         }
-        val job = jobController.create(label, tracks, replaceExisting, manualRetention)
+        val job = jobController.create(label, tracks, replaceExisting, manualRetention, sourceId)
         if (job == null) {
             publishStatus(noTracksToDownloadStatus())
             return false
         }
         val activeProvider = requireNotNull(provider)
         val activeSourceId = requireNotNull(sourceId)
+        val quality = qualityOverride ?: activeProvider.capabilities.effectiveDownloadQuality(
+            playbackSettings.downloadStreamQuality(),
+        )
+        val saved = PersistedDownloadJob(
+            sourceId = activeSourceId,
+            job = job,
+            qualityKey = quality.storedAudioQualityKey(),
+            replaceExisting = replaceExisting,
+            manualRetention = manualRetention,
+            includeCompletedCount = includeCompletedCount,
+        )
+        persistedJobs[job.id] = saved
+        runCatching { keepDownloaded.saveJob(saved) }.onFailure { cause ->
+            persistedJobs.remove(job.id)
+            jobController.dismiss(job.id)
+            publishStatus(keepDownloadedErrorStatus(label, cause))
+            return false
+        }
         jobSources[job.id] = activeSourceId
         publishJobs()
         val running = scope.launch {
@@ -234,9 +274,7 @@ class NaviampCoreDownloadsController(
                         tracks = tracks,
                         sourceId = activeSourceId,
                         provider = activeProvider,
-                        quality = activeProvider.capabilities.effectiveDownloadQuality(
-                            playbackSettings.downloadStreamQuality(),
-                        ),
+                        quality = quality,
                         maxDownloadBytes = stateStore.state.value.shell.cache.settings.maxDownloadBytes,
                         replaceExisting = replaceExisting,
                         allowMobileDownloads = playbackSettings.allowMobileDownloads,
@@ -443,9 +481,27 @@ class NaviampCoreDownloadsController(
             publishStatus("Download job cannot be retried.")
             return
         }
-        if (downloadTracks(retry.label, retry.tracks, retry.replaceExisting, manualRetention = retry.manualRetention)) {
+        val saved = persistedJobs[jobId]
+        if (downloadTracks(retry.label, retry.tracks, retry.replaceExisting,
+                manualRetention = retry.manualRetention,
+                includeCompletedCount = saved?.includeCompletedCount ?: true,
+                qualityOverride = saved?.qualityKey?.toStoredAudioQuality())) {
             jobController.dismiss(jobId)
             jobSources.remove(jobId)
+        }
+    }
+
+    private fun restoreSavedJobs(sourceId: String) {
+        keepDownloaded.savedJobs(sourceId).forEach { saved ->
+            if (saved.job.id in persistedJobs || saved.job.id in jobSources) return@forEach
+            val interrupted = saved.job.status == DownloadJobStatus.Queued ||
+                saved.job.status == DownloadJobStatus.Running
+            val restored = if (interrupted) saved.copy(job = saved.job.updated(DownloadJobUpdate.Cancelled)) else saved
+            persistedJobs[restored.job.id] = restored
+            jobSources[restored.job.id] = sourceId
+            jobController.restore(restored)
+            if (interrupted && restored.manualRetention) retry(restored.job.id)
+            if (interrupted && !restored.manualRetention) jobController.dismiss(restored.job.id)
         }
     }
 

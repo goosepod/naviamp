@@ -99,5 +99,9 @@ The first shared foundation is in progress on `feature/150-artist-album-download
   Storage and controller tests cover policy recreation, preview gating, source isolation, and
   oversized artist rejection. A fixture derived from the v2.8.0 release schema now verifies
   paths, byte counts, album metadata, overlapping policy membership, and idempotent startup.
-  Shared Android, JVM, and iOS simulator builds pass. Persisted transfer jobs and physical-file
-  cold-launch checks remain outstanding.
+  Shared Android, JVM, and iOS simulator builds pass.
+- The same unreleased migration now stores job requests and item outcomes. Shared Core recovers an
+  interrupted manual job with its saved quality, while policy reconciliation recreates interrupted
+  subscription transfers. Focused storage and controller tests cover serialization and restart.
+  Android, Desktop, and iOS simulator hosts compile through the shared repository contract.
+  Physical-file cold-launch checks and complete release verification remain outstanding.

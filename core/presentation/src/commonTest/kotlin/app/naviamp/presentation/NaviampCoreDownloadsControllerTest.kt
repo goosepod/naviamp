@@ -11,9 +11,13 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.PersistedDownloadJob
+import app.naviamp.domain.cache.createDownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.provider.ConnectionValidation
@@ -104,6 +108,29 @@ class NaviampCoreDownloadsControllerTest {
         assertEquals(listOf("one", "three"), fixture.keep.reconciledTracks.map { it.id.value })
         assertEquals(listOf("one", "three"), fixture.transfer.requests.single().tracks.map { it.id.value })
         assertFalse(fixture.transfer.requests.single().manualRetention)
+    }
+
+    @Test
+    fun interruptedManualJobRestartsWithSavedQualityAndClearsOldRecord() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        val saved = PersistedDownloadJob(
+            sourceId = "source",
+            job = createDownloadJob("download-000000000009", "Selection", listOf(downloadTrack("three"))),
+            qualityKey = "transcoded:mp3:192",
+            replaceExisting = false,
+            manualRetention = true,
+            includeCompletedCount = true,
+        )
+        fixture.keep.saveJob(saved)
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.Refresh)
+        advanceUntilIdle()
+
+        assertEquals(1, fixture.transfer.requests.size)
+        assertEquals(listOf("three"), fixture.transfer.requests.single().tracks.map { it.id.value })
+        assertEquals(StreamQuality.Transcoded(AudioCodec.Mp3, 192), fixture.transfer.requests.single().quality)
+        assertTrue(fixture.transfer.requests.single().manualRetention)
+        assertTrue(fixture.keep.savedJobs("source").isEmpty())
     }
 
     @Test
@@ -426,11 +453,16 @@ private class DownloadsTestKeep(
     initialPlaylistPolicy: Boolean,
 ) : NaviampCoreKeepDownloadedPort {
     private val policies = mutableListOf<KeepDownloadedCollectionPolicy>()
+    private val saved = mutableMapOf<String, PersistedDownloadJob>()
     var reconciledTracks = emptyList<Track>()
     init {
         if (initialFavoritesPolicy) policies += favoritePolicy()
         if (initialPlaylistPolicy) policies += playlistPolicy()
     }
+
+    override fun savedJobs(sourceId: String) = saved.values.filter { it.sourceId == sourceId }
+    override fun saveJob(job: PersistedDownloadJob) { saved[job.job.id] = job }
+    override fun deleteJob(sourceId: String, jobId: String) { saved.remove(jobId) }
 
     override fun policies(sourceId: String) = policies.toList()
     override fun toggle(policy: KeepDownloadedCollectionPolicy): NaviampKeepDownloadedToggleResult {

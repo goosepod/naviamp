@@ -278,6 +278,13 @@ CREATE TABLE download_retention (
   PRIMARY KEY(source_id, remote_track_id, retention_kind, retention_id)
 );
 
+CREATE TABLE download_job (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL,
+  request_json TEXT NOT NULL,
+  PRIMARY KEY(source_id, job_id)
+);
+
 CREATE TABLE cached_audio_waveform (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_track_id TEXT NOT NULL,
@@ -1294,6 +1301,15 @@ SELECT *
 FROM keep_downloaded_collection
 WHERE source_id = ?
 ORDER BY name COLLATE NOCASE;
+
+selectDownloadJobs:
+SELECT request_json FROM download_job WHERE source_id = ? ORDER BY job_id;
+
+upsertDownloadJob:
+INSERT OR REPLACE INTO download_job(source_id, job_id, request_json) VALUES (?, ?, ?);
+
+deleteDownloadJob:
+DELETE FROM download_job WHERE source_id = ? AND job_id = ?;
 
 selectKeepDownloadedPolicy:
 SELECT *

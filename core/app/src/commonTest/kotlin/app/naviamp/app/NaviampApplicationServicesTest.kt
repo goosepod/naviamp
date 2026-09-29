@@ -227,6 +227,9 @@ private object EmptyDownloadStore :
     DownloadRepository<Unit, Unit>,
     DownloadReplacementRepository<Unit>,
     KeepDownloadedRepository {
+    override fun savedDownloadJobs(sourceId: String) = emptyList<app.naviamp.domain.cache.PersistedDownloadJob>()
+    override fun saveDownloadJob(job: app.naviamp.domain.cache.PersistedDownloadJob) = Unit
+    override fun deleteDownloadJob(sourceId: String, jobId: String) = Unit
     override suspend fun downloadedAudioFile(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
     override suspend fun downloadedAudioFile(sourceId: String, trackId: TrackId) = null
     override suspend fun downloadAudioTrack(

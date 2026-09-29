@@ -14,6 +14,7 @@ value class ArtistId(val value: String)
 @JvmInline
 value class AlbumId(val value: String)
 
+@Serializable
 @JvmInline
 value class TrackId(val value: String)
 
@@ -80,6 +81,7 @@ data class AlbumInfo(
     val largeImageUrl: String? = null,
 )
 
+@Serializable
 data class Track(
     val id: TrackId,
     val title: String,
@@ -157,6 +159,7 @@ fun Album.resolvedArtistCredits(): List<ArtistCredit> =
             )
         }
 
+@Serializable
 data class AudioInfo(
     val codec: String?,
     val bitrateKbps: Int?,
@@ -165,6 +168,7 @@ data class AudioInfo(
     val samplingRateHz: Int? = null,
 )
 
+@Serializable
 data class ReplayGain(
     val trackGainDb: Double?,
     val albumGainDb: Double?,
