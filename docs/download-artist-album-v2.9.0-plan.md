@@ -92,5 +92,10 @@ The first shared foundation is in progress on `feature/150-artist-album-download
 - Complete album-track and primary artist-album pages now feed a shared preview planner. It
   deduplicates overlapping tracks, counts existing downloads, estimates new bytes when metadata
   permits, and rejects catalogs over 200 artist albums or 2,000 tracks before transfer. Provider
-  fixtures verify the paged member queries. The preview still needs shared UI and subscription
-  dispatch before it can be used by listeners.
+  fixtures verify the paged member queries.
+- Shared album and artist detail actions now show subscription state. A bounded preview counts
+  tracks, existing downloads, and estimated new bytes before confirmation; confirmation persists
+  the policy and starts reconciliation. Removing the policy leaves existing files in place.
+  Storage and controller tests cover policy recreation, preview gating, source isolation, and
+  oversized artist rejection. Persisted jobs, a previous-release database fixture, and full
+  Android/iOS verification remain outstanding.

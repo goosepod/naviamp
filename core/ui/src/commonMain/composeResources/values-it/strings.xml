@@ -99,4 +99,15 @@
     <string name="album_artwork_album">Copertina dell’album</string>
     <string name="album_settings">Impostazioni album</string>
     <string name="album_settings_description">Scegli quali impostazioni personalizzare per questo album. I valori ereditati seguono le impostazioni globali.</string>
+    <string name="download_stop_keeping_collection">Interrompi il mantenimento del download</string>
+    <string name="download_keep_collection">Mantieni scaricato</string>
+    <string name="download_preview_title">Mantenere %1$s scaricato?</string>
+    <string name="download_preview_summary">%1$d album · %2$d brani · %3$d già salvati</string>
+    <string name="download_preview_estimate">Nuovo spazio stimato: %1$s</string>
+    <string name="download_preview_at_least">Almeno %1$s (alcune dimensioni sconosciute)</string>
+    <string name="download_preview_budget">Spazio download rimanente: %1$s</string>
+    <string name="download_preview_too_large">Questa raccolta è troppo grande da mantenere scaricata.</string>
+    <string name="download_preview_unsupported">Questo server non può elencare tutta la raccolta.</string>
+    <string name="download_preview_empty">Questa raccolta non contiene brani.</string>
+    <string name="download_preview_storage_limit">Questa raccolta supera il limite di spazio per i download.</string>
 </resources>

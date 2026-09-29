@@ -931,4 +931,15 @@
     </plurals>
     <string name="album_settings">Albumeinstellungen</string>
     <string name="album_settings_description">Wähle, welche Einstellungen dieses Album überschreibt. Übernommene Werte folgen den globalen Einstellungen.</string>
+    <string name="download_stop_keeping_collection">Nicht mehr heruntergeladen halten</string>
+    <string name="download_keep_collection">Heruntergeladen behalten</string>
+    <string name="download_preview_title">%1$s heruntergeladen behalten?</string>
+    <string name="download_preview_summary">%1$d Alben · %2$d Titel · %3$d bereits gespeichert</string>
+    <string name="download_preview_estimate">Geschätzter neuer Speicherbedarf: %1$s</string>
+    <string name="download_preview_at_least">Mindestens %1$s (einige Größen unbekannt)</string>
+    <string name="download_preview_budget">Verbleibendes Downloadbudget: %1$s</string>
+    <string name="download_preview_too_large">Diese Sammlung ist zu groß, um sie heruntergeladen zu behalten.</string>
+    <string name="download_preview_unsupported">Dieser Server kann die Sammlung nicht vollständig auflisten.</string>
+    <string name="download_preview_empty">Diese Sammlung enthält keine Titel.</string>
+    <string name="download_preview_storage_limit">Diese Sammlung überschreitet das Downloadbudget.</string>
 </resources>

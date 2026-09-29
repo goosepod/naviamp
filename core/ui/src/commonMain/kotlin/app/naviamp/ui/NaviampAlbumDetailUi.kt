@@ -62,12 +62,15 @@ import app.naviamp.domain.settings.AlbumArtworkPreference
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.album_settings
 import app.naviamp.ui.generated.resources.album_settings_description
+import app.naviamp.ui.generated.resources.download_keep_collection
+import app.naviamp.ui.generated.resources.download_stop_keeping_collection
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun NaviampAlbumDetailContent(
     colors: NaviampColors,
     screen: NaviampAlbumDetailScreenUi,
+    keptDownloaded: Boolean = false,
     actions: NaviampAlbumDetailActions,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     playlistActionStatus: String? = null,
@@ -113,6 +116,8 @@ fun NaviampAlbumDetailContent(
                 NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.Download),
             )
         },
+        onKeepDownloaded = { actions.onKeepDownloaded(detail.album) },
+        keptDownloaded = keptDownloaded,
         onAlbumAddToQueue = {
             actions.onAlbumAction(
                 NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.AddToQueue),
@@ -173,6 +178,8 @@ private fun AlbumDetailContent(
     onShuffleAlbum: () -> Unit,
     onAlbumRadio: () -> Unit,
     onAlbumDownload: () -> Unit,
+    onKeepDownloaded: () -> Unit,
+    keptDownloaded: Boolean,
     onAlbumAddToQueue: () -> Unit,
     onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (String) -> Unit,
@@ -256,6 +263,11 @@ private fun AlbumDetailContent(
                         NaviampDetailAction("Shuffle album", NaviampTransportIcons.Shuffle, onShuffleAlbum, detail.tracks.size > 1),
                         NaviampDetailAction("Start album radio", NaviampTransportIcons.Radio, onAlbumRadio, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Download album", NaviampIcons.Downloads, onAlbumDownload, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction(
+                            stringResource(if (keptDownloaded) Res.string.download_stop_keeping_collection else Res.string.download_keep_collection),
+                            NaviampIcons.Downloads, onKeepDownloaded, detail.tracks.isNotEmpty() || keptDownloaded,
+                            selected = keptDownloaded,
+                        ),
                         NaviampDetailAction("Add album to queue", NaviampIcons.Queue, onAlbumAddToQueue, detail.tracks.isNotEmpty()),
                         NaviampDetailAction("Add album to playlist", NaviampIcons.Playlist, { addAlbumToPlaylistOpen = true }, detail.tracks.isNotEmpty()),
                         NaviampDetailAction(stringResource(Res.string.album_settings), NaviampIcons.Settings, { playbackProfileOpen = true }, detail.tracks.isNotEmpty()),

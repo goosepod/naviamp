@@ -6,6 +6,8 @@ enum class KeepDownloadedCollectionKind {
     Playlist,
     SmartPlaylist,
     Favorites,
+    Album,
+    Artist,
 }
 
 data class KeepDownloadedCollectionPolicy(

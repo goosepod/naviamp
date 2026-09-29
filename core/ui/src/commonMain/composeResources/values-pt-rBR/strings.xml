@@ -99,4 +99,15 @@
     <string name="album_artwork_album">Capa do álbum</string>
     <string name="album_settings">Configurações do álbum</string>
     <string name="album_settings_description">Escolha quais configurações este álbum substitui. Os valores herdados seguem as configurações globais.</string>
+    <string name="download_stop_keeping_collection">Parar de manter baixado</string>
+    <string name="download_keep_collection">Manter baixado</string>
+    <string name="download_preview_title">Manter %1$s baixado?</string>
+    <string name="download_preview_summary">%1$d álbuns · %2$d faixas · %3$d já salvas</string>
+    <string name="download_preview_estimate">Novo espaço estimado: %1$s</string>
+    <string name="download_preview_at_least">Pelo menos %1$s (alguns tamanhos desconhecidos)</string>
+    <string name="download_preview_budget">Espaço restante para downloads: %1$s</string>
+    <string name="download_preview_too_large">Esta coleção é grande demais para manter baixada.</string>
+    <string name="download_preview_unsupported">Este servidor não consegue listar a coleção completa.</string>
+    <string name="download_preview_empty">Esta coleção não tem faixas.</string>
+    <string name="download_preview_storage_limit">Esta coleção excede o limite de armazenamento de downloads.</string>
 </resources>

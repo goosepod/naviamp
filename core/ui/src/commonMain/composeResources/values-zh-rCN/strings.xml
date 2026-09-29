@@ -99,4 +99,15 @@
     <string name="album_artwork_album">专辑封面</string>
     <string name="album_settings">专辑设置</string>
     <string name="album_settings_description">选择此专辑要覆盖的设置。继承的值遵循全局设置。</string>
+    <string name="download_stop_keeping_collection">停止保留下载</string>
+    <string name="download_keep_collection">保持下载</string>
+    <string name="download_preview_title">保持下载 %1$s？</string>
+    <string name="download_preview_summary">%1$d 张专辑 · %2$d 首曲目 · %3$d 首已保存</string>
+    <string name="download_preview_estimate">预计新增存储空间：%1$s</string>
+    <string name="download_preview_at_least">至少 %1$s（部分大小未知）</string>
+    <string name="download_preview_budget">剩余下载配额：%1$s</string>
+    <string name="download_preview_too_large">此合集过大，无法保持下载。</string>
+    <string name="download_preview_unsupported">此服务器无法列出完整合集。</string>
+    <string name="download_preview_empty">此合集没有曲目。</string>
+    <string name="download_preview_storage_limit">此合集超过下载存储配额。</string>
 </resources>

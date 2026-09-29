@@ -69,6 +69,22 @@ fun naviampKeepDownloadedFavoritesPolicy(sourceId: String): KeepDownloadedCollec
         name = "Favorite tracks",
     )
 
+fun naviampKeepDownloadedAlbumPolicy(sourceId: String, albumId: String, albumTitle: String): KeepDownloadedCollectionPolicy =
+    KeepDownloadedCollectionPolicy(
+        sourceId = sourceId,
+        kind = KeepDownloadedCollectionKind.Album,
+        collectionId = albumId,
+        name = albumTitle,
+    )
+
+fun naviampKeepDownloadedArtistPolicy(sourceId: String, artistId: String, artistName: String): KeepDownloadedCollectionPolicy =
+    KeepDownloadedCollectionPolicy(
+        sourceId = sourceId,
+        kind = KeepDownloadedCollectionKind.Artist,
+        collectionId = artistId,
+        name = artistName,
+    )
+
 /** Owns observable download-job state, cancellation handles, retry intent, and stable job IDs. */
 class NaviampDownloadJobController(
     private val jobs: () -> List<DownloadJob>,
@@ -297,6 +313,9 @@ class NaviampDownloadCoordinator<DownloadedFile, DownloadedTrack, Stats>(
             KeepDownloadedCollectionKind.SmartPlaylist,
             -> loadPlaylistTracks(policy.collectionId)
             KeepDownloadedCollectionKind.Favorites -> loadFavoriteTracks()
+            KeepDownloadedCollectionKind.Album,
+            KeepDownloadedCollectionKind.Artist,
+            -> throw UnsupportedOperationException()
         }
 }
 

@@ -99,4 +99,15 @@
     <string name="album_artwork_album">Albumhoes</string>
     <string name="album_settings">Albuminstellingen</string>
     <string name="album_settings_description">Kies welke instellingen dit album overschrijft. Overgenomen waarden volgen de algemene instellingen.</string>
+    <string name="download_stop_keeping_collection">Niet meer gedownload houden</string>
+    <string name="download_keep_collection">Gedownload houden</string>
+    <string name="download_preview_title">%1$s gedownload houden?</string>
+    <string name="download_preview_summary">%1$d albums · %2$d nummers · %3$d al opgeslagen</string>
+    <string name="download_preview_estimate">Geschatte extra opslag: %1$s</string>
+    <string name="download_preview_at_least">Minstens %1$s (sommige groottes onbekend)</string>
+    <string name="download_preview_budget">Resterend downloadbudget: %1$s</string>
+    <string name="download_preview_too_large">Deze verzameling is te groot om gedownload te houden.</string>
+    <string name="download_preview_unsupported">Deze server kan de volledige verzameling niet weergeven.</string>
+    <string name="download_preview_empty">Deze verzameling bevat geen nummers.</string>
+    <string name="download_preview_storage_limit">Deze verzameling overschrijdt het downloadbudget.</string>
 </resources>

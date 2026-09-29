@@ -15,7 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +25,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.common_cancel
+import app.naviamp.ui.generated.resources.download_keep_collection
+import app.naviamp.ui.generated.resources.download_preview_title
+import app.naviamp.ui.generated.resources.download_preview_summary
+import app.naviamp.ui.generated.resources.download_preview_estimate
+import app.naviamp.ui.generated.resources.download_preview_at_least
+import app.naviamp.ui.generated.resources.download_preview_budget
+import app.naviamp.ui.generated.resources.download_preview_too_large
+import app.naviamp.ui.generated.resources.download_preview_unsupported
+import app.naviamp.ui.generated.resources.download_preview_empty
+import app.naviamp.ui.generated.resources.download_preview_storage_limit
+import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ColumnScope.NaviampProductRouteContent(
     shellState: NaviampAppShellUiState,
@@ -65,6 +80,7 @@ fun ColumnScope.NaviampProductRouteContent(
                 NaviampRoute.AlbumDetail -> NaviampAlbumDetailContent(
                     colors = colors,
                     screen = shellState.albumDetail,
+                    keptDownloaded = shellState.albumDetail.detail?.album?.id in shellState.downloads.keptAlbumIds,
                     actions = shellActions.albumDetailActions,
                     albumArtworkPreference = shellState.general.interfaceSettings.albumArtworkPreference(
                         shellState.connectionSettings.currentSourceId,
@@ -76,6 +92,7 @@ fun ColumnScope.NaviampProductRouteContent(
                 NaviampRoute.ArtistDetail -> NaviampArtistDetailContent(
                     colors = colors,
                     screen = shellState.artistDetail,
+                    keptDownloaded = shellState.artistDetail.detail?.artist?.id in shellState.downloads.keptArtistIds,
                     appearanceState = artistAppearanceState,
                     albumCollectionLayout = shellState.general.interfaceSettings.albumCollectionLayout,
                     albumSortOrder = shellState.general.interfaceSettings.albumSortOrder,
@@ -339,6 +356,51 @@ fun ColumnScope.NaviampProductRouteContent(
             onSave = { name ->
                 shellActions.sonicMixActions.onSaveAsPlaylist(name)
                 saveSonicMixDialogOpen = false
+            },
+        )
+    }
+    shellState.downloads.collectionPreview?.let { preview ->
+        NaviampPopupPresence()
+        AlertDialog(
+            onDismissRequest = shellActions.downloadsActions.onDismissCollection,
+            containerColor = colors.controlSurface,
+            title = { Text(stringResource(Res.string.download_preview_title, preview.title), color = colors.primaryText) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val error = when (preview.error) {
+                        NaviampCollectionDownloadPreviewError.TooLarge -> Res.string.download_preview_too_large
+                        NaviampCollectionDownloadPreviewError.Unsupported -> Res.string.download_preview_unsupported
+                        NaviampCollectionDownloadPreviewError.Empty -> Res.string.download_preview_empty
+                        NaviampCollectionDownloadPreviewError.StorageLimit -> Res.string.download_preview_storage_limit
+                        null -> null
+                    }
+                    if (error != null) {
+                        Text(stringResource(error), color = colors.secondaryText)
+                    } else {
+                        Text(stringResource(Res.string.download_preview_summary,
+                            preview.albumCount, preview.trackCount, preview.alreadyDownloadedCount),
+                            color = colors.secondaryText)
+                        val estimate = preview.estimatedNewBytes?.storageBytesLabel()
+                            ?: stringResource(Res.string.download_preview_at_least,
+                                preview.knownNewBytes.storageBytesLabel())
+                        Text(stringResource(Res.string.download_preview_estimate, estimate),
+                            color = colors.secondaryText)
+                        Text(stringResource(Res.string.download_preview_budget,
+                            preview.remainingBudgetBytes.storageBytesLabel()), color = colors.secondaryText)
+                    }
+                }
+            },
+            confirmButton = {
+                if (preview.error == null) {
+                    TextButton(onClick = shellActions.downloadsActions.onConfirmCollection) {
+                        Text(stringResource(Res.string.download_keep_collection))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = shellActions.downloadsActions.onDismissCollection) {
+                    Text(stringResource(Res.string.common_cancel))
+                }
             },
         )
     }

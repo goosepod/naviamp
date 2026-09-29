@@ -99,4 +99,15 @@
     <string name="album_artwork_album">Pochette de l’album</string>
     <string name="album_settings">Paramètres de l’album</string>
     <string name="album_settings_description">Choisissez les réglages que cet album remplace. Les valeurs héritées suivent les réglages globaux.</string>
+    <string name="download_stop_keeping_collection">Ne plus conserver téléchargé</string>
+    <string name="download_keep_collection">Garder téléchargé</string>
+    <string name="download_preview_title">Garder %1$s téléchargé ?</string>
+    <string name="download_preview_summary">%1$d albums · %2$d titres · %3$d déjà enregistrés</string>
+    <string name="download_preview_estimate">Nouvel espace estimé : %1$s</string>
+    <string name="download_preview_at_least">Au moins %1$s (certaines tailles sont inconnues)</string>
+    <string name="download_preview_budget">Budget de téléchargement restant : %1$s</string>
+    <string name="download_preview_too_large">Cette collection est trop grande pour rester téléchargée.</string>
+    <string name="download_preview_unsupported">Ce serveur ne peut pas lister toute la collection.</string>
+    <string name="download_preview_empty">Cette collection ne contient aucun titre.</string>
+    <string name="download_preview_storage_limit">Cette collection dépasse le budget de stockage des téléchargements.</string>
 </resources>

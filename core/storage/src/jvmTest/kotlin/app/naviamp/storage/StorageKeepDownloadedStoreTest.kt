@@ -9,6 +9,28 @@ import kotlin.test.assertNull
 
 class StorageKeepDownloadedStoreTest {
     @Test
+    fun albumAndArtistSubscriptionsSurviveStoreRecreationWithMembership() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            NaviampStorageDatabase.Schema.create(driver)
+            val queries = NaviampStorageDatabase(driver).naviampStorageQueries
+            val first = StorageKeepDownloadedStore(queries, nowEpochMillis = { 42L })
+            val album = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Album, "album", "Album")
+            val artist = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Artist, "artist", "Artist")
+            first.replaceKeepDownloadedTrackIds(album, setOf("one", "two"))
+            first.replaceKeepDownloadedTrackIds(artist, setOf("two", "three"))
+
+            val restarted = StorageKeepDownloadedStore(queries, nowEpochMillis = { 43L })
+            assertEquals(setOf(album, artist), restarted.keepDownloadedPolicies("source").toSet())
+            assertEquals(setOf("one", "two"), restarted.keepDownloadedTrackIds("source", album.kind, album.collectionId))
+            assertEquals(setOf("two", "three"), restarted.keepDownloadedTrackIds("source", artist.kind, artist.collectionId))
+            assertEquals(emptyList(), restarted.keepDownloadedPolicies("another-source"))
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
     fun persistsPolicyMembershipAndManagedOwnership() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {

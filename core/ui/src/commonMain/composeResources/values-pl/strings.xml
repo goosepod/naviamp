@@ -218,4 +218,15 @@
     <string name="album_artwork_album">Okładka albumu</string>
     <string name="album_settings">Ustawienia albumu</string>
     <string name="album_settings_description">Wybierz ustawienia, które ten album ma nadpisywać. Dziedziczone wartości są zgodne z ustawieniami globalnymi.</string>
+    <string name="download_stop_keeping_collection">Przestań przechowywać pobrane</string>
+    <string name="download_keep_collection">Zachowaj pobrane</string>
+    <string name="download_preview_title">Zachować pobrane %1$s?</string>
+    <string name="download_preview_summary">%1$d albumów · %2$d utworów · %3$d już zapisanych</string>
+    <string name="download_preview_estimate">Szacowane nowe miejsce: %1$s</string>
+    <string name="download_preview_at_least">Co najmniej %1$s (część rozmiarów jest nieznana)</string>
+    <string name="download_preview_budget">Pozostały limit pobierania: %1$s</string>
+    <string name="download_preview_too_large">Ta kolekcja jest zbyt duża, aby zachować ją pobraną.</string>
+    <string name="download_preview_unsupported">Ten serwer nie może wyświetlić całej kolekcji.</string>
+    <string name="download_preview_empty">Ta kolekcja nie zawiera utworów.</string>
+    <string name="download_preview_storage_limit">Ta kolekcja przekracza limit miejsca na pobrania.</string>
 </resources>

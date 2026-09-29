@@ -20,6 +20,9 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.provider.toMediaPage
+import app.naviamp.ui.NaviampCollectionDownloadPreviewError
 import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampConnectionSettingsUi
@@ -34,6 +37,56 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreDownloadsControllerTest {
+    @Test
+    fun albumSubscriptionWaitsForPreviewConfirmationBeforeTransfer() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionTracks = listOf(downloadTrack("one"), downloadTrack("three"))
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareAlbum("album", "Album"))
+        advanceUntilIdle()
+
+        val preview = fixture.store.state.value.shell.downloads.collectionPreview
+        assertEquals(2, preview?.trackCount)
+        assertEquals(1, preview?.alreadyDownloadedCount)
+        assertTrue(fixture.transfer.requests.isEmpty())
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Album })
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ConfirmCollection)
+        advanceUntilIdle()
+
+        assertEquals(listOf("one", "three"), fixture.transfer.requests.single().tracks.map { it.id.value })
+        assertFalse(fixture.transfer.requests.single().manualRetention)
+        assertTrue(fixture.keep.policies("source").any {
+            it.kind == KeepDownloadedCollectionKind.Album && it.collectionId == "album"
+        })
+        assertEquals(null, fixture.store.state.value.shell.downloads.collectionPreview)
+        assertEquals(setOf("album"), fixture.store.state.value.shell.downloads.keptAlbumIds)
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareAlbum("album", "Album"))
+        advanceUntilIdle()
+        assertTrue(fixture.store.state.value.shell.downloads.keptAlbumIds.isEmpty())
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Album })
+        assertEquals(1, fixture.transfer.requests.size)
+    }
+
+    @Test
+    fun oversizedArtistCannotBeConfirmedOrTransferred() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionAlbums = (1..201).map {
+            Album(AlbumId("album-$it"), "Album $it", "Artist", null, null)
+        }
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareArtist("artist", "Artist"))
+        advanceUntilIdle()
+        assertEquals(NaviampCollectionDownloadPreviewError.TooLarge,
+            fixture.store.state.value.shell.downloads.collectionPreview?.error)
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ConfirmCollection)
+        advanceUntilIdle()
+
+        assertTrue(fixture.transfer.requests.isEmpty())
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Artist })
+    }
+
     @Test
     fun refreshMapsStoragePoliciesAndPlaybackIntoAuthoritativeCoreState() = runTest {
         val fixture = fixture(this)
@@ -387,11 +440,17 @@ private class DownloadsTestProvider : MediaProvider {
     val added = mutableListOf<String>()
     val created = mutableListOf<String>()
     var playlistTracks = emptyList<Track>()
+    var collectionTracks = emptyList<Track>()
+    var collectionAlbums = listOf(Album(AlbumId("album"), "Album", "Artist", null, null))
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId): AlbumDetails = error("Not used")
     override suspend fun artist(artistId: ArtistId): ArtistDetails = error("Not used")
+    override suspend fun albumTracksPage(albumId: AlbumId, request: MediaPageRequest) =
+        request.toMediaPage(collectionTracks.drop(request.offset).take(request.limit))
+    override suspend fun artistAlbumsPage(artistId: ArtistId, request: MediaPageRequest) =
+        request.toMediaPage(collectionAlbums.drop(request.offset).take(request.limit))
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()

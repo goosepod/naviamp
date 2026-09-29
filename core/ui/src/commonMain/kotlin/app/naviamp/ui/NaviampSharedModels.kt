@@ -319,6 +319,26 @@ data class NaviampDownloadsScreenUi(
     val maxDownloadBytes: Long = 0L,
     val offlineDashboard: NaviampOfflineDashboardUi = NaviampOfflineDashboardUi(),
     val keepFavoritesDownloaded: Boolean = false,
+    val keptAlbumIds: Set<String> = emptySet(),
+    val keptArtistIds: Set<String> = emptySet(),
+    val collectionPreview: NaviampCollectionDownloadPreviewUi? = null,
+)
+
+enum class NaviampCollectionDownloadKind { Album, Artist }
+
+enum class NaviampCollectionDownloadPreviewError { TooLarge, Unsupported, Empty, StorageLimit }
+
+data class NaviampCollectionDownloadPreviewUi(
+    val title: String,
+    val kind: NaviampCollectionDownloadKind,
+    val albumCount: Int = 0,
+    val trackCount: Int = 0,
+    val alreadyDownloadedCount: Int = 0,
+    val estimatedNewBytes: Long? = null,
+    val knownNewBytes: Long = 0L,
+    val unknownSizeCount: Int = 0,
+    val remainingBudgetBytes: Long = 0L,
+    val error: NaviampCollectionDownloadPreviewError? = null,
 )
 
 data class NaviampDownloadsActions(
@@ -328,6 +348,8 @@ data class NaviampDownloadsActions(
     val onRefresh: () -> Unit,
     val onToggleKeepFavoritesDownloaded: () -> Unit,
     val onDeleteAll: () -> Unit,
+    val onConfirmCollection: () -> Unit = {},
+    val onDismissCollection: () -> Unit = {},
 )
 
 data class NaviampInternetRadioStationUi(
@@ -387,6 +409,7 @@ data class NaviampAlbumDetailActions(
     val onAlbumAction: (NaviampAlbumDetailActionRequest) -> Unit,
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onKeepDownloaded: (SharedMediaItemUi) -> Unit = {},
 )
 
 data class SharedArtistDetailUi(
@@ -456,6 +479,7 @@ data class NaviampArtistDetailActions(
     val onArtistAction: (NaviampArtistDetailActionRequest) -> Unit,
     val onAlbumAction: (NaviampArtistAlbumActionRequest) -> Unit,
     val onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    val onKeepDownloaded: (SharedMediaItemUi) -> Unit = {},
 )
 
 data class SharedAlbumSectionUi(
