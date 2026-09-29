@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">Übernehmen</string>
     <string name="album_artwork_track">Titelcover</string>
     <string name="album_artwork_album">Albumcover</string>
-    <string name="album_artwork_description">Wähle, welches Cover für Titel dieses Albums angezeigt wird.</string>
     <string name="aurora_tone">Aurora-Ton</string>
     <string name="aurora_tone_light">Licht</string>
     <string name="aurora_tone_balanced">Ausgewogen</string>

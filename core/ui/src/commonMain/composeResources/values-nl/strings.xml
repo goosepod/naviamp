@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">Overnemen</string>
     <string name="album_artwork_track">Trackhoes</string>
     <string name="album_artwork_album">Albumhoes</string>
-    <string name="album_artwork_description">Kies welke hoes voor nummers van dit album wordt getoond.</string>
     <string name="album_settings">Albuminstellingen</string>
     <string name="album_settings_description">Kies welke instellingen dit album overschrijft. Overgenomen waarden volgen de algemene instellingen.</string>
 </resources>

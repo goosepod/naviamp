@@ -216,7 +216,6 @@
     <string name="album_artwork_inherit">Dziedzicz</string>
     <string name="album_artwork_track">Okładka utworu</string>
     <string name="album_artwork_album">Okładka albumu</string>
-    <string name="album_artwork_description">Wybierz okładkę wyświetlaną dla utworów z tego albumu.</string>
     <string name="album_settings">Ustawienia albumu</string>
     <string name="album_settings_description">Wybierz ustawienia, które ten album ma nadpisywać. Dziedziczone wartości są zgodne z ustawieniami globalnymi.</string>
 </resources>

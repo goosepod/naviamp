@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">Devral</string>
     <string name="album_artwork_track">Parça kapağı</string>
     <string name="album_artwork_album">Albüm kapağı</string>
-    <string name="album_artwork_description">Bu albümün parçaları için gösterilecek kapağı seçin.</string>
     <string name="album_settings">Albüm ayarları</string>
     <string name="album_settings_description">Bu albümün hangi ayarları geçersiz kılacağını seçin. Devralınan değerler genel ayarları izler.</string>
 </resources>

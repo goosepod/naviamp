@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">引き継ぐ</string>
     <string name="album_artwork_track">曲のカバー</string>
     <string name="album_artwork_album">アルバムのカバー</string>
-    <string name="album_artwork_description">このアルバムの曲に表示するカバーを選択します。</string>
     <string name="album_settings">アルバム設定</string>
     <string name="album_settings_description">このアルバムで上書きする設定を選択します。引き継いだ値には全体設定が適用されます。</string>
 </resources>

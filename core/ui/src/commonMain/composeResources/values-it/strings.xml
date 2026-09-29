@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">Eredita</string>
     <string name="album_artwork_track">Copertina del brano</string>
     <string name="album_artwork_album">Copertina dell’album</string>
-    <string name="album_artwork_description">Scegli la copertina mostrata per i brani di questo album.</string>
     <string name="album_settings">Impostazioni album</string>
     <string name="album_settings_description">Scegli quali impostazioni personalizzare per questo album. I valori ereditati seguono le impostazioni globali.</string>
 </resources>

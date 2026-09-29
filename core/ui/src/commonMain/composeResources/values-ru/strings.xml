@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">Наследовать</string>
     <string name="album_artwork_track">Обложка трека</string>
     <string name="album_artwork_album">Обложка альбома</string>
-    <string name="album_artwork_description">Выберите обложку для треков этого альбома.</string>
     <string name="album_settings">Настройки альбома</string>
     <string name="album_settings_description">Выберите параметры, которые этот альбом переопределяет. Унаследованные значения следуют общим настройкам.</string>
 </resources>

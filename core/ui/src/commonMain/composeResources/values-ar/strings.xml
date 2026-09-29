@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">وراثة</string>
     <string name="album_artwork_track">غلاف المقطع</string>
     <string name="album_artwork_album">غلاف الألبوم</string>
-    <string name="album_artwork_description">اختر الغلاف الذي يظهر لمقاطع هذا الألبوم.</string>
     <string name="album_settings">إعدادات الألبوم</string>
     <string name="album_settings_description">اختر الإعدادات التي يتجاوزها هذا الألبوم. تتبع القيم الموروثة الإعدادات العامة.</string>
 </resources>

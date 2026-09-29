@@ -33,7 +33,6 @@ import app.naviamp.domain.playback.PlaybackTransitionMode
 import app.naviamp.domain.settings.AlbumArtworkPreference
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.album_artwork_album
-import app.naviamp.ui.generated.resources.album_artwork_description
 import app.naviamp.ui.generated.resources.album_artwork_inherit
 import app.naviamp.ui.generated.resources.album_artwork_preference
 import app.naviamp.ui.generated.resources.album_artwork_track
@@ -122,24 +121,17 @@ fun PlaybackProfileDialog(
                     onSelected = { replayGain = it },
                 )
                 if (initialArtworkPreference != null) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            stringResource(Res.string.album_artwork_description),
-                            color = colors.secondaryText,
-                            fontSize = 12.sp,
-                        )
-                        ProfileChoiceSection(
-                            label = stringResource(Res.string.album_artwork_preference),
-                            choices = listOf(
-                                AlbumArtworkPreference.Inherit to stringResource(Res.string.album_artwork_inherit),
-                                AlbumArtworkPreference.Track to stringResource(Res.string.album_artwork_track),
-                                AlbumArtworkPreference.Album to stringResource(Res.string.album_artwork_album),
-                            ),
-                            selected = artworkPreference,
-                            colors = colors,
-                            onSelected = { artworkPreference = it },
-                        )
-                    }
+                    ProfileChoiceSection(
+                        label = stringResource(Res.string.album_artwork_preference),
+                        choices = listOf(
+                            AlbumArtworkPreference.Inherit to stringResource(Res.string.album_artwork_inherit),
+                            AlbumArtworkPreference.Track to stringResource(Res.string.album_artwork_track),
+                            AlbumArtworkPreference.Album to stringResource(Res.string.album_artwork_album),
+                        ),
+                        selected = artworkPreference,
+                        colors = colors,
+                        onSelected = { artworkPreference = it },
+                    )
                 }
             }
         },

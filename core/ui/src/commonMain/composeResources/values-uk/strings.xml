@@ -97,7 +97,6 @@
     <string name="album_artwork_inherit">Успадкувати</string>
     <string name="album_artwork_track">Обкладинка треку</string>
     <string name="album_artwork_album">Обкладинка альбому</string>
-    <string name="album_artwork_description">Виберіть обкладинку для треків цього альбому.</string>
     <string name="album_settings">Налаштування альбому</string>
     <string name="album_settings_description">Виберіть налаштування, які цей альбом перевизначає. Успадковані значення відповідають загальним налаштуванням.</string>
 </resources>
