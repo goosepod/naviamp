@@ -15,15 +15,94 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.test.runComposeUiTest
 import app.naviamp.domain.settings.PlaybackSettings
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRadioDjEditorTest {
+    @Test
+    fun compactPlayerOpensDjEditorDirectly() = runDesktopComposeUiTest(width = 360, height = 640) {
+        val editorOpen = mutableStateOf(false)
+        setContent {
+            NaviampNowPlayingPanel(
+                nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Playing"),
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}, onCreateRadioDj = { editorOpen.value = true }),
+                panelLayout = NaviampPlayerPanelLayout.Standalone,
+            )
+            if (editorOpen.value) {
+                NaviampRadioDjCreationDialog(
+                    colors = NaviampColors.Dark,
+                    playbackSettings = PlaybackSettings(),
+                    onPlaybackSettingsChanged = {},
+                    onDismissRequest = { editorOpen.value = false },
+                )
+            }
+        }
+
+        onNodeWithContentDescription("New DJ").performClick()
+        onNodeWithText("DJ name").assertExists()
+        onNodeWithText("Cancel").performScrollTo().performClick()
+        assertFalse(editorOpen.value)
+    }
+
+    @Test
+    fun nowPlayingCreatesAndCancelsDjsWithoutChangingPlayback() = runDesktopComposeUiTest(width = 420, height = 900) {
+        val settings = mutableStateOf(PlaybackSettings())
+        val editorOpen = mutableStateOf(false)
+        var playbackCommands = 0
+        setContent {
+            NaviampNowPlayingPanel(
+                nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Playing"),
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { playbackCommands++ },
+                    onDisplayAction = {},
+                    onCurrentTrackAction = {},
+                    onQueueAction = {},
+                    onSleepTimerAction = {},
+                    onSelectionAction = {},
+                    onQueueItemAction = {},
+                    onCreateRadioDj = { editorOpen.value = true },
+                ),
+                panelLayout = NaviampPlayerPanelLayout.Standalone,
+            )
+            if (editorOpen.value) {
+                NaviampRadioDjCreationDialog(
+                    colors = NaviampColors.Dark,
+                    playbackSettings = settings.value,
+                    onPlaybackSettingsChanged = { settings.value = it },
+                    onDismissRequest = { editorOpen.value = false },
+                )
+            }
+        }
+
+        onNodeWithContentDescription("New DJ").performClick()
+        onNodeWithText("DJ name").performTextInput("Evening")
+        onNodeWithText("Save").performClick()
+        waitForIdle()
+        assertEquals("Evening", settings.value.radioDjs.single().name)
+        assertFalse(editorOpen.value)
+        assertEquals(0, playbackCommands)
+
+        onNodeWithContentDescription("DJs").performClick()
+        onNodeWithText("New DJ").performClick()
+        onNodeWithText("Cancel").performClick()
+        waitForIdle()
+        assertEquals(1, settings.value.radioDjs.size)
+        assertFalse(editorOpen.value)
+        assertEquals(0, playbackCommands)
+    }
+
     @Test
     fun newDjWrapsOptionsAtLargerTextSize() = runDesktopComposeUiTest(width = 420, height = 900) {
         setContent {

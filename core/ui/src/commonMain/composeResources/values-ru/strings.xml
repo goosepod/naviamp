@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_radio_new_dj">Новый диджей</string>
     <string name="tv_percentage_value">%1$d%</string>
     <string name="tv_album_sort_order">Сортировка альбомов</string>
     <string name="tv_album_sort_order_description">Выберите порядок релизов исполнителя</string>

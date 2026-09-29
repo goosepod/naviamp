@@ -31,12 +31,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -90,6 +92,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.naviamp.domain.playback.EqualizerBandFrequencies
 import app.naviamp.domain.playback.EqualizerPreset
 import app.naviamp.domain.playback.MaxEqualizerGainDb
@@ -4555,13 +4559,48 @@ private fun SettingsNumberSlider(
 }
 
 @Composable
+internal fun NaviampRadioDjCreationDialog(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    NaviampPopupPresence()
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .widthIn(max = 680.dp)
+                    .heightIn(max = maxHeight * 0.9f)
+                    .background(colors.controlSurface, RoundedCornerShape(12.dp))
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 20.dp),
+            ) {
+                RadioDjSettingsSection(
+                    colors = colors,
+                    playbackSettings = playbackSettings,
+                    onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                    onEditorOpenChanged = { if (!it) onDismissRequest() },
+                    initialEditingId = NewRadioDjId,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun RadioDjSettingsSection(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onEditorOpenChanged: (Boolean) -> Unit,
+    initialEditingId: String? = null,
 ) {
-    var editingId by remember { mutableStateOf<String?>(null) }
+    var editingId by remember { mutableStateOf(initialEditingId) }
     var draftName by remember { mutableStateOf("") }
     var draftTuning by remember { mutableStateOf(playbackSettings.radioTuning) }
     val editingPreset = editingId?.let { id -> playbackSettings.radioDjs.firstOrNull { it.id == id } }

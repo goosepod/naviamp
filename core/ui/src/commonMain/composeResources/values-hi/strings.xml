@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_radio_new_dj">नया DJ</string>
     <string name="tv_percentage_value">%1$d%</string>
     <string name="tv_album_sort_order">एल्बम क्रम</string>
     <string name="tv_album_sort_order_description">कलाकार की रिलीज़ का क्रम चुनें</string>
