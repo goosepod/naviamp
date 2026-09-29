@@ -88,6 +88,25 @@ class NaviampCoreDownloadsControllerTest {
     }
 
     @Test
+    fun existingArtistSubscriptionReconcilesAfterControllerRestart() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionTracks = listOf(downloadTrack("one"), downloadTrack("three"))
+        val policy = KeepDownloadedCollectionPolicy(
+            sourceId = "source", kind = KeepDownloadedCollectionKind.Artist,
+            collectionId = "artist", name = "Artist",
+        )
+        fixture.keep.reconcile(policy, emptyList())
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.Refresh)
+        advanceUntilIdle()
+
+        assertEquals(setOf("artist"), fixture.store.state.value.shell.downloads.keptArtistIds)
+        assertEquals(listOf("one", "three"), fixture.keep.reconciledTracks.map { it.id.value })
+        assertEquals(listOf("one", "three"), fixture.transfer.requests.single().tracks.map { it.id.value })
+        assertFalse(fixture.transfer.requests.single().manualRetention)
+    }
+
+    @Test
     fun refreshMapsStoragePoliciesAndPlaybackIntoAuthoritativeCoreState() = runTest {
         val fixture = fixture(this)
 
