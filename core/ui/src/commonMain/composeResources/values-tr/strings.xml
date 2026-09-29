@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_radio_new_dj">Yeni DJ</string>
+    <string name="settings_radio_create_dj">Yeni DJ oluştur</string>
     <string name="tv_percentage_value">%1$d%</string>
     <string name="tv_album_sort_order">Albüm sıralaması</string>
     <string name="tv_album_sort_order_description">Sanatçı yayınlarının sırasını seçin</string>

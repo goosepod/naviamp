@@ -38,6 +38,7 @@ import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.ui.NowPlayingPlaybackAction
@@ -59,6 +60,21 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
+    @Test
+    fun savedDjAppearsInNowPlayingWithoutAnotherPlaybackEvent() = runTest {
+        val fixture = playbackFixture(this)
+        val previous = fixture.store.state.value.shell.playback.settings
+        val current = previous.copy(radioDjs = listOf(RadioDjPreset("evening", "Evening")))
+        fixture.store.updateShell { shell ->
+            shell.copy(playback = shell.playback.copy(settings = current))
+        }
+
+        fixture.controller.playbackSettingsChanged(previous, current)
+
+        assertEquals(listOf("Evening"), fixture.store.state.value.shell.nowPlaying?.radioDjs?.map { it.name })
+        assertEquals(PlaybackState.Playing, fixture.live.state.value.playbackState)
+    }
+
     @Test
     fun connectCommandsUseCanonicalSeekAndRepeatOwners() = runTest {
         val fixture = playbackFixture(this)

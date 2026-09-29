@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_radio_new_dj">دي جي جديد</string>
+    <string name="settings_radio_create_dj">إنشاء دي جي جديد</string>
     <string name="tv_percentage_value">%1$d%</string>
     <string name="tv_album_sort_order">ترتيب الألبومات</string>
     <string name="tv_album_sort_order_description">اختر كيفية ترتيب إصدارات الفنان</string>
