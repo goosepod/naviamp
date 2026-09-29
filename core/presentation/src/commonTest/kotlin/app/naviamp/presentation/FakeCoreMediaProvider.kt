@@ -23,6 +23,7 @@ internal class FakeCoreMediaProvider(
     supportsSonicSimilarity: Boolean = false,
     supportsPlayReporting: Boolean = false,
     supportsStreamingTranscode: Boolean = false,
+    supportsArtistRadio: Boolean = false,
     private val failNowPlayingReports: Boolean = false,
     private val ownedArtworkBytes: ByteArray? = null,
 ) : MediaProvider {
@@ -62,7 +63,7 @@ internal class FakeCoreMediaProvider(
     override val capabilities = ProviderCapabilities(
         supportsStreamingTranscode = supportsStreamingTranscode,
         supportsDownloadTranscode = false,
-        supportsArtistRadio = false,
+        supportsArtistRadio = supportsArtistRadio,
         supportsAlbumRadio = false,
         supportsTrackRadio = false,
         supportsSonicSimilarity = supportsSonicSimilarity,

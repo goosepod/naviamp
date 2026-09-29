@@ -976,4 +976,10 @@
     <string name="changelog_280_visualizer">Swipe across the visualizer to choose the next or previous visualization.</string>
     <string name="changelog_280_improvements">Optionally refresh lower-quality cached audio on Wi-Fi, navigate the DJ editor more easily, and see the active playlist in Now Playing.</string>
     <string name="changelog_280_fixes">Fixed Subsonic password fallback, Space-key pause on desktop, and encoded text in artist and album descriptions.</string>
+    <string name="voice_no_source">Connect to a music server and try again.</string>
+    <string name="voice_no_match">No matching music found.</string>
+    <string name="voice_ambiguous">Several matches found. Say a more specific name.</string>
+    <string name="voice_unsupported">Artist radio is unavailable for this source.</string>
+    <string name="voice_playback_failed">Could not start playback. Try again.</string>
+    <string name="voice_siri_usage_description">Use Siri to play music from your connected library.</string>
 </resources>

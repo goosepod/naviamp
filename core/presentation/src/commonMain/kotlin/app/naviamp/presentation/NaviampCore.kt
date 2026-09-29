@@ -19,6 +19,7 @@ import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.playback.PlaybackProfileTarget
 import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.NamedMediaRequest
 import app.naviamp.domain.settings.toConnectionFormState
 import app.naviamp.domain.settings.toSettingsSyncServerProfile
 import app.naviamp.domain.settings.GlobalShortcutAction
@@ -30,7 +31,9 @@ import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class NaviampCoreInitialState(
     val product: NaviampCoreState = NaviampCoreState(),
@@ -94,6 +97,7 @@ class NaviampCore private constructor(
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
     private val providerSource: NaviampCoreMediaProviderSource,
+    private val namedMedia: NaviampCoreNamedMediaController,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val diagnostics: NaviampCoreDiagnosticsPort,
     private val connectController: NaviampCoreConnectController?,
@@ -139,6 +143,13 @@ class NaviampCore private constructor(
 
     suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult =
         commands.execute(command)
+
+    suspend fun playNamedMedia(request: NamedMediaRequest): NaviampNamedMediaResult {
+        if (providerSource.current() == null) {
+            withTimeoutOrNull(6_000L) { state.first { providerSource.current() != null } }
+        }
+        return namedMedia.play(request)
+    }
 
     fun updateLivePlayback(transform: (NaviampLivePlaybackState) -> NaviampLivePlaybackState) {
         playbackController.updateLiveState(transform)
@@ -424,6 +435,32 @@ class NaviampCore private constructor(
                 onFavoriteArtistActivityChanged = { scope.launch { home.refreshAfterConnection() } },
                 onAlbumUpdated = { provider, album -> services.content.albumIndex?.updateAlbum(provider, album) },
             )
+            val namedMedia = NaviampCoreNamedMediaController(
+                currentProvider = providerSource::current,
+                isCurrent = providerSource::isCurrent,
+                playback = NaviampNamedMediaPlayback { selection ->
+                    when (selection) {
+                        is NaviampNamedMediaSelection.ArtistRadio ->
+                            mediaTransactions.startArtistRadio(selection.artist)
+                        is NaviampNamedMediaSelection.ArtistCatalog ->
+                            queuePlayback.play(selection.tracks)
+                        is NaviampNamedMediaSelection.AlbumCatalog ->
+                            queuePlayback.play(
+                                tracks = selection.tracks,
+                                groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, selection.album.id.value),
+                                groupLabel = selection.album.title,
+                            )
+                        is NaviampNamedMediaSelection.PlaylistCatalog ->
+                            queuePlayback.play(
+                                tracks = selection.tracks,
+                                groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, selection.playlist.id),
+                                groupLabel = selection.playlist.name,
+                            ).also { started ->
+                                if (started) playlistTransactions.recordPlayed(selection.playlist.id)
+                            }
+                    }
+                },
+            )
             val playlistMembership = NaviampCorePlaylistMembershipCoordinator(
                 providerSource = providerSource,
                 currentEditor = { stateStore.state.value.shell.playlistMembership },
@@ -694,6 +731,7 @@ class NaviampCore private constructor(
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
                 providerSource = providerSource,
+                namedMedia = namedMedia,
                 sidecars = services.playback.sidecars,
                 diagnostics = services.diagnostics,
                 connectController = connect,

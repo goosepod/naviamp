@@ -107,4 +107,10 @@
     <string name="changelog_280_visualizer">Usap visualizer untuk memilih tampilan berikutnya atau sebelumnya.</string>
     <string name="changelog_280_improvements">Perbarui audio cache berkualitas rendah melalui Wi-Fi bila diinginkan, navigasikan editor DJ dengan lebih mudah, dan lihat daftar putar aktif di Sedang Diputar.</string>
     <string name="changelog_280_fixes">Memperbaiki fallback kata sandi Subsonic, jeda dengan tombol Spasi di desktop, dan teks terenkode dalam deskripsi artis dan album.</string>
+    <string name="voice_no_source">Hubungkan ke server musik lalu coba lagi.</string>
+    <string name="voice_no_match">Tidak ada musik yang cocok.</string>
+    <string name="voice_ambiguous">Ada beberapa hasil. Ucapkan nama yang lebih spesifik.</string>
+    <string name="voice_unsupported">Radio artis tidak tersedia untuk sumber ini.</string>
+    <string name="voice_playback_failed">Pemutaran tidak dapat dimulai. Coba lagi.</string>
+    <string name="voice_siri_usage_description">Gunakan Siri untuk memutar musik dari perpustakaan yang terhubung.</string>
 </resources>

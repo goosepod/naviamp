@@ -32,8 +32,19 @@
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
-        <false/>
+        <true/>
     </dict>
+    <key>INIntentsSupported</key>
+    <array>
+        <string>INPlayMediaIntent</string>
+    </array>
+    <key>INSupportedMediaCategories</key>
+    <array>
+        <string>INMediaCategoryMusic</string>
+        <string>INMediaCategoryRadio</string>
+    </array>
+    <key>NSSiriUsageDescription</key>
+    <string>Use Siri to play music from your connected library.</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

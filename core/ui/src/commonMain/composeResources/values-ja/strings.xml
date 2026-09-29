@@ -107,4 +107,10 @@
     <string name="changelog_280_visualizer">ビジュアライザーをスワイプして次または前の表示に切り替えられます。</string>
     <string name="changelog_280_improvements">Wi-Fi 上で低品質のキャッシュ音声を任意で更新し、DJ エディターをより簡単に操作し、再生中のプレイリストを確認できます。</string>
     <string name="changelog_280_fixes">Subsonic のパスワード認証への切り替え、デスクトップでのスペースキーによる一時停止、アーティストとアルバムの説明にあるエンコード文字を修正しました。</string>
+    <string name="voice_no_source">音楽サーバーに接続してから、もう一度お試しください。</string>
+    <string name="voice_no_match">一致する音楽が見つかりません。</string>
+    <string name="voice_ambiguous">複数の候補が見つかりました。より具体的な名前を言ってください。</string>
+    <string name="voice_unsupported">このソースではアーティストラジオを利用できません。</string>
+    <string name="voice_playback_failed">再生を開始できませんでした。もう一度お試しください。</string>
+    <string name="voice_siri_usage_description">接続したライブラリの音楽をSiriで再生します。</string>
 </resources>

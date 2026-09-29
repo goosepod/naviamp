@@ -107,4 +107,10 @@
     <string name="changelog_280_visualizer">Sonraki veya önceki görselleştirmeyi seçmek için görselleştirici üzerinde kaydırın.</string>
     <string name="changelog_280_improvements">İsteğe bağlı olarak düşük kaliteli önbellek sesini Wi-Fi üzerinden yenileyin, DJ düzenleyicisinde daha kolay gezinin ve Şimdi Çalıyor ekranında etkin çalma listesini görün.</string>
     <string name="changelog_280_fixes">Subsonic parola yedeği, masaüstünde Boşluk tuşuyla duraklatma ve sanatçı ile albüm açıklamalarındaki kodlanmış metin düzeltildi.</string>
+    <string name="voice_no_source">Bir müzik sunucusuna bağlanıp tekrar deneyin.</string>
+    <string name="voice_no_match">Eşleşen müzik bulunamadı.</string>
+    <string name="voice_ambiguous">Birden fazla sonuç bulundu. Daha belirgin bir ad söyleyin.</string>
+    <string name="voice_unsupported">Sanatçı radyosu bu kaynakta kullanılamıyor.</string>
+    <string name="voice_playback_failed">Oynatma başlatılamadı. Tekrar deneyin.</string>
+    <string name="voice_siri_usage_description">Bağlı kitaplığınızdaki müzikleri çalmak için Siri’yi kullanın.</string>
 </resources>

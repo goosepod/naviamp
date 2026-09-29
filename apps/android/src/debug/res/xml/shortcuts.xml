@@ -1,0 +1,39 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <capability android:name="custom.actions.intent.PLAY_ARTIST_RADIO"
+        app:queryPatterns="@array/app_action_artist_radio_queries">
+        <intent android:action="app.naviamp.android.action.PLAY_ARTIST_RADIO"
+            android:targetClass="app.naviamp.android.MainActivity"
+            android:targetPackage="app.naviamp.android.v2test">
+            <parameter android:name="artist" android:key="app.naviamp.android.extra.MEDIA_NAME"
+                android:mimeType="https://schema.org/Text" android:required="true" />
+        </intent>
+    </capability>
+    <capability android:name="custom.actions.intent.PLAY_ARTIST"
+        app:queryPatterns="@array/app_action_artist_queries">
+        <intent android:action="app.naviamp.android.action.PLAY_ARTIST"
+            android:targetClass="app.naviamp.android.MainActivity"
+            android:targetPackage="app.naviamp.android.v2test">
+            <parameter android:name="artist" android:key="app.naviamp.android.extra.MEDIA_NAME"
+                android:mimeType="https://schema.org/Text" android:required="true" />
+        </intent>
+    </capability>
+    <capability android:name="custom.actions.intent.PLAY_ALBUM"
+        app:queryPatterns="@array/app_action_album_queries">
+        <intent android:action="app.naviamp.android.action.PLAY_ALBUM"
+            android:targetClass="app.naviamp.android.MainActivity"
+            android:targetPackage="app.naviamp.android.v2test">
+            <parameter android:name="album" android:key="app.naviamp.android.extra.MEDIA_NAME"
+                android:mimeType="https://schema.org/Text" android:required="true" />
+        </intent>
+    </capability>
+    <capability android:name="custom.actions.intent.PLAY_PLAYLIST"
+        app:queryPatterns="@array/app_action_playlist_queries">
+        <intent android:action="app.naviamp.android.action.PLAY_PLAYLIST"
+            android:targetClass="app.naviamp.android.MainActivity"
+            android:targetPackage="app.naviamp.android.v2test">
+            <parameter android:name="playlist" android:key="app.naviamp.android.extra.MEDIA_NAME"
+                android:mimeType="https://schema.org/Text" android:required="true" />
+        </intent>
+    </capability>
+</shortcuts>

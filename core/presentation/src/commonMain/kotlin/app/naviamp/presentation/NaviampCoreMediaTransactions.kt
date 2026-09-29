@@ -233,26 +233,31 @@ class NaviampCoreMediaTransactions(
         }
     }
 
-    suspend fun startArtistRadio(artist: Artist) {
+    suspend fun startArtistRadio(artist: Artist): Boolean {
         val cachedPopularTracks = registry.artistPopularTracks.takeIf {
             registry.artistDetails?.artist?.id == artist.id
         }.orEmpty()
         val popularTracks = if (cachedPopularTracks.isNotEmpty()) {
             cachedPopularTracks
         } else {
-            val provider = providerOrPublish() ?: return
+            val provider = providerOrPublish() ?: return false
             publish("Finding a track by ${artist.name}…")
             runCatching {
                 val albums = provider.artist(artist.id).albums
                 val album = albums.randomOrNull() ?: return@runCatching emptyList()
                 provider.album(album.id).tracks
-            }.getOrElse { return publish(it.message ?: "Could not load tracks by ${artist.name}.") }
+            }.getOrElse {
+                publish(it.message ?: "Could not load tracks by ${artist.name}.")
+                return false
+            }
         }
         val seed = selectRadioSeed(popularTracks)
         if (seed != null) {
             startSeededMix(artistSeededRadioRequest(artist, seed)) { recordArtistRadioPlayed(artist) }
+            return true
         } else {
             publish("${artist.name} has no tracks to play.")
+            return false
         }
     }
 

@@ -28,7 +28,9 @@ import app.naviamp.presentation.NaviampExternalRadioId
 import app.naviamp.presentation.NaviampExternalRecentAlbumsId
 import app.naviamp.presentation.NaviampExternalRecentTracksId
 import app.naviamp.presentation.automotiveQueue
+import app.naviamp.presentation.voiceFailure
 import app.naviamp.ui.NaviampRepeatMode
+import app.naviamp.ui.naviampVoiceMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -282,7 +284,27 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
             bridge?.playMediaId(mediaId)
         }
         override fun onPlayFromSearch(query: String, extras: Bundle?) {
-            bridge?.playSearch(query)
+            val available = bridge ?: return
+            val named = androidNamedMediaRequest(query, extras)
+            if (named == null) {
+                if (query.isBlank()) available.play() else available.playSearch(query)
+            } else {
+                scope.launch {
+                    val result = available.playNamedMedia(named)
+                    result.status.voiceFailure()?.let { failure ->
+                        val message = naviampVoiceMessage(failure)
+                        session.setPlaybackState(
+                            PlaybackStateCompat.Builder(playbackState(snapshot))
+                                .setErrorMessage(message)
+                                .build(),
+                        )
+                        session.sendSessionEvent(
+                            NamedMediaErrorEvent,
+                            Bundle().apply { putString(NamedMediaErrorMessage, message) },
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -405,6 +427,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     }
 
     companion object {
+        private const val NamedMediaErrorEvent = "app.naviamp.named_media_error"
+        private const val NamedMediaErrorMessage = "message"
         internal const val ActionRefresh = "app.naviamp.android.v2.action.REFRESH_PLAYBACK"
         internal const val ActionReleaseForeground = "app.naviamp.android.v2.action.RELEASE_FOREGROUND"
         private const val ActionPlayPause = "app.naviamp.android.v2.action.PLAY_PAUSE"

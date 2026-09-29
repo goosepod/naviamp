@@ -32,6 +32,9 @@ import app.naviamp.presentation.naviampNowEpochMillis
 import app.naviamp.presentation.naviampNowIso8601
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
+import app.naviamp.presentation.NaviampNamedMediaResult
+import app.naviamp.domain.playback.NamedMediaKind
+import app.naviamp.domain.playback.NamedMediaRequest
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.withStorageBackedSettings
 import app.naviamp.domain.cache.AudioByteStoreService
@@ -71,6 +74,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import platform.UIKit.UIViewController
 
 /**
@@ -305,6 +309,15 @@ class NaviampIosApplication(
             )
         }
     }.also { contentViewController = it }
+
+    /** SiriKit supplies a native media type and name; Core owns resolution and playback. */
+    fun playNamedMedia(
+        kind: NamedMediaKind,
+        name: String,
+        completion: (NaviampNamedMediaResult) -> Unit,
+    ) {
+        scope.launch { completion(core.playNamedMedia(NamedMediaRequest(kind, name))) }
+    }
 
     fun close() {
         resetIosPlatformCoverArtByteLoader()
