@@ -923,10 +923,21 @@ class NavidromeProvider(
         val smartPlaylistIds = if (nativeToken.isNullOrBlank()) emptySet() else smartPlaylistIds()
 
         return playlists
-            .mapNotNull { playlist ->
-                (playlist as? JsonObject)?.toPlaylist(forceSmart = smartPlaylistIds.contains(playlist.stringValue("id")))
-            }
             .take(limit)
+            .mapNotNull { element ->
+                val playlist = element as? JsonObject ?: return@mapNotNull null
+                val id = playlist.stringValue("id") ?: return@mapNotNull null
+                val forceSmart = id in smartPlaylistIds || playlist.isSmartPlaylistObject() ||
+                    (playlist.booleanValue("readonly") == true &&
+                        playlist.intValue("songCount") == 0 &&
+                        playlist.stringValue("owner")?.let { it == authenticatedUsername } != false &&
+                        !nativeToken.isNullOrBlank() &&
+                        runCatching {
+                            getNativeJson("playlist/${id.urlEncode()}")
+                                .toNativeDataObject().isSmartPlaylistObject()
+                        }.getOrDefault(false))
+                playlist.toPlaylist(forceSmart = forceSmart)
+            }
     }
 
     override suspend fun playlistTracks(playlistId: String): List<Track> {

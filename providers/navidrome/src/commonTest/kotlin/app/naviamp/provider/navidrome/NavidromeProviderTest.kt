@@ -1570,6 +1570,42 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun newlyCreatedReadonlyPlaylistUsesNativeDetailWhenListsOmitSmartMetadata() = runTest {
+        val urls = mutableListOf<String>()
+        val httpClient = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String {
+                urls += url
+                return when {
+                    "/rest/getPlaylists.view" in url -> """{"subsonic-response":{"status":"ok","playlists":{"playlist":[
+                        {"id":"new-smart","name":"New Smart","songCount":0,"readonly":true,"owner":"demo"},
+                        {"id":"ordinary","name":"Ordinary","songCount":0,"readonly":true,"owner":"demo"},
+                        {"id":"shared","name":"Shared","songCount":0,"readonly":true,"owner":"other"}
+                    ]}}}"""
+                    url.endsWith("/api/playlist") -> """{"data":[]}"""
+                    url.endsWith("/api/playlist/new-smart") ->
+                        """{"data":{"id":"new-smart","rules":{"all":[]}}}"""
+                    url.endsWith("/api/playlist/ordinary") ->
+                        """{"data":{"id":"ordinary","rules":null}}"""
+                    else -> error("Unexpected URL: $url")
+                }
+            }
+        }
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        val playlists = provider.playlists().associateBy { it.id }
+
+        assertTrue(playlists.getValue("new-smart").isSmart)
+        assertFalse(playlists.getValue("new-smart").canEdit)
+        assertTrue(playlists.getValue("new-smart").canManage)
+        assertFalse(playlists.getValue("ordinary").isSmart)
+        assertFalse(playlists.getValue("shared").isSmart)
+        assertFalse(urls.any { it.endsWith("/api/playlist/shared") })
+    }
+
+    @Test
     fun playlistsAreFetchedOnceAcrossSelectedMusicFolders() = runTest {
         val http = SequencedHttpClient(listOf(playlistsResponse("playlist-1", "Classical")))
         val provider = NavidromeProvider(connection("https://music.example.test").copy(selectedMusicFolderIds = listOf("2", "4")), http)
