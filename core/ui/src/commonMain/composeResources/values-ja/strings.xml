@@ -99,4 +99,6 @@
     <string name="album_artwork_album">アルバムのカバー</string>
     <string name="album_settings">アルバム設定</string>
     <string name="album_settings_description">このアルバムで上書きする設定を選択します。引き継いだ値には全体設定が適用されます。</string>
+    <string name="artist_appearance_albums">アルバム</string>
+    <string name="artist_appearance_tracks">トラック</string>
 </resources>

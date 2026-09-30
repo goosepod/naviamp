@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -507,26 +508,44 @@ private fun ArtistDetailContent(
                     fontWeight = FontWeight.Bold,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    detail.appearanceAlbums.take(visibleAppearances).forEach { album ->
-                        SharedMediaRow(
-                            item = album,
-                            colors = colors,
-                            onClick = { onAlbumSelected(album) },
-                            menuItems = albumMenuItems(album),
-                            onFavoriteToggled = onAlbumFavoriteToggled,
+                    if (detail.appearanceAlbums.isNotEmpty()) {
+                        Text(
+                            stringResource(Res.string.artist_appearance_albums).uppercase(),
+                            color = colors.secondaryText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.testTag("artist_appearance_albums_heading"),
                         )
+                        detail.appearanceAlbums.take(visibleAppearances).forEach { album ->
+                            SharedMediaRow(
+                                item = album,
+                                colors = colors,
+                                onClick = { onAlbumSelected(album) },
+                                menuItems = albumMenuItems(album),
+                                onFavoriteToggled = onAlbumFavoriteToggled,
+                            )
+                        }
                     }
-                    detail.appearanceTracks.take(visibleAppearances).forEach { track ->
-                        TrackRow(
-                            track,
-                            colors,
-                            onTrackAction = onPopularTrackAction,
-                            canSelect = true,
-                            canStartRadio = true,
-                            canAddToQueue = true,
-                            canDownload = true,
-                            canAddToPlaylist = true,
+                    if (detail.appearanceTracks.isNotEmpty()) {
+                        Text(
+                            stringResource(Res.string.artist_appearance_tracks).uppercase(),
+                            color = colors.secondaryText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.testTag("artist_appearance_tracks_heading"),
                         )
+                        detail.appearanceTracks.take(visibleAppearances).forEach { track ->
+                            TrackRow(
+                                track,
+                                colors,
+                                onTrackAction = onPopularTrackAction,
+                                canSelect = true,
+                                canStartRadio = true,
+                                canAddToQueue = true,
+                                canDownload = true,
+                                canAddToPlaylist = true,
+                            )
+                        }
                     }
                     if (detail.appearanceTracks.size > visibleAppearances || detail.appearanceAlbums.size > visibleAppearances) {
                         TextButton(onClick = appearanceState::showMore) {

@@ -99,4 +99,6 @@
     <string name="album_artwork_album">Albüm kapağı</string>
     <string name="album_settings">Albüm ayarları</string>
     <string name="album_settings_description">Bu albümün hangi ayarları geçersiz kılacağını seçin. Devralınan değerler genel ayarları izler.</string>
+    <string name="artist_appearance_albums">Albümler</string>
+    <string name="artist_appearance_tracks">Parçalar</string>
 </resources>

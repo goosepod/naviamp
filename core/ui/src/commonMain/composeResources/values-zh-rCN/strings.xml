@@ -99,4 +99,6 @@
     <string name="album_artwork_album">专辑封面</string>
     <string name="album_settings">专辑设置</string>
     <string name="album_settings_description">选择此专辑要覆盖的设置。继承的值遵循全局设置。</string>
+    <string name="artist_appearance_albums">专辑</string>
+    <string name="artist_appearance_tracks">曲目</string>
 </resources>

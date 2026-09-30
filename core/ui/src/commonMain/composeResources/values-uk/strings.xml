@@ -99,4 +99,6 @@
     <string name="album_artwork_album">Обкладинка альбому</string>
     <string name="album_settings">Налаштування альбому</string>
     <string name="album_settings_description">Виберіть налаштування, які цей альбом перевизначає. Успадковані значення відповідають загальним налаштуванням.</string>
+    <string name="artist_appearance_albums">Альбоми</string>
+    <string name="artist_appearance_tracks">Треки</string>
 </resources>

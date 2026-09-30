@@ -99,4 +99,6 @@
     <string name="album_artwork_album">Copertina dell’album</string>
     <string name="album_settings">Impostazioni album</string>
     <string name="album_settings_description">Scegli quali impostazioni personalizzare per questo album. I valori ereditati seguono le impostazioni globali.</string>
+    <string name="artist_appearance_albums">Album</string>
+    <string name="artist_appearance_tracks">Brani</string>
 </resources>

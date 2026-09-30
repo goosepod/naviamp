@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runComposeUiTest
@@ -20,6 +21,45 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampArtistAppearancesUiTest {
+    @Test
+    fun appearancesSeparateAlbumsAndTracksAndOmitEmptyGroups() = runComposeUiTest {
+        lateinit var detail: MutableState<SharedArtistDetailUi>
+        setContent {
+            detail = remember { mutableStateOf(SharedArtistDetailUi(
+                artist = SharedMediaItemUi("artist", "Artist", ""),
+                albums = emptyList(),
+                appearanceAlbums = listOf(SharedMediaItemUi("album", "Anthems: 90s", "Various Artists")),
+                appearanceTracks = listOf(SharedTrackRowUi("track", "Mr. Vain", "Culture Beat")),
+            )) }
+            Box(Modifier.width(480.dp).height(640.dp)) {
+                NaviampArtistDetailContent(
+                    colors = NaviampColors(),
+                    screen = NaviampArtistDetailScreenUi(detail = detail.value),
+                    albumCollectionLayout = AlbumCollectionLayout.List,
+                    albumSortOrder = AlbumSortOrder.Title,
+                    groupAlbumsByReleaseType = true,
+                    actions = NaviampArtistDetailActions({}, {}, {}, {}),
+                )
+            }
+        }
+
+        onNodeWithTag("artist_appearance_albums_heading").assertExists()
+        onNodeWithTag("artist_appearance_tracks_heading").assertExists()
+        onNodeWithText("Anthems: 90s").assertExists()
+        onNodeWithText("Mr. Vain").assertExists()
+
+        runOnIdle { detail.value = detail.value.copy(appearanceTracks = emptyList()) }
+        onNodeWithTag("artist_appearance_albums_heading").assertExists()
+        onNodeWithTag("artist_appearance_tracks_heading").assertDoesNotExist()
+
+        runOnIdle { detail.value = detail.value.copy(
+            appearanceAlbums = emptyList(),
+            appearanceTracks = listOf(SharedTrackRowUi("track", "Mr. Vain", "Culture Beat")),
+        ) }
+        onNodeWithTag("artist_appearance_albums_heading").assertDoesNotExist()
+        onNodeWithTag("artist_appearance_tracks_heading").assertExists()
+    }
+
     @Test
     fun largeAppearanceListsExpandWithoutResettingOnMetadataUpdates() = runComposeUiTest {
         lateinit var detail: MutableState<SharedArtistDetailUi>

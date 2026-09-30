@@ -931,4 +931,6 @@
     </plurals>
     <string name="album_settings">Albumeinstellungen</string>
     <string name="album_settings_description">Wähle, welche Einstellungen dieses Album überschreibt. Übernommene Werte folgen den globalen Einstellungen.</string>
+    <string name="artist_appearance_albums">Alben</string>
+    <string name="artist_appearance_tracks">Titel</string>
 </resources>

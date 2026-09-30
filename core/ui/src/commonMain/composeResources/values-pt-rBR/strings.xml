@@ -99,4 +99,6 @@
     <string name="album_artwork_album">Capa do álbum</string>
     <string name="album_settings">Configurações do álbum</string>
     <string name="album_settings_description">Escolha quais configurações este álbum substitui. Os valores herdados seguem as configurações globais.</string>
+    <string name="artist_appearance_albums">Álbuns</string>
+    <string name="artist_appearance_tracks">Faixas</string>
 </resources>

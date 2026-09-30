@@ -99,4 +99,6 @@
     <string name="album_artwork_album">Pochette de l’album</string>
     <string name="album_settings">Paramètres de l’album</string>
     <string name="album_settings_description">Choisissez les réglages que cet album remplace. Les valeurs héritées suivent les réglages globaux.</string>
+    <string name="artist_appearance_albums">Albums</string>
+    <string name="artist_appearance_tracks">Titres</string>
 </resources>
