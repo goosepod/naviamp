@@ -223,11 +223,16 @@ class NaviampCorePlaylistTransactionController(
 
     private suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition, password: String?) {
         val provider = smartProvider(password, "save")
+        val generation = browseController.sourceGeneration
         publishListStatus("Saving ${definition.name}...")
         try {
-            provider.createSmartPlaylist(definition)
+            val created = provider.createSmartPlaylist(definition)
             sessionPort.persistActiveSession()
+            if (generation != browseController.sourceGeneration || !providerSource.isCurrent(provider)) return
             browseController.refreshAfterMutation("Saved smart playlist ${definition.name}.")
+            if (generation == browseController.sourceGeneration && providerSource.isCurrent(provider)) {
+                browseController.reconcileCreatedSmartPlaylist(created)
+            }
         } catch (cause: Throwable) {
             sessionPort.persistActiveSession()
             publishListStatus(cause.message ?: "Could not save smart playlist.")

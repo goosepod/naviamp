@@ -171,6 +171,32 @@ class NaviampCorePlaylistBrowseController(
         refresh(finalStatus = status)
     }
 
+    // Navidrome can expose a newly created smart playlist through OpenSubsonic
+    // before its native playlist list identifies it as smart. Keep the creation
+    // response's capabilities until the next ordinary refresh catches up.
+    internal fun reconcileCreatedSmartPlaylist(created: Playlist) {
+        val provider = providerSource.current() ?: return
+        val current = playlistsById[created.id]
+        if (current?.isSmart == true && current.canManage) return
+        val corrected = created.copy(
+            trackCount = current?.trackCount ?: created.trackCount,
+            durationSeconds = current?.durationSeconds ?: created.durationSeconds,
+            coverArtId = current?.coverArtId ?: created.coverArtId,
+        )
+        ++listGeneration
+        playlistsById = playlistsById + (created.id to corrected)
+        mediaRegistry.updatePlaylists(playlistsById.values.toList())
+        val mapped = corrected.toSharedMediaItemUi(coverArtUrl = { id -> id?.let(provider::coverArtUrl) })
+        stateStore.updateShell { shell ->
+            shell.copy(
+                playlists = shell.playlists.copy(
+                    playlists = shell.playlists.playlists.filterNot { it.id == created.id } + mapped,
+                ),
+                playlistChoices = shell.playlistChoices.filterNot { it.id == created.id },
+            )
+        }
+    }
+
     internal fun publishCreated(playlist: Playlist) {
         val provider = providerSource.current() ?: return
         ++listGeneration // A refresh begun before creation must not remove the new playlist.
