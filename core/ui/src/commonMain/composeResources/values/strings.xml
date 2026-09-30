@@ -959,4 +959,6 @@
     <string name="album_artwork_album">Album cover</string>
     <string name="album_settings">Album Settings</string>
     <string name="album_settings_description">Choose which settings this album overrides. Inherited values follow your global settings.</string>
+    <string name="artist_appearance_albums">Albums</string>
+    <string name="artist_appearance_tracks">Tracks</string>
 </resources>

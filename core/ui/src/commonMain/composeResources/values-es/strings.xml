@@ -935,4 +935,6 @@
     <string name="album_artwork_album">Carátula del álbum</string>
     <string name="album_settings">Configuración del álbum</string>
     <string name="album_settings_description">Elige qué ajustes modifica este álbum. Los valores heredados siguen los ajustes globales.</string>
+    <string name="artist_appearance_albums">Álbumes</string>
+    <string name="artist_appearance_tracks">Pistas</string>
 </resources>

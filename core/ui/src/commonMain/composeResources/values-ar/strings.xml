@@ -99,4 +99,6 @@
     <string name="album_artwork_album">غلاف الألبوم</string>
     <string name="album_settings">إعدادات الألبوم</string>
     <string name="album_settings_description">اختر الإعدادات التي يتجاوزها هذا الألبوم. تتبع القيم الموروثة الإعدادات العامة.</string>
+    <string name="artist_appearance_albums">الألبومات</string>
+    <string name="artist_appearance_tracks">المقاطع</string>
 </resources>

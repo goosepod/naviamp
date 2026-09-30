@@ -218,4 +218,6 @@
     <string name="album_artwork_album">Okładka albumu</string>
     <string name="album_settings">Ustawienia albumu</string>
     <string name="album_settings_description">Wybierz ustawienia, które ten album ma nadpisywać. Dziedziczone wartości są zgodne z ustawieniami globalnymi.</string>
+    <string name="artist_appearance_albums">Albumy</string>
+    <string name="artist_appearance_tracks">Utwory</string>
 </resources>

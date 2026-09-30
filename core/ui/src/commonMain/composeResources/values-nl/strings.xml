@@ -99,4 +99,6 @@
     <string name="album_artwork_album">Albumhoes</string>
     <string name="album_settings">Albuminstellingen</string>
     <string name="album_settings_description">Kies welke instellingen dit album overschrijft. Overgenomen waarden volgen de algemene instellingen.</string>
+    <string name="artist_appearance_albums">Albums</string>
+    <string name="artist_appearance_tracks">Nummers</string>
 </resources>

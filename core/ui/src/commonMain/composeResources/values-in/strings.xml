@@ -99,4 +99,6 @@
     <string name="album_artwork_album">Sampul album</string>
     <string name="album_settings">Pengaturan album</string>
     <string name="album_settings_description">Pilih pengaturan yang diganti untuk album ini. Nilai yang diwarisi mengikuti pengaturan global.</string>
+    <string name="artist_appearance_albums">Album</string>
+    <string name="artist_appearance_tracks">Lagu</string>
 </resources>
