@@ -134,7 +134,25 @@ migration. Only the separate test app's database was repaired; its downloaded fi
 
 The local Android unit, Desktop, and iOS simulator test and compilation matrix passed, along with
 the architecture check, Android packaging checks, and debug bundle build. The release gate still
-needs the pull request's CI matrix and physical-file cold launch checks on Desktop and iOS.
+needs the pull request's CI matrix.
 A v2.8.0 binary cannot be expected to read the new v28 database;
 recovery from a rollback requires restoring the pre-upgrade database backup while preserving the
 audio files. Do not downgrade the only copy of a user's database to test this.
+
+## Desktop and iOS physical-file upgrade verification
+
+On September 30, 2026, the v2.8.0 release SQL fixture was installed in an isolated Desktop data
+profile and a newly created iPhone 17 Pro simulator. Each fixture held three real audio files
+(two FLAC files and one MP3), including two qualities for one track, a saved playlist policy,
+favorite-track policy, and overlapping memberships. The media source used deliberately invalid
+test credentials; these checks did not exercise server reconnection or playback.
+
+- The packaged Desktop app and built iOS app each cold-launched against schema v27 and migrated it
+  to v28. Both retained all three download rows and exact physical paths, sizes, and SHA-256 hashes.
+  Each backfilled two manual-retention records and retained three collection memberships.
+- A second cold launch on each platform preserved the same database and files. The iOS app also
+  visibly rendered after the second launch; its connection error was expected from the invalid
+  fixture credentials. The existing simulator with unrelated Naviamp data was left untouched.
+- The fixture and verification used the release SQL at
+  `core/storage/src/jvmTest/resources/v2.8.0-download-upgrade.sql`, generated short valid FLAC/MP3
+  files, and compared a pre-launch path/size/SHA-256 manifest to the migrated inventory.
