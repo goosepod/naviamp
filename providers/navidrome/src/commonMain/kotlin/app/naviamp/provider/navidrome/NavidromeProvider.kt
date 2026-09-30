@@ -2068,6 +2068,15 @@ class NavidromeProvider(
             // playlistRole describes creation, not editing existing playlists.
             canEdit = booleanValue("readonly")?.not()
                 ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true),
+            // Generated smart-playlist tracks are read-only through OpenSubsonic,
+            // while their owner can still manage rules and delete the playlist.
+            canManage = if (forceSmart || isSmartPlaylistObject()) {
+                stringValue("owner")?.let { it == authenticatedUsername }
+                    ?: (booleanValue("readonly")?.not() ?: true)
+            } else {
+                booleanValue("readonly")?.not()
+                    ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true)
+            },
         )
 
     private fun JsonObject.toInternetRadioStation(): InternetRadioStation =

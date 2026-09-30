@@ -392,7 +392,8 @@ class MediaUiMappersTest {
 
     @Test
     fun playlistUiCarriesTrackCountAndKeepDownloadedState() {
-        val playlist = Playlist("playlist", "Playlist", trackCount = 3, durationSeconds = 180)
+        val playlist = Playlist("playlist", "Playlist", trackCount = 3, durationSeconds = 180,
+            isSmart = true, canEdit = false, canManage = true)
 
         val item = playlist.toSharedMediaItemUi(
             coverArtUrl = { null },
@@ -402,6 +403,8 @@ class MediaUiMappersTest {
 
         assertEquals(3, item.trackCount)
         assertTrue(item.keepDownloadedActive)
+        assertFalse(item.canEditPlaylist)
+        assertTrue(item.canManagePlaylist)
         assertEquals("3 tracks", item.subtitle)
     }
 

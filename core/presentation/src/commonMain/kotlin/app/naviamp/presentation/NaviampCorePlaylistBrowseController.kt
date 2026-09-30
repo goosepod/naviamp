@@ -239,6 +239,7 @@ class NaviampCorePlaylistBrowseController(
             trackCount = item.trackCount ?: 0,
             isSmart = item.isSmartPlaylist,
             canEdit = item.canEditPlaylist,
+            canManage = item.canManagePlaylist,
         )
 
     private suspend fun open(item: SharedMediaItemUi) {

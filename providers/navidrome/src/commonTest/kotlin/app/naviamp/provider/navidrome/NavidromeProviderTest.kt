@@ -1551,6 +1551,25 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun ownedReadonlySmartPlaylistCanBeManagedWithoutEditingGeneratedTracks() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """{"subsonic-response":{"status":"ok","playlists":{"playlist":[
+                    {"id":"mine","name":"My Smart Playlist","owner":"demo","songCount":0,"readonly":true,"smart":true},
+                    {"id":"shared","name":"Shared Smart Playlist","owner":"someone-else","songCount":0,"readonly":true,"smart":true}
+                ]}}}""",
+            ),
+        )
+
+        val playlists = provider.playlists().associateBy { it.id }
+        assertFalse(playlists.getValue("mine").canEdit)
+        assertTrue(playlists.getValue("mine").canManage)
+        assertFalse(playlists.getValue("shared").canEdit)
+        assertFalse(playlists.getValue("shared").canManage)
+    }
+
+    @Test
     fun playlistsAreFetchedOnceAcrossSelectedMusicFolders() = runTest {
         val http = SequencedHttpClient(listOf(playlistsResponse("playlist-1", "Classical")))
         val provider = NavidromeProvider(connection("https://music.example.test").copy(selectedMusicFolderIds = listOf("2", "4")), http)

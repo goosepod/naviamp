@@ -175,7 +175,7 @@ class NaviampCorePlaylistTransactionController(
                     return
                 }
                 NaviampPlaylistDetailCommand.Delete -> {
-                    if (!playlist.canEdit) throw UnsupportedOperationException()
+                    if (!playlist.canManage) throw UnsupportedOperationException()
                     provider.deletePlaylist(playlist.id)
                     browseController.refreshAfterMutation("Deleted playlist.")
                     clearDeletedSelection(playlist.id)
@@ -240,7 +240,7 @@ class NaviampCorePlaylistTransactionController(
         definition: SmartPlaylistDefinition,
         password: String?,
     ) {
-        if (!item.canEditPlaylist) throw UnsupportedOperationException()
+        if (!item.canManagePlaylist) throw UnsupportedOperationException()
         val provider = smartProvider(password, "update")
         val playlist = browseController.resolvePlaylist(item)
         publishListStatus("Updating ${definition.name}...")
