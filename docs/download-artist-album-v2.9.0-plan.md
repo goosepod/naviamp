@@ -104,5 +104,7 @@ The first shared foundation is in progress on `feature/150-artist-album-download
 - The same unreleased migration now stores job requests and item outcomes. Shared Core recovers an
   interrupted manual job with its saved quality, while policy reconciliation recreates interrupted
   subscription transfers. Focused storage and controller tests cover serialization and restart.
+  A connected startup now reconciles saved subscriptions; offline restoration only loads local
+  downloads and waits for a connection before requesting catalog pages.
   Android, Desktop, and iOS simulator hosts compile through the shared repository contract.
   Physical-file cold-launch checks and complete release verification remain outstanding.

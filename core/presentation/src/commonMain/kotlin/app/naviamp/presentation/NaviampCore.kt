@@ -508,14 +508,14 @@ class NaviampCore private constructor(
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
                 sessionPort = services.connection,
             )
-            val restoreLocalSession: (String) -> Unit = { sourceId ->
+            val restoreLocalSession: (String, Boolean) -> Unit = { sourceId, reconcileDownloads ->
                 scope.launch {
                     val reopenNowPlaying = services.playback.sessions.load(sourceId)?.nowPlayingOpen == true
                     if (playback.restoreSession(sourceId) && reopenNowPlaying) {
                         navigation.restoreNowPlayingOpen()
                     }
                 }
-                scope.launch { downloads.refresh(reconcile = false) }
+                scope.launch { downloads.refresh(reconcile = reconcileDownloads) }
             }
             val connection = NaviampCoreConnectionController(
                 NaviampConnectionController(initialState.connection),
@@ -552,7 +552,7 @@ class NaviampCore private constructor(
                             )
                         }
                     }
-                    restoreLocalSession(sourceId)
+                    restoreLocalSession(sourceId, true)
                     scope.launch {
                         home.refreshAfterConnection()
                         home.restoreRecentRadioStreams(generatedRadioRecents.current())
@@ -564,7 +564,7 @@ class NaviampCore private constructor(
                 onUserConnected = {
                     navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(app.naviamp.ui.SharedRoute.Home))
                 },
-                onOfflineRestored = restoreLocalSession,
+                onOfflineRestored = { sourceId -> restoreLocalSession(sourceId, false) },
             )
             if (initialState.connectionInventory.currentSourceId != null) {
                 scope.launch { providerSessionLifecycle.refreshNow() }
