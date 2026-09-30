@@ -1678,7 +1678,6 @@ class NavidromeProviderTest {
             {
               "data": {
                 "id": "smart-1",
-                "name": "Road Smart",
                 "songCount": 12,
                 "duration": 3200
               }
@@ -1694,6 +1693,8 @@ class NavidromeProviderTest {
 
         assertEquals("smart-1", playlist.id)
         assertEquals("Road Smart", playlist.name)
+        assertFalse(playlist.canEdit)
+        assertTrue(playlist.canManage)
         assertEquals("https://music.example.test/api/playlist", httpClient.postUrls.single())
         assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.postHeaders.single())
         assertEquals(

@@ -992,7 +992,10 @@ class NavidromeProvider(
             endpoint = "playlist",
             body = json.encodeToString(JsonObject.serializer(), body),
         )
-        return response.toNativeDataObject().toPlaylist(forceSmart = true)
+        val created = response.toNativeDataObject()
+        return created.toPlaylist(forceSmart = true).copy(
+            name = created.stringValue("name")?.takeIf(String::isNotBlank) ?: definition.name,
+        )
     }
 
     override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
@@ -2066,8 +2069,10 @@ class NavidromeProvider(
             public = booleanValue("public"),
             // OpenSubsonic supplies per-playlist edit permission. The legacy user
             // playlistRole describes creation, not editing existing playlists.
-            canEdit = booleanValue("readonly")?.not()
-                ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true),
+            canEdit = if (forceSmart || isSmartPlaylistObject()) false else {
+                booleanValue("readonly")?.not()
+                    ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true)
+            },
             // Generated smart-playlist tracks are read-only through OpenSubsonic,
             // while their owner can still manage rules and delete the playlist.
             canManage = if (forceSmart || isSmartPlaylistObject()) {
