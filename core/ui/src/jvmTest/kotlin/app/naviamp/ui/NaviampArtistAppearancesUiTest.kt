@@ -33,9 +33,12 @@ class NaviampArtistAppearancesUiTest {
             )) }
             Box(Modifier.width(480.dp).height(640.dp)) {
                 NaviampArtistDetailContent(
-                    NaviampColors(), NaviampArtistDetailScreenUi(detail = detail.value),
-                    AlbumCollectionLayout.List, AlbumSortOrder.Title, true,
-                    NaviampArtistDetailActions({}, {}, {}, {}),
+                    colors = NaviampColors(),
+                    screen = NaviampArtistDetailScreenUi(detail = detail.value),
+                    albumCollectionLayout = AlbumCollectionLayout.List,
+                    albumSortOrder = AlbumSortOrder.Title,
+                    groupAlbumsByReleaseType = true,
+                    actions = NaviampArtistDetailActions({}, {}, {}, {}),
                 )
             }
         }
