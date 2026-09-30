@@ -49,6 +49,7 @@ class StorageDatabaseInitializerTest {
             // Recreate main's immediate pre-migration schema from the canonical schema.
             NaviampStorageDatabase.Schema.create(driver)
             driver.execute(null, "DROP TABLE download_retention", 0)
+            driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
             driver.execute(null, """
                 INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
                     username, token, salt, created_at_epoch_millis, authentication_mode)
@@ -93,6 +94,7 @@ class StorageDatabaseInitializerTest {
         try {
             NaviampStorageDatabase.Schema.create(driver)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
+            driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
             driver.execute(null, """
                 INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
                     username, token, salt, password, created_at_epoch_millis)
@@ -223,6 +225,7 @@ class StorageDatabaseInitializerTest {
             NaviampStorageDatabase.Schema.create(driver)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
+            driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
             driver.execute(null, """
                 INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
                     username, token, salt, created_at_epoch_millis)
@@ -255,6 +258,7 @@ class StorageDatabaseInitializerTest {
             driver.execute(null, "DROP TABLE library_track_artist_credit", 0)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
+            driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
             driver.execute(null, "PRAGMA user_version = 24", 0)
             driver.execute(null, """
                 INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
@@ -299,6 +303,7 @@ private fun JdbcSqliteDriver.userVersion(): Long = queryLong("PRAGMA user_versio
 
 private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFolders: Boolean) {
     NaviampStorageDatabase.Schema.create(this)
+    execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
     execute(null, "ALTER TABLE library_album DROP COLUMN original_release_year", 0)
     execute(null, "ALTER TABLE library_track DROP COLUMN music_folder_id", 0)
     execute(null, "ALTER TABLE library_track DROP COLUMN album_release_year", 0)

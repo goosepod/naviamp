@@ -3,6 +3,7 @@ package app.naviamp.storage
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.ArtistAlbumScope
 import app.naviamp.domain.cache.PersistedDownloadJob
 import app.naviamp.domain.cache.createDownloadJob
 import app.naviamp.domain.Track
@@ -49,7 +50,8 @@ class StorageKeepDownloadedStoreTest {
             val queries = NaviampStorageDatabase(driver).naviampStorageQueries
             val first = StorageKeepDownloadedStore(queries, nowEpochMillis = { 42L })
             val album = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Album, "album", "Album")
-            val artist = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Artist, "artist", "Artist")
+            val artist = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Artist, "artist", "Artist",
+                artistAlbumScope = ArtistAlbumScope.FavoriteAlbums)
             first.replaceKeepDownloadedTrackIds(album, setOf("one", "two"))
             first.replaceKeepDownloadedTrackIds(artist, setOf("two", "three"))
 

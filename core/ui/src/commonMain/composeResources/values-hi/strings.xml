@@ -99,6 +99,8 @@
     <string name="album_artwork_album">एल्बम कवर</string>
     <string name="album_settings">एल्बम सेटिंग</string>
     <string name="album_settings_description">चुनें कि इस एल्बम के लिए कौन-सी सेटिंग वैश्विक सेटिंग को बदलें। विरासत में मिले मान वैश्विक सेटिंग का पालन करते हैं।</string>
+    <string name="download_scope_favorite_albums">सिर्फ़ पसंदीदा एल्बम</string>
+    <string name="download_scope_all_albums">इस कलाकार के सभी एल्बम</string>
     <string name="download_stop_title">%1$s को डाउनलोड रखना बंद करें?</string>
     <string name="download_stop_summary">मौजूदा फ़ाइलें इस डिवाइस पर रह सकती हैं या जब उनकी और ज़रूरत न हो तो हटाई जा सकती हैं।</string>
     <string name="download_stop_keep_files">फ़ाइलें रखें</string>

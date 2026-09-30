@@ -76,7 +76,7 @@ acceptance and verification.
 
 ## Implementation checkpoint
 
-The first shared foundation is in progress on `feature/150-artist-album-downloads`:
+The shared implementation is on `feature/150-artist-album-downloads`:
 
 - Migration `27.sqm` backfills a conservative manual-retention record for every existing downloaded
   track without changing its audio row or file path. Multiple qualities share one retention reason.
@@ -85,10 +85,8 @@ The first shared foundation is in progress on `feature/150-artist-album-download
 - Reconciliation preserves a managed track when manual retention or another policy still requires it.
   Explicit removal releases retention only after the stored download is gone.
 - JVM tests cover migration, source isolation, overlap, and retry classification. Artist and album
-  favorite catalog enumeration tests now cover complete pages, explicit bounds, unsupported
-  providers, and Navidrome/Jellyfin mapping. Subscription selection, persisted jobs,
-  UI, cross-platform compilation, and an actual previous-release database fixture remain
-  outstanding.
+  favorite catalog enumeration tests cover complete pages, explicit bounds, unsupported providers,
+  and Navidrome/Jellyfin mapping.
 - Complete album-track and primary artist-album pages now feed a shared preview planner. It
   deduplicates overlapping tracks, counts existing downloads, estimates new bytes when metadata
   permits, and rejects catalogs over 200 artist albums or 2,000 tracks before transfer. Provider
@@ -107,4 +105,36 @@ The first shared foundation is in progress on `feature/150-artist-album-download
   A connected startup now reconciles saved subscriptions; offline restoration only loads local
   downloads and waits for a connection before requesting catalog pages.
   Android, Desktop, and iOS simulator hosts compile through the shared repository contract.
-  Physical-file cold-launch checks and complete release verification remain outstanding.
+- Artist subscriptions default to favorite albums only, with an explicit all-albums choice. The
+  chooser uses the shared highlighted settings row rather than radio buttons. The chosen scope is
+  stored with the shared collection policy; older saved policies default to the full catalog.
+  The branch-only `27.sqm` migration remains consolidated against `main`'s schema baseline.
+
+## Connected Android upgrade verification
+
+On September 30, 2026, the separate `app.naviamp.android.v2test` install on a Pixel 10a was
+upgraded in place from a v2.8.0 database with nine FLAC downloads and a saved playlist policy.
+The test install's database had an intermediate, unreleased v28 schema from this feature branch,
+so its schema marker was restored to v27 from a backup before installing the consolidated v28
+migration. Only the separate test app's database was repaired; its downloaded files were retained.
+
+- After upgrade, all nine original track rows retained their source, quality, path, and byte count.
+  SHA-256 hashes of their physical files matched the pre-upgrade manifest after both album and
+  artist transfers. Migration backfilled nine manual-retention records. No original file was
+  redownloaded or deleted.
+- The **Save My Soul** album subscription downloaded eleven tracks. The artist chooser then showed
+  zero favorite albums for **Big Bad Voodoo Daddy**; selecting all albums previewed seven albums,
+  73 tracks, eleven already saved, and about 1.4 GB of new storage. With the test app's temporary
+  5 GB download budget, the artist subscription transferred the remaining 62 tracks. The final
+  inventory had 82 download rows and 82 physical files, with 73 artist memberships and eleven
+  album memberships. The completed job journal was empty.
+- Online cold launch retained the saved subscriptions and 82-file inventory. Offline cold launch
+  retained the inventory, and a newly downloaded artist track played with no default network.
+  Connectivity was restored afterward.
+
+The local Android unit, Desktop, and iOS simulator test and compilation matrix passed, along with
+the architecture check, Android packaging checks, and debug bundle build. The release gate still
+needs the pull request's CI matrix and physical-file cold launch checks on Desktop and iOS.
+A v2.8.0 binary cannot be expected to read the new v28 database;
+recovery from a rollback requires restoring the pre-upgrade database backup while preserving the
+audio files. Do not downgrade the only copy of a user's database to test this.

@@ -19,6 +19,7 @@ import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.PersistedDownloadJob
 import app.naviamp.domain.cache.createDownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.ArtistAlbumScope
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
@@ -108,6 +109,32 @@ class NaviampCoreDownloadsControllerTest {
 
         assertTrue(fixture.transfer.requests.isEmpty())
         assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Artist })
+    }
+
+    @Test
+    fun artistDefaultsToFavoriteAlbumsAndFullCatalogRequiresExplicitChoice() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionAlbums = listOf(
+            Album(AlbumId("favorite"), "Favorite", "Artist", null, null),
+            Album(AlbumId("other"), "Other", "Artist", null, null),
+        )
+        fixture.provider.favoriteCollectionAlbums = listOf(fixture.provider.collectionAlbums.first())
+        fixture.provider.collectionTracks = listOf(downloadTrack("new"))
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareArtist("artist", "Artist"))
+        advanceUntilIdle()
+        assertEquals(ArtistAlbumScope.FavoriteAlbums,
+            fixture.store.state.value.shell.downloads.collectionPreview?.artistAlbumScope)
+        assertEquals(1, fixture.store.state.value.shell.downloads.collectionPreview?.albumCount)
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Artist })
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ChangeArtistScope(ArtistAlbumScope.FullCatalog))
+        advanceUntilIdle()
+        assertEquals(2, fixture.store.state.value.shell.downloads.collectionPreview?.albumCount)
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ConfirmCollection)
+        advanceUntilIdle()
+        assertEquals(ArtistAlbumScope.FullCatalog,
+            fixture.keep.policies("source").single { it.kind == KeepDownloadedCollectionKind.Artist }.artistAlbumScope)
     }
 
     @Test
@@ -514,6 +541,7 @@ private class DownloadsTestProvider : MediaProvider {
     var playlistTracks = emptyList<Track>()
     var collectionTracks = emptyList<Track>()
     var collectionAlbums = listOf(Album(AlbumId("album"), "Album", "Artist", null, null))
+    var favoriteCollectionAlbums = emptyList<Album>()
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
@@ -523,6 +551,8 @@ private class DownloadsTestProvider : MediaProvider {
         request.toMediaPage(collectionTracks.drop(request.offset).take(request.limit))
     override suspend fun artistAlbumsPage(artistId: ArtistId, request: MediaPageRequest) =
         request.toMediaPage(collectionAlbums.drop(request.offset).take(request.limit))
+    override suspend fun favoriteAlbumsPage(request: MediaPageRequest) =
+        request.toMediaPage(favoriteCollectionAlbums.drop(request.offset).take(request.limit))
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()

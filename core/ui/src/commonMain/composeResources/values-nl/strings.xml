@@ -99,6 +99,8 @@
     <string name="album_artwork_album">Albumhoes</string>
     <string name="album_settings">Albuminstellingen</string>
     <string name="album_settings_description">Kies welke instellingen dit album overschrijft. Overgenomen waarden volgen de algemene instellingen.</string>
+    <string name="download_scope_favorite_albums">Alleen favoriete albums</string>
+    <string name="download_scope_all_albums">Alle albums van deze artiest</string>
     <string name="download_stop_title">%1$s niet meer gedownload houden?</string>
     <string name="download_stop_summary">Bestaande bestanden kunnen op dit apparaat blijven of worden verwijderd als ze nergens anders voor nodig zijn.</string>
     <string name="download_stop_keep_files">Bestanden behouden</string>

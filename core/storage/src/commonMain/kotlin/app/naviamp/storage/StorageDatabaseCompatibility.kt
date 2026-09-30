@@ -86,6 +86,7 @@ private val LegacyCompatibilitySchema = listOf(
       collection_id TEXT NOT NULL,
       name TEXT NOT NULL,
       remove_unneeded_files INTEGER NOT NULL DEFAULT 0,
+      artist_album_scope TEXT NOT NULL DEFAULT 'FullCatalog',
       updated_at_epoch_millis INTEGER NOT NULL,
       PRIMARY KEY(source_id, collection_kind, collection_id)
     )

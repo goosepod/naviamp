@@ -78,12 +78,18 @@ fun naviampKeepDownloadedAlbumPolicy(sourceId: String, albumId: String, albumTit
         name = albumTitle,
     )
 
-fun naviampKeepDownloadedArtistPolicy(sourceId: String, artistId: String, artistName: String): KeepDownloadedCollectionPolicy =
+fun naviampKeepDownloadedArtistPolicy(
+    sourceId: String,
+    artistId: String,
+    artistName: String,
+    scope: app.naviamp.domain.cache.ArtistAlbumScope = app.naviamp.domain.cache.ArtistAlbumScope.FavoriteAlbums,
+): KeepDownloadedCollectionPolicy =
     KeepDownloadedCollectionPolicy(
         sourceId = sourceId,
         kind = KeepDownloadedCollectionKind.Artist,
         collectionId = artistId,
         name = artistName,
+        artistAlbumScope = scope,
     )
 
 /** Owns observable download-job state, cancellation handles, retry intent, and stable job IDs. */

@@ -334,6 +334,7 @@ data class NaviampCollectionDownloadRemovalUi(val title: String, val kind: Navia
 data class NaviampCollectionDownloadPreviewUi(
     val title: String,
     val kind: NaviampCollectionDownloadKind,
+    val artistAlbumScope: app.naviamp.domain.cache.ArtistAlbumScope? = null,
     val albumCount: Int = 0,
     val trackCount: Int = 0,
     val alreadyDownloadedCount: Int = 0,
@@ -352,6 +353,7 @@ data class NaviampDownloadsActions(
     val onToggleKeepFavoritesDownloaded: () -> Unit,
     val onDeleteAll: () -> Unit,
     val onConfirmCollection: () -> Unit = {},
+    val onArtistScopeChanged: (app.naviamp.domain.cache.ArtistAlbumScope) -> Unit = {},
     val onStopCollection: (Boolean) -> Unit = {},
     val onDismissCollection: () -> Unit = {},
 )

@@ -6,6 +6,10 @@ CREATE TABLE IF NOT EXISTS download_retention (
   PRIMARY KEY(source_id, remote_track_id, retention_kind, retention_id)
 );
 
+-- Existing playlist/favorite policies and branch-created artist policies retain their prior scope.
+ALTER TABLE keep_downloaded_collection
+ADD COLUMN artist_album_scope TEXT NOT NULL DEFAULT 'FullCatalog';
+
 CREATE INDEX IF NOT EXISTS download_retention_track
 ON download_retention(source_id, remote_track_id);
 

@@ -99,6 +99,8 @@
     <string name="album_artwork_album">アルバムのカバー</string>
     <string name="album_settings">アルバム設定</string>
     <string name="album_settings_description">このアルバムで上書きする設定を選択します。引き継いだ値には全体設定が適用されます。</string>
+    <string name="download_scope_favorite_albums">お気に入りのアルバムのみ</string>
+    <string name="download_scope_all_albums">このアーティストのすべてのアルバム</string>
     <string name="download_stop_title">%1$s のダウンロード保持を停止しますか？</string>
     <string name="download_stop_summary">既存のファイルはこのデバイスに残すか、ほかに必要なければ削除できます。</string>
     <string name="download_stop_keep_files">ファイルを残す</string>

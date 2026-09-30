@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
+import app.naviamp.domain.cache.ArtistAlbumScope
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.common_cancel
 import app.naviamp.ui.generated.resources.download_keep_collection
@@ -23,6 +24,8 @@ import app.naviamp.ui.generated.resources.download_stop_keep_files
 import app.naviamp.ui.generated.resources.download_stop_remove_files
 import app.naviamp.ui.generated.resources.download_stop_summary
 import app.naviamp.ui.generated.resources.download_stop_title
+import app.naviamp.ui.generated.resources.download_scope_favorite_albums
+import app.naviamp.ui.generated.resources.download_scope_all_albums
 import org.jetbrains.compose.resources.stringResource
 
 /** Collection decisions belong to the active shared shell, regardless of the selected route. */
@@ -40,6 +43,19 @@ internal fun NaviampCollectionDownloadDialogs(
             title = { Text(stringResource(Res.string.download_preview_title, preview.title), color = colors.primaryText) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (preview.kind == NaviampCollectionDownloadKind.Artist) {
+                        listOf(
+                            ArtistAlbumScope.FavoriteAlbums to Res.string.download_scope_favorite_albums,
+                            ArtistAlbumScope.FullCatalog to Res.string.download_scope_all_albums,
+                        ).forEach { (scope, label) ->
+                            SelectableSettingsRow(
+                                colors = colors,
+                                title = stringResource(label),
+                                selected = preview.artistAlbumScope == scope,
+                                onClick = { actions.onArtistScopeChanged(scope) },
+                            )
+                        }
+                    }
                     val error = when (preview.error) {
                         NaviampCollectionDownloadPreviewError.TooLarge -> Res.string.download_preview_too_large
                         NaviampCollectionDownloadPreviewError.Unsupported -> Res.string.download_preview_unsupported

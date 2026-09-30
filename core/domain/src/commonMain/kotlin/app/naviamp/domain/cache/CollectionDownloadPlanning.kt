@@ -57,8 +57,10 @@ suspend fun planArtistDownload(
     maxDownloadBytes: Long,
     loadAlbumsPage: suspend (ArtistId, MediaPageRequest) -> MediaPage<Album>?,
     loadTracksPage: suspend (AlbumId, MediaPageRequest) -> MediaPage<Track>?,
+    scope: ArtistAlbumScope = ArtistAlbumScope.FullCatalog,
+    loadFavoriteAlbumsPage: (suspend (MediaPageRequest) -> MediaPage<Album>?)? = null,
 ): CollectionDownloadPlanningResult {
-    val albums = when (val catalog = enumerateFavoriteDownloadCatalog(
+    val artistAlbums = when (val catalog = enumerateFavoriteDownloadCatalog(
         maximumItems = MaximumSubscribedArtistAlbums,
         loadPage = { request -> loadAlbumsPage(artistId, request) },
     )) {
@@ -66,6 +68,18 @@ suspend fun planArtistDownload(
         is FavoriteDownloadCatalog.TooLarge -> return CollectionDownloadPlanningResult.TooLarge(catalog.maximumItems)
         FavoriteDownloadCatalog.Unsupported -> return CollectionDownloadPlanningResult.Unsupported
     }
+    val albums = if (scope == ArtistAlbumScope.FavoriteAlbums) {
+        val loader = loadFavoriteAlbumsPage ?: return CollectionDownloadPlanningResult.Unsupported
+        val favorites = when (val catalog = enumerateFavoriteDownloadCatalog(
+            maximumItems = MaximumSubscribedCollectionTracks,
+            loadPage = loader,
+        )) {
+            is FavoriteDownloadCatalog.Complete -> catalog.items.mapTo(mutableSetOf(), Album::id)
+            is FavoriteDownloadCatalog.TooLarge -> return CollectionDownloadPlanningResult.TooLarge(catalog.maximumItems)
+            FavoriteDownloadCatalog.Unsupported -> return CollectionDownloadPlanningResult.Unsupported
+        }
+        artistAlbums.filter { it.id in favorites }
+    } else artistAlbums
     val tracks = linkedMapOf<TrackId, Track>()
     for (album in albums) {
         val remaining = MaximumSubscribedCollectionTracks - tracks.size

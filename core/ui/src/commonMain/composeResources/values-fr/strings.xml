@@ -99,6 +99,8 @@
     <string name="album_artwork_album">Pochette de l’album</string>
     <string name="album_settings">Paramètres de l’album</string>
     <string name="album_settings_description">Choisissez les réglages que cet album remplace. Les valeurs héritées suivent les réglages globaux.</string>
+    <string name="download_scope_favorite_albums">Albums favoris uniquement</string>
+    <string name="download_scope_all_albums">Tous les albums de cet artiste</string>
     <string name="download_stop_title">Ne plus conserver %1$s téléchargé ?</string>
     <string name="download_stop_summary">Les fichiers existants peuvent rester sur cet appareil ou être supprimés si rien d’autre n’en a besoin.</string>
     <string name="download_stop_keep_files">Garder les fichiers</string>

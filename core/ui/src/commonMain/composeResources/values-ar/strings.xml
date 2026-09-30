@@ -99,6 +99,8 @@
     <string name="album_artwork_album">غلاف الألبوم</string>
     <string name="album_settings">إعدادات الألبوم</string>
     <string name="album_settings_description">اختر الإعدادات التي يتجاوزها هذا الألبوم. تتبع القيم الموروثة الإعدادات العامة.</string>
+    <string name="download_scope_favorite_albums">الألبومات المفضلة فقط</string>
+    <string name="download_scope_all_albums">كل ألبومات هذا الفنان</string>
     <string name="download_stop_title">إيقاف الاحتفاظ بتنزيل %1$s؟</string>
     <string name="download_stop_summary">يمكن إبقاء الملفات الحالية على هذا الجهاز أو حذفها إذا لم تعد هناك حاجة إليها.</string>
     <string name="download_stop_keep_files">الاحتفاظ بالملفات</string>

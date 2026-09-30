@@ -137,6 +137,7 @@ internal class StorageProviderIdentityMigrationStore(
             val id: String,
             val name: String,
             val removeUnneededFiles: Long,
+            val artistAlbumScope: String,
             val updatedAt: Long,
             val trackIds: List<String>,
         )
@@ -147,6 +148,7 @@ internal class StorageProviderIdentityMigrationStore(
                 id = row.collection_id,
                 name = row.name,
                 removeUnneededFiles = row.remove_unneeded_files,
+                artistAlbumScope = row.artist_album_scope,
                 updatedAt = row.updated_at_epoch_millis,
                 trackIds = queries.selectKeepDownloadedTrackIds(sourceId, row.collection_kind, row.collection_id).executeAsList(),
             )
@@ -160,6 +162,7 @@ internal class StorageProviderIdentityMigrationStore(
                 collection_id = migratedId,
                 name = row.name,
                 remove_unneeded_files = row.removeUnneededFiles,
+                artist_album_scope = row.artistAlbumScope,
                 updated_at_epoch_millis = row.updatedAt,
             )
             row.trackIds.forEach { trackId ->

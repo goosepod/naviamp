@@ -218,6 +218,8 @@
     <string name="album_artwork_album">Okładka albumu</string>
     <string name="album_settings">Ustawienia albumu</string>
     <string name="album_settings_description">Wybierz ustawienia, które ten album ma nadpisywać. Dziedziczone wartości są zgodne z ustawieniami globalnymi.</string>
+    <string name="download_scope_favorite_albums">Tylko ulubione albumy</string>
+    <string name="download_scope_all_albums">Wszystkie albumy tego wykonawcy</string>
     <string name="download_stop_title">Przestać przechowywać pobrane %1$s?</string>
     <string name="download_stop_summary">Istniejące pliki mogą pozostać na urządzeniu albo zostać usunięte, jeśli nie są już potrzebne.</string>
     <string name="download_stop_keep_files">Zachowaj pliki</string>

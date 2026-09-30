@@ -60,6 +60,35 @@ class CollectionDownloadPlanningTest {
     }
 
     @Test
+    fun favoriteAlbumScopeFollowsOnlyFavoritedPrimaryReleases() = runTest {
+        val albums = listOf(album("first"), album("second"), album("third"))
+        val result = planArtistDownload(
+            ArtistId("artist"), StreamQuality.Original, emptySet(), 0, Long.MAX_VALUE,
+            loadAlbumsPage = { _, request -> request.toMediaPage(albums.drop(request.offset).take(request.limit)) },
+            loadTracksPage = { id, request -> request.toMediaPage(listOf(track(id.value))) },
+            scope = ArtistAlbumScope.FavoriteAlbums,
+            loadFavoriteAlbumsPage = { request ->
+                request.toMediaPage(listOf(album("second"), album("other-artist"))
+                    .drop(request.offset).take(request.limit))
+            },
+        )
+        val plan = assertIs<CollectionDownloadPlanningResult.Ready>(result).plan
+        assertEquals(1, plan.albumCount)
+        assertEquals(listOf("second"), plan.tracks.map { it.id.value })
+    }
+
+    @Test
+    fun favoriteAlbumScopeRefusesUnsupportedEnumeration() = runTest {
+        val result = planArtistDownload(
+            ArtistId("artist"), StreamQuality.Original, emptySet(), 0, Long.MAX_VALUE,
+            loadAlbumsPage = { _, request -> request.toMediaPage(listOf(album("first"))) },
+            loadTracksPage = { _, request -> request.toMediaPage(listOf(track("first"))) },
+            scope = ArtistAlbumScope.FavoriteAlbums,
+        )
+        assertEquals(CollectionDownloadPlanningResult.Unsupported, result)
+    }
+
+    @Test
     fun unsupportedMemberPagingCannotProduceAPartialPlan() = runTest {
         val result = planAlbumDownload(
             AlbumId("album"), StreamQuality.Original, emptySet(), 0, 100,

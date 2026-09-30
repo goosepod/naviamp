@@ -63,7 +63,7 @@ class StorageProviderIdentityMigrationStoreTest {
                 oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover, "flac", null, "audio/flac",
                 null, null, null, null, 1L,
             )
-            queries.upsertKeepDownloadedPolicy(source.id, "playlist", oldPlaylist, "Playlist", 0L, 1L)
+            queries.upsertKeepDownloadedPolicy(source.id, "playlist", oldPlaylist, "Playlist", 0L, "FullCatalog", 1L)
             queries.insertKeepDownloadedCollectionTrack(source.id, "playlist", oldPlaylist, oldTrack)
             queries.insertManagedKeepDownloadedTrack(source.id, oldTrack)
             queries.upsertCachedAudioWaveform(source.id, oldTrack, "original", "/owned/cache.flac", 1L, "[0.5]", 3L, 1L, 1L)

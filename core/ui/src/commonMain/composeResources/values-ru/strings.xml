@@ -99,6 +99,8 @@
     <string name="album_artwork_album">Обложка альбома</string>
     <string name="album_settings">Настройки альбома</string>
     <string name="album_settings_description">Выберите параметры, которые этот альбом переопределяет. Унаследованные значения следуют общим настройкам.</string>
+    <string name="download_scope_favorite_albums">Только избранные альбомы</string>
+    <string name="download_scope_all_albums">Все альбомы этого исполнителя</string>
     <string name="download_stop_title">Не сохранять загрузку %1$s?</string>
     <string name="download_stop_summary">Существующие файлы можно оставить на устройстве или удалить, если они больше нигде не нужны.</string>
     <string name="download_stop_keep_files">Оставить файлы</string>

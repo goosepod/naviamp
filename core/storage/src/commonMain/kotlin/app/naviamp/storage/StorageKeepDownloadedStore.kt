@@ -1,6 +1,7 @@
 package app.naviamp.storage
 
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.ArtistAlbumScope
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.domain.cache.PersistedDownloadJob
@@ -45,6 +46,7 @@ class StorageKeepDownloadedStore(
             policy.collectionId,
             policy.name,
             if (policy.removeUnneededFiles) 1L else 0L,
+            policy.artistAlbumScope.name,
             nowEpochMillis(),
         )
     }
@@ -101,5 +103,7 @@ class StorageKeepDownloadedStore(
         collectionId = row.collection_id,
         name = row.name,
         removeUnneededFiles = row.remove_unneeded_files != 0L,
+        artistAlbumScope = runCatching { ArtistAlbumScope.valueOf(row.artist_album_scope) }
+            .getOrDefault(ArtistAlbumScope.FullCatalog),
     )
 }

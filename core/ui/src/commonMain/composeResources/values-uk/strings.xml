@@ -99,6 +99,8 @@
     <string name="album_artwork_album">Обкладинка альбому</string>
     <string name="album_settings">Налаштування альбому</string>
     <string name="album_settings_description">Виберіть налаштування, які цей альбом перевизначає. Успадковані значення відповідають загальним налаштуванням.</string>
+    <string name="download_scope_favorite_albums">Лише улюблені альбоми</string>
+    <string name="download_scope_all_albums">Усі альбоми цього виконавця</string>
     <string name="download_stop_title">Припинити зберігати завантажене %1$s?</string>
     <string name="download_stop_summary">Наявні файли можна залишити на пристрої або видалити, якщо вони більше ніде не потрібні.</string>
     <string name="download_stop_keep_files">Залишити файли</string>

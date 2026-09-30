@@ -10,12 +10,16 @@ enum class KeepDownloadedCollectionKind {
     Artist,
 }
 
+/** Which primary releases an artist subscription follows as the catalog changes. */
+enum class ArtistAlbumScope { FavoriteAlbums, FullCatalog }
+
 data class KeepDownloadedCollectionPolicy(
     val sourceId: String,
     val kind: KeepDownloadedCollectionKind,
     val collectionId: String,
     val name: String,
     val removeUnneededFiles: Boolean = false,
+    val artistAlbumScope: ArtistAlbumScope = ArtistAlbumScope.FullCatalog,
 )
 
 interface KeepDownloadedRepository {

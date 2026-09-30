@@ -99,6 +99,8 @@
     <string name="album_artwork_album">专辑封面</string>
     <string name="album_settings">专辑设置</string>
     <string name="album_settings_description">选择此专辑要覆盖的设置。继承的值遵循全局设置。</string>
+    <string name="download_scope_favorite_albums">仅收藏的专辑</string>
+    <string name="download_scope_all_albums">该艺人的所有专辑</string>
     <string name="download_stop_title">停止保留 %1$s 的下载？</string>
     <string name="download_stop_summary">现有文件可以留在此设备上，或在其他项目不再需要时删除。</string>
     <string name="download_stop_keep_files">保留文件</string>

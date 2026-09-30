@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import app.naviamp.domain.cache.ArtistAlbumScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -14,19 +15,25 @@ class NaviampCollectionDownloadDialogsTest {
     fun artistPreviewShowsEstimateAndRequiresConfirmation() = runComposeUiTest {
         var confirmations = 0
         var dismissals = 0
+        var selectedScope: ArtistAlbumScope? = null
         setContent {
             NaviampCollectionDownloadDialogs(
                 downloads = NaviampDownloadsScreenUi(collectionPreview = NaviampCollectionDownloadPreviewUi(
                     title = "Artist", kind = NaviampCollectionDownloadKind.Artist,
+                    artistAlbumScope = ArtistAlbumScope.FavoriteAlbums,
                     albumCount = 2, trackCount = 12, alreadyDownloadedCount = 3,
                     estimatedNewBytes = 100_000_000, remainingBudgetBytes = 200_000_000,
                 )),
-                actions = actions(onConfirm = { confirmations++ }, onDismiss = { dismissals++ }),
+                actions = actions(onConfirm = { confirmations++ }, onDismiss = { dismissals++ },
+                    onArtistScope = { selectedScope = it }),
                 colors = NaviampColors.Dark,
             )
         }
         onNodeWithText("Keep Artist downloaded?").assertIsDisplayed()
         onNodeWithText("2 albums · 12 tracks · 3 already saved").assertIsDisplayed()
+        onNodeWithText("Selected").assertIsDisplayed()
+        onNodeWithText("All albums by this artist").performClick()
+        assertEquals(ArtistAlbumScope.FullCatalog, selectedScope)
         assertEquals(0, confirmations)
         onNodeWithText("Keep downloaded").performClick()
         assertEquals(1, confirmations)
@@ -70,5 +77,11 @@ class NaviampCollectionDownloadDialogsTest {
         onConfirm: () -> Unit = {},
         onStop: (Boolean) -> Unit = {},
         onDismiss: () -> Unit = {},
-    ) = NaviampDownloadsActions({}, {}, {}, {}, {}, {}, onConfirm, onStop, onDismiss)
+        onArtistScope: (ArtistAlbumScope) -> Unit = {},
+    ) = NaviampDownloadsActions(
+        onTrackAction = {}, onCancelJob = {}, onRetryJob = {}, onRefresh = {},
+        onToggleKeepFavoritesDownloaded = {}, onDeleteAll = {},
+        onConfirmCollection = onConfirm, onStopCollection = onStop, onDismissCollection = onDismiss,
+        onArtistScopeChanged = onArtistScope,
+    )
 }
