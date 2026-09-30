@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">Deze server kan de volledige verzameling niet weergeven.</string>
     <string name="download_preview_empty">Deze verzameling bevat geen nummers.</string>
     <string name="download_preview_storage_limit">Deze verzameling overschrijdt het downloadbudget.</string>
+    <string name="artist_appearance_albums">Albums</string>
+    <string name="artist_appearance_tracks">Nummers</string>
 </resources>

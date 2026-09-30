@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">이 서버는 전체 컬렉션을 나열할 수 없습니다.</string>
     <string name="download_preview_empty">이 컬렉션에는 트랙이 없습니다.</string>
     <string name="download_preview_storage_limit">이 컬렉션은 다운로드 저장 용량을 초과합니다.</string>
+    <string name="artist_appearance_albums">앨범</string>
+    <string name="artist_appearance_tracks">트랙</string>
 </resources>

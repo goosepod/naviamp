@@ -1551,6 +1551,61 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun ownedReadonlySmartPlaylistCanBeManagedWithoutEditingGeneratedTracks() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """{"subsonic-response":{"status":"ok","playlists":{"playlist":[
+                    {"id":"mine","name":"My Smart Playlist","owner":"demo","songCount":0,"readonly":true,"smart":true},
+                    {"id":"shared","name":"Shared Smart Playlist","owner":"someone-else","songCount":0,"readonly":true,"smart":true}
+                ]}}}""",
+            ),
+        )
+
+        val playlists = provider.playlists().associateBy { it.id }
+        assertFalse(playlists.getValue("mine").canEdit)
+        assertTrue(playlists.getValue("mine").canManage)
+        assertFalse(playlists.getValue("shared").canEdit)
+        assertFalse(playlists.getValue("shared").canManage)
+    }
+
+    @Test
+    fun newlyCreatedReadonlyPlaylistUsesNativeDetailWhenListsOmitSmartMetadata() = runTest {
+        val urls = mutableListOf<String>()
+        val httpClient = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String {
+                urls += url
+                return when {
+                    "/rest/getPlaylists.view" in url -> """{"subsonic-response":{"status":"ok","playlists":{"playlist":[
+                        {"id":"new-smart","name":"New Smart","songCount":0,"readonly":true,"owner":"demo"},
+                        {"id":"ordinary","name":"Ordinary","songCount":0,"readonly":true,"owner":"demo"},
+                        {"id":"shared","name":"Shared","songCount":0,"readonly":true,"owner":"other"}
+                    ]}}}"""
+                    url.endsWith("/api/playlist") -> """{"data":[]}"""
+                    url.endsWith("/api/playlist/new-smart") ->
+                        """{"data":{"id":"new-smart","rules":{"all":[]}}}"""
+                    url.endsWith("/api/playlist/ordinary") ->
+                        """{"data":{"id":"ordinary","rules":null}}"""
+                    else -> error("Unexpected URL: $url")
+                }
+            }
+        }
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        val playlists = provider.playlists().associateBy { it.id }
+
+        assertTrue(playlists.getValue("new-smart").isSmart)
+        assertFalse(playlists.getValue("new-smart").canEdit)
+        assertTrue(playlists.getValue("new-smart").canManage)
+        assertFalse(playlists.getValue("ordinary").isSmart)
+        assertFalse(playlists.getValue("shared").isSmart)
+        assertFalse(urls.any { it.endsWith("/api/playlist/shared") })
+    }
+
+    @Test
     fun playlistsAreFetchedOnceAcrossSelectedMusicFolders() = runTest {
         val http = SequencedHttpClient(listOf(playlistsResponse("playlist-1", "Classical")))
         val provider = NavidromeProvider(connection("https://music.example.test").copy(selectedMusicFolderIds = listOf("2", "4")), http)
@@ -1659,7 +1714,6 @@ class NavidromeProviderTest {
             {
               "data": {
                 "id": "smart-1",
-                "name": "Road Smart",
                 "songCount": 12,
                 "duration": 3200
               }
@@ -1675,6 +1729,8 @@ class NavidromeProviderTest {
 
         assertEquals("smart-1", playlist.id)
         assertEquals("Road Smart", playlist.name)
+        assertFalse(playlist.canEdit)
+        assertTrue(playlist.canManage)
         assertEquals("https://music.example.test/api/playlist", httpClient.postUrls.single())
         assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.postHeaders.single())
         assertEquals(

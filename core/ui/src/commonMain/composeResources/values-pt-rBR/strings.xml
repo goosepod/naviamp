@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">Este servidor não consegue listar a coleção completa.</string>
     <string name="download_preview_empty">Esta coleção não tem faixas.</string>
     <string name="download_preview_storage_limit">Esta coleção excede o limite de armazenamento de downloads.</string>
+    <string name="artist_appearance_albums">Álbuns</string>
+    <string name="artist_appearance_tracks">Faixas</string>
 </resources>

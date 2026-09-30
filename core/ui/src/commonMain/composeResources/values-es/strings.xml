@@ -952,4 +952,6 @@
     <string name="download_preview_unsupported">Este servidor no puede mostrar la colección completa.</string>
     <string name="download_preview_empty">Esta colección no tiene pistas.</string>
     <string name="download_preview_storage_limit">Esta colección supera el límite de almacenamiento de descargas.</string>
+    <string name="artist_appearance_albums">Álbumes</string>
+    <string name="artist_appearance_tracks">Pistas</string>
 </resources>

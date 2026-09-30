@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">Ce serveur ne peut pas lister toute la collection.</string>
     <string name="download_preview_empty">Cette collection ne contient aucun titre.</string>
     <string name="download_preview_storage_limit">Cette collection dépasse le budget de stockage des téléchargements.</string>
+    <string name="artist_appearance_albums">Albums</string>
+    <string name="artist_appearance_tracks">Titres</string>
 </resources>

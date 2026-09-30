@@ -948,4 +948,6 @@
     <string name="download_preview_unsupported">Dieser Server kann die Sammlung nicht vollständig auflisten.</string>
     <string name="download_preview_empty">Diese Sammlung enthält keine Titel.</string>
     <string name="download_preview_storage_limit">Diese Sammlung überschreitet das Downloadbudget.</string>
+    <string name="artist_appearance_albums">Alben</string>
+    <string name="artist_appearance_tracks">Titel</string>
 </resources>

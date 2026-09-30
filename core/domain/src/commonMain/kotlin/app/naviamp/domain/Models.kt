@@ -241,6 +241,7 @@ data class Playlist(
     val owner: String? = null,
     val public: Boolean? = null,
     val canEdit: Boolean = true,
+    val canManage: Boolean = canEdit,
 )
 
 data class Genre(

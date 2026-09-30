@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">Сервер не може показати колекцію повністю.</string>
     <string name="download_preview_empty">У цій колекції немає треків.</string>
     <string name="download_preview_storage_limit">Ця колекція перевищує ліміт місця для завантажень.</string>
+    <string name="artist_appearance_albums">Альбоми</string>
+    <string name="artist_appearance_tracks">Треки</string>
 </resources>

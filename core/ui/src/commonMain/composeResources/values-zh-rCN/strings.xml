@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">此服务器无法列出完整合集。</string>
     <string name="download_preview_empty">此合集没有曲目。</string>
     <string name="download_preview_storage_limit">此合集超过下载存储配额。</string>
+    <string name="artist_appearance_albums">专辑</string>
+    <string name="artist_appearance_tracks">曲目</string>
 </resources>

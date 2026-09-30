@@ -277,6 +277,7 @@ data class SharedMediaItemUi(
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
     val canEditPlaylist: Boolean = true,
+    val canManagePlaylist: Boolean = canEditPlaylist,
     val keepDownloadedActive: Boolean = false,
     val favoriteActive: Boolean = false,
     val canFavorite: Boolean = false,

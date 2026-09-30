@@ -179,6 +179,7 @@ class OpenSubsonicAuditTest {
         val playlists = p.playlists(20)
         assertTrue(playlists[0].canEdit)
         assertFalse(playlists[1].canEdit)
+        assertFalse(playlists[1].canManage)
     }
 
     @Test fun ownershipFallbackUsesServerAuthenticatedUsername() = runTest {

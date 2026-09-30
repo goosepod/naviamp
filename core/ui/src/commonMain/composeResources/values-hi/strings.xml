@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">यह सर्वर पूरा संग्रह सूचीबद्ध नहीं कर सकता।</string>
     <string name="download_preview_empty">इस संग्रह में कोई ट्रैक नहीं है।</string>
     <string name="download_preview_storage_limit">यह संग्रह डाउनलोड संग्रहण सीमा से बड़ा है।</string>
+    <string name="artist_appearance_albums">एल्बम</string>
+    <string name="artist_appearance_tracks">ट्रैक</string>
 </resources>

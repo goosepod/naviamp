@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">このサーバーではコレクション全体を一覧できません。</string>
     <string name="download_preview_empty">このコレクションに曲はありません。</string>
     <string name="download_preview_storage_limit">このコレクションはダウンロード容量の上限を超えています。</string>
+    <string name="artist_appearance_albums">アルバム</string>
+    <string name="artist_appearance_tracks">トラック</string>
 </resources>

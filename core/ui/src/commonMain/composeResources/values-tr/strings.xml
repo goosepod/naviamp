@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">Bu sunucu koleksiyonun tamamını listeleyemiyor.</string>
     <string name="download_preview_empty">Bu koleksiyonda parça yok.</string>
     <string name="download_preview_storage_limit">Bu koleksiyon indirme depolama sınırını aşıyor.</string>
+    <string name="artist_appearance_albums">Albümler</string>
+    <string name="artist_appearance_tracks">Parçalar</string>
 </resources>

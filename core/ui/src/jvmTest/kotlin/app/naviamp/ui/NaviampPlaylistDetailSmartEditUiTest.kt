@@ -18,6 +18,70 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class NaviampPlaylistDetailSmartEditUiTest {
     @Test
+    fun ownedReadonlySmartPlaylistShowsManageActions() = runComposeUiTest {
+        val playlist = SharedMediaItemUi(
+            id = "smart-1",
+            title = "Work Ambient",
+            subtitle = "0 tracks",
+            isSmartPlaylist = true,
+            canEditPlaylist = false,
+            canManagePlaylist = true,
+        )
+
+        setContent {
+            NaviampPlaylistDetailContent(
+                colors = NaviampColors(),
+                screen = NaviampPlaylistDetailScreenUi(
+                    selectedPlaylist = playlist,
+                    detail = SharedPlaylistDetailUi(playlist = playlist, tracks = emptyList()),
+                ),
+                actions = testPlaylistDetailActions(),
+                playlistsActions = NaviampPlaylistsActions(
+                    onRefresh = {},
+                    onSortModeChanged = {},
+                    smartPlaylist = testSmartPlaylistActions(),
+                ),
+                playlistChoices = emptyList(),
+            )
+        }
+
+        onAllNodesWithContentDescription("Edit smart playlist")[0].assertExists()
+        onAllNodesWithContentDescription("Delete playlist")[0].assertExists()
+    }
+
+    @Test
+    fun unownedReadonlySmartPlaylistHidesManageActions() = runComposeUiTest {
+        val playlist = SharedMediaItemUi(
+            id = "smart-2",
+            title = "Shared Smart Playlist",
+            subtitle = "0 tracks",
+            isSmartPlaylist = true,
+            canEditPlaylist = false,
+            canManagePlaylist = false,
+        )
+
+        setContent {
+            NaviampPlaylistDetailContent(
+                colors = NaviampColors(),
+                screen = NaviampPlaylistDetailScreenUi(
+                    selectedPlaylist = playlist,
+                    detail = SharedPlaylistDetailUi(playlist = playlist, tracks = emptyList()),
+                ),
+                actions = testPlaylistDetailActions(),
+                playlistsActions = NaviampPlaylistsActions(
+                    onRefresh = {},
+                    onSortModeChanged = {},
+                    smartPlaylist = testSmartPlaylistActions(),
+                ),
+                playlistChoices = emptyList(),
+            )
+        }
+
+        assertTrue(onAllNodesWithContentDescription("Edit smart playlist").fetchSemanticsNodes().isEmpty())
+        assertTrue(onAllNodesWithContentDescription("Delete playlist").fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
     fun headerBrainOpensSmartPlaylistEditor() = runComposeUiTest {
         var definitionLoaded = false
         val playlist = SharedMediaItemUi(

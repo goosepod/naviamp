@@ -116,4 +116,6 @@
     <string name="download_preview_unsupported">لا يستطيع هذا الخادم عرض المجموعة كاملة.</string>
     <string name="download_preview_empty">لا تحتوي هذه المجموعة على مقاطع.</string>
     <string name="download_preview_storage_limit">تتجاوز هذه المجموعة حد مساحة التنزيل.</string>
+    <string name="artist_appearance_albums">الألبومات</string>
+    <string name="artist_appearance_tracks">المقاطع</string>
 </resources>

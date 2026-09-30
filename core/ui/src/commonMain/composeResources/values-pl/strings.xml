@@ -235,4 +235,6 @@
     <string name="download_preview_unsupported">Ten serwer nie może wyświetlić całej kolekcji.</string>
     <string name="download_preview_empty">Ta kolekcja nie zawiera utworów.</string>
     <string name="download_preview_storage_limit">Ta kolekcja przekracza limit miejsca na pobrania.</string>
+    <string name="artist_appearance_albums">Albumy</string>
+    <string name="artist_appearance_tracks">Utwory</string>
 </resources>

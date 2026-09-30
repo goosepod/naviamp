@@ -976,4 +976,6 @@
     <string name="download_preview_unsupported">This server cannot list the full collection.</string>
     <string name="download_preview_empty">This collection has no tracks.</string>
     <string name="download_preview_storage_limit">This collection exceeds your download storage budget.</string>
+    <string name="artist_appearance_albums">Albums</string>
+    <string name="artist_appearance_tracks">Tracks</string>
 </resources>
