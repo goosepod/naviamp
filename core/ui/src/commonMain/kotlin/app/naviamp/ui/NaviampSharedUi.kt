@@ -392,6 +392,7 @@ fun NaviampSharedAppShell(
                 onDismiss = { connectActions?.onDismissSourceMismatchRecovery?.invoke() },
             )
         }
+        NaviampCollectionDownloadDialogs(downloads, downloadsActions, colors)
     }
 
     }

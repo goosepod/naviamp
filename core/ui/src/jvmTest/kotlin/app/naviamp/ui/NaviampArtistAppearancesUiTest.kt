@@ -37,7 +37,7 @@ class NaviampArtistAppearancesUiTest {
             Box(Modifier.width(360.dp).height(640.dp)) {
                 if (showingArtist.value) {
                     NaviampArtistDetailContent(
-                        NaviampColors(), NaviampArtistDetailScreenUi(detail = detail.value),
+                        NaviampColors(), NaviampArtistDetailScreenUi(detail = detail.value), false,
                         AlbumCollectionLayout.List, AlbumSortOrder.Title, true,
                         NaviampArtistDetailActions({}, {}, { selectedAlbum = it.album.id }, {}),
                         appearanceState = appearanceState,
