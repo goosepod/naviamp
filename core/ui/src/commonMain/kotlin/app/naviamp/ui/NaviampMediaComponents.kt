@@ -839,7 +839,28 @@ fun SharedMediaRow(
             cornerRadius = mediaArtworkCornerRadius(mediaKind, coverArtSize, coverArtCornerRadius),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(item.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    item.title,
+                    color = colors.primaryText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (item.favoriteActive) {
+                    Icon(
+                        imageVector = NaviampTransportIcons.HeartFilled,
+                        contentDescription = "Favorite",
+                        tint = colors.favorite,
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -862,14 +883,6 @@ fun SharedMediaRow(
                     )
                 }
             }
-        }
-        if (item.favoriteActive) {
-            Icon(
-                imageVector = NaviampTransportIcons.HeartFilled,
-                contentDescription = "Favorite",
-                tint = colors.favorite,
-                modifier = Modifier.size(15.dp),
-            )
         }
         val favoriteMenuItem = if (canToggleFavorite) {
             NaviampRowMenuItem(
