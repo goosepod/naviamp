@@ -452,8 +452,8 @@ private fun PlaylistListRow(
                 canAddToQueue = capabilities.canAddToQueue,
                 canAddToPlaylist = capabilities.canAddToPlaylist,
                 canRename = capabilities.canRename && playlist.canEditPlaylist,
-                canEditSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist && playlist.canEditPlaylist,
-                canDelete = capabilities.canDelete && playlist.canEditPlaylist,
+                canEditSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist && playlist.canManagePlaylist,
+                canDelete = capabilities.canDelete && playlist.canManagePlaylist,
             ).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(
@@ -719,14 +719,23 @@ private fun PlaylistDetailContent(
                 )
             }
             if (detail.playlist.isSmartPlaylist) {
-                IconButton(
-                    onClick = requestSmartPlaylistEdit,
-                    enabled = !smartPlaylistLoading && detail.playlist.canEditPlaylist,
-                    modifier = Modifier.size(32.dp),
-                ) {
+                if (detail.playlist.canManagePlaylist) {
+                    IconButton(
+                        onClick = requestSmartPlaylistEdit,
+                        enabled = !smartPlaylistLoading,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            NaviampIcons.Brain,
+                            contentDescription = editSmartPlaylistLabel,
+                            tint = colors.secondaryText,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                } else {
                     Icon(
                         NaviampIcons.Brain,
-                        contentDescription = editSmartPlaylistLabel,
+                        contentDescription = stringResource(Res.string.playlists_smart),
                         tint = colors.secondaryText,
                         modifier = Modifier.size(18.dp),
                     )
@@ -764,7 +773,7 @@ private fun PlaylistDetailContent(
                     actions = buildList {
                         add(NaviampDetailAction(stringResource(Res.string.playlists_play), NaviampTransportIcons.Play, onPlayPlaylist, detail.tracks.isNotEmpty()))
                         add(NaviampDetailAction(stringResource(Res.string.playlists_shuffle), NaviampTransportIcons.Shuffle, onShufflePlaylist, detail.tracks.size > 1))
-                        if (detail.playlist.isSmartPlaylist && detail.playlist.canEditPlaylist) {
+                        if (detail.playlist.isSmartPlaylist && detail.playlist.canManagePlaylist) {
                             add(
                                 NaviampDetailAction(
                                     editSmartPlaylistLabel,
@@ -783,7 +792,7 @@ private fun PlaylistDetailContent(
                             add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_playlist), NaviampIcons.Playlist, { addToPlaylistOpen = true }, detail.tracks.isNotEmpty()))
                             if (detail.playlist.canEditPlaylist) add(NaviampDetailAction(stringResource(Res.string.playlists_bulk_tools_title), NaviampIcons.Settings, { bulkToolsOpen = true }, detail.tracks.isNotEmpty()))
                         }
-                        if (detail.playlist.canEditPlaylist) add(NaviampDetailAction(stringResource(Res.string.playlists_delete_title), NaviampIcons.Trash, { deleteOpen = true }))
+                        if (detail.playlist.canManagePlaylist) add(NaviampDetailAction(stringResource(Res.string.playlists_delete_title), NaviampIcons.Trash, { deleteOpen = true }))
                     },
                 )
                 smartPlaylistLoadMessage?.let { message ->

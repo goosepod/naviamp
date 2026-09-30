@@ -33,6 +33,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -207,6 +208,22 @@ class NaviampCorePlaylistTransactionControllerTest {
     }
 
     @Test
+    fun newlyCreatedSmartPlaylistKeepsManagementActionsWhileServerListCatchesUp() = runTest {
+        val fixture = fixture()
+        fixture.provider.staleSmartCreationList = true
+
+        fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Save(smartDefinition("Smart Mix"), null))
+
+        val created = fixture.store.state.value.shell.playlists.playlists.single { it.id == "smart-created" }
+        assertTrue(created.isSmartPlaylist)
+        assertTrue(created.canManagePlaylist)
+        assertFalse(created.canEditPlaylist)
+        assertEquals(12, created.trackCount)
+        assertFalse(fixture.store.state.value.shell.playlistChoices.any { it.id == created.id })
+        assertEquals("Saved smart playlist Smart Mix.", fixture.store.state.value.shell.playlists.status)
+    }
+
+    @Test
     fun disconnectedTransactionsProduceSharedFailureStateWithoutCallingEffects() = runTest {
         val fixture = fixture(provider = null)
 
@@ -370,6 +387,7 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
     val deleted = mutableListOf<String>()
     val smartCreates = mutableListOf<String>()
     val smartUpdates = mutableListOf<String>()
+    var staleSmartCreationList = false
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
@@ -378,7 +396,11 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()
-    override suspend fun playlists(limit: Int) = playlistItems.toList()
+    override suspend fun playlists(limit: Int) = playlistItems.map { playlist ->
+        if (staleSmartCreationList && playlist.id == "smart-created") {
+            playlist.copy(trackCount = 12, isSmart = false, canEdit = false, canManage = false)
+        } else playlist
+    }
     override suspend fun playlistTracks(playlistId: String): List<Track> {
         beforeRead()
         return when (playlistId) {
@@ -422,7 +444,8 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
 
     override suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist {
         smartCreates += definition.name
-        return Playlist("smart-created", definition.name, 0, isSmart = true).also(playlistItems::add)
+        return Playlist("smart-created", definition.name, 0, isSmart = true, canEdit = false, canManage = true)
+            .also(playlistItems::add)
     }
 
     override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {

@@ -923,10 +923,21 @@ class NavidromeProvider(
         val smartPlaylistIds = if (nativeToken.isNullOrBlank()) emptySet() else smartPlaylistIds()
 
         return playlists
-            .mapNotNull { playlist ->
-                (playlist as? JsonObject)?.toPlaylist(forceSmart = smartPlaylistIds.contains(playlist.stringValue("id")))
-            }
             .take(limit)
+            .mapNotNull { element ->
+                val playlist = element as? JsonObject ?: return@mapNotNull null
+                val id = playlist.stringValue("id") ?: return@mapNotNull null
+                val forceSmart = id in smartPlaylistIds || playlist.isSmartPlaylistObject() ||
+                    (playlist.booleanValue("readonly") == true &&
+                        playlist.intValue("songCount") == 0 &&
+                        playlist.stringValue("owner")?.let { it == authenticatedUsername } != false &&
+                        !nativeToken.isNullOrBlank() &&
+                        runCatching {
+                            getNativeJson("playlist/${id.urlEncode()}")
+                                .toNativeDataObject().isSmartPlaylistObject()
+                        }.getOrDefault(false))
+                playlist.toPlaylist(forceSmart = forceSmart)
+            }
     }
 
     override suspend fun playlistTracks(playlistId: String): List<Track> {
@@ -992,7 +1003,10 @@ class NavidromeProvider(
             endpoint = "playlist",
             body = json.encodeToString(JsonObject.serializer(), body),
         )
-        return response.toNativeDataObject().toPlaylist(forceSmart = true)
+        val created = response.toNativeDataObject()
+        return created.toPlaylist(forceSmart = true).copy(
+            name = created.stringValue("name")?.takeIf(String::isNotBlank) ?: definition.name,
+        )
     }
 
     override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
@@ -2066,8 +2080,19 @@ class NavidromeProvider(
             public = booleanValue("public"),
             // OpenSubsonic supplies per-playlist edit permission. The legacy user
             // playlistRole describes creation, not editing existing playlists.
-            canEdit = booleanValue("readonly")?.not()
-                ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true),
+            canEdit = if (forceSmart || isSmartPlaylistObject()) false else {
+                booleanValue("readonly")?.not()
+                    ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true)
+            },
+            // Generated smart-playlist tracks are read-only through OpenSubsonic,
+            // while their owner can still manage rules and delete the playlist.
+            canManage = if (forceSmart || isSmartPlaylistObject()) {
+                stringValue("owner")?.let { it == authenticatedUsername }
+                    ?: (booleanValue("readonly")?.not() ?: true)
+            } else {
+                booleanValue("readonly")?.not()
+                    ?: (stringValue("owner")?.let { it == authenticatedUsername } ?: true)
+            },
         )
 
     private fun JsonObject.toInternetRadioStation(): InternetRadioStation =
