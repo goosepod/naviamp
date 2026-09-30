@@ -99,6 +99,23 @@
     <string name="album_artwork_album">एल्बम कवर</string>
     <string name="album_settings">एल्बम सेटिंग</string>
     <string name="album_settings_description">चुनें कि इस एल्बम के लिए कौन-सी सेटिंग वैश्विक सेटिंग को बदलें। विरासत में मिले मान वैश्विक सेटिंग का पालन करते हैं।</string>
+    <string name="download_scope_favorite_albums">सिर्फ़ पसंदीदा एल्बम</string>
+    <string name="download_scope_all_albums">इस कलाकार के सभी एल्बम</string>
+    <string name="download_stop_title">%1$s को डाउनलोड रखना बंद करें?</string>
+    <string name="download_stop_summary">मौजूदा फ़ाइलें इस डिवाइस पर रह सकती हैं या जब उनकी और ज़रूरत न हो तो हटाई जा सकती हैं।</string>
+    <string name="download_stop_keep_files">फ़ाइलें रखें</string>
+    <string name="download_stop_remove_files">अनावश्यक फ़ाइलें हटाएँ</string>
+    <string name="download_stop_keeping_collection">डाउनलोड बनाए रखना बंद करें</string>
+    <string name="download_keep_collection">डाउनलोड रखा जाए</string>
+    <string name="download_preview_title">%1$s डाउनलोड रखा जाए?</string>
+    <string name="download_preview_summary">%1$d एल्बम · %2$d ट्रैक · %3$d पहले से सहेजे गए</string>
+    <string name="download_preview_estimate">अनुमानित नया संग्रहण: %1$s</string>
+    <string name="download_preview_at_least">कम से कम %1$s (कुछ आकार अज्ञात हैं)</string>
+    <string name="download_preview_budget">शेष डाउनलोड सीमा: %1$s</string>
+    <string name="download_preview_too_large">यह संग्रह डाउनलोड रखे जाने के लिए बहुत बड़ा है।</string>
+    <string name="download_preview_unsupported">यह सर्वर पूरा संग्रह सूचीबद्ध नहीं कर सकता।</string>
+    <string name="download_preview_empty">इस संग्रह में कोई ट्रैक नहीं है।</string>
+    <string name="download_preview_storage_limit">यह संग्रह डाउनलोड संग्रहण सीमा से बड़ा है।</string>
     <string name="artist_appearance_albums">एल्बम</string>
     <string name="artist_appearance_tracks">ट्रैक</string>
 </resources>

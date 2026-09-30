@@ -6,7 +6,12 @@ enum class KeepDownloadedCollectionKind {
     Playlist,
     SmartPlaylist,
     Favorites,
+    Album,
+    Artist,
 }
+
+/** Which primary releases an artist subscription follows as the catalog changes. */
+enum class ArtistAlbumScope { FavoriteAlbums, FullCatalog }
 
 data class KeepDownloadedCollectionPolicy(
     val sourceId: String,
@@ -14,9 +19,16 @@ data class KeepDownloadedCollectionPolicy(
     val collectionId: String,
     val name: String,
     val removeUnneededFiles: Boolean = false,
+    val artistAlbumScope: ArtistAlbumScope = ArtistAlbumScope.FullCatalog,
 )
 
 interface KeepDownloadedRepository {
+    fun savedDownloadJobs(sourceId: String): List<PersistedDownloadJob>
+
+    fun saveDownloadJob(job: PersistedDownloadJob)
+
+    fun deleteDownloadJob(sourceId: String, jobId: String)
+
     fun keepDownloadedPolicies(sourceId: String): List<KeepDownloadedCollectionPolicy>
 
     fun keepDownloadedPolicy(
@@ -49,6 +61,13 @@ interface KeepDownloadedRepository {
     fun markManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>)
 
     fun unmarkManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>)
+
+    /** Explicit and upgraded manual downloads survive removal from automatic collections. */
+    fun manuallyRetainedTrackIds(sourceId: String): Set<String>
+
+    fun retainManualTrack(sourceId: String, trackId: String)
+
+    fun releaseTrackRetention(sourceId: String, trackId: String)
 }
 
 data class KeepDownloadedReconciliationPlan(
@@ -63,6 +82,7 @@ fun planKeepDownloadedReconciliation(
     downloadedTrackIds: Set<String>,
     managedTrackIds: Set<String>,
     trackIdsRequiredByOtherPolicies: Set<String>,
+    manuallyRetainedTrackIds: Set<String> = emptySet(),
     removeUnneededFiles: Boolean,
 ): KeepDownloadedReconciliationPlan {
     val distinctTracks = tracks.distinctBy { it.id }
@@ -72,6 +92,7 @@ fun planKeepDownloadedReconciliation(
         (previousTrackIds - nextTrackIds)
             .intersect(managedTrackIds)
             .minus(trackIdsRequiredByOtherPolicies)
+            .minus(manuallyRetainedTrackIds)
     } else {
         emptySet()
     }

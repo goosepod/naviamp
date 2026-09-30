@@ -84,7 +84,7 @@ class NaviampDesktopFeedbackUiTest {
         setContent {
             Box(Modifier.width(600.dp).height(640.dp)) {
                 NaviampArtistDetailContent(
-                    NaviampColors(), NaviampArtistDetailScreenUi(detail = SharedArtistDetailUi(artist.value, emptyList())),
+                    NaviampColors(), NaviampArtistDetailScreenUi(detail = SharedArtistDetailUi(artist.value, emptyList())), false,
                     AlbumCollectionLayout.List, AlbumSortOrder.Title, true,
                     NaviampArtistDetailActions({}, {
                         if (it.command == NaviampArtistDetailCommand.ToggleFavorite)

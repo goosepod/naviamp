@@ -4,6 +4,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.PersistedDownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedReconciliationPlan
@@ -14,6 +15,21 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampDownloadJobControllerTest {
+    @Test
+    fun sourceScopedJobIdsAndRestoredSequenceDoNotCollide() {
+        var jobs = emptyList<DownloadJob>()
+        val controller = NaviampDownloadJobController({ jobs }, { jobs = it })
+        val first = assertNotNull(controller.create("First", listOf(track("one")), false, sourceId = "a"))
+        val second = assertNotNull(controller.create("Second", listOf(track("two")), false, sourceId = "b"))
+        assertTrue(first.id != second.id)
+
+        var restartedJobs = emptyList<DownloadJob>()
+        val restarted = NaviampDownloadJobController({ restartedJobs }, { restartedJobs = it })
+        restarted.restore(PersistedDownloadJob("a", first, "original", false, true, true))
+        val next = assertNotNull(restarted.create("Next", listOf(track("three")), false, sourceId = "a"))
+        assertTrue(first.id != next.id)
+    }
+
     @Test
     fun preflightRequiresConnectionAndHonorsMobileDataSetting() {
         assertEquals(

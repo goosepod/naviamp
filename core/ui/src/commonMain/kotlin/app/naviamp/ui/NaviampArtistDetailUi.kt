@@ -48,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.generated.resources.download_keep_collection
+import app.naviamp.ui.generated.resources.download_stop_keeping_collection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import app.naviamp.domain.settings.ConnectionFormHeader
@@ -81,6 +83,7 @@ internal fun albumReleaseSectionLabel(section: AlbumReleaseSection): String = wh
 fun NaviampArtistDetailContent(
     colors: NaviampColors,
     screen: NaviampArtistDetailScreenUi,
+    keptDownloaded: Boolean = false,
     albumCollectionLayout: AlbumCollectionLayout,
     albumSortOrder: AlbumSortOrder,
     groupAlbumsByReleaseType: Boolean,
@@ -118,6 +121,8 @@ fun NaviampArtistDetailContent(
                 NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.StartRadio),
             )
         },
+        onKeepDownloaded = { actions.onKeepDownloaded(detail.artist) },
+        keptDownloaded = keptDownloaded,
         onArtistPlay = { albums ->
             actions.onArtistAction(
                 NaviampArtistDetailActionRequest(
@@ -227,6 +232,8 @@ private fun ArtistDetailContent(
     groupAlbumsByReleaseType: Boolean,
     onBack: () -> Unit,
     onArtistRadio: () -> Unit,
+    onKeepDownloaded: () -> Unit,
+    keptDownloaded: Boolean,
     onArtistPlay: (List<SharedMediaItemUi>) -> Unit,
     onArtistShuffle: (List<SharedMediaItemUi>) -> Unit,
     onArtistAddToQueue: () -> Unit,
@@ -349,6 +356,11 @@ private fun ArtistDetailContent(
                     actions = listOf(
                         NaviampDetailAction("Play artist catalog", NaviampTransportIcons.Play, { onArtistPlay(displayedAlbums) }, displayedAlbums.isNotEmpty()),
                         NaviampDetailAction("Start artist radio", NaviampTransportIcons.Radio, onArtistRadio, detail.albums.isNotEmpty()),
+                        NaviampDetailAction(
+                            stringResource(if (keptDownloaded) Res.string.download_stop_keeping_collection else Res.string.download_keep_collection),
+                            NaviampIcons.Downloads, onKeepDownloaded, detail.albums.isNotEmpty() || keptDownloaded,
+                            selected = keptDownloaded,
+                        ),
                         NaviampDetailAction(
                             if (detail.artist.favoriteActive) "Remove artist favorite" else "Favorite artist",
                             if (detail.artist.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,

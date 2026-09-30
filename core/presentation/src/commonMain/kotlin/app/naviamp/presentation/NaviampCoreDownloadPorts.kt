@@ -6,6 +6,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.PersistedDownloadJob
 import app.naviamp.domain.provider.MediaProvider
 
 data class NaviampCoreDownloadedTrack(
@@ -41,6 +42,7 @@ data class NaviampCoreDownloadTransferRequest(
     val allowMobileDownloads: Boolean,
     val isActiveNetworkMobileData: Boolean,
     val includeCompletedCount: Boolean,
+    val manualRetention: Boolean = true,
 )
 
 data class NaviampCoreDownloadTransferResult(val refreshDownloads: Boolean)
@@ -56,6 +58,10 @@ fun interface NaviampCoreDownloadTransferPort {
 
 /** Persistence/repository boundary for the common keep-downloaded policy selected by Core. */
 interface NaviampCoreKeepDownloadedPort {
+    fun savedJobs(sourceId: String): List<PersistedDownloadJob> = emptyList()
+    fun saveJob(job: PersistedDownloadJob) = Unit
+    fun deleteJob(sourceId: String, jobId: String) = Unit
+
     fun policies(sourceId: String): List<KeepDownloadedCollectionPolicy>
     fun toggle(policy: KeepDownloadedCollectionPolicy): NaviampKeepDownloadedToggleResult
     fun reconcile(

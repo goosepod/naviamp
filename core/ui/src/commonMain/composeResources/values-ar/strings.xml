@@ -99,6 +99,23 @@
     <string name="album_artwork_album">غلاف الألبوم</string>
     <string name="album_settings">إعدادات الألبوم</string>
     <string name="album_settings_description">اختر الإعدادات التي يتجاوزها هذا الألبوم. تتبع القيم الموروثة الإعدادات العامة.</string>
+    <string name="download_scope_favorite_albums">الألبومات المفضلة فقط</string>
+    <string name="download_scope_all_albums">كل ألبومات هذا الفنان</string>
+    <string name="download_stop_title">إيقاف الاحتفاظ بتنزيل %1$s؟</string>
+    <string name="download_stop_summary">يمكن إبقاء الملفات الحالية على هذا الجهاز أو حذفها إذا لم تعد هناك حاجة إليها.</string>
+    <string name="download_stop_keep_files">الاحتفاظ بالملفات</string>
+    <string name="download_stop_remove_files">حذف الملفات غير اللازمة</string>
+    <string name="download_stop_keeping_collection">إيقاف الاحتفاظ بالتنزيل</string>
+    <string name="download_keep_collection">الاحتفاظ بالتنزيل</string>
+    <string name="download_preview_title">هل تريد الاحتفاظ بتنزيل %1$s؟</string>
+    <string name="download_preview_summary">%1$d ألبومات · %2$d مقاطع · %3$d محفوظة بالفعل</string>
+    <string name="download_preview_estimate">المساحة الجديدة المقدرة: %1$s</string>
+    <string name="download_preview_at_least">على الأقل %1$s (بعض الأحجام غير معروفة)</string>
+    <string name="download_preview_budget">المتبقي من حد التنزيل: %1$s</string>
+    <string name="download_preview_too_large">هذه المجموعة كبيرة جدًا للاحتفاظ بها محملة.</string>
+    <string name="download_preview_unsupported">لا يستطيع هذا الخادم عرض المجموعة كاملة.</string>
+    <string name="download_preview_empty">لا تحتوي هذه المجموعة على مقاطع.</string>
+    <string name="download_preview_storage_limit">تتجاوز هذه المجموعة حد مساحة التنزيل.</string>
     <string name="artist_appearance_albums">الألبومات</string>
     <string name="artist_appearance_tracks">المقاطع</string>
 </resources>

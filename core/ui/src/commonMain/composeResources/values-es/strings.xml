@@ -935,6 +935,23 @@
     <string name="album_artwork_album">Carátula del álbum</string>
     <string name="album_settings">Configuración del álbum</string>
     <string name="album_settings_description">Elige qué ajustes modifica este álbum. Los valores heredados siguen los ajustes globales.</string>
+    <string name="download_scope_favorite_albums">Solo álbumes favoritos</string>
+    <string name="download_scope_all_albums">Todos los álbumes de este artista</string>
+    <string name="download_stop_title">¿Dejar de mantener descargado %1$s?</string>
+    <string name="download_stop_summary">Los archivos actuales pueden quedarse en este dispositivo o eliminarse si nada más los necesita.</string>
+    <string name="download_stop_keep_files">Conservar archivos</string>
+    <string name="download_stop_remove_files">Eliminar archivos innecesarios</string>
+    <string name="download_stop_keeping_collection">Dejar de mantener descargado</string>
+    <string name="download_keep_collection">Mantener descargado</string>
+    <string name="download_preview_title">¿Mantener %1$s descargado?</string>
+    <string name="download_preview_summary">%1$d álbumes · %2$d pistas · %3$d ya guardadas</string>
+    <string name="download_preview_estimate">Nuevo espacio estimado: %1$s</string>
+    <string name="download_preview_at_least">Al menos %1$s (algunos tamaños desconocidos)</string>
+    <string name="download_preview_budget">Espacio de descarga restante: %1$s</string>
+    <string name="download_preview_too_large">Esta colección es demasiado grande para mantenerla descargada.</string>
+    <string name="download_preview_unsupported">Este servidor no puede mostrar la colección completa.</string>
+    <string name="download_preview_empty">Esta colección no tiene pistas.</string>
+    <string name="download_preview_storage_limit">Esta colección supera el límite de almacenamiento de descargas.</string>
     <string name="artist_appearance_albums">Álbumes</string>
     <string name="artist_appearance_tracks">Pistas</string>
 </resources>

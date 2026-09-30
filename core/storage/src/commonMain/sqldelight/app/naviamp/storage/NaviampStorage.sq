@@ -247,6 +247,7 @@ CREATE TABLE keep_downloaded_collection (
   collection_id TEXT NOT NULL,
   name TEXT NOT NULL,
   remove_unneeded_files INTEGER NOT NULL DEFAULT 0,
+  artist_album_scope TEXT NOT NULL DEFAULT 'FullCatalog',
   updated_at_epoch_millis INTEGER NOT NULL,
   PRIMARY KEY(source_id, collection_kind, collection_id)
 );
@@ -266,6 +267,23 @@ CREATE TABLE keep_downloaded_managed_track (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_track_id TEXT NOT NULL,
   PRIMARY KEY(source_id, remote_track_id)
+);
+
+-- A track may be retained for several independent reasons. The upgrade migration marks all
+-- existing downloads as manually retained because their original intent cannot be reconstructed.
+CREATE TABLE download_retention (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  retention_kind TEXT NOT NULL,
+  retention_id TEXT NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, retention_kind, retention_id)
+);
+
+CREATE TABLE download_job (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL,
+  request_json TEXT NOT NULL,
+  PRIMARY KEY(source_id, job_id)
 );
 
 CREATE TABLE cached_audio_waveform (
@@ -455,6 +473,9 @@ ON downloaded_audio(source_id, downloaded_at_epoch_millis);
 
 CREATE INDEX keep_downloaded_collection_track_remote
 ON keep_downloaded_collection_track(source_id, remote_track_id);
+
+CREATE INDEX download_retention_track
+ON download_retention(source_id, remote_track_id);
 
 CREATE INDEX cached_audio_waveform_access
 ON cached_audio_waveform(last_accessed_epoch_millis);
@@ -1263,11 +1284,33 @@ downloadedAudioSize:
 SELECT COALESCE(SUM(size_bytes), 0)
 FROM downloaded_audio;
 
+selectManualDownloadRetentionTrackIds:
+SELECT remote_track_id
+FROM download_retention
+WHERE source_id = ? AND retention_kind = 'Manual';
+
+insertManualDownloadRetention:
+INSERT OR IGNORE INTO download_retention(source_id, remote_track_id, retention_kind, retention_id)
+VALUES (?, ?, 'Manual', 'user');
+
+deleteDownloadRetentionForTrack:
+DELETE FROM download_retention
+WHERE source_id = ? AND remote_track_id = ?;
+
 selectKeepDownloadedPolicies:
 SELECT *
 FROM keep_downloaded_collection
 WHERE source_id = ?
 ORDER BY name COLLATE NOCASE;
+
+selectDownloadJobs:
+SELECT request_json FROM download_job WHERE source_id = ? ORDER BY job_id;
+
+upsertDownloadJob:
+INSERT OR REPLACE INTO download_job(source_id, job_id, request_json) VALUES (?, ?, ?);
+
+deleteDownloadJob:
+DELETE FROM download_job WHERE source_id = ? AND job_id = ?;
 
 selectKeepDownloadedPolicy:
 SELECT *
@@ -1283,8 +1326,9 @@ INSERT OR REPLACE INTO keep_downloaded_collection(
   collection_id,
   name,
   remove_unneeded_files,
+  artist_album_scope,
   updated_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 deleteKeepDownloadedPolicy:
 DELETE FROM keep_downloaded_collection

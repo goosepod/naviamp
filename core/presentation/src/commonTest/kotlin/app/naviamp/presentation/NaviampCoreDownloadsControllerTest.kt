@@ -11,15 +11,23 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.PersistedDownloadJob
+import app.naviamp.domain.cache.createDownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.ArtistAlbumScope
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.provider.toMediaPage
+import app.naviamp.ui.NaviampCollectionDownloadPreviewError
 import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampConnectionSettingsUi
@@ -34,6 +42,143 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreDownloadsControllerTest {
+    @Test
+    fun albumSubscriptionWaitsForPreviewConfirmationBeforeTransfer() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionTracks = listOf(downloadTrack("one"), downloadTrack("three"))
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareAlbum("album", "Album"))
+        advanceUntilIdle()
+
+        val preview = fixture.store.state.value.shell.downloads.collectionPreview
+        assertEquals(2, preview?.trackCount)
+        assertEquals(1, preview?.alreadyDownloadedCount)
+        assertTrue(fixture.transfer.requests.isEmpty())
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Album })
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ConfirmCollection)
+        advanceUntilIdle()
+
+        assertEquals(listOf("one", "three"), fixture.transfer.requests.single().tracks.map { it.id.value })
+        assertFalse(fixture.transfer.requests.single().manualRetention)
+        assertTrue(fixture.keep.policies("source").any {
+            it.kind == KeepDownloadedCollectionKind.Album && it.collectionId == "album"
+        })
+        assertEquals(null, fixture.store.state.value.shell.downloads.collectionPreview)
+        assertEquals(setOf("album"), fixture.store.state.value.shell.downloads.keptAlbumIds)
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareAlbum("album", "Album"))
+        advanceUntilIdle()
+        assertEquals("Album", fixture.store.state.value.shell.downloads.collectionRemoval?.title)
+        fixture.controller.execute(NaviampCoreCommand.Downloads.StopCollection(false))
+        advanceUntilIdle()
+        assertTrue(fixture.store.state.value.shell.downloads.keptAlbumIds.isEmpty())
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Album })
+        assertEquals(1, fixture.transfer.requests.size)
+    }
+
+    @Test
+    fun removingSubscriptionFilesReconcilesOnlyAfterExplicitChoice() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        val policy = KeepDownloadedCollectionPolicy("source", KeepDownloadedCollectionKind.Album, "album", "Album")
+        fixture.keep.reconcile(policy, listOf(downloadTrack("one")))
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareAlbum("album", "Album"))
+        advanceUntilIdle()
+        assertTrue(fixture.keep.policies("source").any { it.kind == KeepDownloadedCollectionKind.Album })
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.StopCollection(true))
+        advanceUntilIdle()
+        assertEquals(emptyList(), fixture.keep.reconciledTracks)
+        assertTrue(fixture.keep.lastReconciledPolicy?.removeUnneededFiles == true)
+        assertTrue(fixture.store.state.value.shell.downloads.keptAlbumIds.isEmpty())
+    }
+
+    @Test
+    fun oversizedArtistCannotBeConfirmedOrTransferred() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionAlbums = (1..201).map {
+            Album(AlbumId("album-$it"), "Album $it", "Artist", null, null)
+        }
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareArtist("artist", "Artist"))
+        advanceUntilIdle()
+        assertEquals(NaviampCollectionDownloadPreviewError.TooLarge,
+            fixture.store.state.value.shell.downloads.collectionPreview?.error)
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ConfirmCollection)
+        advanceUntilIdle()
+
+        assertTrue(fixture.transfer.requests.isEmpty())
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Artist })
+    }
+
+    @Test
+    fun artistDefaultsToFavoriteAlbumsAndFullCatalogRequiresExplicitChoice() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionAlbums = listOf(
+            Album(AlbumId("favorite"), "Favorite", "Artist", null, null),
+            Album(AlbumId("other"), "Other", "Artist", null, null),
+        )
+        fixture.provider.favoriteCollectionAlbums = listOf(fixture.provider.collectionAlbums.first())
+        fixture.provider.collectionTracks = listOf(downloadTrack("new"))
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.PrepareArtist("artist", "Artist"))
+        advanceUntilIdle()
+        assertEquals(ArtistAlbumScope.FavoriteAlbums,
+            fixture.store.state.value.shell.downloads.collectionPreview?.artistAlbumScope)
+        assertEquals(1, fixture.store.state.value.shell.downloads.collectionPreview?.albumCount)
+        assertTrue(fixture.keep.policies("source").none { it.kind == KeepDownloadedCollectionKind.Artist })
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ChangeArtistScope(ArtistAlbumScope.FullCatalog))
+        advanceUntilIdle()
+        assertEquals(2, fixture.store.state.value.shell.downloads.collectionPreview?.albumCount)
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ConfirmCollection)
+        advanceUntilIdle()
+        assertEquals(ArtistAlbumScope.FullCatalog,
+            fixture.keep.policies("source").single { it.kind == KeepDownloadedCollectionKind.Artist }.artistAlbumScope)
+    }
+
+    @Test
+    fun existingArtistSubscriptionReconcilesAfterControllerRestart() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.provider.collectionTracks = listOf(downloadTrack("one"), downloadTrack("three"))
+        val policy = KeepDownloadedCollectionPolicy(
+            sourceId = "source", kind = KeepDownloadedCollectionKind.Artist,
+            collectionId = "artist", name = "Artist",
+        )
+        fixture.keep.reconcile(policy, emptyList())
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.Refresh)
+        advanceUntilIdle()
+
+        assertEquals(setOf("artist"), fixture.store.state.value.shell.downloads.keptArtistIds)
+        assertEquals(listOf("one", "three"), fixture.keep.reconciledTracks.map { it.id.value })
+        assertEquals(listOf("one", "three"), fixture.transfer.requests.single().tracks.map { it.id.value })
+        assertFalse(fixture.transfer.requests.single().manualRetention)
+    }
+
+    @Test
+    fun interruptedManualJobRestartsWithSavedQualityAndClearsOldRecord() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        val saved = PersistedDownloadJob(
+            sourceId = "source",
+            job = createDownloadJob("download-000000000009", "Selection", listOf(downloadTrack("three"))),
+            qualityKey = "transcoded:mp3:192",
+            replaceExisting = false,
+            manualRetention = true,
+            includeCompletedCount = true,
+        )
+        fixture.keep.saveJob(saved)
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.Refresh)
+        advanceUntilIdle()
+
+        assertEquals(1, fixture.transfer.requests.size)
+        assertEquals(listOf("three"), fixture.transfer.requests.single().tracks.map { it.id.value })
+        assertEquals(StreamQuality.Transcoded(AudioCodec.Mp3, 192), fixture.transfer.requests.single().quality)
+        assertTrue(fixture.transfer.requests.single().manualRetention)
+        assertTrue(fixture.keep.savedJobs("source").isEmpty())
+    }
+
     @Test
     fun refreshMapsStoragePoliciesAndPlaybackIntoAuthoritativeCoreState() = runTest {
         val fixture = fixture(this)
@@ -179,6 +324,7 @@ class NaviampCoreDownloadsControllerTest {
 
         assertEquals(listOf("favorite"), fixture.keep.reconciledTracks.map { it.id.value })
         assertEquals("Keeping Favorite tracks downloaded", fixture.transfer.requests.single().label)
+        assertFalse(fixture.transfer.requests.single().manualRetention)
         assertTrue(fixture.store.state.value.shell.downloads.keepFavoritesDownloaded)
     }
 
@@ -195,7 +341,23 @@ class NaviampCoreDownloadsControllerTest {
 
         assertEquals(listOf("one", "two"), fixture.keep.reconciledTracks.map { it.id.value })
         assertEquals("Keeping Road Trip downloaded", fixture.transfer.requests.single().label)
+        assertFalse(fixture.transfer.requests.single().manualRetention)
         assertTrue(fixture.keep.policies("source").any { it.collectionId == "road-trip" })
+    }
+
+    @Test
+    fun retryOfSubscriptionDownloadDoesNotTurnItIntoManualRetention() = runTest {
+        val fixture = fixture(this, initialFavoritesPolicy = false)
+        fixture.transfer.failNext = true
+
+        fixture.controller.execute(NaviampCoreCommand.Downloads.ToggleKeepFavorites)
+        advanceUntilIdle()
+        val failed = fixture.store.state.value.shell.downloads.jobs.single()
+        fixture.controller.execute(NaviampCoreCommand.Downloads.RetryJob(failed.id))
+        advanceUntilIdle()
+
+        assertEquals(2, fixture.transfer.requests.size)
+        assertTrue(fixture.transfer.requests.none { it.manualRetention })
     }
 
     @Test
@@ -337,11 +499,17 @@ private class DownloadsTestKeep(
     initialPlaylistPolicy: Boolean,
 ) : NaviampCoreKeepDownloadedPort {
     private val policies = mutableListOf<KeepDownloadedCollectionPolicy>()
+    private val saved = mutableMapOf<String, PersistedDownloadJob>()
     var reconciledTracks = emptyList<Track>()
+    var lastReconciledPolicy: KeepDownloadedCollectionPolicy? = null
     init {
         if (initialFavoritesPolicy) policies += favoritePolicy()
         if (initialPlaylistPolicy) policies += playlistPolicy()
     }
+
+    override fun savedJobs(sourceId: String) = saved.values.filter { it.sourceId == sourceId }
+    override fun saveJob(job: PersistedDownloadJob) { saved[job.job.id] = job }
+    override fun deleteJob(sourceId: String, jobId: String) { saved.remove(jobId) }
 
     override fun policies(sourceId: String) = policies.toList()
     override fun toggle(policy: KeepDownloadedCollectionPolicy): NaviampKeepDownloadedToggleResult {
@@ -354,6 +522,7 @@ private class DownloadsTestKeep(
     ): NaviampKeepDownloadedReconciliationApplication {
         if (policies.none { it.kind == policy.kind && it.collectionId == policy.collectionId }) policies += policy
         reconciledTracks = tracks
+        lastReconciledPolicy = policy
         return NaviampKeepDownloadedReconciliationApplication(
             tracksToDownload = tracks,
             downloadLabel = "Keeping ${policy.name} downloaded",
@@ -370,11 +539,20 @@ private class DownloadsTestProvider : MediaProvider {
     val added = mutableListOf<String>()
     val created = mutableListOf<String>()
     var playlistTracks = emptyList<Track>()
+    var collectionTracks = emptyList<Track>()
+    var collectionAlbums = listOf(Album(AlbumId("album"), "Album", "Artist", null, null))
+    var favoriteCollectionAlbums = emptyList<Album>()
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId): AlbumDetails = error("Not used")
     override suspend fun artist(artistId: ArtistId): ArtistDetails = error("Not used")
+    override suspend fun albumTracksPage(albumId: AlbumId, request: MediaPageRequest) =
+        request.toMediaPage(collectionTracks.drop(request.offset).take(request.limit))
+    override suspend fun artistAlbumsPage(artistId: ArtistId, request: MediaPageRequest) =
+        request.toMediaPage(collectionAlbums.drop(request.offset).take(request.limit))
+    override suspend fun favoriteAlbumsPage(request: MediaPageRequest) =
+        request.toMediaPage(favoriteCollectionAlbums.drop(request.offset).take(request.limit))
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()

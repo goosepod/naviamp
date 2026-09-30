@@ -117,6 +117,12 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Downloads : NaviampCoreCommand {
+        data class PrepareAlbum(val id: String, val title: String) : Downloads
+        data class PrepareArtist(val id: String, val title: String) : Downloads
+        data class ChangeArtistScope(val scope: app.naviamp.domain.cache.ArtistAlbumScope) : Downloads
+        data object ConfirmCollection : Downloads
+        data class StopCollection(val removeUnneededFiles: Boolean) : Downloads
+        data object DismissCollection : Downloads
         data class TrackAction(val request: DownloadedTrackActionRequest) : Downloads
         data class CancelJob(val id: String) : Downloads
         data class RetryJob(val id: String) : Downloads

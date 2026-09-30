@@ -99,6 +99,23 @@
     <string name="album_artwork_album">Copertina dell’album</string>
     <string name="album_settings">Impostazioni album</string>
     <string name="album_settings_description">Scegli quali impostazioni personalizzare per questo album. I valori ereditati seguono le impostazioni globali.</string>
+    <string name="download_scope_favorite_albums">Solo album preferiti</string>
+    <string name="download_scope_all_albums">Tutti gli album di questo artista</string>
+    <string name="download_stop_title">Interrompere il download permanente di %1$s?</string>
+    <string name="download_stop_summary">I file esistenti possono restare sul dispositivo o essere rimossi se non servono altrove.</string>
+    <string name="download_stop_keep_files">Conserva i file</string>
+    <string name="download_stop_remove_files">Rimuovi i file non necessari</string>
+    <string name="download_stop_keeping_collection">Interrompi il mantenimento del download</string>
+    <string name="download_keep_collection">Mantieni scaricato</string>
+    <string name="download_preview_title">Mantenere %1$s scaricato?</string>
+    <string name="download_preview_summary">%1$d album · %2$d brani · %3$d già salvati</string>
+    <string name="download_preview_estimate">Nuovo spazio stimato: %1$s</string>
+    <string name="download_preview_at_least">Almeno %1$s (alcune dimensioni sconosciute)</string>
+    <string name="download_preview_budget">Spazio download rimanente: %1$s</string>
+    <string name="download_preview_too_large">Questa raccolta è troppo grande da mantenere scaricata.</string>
+    <string name="download_preview_unsupported">Questo server non può elencare tutta la raccolta.</string>
+    <string name="download_preview_empty">Questa raccolta non contiene brani.</string>
+    <string name="download_preview_storage_limit">Questa raccolta supera il limite di spazio per i download.</string>
     <string name="artist_appearance_albums">Album</string>
     <string name="artist_appearance_tracks">Brani</string>
 </resources>

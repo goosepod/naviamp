@@ -10,12 +10,25 @@ import app.naviamp.app.keepDownloadedRefreshErrorStatus
 import app.naviamp.app.naviampDownloadPreflightStatus
 import app.naviamp.app.naviampKeepDownloadedFavoritesPolicy
 import app.naviamp.app.naviampKeepDownloadedPlaylistPolicy
+import app.naviamp.app.naviampKeepDownloadedAlbumPolicy
+import app.naviamp.app.naviampKeepDownloadedArtistPolicy
 import app.naviamp.app.noTracksToDownloadStatus
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.AlbumId
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.DownloadJobStatus
+import app.naviamp.domain.cache.PersistedDownloadJob
+import app.naviamp.domain.cache.storedAudioQualityKey
+import app.naviamp.domain.cache.toStoredAudioQuality
+import app.naviamp.domain.cache.updated
+import app.naviamp.domain.cache.CollectionDownloadPlanningResult
+import app.naviamp.domain.cache.planAlbumDownload
+import app.naviamp.domain.cache.planArtistDownload
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.ArtistAlbumScope
 import app.naviamp.domain.cache.downloadedAudioQualityLabel
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.downloadStreamQuality
@@ -24,6 +37,9 @@ import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.KeepDownloadedActionValue
 import app.naviamp.ui.NaviampDownloadedTrackUi
+import app.naviamp.ui.NaviampCollectionDownloadKind
+import app.naviamp.ui.NaviampCollectionDownloadPreviewError
+import app.naviamp.ui.NaviampCollectionDownloadPreviewUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.toDownloadJobUi
 import app.naviamp.ui.toDownloadedTrackUi
@@ -50,14 +66,32 @@ class NaviampCoreDownloadsController(
 ) : NaviampCoreCommandController {
     private var downloadedTracks = emptyList<NaviampCoreDownloadedTrack>()
     private var policies = emptyList<KeepDownloadedCollectionPolicy>()
+    private var pendingCollection: PendingCollectionDownload? = null
+    private var pendingRemoval: KeepDownloadedCollectionPolicy? = null
+    private var pendingArtistRequest: PendingArtistRequest? = null
     private var jobs = emptyList<app.naviamp.domain.cache.DownloadJob>()
     private var snapshotGeneration = 0L
     private val jobSources = mutableMapOf<String, String>()
+    private val persistedJobs = mutableMapOf<String, PersistedDownloadJob>()
     private val runningJobs = mutableMapOf<String, Job>()
     private val jobController = NaviampDownloadJobController(
         jobs = { jobs },
         setJobs = { updated ->
             jobs = updated
+            val currentIds = updated.mapTo(mutableSetOf()) { it.id }
+            persistedJobs.keys.toList().filterNot { it in currentIds }.forEach { id ->
+                val saved = persistedJobs.remove(id) ?: return@forEach
+                runCatching { keepDownloaded.deleteJob(saved.sourceId, id) }
+                    .onFailure { publishStatus(keepDownloadedErrorStatus(saved.job.label, it)) }
+            }
+            updated.forEach { job ->
+                persistedJobs[job.id]?.let { saved ->
+                    val replacement = saved.copy(job = job)
+                    persistedJobs[job.id] = replacement
+                    runCatching { keepDownloaded.saveJob(replacement) }
+                        .onFailure { publishStatus(keepDownloadedErrorStatus(job.label, it)) }
+                }
+            }
             jobSources.keys.retainAll(updated.map { it.id }.toSet())
             publishJobs()
         },
@@ -67,6 +101,9 @@ class NaviampCoreDownloadsController(
         snapshotGeneration++
         downloadedTracks = emptyList()
         policies = emptyList()
+        pendingCollection = null
+        pendingRemoval = null
+        pendingArtistRequest = null
         stateStore.updateShell { shell -> shell.copy(downloads = app.naviamp.ui.NaviampDownloadsScreenUi()) }
     }
 
@@ -76,6 +113,14 @@ class NaviampCoreDownloadsController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
+            is NaviampCoreCommand.Downloads.PrepareAlbum ->
+                prepareCollection(KeepDownloadedCollectionKind.Album, command.id, command.title)
+            is NaviampCoreCommand.Downloads.PrepareArtist ->
+                prepareCollection(KeepDownloadedCollectionKind.Artist, command.id, command.title)
+            is NaviampCoreCommand.Downloads.ChangeArtistScope -> changeArtistScope(command.scope)
+            NaviampCoreCommand.Downloads.ConfirmCollection -> confirmCollection()
+            is NaviampCoreCommand.Downloads.StopCollection -> stopKeepingCollection(command.removeUnneededFiles)
+            NaviampCoreCommand.Downloads.DismissCollection -> dismissCollection()
             is NaviampCoreCommand.Downloads.TrackAction -> executeTrackAction(command.request)
             is NaviampCoreCommand.Downloads.CancelJob -> cancel(command.id)
             is NaviampCoreCommand.Downloads.RetryJob -> retry(command.id)
@@ -87,11 +132,135 @@ class NaviampCoreDownloadsController(
         return NaviampCoreCommandResult.Completed
     }
 
+    private suspend fun prepareCollection(
+        kind: KeepDownloadedCollectionKind,
+        id: String,
+        title: String,
+        artistScope: ArtistAlbumScope = ArtistAlbumScope.FavoriteAlbums,
+    ) {
+        val sourceId = sourceIdOrPublish() ?: return
+        val provider = providerOrPublish() ?: return
+        dismissCollection()
+        val policy = when (kind) {
+            KeepDownloadedCollectionKind.Album -> naviampKeepDownloadedAlbumPolicy(sourceId, id, title)
+            KeepDownloadedCollectionKind.Artist -> naviampKeepDownloadedArtistPolicy(sourceId, id, title, artistScope)
+            else -> return
+        }
+        if (keepDownloaded.policies(sourceId).any { it.kind == kind && it.collectionId == id }) {
+            pendingRemoval = policy
+            stateStore.updateShell { shell ->
+                shell.copy(downloads = shell.downloads.copy(collectionRemoval =
+                    app.naviamp.ui.NaviampCollectionDownloadRemovalUi(title,
+                        if (kind == KeepDownloadedCollectionKind.Album) NaviampCollectionDownloadKind.Album
+                        else NaviampCollectionDownloadKind.Artist)))
+            }
+            return
+        }
+        if (kind == KeepDownloadedCollectionKind.Artist) pendingArtistRequest = PendingArtistRequest(sourceId, id, title)
+        if (!loadSnapshot(sourceId)) return
+        val planned = runCatching { planSubscribedCollection(policy, provider) }
+            .getOrElse { CollectionDownloadPlanningResult.Unsupported }
+        val uiKind = if (kind == KeepDownloadedCollectionKind.Album) {
+            NaviampCollectionDownloadKind.Album
+        } else {
+            NaviampCollectionDownloadKind.Artist
+        }
+        val preview = when (planned) {
+            is CollectionDownloadPlanningResult.Ready -> planned.plan.let { plan ->
+                if (plan.tracks.isNotEmpty() && !plan.knownToExceedBudget) {
+                    pendingCollection = PendingCollectionDownload(policy, plan.tracks)
+                }
+                NaviampCollectionDownloadPreviewUi(
+                    title = title,
+                    kind = uiKind,
+                    artistAlbumScope = artistScope.takeIf { kind == KeepDownloadedCollectionKind.Artist },
+                    albumCount = plan.albumCount,
+                    trackCount = plan.tracks.size,
+                    alreadyDownloadedCount = plan.alreadyDownloadedCount,
+                    estimatedNewBytes = plan.estimatedNewBytes,
+                    knownNewBytes = plan.knownNewBytes,
+                    unknownSizeCount = plan.unknownSizeCount,
+                    remainingBudgetBytes = plan.remainingBudgetBytes,
+                    error = when {
+                        plan.tracks.isEmpty() -> NaviampCollectionDownloadPreviewError.Empty
+                        plan.knownToExceedBudget -> NaviampCollectionDownloadPreviewError.StorageLimit
+                        else -> null
+                    },
+                )
+            }
+            is CollectionDownloadPlanningResult.TooLarge -> NaviampCollectionDownloadPreviewUi(
+                title, uiKind, artistAlbumScope = artistScope.takeIf { kind == KeepDownloadedCollectionKind.Artist },
+                error = NaviampCollectionDownloadPreviewError.TooLarge,
+            )
+            CollectionDownloadPlanningResult.Unsupported -> NaviampCollectionDownloadPreviewUi(
+                title, uiKind, artistAlbumScope = artistScope.takeIf { kind == KeepDownloadedCollectionKind.Artist },
+                error = NaviampCollectionDownloadPreviewError.Unsupported,
+            )
+        }
+        stateStore.updateShell { shell ->
+            shell.copy(downloads = shell.downloads.copy(collectionPreview = preview))
+        }
+    }
+
+    private suspend fun changeArtistScope(scope: ArtistAlbumScope) {
+        val request = pendingArtistRequest ?: return
+        if (request.sourceId != currentSourceId()) return dismissCollection()
+        if (stateStore.state.value.shell.downloads.collectionPreview?.artistAlbumScope == scope) return
+        prepareCollection(KeepDownloadedCollectionKind.Artist, request.id, request.title, scope)
+    }
+
+    private fun confirmCollection() {
+        val pending = pendingCollection ?: return dismissCollection()
+        dismissCollection()
+        if (currentSourceId() != pending.policy.sourceId) return
+        if (keepDownloaded.policies(pending.policy.sourceId).any {
+                it.kind == pending.policy.kind && it.collectionId == pending.policy.collectionId
+            }) return
+        if (keepDownloaded.toggle(pending.policy) == NaviampKeepDownloadedToggleResult.Enable) {
+            reconcilePolicy(pending.policy, pending.tracks)
+        }
+    }
+
+    private fun dismissCollection() {
+        pendingCollection = null
+        pendingRemoval = null
+        pendingArtistRequest = null
+        stateStore.updateShell { shell ->
+            shell.copy(downloads = shell.downloads.copy(collectionPreview = null, collectionRemoval = null))
+        }
+    }
+
+    private suspend fun stopKeepingCollection(removeUnneededFiles: Boolean) {
+        val policy = pendingRemoval ?: return dismissCollection()
+        dismissCollection()
+        if (currentSourceId() != policy.sourceId) return
+        if (keepDownloaded.policies(policy.sourceId).none {
+                it.kind == policy.kind && it.collectionId == policy.collectionId
+            }) return
+        if (removeUnneededFiles) {
+            runCatching { keepDownloaded.reconcile(policy.copy(removeUnneededFiles = true), emptyList()) }
+                .onFailure { publishStatus(keepDownloadedRefreshErrorStatus(policy.name, it)); return }
+        }
+        if (keepDownloaded.toggle(policy) == NaviampKeepDownloadedToggleResult.Disabled) {
+            reloadPolicies(policy.sourceId)
+            if (removeUnneededFiles) loadSnapshot(policy.sourceId)
+            publishStatus(keepDownloadedDisabledStatus(policy.name))
+        }
+    }
+
+    private data class PendingCollectionDownload(
+        val policy: KeepDownloadedCollectionPolicy,
+        val tracks: List<Track>,
+    )
+
+    private data class PendingArtistRequest(val sourceId: String, val id: String, val title: String)
+
     suspend fun refresh(status: String? = null, reconcile: Boolean = true) {
         val sourceId = sourceIdOrPublish() ?: return
         runCatching {
             val removed = storage.pruneMissing(sourceId)
             if (!loadSnapshot(sourceId)) return
+            restoreSavedJobs(sourceId)
             publishStatus(status ?: downloadsRefreshStatus(removed))
             if (reconcile) reconcilePolicies(sourceId)
         }.onFailure { cause -> publishStatus(cause.message ?: "Could not refresh downloads.") }
@@ -102,6 +271,8 @@ class NaviampCoreDownloadsController(
         tracks: List<Track>,
         replaceExisting: Boolean = false,
         includeCompletedCount: Boolean = true,
+        manualRetention: Boolean = true,
+        qualityOverride: app.naviamp.domain.StreamQuality? = null,
     ): Boolean {
         val provider = providerSource.current()
         val sourceId = currentSourceId()
@@ -117,13 +288,31 @@ class NaviampCoreDownloadsController(
             publishStatus(blocked)
             return false
         }
-        val job = jobController.create(label, tracks, replaceExisting)
+        val job = jobController.create(label, tracks, replaceExisting, manualRetention, sourceId)
         if (job == null) {
             publishStatus(noTracksToDownloadStatus())
             return false
         }
         val activeProvider = requireNotNull(provider)
         val activeSourceId = requireNotNull(sourceId)
+        val quality = qualityOverride ?: activeProvider.capabilities.effectiveDownloadQuality(
+            playbackSettings.downloadStreamQuality(),
+        )
+        val saved = PersistedDownloadJob(
+            sourceId = activeSourceId,
+            job = job,
+            qualityKey = quality.storedAudioQualityKey(),
+            replaceExisting = replaceExisting,
+            manualRetention = manualRetention,
+            includeCompletedCount = includeCompletedCount,
+        )
+        persistedJobs[job.id] = saved
+        runCatching { keepDownloaded.saveJob(saved) }.onFailure { cause ->
+            persistedJobs.remove(job.id)
+            jobController.dismiss(job.id)
+            publishStatus(keepDownloadedErrorStatus(label, cause))
+            return false
+        }
         jobSources[job.id] = activeSourceId
         publishJobs()
         val running = scope.launch {
@@ -134,14 +323,13 @@ class NaviampCoreDownloadsController(
                         tracks = tracks,
                         sourceId = activeSourceId,
                         provider = activeProvider,
-                        quality = activeProvider.capabilities.effectiveDownloadQuality(
-                            playbackSettings.downloadStreamQuality(),
-                        ),
+                        quality = quality,
                         maxDownloadBytes = stateStore.state.value.shell.cache.settings.maxDownloadBytes,
                         replaceExisting = replaceExisting,
                         allowMobileDownloads = playbackSettings.allowMobileDownloads,
                         isActiveNetworkMobileData = isMobile,
                         includeCompletedCount = includeCompletedCount,
+                        manualRetention = manualRetention,
                     ),
                     onStatus = { message ->
                         if (currentSourceId() == activeSourceId) publishStatus(message)
@@ -279,9 +467,43 @@ class NaviampCoreDownloadsController(
                     KeepDownloadedCollectionKind.SmartPlaylist,
                     -> provider.playlistTracks(policy.collectionId)
                     KeepDownloadedCollectionKind.Favorites -> provider.favoriteTracks()
+                    KeepDownloadedCollectionKind.Album,
+                    KeepDownloadedCollectionKind.Artist,
+                    -> when (val planned = planSubscribedCollection(policy, provider)) {
+                        is CollectionDownloadPlanningResult.Ready -> planned.plan.tracks
+                        is CollectionDownloadPlanningResult.TooLarge,
+                        CollectionDownloadPlanningResult.Unsupported,
+                        -> null
+                    }
                 }
-                reconcilePolicy(policy, tracks)
+                if (tracks == null) {
+                    publishStatus(keepDownloadedRefreshErrorStatus(policy.name, IllegalStateException()))
+                } else {
+                    reconcilePolicy(policy, tracks)
+                }
             }.onFailure { publishStatus(keepDownloadedRefreshErrorStatus(policy.name, it)) }
+        }
+    }
+
+    private suspend fun planSubscribedCollection(
+        policy: KeepDownloadedCollectionPolicy,
+        provider: MediaProvider,
+    ): CollectionDownloadPlanningResult {
+        val shell = stateStore.state.value.shell
+        val quality = provider.capabilities.effectiveDownloadQuality(shell.playback.settings.downloadStreamQuality())
+        val downloadedIds = downloadedTracks.mapTo(mutableSetOf()) { it.track.id }
+        val usedBytes = downloadedTracks.sumOf(NaviampCoreDownloadedTrack::sizeBytes)
+        return when (policy.kind) {
+            KeepDownloadedCollectionKind.Album -> planAlbumDownload(
+                AlbumId(policy.collectionId), quality, downloadedIds, usedBytes,
+                shell.cache.settings.maxDownloadBytes, provider::albumTracksPage,
+            )
+            KeepDownloadedCollectionKind.Artist -> planArtistDownload(
+                ArtistId(policy.collectionId), quality, downloadedIds, usedBytes,
+                shell.cache.settings.maxDownloadBytes, provider::artistAlbumsPage, provider::albumTracksPage,
+                policy.artistAlbumScope, provider::favoriteAlbumsPage,
+            )
+            else -> error("Only album and artist subscriptions need collection planning.")
         }
     }
 
@@ -289,7 +511,9 @@ class NaviampCoreDownloadsController(
         val application = keepDownloaded.reconcile(policy, tracks)
         reloadPolicies(policy.sourceId)
         application.status?.let(::publishStatus)
-        application.downloadLabel?.let { label -> downloadTracks(label, application.tracksToDownload) }
+        application.downloadLabel?.let { label ->
+            downloadTracks(label, application.tracksToDownload, manualRetention = false)
+        }
         if (application.refreshDownloads) scope.launch { loadSnapshot(policy.sourceId) }
     }
 
@@ -307,9 +531,27 @@ class NaviampCoreDownloadsController(
             publishStatus("Download job cannot be retried.")
             return
         }
-        if (downloadTracks(retry.label, retry.tracks, retry.replaceExisting)) {
+        val saved = persistedJobs[jobId]
+        if (downloadTracks(retry.label, retry.tracks, retry.replaceExisting,
+                manualRetention = retry.manualRetention,
+                includeCompletedCount = saved?.includeCompletedCount ?: true,
+                qualityOverride = saved?.qualityKey?.toStoredAudioQuality())) {
             jobController.dismiss(jobId)
             jobSources.remove(jobId)
+        }
+    }
+
+    private fun restoreSavedJobs(sourceId: String) {
+        keepDownloaded.savedJobs(sourceId).forEach { saved ->
+            if (saved.job.id in persistedJobs || saved.job.id in jobSources) return@forEach
+            val interrupted = saved.job.status == DownloadJobStatus.Queued ||
+                saved.job.status == DownloadJobStatus.Running
+            val restored = if (interrupted) saved.copy(job = saved.job.updated(DownloadJobUpdate.Cancelled)) else saved
+            persistedJobs[restored.job.id] = restored
+            jobSources[restored.job.id] = sourceId
+            jobController.restore(restored)
+            if (interrupted && restored.manualRetention) retry(restored.job.id)
+            if (interrupted && !restored.manualRetention) jobController.dismiss(restored.job.id)
         }
     }
 
@@ -335,6 +577,8 @@ class NaviampCoreDownloadsController(
                         pendingProviderActionCount = snapshot.pendingProviderActionCount,
                     ),
                     keepFavoritesDownloaded = policies.any { it.kind == KeepDownloadedCollectionKind.Favorites },
+                    keptAlbumIds = policies.filter { it.kind == KeepDownloadedCollectionKind.Album }.mapTo(mutableSetOf()) { it.collectionId },
+                    keptArtistIds = policies.filter { it.kind == KeepDownloadedCollectionKind.Artist }.mapTo(mutableSetOf()) { it.collectionId },
                 ),
             )
         }
@@ -347,6 +591,8 @@ class NaviampCoreDownloadsController(
             shell.copy(
                 downloads = shell.downloads.copy(
                     keepFavoritesDownloaded = policies.any { it.kind == KeepDownloadedCollectionKind.Favorites },
+                    keptAlbumIds = policies.filter { it.kind == KeepDownloadedCollectionKind.Album }.mapTo(mutableSetOf()) { it.collectionId },
+                    keptArtistIds = policies.filter { it.kind == KeepDownloadedCollectionKind.Artist }.mapTo(mutableSetOf()) { it.collectionId },
                 ),
             )
         }

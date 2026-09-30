@@ -45,17 +45,30 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
 
         override suspend fun remove(sourceId: String, track: Track) {
             downloadRepository.removeDownloadedAudio(sourceId, track.id)
+            if (downloadRepository.downloadedTracks(sourceId).none { toCoreDownload(it).track.id == track.id }) {
+                keepDownloadedRepository.releaseTrackRetention(sourceId, track.id.value)
+            }
         }
 
         override suspend fun deleteAll(sourceId: String): Int {
             val downloads = downloadRepository.downloadedTracks(sourceId)
             downloads.forEach { stored ->
                 downloadRepository.removeDownloadedAudio(sourceId, toCoreDownload(stored).track.id)
+                val trackId = toCoreDownload(stored).track.id
+                if (downloadRepository.downloadedTracks(sourceId).none { toCoreDownload(it).track.id == trackId }) {
+                    keepDownloadedRepository.releaseTrackRetention(sourceId, trackId.value)
+                }
             }
             return downloads.size
         }
     }
     val transfer = NaviampCoreDownloadTransferPort { request, onStatus, onJobUpdate ->
+        val trackedUpdate: (app.naviamp.domain.cache.DownloadJobUpdate) -> Unit = { update ->
+            if (request.manualRetention && update is app.naviamp.domain.cache.DownloadJobUpdate.TrackCompleted) {
+                keepDownloadedRepository.retainManualTrack(request.sourceId, update.trackId)
+            }
+            onJobUpdate(update)
+        }
         val result = if (request.replaceExisting) {
             downloadService.redownloadTracksWithStatus(
                 sourceId = request.sourceId,
@@ -66,7 +79,7 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
                 isActiveNetworkMobileData = request.isActiveNetworkMobileData,
                 allowMobileDownloads = request.allowMobileDownloads,
                 setStatus = onStatus,
-                onJobUpdate = onJobUpdate,
+                onJobUpdate = trackedUpdate,
             )
         } else {
             downloadService.downloadTracksWithStatus(
@@ -80,7 +93,7 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
                 allowMobileDownloads = request.allowMobileDownloads,
                 includeCompletedCount = request.includeCompletedCount,
                 setStatus = onStatus,
-                onJobUpdate = onJobUpdate,
+                onJobUpdate = trackedUpdate,
             )
         }
         artworkCacheRepository?.let { cache ->
@@ -89,6 +102,12 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
         NaviampCoreDownloadTransferResult(shouldRefreshDownloadsAfter(result))
     }
     val keepDownloaded = object : NaviampCoreKeepDownloadedPort {
+        override fun savedJobs(sourceId: String) = keepDownloadedRepository.savedDownloadJobs(sourceId)
+        override fun saveJob(job: app.naviamp.domain.cache.PersistedDownloadJob) =
+            keepDownloadedRepository.saveDownloadJob(job)
+        override fun deleteJob(sourceId: String, jobId: String) =
+            keepDownloadedRepository.deleteDownloadJob(sourceId, jobId)
+
         override fun policies(sourceId: String) = keepDownloadedRepository.keepDownloadedPolicies(sourceId)
 
         override fun toggle(policy: KeepDownloadedCollectionPolicy): NaviampKeepDownloadedToggleResult {
@@ -125,6 +144,7 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
                     .flatMapTo(mutableSetOf()) {
                         keepDownloadedRepository.keepDownloadedTrackIds(it.sourceId, it.kind, it.collectionId)
                     },
+                manuallyRetainedTrackIds = keepDownloadedRepository.manuallyRetainedTrackIds(policy.sourceId),
                 removeUnneededFiles = policy.removeUnneededFiles,
             ).also { plan ->
                 keepDownloadedRepository.replaceKeepDownloadedTrackIds(policy, plan.nextTrackIds)

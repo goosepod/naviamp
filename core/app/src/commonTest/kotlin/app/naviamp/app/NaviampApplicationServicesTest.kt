@@ -227,6 +227,9 @@ private object EmptyDownloadStore :
     DownloadRepository<Unit, Unit>,
     DownloadReplacementRepository<Unit>,
     KeepDownloadedRepository {
+    override fun savedDownloadJobs(sourceId: String) = emptyList<app.naviamp.domain.cache.PersistedDownloadJob>()
+    override fun saveDownloadJob(job: app.naviamp.domain.cache.PersistedDownloadJob) = Unit
+    override fun deleteDownloadJob(sourceId: String, jobId: String) = Unit
     override suspend fun downloadedAudioFile(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
     override suspend fun downloadedAudioFile(sourceId: String, trackId: TrackId) = null
     override suspend fun downloadAudioTrack(
@@ -273,6 +276,9 @@ private object EmptyDownloadStore :
     override fun managedKeepDownloadedTrackIds(sourceId: String) = emptySet<String>()
     override fun markManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) = Unit
     override fun unmarkManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) = Unit
+    override fun manuallyRetainedTrackIds(sourceId: String) = emptySet<String>()
+    override fun retainManualTrack(sourceId: String, trackId: String) = Unit
+    override fun releaseTrackRetention(sourceId: String, trackId: String) = Unit
 }
 
 private class RecordingDownloadStore :

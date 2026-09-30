@@ -4,7 +4,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
+import kotlinx.serialization.Serializable
 
+@Serializable
 enum class DownloadJobStatus {
     Queued,
     Running,
@@ -33,6 +35,11 @@ fun String.toStoredAudioQuality(): StreamQuality? = when {
         if (codec != null && bitrate != null) StreamQuality.Transcoded(codec, bitrate) else null
     }
     else -> null
+}
+
+fun StreamQuality.storedAudioQualityKey(): String = when (this) {
+    StreamQuality.Original -> "original"
+    is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
 }
 
 fun downloadedAudioQualityLabel(
@@ -71,6 +78,7 @@ private fun String?.downloadCodecLabel(): String? =
 private fun Int.sampleRateLabel(): String =
     if (this % 1000 == 0) "${this / 1000} kHz" else "${this / 1000.0} kHz"
 
+@Serializable
 enum class DownloadJobItemStatus {
     Pending,
     Downloading,
@@ -79,12 +87,14 @@ enum class DownloadJobItemStatus {
     Cancelled,
 }
 
+@Serializable
 data class DownloadJobItem(
     val track: Track,
     val status: DownloadJobItemStatus = DownloadJobItemStatus.Pending,
     val failureMessage: String? = null,
 )
 
+@Serializable
 data class DownloadJob(
     val id: String,
     val label: String,
@@ -113,6 +123,17 @@ data class DownloadJob(
             emptyList()
         }
 }
+
+/** Enough shared request state to recover a transfer without changing its chosen quality. */
+@Serializable
+data class PersistedDownloadJob(
+    val sourceId: String,
+    val job: DownloadJob,
+    val qualityKey: String,
+    val replaceExisting: Boolean,
+    val manualRetention: Boolean,
+    val includeCompletedCount: Boolean,
+)
 
 const val MaximumRecentDownloadJobs = 8
 

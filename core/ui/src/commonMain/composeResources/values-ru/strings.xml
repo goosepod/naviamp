@@ -99,6 +99,23 @@
     <string name="album_artwork_album">Обложка альбома</string>
     <string name="album_settings">Настройки альбома</string>
     <string name="album_settings_description">Выберите параметры, которые этот альбом переопределяет. Унаследованные значения следуют общим настройкам.</string>
+    <string name="download_scope_favorite_albums">Только избранные альбомы</string>
+    <string name="download_scope_all_albums">Все альбомы этого исполнителя</string>
+    <string name="download_stop_title">Не сохранять загрузку %1$s?</string>
+    <string name="download_stop_summary">Существующие файлы можно оставить на устройстве или удалить, если они больше нигде не нужны.</string>
+    <string name="download_stop_keep_files">Оставить файлы</string>
+    <string name="download_stop_remove_files">Удалить ненужные файлы</string>
+    <string name="download_stop_keeping_collection">Не сохранять загрузку</string>
+    <string name="download_keep_collection">Сохранять загруженным</string>
+    <string name="download_preview_title">Сохранять %1$s загруженным?</string>
+    <string name="download_preview_summary">Альбомов: %1$d · треков: %2$d · уже сохранено: %3$d</string>
+    <string name="download_preview_estimate">Оценка нового объема: %1$s</string>
+    <string name="download_preview_at_least">Не менее %1$s (некоторые размеры неизвестны)</string>
+    <string name="download_preview_budget">Остаток лимита загрузок: %1$s</string>
+    <string name="download_preview_too_large">Эта коллекция слишком велика для постоянной загрузки.</string>
+    <string name="download_preview_unsupported">Сервер не может показать коллекцию целиком.</string>
+    <string name="download_preview_empty">В этой коллекции нет треков.</string>
+    <string name="download_preview_storage_limit">Эта коллекция превышает лимит места для загрузок.</string>
     <string name="artist_appearance_albums">Альбомы</string>
     <string name="artist_appearance_tracks">Треки</string>
 </resources>

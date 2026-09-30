@@ -34,13 +34,19 @@ interface MediaProvider {
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
+    /** Complete paged album membership for downloads; null when the source cannot guarantee it. */
+    suspend fun albumTracksPage(albumId: AlbumId, request: MediaPageRequest): MediaPage<Track>? = null
     suspend fun albumInfo(albumId: AlbumId): AlbumInfo? = null
     suspend fun artist(artistId: ArtistId): ArtistDetails
+    /** Primary artist releases only, paged so large catalogs cannot be silently truncated. */
+    suspend fun artistAlbumsPage(artistId: ArtistId, request: MediaPageRequest): MediaPage<Album>? = null
     suspend fun artistDiscography(artistId: ArtistId): ArtistDiscography =
         ArtistDiscography(primary = artist(artistId))
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun favoriteArtists(limit: Int = 500): List<Artist> =
         artists(limit).filter { it.favoritedAtIso8601 != null }
+    /** Null means this source cannot enumerate favorite artists completely for a subscription. */
+    suspend fun favoriteArtistsPage(request: MediaPageRequest): MediaPage<Artist>? = null
     suspend fun artistsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Artist> =
         if (request.offset == 0) {
             request.toMediaPage(artists(limit = request.limit))
@@ -51,6 +57,8 @@ interface MediaProvider {
     suspend fun albumsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Album> =
         request.toMediaPage(albums(limit = request.limit, offset = request.offset))
     suspend fun albumList(type: AlbumListType, limit: Int = 20): List<Album> = emptyList()
+    /** Null means this source cannot enumerate favorite albums completely for a subscription. */
+    suspend fun favoriteAlbumsPage(request: MediaPageRequest): MediaPage<Album>? = null
     suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>

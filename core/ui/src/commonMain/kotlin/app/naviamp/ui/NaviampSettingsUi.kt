@@ -3914,7 +3914,7 @@ private fun AudioOutputDevice.isSyntheticDefaultOutputDevice(): Boolean =
     isDefault && name.equals("Default", ignoreCase = true)
 
 @Composable
-private fun SelectableSettingsRow(
+internal fun SelectableSettingsRow(
     colors: NaviampColors,
     title: String,
     subtitle: String? = null,

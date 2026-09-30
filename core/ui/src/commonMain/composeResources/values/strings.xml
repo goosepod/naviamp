@@ -959,6 +959,23 @@
     <string name="album_artwork_album">Album cover</string>
     <string name="album_settings">Album Settings</string>
     <string name="album_settings_description">Choose which settings this album overrides. Inherited values follow your global settings.</string>
+    <string name="download_scope_favorite_albums">Favorite albums only</string>
+    <string name="download_scope_all_albums">All albums by this artist</string>
+    <string name="download_stop_title">Stop keeping %1$s downloaded?</string>
+    <string name="download_stop_summary">Existing files can stay on this device or be removed when nothing else needs them.</string>
+    <string name="download_stop_keep_files">Keep files</string>
+    <string name="download_stop_remove_files">Remove unneeded files</string>
+    <string name="download_stop_keeping_collection">Stop keeping downloaded</string>
+    <string name="download_keep_collection">Keep downloaded</string>
+    <string name="download_preview_title">Keep %1$s downloaded?</string>
+    <string name="download_preview_summary">%1$d albums · %2$d tracks · %3$d already saved</string>
+    <string name="download_preview_estimate">Estimated new storage: %1$s</string>
+    <string name="download_preview_at_least">At least %1$s (some sizes unknown)</string>
+    <string name="download_preview_budget">Download budget remaining: %1$s</string>
+    <string name="download_preview_too_large">This collection is too large to keep downloaded.</string>
+    <string name="download_preview_unsupported">This server cannot list the full collection.</string>
+    <string name="download_preview_empty">This collection has no tracks.</string>
+    <string name="download_preview_storage_limit">This collection exceeds your download storage budget.</string>
     <string name="artist_appearance_albums">Albums</string>
     <string name="artist_appearance_tracks">Tracks</string>
 </resources>

@@ -99,6 +99,23 @@
     <string name="album_artwork_album">アルバムのカバー</string>
     <string name="album_settings">アルバム設定</string>
     <string name="album_settings_description">このアルバムで上書きする設定を選択します。引き継いだ値には全体設定が適用されます。</string>
+    <string name="download_scope_favorite_albums">お気に入りのアルバムのみ</string>
+    <string name="download_scope_all_albums">このアーティストのすべてのアルバム</string>
+    <string name="download_stop_title">%1$s のダウンロード保持を停止しますか？</string>
+    <string name="download_stop_summary">既存のファイルはこのデバイスに残すか、ほかに必要なければ削除できます。</string>
+    <string name="download_stop_keep_files">ファイルを残す</string>
+    <string name="download_stop_remove_files">不要なファイルを削除</string>
+    <string name="download_stop_keeping_collection">ダウンロードの保持を停止</string>
+    <string name="download_keep_collection">ダウンロードを維持</string>
+    <string name="download_preview_title">%1$s のダウンロードを維持しますか？</string>
+    <string name="download_preview_summary">アルバム %1$d 件 · 曲 %2$d 件 · 保存済み %3$d 件</string>
+    <string name="download_preview_estimate">新たに必要な容量の推定値: %1$s</string>
+    <string name="download_preview_at_least">少なくとも %1$s（一部のサイズは不明）</string>
+    <string name="download_preview_budget">ダウンロード容量の残り: %1$s</string>
+    <string name="download_preview_too_large">このコレクションは大きすぎてダウンロードを維持できません。</string>
+    <string name="download_preview_unsupported">このサーバーではコレクション全体を一覧できません。</string>
+    <string name="download_preview_empty">このコレクションに曲はありません。</string>
+    <string name="download_preview_storage_limit">このコレクションはダウンロード容量の上限を超えています。</string>
     <string name="artist_appearance_albums">アルバム</string>
     <string name="artist_appearance_tracks">トラック</string>
 </resources>

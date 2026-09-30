@@ -99,6 +99,23 @@
     <string name="album_artwork_album">Sampul album</string>
     <string name="album_settings">Pengaturan album</string>
     <string name="album_settings_description">Pilih pengaturan yang diganti untuk album ini. Nilai yang diwarisi mengikuti pengaturan global.</string>
+    <string name="download_scope_favorite_albums">Hanya album favorit</string>
+    <string name="download_scope_all_albums">Semua album artis ini</string>
+    <string name="download_stop_title">Berhenti menyimpan unduhan %1$s?</string>
+    <string name="download_stop_summary">File yang ada dapat tetap tersimpan di perangkat ini atau dihapus jika tidak diperlukan lagi.</string>
+    <string name="download_stop_keep_files">Simpan file</string>
+    <string name="download_stop_remove_files">Hapus file yang tidak diperlukan</string>
+    <string name="download_stop_keeping_collection">Berhenti menyimpan unduhan</string>
+    <string name="download_keep_collection">Simpan unduhan</string>
+    <string name="download_preview_title">Simpan %1$s sebagai unduhan?</string>
+    <string name="download_preview_summary">%1$d album · %2$d lagu · %3$d sudah tersimpan</string>
+    <string name="download_preview_estimate">Perkiraan ruang baru: %1$s</string>
+    <string name="download_preview_at_least">Setidaknya %1$s (beberapa ukuran tidak diketahui)</string>
+    <string name="download_preview_budget">Sisa batas unduhan: %1$s</string>
+    <string name="download_preview_too_large">Koleksi ini terlalu besar untuk disimpan sebagai unduhan.</string>
+    <string name="download_preview_unsupported">Server ini tidak dapat mencantumkan seluruh koleksi.</string>
+    <string name="download_preview_empty">Koleksi ini tidak memiliki lagu.</string>
+    <string name="download_preview_storage_limit">Koleksi ini melebihi batas penyimpanan unduhan.</string>
     <string name="artist_appearance_albums">Album</string>
     <string name="artist_appearance_tracks">Lagu</string>
 </resources>

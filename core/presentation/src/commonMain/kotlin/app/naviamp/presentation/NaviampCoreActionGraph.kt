@@ -184,6 +184,10 @@ fun createNaviampCoreActions(
             onRefresh = { send(NaviampCoreCommand.Downloads.Refresh) },
             onToggleKeepFavoritesDownloaded = { send(NaviampCoreCommand.Downloads.ToggleKeepFavorites) },
             onDeleteAll = { send(NaviampCoreCommand.Downloads.DeleteAll) },
+            onConfirmCollection = { send(NaviampCoreCommand.Downloads.ConfirmCollection) },
+            onArtistScopeChanged = { send(NaviampCoreCommand.Downloads.ChangeArtistScope(it)) },
+            onStopCollection = { send(NaviampCoreCommand.Downloads.StopCollection(it)) },
+            onDismissCollection = { send(NaviampCoreCommand.Downloads.DismissCollection) },
         ),
         libraryActions = NaviampLibraryActions(
             onViewChanged = { send(NaviampCoreCommand.Library.ChangeView(it)) },
@@ -213,6 +217,7 @@ fun createNaviampCoreActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromAlbum) },
             onAlbumAction = { send(NaviampCoreCommand.Detail.Album(it)) },
             onTrackAction = { send(NaviampCoreCommand.Detail.AlbumTrack(it)) },
+            onKeepDownloaded = { send(NaviampCoreCommand.Downloads.PrepareAlbum(it.id, it.title)) },
             onArtistSelected = { artist ->
                 send(
                     NaviampCoreCommand.Media.ItemAction(
@@ -231,6 +236,7 @@ fun createNaviampCoreActions(
             onArtistAction = { send(NaviampCoreCommand.Detail.Artist(it)) },
             onAlbumAction = { send(NaviampCoreCommand.Detail.ArtistAlbum(it)) },
             onPopularTrackAction = { send(NaviampCoreCommand.Detail.ArtistPopularTrack(it)) },
+            onKeepDownloaded = { send(NaviampCoreCommand.Downloads.PrepareArtist(it.id, it.title)) },
         ),
         playlistDetailActions = NaviampPlaylistDetailActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromPlaylist) },

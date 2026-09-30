@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.naviamp.ui.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ColumnScope.NaviampProductRouteContent(
     shellState: NaviampAppShellUiState,
@@ -65,6 +67,7 @@ fun ColumnScope.NaviampProductRouteContent(
                 NaviampRoute.AlbumDetail -> NaviampAlbumDetailContent(
                     colors = colors,
                     screen = shellState.albumDetail,
+                    keptDownloaded = shellState.albumDetail.detail?.album?.id in shellState.downloads.keptAlbumIds,
                     actions = shellActions.albumDetailActions,
                     albumArtworkPreference = shellState.general.interfaceSettings.albumArtworkPreference(
                         shellState.connectionSettings.currentSourceId,
@@ -76,6 +79,7 @@ fun ColumnScope.NaviampProductRouteContent(
                 NaviampRoute.ArtistDetail -> NaviampArtistDetailContent(
                     colors = colors,
                     screen = shellState.artistDetail,
+                    keptDownloaded = shellState.artistDetail.detail?.artist?.id in shellState.downloads.keptArtistIds,
                     appearanceState = artistAppearanceState,
                     albumCollectionLayout = shellState.general.interfaceSettings.albumCollectionLayout,
                     albumSortOrder = shellState.general.interfaceSettings.albumSortOrder,
@@ -342,6 +346,7 @@ fun ColumnScope.NaviampProductRouteContent(
             },
         )
     }
+    NaviampCollectionDownloadDialogs(shellState.downloads, shellActions.downloadsActions, colors)
 }
 
 internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Boolean = false

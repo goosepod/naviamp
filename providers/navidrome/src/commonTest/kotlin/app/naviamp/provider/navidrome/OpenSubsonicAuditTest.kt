@@ -107,6 +107,31 @@ class OpenSubsonicAuditTest {
         assertEquals(2, http.calls.count { it.first == "getStarred2.view" })
     }
 
+    @Test fun favoriteDownloadPagesIncludeStarredAlbumsAndArtists() = runTest {
+        val http = Http().apply {
+            payload = "\"starred2\":{\"album\":[{\"id\":\"album\",\"name\":\"Album\"}],\"artist\":[{\"id\":\"artist\",\"name\":\"Artist\"}]}"
+        }
+        val p = provider(http)
+
+        assertEquals("album", p.favoriteAlbumsPage(app.naviamp.domain.provider.MediaPageRequest(limit = 1)).items.single().id.value)
+        assertEquals("artist", p.favoriteArtistsPage(app.naviamp.domain.provider.MediaPageRequest(limit = 1)).items.single().id.value)
+        assertEquals(1, http.calls.count { it.first == "getStarred2.view" })
+    }
+
+    @Test fun downloadMemberPagesUseCompleteSubsonicAlbumAndArtistResponses() = runTest {
+        val http = Http().apply {
+            payload = """ "album":{"id":"album","name":"Album","song":[
+                {"id":"track","title":"Track","artist":"Artist","duration":180}
+            ]},"artist":{"id":"artist","name":"Artist","album":[
+                {"id":"album","name":"Album"}
+            ]} """
+        }
+        val p = provider(http)
+
+        assertEquals("track", p.albumTracksPage(AlbumId("album"), app.naviamp.domain.provider.MediaPageRequest(limit = 1)).items.single().id.value)
+        assertEquals("album", p.artistAlbumsPage(ArtistId("artist"), app.naviamp.domain.provider.MediaPageRequest(limit = 1)).items.single().id.value)
+    }
+
     @Test fun albumInformationUsesOnlyId3Identity() = runTest {
         val http = Http().apply { payload = "\"albumInfo\":{\"notes\":\"notes\"}" }
         assertEquals("notes", provider(http).albumInfo(AlbumId("a"))?.notes)
