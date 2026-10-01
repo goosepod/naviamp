@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">Ця колекція перевищує ліміт місця для завантажень.</string>
     <string name="artist_appearance_albums">Альбоми</string>
     <string name="artist_appearance_tracks">Треки</string>
+    <string name="album_disc_number">Диск %1$d</string>
+    <string name="album_disc_number_title">Диск %1$d — %2$s</string>
 </resources>

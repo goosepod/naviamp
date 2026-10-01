@@ -954,4 +954,6 @@
     <string name="download_preview_storage_limit">Esta colección supera el límite de almacenamiento de descargas.</string>
     <string name="artist_appearance_albums">Álbumes</string>
     <string name="artist_appearance_tracks">Pistas</string>
+    <string name="album_disc_number">Disco %1$d</string>
+    <string name="album_disc_number_title">Disco %1$d — %2$s</string>
 </resources>

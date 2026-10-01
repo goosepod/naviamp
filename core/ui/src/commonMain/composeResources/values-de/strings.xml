@@ -950,4 +950,6 @@
     <string name="download_preview_storage_limit">Diese Sammlung überschreitet das Downloadbudget.</string>
     <string name="artist_appearance_albums">Alben</string>
     <string name="artist_appearance_tracks">Titel</string>
+    <string name="album_disc_number">Disc %1$d</string>
+    <string name="album_disc_number_title">Disc %1$d — %2$s</string>
 </resources>

@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">यह संग्रह डाउनलोड संग्रहण सीमा से बड़ा है।</string>
     <string name="artist_appearance_albums">एल्बम</string>
     <string name="artist_appearance_tracks">ट्रैक</string>
+    <string name="album_disc_number">डिस्क %1$d</string>
+    <string name="album_disc_number_title">डिस्क %1$d — %2$s</string>
 </resources>

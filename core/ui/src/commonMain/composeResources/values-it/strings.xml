@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">Questa raccolta supera il limite di spazio per i download.</string>
     <string name="artist_appearance_albums">Album</string>
     <string name="artist_appearance_tracks">Brani</string>
+    <string name="album_disc_number">Disco %1$d</string>
+    <string name="album_disc_number_title">Disco %1$d — %2$s</string>
 </resources>

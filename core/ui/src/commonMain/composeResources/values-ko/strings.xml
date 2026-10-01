@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">이 컬렉션은 다운로드 저장 용량을 초과합니다.</string>
     <string name="artist_appearance_albums">앨범</string>
     <string name="artist_appearance_tracks">트랙</string>
+    <string name="album_disc_number">디스크 %1$d</string>
+    <string name="album_disc_number_title">디스크 %1$d — %2$s</string>
 </resources>

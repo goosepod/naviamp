@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">تتجاوز هذه المجموعة حد مساحة التنزيل.</string>
     <string name="artist_appearance_albums">الألبومات</string>
     <string name="artist_appearance_tracks">المقاطع</string>
+    <string name="album_disc_number">القرص %1$d</string>
+    <string name="album_disc_number_title">القرص %1$d — %2$s</string>
 </resources>

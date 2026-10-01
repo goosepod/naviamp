@@ -55,6 +55,24 @@ Run the commands in separate terminals while the target is listening. Both devic
 network topology required by the selected fixture; skipping these tests in single-device CI does
 not establish cross-device acceptance.
 
+## Multi-disc album fixture checks
+
+For a reproducible check with real library metadata, save JSON `getAlbum` responses as
+`album-*.json` in an ignored directory such as `build/issue-187`. Do not include credentials in
+the fixture files. Save `getCoverArt` bytes for the album and each `discTitles.coverArt` ID
+alongside them as `art-<id>.bin`, replacing characters outside `A-Za-z0-9._-` in the ID with
+underscores. On Windows, run:
+
+```powershell
+$env:NAVIAMP_DISC_FIXTURE_DIR = (Resolve-Path build/issue-187).Path
+./gradlew.bat :providers:navidrome:jvmTest --tests '*NavidromeAlbumDiscFixtureTest' :core:ui:jvmTest --tests '*NaviampAlbumDiscUiTest'
+```
+
+The provider check verifies that no disc/track numbers or disc artwork IDs are lost. The UI check opens Compose
+test windows at Desktop and phone sizes, scrolls to every disc heading, and saves PNGs beside
+the fixtures. These optional fixture checks run only when `NAVIAMP_DISC_FIXTURE_DIR` is set;
+the synthetic grouping, metadata round-trip, and rendered interaction tests run in ordinary CI.
+
 ## CI verification
 
 `.github/workflows/verify.yml` runs on every branch push and pull request and is also called before

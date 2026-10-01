@@ -824,6 +824,8 @@ class JellyfinProvider(
             lastPlayedAtIso8601 = objectValue("UserData")?.string("LastPlayedDate"),
             musicFolderId = string("ParentId"),
             artistCredits = credits,
+            discNumber = int("ParentIndexNumber")?.takeIf { it > 0 },
+            trackNumber = int("IndexNumber")?.takeIf { it > 0 },
         )
     }
 

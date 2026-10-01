@@ -104,6 +104,10 @@ data class Track(
     val lastPlayedAtIso8601: String? = null,
     val musicFolderId: String? = null,
     val artistCredits: List<ArtistCredit> = emptyList(),
+    val discNumber: Int? = null,
+    val trackNumber: Int? = null,
+    val discTitle: String? = null,
+    val discCoverArtId: String? = null,
 )
 
 /** The earliest available year, used to place a recording in its original musical era. */
