@@ -45,12 +45,14 @@ class StorageProviderIdentityMigrationStoreTest {
             val oldArtist = "old-artist"
             val oldAlbum = "old-album"
             val oldCover = "old-cover"
+            val oldDiscCover = "old-disc-cover"
             val oldPlaylist = "old-playlist"
             val migrated = mapOf(
                 oldTrack to "new-track",
                 oldArtist to "new-artist",
                 oldAlbum to "new-album",
                 oldCover to "new-cover",
+                oldDiscCover to "new-disc-cover",
                 oldPlaylist to "new-playlist",
             )
             val transform: (String) -> String = { migrated[it] ?: it }
@@ -61,7 +63,7 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.upsertDownloadedAudio(
                 source.id, oldTrack, "original", "/owned/download.flac", 20L, "audio/flac", "Track",
                 oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover, "flac", null, "audio/flac",
-                null, null, null, null, 1L, null, null, null,
+                null, null, null, null, 1L, null, null, null, oldDiscCover,
             )
             queries.upsertKeepDownloadedPolicy(source.id, "playlist", oldPlaylist, "Playlist", 0L, "FullCatalog", 1L)
             queries.insertKeepDownloadedCollectionTrack(source.id, "playlist", oldPlaylist, oldTrack)
@@ -77,6 +79,7 @@ class StorageProviderIdentityMigrationStoreTest {
                 id = TrackId(oldTrack), title = "Track", artistId = ArtistId(oldArtist), artistName = "Artist",
                 albumId = app.naviamp.domain.AlbumId(oldAlbum), albumTitle = "Album", durationSeconds = 120,
                 coverArtId = oldCover, audioInfo = null, replayGain = null,
+                discCoverArtId = oldDiscCover,
                 artistCredits = listOf(ArtistCredit(ArtistId(oldArtist), "Artist")),
             )
             val albumTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, oldAlbum)
@@ -106,7 +109,7 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.replaceAlbumCatalogSnapshot(source.id, "all", "[{\"id\":\"$oldAlbum\"}]", 2L)
             queries.upsertPlaybackHistory(
                 source.id, oldTrack, "Track", oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover,
-                "flac", null, "audio/flac", null, null, null, null, 1L, null, null, null,
+                "flac", null, "audio/flac", null, null, null, null, 1L, null, null, null, oldDiscCover,
             )
             queries.insertPendingProviderAction(source.id, "favorite-track", oldTrack, 1L, null, 1L)
             queries.upsertResponse("key", "navidrome", "track", oldTrack, "{}", 1L, 1L)
@@ -129,11 +132,13 @@ class StorageProviderIdentityMigrationStoreTest {
             assertEquals("new-artist", download.artist_id)
             assertEquals("new-album", download.album_id)
             assertEquals("new-cover", download.cover_art_id)
+            assertEquals("new-disc-cover", download.disc_cover_art_id)
             assertEquals(listOf("new-track"), queries.selectKeepDownloadedTrackIds(source.id, "playlist", "new-playlist").executeAsList())
             assertEquals(listOf("new-track"), queries.selectManagedKeepDownloadedTrackIds(source.id).executeAsList())
             val playbackSession = catalog.playbackSessions.loadPlaybackSession(source.id)
             assertEquals("new-track", playbackSession?.tracks?.single()?.id)
             assertEquals("new-artist", playbackSession?.tracks?.single()?.artistId)
+            assertEquals("new-disc-cover", playbackSession?.tracks?.single()?.discCoverArtId)
             assertEquals("new-album", playbackSession?.queueGroups?.single()?.target?.id)
             assertEquals("Album:new-album:after:0", playbackSession?.queueGroups?.single()?.id)
             assertEquals("new-playlist", playbackSession?.internetRadioStation?.id)
@@ -141,6 +146,7 @@ class StorageProviderIdentityMigrationStoreTest {
             assertEquals("Gapless", queries.selectPlaybackProfile(source.id, "Album", "new-album").executeAsOne().transition_mode)
             assertNull(queries.selectAlbumCatalogSnapshot(source.id, "all").executeAsOneOrNull())
             assertEquals("new-track", queries.selectPlaybackHistory(source.id, 1L).executeAsOne().remote_track_id)
+            assertEquals("new-disc-cover", queries.selectPlaybackHistory(source.id, 1L).executeAsOne().disc_cover_art_id)
             assertEquals("new-track", queries.selectPendingProviderActions(source.id, 1L).executeAsOne().entity_id)
             assertEquals(0L, queries.responseCacheCount().executeAsOne())
             assertEquals(0L, queries.imageCacheCount().executeAsOne())
@@ -178,7 +184,7 @@ class StorageProviderIdentityMigrationStoreTest {
                 queries.upsertDownloadedAudio(
                     source.id, id, "transcoded:opus:128", path, 20L, "audio/ogg", "Track",
                     null, "Artist", null, "Album", null, null, 120L, cover, "opus", 128L, "audio/ogg",
-                    null, null, null, null, downloadedAt, null, null, null,
+                    null, null, null, null, downloadedAt, null, null, null, null,
                 )
             }
             download("old-track", "/owned/old.ogg", "old-cover", 1L)

@@ -35,6 +35,7 @@ class StoragePlaybackHistoryStore(
             disc_number = track.discNumber?.toLong(),
             track_number = track.trackNumber?.toLong(),
             disc_title = track.discTitle,
+            disc_cover_art_id = track.discCoverArtId,
             duration_seconds = track.durationSeconds?.toLong(),
             cover_art_id = track.coverArtId,
             audio_codec = track.audioInfo?.codec,
@@ -65,6 +66,7 @@ private fun Playback_history.toTrack(): Track = Track(
     discNumber = disc_number?.toInt(),
     trackNumber = track_number?.toInt(),
     discTitle = disc_title,
+    discCoverArtId = disc_cover_art_id,
     durationSeconds = duration_seconds?.toInt(),
     coverArtId = cover_art_id,
     audioInfo = AudioInfo(

@@ -6,6 +6,7 @@ data class AlbumDiscSection(
     val number: Int,
     val title: String?,
     val tracks: List<Track>,
+    val coverArtId: String? = null,
 )
 
 /** Untagged/invalid discs belong to disc 1; ties and unnumbered tracks keep provider order. */
@@ -16,6 +17,7 @@ fun List<Track>.albumDiscSections(): List<AlbumDiscSection> =
             AlbumDiscSection(
                 number = number,
                 title = tracks.firstNotNullOfOrNull { it.discTitle?.trim()?.takeIf(String::isNotEmpty) },
+                coverArtId = tracks.firstNotNullOfOrNull { it.discCoverArtId?.trim()?.takeIf(String::isNotEmpty) },
                 tracks = tracks.sortedBy { it.trackNumber?.takeIf { number -> number > 0 } ?: Int.MAX_VALUE },
             )
         }

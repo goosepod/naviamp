@@ -535,6 +535,7 @@ private data class TrackDto(
     val discNumber: Int? = null,
     val trackNumber: Int? = null,
     val discTitle: String? = null,
+    val discCoverArtId: String? = null,
 ) {
     fun toTrack(): Track =
         Track(
@@ -561,6 +562,7 @@ private data class TrackDto(
             discNumber = discNumber,
             trackNumber = trackNumber,
             discTitle = discTitle,
+            discCoverArtId = discCoverArtId,
         )
 
     companion object {
@@ -589,6 +591,7 @@ private data class TrackDto(
                 discNumber = track.discNumber,
                 trackNumber = track.trackNumber,
                 discTitle = track.discTitle,
+                discCoverArtId = track.discCoverArtId,
             )
     }
 }

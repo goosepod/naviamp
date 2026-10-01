@@ -113,6 +113,7 @@ CREATE TABLE library_track (
   disc_number INTEGER,
   track_number INTEGER,
   disc_title TEXT,
+  disc_cover_art_id TEXT,
   PRIMARY KEY(source_id, remote_track_id)
 );
 
@@ -244,6 +245,7 @@ CREATE TABLE downloaded_audio (
   disc_number INTEGER,
   track_number INTEGER,
   disc_title TEXT,
+  disc_cover_art_id TEXT,
   PRIMARY KEY(source_id, remote_track_id, quality_key)
 );
 
@@ -417,6 +419,7 @@ CREATE TABLE playback_history (
   disc_number INTEGER,
   track_number INTEGER,
   disc_title TEXT,
+  disc_cover_art_id TEXT,
   PRIMARY KEY(source_id, remote_track_id, played_at_epoch_millis)
 );
 
@@ -848,8 +851,9 @@ INSERT OR REPLACE INTO library_track(
   updated_at_epoch_millis,
   disc_number,
   track_number,
-  disc_title
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  disc_title,
+  disc_cover_art_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 clearLibraryTrackArtistCredits:
 DELETE FROM library_track_artist_credit
@@ -1082,6 +1086,7 @@ SELECT
   library_track.disc_number,
   library_track.track_number,
   library_track.disc_title,
+  library_track.disc_cover_art_id,
   library_track.genre_names,
   library_track.search_title,
   library_track.search_artist_name,
@@ -1280,8 +1285,9 @@ INSERT OR REPLACE INTO downloaded_audio(
   downloaded_at_epoch_millis,
   disc_number,
   track_number,
-  disc_title
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  disc_title,
+  disc_cover_art_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteDownloadedAudio:
 DELETE FROM downloaded_audio
@@ -1484,8 +1490,9 @@ INSERT OR REPLACE INTO playback_history(
   played_at_epoch_millis,
   disc_number,
   track_number,
-  disc_title
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  disc_title,
+  disc_cover_art_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 insertPendingProviderAction:
 INSERT INTO pending_provider_action(
@@ -1798,7 +1805,7 @@ WHERE source_id = ? AND remote_track_id = ? AND quality_key = ?;
 
 updateDownloadedAudioIdentity:
 UPDATE OR REPLACE downloaded_audio
-SET remote_track_id = ?, artist_id = ?, album_id = ?, cover_art_id = ?
+SET remote_track_id = ?, artist_id = ?, album_id = ?, cover_art_id = ?, disc_cover_art_id = ?
 WHERE source_id = ? AND remote_track_id = ? AND quality_key = ?;
 
 selectManagedKeepDownloadedTrackIdsForIdentityMigration:
@@ -1893,7 +1900,7 @@ WHERE source_id = ?;
 
 updatePlaybackHistoryIdentity:
 UPDATE OR REPLACE playback_history
-SET remote_track_id = ?, artist_id = ?, album_id = ?, cover_art_id = ?
+SET remote_track_id = ?, artist_id = ?, album_id = ?, cover_art_id = ?, disc_cover_art_id = ?
 WHERE source_id = ? AND remote_track_id = ? AND played_at_epoch_millis = ?;
 
 selectPlaybackHistoryForIdentityMigration:

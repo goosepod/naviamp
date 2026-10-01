@@ -34,12 +34,13 @@ class StorageAudioStoreTest {
         fixture(fileExists = { true }, byteStore = bytes).use { fixture ->
             val track = Track(id = TrackId("bonus"), title = "Bonus", artistName = "Artist", albumTitle = "Album",
                 durationSeconds = 120, coverArtId = null, audioInfo = null, replayGain = null,
-                discNumber = 2, trackNumber = 3, discTitle = "Bonus disc")
+                discNumber = 2, trackNumber = 3, discTitle = "Bonus disc", discCoverArtId = "disc-cover")
             fixture.store.downloadAudioTrack("source", AudioTestProvider(), track, StreamQuality.Original, Long.MAX_VALUE)
             val stored = fixture.store.downloadedTracks("source").single().track
             assertEquals(2, stored.discNumber)
             assertEquals(3, stored.trackNumber)
             assertEquals("Bonus disc", stored.discTitle)
+            assertEquals("disc-cover", stored.discCoverArtId)
         }
     }
 
@@ -256,7 +257,7 @@ private class StorageAudioStoreFixture(
             favorited_at_iso8601 = null,
             user_rating = null,
             downloaded_at_epoch_millis = 2L,
-            disc_number = null, track_number = null, disc_title = null,
+            disc_number = null, track_number = null, disc_title = null, disc_cover_art_id = null,
         )
     }
 

@@ -41,13 +41,22 @@ class AlbumDiscSectionsTest {
     }
 
     @Test
+    fun discArtworkComesFromExplicitDiscMetadataRatherThanTrackArtwork() {
+        val tracks = listOf(track("a", 1, 1).copy(coverArtId = "individual-track", discCoverArtId = " "),
+            track("b", 1, 2).copy(discCoverArtId = " disc-cover "))
+        assertEquals("disc-cover", tracks.albumDiscSections().single().coverArtId)
+        assertNull(listOf(track("a", 1, 1).copy(coverArtId = "individual-track")).albumDiscSections().single().coverArtId)
+    }
+
+    @Test
     fun savedTracksRoundTripMetadataAndOlderPayloadsDefaultToNull() {
-        val original = track("bonus", 2, 7).copy(discTitle = "Bonus")
+        val original = track("bonus", 2, 7).copy(discTitle = "Bonus", discCoverArtId = "disc-cover")
         assertEquals(original, Json.decodeFromString<SavedTrack>(Json.encodeToString(SavedTrack.fromTrack(original))).toTrack())
         val old = Json.decodeFromString<SavedTrack>("""{"id":"old","title":"Old","artistName":"Artist"}""").toTrack()
         assertNull(old.discNumber)
         assertNull(old.trackNumber)
         assertNull(old.discTitle)
+        assertNull(old.discCoverArtId)
     }
 
     private fun track(id: String, disc: Int?, number: Int?) = Track(

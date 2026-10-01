@@ -1599,6 +1599,8 @@ fun AlbumDetails.toSharedAlbumDetailUi(
         SharedAlbumDiscSectionUi(
             number = section.number,
             title = section.title,
+            coverArtUrl = coverArtUrl(section.coverArtId ?: album.coverArtId ?: album.id.value),
+            fallbackCoverArtUrl = section.coverArtId?.let { coverArtUrl(album.coverArtId ?: album.id.value) },
             tracks = section.tracks.map { track ->
                 track.toSharedTrackRowUi(
                     coverArtUrl,

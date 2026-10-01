@@ -24,7 +24,7 @@ class StorageDatabaseInitializerTest {
             assertEquals(setOf("/fixture/one.flac", "/fixture/one.mp3", "/fixture/two.flac"),
                 downloads.map { it.file_path }.toSet())
             assertEquals(300L, downloads.sumOf { it.size_bytes })
-            assertTrue(downloads.all { it.disc_number == null && it.track_number == null && it.disc_title == null })
+            assertTrue(downloads.all { it.disc_number == null && it.track_number == null && it.disc_title == null && it.disc_cover_art_id == null })
             assertEquals(setOf("album"), downloads.mapNotNull { it.album_id }.toSet())
             val store = StorageKeepDownloadedStore(queries, nowEpochMillis = { 7L })
             assertEquals(emptyList(), store.savedDownloadJobs("source"))
@@ -347,7 +347,7 @@ private fun JdbcSqliteDriver.tableColumns(tableName: String): Set<String> =
 
 private fun JdbcSqliteDriver.removeDiscMetadataColumns() {
     listOf("library_track", "downloaded_audio", "playback_history").forEach { table ->
-        listOf("disc_number", "track_number", "disc_title").forEach { column ->
+        listOf("disc_number", "track_number", "disc_title", "disc_cover_art_id").forEach { column ->
             execute(null, "ALTER TABLE $table DROP COLUMN $column", 0)
         }
     }

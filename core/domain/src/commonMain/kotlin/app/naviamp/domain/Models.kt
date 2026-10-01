@@ -107,6 +107,7 @@ data class Track(
     val discNumber: Int? = null,
     val trackNumber: Int? = null,
     val discTitle: String? = null,
+    val discCoverArtId: String? = null,
 )
 
 /** The earliest available year, used to place a recording in its original musical era. */

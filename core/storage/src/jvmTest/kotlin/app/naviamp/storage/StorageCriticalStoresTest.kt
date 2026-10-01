@@ -27,17 +27,19 @@ import kotlin.test.assertTrue
 class StorageCriticalStoresTest {
     @Test
     fun libraryAndHistoryPreserveDiscMetadata() = withStorage { fixture ->
-        val track = testTrack("disc-two", "Bonus").copy(discNumber = 2, trackNumber = 3, discTitle = "Bonus disc")
+        val track = testTrack("disc-two", "Bonus").copy(discNumber = 2, trackNumber = 3, discTitle = "Bonus disc", discCoverArtId = "disc-cover")
         fixture.library.upsertLibraryTracks(fixture.sourceId, listOf(track))
         val stored = fixture.library.libraryTracksForAlbum(fixture.sourceId, AlbumId("album"), 100).single()
         assertEquals(2, stored.discNumber)
         assertEquals(3, stored.trackNumber)
         assertEquals("Bonus disc", stored.discTitle)
+        assertEquals("disc-cover", stored.discCoverArtId)
         val history = StoragePlaybackHistoryStore(fixture.queries)
         history.recordPlaybackHistory(fixture.sourceId, track, 42L)
         assertEquals(2, history.playbackHistory(fixture.sourceId, 10).single().track.discNumber)
         assertEquals(3, history.playbackHistory(fixture.sourceId, 10).single().track.trackNumber)
         assertEquals("Bonus disc", history.playbackHistory(fixture.sourceId, 10).single().track.discTitle)
+        assertEquals("disc-cover", history.playbackHistory(fixture.sourceId, 10).single().track.discCoverArtId)
     }
 
     @Test

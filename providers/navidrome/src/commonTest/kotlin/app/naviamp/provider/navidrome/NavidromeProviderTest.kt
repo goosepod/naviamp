@@ -42,7 +42,7 @@ class NavidromeProviderTest {
         val http = object : NavidromeHttpClient {
             override suspend fun get(url: String): String = """
                 {"subsonic-response":{"status":"ok","album":{"id":"album","name":"Album",
-                  "discTitles":[{"disc":1,"title":" "},{"disc":2,"title":" Bonus "}],
+                  "discTitles":[{"disc":1,"title":" ","coverArt":" disc-one "},{"disc":2,"title":" Bonus ","coverArt":"disc-two"}],
                   "song":[{"id":"first","title":"First","discNumber":1,"track":7},
                           {"id":"bonus","title":"Bonus","discNumber":2,"track":1},
                           {"id":"unknown","title":"Unknown","discNumber":-1,"track":0}]}}}
@@ -52,6 +52,7 @@ class NavidromeProviderTest {
         assertEquals(listOf(1, 2, null), tracks.map { it.discNumber })
         assertEquals(listOf(7, 1, null), tracks.map { it.trackNumber })
         assertEquals(listOf(null, "Bonus", null), tracks.map { it.discTitle })
+        assertEquals(listOf("disc-one", "disc-two", null), tracks.map { it.discCoverArtId })
     }
 
     @Test

@@ -307,6 +307,8 @@ data class SharedAlbumDiscSectionUi(
     val number: Int,
     val title: String?,
     val tracks: List<SharedTrackRowUi>,
+    val coverArtUrl: String? = null,
+    val fallbackCoverArtUrl: String? = null,
 )
 
 data class NaviampDownloadJobUi(

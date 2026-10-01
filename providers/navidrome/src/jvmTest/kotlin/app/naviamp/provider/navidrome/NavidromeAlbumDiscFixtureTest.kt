@@ -27,10 +27,15 @@ class NavidromeAlbumDiscFixtureTest {
                 )
                 val detail = provider.album(AlbumId(data["id"]!!.jsonPrimitive.content))
                 val songs = data["song"]!!.jsonArray
+                val discArt = data["discTitles"]!!.jsonArray.associate { value ->
+                    val disc = value.jsonObject
+                    disc["disc"]!!.jsonPrimitive.intOrNull to disc["coverArt"]?.jsonPrimitive?.content
+                }
                 assertEquals(songs.size, detail.tracks.size)
                 songs.zip(detail.tracks).forEach { (song, track) ->
                     assertEquals(song.jsonObject["discNumber"]?.jsonPrimitive?.intOrNull, track.discNumber)
                     assertEquals(song.jsonObject["track"]?.jsonPrimitive?.intOrNull, track.trackNumber)
+                    assertEquals(discArt[track.discNumber], track.discCoverArtId)
                 }
                 assertEquals(data["discTitles"]!!.jsonArray.size, detail.tracks.albumDiscSections().size)
                 assertEquals(detail.tracks.map { it.id }.toSet(), detail.tracks.inAlbumOrder().map { it.id }.toSet())

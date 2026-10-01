@@ -1025,6 +1025,7 @@ data class SavedTrack(
     val discNumber: Int? = null,
     val trackNumber: Int? = null,
     val discTitle: String? = null,
+    val discCoverArtId: String? = null,
     val artistCredits: List<SavedArtistCredit> = emptyList(),
 ) {
     fun toTrack(): Track =
@@ -1052,6 +1053,7 @@ data class SavedTrack(
             discNumber = discNumber,
             trackNumber = trackNumber,
             discTitle = discTitle,
+            discCoverArtId = discCoverArtId,
             artistCredits = artistCredits.map { it.toArtistCredit() },
         )
 
@@ -1080,6 +1082,7 @@ data class SavedTrack(
                 discNumber = track.discNumber,
                 trackNumber = track.trackNumber,
                 discTitle = track.discTitle,
+                discCoverArtId = track.discCoverArtId,
                 artistCredits = track.artistCredits.map(SavedArtistCredit::fromArtistCredit),
             )
     }

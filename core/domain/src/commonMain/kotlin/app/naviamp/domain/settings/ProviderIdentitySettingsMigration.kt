@@ -19,6 +19,7 @@ fun SavedTrack.migratedProviderIdentities(transform: (String) -> String): SavedT
     artistId = artistId?.let(transform),
     albumId = albumId?.let(transform),
     coverArtId = coverArtId?.let(transform),
+    discCoverArtId = discCoverArtId?.let(transform),
     artistCredits = artistCredits.map { credit ->
         SavedArtistCredit(id = credit.id?.let(transform), name = credit.name)
     },

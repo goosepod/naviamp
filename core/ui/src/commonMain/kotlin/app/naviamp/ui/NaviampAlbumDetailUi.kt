@@ -311,14 +311,29 @@ private fun AlbumDetailContent(
             )
             sections.forEach { section ->
                 if (sections.size > 1) {
-                    Text(
-                        text = section.title?.let {
-                            stringResource(Res.string.album_disc_number_title, section.number, it)
-                        } ?: stringResource(Res.string.album_disc_number, section.number),
-                        color = colors.primaryText,
-                        fontWeight = FontWeight.SemiBold,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 3.dp),
-                    )
+                    ) {
+                        NaviampCoverArt(
+                            url = section.coverArtUrl ?: detail.album.coverArtUrl,
+                            colors = colors,
+                            size = 40.dp,
+                            cornerRadius = mediaArtworkCornerRadius(SharedMediaItemKind.Album, 40.dp, 3.dp),
+                            fallbackUrl = section.fallbackCoverArtUrl ?: detail.album.fallbackCoverArtUrl,
+                        )
+                        Text(
+                            text = section.title?.let {
+                                stringResource(Res.string.album_disc_number_title, section.number, it)
+                            } ?: stringResource(Res.string.album_disc_number, section.number),
+                            color = colors.primaryText,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
                 section.tracks.forEachIndexed { index, track ->
                     TrackRow(

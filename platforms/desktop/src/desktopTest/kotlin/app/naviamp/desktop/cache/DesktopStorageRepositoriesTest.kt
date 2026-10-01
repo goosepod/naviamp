@@ -122,7 +122,7 @@ class DesktopStorageRepositoriesTest {
                 favorited_at_iso8601 = null,
                 user_rating = null,
                 downloaded_at_epoch_millis = 7L,
-                disc_number = null, track_number = null, disc_title = null,
+                disc_number = null, track_number = null, disc_title = null, disc_cover_art_id = null,
             )
             queries.upsertDownloadedAudio(
                 source_id = "source",
@@ -148,7 +148,7 @@ class DesktopStorageRepositoriesTest {
                 favorited_at_iso8601 = null,
                 user_rating = null,
                 downloaded_at_epoch_millis = 8L,
-                disc_number = null, track_number = null, disc_title = null,
+                disc_number = null, track_number = null, disc_title = null, disc_cover_art_id = null,
             )
             repositories.providerResponseRows.upsertResponse(
                 cacheKey = "response",

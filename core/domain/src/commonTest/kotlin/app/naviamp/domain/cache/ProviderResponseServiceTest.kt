@@ -106,7 +106,7 @@ class ProviderResponseServiceTest {
             albumDetails = AlbumDetails(
                 album = album("reissue").copy(releaseYear = 2002, originalReleaseYear = 1979),
                 tracks = listOf(
-                    track("reissue-track").copy(albumReleaseYear = 2002, originalReleaseYear = 1979, discNumber = 2, trackNumber = 7, discTitle = "Bonus"),
+                    track("reissue-track").copy(albumReleaseYear = 2002, originalReleaseYear = 1979, discNumber = 2, trackNumber = 7, discTitle = "Bonus", discCoverArtId = "disc-cover"),
                 ),
             )
         }
@@ -123,6 +123,7 @@ class ProviderResponseServiceTest {
         assertEquals(2, cached.tracks.single().discNumber)
         assertEquals(7, cached.tracks.single().trackNumber)
         assertEquals("Bonus", cached.tracks.single().discTitle)
+        assertEquals("disc-cover", cached.tracks.single().discCoverArtId)
     }
 
     @Test
