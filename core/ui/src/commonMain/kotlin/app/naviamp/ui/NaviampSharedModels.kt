@@ -782,6 +782,8 @@ data class NaviampLibraryCatalogUi(
     val tracks: List<SharedTrackRowUi> = emptyList(),
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
     val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
+    /** Changes only after an explicit refresh; automatic loads preserve the viewport. */
+    val refreshGeneration: Long = 0L,
 )
 
 data class NaviampLibraryScreenUi(

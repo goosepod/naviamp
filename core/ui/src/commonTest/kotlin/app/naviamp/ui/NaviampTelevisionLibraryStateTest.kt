@@ -37,6 +37,19 @@ class NaviampTelevisionLibraryStateTest {
         assertTrue(state.consumeJump(jump.copy(generation = 2), NaviampLibraryView.Songs))
     }
 
+    @Test fun refreshIsConsumedOncePerCatalogAndClearsOnlyThatCatalogFocus() {
+        val lists = state().lists
+        lists.recordFocusedTarget(NaviampLibraryView.Albums, "item:old")
+        lists.recordFocusedTarget(NaviampLibraryView.Artists, "item:artist")
+        assertFalse(lists.consumeRefresh(NaviampLibraryView.Albums, 0))
+        assertTrue(lists.consumeRefresh(NaviampLibraryView.Albums, 1))
+        assertNull(lists.focusedTarget(NaviampLibraryView.Albums))
+        assertEquals("item:artist", lists.focusedTarget(NaviampLibraryView.Artists))
+        assertFalse(lists.consumeRefresh(NaviampLibraryView.Albums, 1))
+        assertTrue(lists.consumeRefresh(NaviampLibraryView.Artists, 1))
+        assertTrue(lists.consumeRefresh(NaviampLibraryView.Albums, 2))
+    }
+
     private fun state() = NaviampTelevisionLibraryState(
         NaviampLibraryViewportState(NaviampLibraryView.entries.associateWith { LazyListState() }),
         mapOf(NaviampLibraryView.Artists to LazyGridState(), NaviampLibraryView.Albums to LazyGridState()),

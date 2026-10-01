@@ -54,6 +54,8 @@ class NaviampCoreCatalogController(
         LibraryLoadState(nextRequest = MediaPageRequest(limit = libraryPageSize))
     }
     private var jumpGeneration = 0L
+    private var refreshGeneration = 0L
+    private val explicitRefreshes = mutableMapOf<NaviampLibraryView, Long>()
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Search.ChangeQuery -> {
@@ -96,7 +98,7 @@ class NaviampCoreCatalogController(
             is NaviampCoreCommand.Library.ChangeQuery -> {
                 if (stateStore.state.value.shell.library.selectedView != NaviampLibraryView.Albums || albumIndex == null) refreshLibrary()
             }
-            NaviampCoreCommand.Library.Refresh -> refreshLibrary(forceAlbums = true)
+            NaviampCoreCommand.Library.Refresh -> refreshLibraryExplicitly()
             NaviampCoreCommand.Library.LoadMore -> loadMoreLibrary()
             is NaviampCoreCommand.Library.JumpToLetter -> jumpToLetter(command.letter)
             is NaviampCoreCommand.Library.ChangeAlbumSortOrder -> Unit
@@ -124,6 +126,21 @@ class NaviampCoreCatalogController(
         }
         if (generation != searchGeneration || !providerSource.isCurrent(provider)) return
         publishSearch(update.results, update.status, searching = false, provider = provider)
+    }
+
+    private suspend fun refreshLibraryExplicitly() {
+        val view = stateStore.state.value.shell.library.selectedView
+        val provider = providerSource.current()
+        val sourceId = activeLibrarySourceId()
+        val generation = ++refreshGeneration
+        explicitRefreshes[view] = generation
+        refreshLibrary(view, forceAlbums = true)
+        // Publish after the replacement data so keyed lists cannot anchor to an old first item.
+        if (explicitRefreshes[view] == generation && activeLibrarySourceId() == sourceId &&
+            providerSource.current() === provider
+        ) {
+            updateLibraryCatalog(view) { it.copy(refreshGeneration = generation) }
+        }
     }
 
     private suspend fun refreshLibrary(
@@ -209,6 +226,7 @@ class NaviampCoreCatalogController(
     }
 
     fun resetForSourceChange() {
+        explicitRefreshes.clear()
         clearSearch()
         jumpGeneration++
         libraryLoads.values.forEach {

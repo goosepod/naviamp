@@ -33,6 +33,49 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class NaviampLibraryFocusUiTest {
     @Test
+    fun refreshRevealsNewAlbumsWithoutReplayingOnPagingOrDetailReturn() = runComposeUiTest {
+        val screen = mutableStateOf(libraryScreen().copy(albums = NaviampLibraryCatalogUi(items = List(100) {
+            SharedMediaItemUi("album-$it", "Album $it", "Artist")
+        })))
+        val visible = mutableStateOf(true)
+        lateinit var viewport: NaviampLibraryViewportState
+        setContent {
+            viewport = rememberNaviampLibraryViewportState()
+            if (visible.value) Box(Modifier.height(400.dp)) {
+                NaviampLibraryContent(NaviampColors(), screen.value, libraryActions {}, emptyMediaActions(), viewport)
+            }
+        }
+        runOnIdle { screen.value = screen.value.copy(selectedView = NaviampLibraryView.Albums) }
+        repeat(2) { refresh ->
+            runOnIdle { viewport.listState(NaviampLibraryView.Albums).requestScrollToItem(25, 12) }
+            waitForIdle()
+            runOnIdle {
+                viewport.recordFocusedTarget(NaviampLibraryView.Albums, "item:album-25")
+                screen.value = screen.value.copy(albums = screen.value.albums.copy(
+                    items = listOf(SharedMediaItemUi("new-$refresh", "New Album $refresh", "Artist")) + screen.value.albums.items,
+                    refreshGeneration = refresh + 1L,
+                ))
+            }
+            waitForIdle()
+            onNodeWithText("New Album $refresh").assertIsDisplayed()
+            runOnIdle {
+                assertEquals(0, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex)
+                assertEquals(0, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemScrollOffset)
+            }
+        }
+        runOnIdle { viewport.listState(NaviampLibraryView.Albums).requestScrollToItem(25) }
+        waitForIdle()
+        runOnIdle { screen.value = screen.value.copy(albums = screen.value.albums.copy(
+            items = screen.value.albums.items + SharedMediaItemUi("paged", "Paged Album", "Artist"))) }
+        waitForIdle()
+        runOnIdle { assertEquals(25, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex) }
+        runOnIdle { visible.value = false }
+        runOnIdle { visible.value = true }
+        waitForIdle()
+        runOnIdle { assertEquals(25, viewport.listState(NaviampLibraryView.Albums).firstVisibleItemIndex) }
+    }
+
+    @Test
     fun loadingPanelStaysVisibleAboveAScrolledCatalogAndClearsWhenFinished() = runComposeUiTest {
         lateinit var screen: MutableState<NaviampLibraryScreenUi>
         lateinit var viewport: NaviampLibraryViewportState
