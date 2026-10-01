@@ -120,4 +120,6 @@
     <string name="artist_appearance_tracks">Faixas</string>
     <string name="album_disc_number">Disco %1$d</string>
     <string name="album_disc_number_title">Disco %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Entrar em tela cheia</string>
+    <string name="window_exit_fullscreen">Sair da tela cheia</string>
 </resources>

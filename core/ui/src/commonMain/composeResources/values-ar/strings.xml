@@ -120,4 +120,6 @@
     <string name="artist_appearance_tracks">المقاطع</string>
     <string name="album_disc_number">القرص %1$d</string>
     <string name="album_disc_number_title">القرص %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">الدخول إلى وضع ملء الشاشة</string>
+    <string name="window_exit_fullscreen">الخروج من وضع ملء الشاشة</string>
 </resources>

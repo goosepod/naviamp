@@ -956,4 +956,6 @@
     <string name="artist_appearance_tracks">Pistas</string>
     <string name="album_disc_number">Disco %1$d</string>
     <string name="album_disc_number_title">Disco %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Entrar en pantalla completa</string>
+    <string name="window_exit_fullscreen">Salir de pantalla completa</string>
 </resources>

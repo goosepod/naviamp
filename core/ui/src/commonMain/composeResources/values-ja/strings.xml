@@ -120,4 +120,6 @@
     <string name="artist_appearance_tracks">トラック</string>
     <string name="album_disc_number">ディスク %1$d</string>
     <string name="album_disc_number_title">ディスク %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">全画面表示にする</string>
+    <string name="window_exit_fullscreen">全画面表示を終了</string>
 </resources>

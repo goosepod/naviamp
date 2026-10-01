@@ -120,4 +120,6 @@
     <string name="artist_appearance_tracks">Parçalar</string>
     <string name="album_disc_number">Disk %1$d</string>
     <string name="album_disc_number_title">Disk %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Tam ekrana geç</string>
+    <string name="window_exit_fullscreen">Tam ekrandan çık</string>
 </resources>

@@ -56,7 +56,8 @@ internal fun NaviampPlayerWorkspace(
         return
     }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            NaviampWindowFullscreenButton(NaviampColors.Dark)
             val next = if (layout == WideNowPlayingLayout.Split) WideNowPlayingLayout.Full else WideNowPlayingLayout.Split
             TextButton(onClick = { onLayoutChanged(next) }, colors = ButtonDefaults.textButtonColors(
                 contentColor = NaviampColors.Dark.primaryText,

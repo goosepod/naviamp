@@ -39,6 +39,7 @@ import kotlinx.coroutines.delay
 fun main() {
     val integrated = System.getenv("NAVIAMP_PROBE_INTEGRATED") == "true"
     val verifyPixels = System.getenv("NAVIAMP_PROBE_VERIFY") == "true"
+    val fullscreenProbe = System.getenv("NAVIAMP_PROBE_FULLSCREEN") == "true"
     val popupProbe = System.getenv("NAVIAMP_PROBE_POPUPS") == "true"
     val tooltipProbe = System.getenv("NAVIAMP_PROBE_TOOLTIPS") == "true"
     val hoverProbe = System.getenv("NAVIAMP_PROBE_HOVER") == "true"
@@ -54,10 +55,11 @@ fun main() {
     var popupVisible by remember { mutableStateOf(false) }
     val rowCount = remember { System.getenv("NAVIAMP_PROBE_ROWS")?.toIntOrNull()?.coerceIn(0, 1000) ?: 150 }
     val cpu = remember { ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean }
+    val windowState = rememberWindowState(width = 1000.dp, height = 740.dp)
     Window(
         onCloseRequest = ::exitApplication,
         title = "Naviamp animation CPU probe",
-        state = rememberWindowState(width = 1000.dp, height = 740.dp),
+        state = windowState,
         alwaysOnTop = verifyPixels,
     ) {
         val marquee = phase == "marquee" || phase.endsWith("combined")
@@ -138,6 +140,11 @@ fun main() {
                 if (event.id == java.awt.event.WindowEvent.WINDOW_CLOSED) closed.incrementAndGet()
             }
             java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(lifecycle, java.awt.AWTEvent.WINDOW_EVENT_MASK)
+            for (mode in if (fullscreenProbe) listOf("windowed", "fullscreen", "restored") else listOf("windowed")) {
+            windowState.placement = if (mode == "fullscreen") androidx.compose.ui.window.WindowPlacement.Fullscreen
+                else androidx.compose.ui.window.WindowPlacement.Floating
+            delay(3_000)
+            println("ANIMATION_WINDOW mode=$mode placement=${windowState.placement} size=${window.size} scale=${window.graphicsConfiguration.defaultTransform} refresh=${window.graphicsConfiguration.device.displayMode.refreshRate}")
             for (next in if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined") else if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined")) {
                 phase = next
                 if (popupProbe) popupVisible = next == "popup-combined"
@@ -156,19 +163,19 @@ fun main() {
                 val closedBefore = closed.get()
                 val initialFrames = counters.map { it.second.get() }
                 val positions = if (compositor) ProbeCompositor.positions(ProbeCompositor.handle).toList() else emptyList()
-                val beforePixels = if (verifyPixels) captureProbe(window, "$next-before") else null
+                val beforePixels = if (verifyPixels) captureProbe(window, "$mode-$next-before") else null
                 val startCpu = cpu.processCpuTime
                 val start = System.nanoTime()
                 delay(if (hoverProbe) 30_000 else 10_000)
                 val percent = (cpu.processCpuTime - startCpu).toDouble() / (System.nanoTime() - start) * 100.0
-                println("ANIMATION_PROBE $next,$percent,${counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }}")
+                println("ANIMATION_PROBE $mode/$next,$percent,${counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }}")
                 println("ANIMATION_WINDOWS $next opened=${opened.get() - openedBefore} closed=${closed.get() - closedBefore}")
                 if (hoverProbe) {
                     check(window.ownedWindows.any { it.isShowing }) { "Hover tooltip is not visible" }
                     check(opened.get() == openedBefore && closed.get() == closedBefore) { "Hover recreated native popup windows" }
                 }
                 if (verifyPixels) {
-                    val afterCapture = captureProbe(window, "$next-after")
+                    val afterCapture = captureProbe(window, "$mode-$next-after")
                     val beforeCapture = requireNotNull(beforePixels)
                     val afterPixels = afterCapture.pixels
                     val before = beforeCapture.pixels
@@ -209,6 +216,7 @@ fun main() {
                     if (next == "waveform" || next.endsWith("combined")) check(after[5] > positions[5] + 1.0) { "Progress did not advance" }
                     if (next != "popup-combined") check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
                 }
+            }
             }
             java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(lifecycle)
             if (verifyPixels) {
