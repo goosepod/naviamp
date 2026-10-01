@@ -137,6 +137,7 @@ data class SharedTrackRowUi(
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val albumTitle: String? = null,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
+    val trackNumber: Int? = null,
 )
 
 data class SharedArtistCreditUi(
@@ -299,6 +300,13 @@ data class SharedAlbumDetailUi(
     val totalDurationLabel: String = "",
     val information: String? = null,
     val artist: SharedMediaItemUi? = null,
+    val discSections: List<SharedAlbumDiscSectionUi> = emptyList(),
+)
+
+data class SharedAlbumDiscSectionUi(
+    val number: Int,
+    val title: String?,
+    val tracks: List<SharedTrackRowUi>,
 )
 
 data class NaviampDownloadJobUi(

@@ -315,7 +315,7 @@ suspend fun loadAlbumDetails(
             )
         }
         fallbackDetail ?: throw error
-    }.getOrThrow()
+    }.getOrThrow().let { it.copy(tracks = it.tracks.inAlbumOrder()) }
 
 private fun LocalLibraryIndexRepository.albumDetailFallbackTracks(
     sourceId: String,

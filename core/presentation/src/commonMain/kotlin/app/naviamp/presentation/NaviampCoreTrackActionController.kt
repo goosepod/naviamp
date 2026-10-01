@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.Track
+import app.naviamp.domain.media.inAlbumOrder
 import app.naviamp.ui.SharedTrackRowActionRequest
 
 /** Routes every non-Now-Playing track row through the same Core-owned transaction policy. */
@@ -25,7 +26,7 @@ class NaviampCoreTrackActionController(
         val (request, tracks) = when (command) {
             is NaviampCoreCommand.Media.TrackAction -> command.request to registry.search.tracks
             is NaviampCoreCommand.Library.TrackAction -> command.request to registry.libraryTracks
-            is NaviampCoreCommand.Detail.AlbumTrack -> command.request to registry.albumDetails?.tracks.orEmpty()
+            is NaviampCoreCommand.Detail.AlbumTrack -> command.request to registry.albumDetails?.tracks.orEmpty().inAlbumOrder()
             is NaviampCoreCommand.Detail.ArtistPopularTrack -> command.request to
                 if (registry.artistPopularTracks.any { it.id.value == command.request.track.id }) {
                     registry.artistPopularTracks

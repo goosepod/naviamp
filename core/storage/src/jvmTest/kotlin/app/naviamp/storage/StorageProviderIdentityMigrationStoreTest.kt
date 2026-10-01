@@ -61,7 +61,7 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.upsertDownloadedAudio(
                 source.id, oldTrack, "original", "/owned/download.flac", 20L, "audio/flac", "Track",
                 oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover, "flac", null, "audio/flac",
-                null, null, null, null, 1L,
+                null, null, null, null, 1L, null, null, null,
             )
             queries.upsertKeepDownloadedPolicy(source.id, "playlist", oldPlaylist, "Playlist", 0L, "FullCatalog", 1L)
             queries.insertKeepDownloadedCollectionTrack(source.id, "playlist", oldPlaylist, oldTrack)
@@ -106,7 +106,7 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.replaceAlbumCatalogSnapshot(source.id, "all", "[{\"id\":\"$oldAlbum\"}]", 2L)
             queries.upsertPlaybackHistory(
                 source.id, oldTrack, "Track", oldArtist, "Artist", oldAlbum, "Album", null, null, 120L, oldCover,
-                "flac", null, "audio/flac", null, null, null, null, 1L,
+                "flac", null, "audio/flac", null, null, null, null, 1L, null, null, null,
             )
             queries.insertPendingProviderAction(source.id, "favorite-track", oldTrack, 1L, null, 1L)
             queries.upsertResponse("key", "navidrome", "track", oldTrack, "{}", 1L, 1L)
@@ -178,7 +178,7 @@ class StorageProviderIdentityMigrationStoreTest {
                 queries.upsertDownloadedAudio(
                     source.id, id, "transcoded:opus:128", path, 20L, "audio/ogg", "Track",
                     null, "Artist", null, "Album", null, null, 120L, cover, "opus", 128L, "audio/ogg",
-                    null, null, null, null, downloadedAt,
+                    null, null, null, null, downloadedAt, null, null, null,
                 )
             }
             download("old-track", "/owned/old.ogg", "old-cover", 1L)

@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">Deze verzameling overschrijdt het downloadbudget.</string>
     <string name="artist_appearance_albums">Albums</string>
     <string name="artist_appearance_tracks">Nummers</string>
+    <string name="album_disc_number">Schijf %1$d</string>
+    <string name="album_disc_number_title">Schijf %1$d — %2$s</string>
 </resources>

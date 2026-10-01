@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">このコレクションはダウンロード容量の上限を超えています。</string>
     <string name="artist_appearance_albums">アルバム</string>
     <string name="artist_appearance_tracks">トラック</string>
+    <string name="album_disc_number">ディスク %1$d</string>
+    <string name="album_disc_number_title">ディスク %1$d — %2$s</string>
 </resources>

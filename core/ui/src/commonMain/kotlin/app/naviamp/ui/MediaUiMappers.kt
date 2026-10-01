@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.media.albumDiscSections
+
 import app.naviamp.domain.home.sortedFavoriteArtists
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
@@ -489,6 +491,7 @@ fun Track.toSharedTrackRowUi(
         artistCredits = toSharedArtistCreditUis(),
         albumTitle = albumTitle,
         detailSections = toNowPlayingDetailSections(),
+        trackNumber = trackNumber?.takeIf { it > 0 },
     )
 
 fun Track.toDownloadedTrackUi(
@@ -1592,6 +1595,19 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     canFavoriteAlbum: Boolean = false,
     showAlbumInformation: Boolean = true,
 ): SharedAlbumDetailUi {
+    val sections = tracks.albumDiscSections().map { section ->
+        SharedAlbumDiscSectionUi(
+            number = section.number,
+            title = section.title,
+            tracks = section.tracks.map { track ->
+                track.toSharedTrackRowUi(
+                    coverArtUrl,
+                    fallbackCoverArtId = album.coverArtId ?: album.id.value,
+                    popular = track.id.value in popularTrackIds,
+                ).copy(hasAlbum = false)
+            },
+        )
+    }
     val primaryArtist = album.resolvedArtistCredits().firstOrNull()?.let { credit ->
         credit.id?.let { artistId ->
             SharedMediaItemUi(
@@ -1611,13 +1627,8 @@ fun AlbumDetails.toSharedAlbumDetailUi(
                 fallbackCoverArtUrl = item.coverArtUrl.takeIf { it != informationImageUrl },
             )
         },
-        tracks = tracks.map {
-            it.toSharedTrackRowUi(
-                coverArtUrl,
-                fallbackCoverArtId = album.coverArtId ?: album.id.value,
-                popular = it.id.value in popularTrackIds,
-            ).copy(hasAlbum = false)
-        },
+        tracks = sections.flatMap { it.tracks },
+        discSections = sections,
         totalDurationLabel = tracks.totalDurationLabel(),
         information = info?.notes.takeIf { showAlbumInformation },
         artist = primaryArtist,

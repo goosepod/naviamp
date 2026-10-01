@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">此合集超过下载存储配额。</string>
     <string name="artist_appearance_albums">专辑</string>
     <string name="artist_appearance_tracks">曲目</string>
+    <string name="album_disc_number">碟片 %1$d</string>
+    <string name="album_disc_number_title">碟片 %1$d — %2$s</string>
 </resources>

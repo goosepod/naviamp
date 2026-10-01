@@ -338,10 +338,19 @@ class NavidromeProvider(
             ?: throw NavidromeException("Album was not found.")
         val songs = album["song"] as? JsonArray ?: JsonArray(emptyList())
         val mappedAlbum = album.toAlbum()
+        val discTitles = (album["discTitles"] as? JsonArray).orEmpty()
+            .mapNotNull { value ->
+                val disc = value as? JsonObject ?: return@mapNotNull null
+                val number = disc.intValue("disc")?.takeIf { it > 0 } ?: return@mapNotNull null
+                val title = disc.stringValue("title")?.trim()?.takeIf(String::isNotEmpty)
+                    ?: return@mapNotNull null
+                number to title
+            }.toMap()
         return AlbumDetails(
             album = mappedAlbum,
             tracks = songs.mapNotNull { song ->
                 (song as? JsonObject)?.toTrack()?.let { track ->
+                    val track = track.copy(discTitle = discTitles[track.discNumber] ?: track.discTitle)
                     if (track.originalReleaseYear != null) {
                         track
                     } else {
@@ -2155,6 +2164,9 @@ class NavidromeProvider(
                 ?: stringValue("lastPlayedAt"),
             musicFolderId = stringValue("musicFolderId"),
             artistCredits = structuredArtistCredits(),
+            discNumber = intValue("discNumber")?.takeIf { it > 0 },
+            trackNumber = (intValue("track") ?: intValue("trackNumber"))?.takeIf { it > 0 },
+            discTitle = stringValue("discSubtitle")?.trim()?.takeIf(String::isNotEmpty),
         ).also { track ->
             while (true) {
                 val current = knownTracks.load()

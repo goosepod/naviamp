@@ -118,4 +118,6 @@
     <string name="download_preview_storage_limit">Koleksi ini melebihi batas penyimpanan unduhan.</string>
     <string name="artist_appearance_albums">Album</string>
     <string name="artist_appearance_tracks">Lagu</string>
+    <string name="album_disc_number">Cakram %1$d</string>
+    <string name="album_disc_number_title">Cakram %1$d — %2$s</string>
 </resources>

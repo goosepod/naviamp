@@ -1,0 +1,10 @@
+-- Version 27 is already on main. Preserve disc metadata in all durable track snapshots.
+ALTER TABLE library_track ADD COLUMN disc_number INTEGER;
+ALTER TABLE library_track ADD COLUMN track_number INTEGER;
+ALTER TABLE library_track ADD COLUMN disc_title TEXT;
+ALTER TABLE downloaded_audio ADD COLUMN disc_number INTEGER;
+ALTER TABLE downloaded_audio ADD COLUMN track_number INTEGER;
+ALTER TABLE downloaded_audio ADD COLUMN disc_title TEXT;
+ALTER TABLE playback_history ADD COLUMN disc_number INTEGER;
+ALTER TABLE playback_history ADD COLUMN track_number INTEGER;
+ALTER TABLE playback_history ADD COLUMN disc_title TEXT;

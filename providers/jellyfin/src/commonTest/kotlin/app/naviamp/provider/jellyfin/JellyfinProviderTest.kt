@@ -189,6 +189,7 @@ class JellyfinProviderTest {
             {"Items":[{
               "Id":"track-1","Name":"So What","AlbumId":"album-1","Album":"Kind of Blue",
               "ProductionYear":1959,"RunTimeTicks":5450000000,"AlbumPrimaryImageTag":"tag",
+              "ParentIndexNumber":2,"IndexNumber":7,
               "Artists":["Miles Davis"],"ArtistItems":[{"Id":"artist-1","Name":"Miles Davis"}],
               "Genres":["Jazz"],"ParentId":"disc-1",
               "MediaSources":[{"Container":"flac","Bitrate":1411000}],
@@ -211,6 +212,8 @@ class JellyfinProviderTest {
 
         assertEquals("Kind of Blue", details.album.title)
         assertEquals("So What", track.title)
+        assertEquals(2, track.discNumber)
+        assertEquals(7, track.trackNumber)
         assertEquals(545, track.durationSeconds)
         assertEquals("artist-1", track.artistId?.value)
         assertEquals("flac", track.audioInfo?.codec)

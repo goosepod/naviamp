@@ -62,6 +62,8 @@ import app.naviamp.domain.settings.AlbumArtworkPreference
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.album_settings
 import app.naviamp.ui.generated.resources.album_settings_description
+import app.naviamp.ui.generated.resources.album_disc_number
+import app.naviamp.ui.generated.resources.album_disc_number_title
 import app.naviamp.ui.generated.resources.download_keep_collection
 import app.naviamp.ui.generated.resources.download_stop_keeping_collection
 import org.jetbrains.compose.resources.stringResource
@@ -301,25 +303,42 @@ private fun AlbumDetailContent(
         ) {
             NaviampProviderDescription(detail.information, detail.album.id, colors)
             val reservePopularIndicatorSpace = detail.tracks.any { it.popular }
-            val trackNumberWidth = trackNumberColumnWidth(detail.tracks.size)
-            detail.tracks.forEachIndexed { index, track ->
-                TrackRow(
-                    track,
-                    colors,
-                    onTrackAction = onTrackAction,
-                    canSelect = true,
-                    canStartRadio = false,
-                    canAddToQueue = true,
-                    canDownload = true,
-                    canAddToPlaylist = true,
-                    background = false,
-                    verticalPadding = 0.dp,
-                    showCoverArt = false,
-                    showMenu = true,
-                    reservePopularIndicatorSpace = reservePopularIndicatorSpace,
-                    trackNumber = index + 1,
-                    trackNumberWidth = trackNumberWidth,
-                )
+            val sections = detail.discSections.ifEmpty {
+                listOf(SharedAlbumDiscSectionUi(1, null, detail.tracks))
+            }
+            val trackNumberWidth = trackNumberColumnWidth(
+                maxOf(detail.tracks.size, detail.tracks.maxOfOrNull { it.trackNumber ?: 0 } ?: 0),
+            )
+            sections.forEach { section ->
+                if (sections.size > 1) {
+                    Text(
+                        text = section.title?.let {
+                            stringResource(Res.string.album_disc_number_title, section.number, it)
+                        } ?: stringResource(Res.string.album_disc_number, section.number),
+                        color = colors.primaryText,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 3.dp),
+                    )
+                }
+                section.tracks.forEachIndexed { index, track ->
+                    TrackRow(
+                        track,
+                        colors,
+                        onTrackAction = onTrackAction,
+                        canSelect = true,
+                        canStartRadio = false,
+                        canAddToQueue = true,
+                        canDownload = true,
+                        canAddToPlaylist = true,
+                        background = false,
+                        verticalPadding = 0.dp,
+                        showCoverArt = false,
+                        showMenu = true,
+                        reservePopularIndicatorSpace = reservePopularIndicatorSpace,
+                        trackNumber = track.trackNumber ?: index + 1,
+                        trackNumberWidth = trackNumberWidth,
+                    )
+                }
             }
         }
     }

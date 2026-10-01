@@ -157,5 +157,6 @@ private fun NaviampStorageQueries.insertTestDownload(sourceId: String, filePath:
         favorited_at_iso8601 = null,
         user_rating = null,
         downloaded_at_epoch_millis = 42L,
+        disc_number = null, track_number = null, disc_title = null,
     )
 }

@@ -24,6 +24,7 @@ class StorageDatabaseInitializerTest {
             assertEquals(setOf("/fixture/one.flac", "/fixture/one.mp3", "/fixture/two.flac"),
                 downloads.map { it.file_path }.toSet())
             assertEquals(300L, downloads.sumOf { it.size_bytes })
+            assertTrue(downloads.all { it.disc_number == null && it.track_number == null && it.disc_title == null })
             assertEquals(setOf("album"), downloads.mapNotNull { it.album_id }.toSet())
             val store = StorageKeepDownloadedStore(queries, nowEpochMillis = { 7L })
             assertEquals(emptyList(), store.savedDownloadJobs("source"))
@@ -48,6 +49,7 @@ class StorageDatabaseInitializerTest {
         try {
             // Recreate main's immediate pre-migration schema from the canonical schema.
             NaviampStorageDatabase.Schema.create(driver)
+            driver.removeDiscMetadataColumns()
             driver.execute(null, "DROP TABLE download_retention", 0)
             driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
             driver.execute(null, """
@@ -93,6 +95,7 @@ class StorageDatabaseInitializerTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             NaviampStorageDatabase.Schema.create(driver)
+            driver.removeDiscMetadataColumns()
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
             driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
             driver.execute(null, """
@@ -223,6 +226,7 @@ class StorageDatabaseInitializerTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             NaviampStorageDatabase.Schema.create(driver)
+            driver.removeDiscMetadataColumns()
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
             driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
@@ -253,6 +257,7 @@ class StorageDatabaseInitializerTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             NaviampStorageDatabase.Schema.create(driver)
+            driver.removeDiscMetadataColumns()
             driver.execute(null, "DROP TABLE favorite_artist_activity", 0)
             driver.execute(null, "DROP TABLE album_catalog_snapshot", 0)
             driver.execute(null, "DROP TABLE library_track_artist_credit", 0)
@@ -303,6 +308,7 @@ private fun JdbcSqliteDriver.userVersion(): Long = queryLong("PRAGMA user_versio
 
 private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFolders: Boolean) {
     NaviampStorageDatabase.Schema.create(this)
+    removeDiscMetadataColumns()
     execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
     execute(null, "ALTER TABLE library_album DROP COLUMN original_release_year", 0)
     execute(null, "ALTER TABLE library_track DROP COLUMN music_folder_id", 0)
@@ -338,3 +344,11 @@ private fun JdbcSqliteDriver.tableColumns(tableName: String): Set<String> =
         while (cursor.next().value) cursor.getString(1)?.let(columns::add)
         app.cash.sqldelight.db.QueryResult.Value(columns)
     }, 0).value
+
+private fun JdbcSqliteDriver.removeDiscMetadataColumns() {
+    listOf("library_track", "downloaded_audio", "playback_history").forEach { table ->
+        listOf("disc_number", "track_number", "disc_title").forEach { column ->
+            execute(null, "ALTER TABLE $table DROP COLUMN $column", 0)
+        }
+    }
+}

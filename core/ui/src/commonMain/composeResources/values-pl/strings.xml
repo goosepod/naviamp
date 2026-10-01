@@ -237,4 +237,6 @@
     <string name="download_preview_storage_limit">Ta kolekcja przekracza limit miejsca na pobrania.</string>
     <string name="artist_appearance_albums">Albumy</string>
     <string name="artist_appearance_tracks">Utwory</string>
+    <string name="album_disc_number">Płyta %1$d</string>
+    <string name="album_disc_number_title">Płyta %1$d — %2$s</string>
 </resources>

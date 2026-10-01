@@ -1,5 +1,7 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.media.inAlbumOrder
+
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
@@ -155,8 +157,8 @@ class NaviampCoreCollectionActionController(
     }
 
     private suspend fun albumTracks(album: Album): List<Track> =
-        registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks
-            ?: providerSource.current()?.album(album.id)?.tracks.orEmpty()
+        (registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks
+            ?: providerSource.current()?.album(album.id)?.tracks.orEmpty()).inAlbumOrder()
 
     private suspend fun catalogTracks(items: List<SharedMediaItemUi> = registry.artistDetails?.albums.orEmpty().map {
         SharedMediaItemUi(it.id.value, it.title, it.artistName)
