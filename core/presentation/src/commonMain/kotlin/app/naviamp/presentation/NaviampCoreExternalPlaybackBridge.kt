@@ -39,10 +39,19 @@ data class NaviampExternalMediaItem(
     val title: String,
     val subtitle: String,
     val description: String = "",
+    val albumTitle: String = "",
     val artworkUrl: String? = null,
     val playable: Boolean = true,
     val queueIndex: Int? = null,
-)
+) {
+    /** Native URI consumers cannot load the in-app synthetic artwork schemes. */
+    val externalArtworkUrl: String?
+        get() = artworkUrl?.takeIf { url ->
+            url.startsWith("https://", ignoreCase = true) ||
+                url.startsWith("http://", ignoreCase = true) ||
+                url.startsWith("file://", ignoreCase = true)
+        }
+}
 
 data class NaviampExternalPlaybackSnapshot(
     val state: NaviampExternalPlaybackState = NaviampExternalPlaybackState.Idle,
@@ -50,8 +59,12 @@ data class NaviampExternalPlaybackSnapshot(
     val queue: List<NaviampExternalMediaItem> = emptyList(),
     val currentQueueIndex: Int = -1,
     val positionMillis: Long? = null,
+    val seekGeneration: Long = 0L,
     val durationMillis: Long? = null,
     val canPlayPause: Boolean = false,
+    val canSeek: Boolean = false,
+    val canChangeVolume: Boolean = false,
+    val volumePercent: Int = 100,
     val hasPrevious: Boolean = false,
     val hasNext: Boolean = false,
     val favorite: Boolean = false,
@@ -59,6 +72,9 @@ data class NaviampExternalPlaybackSnapshot(
     val shuffleActive: Boolean = false,
     val repeatMode: NaviampRepeatMode = NaviampRepeatMode.Off,
 ) {
+    val canControl: Boolean
+        get() = canPlayPause || canSeek || canChangeVolume || hasPrevious || hasNext
+
     val shouldRetainPlaybackService: Boolean
         get() = current != null && state != NaviampExternalPlaybackState.Idle
 }
@@ -89,6 +105,7 @@ data class NaviampExternalPlaybackPublication(
     val playbackState: Boolean,
     val browseCatalog: Boolean,
     val notification: Boolean,
+    val seekedPositionMillis: Long? = null,
 )
 
 /**
@@ -115,6 +132,9 @@ class NaviampExternalPlaybackPublicationPlanner(
             prior.state != next.state ||
             prior.currentQueueIndex != next.currentQueueIndex ||
             prior.canPlayPause != next.canPlayPause ||
+            prior.canSeek != next.canSeek ||
+            prior.canChangeVolume != next.canChangeVolume ||
+            prior.volumePercent != next.volumePercent ||
             prior.hasPrevious != next.hasPrevious ||
             prior.hasNext != next.hasNext ||
             prior.favorite != next.favorite ||
@@ -124,8 +144,12 @@ class NaviampExternalPlaybackPublicationPlanner(
         val positionDiscontinuity = when {
             prior == null -> false
             prior.current?.mediaId != next.current?.mediaId -> false
+            prior.seekGeneration != next.seekGeneration -> true
             prior.positionMillis == null || next.positionMillis == null -> prior.positionMillis != next.positionMillis
-            else -> kotlin.math.abs(next.positionMillis - prior.positionMillis) > maximumNaturalPositionStepMillis
+            next.positionMillis < prior.positionMillis -> true
+            prior.state != NaviampExternalPlaybackState.Playing && next.state == prior.state ->
+                next.positionMillis != prior.positionMillis
+            else -> next.positionMillis - prior.positionMillis > maximumNaturalPositionStepMillis
         }
         val playbackState = semanticPlaybackChange || positionDiscontinuity
         val browseCatalog = prior == null ||
@@ -142,6 +166,7 @@ class NaviampExternalPlaybackPublicationPlanner(
             playbackState = playbackState,
             browseCatalog = browseCatalog,
             notification = notification,
+            seekedPositionMillis = next.positionMillis.takeIf { positionDiscontinuity },
         )
     }
 }
@@ -179,11 +204,26 @@ class NaviampExternalPlaybackLifecycleCoordinator(
  * Host-neutral projection used by lock screens, media sessions, cars, and other external controls.
  * Native hosts publish this model and return commands; they never reconstruct playback policy.
  */
+interface NaviampExternalPlaybackControl {
+    fun snapshot(): NaviampExternalPlaybackSnapshot
+    fun play()
+    fun pause()
+    fun playPause()
+    fun stop()
+    fun previous()
+    fun next()
+    fun seekTo(positionMillis: Long)
+    fun seekBy(deltaMillis: Long, advancePastEnd: Boolean = false)
+    fun setShuffleActive(active: Boolean)
+    fun setRepeatMode(mode: NaviampRepeatMode)
+    fun setVolumePercent(percent: Int)
+}
+
 class NaviampCoreExternalPlaybackBridge internal constructor(
     private val state: StateFlow<NaviampCoreState>,
     private val dispatch: (NaviampCoreCommand) -> Unit,
     private val progress: StateFlow<PlaybackProgress>? = null,
-) {
+) : NaviampExternalPlaybackControl {
     val snapshots: Flow<NaviampExternalPlaybackSnapshot> = (progress?.let { progressFlow ->
         state.combine(progressFlow) { currentState, currentProgress ->
             currentState.toExternalPlaybackSnapshot(currentProgress)
@@ -191,37 +231,62 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
     } ?: state.map(NaviampCoreState::toExternalPlaybackSnapshot))
         .distinctUntilChanged()
 
-    fun snapshot(): NaviampExternalPlaybackSnapshot = state.value.toExternalPlaybackSnapshot(progress?.value)
+    override fun snapshot(): NaviampExternalPlaybackSnapshot = state.value.toExternalPlaybackSnapshot(progress?.value)
 
-    fun play() = playback(
-        if (snapshot().state == NaviampExternalPlaybackState.Paused) {
-            NowPlayingPlaybackAction.Resume
-        } else {
-            NowPlayingPlaybackAction.PlayCurrent
-        },
-    )
+    override fun play() {
+        val current = snapshot()
+        if (!current.canPlayPause || current.state == NaviampExternalPlaybackState.Playing) return
+        playback(
+            if (current.state == NaviampExternalPlaybackState.Paused) {
+                NowPlayingPlaybackAction.Resume
+            } else {
+                NowPlayingPlaybackAction.PlayCurrent
+            },
+        )
+    }
 
-    fun pause() = playback(NowPlayingPlaybackAction.Pause)
-    fun stop() = playback(NowPlayingPlaybackAction.Stop)
-    fun previous() = playback(NowPlayingPlaybackAction.Previous)
-    fun next() = playback(NowPlayingPlaybackAction.Next)
+    override fun pause() {
+        if (snapshot().canPlayPause && snapshot().state == NaviampExternalPlaybackState.Playing) {
+            playback(NowPlayingPlaybackAction.Pause)
+        }
+    }
+    override fun playPause() = if (snapshot().state == NaviampExternalPlaybackState.Playing) pause() else play()
+    override fun stop() { if (snapshot().canControl) playback(NowPlayingPlaybackAction.Stop) }
+    override fun previous() { if (snapshot().hasPrevious) playback(NowPlayingPlaybackAction.Previous) }
+    override fun next() { if (snapshot().hasNext) playback(NowPlayingPlaybackAction.Next) }
     fun rewind() = seekBy(-ExternalPlaybackSeekStepMillis)
     fun fastForward() = seekBy(ExternalPlaybackSeekStepMillis)
     fun toggleShuffle() = playback(NowPlayingPlaybackAction.ToggleShuffle)
     fun cycleRepeatMode() = playback(NowPlayingPlaybackAction.CycleRepeatMode)
 
-    fun setShuffleActive(active: Boolean) {
-        if (snapshot().shuffleActive != active) toggleShuffle()
+    override fun setVolumePercent(percent: Int) {
+        if (!snapshot().canChangeVolume) return
+        dispatch(
+            NaviampCoreCommand.NowPlaying.Playback(
+                NowPlayingPlaybackActionRequest(
+                    action = NowPlayingPlaybackAction.ChangeVolume,
+                    volumePercent = percent.coerceIn(0, 100),
+                ),
+            ),
+        )
     }
 
-    fun setRepeatMode(mode: NaviampRepeatMode) {
+    override fun setShuffleActive(active: Boolean) {
+        if (snapshot().canControl && snapshot().shuffleActive != active) toggleShuffle()
+    }
+
+    override fun setRepeatMode(mode: NaviampRepeatMode) {
+        if (!snapshot().canControl) return
         val modes = NaviampRepeatMode.entries
         val currentIndex = modes.indexOf(snapshot().repeatMode)
         val targetIndex = modes.indexOf(mode)
         repeat((targetIndex - currentIndex + modes.size) % modes.size) { cycleRepeatMode() }
     }
 
-    fun seekTo(positionMillis: Long) {
+    override fun seekTo(positionMillis: Long) {
+        val current = snapshot()
+        if (!current.canSeek || positionMillis < 0 ||
+            current.durationMillis?.let { positionMillis > it } == true) return
         dispatch(
             NaviampCoreCommand.NowPlaying.Playback(
                 NowPlayingPlaybackActionRequest(
@@ -232,10 +297,17 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
         )
     }
 
-    fun seekBy(deltaMillis: Long) {
+    override fun seekBy(deltaMillis: Long, advancePastEnd: Boolean) {
         val snapshot = snapshot()
-        val requested = (snapshot.positionMillis ?: 0L) + deltaMillis
-        seekTo(snapshot.durationMillis?.let(requested::coerceAtMost) ?: requested)
+        if (!snapshot.canSeek) return
+        val position = (snapshot.positionMillis ?: 0L).coerceAtLeast(0L)
+        val requested = if (deltaMillis > 0 && position > Long.MAX_VALUE - deltaMillis) {
+            Long.MAX_VALUE
+        } else {
+            position + deltaMillis
+        }
+        if (advancePastEnd && snapshot.durationMillis?.let { requested > it } == true) next()
+        else seekTo((snapshot.durationMillis?.let(requested::coerceAtMost) ?: requested).coerceAtLeast(0L))
     }
 
     fun selectQueueItem(index: Int) {
@@ -489,6 +561,7 @@ internal fun NaviampCoreState.toExternalPlaybackSnapshot(
             title = item.title,
             subtitle = item.subtitle,
             description = item.meta,
+            albumTitle = if (index == nowPlaying.backTo.size) nowPlaying.albumTitle else item.meta,
             artworkUrl = item.coverArtUrl,
             queueIndex = index,
         )
@@ -505,9 +578,13 @@ internal fun NaviampCoreState.toExternalPlaybackSnapshot(
         current = queue.getOrNull(currentIndex),
         queue = queue,
         currentQueueIndex = currentIndex,
+        seekGeneration = progress?.seekGeneration ?: 0L,
         positionMillis = (progress?.positionSeconds ?: nowPlaying.positionSeconds)?.times(1_000.0)?.toLong(),
         durationMillis = (progress?.durationSeconds ?: nowPlaying.durationSeconds)?.times(1_000.0)?.toLong(),
         canPlayPause = nowPlaying.canPlayPause,
+        canSeek = nowPlaying.canSeek && !nowPlaying.isLive && nowPlaying.durationSeconds != null,
+        canChangeVolume = nowPlaying.canChangeVolume,
+        volumePercent = nowPlaying.volumePercent.coerceIn(0, 100),
         hasPrevious = nowPlaying.hasPrevious,
         hasNext = nowPlaying.hasNext,
         favorite = nowPlaying.favoriteActive,
