@@ -1,0 +1,89 @@
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE integrated=true compositor=false raster=false raw=false isolated=false rows=150 layers=[1000x740:SOFTWARE_FAST] phase,cpu_percent,frames
+ANIMATION_PROBE static,0.6999280979963275,[0]
+ANIMATION_COMPOSITOR static pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.6995135813681197
+ANIMATION_COMPOSITOR static pid=51515 command=/usr/bin/Xvfb cpu_percent=0.0
+ANIMATION_WINDOWS static opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[890, 897]
+ANIMATION_BACKGROUND region=1 samples=[890, 938]
+ANIMATION_BACKGROUND region=2 samples=[890, 898]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS static changed=0 text=0 waveform=0 visibleText=4481 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE marquee,53.47060362131187,[657]
+ANIMATION_COMPOSITOR marquee pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.8989181386735523
+ANIMATION_COMPOSITOR marquee pid=51515 command=/usr/bin/Xvfb cpu_percent=9.694476813228135
+ANIMATION_WINDOWS marquee opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[685, 712]
+ANIMATION_BACKGROUND region=1 samples=[685, 757]
+ANIMATION_BACKGROUND region=2 samples=[685, 717]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS marquee changed=6041 text=6041 waveform=0 visibleText=4370 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE waveform,42.67487912514385,[657]
+ANIMATION_COMPOSITOR waveform pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.9987909741138854
+ANIMATION_COMPOSITOR waveform pid=51515 command=/usr/bin/Xvfb cpu_percent=9.694136224452345
+ANIMATION_WINDOWS waveform opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[890, 897]
+ANIMATION_BACKGROUND region=1 samples=[890, 938]
+ANIMATION_BACKGROUND region=2 samples=[890, 898]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS waveform changed=202 text=168 waveform=202 visibleText=4584 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE combined,52.570391960969644,[662]
+ANIMATION_COMPOSITOR combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=2.2986110259007955
+ANIMATION_COMPOSITOR combined pid=51515 command=/usr/bin/Xvfb cpu_percent=11.692934349147524
+ANIMATION_WINDOWS combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[698, 712]
+ANIMATION_BACKGROUND region=1 samples=[698, 757]
+ANIMATION_BACKGROUND region=2 samples=[698, 717]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS combined changed=6251 text=6206 waveform=243 visibleText=4353 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_POPUPS 12 visible-text samples passed
+ANIMATION_INPUT waveform events=1 point=212,486 insets=java.awt.Insets[top=0,left=0,bottom=0,right=0]
+BUILD SUCCESSFUL in 1m 11s

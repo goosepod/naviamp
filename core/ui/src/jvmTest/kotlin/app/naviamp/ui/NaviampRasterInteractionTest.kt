@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
@@ -26,6 +28,57 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun unavailableNativePresentationRetainsSharedPixelsAndAccessibilityActions() = runComposeUiTest {
+        val presenter = RecordingPresenter().apply { ready = false }
+        var activations = 0
+        setContent {
+            Box(Modifier.size(200.dp, 30.dp).background(Color.Black)) {
+                CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
+                    NaviampRasterText(AnnotatedString("Artist"), TextStyle(color = Color.White, fontSize = 16.sp),
+                        25.dp, false, true, Modifier.width(120.dp).testTag("fallback"),
+                        listOf(NaviampTextLink(0, 6, "Artist") { activations++ }))
+                }
+            }
+        }
+        val node = onNodeWithTag("fallback")
+        val pixels = node.captureToImage().toPixelMap()
+        var visible = 0
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
+            if (pixels[x, y].red > .5f) visible++
+        }
+        assertTrue(visible > 20, "Shared fallback text is blank")
+        node.assertTextEquals("Artist")
+        val actions = node.fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        runOnIdle {
+            assertTrue(actions.single().action())
+            assertEquals(1, activations)
+            assertTrue(presenter.presentations > 0)
+        }
+    }
+
+    @Test fun restoringVisibilityRecreatesNativePresentationWithSharedMotionAndPixels() = runComposeUiTest {
+        val presenter = RecordingPresenter()
+        val visible = mutableStateOf(true)
+        setContent {
+            NaviampRasterEnvironment(presenter, visible.value, false) {
+                BouncingTitleText("A long cached title that needs to keep moving after restore", Color.White, 14,
+                    marqueeEnabled = true, modifier = Modifier.width(100.dp))
+            }
+        }
+        waitForIdle()
+        val before = presenter.presentations
+        val image = presenter.layers.single().image
+        runOnIdle { assertNotNull(presenter.layers.single().translation); visible.value = false }
+        waitForIdle()
+        runOnIdle { assertEquals(1, presenter.closed); visible.value = true }
+        waitForIdle()
+        runOnIdle {
+            assertTrue(presenter.presentations > before)
+            assertSame(image, presenter.layers.single().image)
+            assertNotNull(presenter.layers.single().translation)
+        }
+    }
+
     @Test fun nativeReadinessResubmitsTheLatestLayoutWithoutAContentChange() = runComposeUiTest {
         val presenter = RecordingPresenter().apply { ready = false }
         setContent {

@@ -3,6 +3,7 @@
 #include <jawt_md.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/Xrender.h>
 #include <dlfcn.h>
 
 #include <algorithm>
@@ -72,6 +73,23 @@ struct Motion {
     }
 };
 
+// X11 geometry is integral. Cache only native operations; Core's timelines still run
+// unchanged, including fractional positions that have not crossed the next pixel yet.
+struct WindowGeometry {
+    int x = 0, y = 0, width = 0, height = 0;
+    bool initialized = false;
+
+    void apply(Display* display, Window window, int nextX, int nextY, int nextWidth, int nextHeight) {
+        if (initialized && x == nextX && y == nextY && width == nextWidth && height == nextHeight) return;
+        if (initialized && width == nextWidth && height == nextHeight) {
+            XMoveWindow(display, window, nextX, nextY);
+        } else {
+            XMoveResizeWindow(display, window, nextX, nextY, nextWidth, nextHeight);
+        }
+        x = nextX; y = nextY; width = nextWidth; height = nextHeight; initialized = true;
+    }
+};
+
 struct Layer {
     Window clip = 0;
     Window pixels = 0;
@@ -81,6 +99,8 @@ struct Layer {
     double y = 0.0;
     double height = 1.0;
     bool visible = false;
+    WindowGeometry clipGeometry;
+    WindowGeometry pixelGeometry;
     Motion x;
     Motion left;
     Motion right;
@@ -94,6 +114,8 @@ struct X11RasterRegion {
     Colormap colormap = 0;
     Window outer = 0;
     Window viewport = 0;
+    WindowGeometry outerGeometry;
+    WindowGeometry viewportGeometry;
     std::vector<Layer> layers;
     double clipX = 0.0;
     double clipY = 0.0;
@@ -226,7 +248,7 @@ struct X11RasterRegion {
         XFreeGC(display, gc);
         XDestroyImage(image);
         XSetWindowBackgroundPixmap(display, layer.pixels, layer.pixmap);
-        XMoveResizeWindow(display, layer.pixels, 0, 0, layer.imageWidth, layer.imageHeight);
+        layer.pixelGeometry.apply(display, layer.pixels, 0, 0, layer.imageWidth, layer.imageHeight);
         XClearWindow(display, layer.pixels);
     }
 
@@ -235,10 +257,10 @@ struct X11RasterRegion {
         const int outerHeight = std::max(1, static_cast<int>(std::lround(clipHeight)));
         const int contentWidth = std::max(1, static_cast<int>(std::lround(viewportWidth)));
         const int contentHeight = std::max(1, static_cast<int>(std::lround(viewportHeight)));
-        XMoveResizeWindow(display, outer,
+        outerGeometry.apply(display, outer,
             static_cast<int>(std::lround(clipX)), static_cast<int>(std::lround(clipY)),
             outerWidth, outerHeight);
-        XMoveResizeWindow(display, viewport,
+        viewportGeometry.apply(display, viewport,
             static_cast<int>(std::lround(viewportX)), static_cast<int>(std::lround(viewportY)),
             contentWidth, contentHeight);
         applyShapes(contentWidth, contentHeight);
@@ -264,9 +286,10 @@ struct X11RasterRegion {
             const int clipTop = 0;
             const int clipWidthValue = std::max(1, static_cast<int>(std::lround(right - left)));
             const int clipHeightValue = std::max(1, static_cast<int>(std::lround(layer.height)));
-            XMoveResizeWindow(display, layer.clip, clipLeft, clipTop, clipWidthValue, clipHeightValue);
-            XMoveWindow(display, layer.pixels,
-                static_cast<int>(std::lround(x - left)), static_cast<int>(std::lround(layer.y)));
+            layer.clipGeometry.apply(display, layer.clip, clipLeft, clipTop, clipWidthValue, clipHeightValue);
+            layer.pixelGeometry.apply(display, layer.pixels,
+                static_cast<int>(std::lround(x - left)), static_cast<int>(std::lround(layer.y)),
+                layer.imageWidth, layer.imageHeight);
         }
         XFlush(display);
         return active;
@@ -394,7 +417,6 @@ extern "C" JNIEXPORT jlong JNICALL Java_app_naviamp_ui_LinuxRasterNative_create(
     try {
         const auto parent = parentFor(env, component);
         if (!parent.display || !parent.drawable) return 0;
-        XVisualInfo match{};
         XLockDisplay(parent.display);
         X11RasterRegion* region = nullptr;
         try {
@@ -406,18 +428,32 @@ extern "C" JNIEXPORT jlong JNICALL Java_app_naviamp_ui_LinuxRasterNative_create(
                 if (parentVisuals) XFree(parentVisuals);
                 throw std::runtime_error("Could not identify the X11 parent visual");
             }
-            const int screen = parentVisuals[0].screen;
+            const XVisualInfo match = parentVisuals[0];
+            const int screen = match.screen;
             XFree(parentVisuals);
+            const auto* format = XRenderFindVisualFormat(parent.display, match.visual);
+            if (!format || format->type != PictTypeDirect || format->depth != 32 ||
+                format->direct.alpha != 24 || format->direct.alphaMask != 255 ||
+                format->direct.red != 16 || format->direct.redMask != 255 ||
+                format->direct.green != 8 || format->direct.greenMask != 255 ||
+                format->direct.blue != 0 || format->direct.blueMask != 255) {
+                throw std::runtime_error("The X11 raster parent must preserve premultiplied ARGB32 pixels");
+            }
             char compositorSelection[32];
             std::snprintf(compositorSelection, sizeof(compositorSelection), "_NET_WM_CM_S%d", screen);
             const Atom compositor = XInternAtom(parent.display, compositorSelection, True);
             if (compositor == None || XGetSelectionOwner(parent.display, compositor) == None) {
                 throw std::runtime_error("An active X11 compositing manager is required for transparent raster layers");
             }
-            if (!XMatchVisualInfo(parent.display, screen, 32, TrueColor, &match)) {
-                throw std::runtime_error("A 32-bit ARGB X11 visual is unavailable");
-            }
             region = new X11RasterRegion(parent.display, parent.drawable, match.visual, match.depth);
+            // This parent is an adapter-owned transparent AWT window. Its native input region
+            // must be empty as well as the raster children, so Core retains all pointer input.
+            region->clearInput(parent.drawable);
+            if (region->diagnostics) {
+                std::fprintf(stderr, "NaviampRaster X11 parent=0x%lx visual=0x%lx depth=%d alpha=%d/0x%x screen=%d compositor=0x%lx\n",
+                    parent.drawable, match.visualid, match.depth, format->direct.alpha,
+                    format->direct.alphaMask, screen, XGetSelectionOwner(parent.display, compositor));
+            }
         }
         catch (...) { XUnlockDisplay(parent.display); throw; }
         XUnlockDisplay(parent.display);
@@ -484,6 +520,38 @@ extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_LinuxRasterNative_present(
         } catch (...) { XUnlockDisplay(region->display); throw; }
         XUnlockDisplay(region->display);
         region->changed.notify_one();
+    } catch (const std::exception& error) { report(env, error); }
+}
+
+// Override-redirect raster windows have no WM input frame. Keep them immediately above
+// their owner's real X11 frame, rather than above unrelated applications or owned dialogs.
+extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_LinuxRasterNative_restack(
+    JNIEnv* env, jobject, jlong handle, jobject ownerComponent) {
+    try {
+        auto* region = reinterpret_cast<X11RasterRegion*>(handle);
+        if (!region) return;
+        const auto owner = parentFor(env, ownerComponent);
+        if (!owner.display || !owner.drawable || owner.display != region->display) return;
+        std::lock_guard lock(region->mutex);
+        XLockDisplay(region->display);
+        Window sibling = owner.drawable;
+        Window root = 0, parent = 0;
+        for (;;) {
+            Window* children = nullptr;
+            unsigned int count = 0;
+            const Status found = XQueryTree(region->display, sibling, &root, &parent, &children, &count);
+            if (children) XFree(children);
+            if (!found || !parent || parent == root) break;
+            sibling = parent;
+        }
+        if (parent == root && sibling != region->parent) {
+            XWindowChanges changes{};
+            changes.sibling = sibling;
+            changes.stack_mode = Above;
+            XConfigureWindow(region->display, region->parent, CWSibling | CWStackMode, &changes);
+            XFlush(region->display);
+        }
+        XUnlockDisplay(region->display);
     } catch (const std::exception& error) { report(env, error); }
 }
 

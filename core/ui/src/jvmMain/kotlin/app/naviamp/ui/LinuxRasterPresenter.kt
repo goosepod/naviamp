@@ -3,6 +3,8 @@ package app.naviamp.ui
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asSkiaBitmap
+import java.awt.Color
+import javax.swing.JWindow
 import java.awt.Component
 import java.awt.EventQueue
 import java.awt.Window
@@ -16,9 +18,19 @@ import org.jetbrains.skia.ImageInfo
 
 /** JAWT/X11 child-window attachment, cached pixel upload, and native surface lifetime only. */
 internal class LinuxRasterPresenter(private val window: Window) : NaviampRasterPresenter {
-    override val contentBelowOwnedWindows = true
+    // AWT-owned top-level windows cannot guarantee stacking below every owned popup.
+    // The shared raster environment already handles that presentation fallback.
 
-    override fun create(): NaviampRasterRegion = object : NaviampRasterRegion {
+    private val regions = mutableSetOf<LinuxRasterRegion>()
+    override fun create(): NaviampRasterRegion = LinuxRasterRegion(window) { regions.remove(it) }.also(regions::add)
+    fun reposition() = regions.toList().forEach(LinuxRasterRegion::reposition)
+
+    private class LinuxRasterRegion(private val window: Window, private val removed: (LinuxRasterRegion) -> Unit) : NaviampRasterRegion {
+        // X11 copies child pixels into their parent without blending. Preserve their alpha in
+        // an ARGB top-level window, which the desktop compositor blends over the application.
+        private var overlay: JWindow? = null
+        private var clip = Rect.Zero
+        private var scale = 1f
         private var handle = 0L
         private var cachedImages = emptyList<ImageBitmap>()
         private var sceneClock = NaviampRasterSceneClock()
@@ -26,11 +38,26 @@ internal class LinuxRasterPresenter(private val window: Window) : NaviampRasterP
 
         override fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean {
             check(EventQueue.isDispatchThread())
-            if (!window.isShowing || bounds.isEmpty || clip.isEmpty) return false
-            val canvas = findSkiaLayer(window)?.canvas ?: return false
+            if (!window.isShowing || bounds.isEmpty || clip.isEmpty) {
+                release()
+                return false
+            }
             return try {
-                if (handle == 0L) handle = LinuxRasterNative.create(canvas)
-                if (handle == 0L) return false
+                val surface = overlay ?: JWindow(window).apply {
+                    name = RasterOverlayWindowName
+                    // X11 override-redirect avoids a WM frame with its own nonempty input
+                    // region. The adapter-owned client keeps the native empty input shape.
+                    type = Window.Type.POPUP
+                    focusableWindowState = false
+                    // This can fail on unsupported X11 visuals; let the shared owner fall back.
+                    background = Color(0, 0, 0, 0)
+                }.also { overlay = it }
+                this.clip = clip
+                scale = findSkiaLayer(window)?.contentScale?.coerceAtLeast(1f) ?: return false
+                reposition()
+                if (!surface.isDisplayable) surface.addNotify()
+                if (handle == 0L) handle = LinuxRasterNative.create(surface)
+                if (handle == 0L) { release(); return false }
                 val restart = sceneClock.update(layers, bounds.width, bounds.height, System.nanoTime() / 1_000_000)
                 val images = layers.map(NaviampRasterLayer::image)
                 val pixels = images.mapIndexed { index, bitmap ->
@@ -42,7 +69,7 @@ internal class LinuxRasterPresenter(private val window: Window) : NaviampRasterP
                 LinuxRasterNative.present(
                     handle,
                     doubleArrayOf(
-                        clip.left.toDouble(), clip.top.toDouble(), clip.width.toDouble(), clip.height.toDouble(),
+                        0.0, 0.0, clip.width.toDouble(), clip.height.toDouble(),
                         (bounds.left - clip.left).toDouble(), (bounds.top - clip.top).toDouble(),
                         bounds.width.toDouble(), bounds.height.toDouble(), cornerRadius.toDouble(),
                     ),
@@ -64,16 +91,18 @@ internal class LinuxRasterPresenter(private val window: Window) : NaviampRasterP
                     scalars.map { it.motion?.repeat == true }.toBooleanArray(),
                     restart,
                 )
+                surface.isVisible = true
+                LinuxRasterNative.restack(handle, window)
                 cachedImages = images
                 currentLayers = layers
                 true
             } catch (failure: Exception) {
                 println("NaviampRaster X11 unavailable: ${failure.message}")
-                close()
+                release()
                 false
             } catch (failure: UnsatisfiedLinkError) {
                 println("NaviampRaster X11 linkage: ${failure.message}")
-                close()
+                release()
                 false
             }
         }
@@ -81,10 +110,28 @@ internal class LinuxRasterPresenter(private val window: Window) : NaviampRasterP
         override fun translationX(layerIndex: Int): Float? = currentLayers.getOrNull(layerIndex)?.translation
             ?.valueAt(System.nanoTime() / 1_000_000 - sceneClock.startedMillis)
 
+        fun reposition() {
+            if (!window.isShowing || clip.isEmpty) return
+            val parent = findSkiaLayer(window) ?: return
+            val origin = parent.canvas.locationOnScreen
+            overlay?.setBounds(
+                origin.x + (clip.left / scale).toInt(), origin.y + (clip.top / scale).toInt(),
+                (clip.width / scale).toInt().coerceAtLeast(1), (clip.height / scale).toInt().coerceAtLeast(1),
+            )
+            if (handle != 0L) LinuxRasterNative.restack(handle, window)
+        }
+
         override fun close() {
             check(EventQueue.isDispatchThread())
+            release()
+            removed(this)
+        }
+
+        private fun release() {
             if (handle != 0L) LinuxRasterNative.close(handle)
             handle = 0L
+            overlay?.dispose()
+            overlay = null
             cachedImages = emptyList()
             currentLayers = emptyList()
             sceneClock = NaviampRasterSceneClock()
@@ -139,6 +186,7 @@ private object LinuxRasterNative {
         repeats: BooleanArray,
         restart: Boolean,
     )
+    external fun restack(handle: Long, owner: Component)
     external fun close(handle: Long)
 }
 

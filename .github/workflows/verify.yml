@@ -92,7 +92,7 @@ jobs:
         if: needs.changes.outputs.run_full == 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev
+          sudo apt-get install -y libx11-dev libxrender-dev
 
       - name: Install Android build packages
         if: needs.changes.outputs.run_full == 'true'
@@ -325,7 +325,7 @@ jobs:
           java-version: "21"
 
       - name: Install native test dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libsecret-tools xcompmgr xvfb dbus-daemon playerctl
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxrender-dev libsecret-tools xcompmgr xvfb dbus-daemon playerctl
 
       - name: Configure headless ALSA output
         run: |
