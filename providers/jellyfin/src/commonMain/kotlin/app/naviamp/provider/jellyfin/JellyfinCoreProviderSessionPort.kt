@@ -1,5 +1,7 @@
 package app.naviamp.provider.jellyfin
 
+import kotlinx.coroutines.ensureActive
+
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.MediaSourceRepository
@@ -80,17 +82,20 @@ class JellyfinCoreProviderSessionPort(
         plan: NaviampConnectionAttemptPlan,
     ): NaviampCoreConnectedSession {
         val session = sessionOpener.open(request.toLoginRequest(), plan.clearProviderData)
-        provider = session.provider
-        currentSourceId = session.sourceId
-        activeSourcePassword = (request as? NaviampCoreConnectionRequest.Form)
+        val password = (request as? NaviampCoreConnectionRequest.Form)
             ?.form?.password?.takeIf(String::isNotBlank)
             ?: mediaSources.mediaSource(session.sourceId)?.password
-        return NaviampCoreConnectedSession(
+        val connected = NaviampCoreConnectedSession(
             sourceId = session.sourceId,
             displayName = session.connection.resolvedDisplayName(),
             serverVersion = session.validation.serverVersion,
-            inventory = inventory(),
+            inventory = inventory(session.sourceId),
         )
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        provider = session.provider
+        currentSourceId = session.sourceId
+        activeSourcePassword = password
+        return connected
     }
 
     override suspend fun editableConnection(id: String): NaviampCoreEditableConnection {
@@ -184,7 +189,7 @@ class JellyfinCoreProviderSessionPort(
         require(it.providerId == ProviderIdJellyfin) { "Saved connection is not a Jellyfin connection." }
     }
 
-    private fun inventory(): NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(
+    private fun inventory(currentSourceId: String? = this.currentSourceId): NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(
         connections = mediaSources.mediaSources().visibleServerConnections(currentSourceId).map { saved ->
             NaviampCoreSavedConnectionRecord(
                 id = saved.id,
