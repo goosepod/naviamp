@@ -21,6 +21,7 @@ parser.add_argument('--tracks', type=int, default=1)
 parser.add_argument('--albums', type=int, default=1)
 parser.add_argument('--unknown-length', action='store_true', help='Omit Content-Length and ranges for finite songs')
 parser.add_argument('--long-metadata', action='store_true', help='Overflow all player metadata rows for full-app animation measurements')
+parser.add_argument('--accounts', action='store_true', help='Return distinct catalogs for each fixture username')
 args = parser.parse_args()
 if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 240 and 1 <= args.albums <= args.tracks and args.tracks % args.albums == 0):
     parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..240, albums must divide track count')
@@ -54,6 +55,7 @@ counts = {}
 reports = []
 bytes_sent = 0
 max_active_streams = 0
+rejected_accounts = set()
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass
@@ -66,6 +68,9 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         if path.startswith('/_test/'):
             with lock:
+                account = parse_qs(parsed.query).get('user', [''])[0]
+                if args.accounts and path.endswith('/reject'): rejected_accounts.add(account)
+                elif args.accounts and path.endswith('/allow'): rejected_accounts.discard(account)
                 if path.endswith('/off'):
                     offline = True
                     for stream in list(streams):
@@ -80,6 +85,11 @@ class Handler(BaseHTTPRequestHandler):
             unavailable = offline
         if unavailable: self.send_error(503); return
         query = parse_qs(parsed.query)
+        account = query.get('u', ['fixture'])[0]
+        if args.accounts and account in rejected_accounts:
+            return self.json({'subsonic-response': dict(status='failed', version='1.16.1', error=dict(code=40, message='Fixture session expired'))})
+        if args.accounts and 'id' in query:
+            query['id'] = [value.removeprefix(account + ':') for value in query['id']]
         if action == 'stream': return self.audio()
         if action == 'live': return self.audio(live=True)
         if action == 'scrobble':
@@ -110,6 +120,22 @@ class Handler(BaseHTTPRequestHandler):
                 if int(query.get(kind + 'Offset', ['0'])[0]) > 0 or query.get(kind + 'Count') == ['0']:
                     responses[action]['searchResult3'][kind] = []
         response.update(responses.get(action, {}))
+        if args.accounts:
+            playlist = dict(id='account-playlist', name=account + ' playlist', songCount=1, owner=account, public=False)
+            if action == 'getPlaylists': response['playlists'] = dict(playlist=[playlist])
+            if action == 'getPlaylist': response['playlist'] = dict(playlist, entry=TRACKS)
+            def scoped(value):
+                if isinstance(value, list): return [scoped(item) for item in value]
+                if not isinstance(value, dict): return value
+                result = {}
+                for key, item in value.items():
+                    if isinstance(item, str) and key in ('id', 'albumId', 'artistId'):
+                        item = account + ':' + item
+                    elif isinstance(item, str) and key in ('title', 'artist', 'album', 'name') and key != 'owner':
+                        item = account + ': ' + item
+                    result[key] = scoped(item)
+                return result
+            response = scoped(response)
         self.json({'subsonic-response': response})
     def json(self, value):
         data = json.dumps(value).encode()

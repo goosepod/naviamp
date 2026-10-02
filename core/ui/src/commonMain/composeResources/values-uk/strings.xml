@@ -120,4 +120,11 @@
     <string name="artist_appearance_tracks">Треки</string>
     <string name="album_disc_number">Диск %1$d</string>
     <string name="album_disc_number_title">Диск %1$d — %2$s</string>
+    <string name="tv_accounts">Облікові записи</string>
+    <string name="tv_accounts_title">Хто слухає?</string>
+    <string name="tv_accounts_description">Виберіть обліковий запис або додайте інший.</string>
+    <string name="tv_account_add">Додати обліковий запис</string>
+    <string name="tv_account_switching">Перемикання облікового запису…</string>
+    <string name="tv_account_switch_failed">Не вдалося підключитися до цього облікового запису. Спробуйте ще раз або виберіть інший.</string>
+    <string name="tv_account_nav_label">Облікові записи: %1$s</string>
 </resources>

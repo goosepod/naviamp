@@ -402,3 +402,18 @@ visible text, moving text/waveform, unchanged siblings, twelve popup transitions
 pointer delivery through the shared fallback. Its continuous parent frames and high software
 CPU are functional evidence only; this unsupported-native environment does not meet the native
 performance budget. Xvfb without a window manager does not establish minimize/restore behavior.
+
+
+## Main-branch integration check
+
+Accepted `main` advanced to `dfb7513a` during verification. The only merge conflict was the
+fixture's adjacent options; both `--accounts` and `--long-metadata` are retained. A real loopback
+HTTP check verified distinct Alice/Bob catalogs with long metadata. The raster production files
+were unchanged by this integration. The merged build again passed the 40 focused UI tests,
+common/Android compilation, architecture verification, and app-image validation.
+
+A separate ten-second [merged app confirmation](linux-x11-alpha-2026-10-02/full-app/main-sync)
+retains its own artifact hashes and screenshot pair. It verifies moving metadata/progress and
+unchanged artwork; the raw result records CPU and parent frames. This integration smoke check
+does not replace the earlier repeated matrix or resolve its failed acceptance samples. Require
+the complete cross-platform matrix for the final merged PR head.

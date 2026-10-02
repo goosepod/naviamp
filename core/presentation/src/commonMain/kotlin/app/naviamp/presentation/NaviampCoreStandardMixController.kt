@@ -49,11 +49,34 @@ class NaviampCoreStandardMixController(
     private var genreSuggestions = emptyList<Genre>()
     private var genreProjection = LibraryGenreOntologyProjection()
     private var expandedGenreOntologyIds = emptySet<String>()
+    private var sourceGeneration = 0L
     private var artistGeneration = 0L
     private var albumGeneration = 0L
     private var genreGeneration = 0L
     private var genreBrowser: GenreTrackBrowser? = null
     private var genreBrowserKey: Pair<String?, List<String>>? = null
+
+    fun resetForSourceChange() {
+        sourceGeneration++
+        artistGeneration++
+        albumGeneration++
+        genreGeneration++
+        selectedArtists = emptyList()
+        artistSuggestions = emptyList()
+        artistTracks = emptyMap()
+        selectedAlbums = emptyList()
+        albumSuggestions = emptyList()
+        albumTracks = emptyMap()
+        selectedGenres = emptyList()
+        genreSuggestions = emptyList()
+        genreProjection = LibraryGenreOntologyProjection()
+        expandedGenreOntologyIds = emptySet()
+        genreBrowser = null
+        genreBrowserKey = null
+        updateArtistUi { SharedArtistMixBuilderUi() }
+        updateAlbumUi { SharedAlbumMixBuilderUi() }
+        updateGenreUi { SharedGenreMixBuilderUi() }
+    }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.MixBuilder.Artist -> when (val action = command.action) {
@@ -162,15 +185,17 @@ class NaviampCoreStandardMixController(
             publishArtist(false, "Artist is no longer available.")
             return
         }
+        val generation = sourceGeneration
         selectedArtists = (selectedArtists + artist).distinctBy { it.id }
         publishArtist(true, "Loading ${artist.name} songs...")
         runCatching { artistService().popularTracks(artist) }
             .onSuccess { tracks ->
+                if (generation != sourceGeneration) return@onSuccess
                 artistTracks = artistTracks + (artist.id.value to tracks)
                 publishArtist(false, if (tracks.isEmpty()) "${artist.name} popular songs were not matched." else null)
             }
-            .onFailure { cause -> publishArtist(false, cause.message ?: "Could not load ${artist.name} songs.") }
-        loadArtistRelatedSuggestions(artist)
+            .onFailure { cause -> if (generation == sourceGeneration) publishArtist(false, cause.message ?: "Could not load ${artist.name} songs.") }
+        if (generation == sourceGeneration) loadArtistRelatedSuggestions(artist)
     }
 
     private suspend fun removeArtist(id: String) {
@@ -237,15 +262,17 @@ class NaviampCoreStandardMixController(
             publishAlbum(false, "Album is no longer available.")
             return
         }
+        val generation = sourceGeneration
         selectedAlbums = (selectedAlbums + album).distinctBy { it.id }
         publishAlbum(true, "Loading ${album.title} songs...")
         runCatching { albumService().selectedTracks(album) }
             .onSuccess { tracks ->
+                if (generation != sourceGeneration) return@onSuccess
                 albumTracks = albumTracks + (album.id.value to tracks)
                 publishAlbum(false, if (tracks.isEmpty()) "${album.title} did not return tracks." else null)
             }
-            .onFailure { cause -> publishAlbum(false, cause.message ?: "Could not load ${album.title} songs.") }
-        loadAlbumRelatedSuggestions(album)
+            .onFailure { cause -> if (generation == sourceGeneration) publishAlbum(false, cause.message ?: "Could not load ${album.title} songs.") }
+        if (generation == sourceGeneration) loadAlbumRelatedSuggestions(album)
     }
 
     private suspend fun removeAlbum(id: String) {

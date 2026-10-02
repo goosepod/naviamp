@@ -2,6 +2,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application>
+        <!-- Host for instrumented shared UI acceptance; absent from release variants. -->
+        <activity android:name="androidx.activity.ComponentActivity" android:exported="true"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
         <activity
             android:name="app.naviamp.android.CastDiscoveryProbeActivity"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"
