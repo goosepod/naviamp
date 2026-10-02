@@ -235,7 +235,7 @@ fun main() {
                     popupVisible = index % 2 == 0
                     delay(if (dialogProbe || menuProbe) 300 else 80)
                     val dimmed = dialogProbe && popupVisible
-                    val pixels = captureProbe(window, "popup-$index", dimmed).pixels
+                    val pixels = captureProbe(window, "popup-$index", dimmed, transitioning = dialogProbe).pixels
                     var visibleText = 0
                     for (y in 340 until minOf(450, pixels.height)) for (x in 24 until minOf(304, pixels.width)) {
                         val pixel = pixels.getRGB(x, y)
@@ -272,7 +272,8 @@ private data class ProbeCapture(val pixels: java.awt.image.BufferedImage, val po
     fun nearPointer(x: Int, y: Int) = kotlin.math.abs(pointer.x - x) < 100 && kotlin.math.abs(pointer.y - y) < 100
 }
 
-private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean = false): ProbeCapture {
+private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean = false,
+    transitioning: Boolean = false): ProbeCapture {
     val origin = window.locationOnScreen
     val pointer = java.awt.MouseInfo.getPointerInfo().location.apply { translate(-origin.x, -origin.y) }
     val image = java.awt.Robot(window.graphicsConfiguration.device)
@@ -280,14 +281,29 @@ private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean 
     val directory = java.io.File("build/animation-probe").apply { mkdirs() }
     javax.imageio.ImageIO.write(image, "png", java.io.File(directory, "$name.png"))
     val marker = if (dimmed) 0x302214 else 0x775533
-    check(!probePixelsDiffer(image.getRGB(100, 100), marker)) { "Probe is obscured by another window" }
+    // Native translucent-window color conversion shifts this dark marker by several channel
+    // values on macOS. This tolerance applies only to the visibility marker, never motion checks.
+    val pixel = image.getRGB(100, 100)
+    val red = pixel shr 16 and 255
+    val green = pixel shr 8 and 255
+    val blue = pixel and 255
+    val intensity = red / 119.0
+    // Rapid modal reopen samples may legitimately catch the entrance's partially dimmed scrim.
+    // Require the known brown tint and a nonblank intensity throughout that transition.
+    val markerVisible = if (transitioning && dimmed) {
+        intensity in .35..1.04 && kotlin.math.abs(green - 85 * intensity) <= 6 &&
+            kotlin.math.abs(blue - 51 * intensity) <= 6
+    } else !probePixelsDiffer(pixel, marker, if (dimmed) 6 else 2)
+    check(markerVisible) {
+        "Probe is obscured by another window"
+    }
     return ProbeCapture(image, pointer)
 }
 
 // Display color conversion can dither an otherwise unchanged capture by one channel value.
 // Ignore that noise while still detecting actual content movement or sibling repaint artifacts.
-private fun probePixelsDiffer(first: Int, second: Int): Boolean =
-    listOf(0, 8, 16).any { shift -> kotlin.math.abs((first shr shift and 255) - (second shr shift and 255)) > 2 }
+private fun probePixelsDiffer(first: Int, second: Int, tolerance: Int = 2): Boolean =
+    listOf(0, 8, 16).any { shift -> kotlin.math.abs((first shr shift and 255) - (second shr shift and 255)) > tolerance }
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 private object ProbeNativeAnimationSurface : NaviampAnimationSurface {

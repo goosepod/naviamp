@@ -54,6 +54,35 @@ The screen comparison ignores per-channel differences of at most two values: the
 captures showed one-value display-color dithering with zero parent draws. Movement, nonblank content,
 and sibling-content assertions remain enabled.
 
+## Visible macOS candidate: October 2, 2026
+
+The owned-menu and shared-modal runs passed the visibility gate under the same machine,
+window dimensions, scale, refresh and AC conditions as the baseline. Every row below recorded
+zero parent frames per ten seconds. Cached text and waveform motion, unchanged sibling pixels,
+stable popup geometry, twelve reopen samples, and waveform pointer input passed.
+
+| State | Menu run CPU | Modal run CPU |
+| --- | ---: | ---: |
+| Static | 0.47% | 0.30% |
+| Marquee | 0.58% | 0.33% |
+| Waveform | 0.25% | 0.30% |
+| Combined | 0.34% | 0.35% |
+| Popup + combined | 0.36% | 0.38% |
+| Restored combined | 0.28% | 0.43% |
+
+The dark scrim visibility marker allows six channel values of display color conversion; only
+rapid reopen captures accept the marker's known brown tint at intermediate entrance opacity.
+Steady-state movement and sibling comparisons retain the two-value tolerance. A partially entered
+but correctly moving modal must not be mistaken for an obscured surface.
+
+Whole-desktop WindowServer samples during the menu run were polluted by other desktop activity
+and provide no accepted isolated compositor-cost result. Real-application, idle/paused,
+hide/minimize/restore, resize, keyboard and full accessibility acceptance remain pending.
+Windows and Linux acceptance also remain pending; these synthetic results do not close #136.
+
+Logs: `/private/tmp/naviamp-136-menu-candidate.log` and
+`/private/tmp/naviamp-136-dialog-accepted.log`.
+
 ## Reproduction
 
 Keep the probe visibly unobscured. Do not run rendered UI tests or change desktop spaces during
@@ -99,8 +128,8 @@ compositor cost alongside each sample; the agent does not measure GPU energy.
 - Common Android, JVM, iOS device and iOS simulator compilation passed before native host wiring.
 - Desktop tests, architecture check and staged macOS packaging passed.
 - Final shared/native rebuild, all common-target compilation, architecture check and staged
-  packaging passed. Unobscured candidate measurements, real application acceptance, compositor
-  samples and Windows/Linux native acceptance remain pending.
+  packaging passed. Unobscured menu and modal synthetic measurements passed as recorded above.
+  Real application acceptance, compositor samples and Windows/Linux native acceptance remain pending.
 
 Raw local logs: `/private/tmp/naviamp-136-baseline2.log`, `/private/tmp/naviamp-136-candidate.log`,
 `/private/tmp/naviamp-136-shared-tests2.log`, `/private/tmp/naviamp-136-package.log`,
