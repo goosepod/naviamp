@@ -10,12 +10,54 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPopupSurfaceTest {
+    @Test fun ownedMenuSupportsArrowFocusAndEscape() = runComposeUiTest {
+        var open by mutableStateOf(true)
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true) {
+                Box(Modifier.size(700.dp, 500.dp)) {
+                    NaviampDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                        repeat(3) { NaviampDropdownMenuItem("Action $it", onClick = {}) }
+                    }
+                }
+            }
+        }
+        onNodeWithText("Action 0").performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithText("Action 1").assertIsFocused().performKeyInput { pressKey(Key.Escape) }
+        onNodeWithText("Action 1").assertDoesNotExist()
+        assertFalse(open)
+    }
+
+    @Test fun ownedMenuPaintsItsLabelsAfterEntrance() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true) {
+                Box(Modifier.size(700.dp, 500.dp)) {
+                    NaviampDropdownMenu(expanded = true, onDismissRequest = {}) {
+                        NaviampDropdownMenuItem("Visible action", onClick = {})
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val pixels = onNodeWithText("Visible action").captureToImage().toPixelMap()
+        var visibleText = 0
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
+            val pixel = pixels[x, y]
+            if (pixel.alpha > .5f && pixel.red > .7f && pixel.green > .7f && pixel.blue > .7f) visibleText++
+        }
+        assertTrue(visibleText > 50, "The menu must paint readable labels, not only expose semantics")
+    }
+
     @Test fun ownedMenuKeepsBoundsAcrossHoverAndClosesOnRepeatedAnchorClick() = runComposeUiTest {
         setContent {
             CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true) {

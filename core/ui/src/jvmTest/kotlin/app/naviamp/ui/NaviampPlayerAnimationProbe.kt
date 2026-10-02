@@ -130,7 +130,8 @@ fun main() {
         if (integrated) NaviampDesktopRasterHost(window, content) else content()
         LaunchedEffect(Unit) {
             try {
-            delay(1_000)
+            // Allow the native test window to be raised onto the measured desktop space.
+            delay(if (verifyPixels) 15_000 else 1_000)
             if (verifyPixels) captureProbe(window, "warmup")
             val counters = probeLayers(window).map { layer ->
                 val count = AtomicLong()
@@ -151,7 +152,15 @@ fun main() {
                 if (event.id == java.awt.event.WindowEvent.WINDOW_CLOSED) closed.incrementAndGet()
             }
             java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(lifecycle, java.awt.AWTEvent.WINDOW_EVENT_MASK)
-            for (next in if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined") else if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined")) {
+            val phases = if (popupProbe && System.getenv("NAVIAMP_PROBE_POPUP_ONLY") == "true")
+                listOf("popup-combined", "restored-combined")
+            else if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined")
+            else if (hoverProbe) listOf("hover")
+            else if (tooltipProbe) listOf("static", "tooltip", "dismissed")
+            else listOf("static", "marquee", "waveform", "combined")
+            val cycles = System.getenv("NAVIAMP_PROBE_CYCLES")?.toIntOrNull()?.coerceIn(1, 5) ?: 1
+            for (cycle in 1..cycles) for (next in phases) {
+                println("ANIMATION_CYCLE $cycle phase=$next")
                 phase = next
                 if (popupProbe) popupVisible = next == "popup-combined"
                 if (tooltipProbe) popupVisible = next == "tooltip"
@@ -171,7 +180,8 @@ fun main() {
                 val positions = if (compositor) ProbeCompositor.positions(ProbeCompositor.handle).toList() else emptyList()
                 val dimmed = dialogProbe && popupVisible
                 val popupBounds = window.ownedWindows.filter { it.isShowing }.associateWith { it.bounds }
-                val beforePixels = if (verifyPixels) captureProbe(window, "$next-before", dimmed) else null
+                val beforePixels = if (verifyPixels) captureProbe(window, "cycle$cycle-$next-before", dimmed) else null
+                if (menuProbe && popupVisible && beforePixels != null) verifyMenuPaint(beforePixels.pixels)
                 val startCpu = cpu.processCpuTime
                 val start = System.nanoTime()
                 delay(if (hoverProbe) 30_000 else 10_000)
@@ -184,7 +194,8 @@ fun main() {
                 }
                 if (verifyPixels) {
                     check(popupBounds.all { (popup, bounds) -> popup.bounds == bounds }) { "Native popup geometry changed" }
-                    val afterCapture = captureProbe(window, "$next-after", dimmed)
+                    val afterCapture = captureProbe(window, "cycle$cycle-$next-after", dimmed)
+                    if (menuProbe && popupVisible) verifyMenuPaint(afterCapture.pixels)
                     val beforeCapture = requireNotNull(beforePixels)
                     val afterPixels = afterCapture.pixels
                     val before = beforeCapture.pixels
@@ -279,7 +290,6 @@ private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean 
     val image = java.awt.Robot(window.graphicsConfiguration.device)
         .createScreenCapture(java.awt.Rectangle(window.locationOnScreen, window.size))
     val directory = java.io.File("build/animation-probe").apply { mkdirs() }
-    javax.imageio.ImageIO.write(image, "png", java.io.File(directory, "$name.png"))
     val marker = if (dimmed) 0x302214 else 0x775533
     // Native translucent-window color conversion shifts this dark marker by several channel
     // values on macOS. This tolerance applies only to the visibility marker, never motion checks.
@@ -297,6 +307,7 @@ private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean 
     check(markerVisible) {
         "Probe is obscured by another window"
     }
+    javax.imageio.ImageIO.write(image, "png", java.io.File(directory, "$name.png"))
     return ProbeCapture(image, pointer)
 }
 
@@ -304,6 +315,21 @@ private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean 
 // Ignore that noise while still detecting actual content movement or sibling repaint artifacts.
 private fun probePixelsDiffer(first: Int, second: Int, tolerance: Int = 2): Boolean =
     listOf(0, 8, 16).any { shift -> kotlin.math.abs((first shr shift and 255) - (second shr shift and 255)) > tolerance }
+
+private fun verifyMenuPaint(image: java.awt.image.BufferedImage) {
+    var menuPixels = 0
+    var labelPixels = 0
+    for (y in 0 until image.height) for (x in 2 until image.width - 2) {
+        if (!probePixelsDiffer(image.getRGB(x, y), 0x292c36, 3)) menuPixels++
+        val pixel = image.getRGB(x, y)
+        if ((pixel and 255) > 180 && (pixel shr 8 and 255) > 180 && (pixel shr 16 and 255) > 180 &&
+            listOf(-2, 2).any { !probePixelsDiffer(image.getRGB(x + it, y), 0x292c36, 3) }) labelPixels++
+    }
+    check(menuPixels > 5_000 && labelPixels > 50) {
+        "Owned menu is blank or not visible on the physical display ($menuPixels surface, $labelPixels label pixels)"
+    }
+    println("ANIMATION_MENU surface=$menuPixels labels=$labelPixels")
+}
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 private object ProbeNativeAnimationSurface : NaviampAnimationSurface {

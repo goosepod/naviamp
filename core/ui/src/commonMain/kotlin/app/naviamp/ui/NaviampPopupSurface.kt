@@ -20,9 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalFocusManager
@@ -81,17 +83,17 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
     content: @Composable ColumnScope.() -> Unit) {
     val expandedState = remember { MutableTransitionState(false) }
     expandedState.targetState = expanded
+    var anchor by remember { mutableStateOf(IntRect.Zero) }
     if (!expandedState.currentState && !expandedState.targetState) return
-    val transition = updateTransition(expandedState, label = "Naviamp menu")
-    val alpha by transition.animateFloat(transitionSpec = { tween(120) }, label = "opacity") { if (it) 1f else 0f }
-    val scale by transition.animateFloat(transitionSpec = { tween(150) }, label = "scale") { if (it) 1f else .8f }
     val density = LocalDensity.current
     val pixelOffset = with(density) { IntOffset(offset.x.roundToPx(), offset.y.roundToPx()) }
     val margin = with(density) { 48.dp.roundToPx() }
-    val position = remember(pixelOffset, margin) { object : PopupPositionProvider {
+    val viewportPosition = remember { object : PopupPositionProvider {
         override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
-            layoutDirection: LayoutDirection, popupContentSize: IntSize) =
-            naviampMenuPosition(anchorBounds, windowSize, popupContentSize, layoutDirection, pixelOffset, margin)
+            layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
+            anchor = anchorBounds
+            return IntOffset.Zero
+        }
     } }
     val scroll = rememberScrollState()
     var moveFocus by remember { mutableStateOf<(FocusDirection) -> Boolean>({ false }) }
@@ -100,24 +102,44 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
             else when (event.key) {
                 Key.DirectionDown -> moveFocus(FocusDirection.Next)
                 Key.DirectionUp -> moveFocus(FocusDirection.Previous)
+                Key.Escape, Key.Back -> if (properties.dismissOnBackPress) {
+                    onDismissRequest()
+                    true
+                } else false
                 else -> false
             }
         }
-    Popup(popupPositionProvider = position, onDismissRequest = onDismissRequest, properties = properties) {
+    Popup(popupPositionProvider = viewportPosition, onDismissRequest = onDismissRequest, properties = properties) {
+        // Entrance motion belongs to the popup's frame clock, independently of cached parent drawing.
+        val transition = updateTransition(expandedState, label = "Naviamp menu")
+        val alpha by transition.animateFloat(transitionSpec = { tween(120) }, label = "opacity") { if (it) 1f else 0f }
+        val scale by transition.animateFloat(transitionSpec = { tween(150) }, label = "scale") { if (it) 1f else .8f }
         val focus = LocalFocusManager.current
         SideEffect { moveFocus = focus::moveFocus }
         NaviampPopupPresence()
-        Box(menuKeys.drawBehind {
-            val outset = 32.dp.toPx()
-            // Src clears the transparent popup backing and is recorded even at zero alpha.
-            // It is outside the entrance transform and reserves shadow/hover bounds immediately.
-            drawRect(Color.Transparent, Offset(-outset, -outset),
-                Size(size.width + outset * 2, size.height + outset * 2), blendMode = BlendMode.Src)
-        }) {
-            Surface(color = containerColor, shape = shape, shadowElevation = shadowElevation,
-                modifier = Modifier.graphicsLayer { this.alpha = alpha; scaleX = scale; scaleY = scale }) {
-                Column(modifier.padding(vertical = 8.dp).width(IntrinsicSize.Max).verticalScroll(scroll), content = content)
+        var menuBounds by remember { mutableStateOf(Rect.Zero) }
+        Layout(content = {
+            Box(Modifier.padding(32.dp)) {
+                Surface(color = containerColor, shape = shape, shadowElevation = shadowElevation,
+                    modifier = Modifier.onGloballyPositioned { menuBounds = it.boundsInWindow() }
+                        .graphicsLayer { this.alpha = alpha; scaleX = scale; scaleY = scale }) {
+                    Column(modifier.padding(vertical = 8.dp).width(IntrinsicSize.Max).verticalScroll(scroll), content = content)
+                }
             }
+        }, modifier = menuKeys.fillMaxSize().clipToBounds().drawBehind {
+            // Record the complete fixed viewport before transformed content. Native popup geometry
+            // must not resize and translate a cached graphics layer after its first picture.
+            drawRect(Color.Transparent, blendMode = BlendMode.Src)
+        }.pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
+            detectTapGestures { position ->
+                if (properties.dismissOnClickOutside && !menuBounds.contains(position)) onDismissRequest()
+            }
+        }) { measurables, constraints ->
+            val menu = measurables.single().measure(constraints.copy(minWidth = 0, minHeight = 0))
+            val windowSize = IntSize(constraints.maxWidth, constraints.maxHeight)
+            val position = naviampMenuPosition(anchor, windowSize, IntSize(menu.width, menu.height),
+                layoutDirection, pixelOffset, margin)
+            layout(windowSize.width, windowSize.height) { menu.place(position.x, position.y) }
         }
     }
 }

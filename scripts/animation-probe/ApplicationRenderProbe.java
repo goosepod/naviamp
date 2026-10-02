@@ -2,6 +2,8 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.EventQueue;
 import java.awt.Frame;
+import java.awt.Rectangle;
+import java.awt.Robot;
 import java.awt.Window;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.InvocationTargetException;
@@ -11,6 +13,7 @@ import java.nio.file.Path;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.imageio.ImageIO;
 
 /** Opt-in test agent: observes the actual packaged app; never creates UI or changes playback. */
 public final class ApplicationRenderProbe {
@@ -41,6 +44,7 @@ public final class ApplicationRenderProbe {
                     }
                     frames.values().forEach(counter -> counter.set(0));
                 });
+                boolean beforeVisible = capture(directory, phase + "-before");
                 long cpuBefore = cpu.getProcessCpuTime();
                 long started = System.nanoTime();
                 Thread.sleep(10_000);
@@ -51,8 +55,12 @@ public final class ApplicationRenderProbe {
                     Window window = javax.swing.SwingUtilities.getWindowAncestor(component);
                     result.append(" surface=").append(window instanceof Frame ? "parent" : "owned")
                         .append(':').append(component.getWidth()).append('x').append(component.getHeight())
-                        .append(" visible=").append(component.isShowing()).append(" frames=").append(counter.get());
+                        .append(" visible=").append(component.isShowing())
+                        .append(" iconified=").append(window instanceof Frame && (((Frame) window).getExtendedState() & Frame.ICONIFIED) != 0)
+                        .append(" frames=").append(counter.get());
                 }));
+                boolean afterVisible = capture(directory, phase + "-after");
+                result.append(" physical_captures=").append(beforeVisible).append('/').append(afterVisible);
                 Files.writeString(directory.resolve(phase + ".txt"), result + "\n");
                 System.out.println(result);
             }
@@ -61,8 +69,31 @@ public final class ApplicationRenderProbe {
         }
     }
 
+    /** Physical display capture verifies moving, unobscured content, including transparent popups. */
+    private static boolean capture(Path directory, String name) throws Exception {
+        Rectangle[] bounds = new Rectangle[1];
+        boolean[] active = new boolean[1];
+        EventQueue.invokeAndWait(() -> {
+            for (Window window : Window.getWindows()) {
+                if (window.isShowing() && !(window instanceof Frame && (((Frame) window).getExtendedState() & Frame.ICONIFIED) != 0)) {
+                    bounds[0] = bounds[0] == null ? window.getBounds() : bounds[0].union(window.getBounds());
+                    active[0] |= window.isActive();
+                }
+            }
+        });
+        // An inactive app can be on a different desktop space. Never save that desktop's content.
+        if (bounds[0] == null || !active[0]) return false;
+        ImageIO.write(new Robot().createScreenCapture(bounds[0]), "png",
+            directory.resolve(name + ".png").toFile());
+        return true;
+    }
+
     private static void attach(Component component) {
-        if (component.getClass().getName().equals("org.jetbrains.skiko.SkiaLayer") && !frames.containsKey(component)) {
+        boolean skiaLayer = false;
+        for (Class<?> type = component.getClass(); type != null; type = type.getSuperclass()) {
+            if (type.getName().equals("org.jetbrains.skiko.SkiaLayer")) skiaLayer = true;
+        }
+        if (skiaLayer && !frames.containsKey(component)) {
             try {
                 Class<?> type = component.getClass();
                 Class<?> api = Class.forName("org.jetbrains.skiko.SkikoRenderDelegate", true, type.getClassLoader());
