@@ -1695,10 +1695,8 @@ private fun NowPlayingProgressRow(
     timeWidth: Dp,
     onSeek: (Double) -> Unit,
 ) {
-    // Keep the rapidly changing playback value out of this layout's composition scope. The
-    // position label observes it in its own small scope, while the waveform observes it during
-    // drawing. That prevents the invisible Material slider and the entire row from being
-    // recomposed once per second during playback.
+    // Layout tracks structure and active scrubbing. Shared cached rendering and live semantics
+    // consume playback ticks without recomposing or repainting this row.
     val progressState = playbackProgress?.collectAsState()
     val durationSeconds = remember(nowPlaying.id, nowPlaying.durationSeconds) {
         nowPlaying.durationSeconds ?: playbackProgress?.value?.durationSeconds
@@ -1819,17 +1817,16 @@ internal fun WaveformScrubber(
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
     var focused by remember { mutableStateOf(false) }
-    val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
             .onPreviewKeyEvent { event ->
                 if (!enabled || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                val horizontalStep = if (direction == androidx.compose.ui.unit.LayoutDirection.Rtl) -.01f else .01f
+                // This waveform's visual and pointer timeline runs left to right in every locale.
                 val target = when (event.key) {
-                    Key.DirectionLeft -> drawValue() - horizontalStep
-                    Key.DirectionRight -> drawValue() + horizontalStep
+                    Key.DirectionLeft -> drawValue() - .01f
+                    Key.DirectionRight -> drawValue() + .01f
                     Key.DirectionDown -> drawValue() - .01f
                     Key.DirectionUp -> drawValue() + .01f
                     Key.MoveHome -> 0f

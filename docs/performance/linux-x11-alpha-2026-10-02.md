@@ -352,7 +352,7 @@ actual native behavior. Accessibility-active timing must remain separate from or
 ### Automated validation and platform audit
 
 The complete shared JVM UI suite passed 460 tests during development. The final production tree
-passed 40 focused raster/layout/player tests with zero failures or skips, Android/shared metadata
+passed 41 focused raster/layout/player tests with zero failures or skips, Android/shared metadata
 compilation, `verifyCoreFirstArchitecture`, native CTest geometry timing, and Linux app-image
 validation. Common tests cover live semantics and pixels, cached native updates without parent
 redraws, deferred native commits, large-font wrapping, keyboard seeking and clamping, popup
@@ -417,3 +417,14 @@ retains its own artifact hashes and screenshot pair. It verifies moving metadata
 unchanged artwork; the raw result records CPU and parent frames. This integration smoke check
 does not replace the earlier repeated matrix or resolve its failed acceptance samples. Require
 the complete cross-platform matrix for the final merged PR head.
+
+
+## Final keyboard direction check
+
+The waveform's visual and pointer timeline remains left to right in RTL layouts. A final shared
+input review corrected horizontal keyboard arrows to follow that existing timeline. A common
+RTL regression performs a real quarter-width pointer seek, then verifies Right advances and
+Left reverses that position. All 41 focused tests and common/Android compilation pass. This
+input-only correction does not change raster pixels, animation pacing, cache lifetime, or the
+conditions/results of the preceding performance measurements. Its final commit still requires
+the complete CI matrix.

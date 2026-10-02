@@ -34,6 +34,25 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun rtlWaveformKeyboardMatchesItsVisualAndPointerTimeline() = runComposeUiTest {
+        val progress = mutableFloatStateOf(.2f)
+        setContent {
+            CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                WaveformScrubber(List(64) { .7f }, .2f, drawValue = { progress.floatValue }, enabled = true,
+                    colors = NaviampColors(), onValueChange = { progress.floatValue = it }, onValueChangeFinished = {},
+                    modifier = Modifier.width(200.dp).height(30.dp).testTag("progress"))
+            }
+        }
+        val node = onNodeWithTag("progress")
+        node.performTouchInput { click(Offset(width * .25f, center.y)) }
+        runOnIdle { assertEquals(.25f, progress.floatValue, .0001f) }
+        node.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        node.performKeyInput { pressKey(Key.DirectionRight) }
+        runOnIdle { assertEquals(.26f, progress.floatValue, .0001f) }
+        node.performKeyInput { pressKey(Key.DirectionLeft) }
+        runOnIdle { assertEquals(.25f, progress.floatValue, .0001f) }
+    }
+
     @Test fun popupTransitionsRetainCachedPixelsWithoutRerasterizingUnchangedContent() = runComposeUiTest {
         val presenter = RecordingPresenter(contentBelowOwnedWindows = true)
         val popup = mutableStateOf(false)
