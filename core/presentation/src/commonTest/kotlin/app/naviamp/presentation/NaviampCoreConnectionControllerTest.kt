@@ -20,11 +20,14 @@ import kotlinx.coroutines.test.runCurrent
 class NaviampCoreConnectionControllerTest {
     @Test fun accountHandoffKeepsBothSavedAccountsAndUsesStoredCredentials() = kotlinx.coroutines.test.runTest {
         val changes = mutableListOf<Pair<String?, String>>()
+        val homeRequests = mutableListOf<String>()
         val fixture = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2")),
+            onUserConnected = { homeRequests += it },
             onSourceChanging = { previous, next -> changes += previous to next })
         fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
         fixture.port.connectRequests.clear()
         changes.clear()
+        homeRequests.clear()
         fixture.controller.dispatch(NaviampCoreCommand.Connection.OpenAccounts)
 
         fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi().copy(id = "source-2")))
@@ -37,15 +40,19 @@ class NaviampCoreConnectionControllerTest {
         assertFalse(fixture.port.connectRequests.single().second.clearProviderData)
         assertFalse(settings.accountSwitcher.visible)
         assertFalse(settings.accountSwitcher.connecting)
+        assertEquals(listOf("source-2"), homeRequests)
     }
 
     @Test fun rejectedOrUnavailableAccountsLeaveTheCurrentSessionUsable() = kotlinx.coroutines.test.runTest {
         for (failure in listOf(IllegalStateException("expired credential"), IllegalStateException("connection refused"))) {
             var resets = 0
             var offlineRestores = 0
+            var homeRequests = 0
             val fixture = fixture(savedRecords = listOf(savedRecord(), savedRecord(id = "source-2")),
+                onUserConnected = { homeRequests++ },
                 onSourceChanging = { _, _ -> resets++ }, onOfflineRestored = { offlineRestores++ })
             fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+            homeRequests = 0
             val before = fixture.store.state.value.shell.connectionSettings
             fixture.port.connectFailure = failure
             fixture.controller.dispatch(NaviampCoreCommand.Connection.OpenAccounts)
@@ -62,6 +69,7 @@ class NaviampCoreConnectionControllerTest {
             assertTrue(after.accountSwitcher.visible)
             assertEquals(0, resets)
             assertEquals(0, offlineRestores)
+            assertEquals(0, homeRequests)
         }
     }
 
@@ -95,18 +103,22 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test fun choosingTheCurrentAccountIsIdempotentAndMissingAccountsAreRejected() = kotlinx.coroutines.test.runTest {
-        val fixture = fixture()
+        val homeRequests = mutableListOf<String>()
+        val fixture = fixture(onUserConnected = { homeRequests += it })
         fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
         fixture.port.connectRequests.clear()
+        homeRequests.clear()
         fixture.controller.dispatch(NaviampCoreCommand.Connection.OpenAccounts)
         fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi()))
         assertTrue(fixture.port.connectRequests.isEmpty())
         assertFalse(fixture.store.state.value.shell.connectionSettings.accountSwitcher.visible)
+        assertEquals(listOf("source-1"), homeRequests)
         fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi().copy(id = "missing")))
         assertTrue(fixture.port.connectRequests.isEmpty())
         assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
         assertEquals(NaviampAccountSwitcherError.ConnectionFailed,
             fixture.store.state.value.shell.connectionSettings.accountSwitcher.error)
+        assertEquals(listOf("source-1"), homeRequests)
     }
 
     @Test fun failedAccountAdditionKeepsTheExistingSessionAndEditableForm() = kotlinx.coroutines.test.runTest {

@@ -57,3 +57,17 @@ that prerequisite for local acceptance; merge #200 first.
 Raw local logs: `/private/tmp/naviamp-53-real-app4.log`,
 `/private/tmp/naviamp-53-persistent-acceptance.log`, `/private/tmp/naviamp-53-reopen.log`,
 `/private/tmp/naviamp-53-final-shared.log`, `/private/tmp/naviamp-53-final-tv-ui.log`.
+
+## Emulator feedback update
+
+The navigation button now uses the shared person-in-circle vector instead of the account initial.
+Choosing the current account now invokes the same Home-navigation action as a successful change
+to another account, without reconnecting. Failed or unavailable selections do not navigate.
+
+All 457 shared UI and 430 presentation JVM tests passed, including navigation notifications for
+current/different accounts and no navigation on failure. Android/JVM and iOS device/simulator
+compilation, Android APK packaging and Core-first architecture verification passed. The updated
+APK was installed in place on emulator-5556 and reopened, preserving saved accounts. All changed
+production files are common Core files; no native host production file changed.
+
+Log: `/private/tmp/naviamp-53-feedback-build.log`.

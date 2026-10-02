@@ -185,8 +185,10 @@ class NaviampCoreConnectionController(
                     inventory.connections.none { it.id == id } -> updateAccounts {
                         it.copy(visible = true, error = NaviampAccountSwitcherError.ConnectionFailed)
                     }
-                    id == inventory.currentSourceId && connection.state.value.connected ->
+                    id == inventory.currentSourceId && connection.state.value.connected -> {
+                        onUserConnected(id)
                         updateAccounts { NaviampAccountSwitcherUi() }
+                    }
                     else -> connectAccount(NaviampCoreConnectionRequest.Saved(id))
                 }
             }

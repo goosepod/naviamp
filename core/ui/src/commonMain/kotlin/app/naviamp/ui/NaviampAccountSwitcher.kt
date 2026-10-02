@@ -174,7 +174,7 @@ internal fun NaviampAccountNavigationButton(account: NaviampSavedConnectionUi?, 
         .onFocusChanged { focused = it.isFocused }
         .background(if (focused) colors.primaryText else colors.controlSurface, CircleShape)
         .semantics { contentDescription = description }) {
-        Text(name.take(1).uppercase(), color = if (focused) colors.background else colors.primaryText,
-            fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Icon(NaviampIcons.AccountCircle, contentDescription = null,
+            tint = if (focused) colors.background else colors.primaryText, modifier = Modifier.size(28.dp))
     }
 }
