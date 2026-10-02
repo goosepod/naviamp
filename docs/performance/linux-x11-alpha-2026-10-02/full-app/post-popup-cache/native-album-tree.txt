@@ -80,4 +80,3 @@ OWNED name=naviamp-raster-overlay focusable=false
 OWNED name=naviamp-raster-overlay focusable=false
 OWNED name=naviamp-raster-overlay focusable=false
 OWNED name=naviamp-raster-overlay focusable=false
-
