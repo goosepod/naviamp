@@ -93,6 +93,6 @@ class AndroidTvAccountSwitcherAcceptanceTest {
         waitFor { core.state.value.shell.library.songs.tracks.any { it.title.startsWith("alice:") } }
         assertTrue(core.state.value.shell.library.songs.tracks.all { it.title.startsWith("alice:") })
         assertFalse(core.state.value.shell.connectionSettings.accountSwitcher.visible)
-        waitFor { focused(onNodeWithContentDescription("Accounts: alice")) }
+        waitFor { focused(onNodeWithText("Home")) }
     }
 }

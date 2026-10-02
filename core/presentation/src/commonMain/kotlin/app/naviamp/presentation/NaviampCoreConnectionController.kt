@@ -187,7 +187,7 @@ class NaviampCoreConnectionController(
                     }
                     id == inventory.currentSourceId && connection.state.value.connected -> {
                         onUserConnected(id)
-                        updateAccounts { NaviampAccountSwitcherUi() }
+                        completeAccountSelection()
                     }
                     else -> connectAccount(NaviampCoreConnectionRequest.Saved(id))
                 }
@@ -304,6 +304,12 @@ class NaviampCoreConnectionController(
             accountSwitcher = transform(shell.connectionSettings.accountSwitcher))) }
     }
 
+    private fun completeAccountSelection() {
+        stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+            accountSwitcher = NaviampAccountSwitcherUi(),
+            accountSelectionGeneration = shell.connectionSettings.accountSelectionGeneration + 1L)) }
+    }
+
     /** A saved-account handoff is validated before clearing any of the current account's state. */
     private suspend fun connectAccount(request: NaviampCoreConnectionRequest) {
         if (connection.state.value.isConnecting) return
@@ -314,7 +320,7 @@ class NaviampCoreConnectionController(
             switchingConnectionId = (request as? NaviampCoreConnectionRequest.Saved)?.id, error = null) }
         try {
             val succeeded = connect(request, preserveExistingSession = true)
-            updateAccounts { if (succeeded) NaviampAccountSwitcherUi() else it.copy(
+            if (succeeded) completeAccountSelection() else updateAccounts { it.copy(
                 visible = !adding, connecting = false, switchingConnectionId = null,
                 error = NaviampAccountSwitcherError.ConnectionFailed) }
         } finally {

@@ -111,14 +111,23 @@ fun NaviampTelevisionAppShell(
     val accountFocusRequester = remember { FocusRequester() }
     var restoreAccountFocus by remember { mutableStateOf(false) }
     var accountChooserWasOpen by remember { mutableStateOf(false) }
+    val accountSelectionGeneration = uiState.connectionSettings.accountSelectionGeneration
+    var observedAccountSelection by remember { mutableStateOf(accountSelectionGeneration) }
     val accountSwitcher = uiState.connectionSettings.accountSwitcher
-    LaunchedEffect(accountSwitcher.visible, accountSwitcher.addingAccount, connection.connected) {
+    LaunchedEffect(accountSwitcher.visible, accountSwitcher.addingAccount, connection.connected, accountSelectionGeneration) {
         if (accountChooserWasOpen && !accountSwitcher.visible && !accountSwitcher.addingAccount && connection.connected) {
-            restoreAccountFocus = true
-            withFrameNanos { }
-            accountFocusRequester.requestFocus()
-            restoreAccountFocus = false
+            if (observedAccountSelection != accountSelectionGeneration) {
+                nowPlayingPreview = false
+                withFrameNanos { }
+                navigationFocusRequesters.getValue(NaviampTelevisionDestination.Home).requestFocus()
+            } else {
+                restoreAccountFocus = true
+                withFrameNanos { }
+                accountFocusRequester.requestFocus()
+                restoreAccountFocus = false
+            }
         }
+        observedAccountSelection = accountSelectionGeneration
         accountChooserWasOpen = accountSwitcher.visible || accountSwitcher.addingAccount
     }
     var navigationFocused by remember { mutableStateOf(false) }

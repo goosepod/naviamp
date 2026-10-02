@@ -1304,6 +1304,7 @@ data class NaviampConnectionSettingsUi(
     val capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     val currentSourceId: String? = null,
     val accountSwitcher: NaviampAccountSwitcherUi = NaviampAccountSwitcherUi(),
+    val accountSelectionGeneration: Long = 0L,
 )
 
 enum class NaviampAccountSwitcherError { ConnectionFailed }

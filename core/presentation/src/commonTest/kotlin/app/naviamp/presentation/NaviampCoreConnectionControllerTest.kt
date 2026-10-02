@@ -41,6 +41,7 @@ class NaviampCoreConnectionControllerTest {
         assertFalse(settings.accountSwitcher.visible)
         assertFalse(settings.accountSwitcher.connecting)
         assertEquals(listOf("source-2"), homeRequests)
+        assertEquals(1L, settings.accountSelectionGeneration)
     }
 
     @Test fun rejectedOrUnavailableAccountsLeaveTheCurrentSessionUsable() = kotlinx.coroutines.test.runTest {
@@ -70,6 +71,7 @@ class NaviampCoreConnectionControllerTest {
             assertEquals(0, resets)
             assertEquals(0, offlineRestores)
             assertEquals(0, homeRequests)
+            assertEquals(0L, after.accountSelectionGeneration)
         }
     }
 
@@ -100,6 +102,7 @@ class NaviampCoreConnectionControllerTest {
         assertFalse(after.accountSwitcher.visible)
         assertFalse(after.accountSwitcher.connecting)
         assertEquals("source-1", fixture.port.inventory.currentSourceId)
+        assertEquals(0L, after.accountSelectionGeneration)
     }
 
     @Test fun choosingTheCurrentAccountIsIdempotentAndMissingAccountsAreRejected() = kotlinx.coroutines.test.runTest {
@@ -113,6 +116,7 @@ class NaviampCoreConnectionControllerTest {
         assertTrue(fixture.port.connectRequests.isEmpty())
         assertFalse(fixture.store.state.value.shell.connectionSettings.accountSwitcher.visible)
         assertEquals(listOf("source-1"), homeRequests)
+        assertEquals(1L, fixture.store.state.value.shell.connectionSettings.accountSelectionGeneration)
         fixture.controller.execute(NaviampCoreCommand.Connection.SwitchAccount(savedConnectionUi().copy(id = "missing")))
         assertTrue(fixture.port.connectRequests.isEmpty())
         assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)

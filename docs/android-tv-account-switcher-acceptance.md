@@ -22,7 +22,7 @@ The real application runtime, SQLDelight, Android Keystore and shared TV shell p
 - Navigate to Accounts using directional keys, open the chooser and identify Bob as current.
 - Reject Alice's credentials; preserve Bob's session, catalog and both stored accounts, show an
   error and return focus to Alice for retry.
-- Allow Alice, retry using the remote, load Alice's catalog and restore profile-button focus.
+- Allow Alice, retry using the remote, load Alice's catalog and focus Home in the top navigation.
 - Stop the process and reopen: restore Alice from secure storage, with Bob still configured.
 
 Commands (with `ANDROID_HOME` set and `ANDROID_SERIAL` selecting the disposable AVD):
@@ -71,3 +71,17 @@ APK was installed in place on emulator-5556 and reopened, preserving saved accou
 production files are common Core files; no native host production file changed.
 
 Log: `/private/tmp/naviamp-53-feedback-build.log`.
+
+## Home focus after selection
+
+Successful selection publishes a shared transient selection generation, including choosing the
+current account. The TV shell focuses Home after closing the chooser; cancellation restores
+Accounts focus, and failed switches remain in the chooser. This signal is UI state, not a setting
+or persisted value. A rendered shared-shell regression passed both selection and cancellation
+focus outcomes. Full shared UI/presentation suites, Android/JVM and iOS device/simulator compilation,
+Android packaging and architecture verification passed. The TV APK was updated in place.
+
+Logs: `/private/tmp/naviamp-53-home-focus-build.log` and
+`/private/tmp/naviamp-53-home-focus-rendered.log`. No platform production file changed. The native
+TV acceptance test now expects Home focus; its destructive fixture setup was not rerun against
+the user's configured emulator.
