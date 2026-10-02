@@ -13,6 +13,9 @@ import app.naviamp.domain.source.connectionFailureAllowsOfflineRestoration
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibrarySourcePickerUi
 import app.naviamp.ui.NaviampLibrarySourcePickerError
+import app.naviamp.ui.NaviampAccountSwitcherUi
+import app.naviamp.ui.NaviampAccountSwitcherError
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -50,6 +53,7 @@ class NaviampCoreConnectionController(
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
     private var librarySourceConnection: NaviampCoreEditableConnection? = null
+    private var accountAttempt: Job? = null
 
     init {
         publishConnection()
@@ -62,6 +66,10 @@ class NaviampCoreConnectionController(
     }
 
     suspend fun resetAfterDatabaseClear() {
+        accountAttempt?.cancel()
+        accountAttempt?.join()
+        accountAttempt = null
+        updateAccounts { NaviampAccountSwitcherUi() }
         sessionPort.clearActiveSession()
         inventory = NaviampCoreConnectionInventory()
         editingConnectionId = null
@@ -126,12 +134,31 @@ class NaviampCoreConnectionController(
         when (command) {
             is NaviampCoreCommand.Connection.ChangeForm -> updateForm(command.form)
             NaviampCoreCommand.Connection.New -> openNewForm()
-            NaviampCoreCommand.Connection.CancelForm -> setEditing(false)
+            NaviampCoreCommand.Connection.CancelForm -> {
+                val adding = accountSwitcher().addingAccount
+                accountAttempt?.cancel()
+                setEditing(false)
+                if (adding) updateAccounts { NaviampAccountSwitcherUi(visible = true) }
+            }
+            NaviampCoreCommand.Connection.OpenAccounts -> updateAccounts {
+                it.copy(visible = true, addingAccount = false, error = null)
+            }
+            NaviampCoreCommand.Connection.CloseAccounts -> {
+                accountAttempt?.cancel()
+                updateAccounts { it.copy(visible = false, error = null) }
+            }
+            NaviampCoreCommand.Connection.AddAccount -> {
+                if (!connection.state.value.isConnecting) {
+                    updateAccounts { NaviampAccountSwitcherUi(addingAccount = true) }
+                    openNewForm()
+                }
+            }
             NaviampCoreCommand.Connection.Connect,
             NaviampCoreCommand.Connection.EditCurrent,
             is NaviampCoreCommand.Connection.Edit,
             is NaviampCoreCommand.Connection.Delete,
             is NaviampCoreCommand.Connection.ConnectSaved,
+            is NaviampCoreCommand.Connection.SwitchAccount,
             -> return NaviampCoreImmediateCommandResult.Deferred
             is NaviampCoreCommand.Library.ToggleSource -> toggleLibrarySource(command.id)
             NaviampCoreCommand.Library.CancelSources -> closeLibrarySources()
@@ -146,12 +173,23 @@ class NaviampCoreConnectionController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
-            NaviampCoreCommand.Connection.Connect -> connect(
-                NaviampCoreConnectionRequest.Form(
-                    stateStore.state.value.shell.connectionSettings.connection.form,
-                    editingConnectionId,
-                ),
-            )
+            NaviampCoreCommand.Connection.Connect -> {
+                val request = NaviampCoreConnectionRequest.Form(
+                    stateStore.state.value.shell.connectionSettings.connection.form, editingConnectionId)
+                if (accountSwitcher().addingAccount) connectAccount(request) else connect(request)
+            }
+            is NaviampCoreCommand.Connection.SwitchAccount -> {
+                val id = command.connection.id
+                when {
+                    connection.state.value.isConnecting -> Unit
+                    inventory.connections.none { it.id == id } -> updateAccounts {
+                        it.copy(visible = true, error = NaviampAccountSwitcherError.ConnectionFailed)
+                    }
+                    id == inventory.currentSourceId && connection.state.value.connected ->
+                        updateAccounts { NaviampAccountSwitcherUi() }
+                    else -> connectAccount(NaviampCoreConnectionRequest.Saved(id))
+                }
+            }
             is NaviampCoreCommand.Connection.ConnectSaved ->
                 connect(NaviampCoreConnectionRequest.Saved(command.connection.id))
             NaviampCoreCommand.Connection.EditCurrent -> {
@@ -192,7 +230,10 @@ class NaviampCoreConnectionController(
         }
         val previousStatus = stateStore.state.value.shell.connectionSettings.connection.status
         val previousConnection = connection.state.value
-        val plan = connection.begin(restoreSavedSession = preserveExistingSession || request is NaviampCoreConnectionRequest.Saved)
+        val plan = connection.begin(
+            restoreSavedSession = preserveExistingSession || request is NaviampCoreConnectionRequest.Saved,
+            preserveExistingConnection = preserveExistingSession,
+        )
             ?: return false
         val previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         publishConnection()
@@ -252,6 +293,34 @@ class NaviampCoreConnectionController(
                 }
             }
         return connected
+    }
+
+    private fun accountSwitcher() = stateStore.state.value.shell.connectionSettings.accountSwitcher
+
+    private fun updateAccounts(transform: (NaviampAccountSwitcherUi) -> NaviampAccountSwitcherUi) {
+        stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+            accountSwitcher = transform(shell.connectionSettings.accountSwitcher))) }
+    }
+
+    /** A saved-account handoff is validated before clearing any of the current account's state. */
+    private suspend fun connectAccount(request: NaviampCoreConnectionRequest) {
+        if (connection.state.value.isConnecting) return
+        val job = currentCoroutineContext()[Job]
+        accountAttempt = job
+        val adding = accountSwitcher().addingAccount
+        updateAccounts { it.copy(connecting = true,
+            switchingConnectionId = (request as? NaviampCoreConnectionRequest.Saved)?.id, error = null) }
+        try {
+            val succeeded = connect(request, preserveExistingSession = true)
+            updateAccounts { if (succeeded) NaviampAccountSwitcherUi() else it.copy(
+                visible = !adding, connecting = false, switchingConnectionId = null,
+                error = NaviampAccountSwitcherError.ConnectionFailed) }
+        } finally {
+            if (accountAttempt === job) {
+                accountAttempt = null
+                updateAccounts { it.copy(connecting = false, switchingConnectionId = null) }
+            }
+        }
     }
 
     private suspend fun openLibrarySources() {

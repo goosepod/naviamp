@@ -145,6 +145,8 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(kotlin("test"))
     androidTestImplementation(libs.ktor.client.core)
+    androidTestImplementation("org.jetbrains.compose.ui:ui-test:$composeVersion")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
 tasks.register("verifyDebugBassNativePackage") {
