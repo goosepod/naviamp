@@ -341,6 +341,9 @@ jobs:
       - name: Verify Linux packaged runtime and native resources
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.bass.platform=linux-x64 :apps:desktop:verifyDesktopDistributable
 
+      - name: Verify X11 integer geometry timing
+        run: ctest --test-dir platforms/desktop/build/generated/DesktopRasterX11Build/linux-x64 --output-on-failure
+
       - name: Measure isolated Linux animation surfaces
         run: |
           mkdir -p build

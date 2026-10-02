@@ -18,7 +18,7 @@ import kotlin.time.TimeSource
 
 @Composable
 internal fun NaviampRasterWaveform(
-    value: Float, smooth: Boolean, durationSeconds: Double?, identity: String?,
+    value: () -> Float, smooth: Boolean, durationSeconds: Double?, identity: String?,
     drawingKey: Any, draw: DrawScope.(Float) -> Unit,
 ) {
     var viewport by remember { mutableStateOf(IntSize.Zero) }
@@ -35,15 +35,16 @@ internal fun NaviampRasterWaveform(
     }
     val clock = remember(identity) { TimeSource.Monotonic.markNow() }
     val prediction = remember(identity) { NaviampProgressPrediction() }
-    val layers = remember(images, value, smooth, durationSeconds, identity) {
+    val currentValue by rememberUpdatedState(value)
+    val content = remember(images, smooth, durationSeconds, identity) { NaviampRasterContent(value = { currentValue() }, render = { value ->
         val start = prediction.update(value, smooth, durationSeconds, clock.elapsedNow().inWholeMilliseconds)
         val motion = if (smooth) progressLayerMotion(start, durationSeconds) else null
         if (images.isEmpty()) emptyList() else listOf(
             NaviampRasterLayer(images[0], reveal = start, revealMotion = motion, clipFromStart = true),
             NaviampRasterLayer(images[1], reveal = start, revealMotion = motion),
         )
-    }
+    }) }
     Box(Modifier.fillMaxSize().onSizeChanged { viewport = it }) {
-        NaviampAnimatedRaster(layers, Modifier.fillMaxSize(), with(density) { 4.dp.toPx() })
+        NaviampAnimatedRaster(content, Modifier.fillMaxSize(), with(density) { 4.dp.toPx() })
     }
 }

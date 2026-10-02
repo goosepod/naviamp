@@ -76,6 +76,13 @@ fun main() {
     ) {
         val marquee = phase == "marquee" || phase.endsWith("combined")
         val smooth = phase == "waveform" || phase.endsWith("combined")
+        val playbackValue = remember { mutableFloatStateOf(.2f) }
+        LaunchedEffect(smooth) {
+            if (smooth) while (true) {
+                delay(1_000)
+                playbackValue.floatValue += 1f / 300f
+            }
+        }
         val content: @Composable () -> Unit = {
         Row(Modifier.fillMaxSize().background(Color(0xff24242b)).padding(24.dp)) {
             if (compositor) ProbeCompositorSurface(marquee, smooth, Modifier.width(280.dp).fillMaxHeight())
@@ -95,7 +102,7 @@ fun main() {
                 }
                 WaveformScrubber(
                     amplitudes = List(512) { ((it * 17) % 101) / 100f },
-                    value = 0.2f, enabled = true, smoothProgress = smooth,
+                    value = 0.2f, drawValue = { playbackValue.floatValue }, enabled = true, smoothProgress = smooth,
                     durationSeconds = 300.0, colors = NaviampColors(),
                     onValueChange = { waveformInputEvents++ }, onValueChangeFinished = {},
                     modifier = Modifier.fillMaxWidth().height(32.dp).then(if (verifyPixels) probePattern() else Modifier).onGloballyPositioned { coordinates ->

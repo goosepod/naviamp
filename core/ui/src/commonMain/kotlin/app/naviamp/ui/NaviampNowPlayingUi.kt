@@ -66,6 +66,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -101,6 +108,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
@@ -1763,21 +1771,17 @@ private fun NowPlayingProgressRow(
 }
 
 @Composable
-private fun NowPlayingPositionLabel(
+internal fun NowPlayingPositionLabel(
     nowPlaying: NowPlayingUi,
     progressState: State<PlaybackProgress>?,
     colors: NaviampColors,
     fontSize: TextUnit,
     width: Dp,
 ) {
-    val positionSeconds = progressState?.value?.positionSeconds ?: nowPlaying.positionSeconds
-    Text(
-        if (nowPlaying.isLive) "LIVE" else secondsLabel(positionSeconds),
-        color = colors.primaryText,
-        fontSize = fontSize,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.width(width),
-    )
+    NaviampRasterValueText(text = {
+        val positionSeconds = progressState?.value?.positionSeconds ?: nowPlaying.positionSeconds
+        AnnotatedString(if (nowPlaying.isLive) "LIVE" else secondsLabel(positionSeconds))
+    }, style = TextStyle(color = colors.primaryText, fontSize = fontSize, textAlign = TextAlign.Center), width = width)
 }
 
 @Composable
@@ -1814,14 +1818,35 @@ internal fun WaveformScrubber(
     val playedColor = waveformPlayedColor(colors, enabled)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
-    val targetDrawValue = drawValue().coerceIn(0f, 1f)
+    var focused by remember { mutableStateOf(false) }
+    val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
-            .semantics {
+            .onPreviewKeyEvent { event ->
+                if (!enabled || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val horizontalStep = if (direction == androidx.compose.ui.unit.LayoutDirection.Rtl) -.01f else .01f
+                val target = when (event.key) {
+                    Key.DirectionLeft -> drawValue() - horizontalStep
+                    Key.DirectionRight -> drawValue() + horizontalStep
+                    Key.DirectionDown -> drawValue() - .01f
+                    Key.DirectionUp -> drawValue() + .01f
+                    Key.MoveHome -> 0f
+                    Key.MoveEnd -> 1f
+                    Key.PageDown -> drawValue() - .1f
+                    Key.PageUp -> drawValue() + .1f
+                    else -> return@onPreviewKeyEvent false
+                }.coerceIn(0f, 1f)
+                currentOnValueChange(target)
+                currentOnValueChangeFinished(target)
+                true
+            }
+            .onFocusChanged { focused = it.isFocused }
+            .focusable(enabled)
+            .naviampLiveSemantics({ drawValue().coerceIn(0f, 1f) }) { progress ->
                 progressBarRangeInfo = ProgressBarRangeInfo(
-                    current = drawValue().coerceIn(0f, 1f),
+                    current = progress,
                     range = 0f..1f,
                 )
                 if (enabled) {
@@ -1859,9 +1884,11 @@ internal fun WaveformScrubber(
                 }
             },
     ) {
-        NaviampRasterWaveform(targetDrawValue, smoothProgress, durationSeconds, progressIdentity,
-            listOf(displayAmplitudes, enabled, colors, continuousWaveform)) { progress ->
+        NaviampRasterWaveform({ drawValue().coerceIn(0f, 1f) }, smoothProgress, durationSeconds, progressIdentity,
+            listOf(displayAmplitudes, enabled, colors, continuousWaveform, focused)) { progress ->
             drawWaveformScrubberContent(displayAmplitudes, progress, enabled, colors, continuousWaveform, playedColor)
+            if (focused) drawRoundRect(colors.primaryText, cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
         }
     }
 }

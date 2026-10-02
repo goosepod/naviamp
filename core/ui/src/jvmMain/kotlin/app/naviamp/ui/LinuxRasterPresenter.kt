@@ -91,8 +91,12 @@ internal class LinuxRasterPresenter(private val window: Window) : NaviampRasterP
                     scalars.map { it.motion?.repeat == true }.toBooleanArray(),
                     restart,
                 )
-                surface.isVisible = true
-                LinuxRasterNative.restack(handle, window)
+                // Window.show() raises an already-visible AWT window. Pixel updates neither
+                // need another show nor change stacking; reposition() has already restacked it.
+                if (!surface.isVisible) {
+                    surface.isVisible = true
+                    LinuxRasterNative.restack(handle, window)
+                }
                 cachedImages = images
                 currentLayers = layers
                 true

@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <thread>
 #include <vector>
+#include "naviamp_x11_geometry_timing.hpp"
 
 // X11 presentation only: Core supplies pixels, scalar timelines, clipping, and visibility.
 // Cached child-window pixmaps move or reveal without repainting the Compose parent surface.
@@ -47,31 +48,9 @@ struct ShapeApi {
     ~ShapeApi() { if (library) dlclose(library); }
 };
 
-struct Motion {
-    double value = 0.0;
-    std::vector<double> values;
-    std::vector<double> times;
-    bool repeat = false;
-
-    double at(double elapsedMillis) const {
-        if (values.empty()) return value;
-        const double duration = times.back();
-        double time = std::max(0.0, elapsedMillis);
-        if (repeat && duration > 0.0) time = std::fmod(time, duration);
-        else time = std::min(time, duration);
-        const auto end = std::lower_bound(times.begin(), times.end(), time);
-        if (end == times.begin()) return values.front();
-        if (end == times.end()) return values.back();
-        const size_t index = static_cast<size_t>(end - times.begin());
-        const double span = times[index] - times[index - 1];
-        const double fraction = span > 0.0 ? (time - times[index - 1]) / span : 0.0;
-        return values[index - 1] + (values[index] - values[index - 1]) * fraction;
-    }
-
-    bool active(double elapsedMillis) const {
-        return !values.empty() && (repeat || elapsedMillis < times.back());
-    }
-};
+using naviamp::x11::Motion;
+using naviamp::x11::untilIntegerChange;
+using naviamp::x11::untilVisibilityChange;
 
 // X11 geometry is integral. Cache only native operations; Core's timelines still run
 // unchanged, including fractional positions that have not crossed the next pixel yet.
@@ -252,7 +231,8 @@ struct X11RasterRegion {
         XClearWindow(display, layer.pixels);
     }
 
-    bool configure(double elapsedMillis) {
+    bool configure(double elapsedMillis, double& nextIntegerChange) {
+        nextIntegerChange = std::numeric_limits<double>::infinity();
         const int outerWidth = std::max(1, static_cast<int>(std::lround(clipWidth)));
         const int outerHeight = std::max(1, static_cast<int>(std::lround(clipHeight)));
         const int contentWidth = std::max(1, static_cast<int>(std::lround(viewportWidth)));
@@ -271,6 +251,12 @@ struct X11RasterRegion {
             const double right = layer.right.at(elapsedMillis);
             active = active || layer.x.active(elapsedMillis) || layer.left.active(elapsedMillis) ||
                 layer.right.active(elapsedMillis);
+            const Motion zero;
+            nextIntegerChange = std::min({nextIntegerChange,
+                untilIntegerChange(layer.left, zero, elapsedMillis),
+                untilIntegerChange(layer.right, layer.left, elapsedMillis),
+                untilVisibilityChange(layer.right, layer.left, elapsedMillis),
+                untilIntegerChange(layer.x, layer.left, elapsedMillis)});
             if (right <= left || layer.height <= 0.0) {
                 if (layer.visible) {
                     XUnmapWindow(display, layer.clip);
@@ -340,11 +326,14 @@ struct X11RasterRegion {
                 handledRevision = revision;
                 const double elapsed = std::chrono::duration<double, std::milli>(Clock::now() - started).count();
                 XLockDisplay(display);
-                const bool active = configure(elapsed);
+                double nextIntegerChange;
+                const bool active = configure(elapsed, nextIntegerChange);
                 XUnlockDisplay(display);
                 ++frames;
                 if (!active) break;
-                changed.wait_for(lock, std::chrono::milliseconds(16),
+                // A new shared submission interrupts this native wait immediately.
+                changed.wait_for(lock, std::chrono::milliseconds(static_cast<long long>(
+                    std::max(1.0, std::ceil(nextIntegerChange + 0.000001)))),
                     [this, &handledRevision] { return stopping || revision != handledRevision; });
             }
             if (diagnostics) {

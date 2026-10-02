@@ -17,3 +17,10 @@ target_link_libraries(naviamp_raster_x11 PRIVATE ${JNI_LIBRARIES} ${X11_LIBRARIE
 set_target_properties(naviamp_raster_x11 PROPERTIES
     OUTPUT_NAME "naviamp_raster_x11"
 )
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(naviamp_x11_geometry_timing tests/geometry-timing.cpp)
+    target_compile_features(naviamp_x11_geometry_timing PRIVATE cxx_std_17)
+    add_test(NAME x11_geometry_timing COMMAND naviamp_x11_geometry_timing)
+endif()
