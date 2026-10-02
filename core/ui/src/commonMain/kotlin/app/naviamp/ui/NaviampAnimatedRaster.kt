@@ -127,13 +127,21 @@ internal fun NaviampAnimatedRaster(layers: List<NaviampRasterLayer>, modifier: M
 internal fun NaviampRasterEnvironment(
     presenter: NaviampRasterPresenter?, windowVisible: Boolean, overlayVisible: Boolean,
     content: @Composable () -> Unit,
+) = NaviampRasterEnvironment(presenter, windowVisible, overlayVisible, false, content)
+
+@Composable
+internal fun NaviampRasterEnvironment(
+    presenter: NaviampRasterPresenter?, windowVisible: Boolean, overlayVisible: Boolean,
+    popupsInOwnedWindows: Boolean,
+    content: @Composable () -> Unit,
 ) {
     val popups = remember { NaviampPopupRegistry() }
     CompositionLocalProvider(
         LocalNaviampPopupRegistry provides popups,
-        // Draw into Compose while a popup is open so its clipping, scrim, and input share one
-        // coordinate space. Motion continues through the existing shared raster fallback.
-        LocalNaviampRasterPresenter provides presenter.takeUnless { popups.visible },
+        LocalNaviampOwnedPopupWindows provides popupsInOwnedWindows,
+        // Same-canvas overlays require the shared fallback. Owned popup windows intrinsically
+        // stack above native pixels and draw their own scrim, so the original scene can continue.
+        LocalNaviampRasterPresenter provides presenter.takeUnless { popups.visible && !popupsInOwnedWindows },
         LocalNaviampAnimationVisible provides (windowVisible && (!overlayVisible || presenter?.contentBelowOwnedWindows == true)),
         content = content,
     )

@@ -23,10 +23,10 @@ import org.jetbrains.skia.RRect
 import org.jetbrains.skiko.SkiaLayer
 import org.jetbrains.skiko.SkikoRenderDelegate
 
-/** Popups share the main canvas; shared overlay ownership handles native raster stacking. */
+/** Compose Desktop owns native popup windows; Core owns their geometry and overlay behavior. */
 fun configureNaviampDesktopRasterLayers() {
     if (System.getProperty("compose.layers.type") == null) {
-        System.setProperty("compose.layers.type", "SAME_CANVAS")
+        System.setProperty("compose.layers.type", "WINDOW")
     }
 }
 
@@ -64,11 +64,13 @@ fun NaviampDesktopRasterHost(window: Window, content: @Composable () -> Unit) {
         update()
         onDispose { Toolkit.getDefaultToolkit().removeAWTEventListener(listener) }
     }
-    NaviampRasterEnvironment(presenter, visible, overlay, content)
+    NaviampRasterEnvironment(presenter, visible, overlay,
+        System.getProperty("compose.layers.type") == "WINDOW", content)
 }
 
 /** Windows and Linux isolate animation in small transparent Skia hardware surfaces. */
 private class DesktopSkiaRasterPresenter(private val window: Window) : NaviampRasterPresenter {
+    override val contentBelowOwnedWindows = true
     private val regions = mutableSetOf<DesktopSkiaRasterRegion>()
     override fun create(): NaviampRasterRegion = DesktopSkiaRasterRegion(window) { regions.remove(it) }.also(regions::add)
     fun reposition() = regions.forEach(DesktopSkiaRasterRegion::reposition)
@@ -205,6 +207,8 @@ private const val RasterOverlayWindowName = "naviamp-raster-overlay"
 
 /** Only the JAWT/CALayer lifetime and image/JNI type conversions live here. */
 private class MacRasterPresenter(private val window: Window) : NaviampRasterPresenter {
+    // CALayers attached to the main AWT window remain below owned AppKit popup windows.
+    override val contentBelowOwnedWindows = true
     override fun create(): NaviampRasterRegion = object : NaviampRasterRegion {
         var handle = 0L
         var cachedImages = emptyList<ImageBitmap>()

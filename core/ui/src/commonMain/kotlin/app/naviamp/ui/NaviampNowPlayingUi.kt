@@ -44,7 +44,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -2672,7 +2671,7 @@ fun TrackDetailsDialog(
     onDismissRequest: () -> Unit,
 ) {
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Track details", fontWeight = FontWeight.Bold) },
         text = {
@@ -2726,7 +2725,7 @@ fun ConfirmActionDialog(
     onConfirm: () -> Unit,
 ) {
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title, fontWeight = FontWeight.Bold) },
         text = { Text(message, color = colors.secondaryText, fontSize = 12.sp) },
@@ -2759,7 +2758,7 @@ fun AddToPlaylistDialog(
 
     NaviampPopupPresence()
 
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Add to playlist", fontWeight = FontWeight.Bold) },
         text = {
@@ -2903,7 +2902,7 @@ fun TrackPlaylistMembershipDialog(
             nameFocusRequester.requestFocus()
         }
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { if (!busy) creatingPlaylist = false },
             title = { Text(stringResource(Res.string.playlist_membership_new_playlist)) },
             text = {
@@ -2949,7 +2948,7 @@ fun TrackPlaylistMembershipDialog(
         return
     }
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = { if (!membership.saving) onDismissRequest() },
         title = { Text(stringResource(Res.string.playlist_membership_title), fontWeight = FontWeight.Bold) },
         text = {
@@ -3063,7 +3062,7 @@ fun SaveQueueAsPlaylistDialog(
 
     NaviampPopupPresence()
 
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
@@ -3104,7 +3103,7 @@ fun SleepTimerDialog(
     onCancelTimer: () -> Unit,
 ) {
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Sleep timer", fontWeight = FontWeight.Bold) },
         text = {
