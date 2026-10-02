@@ -17,6 +17,7 @@ jna = "5.19.1"
 kover = "0.9.9"
 bouncycastle = "1.85.2"
 jmdns = "3.6.3"
+dbus-java = "5.2.0"
 ksoup = "0.6.0"
 
 [libraries]
@@ -43,6 +44,8 @@ sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sq
 jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 bouncycastle-provider = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 jmdns = { module = "org.jmdns:jmdns", version.ref = "jmdns" }
+dbus-java-core = { module = "com.github.hypfvieh:dbus-java-core", version.ref = "dbus-java" }
+dbus-java-transport-native-unixsocket = { module = "com.github.hypfvieh:dbus-java-transport-native-unixsocket", version.ref = "dbus-java" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

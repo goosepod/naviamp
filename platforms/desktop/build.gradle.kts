@@ -241,6 +241,8 @@ kotlin {
                 implementation(libs.sqldelight.sqlite.driver)
                 implementation(libs.jna.platform)
                 implementation(libs.jmdns)
+                implementation(libs.dbus.java.core)
+                implementation(libs.dbus.java.transport.native.unixsocket)
             }
         }
         val desktopTest by getting {
@@ -256,6 +258,9 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
     .configureEach { dependsOn(prepareDesktopNativeResources) }
 
 tasks.named<Test>("desktopTest") {
+    val mprisIntegration = providers.environmentVariable("NAVIAMP_MPRIS_INTEGRATION").orElse("false")
+    inputs.property("mprisIntegration", mprisIntegration)
+    outputs.upToDateWhen { mprisIntegration.get() != "true" }
     dependsOn(prepareDesktopNativeResources)
     providers.gradleProperty("naviamp.bass.test.outputDevice").orNull?.let { outputDevice ->
         systemProperty("naviamp.bass.test.outputDevice", outputDevice)
