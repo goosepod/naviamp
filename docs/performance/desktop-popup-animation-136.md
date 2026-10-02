@@ -182,10 +182,11 @@ The anchor-preserving popup-only run passed physical menu paint (64,307 backgrou
 checks and pointer input. It measured 0.95% menu CPU with zero parent frames. Its restored sample
 used 3.11% CPU with zero parent frames and does not meet the documented 1% sample budget.
 The earlier fixed-viewport run measured 0.88% menu and 0.30% restored CPU with zero parent frames.
-These differing samples remain unresolved; no full final synthetic budget acceptance is claimed.
+These samples alone did not establish full final synthetic budget acceptance. The subsequent
+unobscured full-matrix repetitions are recorded below.
 
 A staged fixed-viewport app visibly painted menu labels through the native-window capture, and a pointer
-click outside dismissed it. The final unobscured full matrix and real-app CPU/GPU/lifecycle
+click outside dismissed it. At that checkpoint, the final unobscured full matrix and real-app CPU/GPU/lifecycle
 acceptance could not be completed: Windows App covered the physical display, and the computer-use
 service timed out during a desktop-activation attempt. The strict visibility gate rejected those
 runs. The sampler now recognizes SkiaLayer subclasses, records minimized state and saves physical
@@ -208,8 +209,45 @@ Logs: `/private/tmp/naviamp-136-menu-viewport.log`, `/private/tmp/naviamp-136-me
 `/private/tmp/naviamp-136-menu-final-cycles.log`,
 `/private/tmp/naviamp-136-menu-final-cycles2.log`.
 
-Re-run the full menu matrix with `NAVIAMP_PROBE_CYCLES=2` once the window stays unobscured.
+The subsequent unobscured full menu matrix with `NAVIAMP_PROBE_CYCLES=2` completed successfully.
+Both cycles recorded zero parent frames and unchanged sibling pixels in every phase. Menu paint
+checks recorded 64,309 background pixels and 1,272 label pixels in both captures of each menu
+phase; the physical screenshot was also visually inspected. Text/progress motion, stable owned
+window geometry, twelve reopen captures and player pointer input passed.
+
+| State | Menu cycle 1 CPU | Menu cycle 2 CPU |
+| --- | ---: | ---: |
+| Static | 3.32% | 0.32% |
+| Marquee | 0.29% | 0.31% |
+| Waveform | 0.44% | 0.28% |
+| Combined | 0.29% | 0.29% |
+| Menu + combined | 0.63% | 0.53% |
+| Restored combined | 0.33% | 0.45% |
+
+The settled second cycle meets the synthetic CPU budget throughout. The first static sample
+exceeds it and is retained as an outlier, not silently accepted. The earlier 3.11% restored result
+did not recur in either restored sample. These repetitions support low steady animation cost but
+do not establish the cause of either outlier or replace real-app and GPU acceptance.
+Log: `/private/tmp/naviamp-136-visible-menu-cycles.log`.
+
+The matching two-cycle modal matrix also completed successfully. Both cycles passed every
+CPU sample, zero parent frames, visible motion, unchanged siblings, stable geometry, twelve
+reopen captures and pointer input. The physical dialog capture visibly contains its title,
+body and confirmation button above the scrim.
+
+| State | Modal cycle 1 CPU | Modal cycle 2 CPU |
+| --- | ---: | ---: |
+| Static | 0.43% | 0.31% |
+| Marquee | 0.30% | 0.30% |
+| Waveform | 0.27% | 0.34% |
+| Combined | 0.30% | 0.28% |
+| Modal + combined | 0.39% | 0.43% |
+| Restored combined | 0.30% | 0.32% |
+
+Log: `/private/tmp/naviamp-136-visible-dialog-cycles.log`. These visible synthetic runs provide
+CPU and parent-frame evidence; they do not provide new GPU/compositor measurements.
+
 `NAVIAMP_PROBE_POPUP_ONLY=true` shortens diagnostic iteration but does not replace the full matrix.
-Repeat modal checks, real-app static/paused/playing overlays, minimize/hide/restore, resizing,
+Complete real-app static/paused/playing overlays, minimize/hide/restore, resizing,
 keyboard and accessibility, and matching GPU observations. Windows and Linux acceptance remain
 required. Keep #136 and its PR open until these budgets and interactions are verified.
