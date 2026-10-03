@@ -1,0 +1,2 @@
+b3e479dc42ae5a36af6e9da1f1436b6d3049bae0b33a8899e19dde0cb055033e  apps/desktop/build/compose/binaries/main/app/Naviamp/lib/app/resources/playback/bass/linux-x64/libnaviamp_raster_x11.so
+6e3c763c9ecf88cd25b99df746b40efd72a3c946985c50da965a285c8a2035cd  apps/desktop/build/compose/binaries/main/app/Naviamp/lib/app/ui-jvm-e33867611754e7e0403f39dbd0ab7d4d.jar

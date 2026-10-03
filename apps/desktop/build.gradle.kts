@@ -135,6 +135,12 @@ compose.desktop {
             licenseFile.set(rootProject.file("LICENSE"))
             appResourcesRootDir.set(generatedDesktopNativeAppResources)
             modules("java.net.http", "java.sql")
+            if (desktopNativePlatform.get().startsWith("linux-")) {
+                // dbus-java obtains the Unix user ID through com.sun.security.auth.module.UnixSystem.
+                modules("jdk.security.auth")
+                // Linux's Java ATK wrapper subscribes to JVM management notifications.
+                modules("java.management")
+            }
             if (desktopNativePlatform.get().startsWith("windows-")) {
                 // Compose exposes Windows screen-reader semantics through Java Access Bridge.
                 modules("jdk.accessibility")
@@ -300,6 +306,14 @@ tasks.register("verifyDesktopDistributable") {
         syncDesktopNativeAppResources(appDirectory)
         markDesktopVisualizerMetalExecutable(appDirectory)
         val platform = desktopNativePlatform.get()
+        if (platform.startsWith("linux-")) {
+            val runtimeRelease = appDirectory.resolve("lib/runtime/release")
+            val runtimeModules = runtimeRelease.readLines().first { it.startsWith("MODULES=") }
+                .removePrefix("MODULES=").trim('"').split(' ')
+            check("jdk.security.auth" in runtimeModules) {
+                "Linux runtime is missing jdk.security.auth, required for D-Bus Unix session authentication."
+            }
+        }
         val bassResourcesDirectory = desktopPackagedResourcesDir(platform, appDirectory).resolve("playback/bass/$platform")
         val requiredLibraries = buildList {
             add(desktopLibraryName("bass", platform))

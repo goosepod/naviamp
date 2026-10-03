@@ -13,8 +13,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Constraints
 
 internal data class NaviampTextLink(val start: Int, val end: Int, val label: String, val activate: () -> Unit)
 
@@ -117,5 +120,45 @@ internal fun NaviampRasterText(
     Box(modifier.then(input).height(height).clip(RoundedCornerShape(2.dp)).onSizeChanged { viewport = it }
         .semantics { this.text = text }) {
         NaviampAnimatedRaster(layers, Modifier.fillMaxSize(), with(density) { 2.dp.toPx() }, position)
+    }
+}
+
+/** Wrapped, centered text whose changing value does not recompose the surrounding player. */
+@Composable
+internal fun NaviampRasterValueText(text: () -> AnnotatedString, style: TextStyle, width: Dp) {
+    val currentText by rememberUpdatedState(text)
+    val density = LocalDensity.current
+    val direction = LocalLayoutDirection.current
+    val resolvedStyle = androidx.compose.material3.LocalTextStyle.current.merge(style)
+    val measurer = rememberTextMeasurer()
+    val widthPx = with(density) { width.roundToPx() }
+    val height = remember(measurer, resolvedStyle, density, direction, widthPx) {
+        mutableIntStateOf(Snapshot.withoutReadObservation {
+            measurer.measure(currentText(), resolvedStyle, constraints = Constraints(maxWidth = widthPx)).size.height
+        })
+    }
+    val render = remember(measurer, resolvedStyle, density, direction, widthPx) {
+        var cachedText: AnnotatedString? = null
+        var cachedImage: ImageBitmap? = null
+        val draw: (AnnotatedString) -> ImageBitmap = { value ->
+            if (cachedText != value || cachedImage == null) {
+                val layout = measurer.measure(value, resolvedStyle, constraints = Constraints(maxWidth = widthPx))
+                cachedImage = ImageBitmap(layout.size.width.coerceAtLeast(1), layout.size.height.coerceAtLeast(1)).also {
+                    CanvasDrawScope().draw(density, direction, Canvas(it), Size(it.width.toFloat(), it.height.toFloat())) { drawText(layout) }
+                }
+                cachedText = value
+            }
+            checkNotNull(cachedImage)
+        }
+        draw
+    }
+    val content = remember(render, widthPx) { NaviampRasterContent(value = { currentText() }, render = { value ->
+        val image = render(value)
+        height.intValue = image.height
+        listOf(NaviampRasterLayer(image, origin = Offset((widthPx - image.width) / 2f, 0f)))
+    }) }
+    Box(Modifier.width(width).height(with(density) { height.intValue.toDp() })
+        .naviampLiveSemantics({ currentText() }) { this.text = it }) {
+        NaviampAnimatedRaster(content, Modifier.fillMaxSize())
     }
 }

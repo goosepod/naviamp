@@ -1,0 +1,3 @@
+final-external/combined-2 was rejected: a different window covered the fixture during the sample. Its screenshots are excluded.
+FULL_APP_EXTERNAL phase=combined-2 pid=75001 seconds=30 cpu_percent=6.2664146341855265 parent_frames=unobserved text_pixels_changed=5436 waveform_pixels_changed=5768 sibling_pixels_changed=22500 compositor_1658_cpu_percent=5.299786844869674
+An earlier final-native-on-v3 sample was rejected by the fixture-artwork guard; cause not established. Historical final-on output is excluded because its command directory was reused.

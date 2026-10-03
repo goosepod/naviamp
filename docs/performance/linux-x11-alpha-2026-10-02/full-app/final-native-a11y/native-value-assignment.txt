@@ -1,0 +1,85 @@
+/home/ursasmar/Projects/naviamp/scripts/animation-probe/inspect-linux-accessibility.py:43: DeprecationWarning: Atspi.Action.get_action_name is deprecated
+  actions = [action.get_action_name(i) for i in range(action.get_n_actions())] if action else []
+root role=application name='Naviamp' actions=[] focused=False
+root/0 role=frame name='Naviamp' actions=[] focused=False
+root/0/0 role=root pane name='' actions=[] focused=False
+root/0/0/0 role=panel name='' actions=[] focused=False
+root/0/0/1 role=layered pane name='' actions=[] focused=False
+root/0/0/1/0 role=panel name='' actions=[] focused=False
+root/0/0/1/0/0 role=layered pane name='' actions=[] focused=False
+root/0/0/1/0/0/0 role=panel name='' actions=[] focused=True
+root/0/0/1/0/0/0/0 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0 role=panel name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/0 role=button name='Full player' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0 role=scroll pane name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/0 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/0/0 role=unknown name='' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/1 role=label name='2:17' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/2 role=slider name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/3 role=label name='10:00' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/4 role=label name='Long scrolling player title with enough metadata to overflow its viewport' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/5 role=label name='Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=True
+root/0/0/1/0/0/0/0/0/1/0/6 role=label name='Long scrolling fixture album with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/7 role=unknown name='Favorite' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/8 role=unknown name='1 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/9 role=unknown name='2 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/10 role=unknown name='3 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/11 role=unknown name='4 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/12 role=unknown name='5 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/13 role=label name='WAV  256 kbps' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/0 role=unknown name='Shuffle Up Next' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/1 role=unknown name='Previous' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/2 role=unknown name='Pause' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/3 role=unknown name='Next' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/4 role=unknown name='Repeat off' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/15 role=unknown name='Volume' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/16 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/0 role=unknown name='Start track radio' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/1 role=unknown name='DJs' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/2 role=unknown name='Show lyrics' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/3 role=unknown name='Track actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/18 role=scroll bar name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/0 role=button name='Back' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/1 role=label name='Long scrolling fixture album with enough text to overflow its viewport' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2 role=unknown name='' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/3 role=label name='Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/4 role=button name='Play album' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/5 role=button name='Shuffle album' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/6 role=button name='Start album radio' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/7 role=button name='Download album' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/8 role=button name='Keep downloaded' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/9 role=button name='Add album to queue' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/10 role=button name='Add album to playlist' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/11 role=button name='Album Settings' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/12 role=button name='Favorite album' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/13 role=label name='3 tracks - Total 30 minutes' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14 role=scroll pane name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/0 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/0/0 role=label name='1., Long scrolling player title with enough metadata to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport - Long scrolling fixture album with enough text to overflow its viewport, 10:00' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/0/0/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/1 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/1/0 role=label name='2., Long scrolling player title with enough metadata to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport - Long scrolling fixture album with enough text to overflow its viewport, 10:00' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/1/0/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/2 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/2/0 role=label name='3., Long scrolling player title with enough metadata to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport - Long scrolling fixture album with enough text to overflow its viewport, 10:00' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/2/0/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/14/3 role=scroll bar name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/1 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/1/0 role=button name='Home' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/1 role=button name='Playlists' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/2 role=button name='Library' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/3 role=button name='Search' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/4 role=button name='Radio' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/5 role=button name='Downloads' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/6 role=button name='Settings' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/7 role=button name='Queue' actions=['click'] focused=False
+Traceback (most recent call last):
+  File "/home/ursasmar/Projects/naviamp/scripts/animation-probe/inspect-linux-accessibility.py", line 62, in <module>
+    assert value.get_maximum_value() > value.get_minimum_value(), 'Native accessibility value range is empty'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Native accessibility value range is empty
