@@ -13,6 +13,17 @@ class NaviampLibraryViewportState internal constructor(
     private val listStates: Map<NaviampLibraryView, LazyListState>,
 ) {
     private var consumedJumpGeneration: Long? = null
+    private val consumedRefreshes = mutableMapOf<NaviampLibraryView, Long>()
+
+    internal fun hasPendingRefresh(view: NaviampLibraryView, generation: Long): Boolean =
+        generation != 0L && consumedRefreshes[view] != generation
+
+    internal fun consumeRefresh(view: NaviampLibraryView, generation: Long): Boolean {
+        if (!hasPendingRefresh(view, generation)) return false
+        consumedRefreshes[view] = generation
+        focusedTargets.remove(view)
+        return true
+    }
 
     internal fun consumeJump(generation: Long): Boolean {
         if (consumedJumpGeneration == generation) return false
