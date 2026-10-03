@@ -1,5 +1,6 @@
 package app.naviamp.app
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +17,8 @@ interface NaviampCastSessionEffect {
     fun start(listener: NaviampCastSessionListener)
     fun stop()
     fun disconnect()
+    /** Explicit shared-picker selection; SDK-owned native pickers keep their callback path. */
+    suspend fun connect(selectionId: Long, target: NaviampCastDiscoveredTarget): Boolean = false
     suspend fun load(selectionId: Long, media: NaviampCastReceiverMedia): Boolean = false
     suspend fun command(selectionId: Long, command: NaviampCastReceiverCommand): Boolean = false
 }
@@ -68,6 +71,7 @@ class NaviampCastSessionController(
     private val outputs: NaviampPlaybackOutputSelectionController,
 ) : NaviampCastSessionListener {
     private var started = false
+    private var lifecycleRevision = 0L
     private var selectionId: Long? = null
     private val mutableMediaStatus = MutableStateFlow<NaviampCastReceiverStatus?>(null)
 
@@ -76,13 +80,45 @@ class NaviampCastSessionController(
     fun start() {
         if (started) return
         started = true
-        effect.start(this)
+        val revision = ++lifecycleRevision
+        effect.start(object : NaviampCastSessionListener by this@NaviampCastSessionController {
+            override fun onTargetSelected(target: NaviampCastTarget): Long =
+                if (started && revision == lifecycleRevision) this@NaviampCastSessionController.onTargetSelected(target)
+                else -1L
+        })
     }
 
     fun stop() {
         if (!started) return
         started = false
+        ++lifecycleRevision
+        currentSelectionId()?.let(outputs::unavailable)
+        selectionId = null
+        mutableMediaStatus.value = null
         effect.stop()
+    }
+
+    /** Core creates the selection identity before invoking the native connection effect. */
+    suspend fun selectTarget(target: NaviampCastDiscoveredTarget): Boolean {
+        if (!started || target.endpoints.isEmpty()) return false
+        val revision = lifecycleRevision
+        val id = onTargetSelected(target.target)
+        onConnecting(id)
+        val accepted = try {
+            effect.connect(id, target)
+        } catch (cancelled: CancellationException) {
+            if (revision == lifecycleRevision && isCurrent(id)) {
+                onUnavailable(id)
+                selectionId = null
+                effect.disconnect()
+            }
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+        if (!accepted && revision == lifecycleRevision && isCurrent(id)) onUnavailable(id)
+        // Connection completion is reported by onConnected, never inferred from an accepted request.
+        return accepted && started && revision == lifecycleRevision && isCurrent(id)
     }
 
     override fun onTargetSelected(target: NaviampCastTarget): Long {
