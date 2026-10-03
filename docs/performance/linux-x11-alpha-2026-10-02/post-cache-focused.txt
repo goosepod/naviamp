@@ -1,0 +1,144 @@
+
+> Configure project :apps:android
+WARNING: The option setting 'android.r8.optimizedResourceShrinking=true' is experimental.
+The current default is 'false'.
+
+> Configure project :apps:ios
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:app
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:domain
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:presentation
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:storage
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:testkit
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:ui
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :platforms:ios
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :providers:jellyfin
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :providers:navidrome
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Task :core:domain:kmpPartiallyResolvedDependenciesChecker
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:generateNaviampVersion UP-TO-DATE
+> Task :core:domain:compileKotlinJvm UP-TO-DATE
+> Task :core:domain:compileJvmMainJava NO-SOURCE
+> Task :core:domain:jvmProcessResources NO-SOURCE
+> Task :core:domain:processJvmMainResources SKIPPED
+> Task :core:domain:jvmMainClasses UP-TO-DATE
+> Task :core:domain:jvmJar UP-TO-DATE
+> Task :core:ui:checkJvmMainComposeLibrariesCompatibility
+> Task :core:ui:kmpPartiallyResolvedDependenciesChecker
+> Task :core:ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:ui:convertXmlValueResourcesForCommonMain UP-TO-DATE
+> Task :core:ui:copyNonXmlValueResourcesForCommonMain UP-TO-DATE
+> Task :core:ui:prepareComposeResourcesTaskForCommonMain UP-TO-DATE
+> Task :core:ui:generateResourceAccessorsForCommonMain UP-TO-DATE
+> Task :core:ui:convertXmlValueResourcesForJvmMain NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForJvmMain NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForJvmMain NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForJvmMain NO-SOURCE
+> Task :core:ui:generateActualResourceCollectorsForJvmMain UP-TO-DATE
+> Task :core:ui:generateComposeResClass UP-TO-DATE
+> Task :core:ui:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :core:ui:compileKotlinJvm UP-TO-DATE
+> Task :core:ui:compileJvmMainJava NO-SOURCE
+> Task :core:ui:checkJvmTestComposeLibrariesCompatibility
+> Task :core:ui:convertXmlValueResourcesForCommonTest NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForCommonTest NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForCommonTest NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForCommonTest NO-SOURCE
+> Task :core:ui:convertXmlValueResourcesForJvmTest NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForJvmTest NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForJvmTest NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForJvmTest NO-SOURCE
+> Task :core:ui:assembleJvmMainResources UP-TO-DATE
+> Task :core:ui:jvmProcessResources UP-TO-DATE
+> Task :core:ui:processJvmMainResources SKIPPED
+> Task :core:ui:jvmMainClasses UP-TO-DATE
+> Task :core:ui:jvmJar UP-TO-DATE
+> Task :core:ui:compileTestKotlinJvm UP-TO-DATE
+> Task :core:ui:compileJvmTestJava NO-SOURCE
+> Task :core:ui:assembleJvmTestResources UP-TO-DATE
+> Task :core:ui:jvmTestProcessResources UP-TO-DATE
+> Task :core:ui:processJvmTestResources SKIPPED
+> Task :core:ui:jvmTestClasses UP-TO-DATE
+
+> Task :core:ui:playerAnimationProbe
+[SKIKO] warn: Fallback to next API
+org.jetbrains.skiko.RenderException: Cannot create Linux GL context
+ANIMATION_PROBE integrated=true compositor=false raster=false raw=false isolated=false rows=150 layers=[990x710:SOFTWARE_FAST] phase,cpu_percent,frames
+ANIMATION_LIFECYCLE resized-combined state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE resized-combined,1.7998244521422533,[0]
+ANIMATION_COMPOSITOR resized-combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=4.698573262253768
+ANIMATION_WINDOWS resized-combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1016, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1016, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1016, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS resized-combined changed=7138 text=6962 waveform=2509 visibleText=6358 sibling=0
+ANIMATION_POPUPS 12 visible-text samples passed
+ANIMATION_INPUT waveform events=1 point=225,502 insets=java.awt.Insets[top=24,left=1,bottom=1,right=1]
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_STACKING covered pixels hidden; raised owner restored alpha and text
+
+[Incubating] Problems report is available at: file:///home/ursasmar/Projects/naviamp/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 27s
+22 actionable tasks: 5 executed, 17 up-to-date

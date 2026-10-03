@@ -1,0 +1,31 @@
+ANIMATION_PROBE integrated=true compositor=false raster=false raw=false isolated=false rows=150 layers=[990x710:SOFTWARE_FAST] phase,cpu_percent,frames
+ANIMATION_PROBE static,0.2999701780447914,[0]
+ANIMATION_COMPOSITOR static pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.799383603872411
+ANIMATION_WINDOWS static opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS static changed=0 text=0 waveform=0 visibleText=6070 sibling=0
+ANIMATION_PROBE static,0.19997566264189542,[0]
+ANIMATION_COMPOSITOR static pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.899731650556103
+ANIMATION_WINDOWS static opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS static changed=0 text=0 waveform=0 visibleText=6070 sibling=0
+ANIMATION_PROBE static,0.09999045118188636,[0]
+ANIMATION_COMPOSITOR static pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.699804594883264
+ANIMATION_WINDOWS static opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS static changed=0 text=0 waveform=0 visibleText=6070 sibling=0
+ANIMATION_POPUPS 12 visible-text samples passed
+ANIMATION_INPUT waveform events=1 point=213,535 insets=java.awt.Insets[top=24,left=1,bottom=1,right=1]
+BUILD SUCCESSFUL in 56s
