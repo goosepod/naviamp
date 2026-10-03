@@ -62,6 +62,9 @@ class NaviampCastChannelTest {
             NaviampCastDeviceAuthentication(FakeCrypto(), { 1_000 }), { testScheduler.currentTime })
         sender.start(listener)
         assertTrue(sender.connect(7, target))
+        val launch = connection.sent.mapNotNull { it.text?.let(Json::parseToJsonElement) as? JsonObject }
+            .single { it["type"]?.jsonPrimitive?.content == "LAUNCH" }
+        assertEquals("CC1AD845", launch["appId"]?.jsonPrimitive?.content)
         assertEquals(listOf(7L), listener.connected)
         assertEquals("192.0.2.10", sender.localAddress)
         assertTrue(sender.load(7, media))
@@ -201,7 +204,7 @@ class NaviampCastChannelTest {
         var wrongSource = false
         var answerHeartbeat = true
         var playerState = "PAUSED"
-        var receiverApplicationId = NaviampCastReceiver.ApplicationId
+        var receiverApplicationId = "CC1AD845"
         override suspend fun send(frame: ByteArray) {
             val message = NaviampCastChannelCodec.decode(frame)
             sent += message
