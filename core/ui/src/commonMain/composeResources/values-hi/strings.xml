@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">ट्रैक</string>
     <string name="album_disc_number">डिस्क %1$d</string>
     <string name="album_disc_number_title">डिस्क %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">पूर्ण स्क्रीन में जाएँ</string>
+    <string name="window_exit_fullscreen">पूर्ण स्क्रीन से बाहर निकलें</string>
     <string name="tv_accounts">खाते</string>
     <string name="tv_accounts_title">कौन सुन रहा है?</string>
     <string name="tv_accounts_description">कोई खाता चुनें या दूसरा जोड़ें।</string>

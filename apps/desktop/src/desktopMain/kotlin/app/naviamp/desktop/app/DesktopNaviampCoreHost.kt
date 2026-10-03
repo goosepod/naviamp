@@ -96,6 +96,7 @@ internal fun DesktopNaviampCoreHost(
     environment: DesktopNaviampCoreEnvironment,
     window: Window,
     modifier: Modifier = Modifier,
+    windowController: app.naviamp.ui.NaviampWindowController? = null,
 ) {
     val core = rememberNaviampCore(
         services = environment.services,
@@ -160,6 +161,7 @@ internal fun DesktopNaviampCoreHost(
         NaviampCoreApp(
             core = core,
             modifier = modifier,
+            windowController = windowController,
             screenAwakeEffect = remember(window) { desktopScreenAwakeEffect() },
             applicationUpdateChecker = environment.applicationUpdateChecker,
             statsForNerdsPresenter = { diagnostics, close ->

@@ -424,6 +424,7 @@ fun NaviampNowPlayingPanel(
                             displaySettings, openPlaylistMembership, { saveQueueDialogOpen = true },
                             mobileLayout = true, showProgress = false, showIdentity = false,
                             showCollapse = false,
+                            showWindowFullscreen = true,
                             matchVolumeToTransportWidth = true,
                             modifier = Modifier.width(largeArtSize),
                         )
@@ -496,6 +497,7 @@ fun NaviampNowPlayingPanel(
                         onOpenPlaylistDialog = openPlaylistMembership,
                         onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                         compactLayout = viewportMaxHeight < 640.dp,
+                        showWindowFullscreen = true,
                         matchVolumeToTransportWidth = true,
                         availableHeight = (wideDetailsHeight - WideNowPlayingDetailsTopPadding)
                             .coerceAtLeast(WideNowPlayingDetailsMinHeight - WideNowPlayingDetailsTopPadding),
@@ -604,6 +606,7 @@ fun NaviampNowPlayingPanel(
                             onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                             compactLayout = true,
                             showCollapse = panelLayout != NaviampPlayerPanelLayout.Standalone,
+                            showWindowFullscreen = panelLayout != NaviampPlayerPanelLayout.Standalone,
                             matchVolumeToTransportWidth = panelLayout == NaviampPlayerPanelLayout.Standalone,
                             availableHeight = compactDetailsHeight,
                             modifier = Modifier
@@ -666,6 +669,7 @@ fun NaviampNowPlayingPanel(
                         mobileLayout = true,
                         compactSizing = compactWidthSizing,
                         showCollapse = panelLayout != NaviampPlayerPanelLayout.Standalone,
+                        showWindowFullscreen = panelLayout != NaviampPlayerPanelLayout.Standalone,
                         matchVolumeToTransportWidth = panelLayout == NaviampPlayerPanelLayout.Standalone,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -831,6 +835,7 @@ private fun NowPlayingDetails(
     largePresentation: Boolean = false,
     largePresentationScale: Float = 1f,
     showCollapse: Boolean = true,
+    showWindowFullscreen: Boolean = false,
     showIdentity: Boolean = true,
     showControls: Boolean = true,
     matchVolumeToTransportWidth: Boolean = false,
@@ -1256,6 +1261,9 @@ private fun NowPlayingDetails(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.align(Alignment.CenterEnd),
                 ) {
+                    if (showWindowFullscreen) {
+                        NaviampWindowFullscreenButton(colors, bottomActionButtonSize, bottomActionIconSize)
+                    }
                     if (nowPlaying.castAvailable) {
                         NaviampTransportIconButton(
                             enabled = true,
