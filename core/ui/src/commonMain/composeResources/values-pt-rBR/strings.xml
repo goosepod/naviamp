@@ -120,4 +120,11 @@
     <string name="artist_appearance_tracks">Faixas</string>
     <string name="album_disc_number">Disco %1$d</string>
     <string name="album_disc_number_title">Disco %1$d — %2$s</string>
+    <string name="tv_accounts">Contas</string>
+    <string name="tv_accounts_title">Quem está ouvindo?</string>
+    <string name="tv_accounts_description">Escolha uma conta ou adicione outra.</string>
+    <string name="tv_account_add">Adicionar conta</string>
+    <string name="tv_account_switching">Trocando de conta…</string>
+    <string name="tv_account_switch_failed">Não foi possível conectar a esta conta. Tente novamente ou escolha outra conta.</string>
+    <string name="tv_account_nav_label">Contas: %1$s</string>
 </resources>

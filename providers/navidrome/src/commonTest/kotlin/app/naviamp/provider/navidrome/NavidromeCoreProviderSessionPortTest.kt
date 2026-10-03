@@ -27,6 +27,28 @@ import kotlin.test.assertTrue
 
 class NavidromeCoreProviderSessionPortTest {
     @Test
+    fun failedPreparationKeepsThePreviousProviderAndCredentials() = runTest {
+        val source = savedSource()
+        val repository = TestMediaSourceRepository(source)
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            initialSource = source,
+            sessionOpener = NavidromeProviderSessionOpener { _, _ ->
+                session(source.toNavidromeConnection().copy(username = "other"))
+            },
+            canonicalIdMigrationSupport = { error("identity preparation failed") },
+        )
+        val previous = port.currentProvider()
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            port.connect(NaviampCoreConnectionRequest.Saved(source.id),
+                NaviampConnectionAttemptPlan(true, false, false, false))
+        }
+        assertSame(previous, port.currentProvider())
+        assertEquals(source.id, port.currentSourceId())
+        assertEquals(source.password.orEmpty(), port.currentProvisioningConnection()?.form?.password)
+    }
+
+    @Test
     fun genericSubsonicSavedSourceRestoresAndRoutesWithoutNavidromeMigration() = runTest {
         val source = savedSource(providerId = ProviderIdSubsonic)
         val repository = TestMediaSourceRepository(source)

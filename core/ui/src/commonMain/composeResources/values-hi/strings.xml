@@ -120,4 +120,11 @@
     <string name="artist_appearance_tracks">ट्रैक</string>
     <string name="album_disc_number">डिस्क %1$d</string>
     <string name="album_disc_number_title">डिस्क %1$d — %2$s</string>
+    <string name="tv_accounts">खाते</string>
+    <string name="tv_accounts_title">कौन सुन रहा है?</string>
+    <string name="tv_accounts_description">कोई खाता चुनें या दूसरा जोड़ें।</string>
+    <string name="tv_account_add">खाता जोड़ें</string>
+    <string name="tv_account_switching">खाता बदला जा रहा है…</string>
+    <string name="tv_account_switch_failed">इस खाते से कनेक्ट नहीं हो सका। फिर से कोशिश करें या दूसरा खाता चुनें।</string>
+    <string name="tv_account_nav_label">खाते: %1$s</string>
 </resources>

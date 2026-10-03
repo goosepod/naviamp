@@ -1,0 +1,1 @@
+FULL_APP phase=restored seconds=10 cpu_percent=8.297681755501811 parent_frames=7 minimized=false visibleOwned=5 start_uptime_s=98.002441983 compiler_cpu_ms=140.0 compositor_1658_cpu_percent=6.998044854037673 text_pixels_changed=2223 waveform_pixels_changed=78 sibling_pixels_changed=0

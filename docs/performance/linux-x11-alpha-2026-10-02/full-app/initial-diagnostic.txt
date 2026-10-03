@@ -1,0 +1,3 @@
+FULL_APP phase=marquee-visible-1 seconds=30 cpu_percent=1.3666613116320938 parent_frames=0 minimized=false visibleOwned=4 compositor_1658_cpu_percent=4.766647989350962
+FULL_APP phase=combined-visible-1 seconds=30 cpu_percent=8.266638267457562 parent_frames=30 minimized=false visibleOwned=4 compositor_1658_cpu_percent=4.866649947777436
+FULL_APP phase=combined-1 seconds=30 cpu_percent=8.266642621758827 parent_frames=30 minimized=false visibleOwned=4 compositor_1658_cpu_percent=3.6333227652085167

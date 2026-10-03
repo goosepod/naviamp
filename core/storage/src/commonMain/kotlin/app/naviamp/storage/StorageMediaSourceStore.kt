@@ -12,6 +12,7 @@ import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.normalizedMusicFolderIds
+import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.domain.source.stableMediaSourceId
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -182,10 +183,13 @@ class StorageMediaSourceStore(
         deleteKnownAudioCacheFile: (String) -> Boolean,
         deleteKnownDownloadFile: (String) -> Boolean,
     ): Int {
+        // A configured account is not an obsolete cache scope, even when it has not been used
+        // recently. Only superseded library scopes may expire automatically.
+        val configuredSourceIds = mediaSources().visibleServerConnections().map { it.id }.toSet()
         val candidateIds = queries.selectPrunableMediaSources(
             lastConnectedBeforeEpochMillis,
             limit,
-        ).executeAsList().filterNot { it in activeSourceIds }
+        ).executeAsList().filterNot { it in activeSourceIds || it in configuredSourceIds }
         return candidateIds.count { sourceId ->
             val cachedAudio = queries.selectCachedAudioForSource(sourceId).executeAsList()
             val downloadedAudio = queries.selectDownloadedAudio(sourceId).executeAsList()

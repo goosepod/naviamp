@@ -1,0 +1,80 @@
+ANIMATION_PROBE integrated=true compositor=false raster=false raw=false isolated=false rows=150 layers=[990x710:SOFTWARE_FAST] phase,cpu_percent,frames
+ANIMATION_LIFECYCLE static state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE static,0.09999085606619172,[0]
+ANIMATION_COMPOSITOR static pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.4995145691962326
+ANIMATION_WINDOWS static opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS static changed=0 text=0 waveform=0 visibleText=6070 sibling=0
+ANIMATION_LIFECYCLE marquee state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE marquee,1.1995458680082867,[0]
+ANIMATION_COMPOSITOR marquee pid=1658 command=/usr/bin/xfwm4 cpu_percent=4.798079476566378
+ANIMATION_WINDOWS marquee opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1034, 1035]
+ANIMATION_BACKGROUND region=1 samples=[1034, 1071]
+ANIMATION_BACKGROUND region=2 samples=[1034, 1043]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS marquee changed=7126 text=7126 waveform=2387 visibleText=6217 sibling=0
+ANIMATION_LIFECYCLE waveform state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE waveform,0.39996510836383126,[0]
+ANIMATION_COMPOSITOR waveform pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.8998028709446824
+ANIMATION_WINDOWS waveform opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS waveform changed=176 text=0 waveform=176 visibleText=6173 sibling=0
+ANIMATION_LIFECYCLE combined state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE combined,1.4998349334166505,[0]
+ANIMATION_COMPOSITOR combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=4.5993386049900575
+ANIMATION_WINDOWS combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1034, 1035]
+ANIMATION_BACKGROUND region=1 samples=[1040, 1077]
+ANIMATION_BACKGROUND region=2 samples=[1034, 1043]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS combined changed=7324 text=7135 waveform=2576 visibleText=6228 sibling=0
+ANIMATION_LIFECYCLE paused state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE paused,0.19998330915303814,[0]
+ANIMATION_COMPOSITOR paused pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.5998408686283203
+ANIMATION_WINDOWS paused opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS paused changed=0 text=0 waveform=0 visibleText=6116 sibling=0
+ANIMATION_LIFECYCLE hidden-combined state=1 minimized=true owned=[(naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false)]
+ANIMATION_PROBE hidden-combined,0.199983725804355,[0]
+ANIMATION_COMPOSITOR hidden-combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.4998515144001041
+ANIMATION_WINDOWS hidden-combined opened=0 closed=0
+ANIMATION_LIFECYCLE restored-combined state=0 minimized=false owned=[(naviamp-raster-overlay, false), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE restored-combined,1.399876332405018,[0]
+ANIMATION_COMPOSITOR restored-combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=4.999483165429117
+ANIMATION_WINDOWS restored-combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1016, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1028, 1077]
+ANIMATION_BACKGROUND region=2 samples=[1028, 1049]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS restored-combined changed=7202 text=7004 waveform=2575 visibleText=6387 sibling=0
+ANIMATION_LIFECYCLE resized-combined state=0 minimized=false owned=[(naviamp-raster-overlay, false), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE resized-combined,1.499866071109033,[0]
+ANIMATION_COMPOSITOR resized-combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=4.799403032013147
+ANIMATION_WINDOWS resized-combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1037, 1096]
+ANIMATION_BACKGROUND region=1 samples=[1077, 1093]
+ANIMATION_BACKGROUND region=2 samples=[1047, 1086]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS resized-combined changed=7092 text=6903 waveform=2474 visibleText=6195 sibling=0
+ANIMATION_POPUPS 12 visible-text samples passed
+ANIMATION_INPUT waveform events=1 point=225,502 insets=java.awt.Insets[top=24,left=1,bottom=1,right=1]
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_STACKING covered pixels hidden; raised owner restored alpha and text
+BUILD SUCCESSFUL in 2m 13s

@@ -21,12 +21,28 @@ import app.naviamp.domain.popular.SessionArtistPopularTracksRepository
 import app.naviamp.domain.popular.SimilarArtistCandidate
 import app.naviamp.domain.popular.SimilarArtistsClient
 import app.naviamp.domain.popular.SimilarArtistsService
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class NaviampCoreStandardMixControllerTest {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun sourceChangeDiscardsAnOldAccountsPendingSuggestions() = runTest {
+        val result = kotlinx.coroutines.CompletableDeferred<List<Genre>>()
+        val fixture = fixture(genreService = GenreMixBuilderService { result.await() })
+        val loading = launch { fixture.controller.initializeGenre() }
+        runCurrent()
+        fixture.controller.resetForSourceChange()
+        result.complete(listOf(Genre("Old account genre")))
+        loading.join()
+        assertEquals(emptyList(), fixture.store.state.value.shell.genreMixBuilder.suggestedGenres)
+        assertEquals(emptyList(), fixture.store.state.value.shell.genreMixBuilder.selectedGenres)
+    }
+
     @Test
     fun genreSongsBrowseAndPlayThroughCoreAndResetWithSelection() = runTest {
         val base = FakeCoreMediaProvider()

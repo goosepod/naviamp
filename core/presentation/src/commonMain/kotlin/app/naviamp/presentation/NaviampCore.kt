@@ -531,6 +531,8 @@ class NaviampCore private constructor(
                     catalog.resetForSourceChange()
                     playlistBrowse.resetForSourceChange()
                     mediaDetails.resetForSourceChange()
+                    standardMixes.resetForSourceChange()
+                    sonicBuilders.resetForSourceChange()
                 },
                 onConnected = { sourceId ->
                     scope.launch { providerSessionLifecycle.refreshNow() }

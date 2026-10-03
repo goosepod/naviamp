@@ -68,7 +68,9 @@ class NaviampLivePlaybackController(
         persist(queue, positionSeconds)
     }
 
-    fun updateProgress(progress: PlaybackProgress) = update { current -> current.copy(progress = progress) }
+    fun updateProgress(progress: PlaybackProgress) = update { current ->
+        current.copy(progress = progress.copy(seekGeneration = current.progress.seekGeneration))
+    }
 
     fun updatePendingSeek(
         positionSeconds: Double?,
@@ -86,7 +88,7 @@ class NaviampLivePlaybackController(
         issuedAtMillis: Long,
     ) = update { current ->
         current.copy(
-            progress = progress,
+            progress = progress.copy(seekGeneration = current.progress.seekGeneration + 1L),
             pendingSeekPositionSeconds = pendingPositionSeconds,
             pendingSeekIssuedAtMillis = issuedAtMillis,
         )

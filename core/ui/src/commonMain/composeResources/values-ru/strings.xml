@@ -120,4 +120,11 @@
     <string name="artist_appearance_tracks">Треки</string>
     <string name="album_disc_number">Диск %1$d</string>
     <string name="album_disc_number_title">Диск %1$d — %2$s</string>
+    <string name="tv_accounts">Аккаунты</string>
+    <string name="tv_accounts_title">Кто слушает?</string>
+    <string name="tv_accounts_description">Выберите аккаунт или добавьте другой.</string>
+    <string name="tv_account_add">Добавить аккаунт</string>
+    <string name="tv_account_switching">Переключение аккаунта…</string>
+    <string name="tv_account_switch_failed">Не удалось подключиться к этому аккаунту. Повторите попытку или выберите другой аккаунт.</string>
+    <string name="tv_account_nav_label">Аккаунты: %1$s</string>
 </resources>

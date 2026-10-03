@@ -1305,6 +1305,19 @@ data class NaviampConnectionSettingsUi(
     val connection: NaviampShellConnectionUi = NaviampShellConnectionUi(),
     val capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     val currentSourceId: String? = null,
+    val accountSwitcher: NaviampAccountSwitcherUi = NaviampAccountSwitcherUi(),
+    val accountSelectionGeneration: Long = 0L,
+)
+
+enum class NaviampAccountSwitcherError { ConnectionFailed }
+
+/** Transient shared account workflow; saved identities and credentials keep their existing owners. */
+data class NaviampAccountSwitcherUi(
+    val visible: Boolean = false,
+    val addingAccount: Boolean = false,
+    val connecting: Boolean = false,
+    val switchingConnectionId: String? = null,
+    val error: NaviampAccountSwitcherError? = null,
 )
 
 data class NaviampConnectionSettingsActions(
@@ -1316,6 +1329,10 @@ data class NaviampConnectionSettingsActions(
     val onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
     val onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     val onCancelConnectionForm: () -> Unit,
+    val onOpenAccounts: () -> Unit = {},
+    val onCloseAccounts: () -> Unit = {},
+    val onSwitchAccount: (NaviampSavedConnectionUi) -> Unit = {},
+    val onAddAccount: () -> Unit = {},
 ) {
     fun updateForm(
         current: ConnectionFormState,

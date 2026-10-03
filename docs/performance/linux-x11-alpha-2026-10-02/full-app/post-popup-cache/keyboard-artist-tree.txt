@@ -1,0 +1,78 @@
+root role=frame name=Naviamp description=null states=enabled,focusable,visible,showing,active,resizable bounds=java.awt.Rectangle[x=60,y=40,width=1040,height=760]
+root/0 role=root pane name=null description=null states=enabled,focusable,visible,showing,opaque bounds=java.awt.Rectangle[x=1,y=24,width=1038,height=735]
+root/0/0 role=panel name=null description=null states=enabled,focusable bounds=java.awt.Rectangle[x=0,y=0,width=1038,height=735]
+root/0/1 role=layered pane name=null description=null states=enabled,focusable,visible,showing bounds=java.awt.Rectangle[x=0,y=0,width=1038,height=735]
+root/0/1/0 role=panel name=null description=null states=enabled,focusable,visible,showing,opaque bounds=java.awt.Rectangle[x=0,y=0,width=1038,height=735]
+root/0/1/0/0 role=layered pane name=null description=null states=enabled,focusable,visible,showing bounds=java.awt.Rectangle[x=0,y=0,width=1038,height=735]
+root/0/1/0/0/0 role=panel name=null description=null states=enabled,focusable,visible,showing,focused bounds=java.awt.Rectangle[x=0,y=0,width=1038,height=735]
+root/0/1/0/0/0/0 role=unknown name=null description=null states=enabled,visible,showing bounds=java.awt.Rectangle[x=0,y=0,width=1038,height=735]
+root/0/1/0/0/0/0/0 role=groupbox name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=0,y=0,width=1038,height=735]
+root/0/1/0/0/0/0/0/0 role=push button name=Full player description=null states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=932,y=8,width=98,height=40] action[0]=click
+root/0/1/0/0/0/0/0/1 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=0,y=56,width=346,height=679]
+root/0/1/0/0/0/0/0/1/0 role=scroll pane name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=0,y=56,width=346,height=679]
+root/0/1/0/0/0/0/0/1/0/0 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=24,y=77,width=298,height=298]
+root/0/1/0/0/0/0/0/1/0/0/0 role=unknown name=null description=null states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=24,y=77,width=298,height=298] action[0]=click
+root/0/1/0/0/0/0/0/1/0/1 role=label name=0:06 description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=14,y=397,width=42,height=26]
+root/0/1/0/0/0/0/0/1/0/2 role=slider name=null description=null states=enabled,showing,visible,focusable,horizontal bounds=java.awt.Rectangle[x=62,y=396,width=222,height=28] value=0.010666667
+root/0/1/0/0/0/0/0/1/0/3 role=label name=10:00 description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=290,y=397,width=42,height=26]
+root/0/1/0/0/0/0/0/1/0/4 role=label name=Long scrolling player title with enough metadata to overflow its viewport description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=14,y=442,width=318,height=18]
+root/0/1/0/0/0/0/0/1/0/5 role=label name=Long scrolling fixture artist with enough text to overflow its viewport description=null states=enabled,showing,visible,focusable,focused bounds=java.awt.Rectangle[x=14,y=462,width=318,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/6 role=label name=Long scrolling fixture album with enough text to overflow its viewport description=null states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=14,y=481,width=318,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/7 role=unknown name=Favorite description=Favorite states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=114,y=518,width=24,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/8 role=unknown name=1 star rating description=1 star rating states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=142,y=518,width=18,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/9 role=unknown name=2 star rating description=2 star rating states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=160,y=518,width=18,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/10 role=unknown name=3 star rating description=3 star rating states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=178,y=518,width=18,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/11 role=unknown name=4 star rating description=4 star rating states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=196,y=518,width=18,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/12 role=unknown name=5 star rating description=5 star rating states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=214,y=518,width=18,height=17] action[0]=click
+root/0/1/0/0/0/0/0/1/0/13 role=label name=WAV  256 kbps description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=14,y=537,width=318,height=26]
+root/0/1/0/0/0/0/0/1/0/14 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=73,y=582,width=200,height=44]
+root/0/1/0/0/0/0/0/1/0/14/0 role=unknown name=Shuffle Up Next description=Shuffle Up Next states=showing,visible bounds=java.awt.Rectangle[x=73,y=590,width=28,height=28] action[0]=click
+root/0/1/0/0/0/0/0/1/0/14/1 role=unknown name=Previous description=Previous states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=109,y=587,width=34,height=34] action[0]=click
+root/0/1/0/0/0/0/0/1/0/14/2 role=unknown name=Play description=Play states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=151,y=582,width=44,height=44] action[0]=click
+root/0/1/0/0/0/0/0/1/0/14/3 role=unknown name=Next description=Next states=showing,visible bounds=java.awt.Rectangle[x=203,y=587,width=34,height=34] action[0]=click
+root/0/1/0/0/0/0/0/1/0/14/4 role=unknown name=Repeat off description=Repeat off states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=245,y=590,width=28,height=28] action[0]=click
+root/0/1/0/0/0/0/0/1/0/15 role=unknown name=Volume description=Volume states=enabled,showing,visible bounds=java.awt.Rectangle[x=61,y=648,width=17,height=17]
+root/0/1/0/0/0/0/0/1/0/16 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=86,y=644,width=200,height=24]
+root/0/1/0/0/0/0/0/1/0/17 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=14,y=686,width=318,height=46]
+root/0/1/0/0/0/0/0/1/0/17/0 role=unknown name=Start track radio description=Start track radio states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=14,y=693,width=33,height=33] action[0]=click
+root/0/1/0/0/0/0/0/1/0/17/1 role=unknown name=DJs description=DJs states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=47,y=693,width=33,height=33] action[0]=click
+root/0/1/0/0/0/0/0/1/0/17/2 role=unknown name=Show lyrics description=Show lyrics states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=262,y=693,width=33,height=33] action[0]=click
+root/0/1/0/0/0/0/0/1/0/17/3 role=unknown name=Track actions description=Track actions states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=299,y=693,width=33,height=33] action[0]=click
+root/0/1/0/0/0/0/0/1/0/18 role=scroll bar name=null description=null states=enabled,vertical value=0.0
+root/0/1/0/0/0/0/0/2 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=346,y=56,width=680,height=679]
+root/0/1/0/0/0/0/0/2/0 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=358,y=68,width=656,height=593]
+root/0/1/0/0/0/0/0/2/0/0 role=push button name=Back description=Back states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=358,y=68,width=32,height=32] action[0]=click
+root/0/1/0/0/0/0/0/2/0/1 role=label name=Naviamp Test description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=392,y=71,width=116,height=26]
+root/0/1/0/0/0/0/0/2/0/2 role=unknown name=null description=null states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=358,y=100,width=96,height=96] action[0]=click
+root/0/1/0/0/0/0/0/2/0/3 role=label name=Naviamp Test description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=462,y=100,width=102,height=26]
+root/0/1/0/0/0/0/0/2/0/4 role=label name=1 album, EP, or single description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=462,y=129,width=148,height=26]
+root/0/1/0/0/0/0/0/2/0/5 role=push button name=Play artist catalog description=Play artist catalog states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=462,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/6 role=push button name=Start artist radio description=Start artist radio states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=506,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/7 role=push button name=Keep downloaded description=Keep downloaded states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=550,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/8 role=push button name=Favorite artist description=Favorite artist states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=594,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/9 role=push button name=Find similar artists description=Find similar artists states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=638,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/10 role=push button name=Add artist to queue description=Add artist to queue states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=682,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/11 role=push button name=Add artist to playlist description=Add artist to playlist states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=726,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/12 role=push button name=Shuffle artist catalog description=Shuffle artist catalog states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=770,y=158,width=38,height=38] action[0]=click
+root/0/1/0/0/0/0/0/2/0/13 role=scroll pane name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=358,y=196,width=656,height=465]
+root/0/1/0/0/0/0/0/2/0/13/0 role=label name=TOP TRACKS description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=358,y=196,width=87,height=26]
+root/0/1/0/0/0/0/0/2/0/13/1 role=label name=No popular tracks matched songs in your library. description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=358,y=228,width=283,height=26]
+root/0/1/0/0/0/0/0/2/0/13/2 role=label name=DISCOGRAPHY description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=358,y=260,width=101,height=26]
+root/0/1/0/0/0/0/0/2/0/13/3 role=label name=ALBUMS description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=358,y=292,width=59,height=26]
+root/0/1/0/0/0/0/0/2/0/13/4 role=label name=Long scrolling fixture album with enough text to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport description=null states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=358,y=324,width=656,height=68] action[0]=click
+root/0/1/0/0/0/0/0/2/0/13/4/0 role=push button name=More actions description=More actions states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=978,y=344,width=28,height=28] action[0]=click
+root/0/1/0/0/0/0/0/2/0/13/5 role=scroll bar name=null description=null states=enabled,vertical value=0.0
+root/0/1/0/0/0/0/0/2/1 role=unknown name=null description=null states=enabled,showing,visible bounds=java.awt.Rectangle[x=346,y=685,width=680,height=46]
+root/0/1/0/0/0/0/0/2/1/0 role=push button name=Home description=Home states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=384,y=687,width=42,height=42] action[0]=click
+root/0/1/0/0/0/0/0/2/1/1 role=push button name=Playlists description=Playlists states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=464,y=687,width=42,height=42] action[0]=click
+root/0/1/0/0/0/0/0/2/1/2 role=push button name=Library description=Library states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=545,y=687,width=42,height=42] action[0]=click
+root/0/1/0/0/0/0/0/2/1/3 role=push button name=Search description=Search states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=625,y=687,width=42,height=42] action[0]=click
+root/0/1/0/0/0/0/0/2/1/4 role=push button name=Radio description=Radio states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=705,y=687,width=42,height=42] action[0]=click
+root/0/1/0/0/0/0/0/2/1/5 role=push button name=Downloads description=Downloads states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=785,y=687,width=42,height=42] action[0]=click
+root/0/1/0/0/0/0/0/2/1/6 role=push button name=Settings description=Settings states=enabled,showing,visible,focusable bounds=java.awt.Rectangle[x=866,y=687,width=42,height=42] action[0]=click
+root/0/1/0/0/0/0/0/2/1/7 role=push button name=Queue description=Queue states=enabled,showing,visible,focusable,selectable bounds=java.awt.Rectangle[x=946,y=687,width=42,height=42] action[0]=click
+OWNED name=naviamp-raster-overlay focusable=false
+OWNED name=naviamp-raster-overlay focusable=false
+OWNED name=naviamp-raster-overlay focusable=false
+OWNED name=naviamp-raster-overlay focusable=false
+OWNED name=naviamp-raster-overlay focusable=false
