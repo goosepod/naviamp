@@ -103,8 +103,6 @@ probe alone does not close the performance acceptance criteria.
 NAVIAMP_PROBE_MAXIMIZED=true ./gradlew :apps:desktop:desktopFullscreenProbe
 ```
 
-## Platform diff accountability
-
 ## Windows checkpoint: October 2, 2026
 
 Windows 11, Ryzen 7 5800H, AMD Radeon Graphics, 2560 x 1440 at 60 Hz, scale 1.0.
@@ -119,13 +117,15 @@ cycles with exact restored bounds, matching Compose/client bounds, and physicall
 visible bottom-edge controls. Maximized bounds restore to (-8, -8, 2576, 1408),
 with a 2560 x 1369 client area; floating bounds restore to (48, 48, 1000, 740).
 Six shared controller regressions and all five Desktop tests pass. Shared UI
-compiles for JVM, Android, iOS ARM64 and iOS simulator ARM64 on this Windows host.
+compiles for JVM and Android; iOS ARM64 and simulator ARM64 klib cross-compilation tasks also pass (native app/link/runtime testing still requires macOS).
 The Desktop restoration test now checks normalized coordinates instead of assuming
 that PlatformDefault remains an identical object after native monitor normalization.
 
-These checks resolve the reproduced maximization failure. Real-app lifecycle,
+The strengthened probe also passes fullscreen minimize, native activation and restore during each maximized cycle, waiting for real on-screen geometry rather than the minimized flag alone. These checks resolve the reproduced maximization failure. Real-app lifecycle,
 overlay/animation, accessibility and mixed-scale/multi-monitor acceptance remains
 pending; this checkpoint alone does not complete #141.
+
+## Platform diff accountability
 
 - `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopWindowEffect.kt` translates
   Compose Desktop/AWT window geometry, monitor coordinates and native placement, and manages

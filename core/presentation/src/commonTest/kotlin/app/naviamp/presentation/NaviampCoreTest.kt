@@ -72,6 +72,49 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreTest {
     @Test
+    fun accountSwitchClearsOldSearchPlaybackAndMixSelectionsBeforeReloading() = runTest {
+        val defaults = fakeCoreServices()
+        val records = listOf("alice", "bob").map { id ->
+            NaviampCoreSavedConnectionRecord(id, id, "https://music.example", id)
+        }
+        val port = object : NaviampCoreProviderSessionPort by defaults.connection {
+            override suspend fun connect(request: NaviampCoreConnectionRequest,
+                plan: app.naviamp.app.NaviampConnectionAttemptPlan): NaviampCoreConnectedSession {
+                val id = (request as NaviampCoreConnectionRequest.Saved).id
+                return NaviampCoreConnectedSession(id, id,
+                    inventory = NaviampCoreConnectionInventory(records, id))
+            }
+        }
+        val core = NaviampCore.create(this, defaults.copy(connection = port),
+            initialState = NaviampCoreInitialState(
+                connection = NaviampConnectionRuntimeState(phase = NaviampConnectionPhase.Connected, sourceId = "alice"),
+                connectionInventory = NaviampCoreConnectionInventory(records, "alice"),
+                product = NaviampCoreState(shell = NaviampAppShellUiState(
+                    search = NaviampSearchScreenUi(query = "Alice's search"),
+                    artistMixBuilder = app.naviamp.ui.SharedArtistMixBuilderUi(query = "Alice's artist"),
+                    albumMixBuilder = app.naviamp.ui.SharedAlbumMixBuilderUi(query = "Alice's album"),
+                    genreMixBuilder = app.naviamp.ui.SharedGenreMixBuilderUi(query = "Alice's genre"),
+                    sonicPathBuilder = app.naviamp.ui.SharedSonicPathBuilderUi(startQuery = "Alice's start"),
+                    sonicMixBuilder = app.naviamp.ui.SharedSonicMixBuilderUi(query = "Alice's seed"),
+                )),
+                playback = NaviampLivePlaybackState(currentTrack = coreTrack("alice-track")),
+            ))
+        core.execute(NaviampCoreCommand.Connection.SwitchAccount(app.naviamp.ui.NaviampSavedConnectionUi("bob", "bob", "https://music.example", "bob")))
+        advanceUntilIdle()
+        val shell = core.state.value.shell
+        assertEquals("bob", shell.connectionSettings.currentSourceId)
+        assertEquals("", shell.search.query)
+        assertEquals("", shell.artistMixBuilder.query)
+        assertEquals("", shell.albumMixBuilder.query)
+        assertEquals("", shell.genreMixBuilder.query)
+        assertEquals("", shell.sonicPathBuilder.startQuery)
+        assertEquals("", shell.sonicMixBuilder.query)
+        assertEquals("", shell.nowPlaying?.id)
+        assertEquals(emptyList(), shell.nowPlaying?.upNext)
+        assertEquals(SharedRoute.Home, shell.shellChrome.selectedRoute)
+    }
+
+    @Test
     fun globalShortcutsRouteThroughSharedPlaybackPolicy() = runTest {
         val effects = FakeCorePlaybackEffects()
         val core = NaviampCore.create(this, fakeCoreServices(playbackEffects = effects))

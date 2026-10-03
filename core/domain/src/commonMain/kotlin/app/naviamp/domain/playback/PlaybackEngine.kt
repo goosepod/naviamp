@@ -385,6 +385,8 @@ data class PlaybackProgress(
     val positionSeconds: Double?,
     val durationSeconds: Double?,
     val decodedPositionSeconds: Double? = null,
+    /** Incremented by the shared live owner for accepted seeks, including short forward seeks. */
+    val seekGeneration: Long = 0L,
 ) {
     val fraction: Double
         get() {

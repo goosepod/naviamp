@@ -81,7 +81,7 @@ fun main() {
                 MinDesktopWindowWidthDp.toInt(),
                 MinDesktopWindowHeightDp.toInt(),
             )
-            app.naviamp.ui.NaviampDesktopRasterHost(window) {
+            app.naviamp.ui.NaviampDesktopRasterHost(window, windowState) {
                 DesktopNaviampCoreHost(composition.environment, window, windowController = windowController)
             }
         }

@@ -954,4 +954,11 @@
     <string name="album_disc_number_title">Disc %1$d — %2$s</string>
     <string name="window_enter_fullscreen">Vollbild aktivieren</string>
     <string name="window_exit_fullscreen">Vollbild verlassen</string>
+    <string name="tv_accounts">Konten</string>
+    <string name="tv_accounts_title">Wer hört zu?</string>
+    <string name="tv_accounts_description">Wähle ein Konto aus oder füge ein weiteres hinzu.</string>
+    <string name="tv_account_add">Konto hinzufügen</string>
+    <string name="tv_account_switching">Konto wird gewechselt…</string>
+    <string name="tv_account_switch_failed">Die Verbindung zu diesem Konto ist fehlgeschlagen. Versuche es erneut oder wähle ein anderes Konto.</string>
+    <string name="tv_account_nav_label">Konten: %1$s</string>
 </resources>

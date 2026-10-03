@@ -122,4 +122,11 @@
     <string name="album_disc_number_title">Cakram %1$d — %2$s</string>
     <string name="window_enter_fullscreen">Masuk layar penuh</string>
     <string name="window_exit_fullscreen">Keluar dari layar penuh</string>
+    <string name="tv_accounts">Akun</string>
+    <string name="tv_accounts_title">Siapa yang mendengarkan?</string>
+    <string name="tv_accounts_description">Pilih akun atau tambahkan akun lain.</string>
+    <string name="tv_account_add">Tambah akun</string>
+    <string name="tv_account_switching">Beralih akun…</string>
+    <string name="tv_account_switch_failed">Tidak dapat terhubung ke akun ini. Coba lagi atau pilih akun lain.</string>
+    <string name="tv_account_nav_label">Akun: %1$s</string>
 </resources>

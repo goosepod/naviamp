@@ -27,7 +27,12 @@ fun main() = application {
             val observer = effect.attachNativeFullscreenObserver(window, controller::observe)
             onDispose { observer.close() }
         }
-        NaviampWindowEnvironment(controller, app.naviamp.domain.settings.DesktopShortcutPlatform.MacOS) {
+        val shortcutPlatform = if (System.getProperty("os.name").startsWith("Mac"))
+            app.naviamp.domain.settings.DesktopShortcutPlatform.MacOS
+        else if (System.getProperty("os.name").startsWith("Windows"))
+            app.naviamp.domain.settings.DesktopShortcutPlatform.Windows
+        else app.naviamp.domain.settings.DesktopShortcutPlatform.Linux
+        NaviampWindowEnvironment(controller, shortcutPlatform) {
             Column(Modifier.fillMaxSize().background(Color.Black).onGloballyPositioned { rootSize = it.size }) {
                 Text("Native fullscreen layout fixture", color = Color.White)
                 Spacer(Modifier.weight(1f))
@@ -46,6 +51,21 @@ fun main() = application {
                     delay(1_000)
                     check(controller.state.placement == NaviampWindowPlacement.Fullscreen)
                     checkLayout(window, rootSize, "fullscreen-$cycle")
+                    nativeState.isMinimized = true
+                    withTimeout(10_000) { while (!window.isMinimized) delay(50) }
+                    delay(1_000)
+                    check(controller.state.placement == NaviampWindowPlacement.Fullscreen)
+                    nativeState.isMinimized = false
+                    window.toFront()
+                    withTimeout(10_000) {
+                        while (window.isMinimized || window.x < -30_000 || window.width < 500) {
+                            println("FULLSCREEN_RESTORE_PENDING native=${window.isMinimized} state=${nativeState.isMinimized} bounds=${window.bounds}")
+                            delay(250)
+                        }
+                    }
+                    delay(1_000)
+                    check(window.placement == WindowPlacement.Fullscreen)
+                    checkLayout(window, rootSize, "fullscreen-unminimized-$cycle")
                     check(controller.toggle())
                     withTimeout(10_000) { while (window.placement != startPlacement) delay(50) }
                     delay(1_000)

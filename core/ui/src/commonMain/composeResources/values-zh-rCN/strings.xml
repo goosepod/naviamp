@@ -122,4 +122,11 @@
     <string name="album_disc_number_title">碟片 %1$d — %2$s</string>
     <string name="window_enter_fullscreen">进入全屏</string>
     <string name="window_exit_fullscreen">退出全屏</string>
+    <string name="tv_accounts">账户</string>
+    <string name="tv_accounts_title">谁在收听？</string>
+    <string name="tv_accounts_description">选择一个账户或添加其他账户。</string>
+    <string name="tv_account_add">添加账户</string>
+    <string name="tv_account_switching">正在切换账户…</string>
+    <string name="tv_account_switch_failed">无法连接到此账户。请重试或选择其他账户。</string>
+    <string name="tv_account_nav_label">账户：%1$s</string>
 </resources>

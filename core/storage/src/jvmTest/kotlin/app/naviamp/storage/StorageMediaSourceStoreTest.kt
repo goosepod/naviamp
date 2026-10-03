@@ -173,6 +173,28 @@ class StorageMediaSourceStoreTest {
     }
 
     @Test
+    fun cleanupRetainsDormantConfiguredAccountsAndTheirStoredCredentials() {
+        withDatabase { database ->
+            var now = 1L
+            val store = StorageMediaSourceStore(database.naviampStorageQueries, nowMillis = { now })
+            val first = store.upsertProviderMediaSource(providerConnection().copy(username = "first"), "first-cache", "navidrome")
+            val second = store.upsertProviderMediaSource(providerConnection().copy(username = "second"), "second-cache", "navidrome")
+            val before = store.mediaSources()
+            now = 100L
+            val active = store.upsertProviderMediaSource(providerConnection().copy(username = "third"), "third-cache", "navidrome")
+
+            val removed = store.pruneUnusedSourceScopes(setOf(active.id), 50L, 20L,
+                deleteKnownAudioCacheFile = { error("Configured accounts must not be pruned") },
+                deleteKnownDownloadFile = { error("Configured accounts must not be pruned") })
+
+            assertEquals(0, removed)
+            assertEquals(before.first { it.id == first.id }, store.mediaSource(first.id))
+            assertEquals(before.first { it.id == second.id }, store.mediaSource(second.id))
+            assertEquals(3, store.mediaSources().size)
+        }
+    }
+
+    @Test
     fun pruningDeletesOnlyKnownCacheFilesAndRetainsSourceWhenDeletionCannotBeVerified() {
         withDatabase { database ->
             var now = 1L
@@ -189,6 +211,11 @@ class StorageMediaSourceStoreTest {
                 "navidrome",
             )
             now = 100L
+            // Keep the accounts themselves configured while making these old scopes obsolete.
+            store.upsertProviderMediaSource(providerConnection().copy(baseUrl = "https://old.example.test",
+                selectedMusicFolderIds = listOf("current")), "current-old-cache", "navidrome")
+            store.upsertProviderMediaSource(providerConnection().copy(baseUrl = "https://blocked.example.test",
+                selectedMusicFolderIds = listOf("current")), "current-blocked-cache", "navidrome")
             val active = store.upsertProviderMediaSource(
                 providerConnection().copy(baseUrl = "https://active.example.test"),
                 "active-cache",

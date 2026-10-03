@@ -1,0 +1,247 @@
+
+> Configure project :apps:android
+WARNING: The option setting 'android.r8.optimizedResourceShrinking=true' is experimental.
+The current default is 'false'.
+
+> Configure project :apps:ios
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:app
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:domain
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:presentation
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:storage
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:testkit
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :core:ui
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :platforms:ios
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :providers:jellyfin
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Configure project :providers:navidrome
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Task :core:domain:kmpPartiallyResolvedDependenciesChecker
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:generateNaviampVersion UP-TO-DATE
+> Task :core:domain:compileKotlinJvm UP-TO-DATE
+> Task :core:domain:compileJvmMainJava NO-SOURCE
+> Task :core:domain:jvmProcessResources NO-SOURCE
+> Task :core:domain:processJvmMainResources SKIPPED
+> Task :core:domain:jvmMainClasses UP-TO-DATE
+> Task :core:domain:jvmJar UP-TO-DATE
+> Task :core:ui:checkJvmMainComposeLibrariesCompatibility
+> Task :core:ui:kmpPartiallyResolvedDependenciesChecker
+> Task :core:ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:ui:convertXmlValueResourcesForCommonMain UP-TO-DATE
+> Task :core:ui:copyNonXmlValueResourcesForCommonMain UP-TO-DATE
+> Task :core:ui:prepareComposeResourcesTaskForCommonMain UP-TO-DATE
+> Task :core:ui:generateResourceAccessorsForCommonMain UP-TO-DATE
+> Task :core:ui:convertXmlValueResourcesForJvmMain NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForJvmMain NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForJvmMain NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForJvmMain NO-SOURCE
+> Task :core:ui:generateActualResourceCollectorsForJvmMain UP-TO-DATE
+> Task :core:ui:generateComposeResClass UP-TO-DATE
+> Task :core:ui:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :core:ui:compileKotlinJvm UP-TO-DATE
+> Task :core:ui:compileJvmMainJava NO-SOURCE
+> Task :core:ui:checkJvmTestComposeLibrariesCompatibility
+> Task :core:ui:convertXmlValueResourcesForCommonTest NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForCommonTest NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForCommonTest NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForCommonTest NO-SOURCE
+> Task :core:ui:convertXmlValueResourcesForJvmTest NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForJvmTest NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForJvmTest NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForJvmTest NO-SOURCE
+> Task :core:ui:assembleJvmMainResources UP-TO-DATE
+> Task :core:ui:jvmProcessResources UP-TO-DATE
+> Task :core:ui:processJvmMainResources SKIPPED
+> Task :core:ui:jvmMainClasses UP-TO-DATE
+> Task :core:ui:jvmJar UP-TO-DATE
+> Task :core:ui:compileTestKotlinJvm UP-TO-DATE
+> Task :core:ui:compileJvmTestJava NO-SOURCE
+> Task :core:ui:assembleJvmTestResources UP-TO-DATE
+> Task :core:ui:jvmTestProcessResources UP-TO-DATE
+> Task :core:ui:processJvmTestResources SKIPPED
+> Task :core:ui:jvmTestClasses UP-TO-DATE
+
+> Task :core:ui:playerAnimationProbe
+[SKIKO] warn: Fallback to next API
+org.jetbrains.skiko.RenderException: Cannot create Linux GL context
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE integrated=true compositor=false raster=false raw=false isolated=false rows=150 layers=[1000x740:SOFTWARE_FAST] phase,cpu_percent,frames
+ANIMATION_PROBE static,0.4999488340364475,[0]
+ANIMATION_COMPOSITOR static pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.9993837971115118
+ANIMATION_COMPOSITOR static pid=80159 command=/usr/bin/Xvfb cpu_percent=0.0
+ANIMATION_WINDOWS static opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[890, 897]
+ANIMATION_BACKGROUND region=1 samples=[890, 938]
+ANIMATION_BACKGROUND region=2 samples=[890, 898]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS static changed=0 text=0 waveform=0 visibleText=4481 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE marquee,51.36917692708385,[659]
+ANIMATION_COMPOSITOR marquee pid=1658 command=/usr/bin/xfwm4 cpu_percent=2.3985100534698676
+ANIMATION_COMPOSITOR marquee pid=80159 command=/usr/bin/Xvfb cpu_percent=9.59404021387947
+ANIMATION_WINDOWS marquee opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[685, 712]
+ANIMATION_BACKGROUND region=1 samples=[685, 757]
+ANIMATION_BACKGROUND region=2 samples=[685, 717]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS marquee changed=6055 text=6055 waveform=0 visibleText=4370 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE waveform,42.86147711161679,[655]
+ANIMATION_COMPOSITOR waveform pid=1658 command=/usr/bin/xfwm4 cpu_percent=2.2978962938665566
+ANIMATION_COMPOSITOR waveform pid=80159 command=/usr/bin/Xvfb cpu_percent=9.3914022444981
+ANIMATION_WINDOWS waveform opened=0 closed=10
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[890, 897]
+ANIMATION_BACKGROUND region=1 samples=[890, 938]
+ANIMATION_BACKGROUND region=2 samples=[890, 898]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS waveform changed=198 text=166 waveform=198 visibleText=4584 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_PROBE combined,46.57859177588307,[657]
+ANIMATION_COMPOSITOR combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=2.298861878541627
+ANIMATION_COMPOSITOR combined pid=80159 command=/usr/bin/Xvfb cpu_percent=9.495299063541502
+ANIMATION_WINDOWS combined opened=0 closed=10
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[685, 712]
+ANIMATION_BACKGROUND region=1 samples=[685, 757]
+ANIMATION_BACKGROUND region=2 samples=[685, 717]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS combined changed=6252 text=6208 waveform=237 visibleText=4395 sibling=0
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+NaviampRaster X11 unavailable: An active X11 compositing manager is required for transparent raster layers
+ANIMATION_POPUPS 12 visible-text samples passed
+ANIMATION_INPUT waveform events=1 point=212,486 insets=java.awt.Insets[top=0,left=0,bottom=0,right=0]
+
+[Incubating] Problems report is available at: file:///home/ursasmar/Projects/naviamp/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 1m 11s
+22 actionable tasks: 5 executed, 17 up-to-date

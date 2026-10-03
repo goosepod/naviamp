@@ -24,8 +24,12 @@ import kotlin.coroutines.resume
 
 /** Translates main-thread Cast SDK session callbacks into the shared session contract. */
 class AndroidNaviampCastSessionEffect(context: Context) : NaviampCastSessionEffect {
-    private val castContext = CastContext.getSharedInstance(context.applicationContext)
-    private val sessionManager = castContext.sessionManager
+    private val appContext = context.applicationContext
+    // Core's start contract owns activation. Constructing an unused TV adapter must not load
+    // the native sender Dynamite module, which may be absent from that host.
+    private val sessionManager by lazy(LazyThreadSafetyMode.NONE) {
+        CastContext.getSharedInstance(appContext).sessionManager
+    }
     private var listener: NaviampCastSessionListener? = null
     private var activeSession: CastSession? = null
     private var activeSelectionId: Long? = null

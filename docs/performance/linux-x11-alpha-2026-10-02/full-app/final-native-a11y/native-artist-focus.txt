@@ -1,0 +1,90 @@
+root role=application name='Naviamp' actions=[] focused=False
+root/0 role=frame name='Naviamp' actions=[] focused=False
+root/0/0 role=root pane name='' actions=[] focused=False
+root/0/0/0 role=panel name='' actions=[] focused=False
+root/0/0/1 role=layered pane name='' actions=[] focused=False
+root/0/0/1/0 role=panel name='' actions=[] focused=False
+root/0/0/1/0/0 role=layered pane name='' actions=[] focused=False
+root/0/0/1/0/0/0 role=panel name='' actions=[] focused=True
+root/0/0/1/0/0/0/0 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0 role=panel name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/0 role=button name='Full player' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0 role=scroll pane name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/0 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/0/0 role=unknown name='' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/1 role=label name='1:24' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/2 role=slider name='' actions=[] focused=True
+root/0/0/1/0/0/0/0/0/1/0/3 role=label name='10:00' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/4 role=label name='Long scrolling player title with enough metadata to overflow its viewport' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/5 role=label name='Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/6 role=label name='Long scrolling fixture album with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/7 role=unknown name='Favorite' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/8 role=unknown name='1 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/9 role=unknown name='2 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/10 role=unknown name='3 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/11 role=unknown name='4 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/12 role=unknown name='5 star rating' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/13 role=label name='WAV  256 kbps' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/0 role=unknown name='Shuffle Up Next' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/1 role=unknown name='Previous' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/2 role=unknown name='Pause' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/3 role=unknown name='Next' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/14/4 role=unknown name='Repeat off' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/15 role=unknown name='Volume' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/16 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/0 role=unknown name='Start track radio' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/1 role=unknown name='DJs' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/2 role=unknown name='Show lyrics' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/17/3 role=unknown name='Track actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/1/0/18 role=scroll bar name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/0 role=label name='Home' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/1 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2 role=scroll pane name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/0 role=label name='FAVORITE ARTISTS' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/1 role=label name='No favorite artists yet.' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/2 role=label name='MIXES FOR YOU' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/3 role=button name='Scroll left' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/4 role=button name='Scroll right' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/5 role=scroll pane name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/5/0 role=label name='Long scrolling fixture artist with enough text to overflow its viewport Mix, Long scrolling fixture album with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/5/0/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/5/1 role=scroll bar name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/6 role=label name='MIX BUILDERS' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/7 role=label name='Artist Mix, Build a station from selected artists, >' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/8 role=label name='Album Mix, Build a station from selected albums, >' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/9 role=label name='Genre Mix, Start a station from a genre, >' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/10 role=label name='RECENTLY ADDED MUSIC' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/11 role=label name='Long scrolling fixture album with enough text to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/11/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/12 role=label name='STATIONS' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/13 role=label name='Library Radio, Random tracks from your full library' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/14 role=label name='Random Album Radio, Start from a random album' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/15 role=label name='The 1990s Radio, Random songs from The 1990s' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/16 role=label name='RECENT ALBUMS' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/17 role=label name='Long scrolling fixture album with enough text to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/17/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/18 role=label name='FREQUENTLY PLAYED ALBUMS' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/19 role=label name='Long scrolling fixture album with enough text to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/19/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/20 role=label name='RANDOM ALBUMS' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/21 role=label name='Long scrolling fixture album with enough text to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/21/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/22 role=label name='FROM THE 1990S' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/23 role=label name='Long scrolling fixture album with enough text to overflow its viewport, Long scrolling fixture artist with enough text to overflow its viewport' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/23/0 role=button name='More actions' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/0/2/24 role=scroll bar name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/1 role=unknown name='' actions=[] focused=False
+root/0/0/1/0/0/0/0/0/2/1/0 role=button name='Home' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/1 role=button name='Playlists' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/2 role=button name='Library' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/3 role=button name='Search' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/4 role=button name='Radio' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/5 role=button name='Downloads' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/6 role=button name='Settings' actions=['click'] focused=False
+root/0/0/1/0/0/0/0/0/2/1/7 role=button name='Queue' actions=['click'] focused=False
+AT_SPI_FOCUS requested: Long scrolling fixture artist with enough text to overflow its viewport

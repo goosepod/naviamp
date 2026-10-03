@@ -241,4 +241,11 @@
     <string name="album_disc_number_title">Płyta %1$d — %2$s</string>
     <string name="window_enter_fullscreen">Włącz pełny ekran</string>
     <string name="window_exit_fullscreen">Wyłącz pełny ekran</string>
+    <string name="tv_accounts">Konta</string>
+    <string name="tv_accounts_title">Kto słucha?</string>
+    <string name="tv_accounts_description">Wybierz konto lub dodaj kolejne.</string>
+    <string name="tv_account_add">Dodaj konto</string>
+    <string name="tv_account_switching">Przełączanie konta…</string>
+    <string name="tv_account_switch_failed">Nie można połączyć się z tym kontem. Spróbuj ponownie lub wybierz inne konto.</string>
+    <string name="tv_account_nav_label">Konta: %1$s</string>
 </resources>

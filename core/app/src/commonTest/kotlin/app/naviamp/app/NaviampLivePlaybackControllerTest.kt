@@ -13,6 +13,18 @@ import kotlin.test.assertNull
 
 class NaviampLivePlaybackControllerTest {
     @Test
+    fun seeksAdvanceGenerationAndEngineProgressPreservesIt() {
+        val controller = NaviampLivePlaybackController()
+        controller.updateProgress(PlaybackProgress(10.0, 180.0))
+        controller.applySeekPlan(PlaybackProgress(10.5, 180.0), 10.5, 1000L)
+        assertEquals(1L, controller.progress.value.seekGeneration)
+        controller.updateProgress(PlaybackProgress(11.0, 180.0))
+        assertEquals(1L, controller.progress.value.seekGeneration)
+        controller.applySeekPlan(PlaybackProgress(11.5, 180.0), 11.5, 1001L)
+        assertEquals(2L, controller.progress.value.seekGeneration)
+    }
+
+    @Test
     fun ordinaryTrackSelectionClearsAStaleInternetRadioStation() {
         val station = InternetRadioStation("station", "Station", "https://radio.example.test")
         val controller = NaviampLivePlaybackController(

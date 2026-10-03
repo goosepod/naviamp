@@ -96,6 +96,10 @@ fun createNaviampCoreActions(
             onDeleteConnection = { send(NaviampCoreCommand.Connection.Delete(it)) },
             onConnectSavedConnection = { send(NaviampCoreCommand.Connection.ConnectSaved(it)) },
             onCancelConnectionForm = { send(NaviampCoreCommand.Connection.CancelForm) },
+            onOpenAccounts = { send(NaviampCoreCommand.Connection.OpenAccounts) },
+            onCloseAccounts = { send(NaviampCoreCommand.Connection.CloseAccounts) },
+            onSwitchAccount = { send(NaviampCoreCommand.Connection.SwitchAccount(it)) },
+            onAddAccount = { send(NaviampCoreCommand.Connection.AddAccount) },
         ),
         valueActions = NaviampSettingsValueActions(
             onInterfaceSettingsChanged = { send(NaviampCoreCommand.Settings.ChangeInterface(it)) },

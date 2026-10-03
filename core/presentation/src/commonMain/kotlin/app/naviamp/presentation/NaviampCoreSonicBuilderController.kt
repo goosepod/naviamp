@@ -333,6 +333,16 @@ class NaviampCoreSonicBuilderController(
         status?.let(publishFailure)
     }?.takeIf { it.capabilities.supportsSonicSimilarity }
 
+    fun resetForSourceChange() {
+        startSearchGeneration++
+        endSearchGeneration++
+        mixSearchGeneration++
+        pathBuildGeneration++
+        mixBuildGeneration++
+        resetPath()
+        resetMix()
+    }
+
     private fun resetPath() {
         startTrack = null
         endTrack = null

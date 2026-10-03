@@ -4,13 +4,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.window.WindowState
 import java.awt.AWTEvent
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
 import java.awt.Container
 import java.awt.EventQueue
-import java.awt.Frame
 import java.awt.Toolkit
 import java.awt.Window
 import java.awt.event.AWTEventListener
@@ -32,7 +32,7 @@ fun configureNaviampDesktopRasterLayers() {
 
 /** AWT publishes visibility/owned-window facts; shared UI owns motion and fallback behavior. */
 @Composable
-fun NaviampDesktopRasterHost(window: Window, content: @Composable () -> Unit) {
+fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: @Composable () -> Unit) {
     val presenter = remember(window) {
         val forceSkia = System.getenv("NAVIAMP_RASTER_FORCE_SKIA") == "true"
         val mac = System.getProperty("os.name").contains("Mac")
@@ -49,22 +49,28 @@ fun NaviampDesktopRasterHost(window: Window, content: @Composable () -> Unit) {
     var overlay by remember(window) { mutableStateOf(false) }
     DisposableEffect(window) {
         fun update() {
-            visible = window.isShowing && (window !is Frame || window.extendedState and Frame.ICONIFIED == 0)
+            visible = window.isShowing
             fun hasOverlay(owner: Window): Boolean = owner.ownedWindows.any {
                 it.name != RasterOverlayWindowName && (it.isShowing || hasOverlay(it))
             }
             overlay = hasOverlay(window)
             (presenter as? DesktopSkiaRasterPresenter)?.reposition()
+            (presenter as? LinuxRasterPresenter)?.reposition()
         }
         val listener = AWTEventListener { event ->
             val source = event.source as? Component
-            if (source is Window || source == window) EventQueue.invokeLater { update() }
+            if (source is Window || source == window) EventQueue.invokeLater {
+                update()
+            }
         }
-        Toolkit.getDefaultToolkit().addAWTEventListener(listener, AWTEvent.WINDOW_EVENT_MASK or AWTEvent.COMPONENT_EVENT_MASK)
+        Toolkit.getDefaultToolkit().addAWTEventListener(listener, AWTEvent.WINDOW_EVENT_MASK or
+            AWTEvent.WINDOW_STATE_EVENT_MASK or AWTEvent.WINDOW_FOCUS_EVENT_MASK or AWTEvent.COMPONENT_EVENT_MASK)
         update()
         onDispose { Toolkit.getDefaultToolkit().removeAWTEventListener(listener) }
     }
-    NaviampRasterEnvironment(presenter, visible, overlay, content)
+    // AWT does not always emit a deiconify event for programmatic Frame state changes.
+    // Compose Desktop's native WindowState reports those transitions as well as WM input.
+    NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay, content)
 }
 
 /** Windows and Linux isolate animation in small transparent Skia hardware surfaces. */
@@ -201,7 +207,7 @@ private class DesktopSkiaRasterRegion(
     }
 }
 
-private const val RasterOverlayWindowName = "naviamp-raster-overlay"
+internal const val RasterOverlayWindowName = "naviamp-raster-overlay"
 
 /** Only the JAWT/CALayer lifetime and image/JNI type conversions live here. */
 private class MacRasterPresenter(private val window: Window) : NaviampRasterPresenter {

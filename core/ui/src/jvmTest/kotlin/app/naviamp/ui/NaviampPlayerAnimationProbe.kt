@@ -23,6 +23,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -38,8 +42,10 @@ import kotlinx.coroutines.delay
 /** Synthetic real-window rendering probe. No provider, audio engine, or user data is loaded. */
 fun main() {
     val integrated = System.getenv("NAVIAMP_PROBE_INTEGRATED") == "true"
+    val expectFallback = System.getenv("NAVIAMP_PROBE_EXPECT_FALLBACK") == "true"
     val verifyPixels = System.getenv("NAVIAMP_PROBE_VERIFY") == "true"
     val fullscreenProbe = System.getenv("NAVIAMP_PROBE_FULLSCREEN") == "true"
+    val lifecycleProbe = System.getenv("NAVIAMP_PROBE_LIFECYCLE") == "true"
     val popupProbe = System.getenv("NAVIAMP_PROBE_POPUPS") == "true"
     val tooltipProbe = System.getenv("NAVIAMP_PROBE_TOOLTIPS") == "true"
     val hoverProbe = System.getenv("NAVIAMP_PROBE_HOVER") == "true"
@@ -52,18 +58,32 @@ fun main() {
     var phase by remember { mutableStateOf("static") }
     var waveformInputEvents by remember { mutableIntStateOf(0) }
     var waveformCenter by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val transparentBounds = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
+    var alphaBounds by remember { mutableStateOf(Rect.Zero) }
     var popupVisible by remember { mutableStateOf(false) }
     val rowCount = remember { System.getenv("NAVIAMP_PROBE_ROWS")?.toIntOrNull()?.coerceIn(0, 1000) ?: 150 }
     val cpu = remember { ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean }
-    val windowState = rememberWindowState(width = 1000.dp, height = 740.dp)
+    val compositors = remember {
+        ProcessHandle.allProcesses().use { processes -> processes.filter {
+            java.io.File(it.info().command().orElse("")).name in setOf("xfwm4", "xcompmgr", "Xorg", "Xvfb")
+        }.toList() }
+    }
+    val probeWindowState = rememberWindowState(width = 1000.dp, height = 740.dp)
     Window(
         onCloseRequest = ::exitApplication,
         title = "Naviamp animation CPU probe",
-        state = windowState,
+        state = probeWindowState,
         alwaysOnTop = verifyPixels,
     ) {
         val marquee = phase == "marquee" || phase.endsWith("combined")
         val smooth = phase == "waveform" || phase.endsWith("combined")
+        val playbackValue = remember { mutableFloatStateOf(.2f) }
+        LaunchedEffect(smooth) {
+            if (smooth) while (true) {
+                delay(1_000)
+                playbackValue.floatValue += 1f / 300f
+            }
+        }
         val content: @Composable () -> Unit = {
         Row(Modifier.fillMaxSize().background(Color(0xff24242b)).padding(24.dp)) {
             if (compositor) ProbeCompositorSurface(marquee, smooth, Modifier.width(280.dp).fillMaxHeight())
@@ -77,15 +97,17 @@ fun main() {
                     BouncingTitleText(
                         "Long scrolling player metadata $index with enough text to overflow its viewport",
                         color = Color.White, fontSize = 16, marqueeEnabled = marquee,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().then(if (verifyPixels) probePattern() else Modifier)
+                            .onGloballyPositioned { transparentBounds[index] = Rect(it.positionInWindow(), Size(it.size.width.toFloat(), it.size.height.toFloat())) },
                     )
                 }
                 WaveformScrubber(
                     amplitudes = List(512) { ((it * 17) % 101) / 100f },
-                    value = 0.2f, enabled = true, smoothProgress = smooth,
+                    value = 0.2f, drawValue = { playbackValue.floatValue }, enabled = true, smoothProgress = smooth,
                     durationSeconds = 300.0, colors = NaviampColors(),
                     onValueChange = { waveformInputEvents++ }, onValueChangeFinished = {},
-                    modifier = Modifier.fillMaxWidth().height(32.dp).onGloballyPositioned { coordinates ->
+                    modifier = Modifier.fillMaxWidth().height(32.dp).then(if (verifyPixels) probePattern() else Modifier).onGloballyPositioned { coordinates ->
+                        transparentBounds[3] = Rect(coordinates.positionInWindow(), Size(coordinates.size.width.toFloat(), coordinates.size.height.toFloat()))
                         val position = coordinates.positionInWindow()
                         waveformCenter = position + androidx.compose.ui.geometry.Offset(
                             coordinates.size.width / 2f, coordinates.size.height / 2f,
@@ -93,6 +115,10 @@ fun main() {
                     },
                 )
                 Text(phase, color = Color.White)
+                if (verifyPixels) ProbeAlphaFixture(Modifier.fillMaxWidth().height(32.dp)
+                    .onGloballyPositioned {
+                        alphaBounds = Rect(it.positionInWindow(), Size(it.size.width.toFloat(), it.size.height.toFloat()))
+                    })
             }
             }
             }
@@ -116,7 +142,7 @@ fun main() {
             ) { Text("Tooltip probe", color = Color.White, modifier = Modifier.padding(8.dp, 5.dp)) }
         }
         }
-        if (integrated) NaviampDesktopRasterHost(window, content) else content()
+        if (integrated) NaviampDesktopRasterHost(window, probeWindowState, content) else content()
         LaunchedEffect(Unit) {
             try {
             delay(1_000)
@@ -141,42 +167,65 @@ fun main() {
             }
             java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(lifecycle, java.awt.AWTEvent.WINDOW_EVENT_MASK)
             for (mode in if (fullscreenProbe) listOf("windowed", "fullscreen", "restored") else listOf("windowed")) {
-            windowState.placement = if (mode == "fullscreen") androidx.compose.ui.window.WindowPlacement.Fullscreen
+            probeWindowState.placement = if (mode == "fullscreen") androidx.compose.ui.window.WindowPlacement.Fullscreen
                 else androidx.compose.ui.window.WindowPlacement.Floating
             delay(3_000)
-            println("ANIMATION_WINDOW mode=$mode placement=${windowState.placement} size=${window.size} scale=${window.graphicsConfiguration.defaultTransform} refresh=${window.graphicsConfiguration.device.displayMode.refreshRate}")
-            for (next in if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined") else if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined")) {
+            println("ANIMATION_WINDOW mode=$mode placement=${probeWindowState.placement} size=${window.size} scale=${window.graphicsConfiguration.defaultTransform} refresh=${window.graphicsConfiguration.device.displayMode.refreshRate}")
+            for (next in System.getenv("NAVIAMP_PROBE_PHASES")?.split(',') ?: if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined") else if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined") + if (lifecycleProbe) listOf("paused", "hidden-combined", "restored-combined", "resized-combined") else emptyList()) {
                 phase = next
+                if (lifecycleProbe) {
+                    probeWindowState.isMinimized = next == "hidden-combined"
+                    if (next == "resized-combined") {
+                        probeWindowState.position = androidx.compose.ui.window.WindowPosition(60.dp, 40.dp)
+                        probeWindowState.size = androidx.compose.ui.unit.DpSize(1040.dp, 760.dp)
+                    }
+                }
+                val capturePixels = verifyPixels && next != "hidden-combined"
                 if (popupProbe) popupVisible = next == "popup-combined"
                 if (tooltipProbe) popupVisible = next == "tooltip"
                 if (hoverProbe) kotlinx.coroutines.withTimeout(90_000) {
                     while (window.ownedWindows.none { it.isShowing }) delay(100)
                 }
-                if (verifyPixels) {
+                if (capturePixels) {
                     val origin = window.locationOnScreen
                     java.awt.Robot(window.graphicsConfiguration.device).mouseMove(
                         origin.x + window.width - 10, origin.y + window.height - 10,
                     )
                 }
                 delay(5_000)
+                if (lifecycleProbe) println("ANIMATION_LIFECYCLE $next state=${window.extendedState} minimized=${probeWindowState.isMinimized} owned=${window.ownedWindows.map { it.name to it.isShowing }}")
                 val openedBefore = opened.get()
                 val closedBefore = closed.get()
                 val initialFrames = counters.map { it.second.get() }
                 val positions = if (compositor) ProbeCompositor.positions(ProbeCompositor.handle).toList() else emptyList()
-                val beforePixels = if (verifyPixels) captureProbe(window, "$mode-$next-before") else null
+                val beforePixels = if (capturePixels) captureProbe(window, "$mode-$next-before") else null
+                val compositorCpu = compositors.associateWith { it.info().totalCpuDuration().orElse(null)?.toNanos() }
                 val startCpu = cpu.processCpuTime
                 val start = System.nanoTime()
                 delay(if (hoverProbe) 30_000 else 10_000)
                 val percent = (cpu.processCpuTime - startCpu).toDouble() / (System.nanoTime() - start) * 100.0
                 println("ANIMATION_PROBE $mode/$next,$percent,${counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }}")
+                val elapsedNanos = System.nanoTime() - start
+                compositors.forEach { process ->
+                    val before = compositorCpu[process]
+                    val after = process.info().totalCpuDuration().orElse(null)?.toNanos()
+                    if (before != null && after != null) println("ANIMATION_COMPOSITOR $next pid=${process.pid()} command=${process.info().command().orElse("")} cpu_percent=${(after - before).toDouble() / elapsedNanos * 100}")
+                }
+                if (next == "hidden-combined") {
+                    check(window.extendedState and java.awt.Frame.ICONIFIED != 0) { "Probe did not minimize" }
+                    check(window.ownedWindows.none { it.isShowing }) { "Raster windows remained visible while minimized" }
+                    check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Hidden parent redrew" }
+                }
                 println("ANIMATION_WINDOWS $next opened=${opened.get() - openedBefore} closed=${closed.get() - closedBefore}")
                 if (hoverProbe) {
                     check(window.ownedWindows.any { it.isShowing }) { "Hover tooltip is not visible" }
                     check(opened.get() == openedBefore && closed.get() == closedBefore) { "Hover recreated native popup windows" }
                 }
-                if (verifyPixels) {
+                if (capturePixels) {
                     val afterCapture = captureProbe(window, "$mode-$next-after")
                     val beforeCapture = requireNotNull(beforePixels)
+                    verifyProbeAlpha(afterCapture.pixels, window, alphaBounds)
+                    transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index) }
                     val afterPixels = afterCapture.pixels
                     val before = beforeCapture.pixels
                     var changed = 0
@@ -206,7 +255,8 @@ fun main() {
                     if (next == "marquee" || next.endsWith("combined")) check(textChanged > 10) { "Text did not move" }
                     if (next == "waveform" || next.endsWith("combined")) check(waveformChanged > 10) { "Waveform did not move" }
                     check(siblingChanges == 0) { "Unrelated content changed" }
-                    if (next != "popup-combined") check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
+                    if (expectFallback && (marquee || smooth)) check(counters.indices.any { counters[it].second.get() > initialFrames[it] }) { "Expected the shared fallback to animate" }
+                    if (!expectFallback && next != "popup-combined") check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
                 }
                 if (compositor) {
                     val after = ProbeCompositor.positions(ProbeCompositor.handle).toList()
@@ -243,6 +293,7 @@ fun main() {
                 delay(300)
                 check(waveformInputEvents > 0) { "Native raster surface intercepted shared waveform input" }
                 println("ANIMATION_INPUT waveform events=$waveformInputEvents point=$inputX,$inputY insets=${window.insets}")
+                if (System.getenv("NAVIAMP_PROBE_STACKING") == "true") verifyProbeStacking(window, alphaBounds, transparentBounds.first())
             }
             exitApplication()
             } catch (failure: Throwable) {
@@ -445,4 +496,97 @@ private fun ProbeCompositorSurface(marquee: Boolean, smooth: Boolean, modifier: 
     }
     SwingPanel(factory = { javax.swing.JPanel(java.awt.BorderLayout()).apply { add(canvas, java.awt.BorderLayout.CENTER) } },
         background = Color(0xff24242b), modifier = modifier, update = { canvas.updateScene() })
+}
+
+/** Known premultiplied pixels over a nonblack two-color parent; opaque black must fail. */
+@Composable
+private fun ProbeAlphaFixture(modifier: Modifier) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val image = remember(density) {
+        ImageBitmap(with(density) { 280.dp.toPx().toInt() }, with(density) { 32.dp.toPx().toInt() }).also { bitmap ->
+            CanvasDrawScope().draw(density, LayoutDirection.Ltr, Canvas(bitmap), Size(bitmap.width.toFloat(), bitmap.height.toFloat())) {
+                drawRect(Color.White, size = Size(size.width / 4, size.height))
+                drawRect(Color.Red.copy(alpha = .5f), topLeft = Offset(size.width / 4, 0f), size = Size(size.width / 4, size.height))
+            }
+        }
+    }
+    val layers = remember(image) { listOf(NaviampRasterLayer(image)) }
+    NaviampAnimatedRaster(layers, modifier.then(probePattern()))
+}
+
+private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect) {
+    check(!bounds.isEmpty) { "Alpha fixture was not laid out" }
+    val left = window.insets.left + bounds.left.toInt()
+    val top = window.insets.top + bounds.top.toInt()
+    fun sample(x: Int) = image.getRGB(left + (bounds.width * x / 280).toInt(), top + (bounds.height / 2).toInt()) and 0xffffff
+    fun matches(actual: Int, expected: Int) = listOf(0, 8, 16).all {
+        kotlin.math.abs((actual shr it and 255) - (expected shr it and 255)) <= 2
+    }
+    val opaque = sample(35)
+    val blended = sample(105)
+    val transparent = sample(210)
+    println("ANIMATION_ALPHA opaque=%06x blended=%06x transparent=%06x".format(opaque, blended, transparent))
+    check(matches(opaque, 0xffffff)) { "Opaque raster pixels missing" }
+    check(matches(blended, 0x923456)) { "Premultiplied alpha did not blend over the parent: %06x".format(blended) }
+    check(matches(transparent, 0xac6824)) { "Transparent raster pixels obscured the patterned parent: %06x".format(transparent) }
+}
+
+private fun probePattern() = Modifier.drawBehind {
+    drawRect(Color(0xff2468ac))
+    drawRect(Color(0xffac6824), topLeft = Offset(size.width / 2, 0f), size = Size(size.width / 2, size.height))
+}
+
+private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, index: Int) {
+    check(!bounds.isEmpty) { "Raster region $index was not laid out" }
+    val left = window.insets.left + bounds.left.toInt()
+    val top = window.insets.top + bounds.top.toInt()
+    val width = bounds.width.toInt()
+    val height = bounds.height.toInt()
+    val samples = intArrayOf(0, 0)
+    for (y in 2 until height - 2) for (x in 2 until width - 2) {
+        val side = if (x < width / 2) 0 else 1
+        val expected = if (side == 0) 0x2468ac else 0xac6824
+        if (image.getRGB(left + x, top + y) and 0xffffff == expected) samples[side]++
+    }
+    println("ANIMATION_BACKGROUND region=$index samples=${samples.toList()}")
+    check(samples.all { it > width * height / 20 }) { "Raster region $index obscured the patterned parent" }
+}
+
+/** Use a real independent top-level window; native raster pixels must follow their owner's stack. */
+private suspend fun verifyProbeStacking(window: java.awt.Window, alphaBounds: Rect, textBounds: Rect) {
+    val onTop = window.isAlwaysOnTop
+    val cover = javax.swing.JFrame("Raster stacking probe").apply {
+        isUndecorated = true
+        contentPane.background = java.awt.Color(0x10aa30)
+        setBounds(window.x, window.y, window.width, window.height)
+    }
+    try {
+        window.isAlwaysOnTop = false
+        cover.isVisible = true
+        cover.toFront()
+        cover.requestFocus()
+        delay(1_000)
+        val point = window.locationOnScreen
+        val capture = java.awt.Robot(window.graphicsConfiguration.device)
+            .createScreenCapture(java.awt.Rectangle(point, window.size))
+        val x = window.insets.left + textBounds.left.toInt() + 10
+        val y = window.insets.top + textBounds.top.toInt() + textBounds.height.toInt() / 2
+        check(capture.getRGB(x, y) and 0xffffff == 0x10aa30) { "Raster pixels stayed above another window" }
+        window.toFront()
+        window.requestFocus()
+        delay(1_000)
+        val restored = captureProbe(window, "stack-restored").pixels
+        verifyProbeAlpha(restored, window, alphaBounds)
+        var text = 0
+        for (row in 0 until textBounds.height.toInt()) for (column in 0 until textBounds.width.toInt()) {
+            val pixel = restored.getRGB(window.insets.left + textBounds.left.toInt() + column,
+                window.insets.top + textBounds.top.toInt() + row)
+            if ((pixel shr 16 and 255) > 200 && (pixel shr 8 and 255) > 200 && (pixel and 255) > 200) text++
+        }
+        check(text > 100) { "Raster text did not return above its owner" }
+        println("ANIMATION_STACKING covered pixels hidden; raised owner restored alpha and text")
+    } finally {
+        cover.dispose()
+        window.isAlwaysOnTop = onTop
+    }
 }

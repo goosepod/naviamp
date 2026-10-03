@@ -122,4 +122,11 @@
     <string name="album_disc_number_title">ディスク %1$d — %2$s</string>
     <string name="window_enter_fullscreen">全画面表示にする</string>
     <string name="window_exit_fullscreen">全画面表示を終了</string>
+    <string name="tv_accounts">アカウント</string>
+    <string name="tv_accounts_title">誰が聴きますか？</string>
+    <string name="tv_accounts_description">アカウントを選択するか、別のアカウントを追加してください。</string>
+    <string name="tv_account_add">アカウントを追加</string>
+    <string name="tv_account_switching">アカウントを切り替え中…</string>
+    <string name="tv_account_switch_failed">このアカウントに接続できませんでした。もう一度試すか、別のアカウントを選択してください。</string>
+    <string name="tv_account_nav_label">アカウント: %1$s</string>
 </resources>

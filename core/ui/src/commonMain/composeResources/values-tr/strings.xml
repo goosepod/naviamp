@@ -122,4 +122,11 @@
     <string name="album_disc_number_title">Disk %1$d — %2$s</string>
     <string name="window_enter_fullscreen">Tam ekrana geç</string>
     <string name="window_exit_fullscreen">Tam ekrandan çık</string>
+    <string name="tv_accounts">Hesaplar</string>
+    <string name="tv_accounts_title">Kim dinliyor?</string>
+    <string name="tv_accounts_description">Bir hesap seçin veya başka bir hesap ekleyin.</string>
+    <string name="tv_account_add">Hesap ekle</string>
+    <string name="tv_account_switching">Hesap değiştiriliyor…</string>
+    <string name="tv_account_switch_failed">Bu hesaba bağlanılamadı. Tekrar deneyin veya başka bir hesap seçin.</string>
+    <string name="tv_account_nav_label">Hesaplar: %1$s</string>
 </resources>
