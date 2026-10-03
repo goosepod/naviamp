@@ -106,6 +106,11 @@ internal class DesktopWindowEffect(
             // lets the exit reshape overwrite Maximized before Compose applies it.
             native.placement = WindowPlacement.Maximized
         }
+        if (restored.placement == NaviampWindowPlacement.Floating && native?.placement == WindowPlacement.Fullscreen &&
+            !System.getProperty("os.name").contains("Mac", ignoreCase = true)) {
+            // Finish the AWT decoration change before Compose publishes restored geometry.
+            native.placement = WindowPlacement.Floating
+        }
         setWindowState(restored)
         return true
     }
