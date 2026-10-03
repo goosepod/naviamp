@@ -9,7 +9,6 @@ windowed geometry remains the device-local geometry saved by the host, even when
 ## Controls
 
 - Enter/Exit fullscreen icon in shared bottom navigation, including the player navigation.
-- The wide player workspace also exposes the icon next to the player layout control.
 - F11 toggles fullscreen. On macOS Control–Command–F also toggles it.
 - Escape dismisses a focused menu/dialog first. With no overlay, Escape exits fullscreen.
 - Native window controls report back into the same shared state.
