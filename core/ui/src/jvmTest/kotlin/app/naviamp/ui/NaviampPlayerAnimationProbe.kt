@@ -160,6 +160,8 @@ fun main() {
             // Allow the native test window to be raised onto the measured desktop space.
             delay(if (verifyPixels) 15_000 else 1_000)
             if (verifyPixels) captureProbe(window, "warmup")
+            val baselineSize = probeWindowState.size
+            val baselinePosition = probeWindowState.position
             val counters = probeLayers(window).map { layer ->
                 val count = AtomicLong()
                 val delegate = requireNotNull(layer.renderDelegate)
@@ -191,6 +193,10 @@ fun main() {
                 println("ANIMATION_CYCLE $cycle phase=$next")
                 phase = next
                 if (lifecycleProbe) {
+                    if (next == phases.first()) {
+                        probeWindowState.size = baselineSize
+                        probeWindowState.position = baselinePosition
+                    }
                     probeWindowState.isMinimized = next == "hidden-combined"
                     if (next == "resized-combined") {
                         probeWindowState.position = androidx.compose.ui.window.WindowPosition(60.dp, 40.dp)
@@ -210,6 +216,7 @@ fun main() {
                     )
                 }
                 delay(5_000)
+                println("ANIMATION_GEOMETRY cycle=$cycle phase=$next bounds=${window.bounds} scale=${window.graphicsConfiguration.defaultTransform} refresh=${window.graphicsConfiguration.device.displayMode.refreshRate}")
                 if (lifecycleProbe) println("ANIMATION_LIFECYCLE $next state=${window.extendedState} minimized=${probeWindowState.isMinimized} owned=${window.ownedWindows.map { it.name to it.isShowing }}")
                 val openedBefore = opened.get()
                 val closedBefore = closed.get()
@@ -246,8 +253,8 @@ fun main() {
                     val afterCapture = captureProbe(window, "cycle$cycle-$next-after", dimmed)
                     if (menuProbe && popupVisible) verifyMenuPaint(afterCapture.pixels)
                     val beforeCapture = requireNotNull(beforePixels)
-                    verifyProbeAlpha(afterCapture.pixels, window, alphaBounds)
-                    transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index) }
+                    verifyProbeAlpha(afterCapture.pixels, window, alphaBounds, dimmed)
+                    transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index, dimmed) }
                     val afterPixels = afterCapture.pixels
                     val before = beforeCapture.pixels
                     var changed = 0
@@ -576,7 +583,7 @@ private fun ProbeAlphaFixture(modifier: Modifier) {
     NaviampAnimatedRaster(layers, modifier.then(probePattern()))
 }
 
-private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect) {
+private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, dimmed: Boolean = false) {
     check(!bounds.isEmpty) { "Alpha fixture was not laid out" }
     val left = window.insets.left + bounds.left.toInt()
     val top = window.insets.top + bounds.top.toInt()
@@ -588,17 +595,21 @@ private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.a
     val blended = sample(105)
     val transparent = sample(210)
     println("ANIMATION_ALPHA opaque=%06x blended=%06x transparent=%06x".format(opaque, blended, transparent))
-    check(matches(opaque, 0xffffff)) { "Opaque raster pixels missing" }
-    check(matches(blended, 0x923456)) { "Premultiplied alpha did not blend over the parent: %06x".format(blended) }
-    check(matches(transparent, 0xac6824)) { "Transparent raster pixels obscured the patterned parent: %06x".format(transparent) }
+    check(matches(opaque, probeScrimColor(0xffffff, dimmed))) { "Opaque raster pixels missing" }
+    check(matches(blended, probeScrimColor(0x923456, dimmed))) { "Premultiplied alpha did not blend over the parent: %06x".format(blended) }
+    check(matches(transparent, probeScrimColor(0xac6824, dimmed))) { "Transparent raster pixels obscured the patterned parent: %06x".format(transparent) }
 }
+
+/** The shared modal's settled black scrim has 60% opacity; retain the same pixel tolerance. */
+private fun probeScrimColor(color: Int, dimmed: Boolean): Int = if (!dimmed) color else
+    listOf(0, 8, 16).fold(0) { result, shift -> result or (((color shr shift and 255) * .4).toInt() shl shift) }
 
 private fun probePattern() = Modifier.drawBehind {
     drawRect(Color(0xff2468ac))
     drawRect(Color(0xffac6824), topLeft = Offset(size.width / 2, 0f), size = Size(size.width / 2, size.height))
 }
 
-private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, index: Int) {
+private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, index: Int, dimmed: Boolean = false) {
     check(!bounds.isEmpty) { "Raster region $index was not laid out" }
     val left = window.insets.left + bounds.left.toInt()
     val top = window.insets.top + bounds.top.toInt()
@@ -607,8 +618,8 @@ private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: j
     val samples = intArrayOf(0, 0)
     for (y in 2 until height - 2) for (x in 2 until width - 2) {
         val side = if (x < width / 2) 0 else 1
-        val expected = if (side == 0) 0x2468ac else 0xac6824
-        if (image.getRGB(left + x, top + y) and 0xffffff == expected) samples[side]++
+        val expected = probeScrimColor(if (side == 0) 0x2468ac else 0xac6824, dimmed)
+        if (!probePixelsDiffer(image.getRGB(left + x, top + y), expected)) samples[side]++
     }
     println("ANIMATION_BACKGROUND region=$index samples=${samples.toList()}")
     check(samples.all { it > width * height / 20 }) { "Raster region $index obscured the patterned parent" }

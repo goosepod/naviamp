@@ -286,4 +286,38 @@ The generic Windows probe initially selected Direct3D, consumed roughly one CPU
 core and crashed in native rendering at popup entry. That backend is not used by
 the packaged Windows app. The probe task now explicitly selects OpenGL on Windows
 to match the application; Direct3D results are retained only as failed diagnostics.
+### Windows native positioning follow-up
 
+The AWT adapter now skips an identical JWindow bounds assignment. Core still owns
+scene content and animation policy; the adapter only compares and applies native
+window coordinates. This does not alter animation rate, cached content or motion.
+Two matched OpenGL menu cycles used a 1000 x 740 native window (984 x 701 client),
+scale 1.0 and 60 Hz. Each passed physical menu paint, visible text/progress motion,
+unchanged siblings, stable bounds, twelve reopen captures and pointer input;
+all sampled parent frame counts were zero.
+
+| State | Previous cycle 1 | Guarded cycle 1 | Previous cycle 2 | Guarded cycle 2 |
+| --- | ---: | ---: | ---: | ---: |
+| Static | 1.40% | 1.72% | 2.81% | 4.37% |
+| Marquee | 0.47% | 0.47% | 4.06% | 2.50% |
+| Waveform | 0.78% | 1.87% | 4.69% | 3.59% |
+| Combined | 1.09% | 1.09% | 4.84% | 4.37% |
+| Menu + combined | 6.40% | 1.72% | 10.62% | 2.03% |
+| Restored combined | 6.86% | 6.86% | 6.08% | 4.53% |
+
+The menu observations improved, but static/restored CPU remains variable and too
+high to establish full animation acceptance. This is an incremental candidate,
+not a completed performance fix. Twenty-six shared popup/input/raster regressions
+and verifyCoreFirstArchitecture pass after the native change.
+
+The lifecycle probe now resets native size/position before each repeated cycle and
+records geometry, scale and refresh for every phase. Modal alpha/pattern gates
+account for the settled 60% black scrim without relaxing pixel/motion tolerances;
+opaque black or a missing patterned parent still fail the check.
+
+The final guarded OpenGL modal matrix passed both complete cycles, including paused,
+minimized, restored and resized phases, zero parent frames, alpha/pattern checks,
+visible text/progress, unchanged siblings, twelve reopens and pointer input. Physical
+captures visibly contain the title, body, Confirm button and scrim. Modal CPU was
+3.28% and 2.03%; restored samples ranged 5.15–7.34%. These results strengthen
+functional acceptance but do not resolve the CPU baseline or real-app budget gate.

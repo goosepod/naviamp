@@ -186,12 +186,13 @@ private class DesktopSkiaRasterRegion(
     fun reposition() {
         if (!window.isShowing || clip.isEmpty) return
         val location = window.locationOnScreen
-        overlay.setBounds(
+        val nextBounds = java.awt.Rectangle(
             location.x + window.insets.left + (clip.left / scale).toInt(),
             location.y + window.insets.top + (clip.top / scale).toInt(),
             (clip.width / scale).toInt().coerceAtLeast(1),
             (clip.height / scale).toInt().coerceAtLeast(1),
         )
+        if (overlay.bounds != nextBounds) overlay.bounds = nextBounds
     }
 
     private fun forward(event: MouseEvent) {
