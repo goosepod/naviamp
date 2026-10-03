@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -47,6 +48,24 @@ class NaviampArtistAppearancesUiTest {
         onNodeWithTag("artist_appearance_tracks_heading").assertExists()
         onNodeWithText("Anthems: 90s").assertExists()
         onNodeWithText("Mr. Vain").assertExists()
+
+        assertEquals(
+            onNodeWithText("Anthems: 90s", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left,
+            onNodeWithText("Mr. Vain", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left,
+            "Appearance album and track titles must line up",
+        )
+        assertEquals(
+            onNodeWithText("Various Artists", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left,
+            onNodeWithText("Culture Beat", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left,
+            "Appearance album and track subtitles must line up",
+        )
+        val menus = onAllNodesWithContentDescription("More actions").fetchSemanticsNodes()
+        assertEquals(2, menus.size)
+        assertEquals(
+            menus[0].boundsInRoot.center.x,
+            menus[1].boundsInRoot.center.x,
+            "Appearance album and track overflow controls must line up",
+        )
 
         runOnIdle { detail.value = detail.value.copy(appearanceTracks = emptyList()) }
         onNodeWithTag("artist_appearance_albums_heading").assertExists()

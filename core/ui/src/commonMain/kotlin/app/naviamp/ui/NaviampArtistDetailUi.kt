@@ -556,6 +556,7 @@ private fun ArtistDetailContent(
                                 canAddToQueue = true,
                                 canDownload = true,
                                 canAddToPlaylist = true,
+                                horizontalPadding = 8.dp,
                             )
                         }
                     }
