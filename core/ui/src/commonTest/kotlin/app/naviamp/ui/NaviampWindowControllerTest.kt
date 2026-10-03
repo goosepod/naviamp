@@ -33,6 +33,18 @@ class NaviampWindowControllerTest {
         assertFalse(controller.escape(overlayVisible = false))
     }
 
+    @Test fun fullscreenResizeDoesNotReplaceMaximizedRestoreGeometry() {
+        val initial = NaviampWindowSnapshot(NaviampWindowPlacement.Maximized, 2560f, 1400f, -8f, -8f)
+        val requests = mutableListOf<NaviampWindowSnapshot>()
+        val controller = NaviampWindowController({ requests.add(it); true }, initial)
+        assertTrue(controller.toggle())
+        controller.observe(initial.copy(placement = NaviampWindowPlacement.Fullscreen, height = 1440f))
+        controller.observe(controller.state.copy(width = 1920f, height = 1080f, x = 0f, y = 0f))
+        assertTrue(controller.escape(overlayVisible = false))
+        assertEquals(initial, requests.last())
+        assertEquals(initial, controller.windowedSnapshot)
+    }
+
     @Test fun rejectedAndThrowingEffectsPreserveStateAndRestoreGeometry() {
         for (effect in listOf(NaviampWindowEffect { false }, NaviampWindowEffect { error("Native failure") })) {
             val initial = NaviampWindowSnapshot()

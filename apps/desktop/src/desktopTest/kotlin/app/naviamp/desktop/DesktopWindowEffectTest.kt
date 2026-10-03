@@ -7,6 +7,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import app.naviamp.ui.NaviampWindowController
 import app.naviamp.ui.NaviampWindowPlacement
+import app.naviamp.ui.onAvailableScreen
 import kotlin.test.*
 
 class DesktopWindowEffectTest {
@@ -46,7 +47,11 @@ class DesktopWindowEffectTest {
             val window = WindowState(placement = placement, size = DpSize(1100.dp, 720.dp),
                 position = WindowPosition.PlatformDefault)
             val effect = DesktopWindowEffect(window)
-            val initial = effect.snapshot()
+            val initial = effect.snapshot().onAvailableScreen(
+                app.naviamp.desktop.platform.availableDesktopScreenBounds().map {
+                    app.naviamp.ui.NaviampWindowScreen(it.x.toFloat(), it.y.toFloat(), it.width.toFloat(), it.height.toFloat())
+                },
+            )
             val controller = NaviampWindowController(effect, initial)
             assertTrue(controller.toggle())
             assertEquals(WindowPlacement.Fullscreen, window.placement)
@@ -54,7 +59,10 @@ class DesktopWindowEffectTest {
             assertTrue(controller.toggle())
             assertEquals(placement, window.placement)
             assertEquals(DpSize(1100.dp, 720.dp), window.size)
-            assertEquals(WindowPosition.PlatformDefault, window.position)
+            // PlatformDefault may expose an absolute suggestion outside a headless
+            // CI display. The shared screen fallback intentionally clears it.
+            assertEquals(initial.x, (window.position as? WindowPosition.Absolute)?.x?.value)
+            assertEquals(initial.y, (window.position as? WindowPosition.Absolute)?.y?.value)
         }
     }
 }

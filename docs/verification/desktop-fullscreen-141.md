@@ -105,6 +105,28 @@ NAVIAMP_PROBE_MAXIMIZED=true ./gradlew :apps:desktop:desktopFullscreenProbe
 
 ## Platform diff accountability
 
+## Windows checkpoint: October 2, 2026
+
+Windows 11, Ryzen 7 5800H, AMD Radeon Graphics, 2560 x 1440 at 60 Hz, scale 1.0.
+The packaged OpenGL development app reproduced a fullscreen exit from maximized
+placement restoring a floating window. Compose's native Maximized setter does not
+exit fullscreen; changing only WindowState after native exit allowed the exit
+reshape to overwrite the requested maximization. The adapter now executes both
+native placement operations together before publishing the requested state.
+
+The visible native probe passes three floating and three maximized entry/restore
+cycles with exact restored bounds, matching Compose/client bounds, and physically
+visible bottom-edge controls. Maximized bounds restore to (-8, -8, 2576, 1408),
+with a 2560 x 1369 client area; floating bounds restore to (48, 48, 1000, 740).
+Six shared controller regressions and all five Desktop tests pass. Shared UI
+compiles for JVM, Android, iOS ARM64 and iOS simulator ARM64 on this Windows host.
+The Desktop restoration test now checks normalized coordinates instead of assuming
+that PlatformDefault remains an identical object after native monitor normalization.
+
+These checks resolve the reproduced maximization failure. Real-app lifecycle,
+overlay/animation, accessibility and mixed-scale/multi-monitor acceptance remains
+pending; this checkpoint alone does not complete #141.
+
 - `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopWindowEffect.kt` translates
   Compose Desktop/AWT window geometry, monitor coordinates and native placement, and manages
   AppKit fullscreen callbacks plus the macOS AWT peer inset refresh. These JVM/macOS APIs cannot

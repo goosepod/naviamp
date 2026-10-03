@@ -97,6 +97,9 @@ internal class DesktopWindowEffect(private val window: WindowState) : NaviampWin
                 return true
             }
             native.placement = WindowPlacement.Floating
+            // Execute both AWT operations together. Publishing only the Compose state
+            // lets the exit reshape overwrite Maximized before Compose applies it.
+            native.placement = WindowPlacement.Maximized
         }
         setWindowState(restored)
         return true
