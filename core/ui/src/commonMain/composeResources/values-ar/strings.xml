@@ -129,4 +129,9 @@
     <string name="tv_account_switching">جارٍ تبديل الحساب…</string>
     <string name="tv_account_switch_failed">تعذر الاتصال بهذا الحساب. حاول مرة أخرى أو اختر حسابًا آخر.</string>
     <string name="tv_account_nav_label">الحسابات: %1$s</string>
+    <string name="cast_picker_searching">جارٍ البحث عن أجهزة Google Cast على شبكتك المحلية…</string>
+    <string name="cast_picker_discovery_failed">تعذر البحث عن أجهزة Cast. تحقق من الشبكة وحاول مرة أخرى.</string>
+    <string name="cast_picker_connection_failed">تعذر الاتصال بجهاز Cast هذا. تحقق من توفره وحاول مرة أخرى.</string>
+    <string name="cast_picker_target_lost">لم يعد جهاز Cast هذا متاحًا. ابحث مرة أخرى.</string>
+    <string name="cast_picker_return_local">العودة إلى التشغيل المحلي</string>
 </resources>

@@ -129,4 +129,9 @@
     <string name="tv_account_switching">Переключение аккаунта…</string>
     <string name="tv_account_switch_failed">Не удалось подключиться к этому аккаунту. Повторите попытку или выберите другой аккаунт.</string>
     <string name="tv_account_nav_label">Аккаунты: %1$s</string>
+    <string name="cast_picker_searching">Поиск устройств Google Cast в локальной сети…</string>
+    <string name="cast_picker_discovery_failed">Не удалось найти устройства Cast. Проверьте сеть и повторите попытку.</string>
+    <string name="cast_picker_connection_failed">Не удалось подключиться к этому устройству Cast. Проверьте его доступность и повторите попытку.</string>
+    <string name="cast_picker_target_lost">Это устройство Cast больше недоступно. Повторите поиск.</string>
+    <string name="cast_picker_return_local">Вернуться к локальному воспроизведению</string>
 </resources>

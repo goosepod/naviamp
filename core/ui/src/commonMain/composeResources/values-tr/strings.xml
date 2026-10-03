@@ -129,4 +129,9 @@
     <string name="tv_account_switching">Hesap değiştiriliyor…</string>
     <string name="tv_account_switch_failed">Bu hesaba bağlanılamadı. Tekrar deneyin veya başka bir hesap seçin.</string>
     <string name="tv_account_nav_label">Hesaplar: %1$s</string>
+    <string name="cast_picker_searching">Yerel ağınızda Google Cast cihazları aranıyor…</string>
+    <string name="cast_picker_discovery_failed">Cast cihazları aranamadı. Ağınızı kontrol edip tekrar deneyin.</string>
+    <string name="cast_picker_connection_failed">Bu Cast cihazına bağlanılamadı. Kullanılabilir olduğunu kontrol edip tekrar deneyin.</string>
+    <string name="cast_picker_target_lost">Bu Cast cihazı artık kullanılamıyor. Yeniden arayın.</string>
+    <string name="cast_picker_return_local">Yerel oynatmaya dön</string>
 </resources>

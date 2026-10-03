@@ -15,6 +15,14 @@ MusicBrainz data license: <https://musicbrainz.org/doc/About/Data_License>
 
 CC0 1.0 Universal: <https://creativecommons.org/publicdomain/zero/1.0/>
 
+## Google Cast trust certificates
+
+The Google Cast and Eureka root certificates are distributed with Chromium under its
+BSD 3-Clause license. Naviamp retains that license in [`third-party/cast/NOTICE`](third-party/cast/NOTICE).
+The certificates authenticate Cast receiver device proofs; they are not provider credentials.
+
+Upstream: <https://github.com/chromium/chromium/tree/main/components/media_router/common/providers/cast/certificate>
+
 ## BASS audio library and official add-ons
 
 BASS and its official add-ons are copyright Un4seen Developments Ltd. Naviamp uses them under

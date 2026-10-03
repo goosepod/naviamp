@@ -258,6 +258,10 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
     .configureEach { dependsOn(prepareDesktopNativeResources) }
 
 tasks.named<Test>("desktopTest") {
+    val castProbe = providers.environmentVariable("NAVIAMP_CAST_PROBE").orElse("")
+    inputs.property("castProbe", castProbe)
+    inputs.property("castPlaybackProbe", providers.environmentVariable("NAVIAMP_CAST_PLAYBACK_PROBE").orElse("false"))
+    outputs.upToDateWhen { castProbe.get().isEmpty() }
     val mprisIntegration = providers.environmentVariable("NAVIAMP_MPRIS_INTEGRATION").orElse("false")
     inputs.property("mprisIntegration", mprisIntegration)
     outputs.upToDateWhen { mprisIntegration.get() != "true" }

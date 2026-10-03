@@ -129,4 +129,9 @@
     <string name="tv_account_switching">Account wisselen…</string>
     <string name="tv_account_switch_failed">Kan geen verbinding maken met dit account. Probeer het opnieuw of kies een ander account.</string>
     <string name="tv_account_nav_label">Accounts: %1$s</string>
+    <string name="cast_picker_searching">Zoeken naar Google Cast-apparaten op je lokale netwerk…</string>
+    <string name="cast_picker_discovery_failed">Kan niet naar Cast-apparaten zoeken. Controleer je netwerk en probeer opnieuw.</string>
+    <string name="cast_picker_connection_failed">Kan geen verbinding maken met dit Cast-apparaat. Controleer de beschikbaarheid en probeer opnieuw.</string>
+    <string name="cast_picker_target_lost">Dit Cast-apparaat is niet meer beschikbaar. Zoek opnieuw.</string>
+    <string name="cast_picker_return_local">Terug naar lokale weergave</string>
 </resources>

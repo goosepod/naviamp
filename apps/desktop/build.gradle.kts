@@ -142,7 +142,7 @@ compose.desktop {
             copyright = "Copyright 2026 Naviamp contributors"
             licenseFile.set(rootProject.file("LICENSE"))
             appResourcesRootDir.set(generatedDesktopNativeAppResources)
-            modules("java.net.http", "java.sql")
+            modules("java.net.http", "java.sql", "jdk.httpserver")
             if (desktopNativePlatform.get().startsWith("linux-")) {
                 // dbus-java obtains the Unix user ID through com.sun.security.auth.module.UnixSystem.
                 modules("jdk.security.auth")
@@ -314,6 +314,16 @@ tasks.register("verifyDesktopDistributable") {
         syncDesktopNativeAppResources(appDirectory)
         markDesktopVisualizerMetalExecutable(appDirectory)
         val platform = desktopNativePlatform.get()
+        val castRuntimeRelease = appDirectory.resolve(when {
+            platform.startsWith("macos-") -> "Contents/runtime/Contents/Home/release"
+            platform.startsWith("linux-") -> "lib/runtime/release"
+            else -> "runtime/release"
+        })
+        val castRuntimeModules = castRuntimeRelease.readLines().first { it.startsWith("MODULES=") }
+            .removePrefix("MODULES=").trim('"').split(' ')
+        check("jdk.httpserver" in castRuntimeModules) {
+            "Desktop runtime is missing jdk.httpserver, required for Cast media serving."
+        }
         if (platform.startsWith("linux-")) {
             val runtimeRelease = appDirectory.resolve("lib/runtime/release")
             val runtimeModules = runtimeRelease.readLines().first { it.startsWith("MODULES=") }

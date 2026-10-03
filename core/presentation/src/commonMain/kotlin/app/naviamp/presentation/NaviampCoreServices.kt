@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.app.NaviampCastHttpServerEffect
 import app.naviamp.app.NaviampCastSecureTokenSource
 import app.naviamp.app.NaviampCastSessionEffect
+import app.naviamp.app.NaviampCastDiscoveryEffect
 import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
@@ -86,10 +87,20 @@ data class NaviampCoreRadioServices(
 
 /** Native Cast SDK, LAN socket, secure randomness, and route picker effects. */
 data class NaviampCoreCastServices(
-    val session: NaviampCastSessionEffect,
+    val session: NaviampCastSessionEffect? = null,
     val server: NaviampCastHttpServerEffect,
     val tokens: NaviampCastSecureTokenSource,
-    val showRoutePicker: () -> Unit,
+    val showRoutePicker: (() -> Unit)? = null,
+    val discovery: NaviampCastDiscoveryEffect? = null,
+    val channel: NaviampCoreCastChannelServices? = null,
+) {
+    init { require((session == null) != (channel == null)) }
+}
+
+/** Native boundaries for the portable Cast channel sender; Core constructs its complete owner. */
+data class NaviampCoreCastChannelServices(
+    val transport: app.naviamp.app.NaviampCastTransportFactory,
+    val crypto: app.naviamp.app.NaviampCastCryptoEffect,
 )
 
 /** Portable persistence effects for Core-owned generated-radio recency policy. */

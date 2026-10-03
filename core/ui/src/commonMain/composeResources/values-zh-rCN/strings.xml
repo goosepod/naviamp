@@ -129,4 +129,9 @@
     <string name="tv_account_switching">正在切换账户…</string>
     <string name="tv_account_switch_failed">无法连接到此账户。请重试或选择其他账户。</string>
     <string name="tv_account_nav_label">账户：%1$s</string>
+    <string name="cast_picker_searching">正在本地网络中搜索 Google Cast 设备…</string>
+    <string name="cast_picker_discovery_failed">无法搜索 Cast 设备。请检查网络后重试。</string>
+    <string name="cast_picker_connection_failed">无法连接此 Cast 设备。请确认设备可用后重试。</string>
+    <string name="cast_picker_target_lost">此 Cast 设备已不可用。请重新搜索。</string>
+    <string name="cast_picker_return_local">返回本地播放</string>
 </resources>

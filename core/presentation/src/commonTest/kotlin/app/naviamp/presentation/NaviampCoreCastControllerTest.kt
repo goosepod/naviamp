@@ -95,6 +95,14 @@ class NaviampCoreCastControllerTest {
         assertEquals(nextTrack.id, live.state.value.queue.current?.id)
         assertEquals(2, native.loaded.size)
         assertEquals(2, native.commands.count { it == NaviampCastReceiverCommand.Play })
+        // Successful replacements release old track/artwork leases instead of exhausting the
+        // bounded endpoint after four tracks with artwork.
+        repeat(10) {
+            assertTrue(cast.loadCurrent(0.0))
+            advanceUntilIdle()
+        }
+        assertEquals(12, native.loaded.size)
+        assertTrue(outputs.hasRemotePlaybackAuthority())
         castScope.cancel()
     }
 
