@@ -46,8 +46,8 @@ not a user preference or a device-local setting.
   details and publish the receiver so unregistered user devices can launch it.
   Publishing the receiver is separate from releasing Naviamp.
 
-Status: shared sender configuration is implemented with the owner-supplied ID; branded
-physical-device verification and public receiver availability remain to be confirmed.
+Status: shared sender configuration is implemented with the owner-supplied ID. The owner
+verified Linux branded playback and controls; public receiver availability remains to be confirmed.
 Work is tracked in https://github.com/goosepod/naviamp/issues/217.
 
 Local verification on 2026-10-03 passed 269 shared JVM tests and 248 Android unit tests,
@@ -55,10 +55,18 @@ Android app compilation, and Linux packaging/runtime verification with the regis
 Core iOS compilation tasks were requested but skipped because the Linux host disables Apple
 targets; a macOS runner is still required.
 
-The Linux physical probe discovered Living Room TV, authenticated it, and received
-`LAUNCH_ERROR` with reason `NOT_FOUND` for the registered receiver. The owner confirmed
-the receiver is unpublished and will register/restart the Onn. The updated Linux app is open
-for that retry; branded rendering and provider playback are not yet verified.
+The initial Linux physical probes discovered and authenticated Living Room TV but received
+`LAUNCH_ERROR` with reason `NOT_FOUND`. The owner had registered the hardware serial rather
+than the Cast software serial. After registering the software serial, allowing propagation,
+and restarting the Onn, the owner confirmed the TV displays Naviamp and verified playback,
+pause/resume, skip, seeking, and return to local in the actual Linux app on 2026-10-03.
+These are owner-reported application results, not a passing automated playback probe.
+
+Device registration is only necessary while the receiver is unpublished. After the owner
+publishes application `C0A3069A` in Google's console, ordinary users can cast from a Naviamp
+build using that ID without registering devices or installing a separate receiver app.
+Publication of the receiver, Windows/Android branded acceptance, and macOS verification
+remain outstanding.
 
 The only changed platform production file is
 `apps/android/src/main/kotlin/app/naviamp/android/AndroidNaviampCastOptions.kt`: Google's
