@@ -251,3 +251,34 @@ CPU and parent-frame evidence; they do not provide new GPU/compositor measuremen
 Complete real-app static/paused/playing overlays, minimize/hide/restore, resizing,
 keyboard and accessibility, and matching GPU observations. Windows and Linux acceptance remain
 required. Keep #136 and its PR open until these budgets and interactions are verified.
+
+## Windows checkpoint: October 2, 2026
+
+Windows 11, Ryzen 7 5800H, AMD Radeon Graphics, one 2560 x 1440 display at
+60 Hz, scale 1.0, CustomPlan1 power plan. Power source was not established.
+The branch was integrated with main at 35472796. All 475 shared UI tests pass;
+Android compilation, iOS device/simulator klib compilation and the architecture
+check pass. These are build/regression results, not native accessibility acceptance.
+
+Earlier visible OpenGL menu and modal probes passed physical paint, animation
+motion, unchanged siblings, stable geometry, twelve reopen captures and pointer
+input. Parent frame counts were zero in every sampled phase. Process CPU varied
+between repetitions and is not accepted as a steady performance budget result.
+
+A local diagnostic runtime added java.instrument, jdk.management and jdk.jfr to
+observe the actual development app; the production package was not changed.
+At a 2560 x 1369 client size, paused closed samples used 8.12% and 10.78% of one
+core with zero parent frames; paused menu used 5.62% with zero parent frames.
+Playing closed samples used 13.12% and 12.81%, and playing menu 9.06%; each
+recorded 10 or 11 parent frames per ten seconds, consistent with elapsed labels
+rather than continuous parent animation. Menus and progress physically painted.
+Track transitions, startup activity and CPU variability prevent treating those
+numbers as a matched overlay delta or a performance pass.
+
+External Windows GPU engine-sum observations were 0.462 with a menu and 0.434
+closed, with DWM engine sums 16.82 and 16.48. DWM includes the whole desktop;
+these diagnostic samples do not establish isolated compositor acceptance.
+The Compose content was absent from the available native UIA tree, so a native
+screen-reader pass is not claimed. Real-app modal interaction, complete lifecycle
+and repeatable matched CPU/GPU acceptance remain open. Do not close #136 from
+these partial Windows results.
