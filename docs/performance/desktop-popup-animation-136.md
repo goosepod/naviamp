@@ -282,3 +282,8 @@ The Compose content was absent from the available native UIA tree, so a native
 screen-reader pass is not claimed. Real-app modal interaction, complete lifecycle
 and repeatable matched CPU/GPU acceptance remain open. Do not close #136 from
 these partial Windows results.
+The generic Windows probe initially selected Direct3D, consumed roughly one CPU
+core and crashed in native rendering at popup entry. That backend is not used by
+the packaged Windows app. The probe task now explicitly selects OpenGL on Windows
+to match the application; Direct3D results are retained only as failed diagnostics.
+
