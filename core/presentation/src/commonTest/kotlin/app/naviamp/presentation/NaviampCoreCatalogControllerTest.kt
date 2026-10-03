@@ -42,6 +42,62 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreCatalogControllerTest {
     @Test
+    fun explicitRefreshSignalsOnlyItsCatalogAfterLoadingAndEachTimeItCompletes() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> {
+                gate.await()
+                return MediaPage(listOf(Album(AlbumId("new"), "New Album", "Artist", null, null)), 0, request.limit, false)
+            }
+        }
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(store, { provider })
+        val select = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Albums)
+        controller.dispatch(select)
+        val refresh = launch { controller.execute(NaviampCoreCommand.Library.Refresh) }
+        runCurrent()
+        assertEquals(0L, store.state.value.shell.library.albums.refreshGeneration)
+        controller.dispatch(NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Songs))
+        gate.complete(Unit)
+        refresh.join()
+        assertEquals(1L, store.state.value.shell.library.albums.refreshGeneration)
+        assertEquals(0L, store.state.value.shell.library.songs.refreshGeneration)
+        controller.dispatch(select)
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        assertEquals(listOf("new"), store.state.value.shell.library.albums.items.map { it.id })
+        assertEquals(2L, store.state.value.shell.library.albums.refreshGeneration)
+        controller.execute(NaviampCoreCommand.Library.LoadMore)
+        controller.execute(select)
+        assertEquals(2L, store.state.value.shell.library.albums.refreshGeneration)
+    }
+
+    @Test
+    fun failedRefreshStillSignalsTheTopButSourceResetRejectsAnOldRefresh() = runTest {
+        val store = NaviampCoreStateStore()
+        val failing = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> = error("Offline")
+        }
+        var provider: MediaProvider = failing
+        val controller = NaviampCoreCatalogController(store, { provider })
+        controller.dispatch(NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Albums))
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        assertEquals(1L, store.state.value.shell.library.albums.refreshGeneration)
+        val gate = CompletableDeferred<Unit>()
+        provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> {
+                gate.await()
+                return MediaPage(emptyList(), 0, request.limit, false)
+            }
+        }
+        val refresh = launch { controller.execute(NaviampCoreCommand.Library.Refresh) }
+        runCurrent()
+        controller.resetForSourceChange()
+        gate.complete(Unit)
+        refresh.join()
+        assertEquals(0L, store.state.value.shell.library.albums.refreshGeneration)
+    }
+
+    @Test
     fun cachedArtistsAndPagedSongsCoexistAfterConnection() = runTest {
         val repository = CatalogIndexRepository()
         repository.artists += Artist(ArtistId("cached"), "Cached Artist")
@@ -390,6 +446,7 @@ class NaviampCoreCatalogControllerTest {
         assertEquals(store.state.value.shell.library.albums.items, restartedStore.state.value.shell.library.albums.items)
         restarted.execute(NaviampCoreCommand.Library.Refresh)
         assertEquals(2, requests)
+        assertEquals(1L, restartedStore.state.value.shell.library.albums.refreshGeneration)
     }
 
     @Test
