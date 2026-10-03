@@ -18,7 +18,14 @@ import app.naviamp.ui.NaviampWindowSnapshot
 import app.naviamp.ui.onAvailableScreen
 
 /** Native boundary: Compose Desktop WindowState and AWT monitor coordinates cannot run in common Kotlin. */
-internal class DesktopWindowEffect(private val window: WindowState) : NaviampWindowEffect {
+internal class DesktopWindowEffect(
+    private val window: WindowState,
+    private val screenBounds: () -> List<NaviampWindowScreen> = {
+        availableDesktopScreenBounds().map {
+            NaviampWindowScreen(it.x.toFloat(), it.y.toFloat(), it.width.toFloat(), it.height.toFloat())
+        }
+    },
+) : NaviampWindowEffect {
     private var nativeWindow: ComposeWindow? = null
     private var pendingNativeRestore: NaviampWindowSnapshot? = null
 
@@ -84,9 +91,7 @@ internal class DesktopWindowEffect(private val window: WindowState) : NaviampWin
     }
 
     override fun apply(snapshot: NaviampWindowSnapshot): Boolean {
-        val restored = snapshot.onAvailableScreen(availableDesktopScreenBounds().map {
-            NaviampWindowScreen(it.x.toFloat(), it.y.toFloat(), it.width.toFloat(), it.height.toFloat())
-        })
+        val restored = snapshot.onAvailableScreen(screenBounds())
         val native = nativeWindow
         if (restored.placement == NaviampWindowPlacement.Maximized && native?.placement == WindowPlacement.Fullscreen) {
             // Compose's Maximized setter does not clear native fullscreen. AppKit must
