@@ -1,0 +1,1 @@
+FULL_APP_EXTERNAL phase=combined-repeat-2 pid=75001 seconds=30 cpu_percent=3.666264895484039 parent_frames=unobserved text_pixels_changed=2201 waveform_pixels_changed=286 sibling_pixels_changed=0 compositor_1658_cpu_percent=5.499397343226058

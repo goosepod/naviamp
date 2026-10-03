@@ -1,0 +1,374 @@
+
+> Configure project :apps:android
+WARNING: The option setting 'android.r8.optimizedResourceShrinking=true' is experimental.
+The current default is 'false'.
+
+> Configure project :platforms:ios
+w: ⚠️ Cross Compilation with Cinterop Not Supported in Project 'ios'
+In project 'ios', cross compilation to target 'iosArm64' has been disabled because it contains cinterops: 'bass' which cannot be processed on host 'linux_x64'.
+Cinterop libraries require platform-specific native toolchains that aren't available on the current host system.
+Solutions:
+ * Remove the cinterop dependencies 'bass' from target 'iosArm64'
+ * Build on a compatible host platform for this target/cinterop combination
+ * To disable klib cross compilation entirely, add 'kotlin.native.enableKlibsCrossCompilation=false' to your Gradle properties
+
+w: ⚠️ Cross Compilation with Cinterop Not Supported in Project 'ios'
+In project 'ios', cross compilation to target 'iosSimulatorArm64' has been disabled because it contains cinterops: 'bass' which cannot be processed on host 'linux_x64'.
+Cinterop libraries require platform-specific native toolchains that aren't available on the current host system.
+Solutions:
+ * Remove the cinterop dependencies 'bass' from target 'iosSimulatorArm64'
+ * Build on a compatible host platform for this target/cinterop combination
+ * To disable klib cross compilation entirely, add 'kotlin.native.enableKlibsCrossCompilation=false' to your Gradle properties
+
+w: ⚠️ Disabled Kotlin/Native Targets
+The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64
+Solution: To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+
+> Task :core:domain:kmpPartiallyResolvedDependenciesChecker
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:generateNaviampVersion UP-TO-DATE
+> Task :core:domain:compileKotlinJvm UP-TO-DATE
+> Task :core:domain:compileJvmMainJava NO-SOURCE
+> Task :core:domain:jvmProcessResources NO-SOURCE
+> Task :core:domain:processJvmMainResources SKIPPED
+> Task :core:domain:jvmMainClasses UP-TO-DATE
+> Task :core:domain:jvmJar UP-TO-DATE
+> Task :core:ui:checkJvmMainComposeLibrariesCompatibility
+> Task :core:ui:kmpPartiallyResolvedDependenciesChecker
+> Task :core:ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:ui:convertXmlValueResourcesForCommonMain UP-TO-DATE
+> Task :core:ui:copyNonXmlValueResourcesForCommonMain UP-TO-DATE
+> Task :core:ui:prepareComposeResourcesTaskForCommonMain UP-TO-DATE
+> Task :core:ui:generateResourceAccessorsForCommonMain UP-TO-DATE
+> Task :core:ui:convertXmlValueResourcesForJvmMain NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForJvmMain NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForJvmMain NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForJvmMain NO-SOURCE
+> Task :core:ui:generateActualResourceCollectorsForJvmMain UP-TO-DATE
+> Task :core:ui:generateComposeResClass UP-TO-DATE
+> Task :core:ui:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :core:ui:compileKotlinJvm UP-TO-DATE
+> Task :core:ui:compileJvmMainJava NO-SOURCE
+> Task :core:ui:checkJvmTestComposeLibrariesCompatibility
+> Task :core:ui:convertXmlValueResourcesForCommonTest NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForCommonTest NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForCommonTest NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForCommonTest NO-SOURCE
+> Task :core:ui:convertXmlValueResourcesForJvmTest NO-SOURCE
+> Task :core:ui:copyNonXmlValueResourcesForJvmTest NO-SOURCE
+> Task :core:ui:prepareComposeResourcesTaskForJvmTest NO-SOURCE
+> Task :core:ui:generateResourceAccessorsForJvmTest NO-SOURCE
+> Task :core:ui:assembleJvmMainResources UP-TO-DATE
+> Task :core:ui:jvmProcessResources UP-TO-DATE
+> Task :core:ui:processJvmMainResources SKIPPED
+> Task :core:ui:jvmMainClasses UP-TO-DATE
+> Task :core:ui:jvmJar UP-TO-DATE
+> Task :core:ui:compileTestKotlinJvm UP-TO-DATE
+> Task :core:ui:compileJvmTestJava NO-SOURCE
+> Task :core:ui:assembleJvmTestResources UP-TO-DATE
+> Task :core:ui:jvmTestProcessResources UP-TO-DATE
+> Task :core:ui:processJvmTestResources SKIPPED
+> Task :core:ui:jvmTestClasses UP-TO-DATE
+
+> Task :core:ui:playerAnimationProbe
+[SKIKO] warn: Fallback to next API
+org.jetbrains.skiko.RenderException: Cannot create Linux GL context
+NaviampRaster X11 loading library=/home/ursasmar/Projects/naviamp/platforms/desktop/build/generated/desktopNativeResources/playback/bass/linux-x64/libnaviamp_raster_x11.so
+NaviampRaster X11 parent=0x4200033 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1 revision=1
+NaviampRaster X11 parent=0x4200049 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1 revision=1
+NaviampRaster X11 parent=0x4200063 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0af900 frames=1 revision=1
+NaviampRaster X11 parent=0x420007b visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=0 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=1 revision=1
+NaviampRaster X11 parent=0x420008b visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1 revision=2
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1 revision=2
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0af900 frames=1 revision=2
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=1 revision=2
+ANIMATION_PROBE integrated=true compositor=false raster=false raw=false isolated=false rows=150 layers=[990x710:SOFTWARE_FAST] phase,cpu_percent,frames
+ANIMATION_LIFECYCLE static state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE static,0.4999554733156044,[0]
+ANIMATION_COMPOSITOR static pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.6994957412590144
+ANIMATION_WINDOWS static opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS static changed=0 text=0 waveform=0 visibleText=6070 sibling=0
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+ANIMATION_LIFECYCLE marquee state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE marquee,0.8999124357302749,[0]
+ANIMATION_COMPOSITOR marquee pid=1658 command=/usr/bin/xfwm4 cpu_percent=4.99940202752277
+ANIMATION_WINDOWS marquee opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1040, 1041]
+ANIMATION_BACKGROUND region=1 samples=[1040, 1077]
+ANIMATION_BACKGROUND region=2 samples=[1040, 1049]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS marquee changed=7085 text=7085 waveform=2364 visibleText=6181 sibling=0
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d483f40 frames=573 revision=4
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=573 revision=4
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0af900 frames=574 revision=4
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_LIFECYCLE waveform state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_PROBE waveform,0.5998700913531855,[0]
+ANIMATION_COMPOSITOR waveform pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.6996013396402123
+ANIMATION_WINDOWS waveform opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS waveform changed=176 text=0 waveform=176 visibleText=6173 sibling=0
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_LIFECYCLE combined state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_PROBE combined,1.3998589723277202,[0]
+ANIMATION_COMPOSITOR combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=5.199291813300906
+ANIMATION_WINDOWS combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1034, 1035]
+ANIMATION_BACKGROUND region=1 samples=[1034, 1071]
+ANIMATION_BACKGROUND region=2 samples=[1034, 1043]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS combined changed=7289 text=7100 waveform=2550 visibleText=6240 sibling=0
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d483f40 frames=572 revision=6
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=572 revision=6
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0af900 frames=572 revision=6
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=60 revision=34
+ANIMATION_LIFECYCLE paused state=0 minimized=false owned=[(naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+ANIMATION_PROBE paused,0.09999159943575409,[0]
+ANIMATION_COMPOSITOR paused pid=1658 command=/usr/bin/xfwm4 cpu_percent=1.599841363090103
+ANIMATION_WINDOWS paused opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1038, 1053]
+ANIMATION_BACKGROUND region=1 samples=[1038, 1089]
+ANIMATION_BACKGROUND region=2 samples=[1038, 1061]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS paused changed=0 text=0 waveform=0 visibleText=6116 sibling=0
+ANIMATION_LIFECYCLE hidden-combined state=1 minimized=true owned=[(naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false)]
+ANIMATION_PROBE hidden-combined,0.39996221792904935,[0]
+ANIMATION_COMPOSITOR hidden-combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=2.2997338747960083
+ANIMATION_WINDOWS hidden-combined opened=0 closed=0
+NaviampRaster X11 parent=0x42000c8 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x42000e0 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x42000f8 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200110 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 parent=0x4200130 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_LIFECYCLE restored-combined state=0 minimized=false owned=[(naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_PROBE restored-combined,1.3998253936194223,[0]
+ANIMATION_COMPOSITOR restored-combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=6.09912599036628
+ANIMATION_WINDOWS restored-combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1036, 1041]
+ANIMATION_BACKGROUND region=1 samples=[1031, 1087]
+ANIMATION_BACKGROUND region=2 samples=[1035, 1058]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS restored-combined changed=7185 text=6973 waveform=2537 visibleText=6376 sibling=0
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_LIFECYCLE resized-combined state=0 minimized=false owned=[(naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, false), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true), (naviamp-raster-overlay, true)]
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_PROBE resized-combined,1.3998754411830567,[0]
+ANIMATION_COMPOSITOR resized-combined pid=1658 command=/usr/bin/xfwm4 cpu_percent=6.199233868922156
+ANIMATION_WINDOWS resized-combined opened=0 closed=0
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_BACKGROUND region=0 samples=[1039, 1086]
+ANIMATION_BACKGROUND region=1 samples=[1075, 1088]
+ANIMATION_BACKGROUND region=2 samples=[1047, 1092]
+ANIMATION_BACKGROUND region=3 samples=[895, 871]
+ANIMATION_PIXELS resized-combined changed=7088 text=6906 waveform=2509 visibleText=6203 sibling=0
+NaviampRaster X11 region=0x7d201d0b0180 frames=59 revision=31
+NaviampRaster X11 region=0x7d201d0af900 frames=1133 revision=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1134 revision=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1128 revision=1
+NaviampRaster X11 parent=0x4200164 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x420017c visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200194 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x42001ac visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 parent=0x42001cc visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=3 revision=2
+NaviampRaster X11 region=0x7d201d0af900 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1 revision=1
+NaviampRaster X11 parent=0x42001ef visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200207 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x420021f visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200237 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 parent=0x4200257 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0af900 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1 revision=1
+NaviampRaster X11 parent=0x420026f visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200287 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x420029f visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x42002b7 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 parent=0x42002d7 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0af900 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1 revision=1
+NaviampRaster X11 parent=0x4200302 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x420031a visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200332 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x420034a visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 parent=0x420036a visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0af900 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1 revision=1
+NaviampRaster X11 parent=0x420038d visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x42003a5 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x42003bd visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x42003d5 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 parent=0x42003f5 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0b0180 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d0af900 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=1 revision=1
+NaviampRaster X11 region=0x7d201d483f40 frames=1 revision=1
+NaviampRaster X11 parent=0x4200419 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d483f40 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200431 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d4907a0 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200449 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0af900 layers=1 motions=1 restart=1
+NaviampRaster X11 parent=0x4200461 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 parent=0x4200481 visual=0x6e depth=32 alpha=24/0xff screen=0 compositor=0x800032
+NaviampRaster X11 present region=0x7d201d0b08d0 layers=1 motions=0 restart=1
+NaviampRaster X11 region=0x7d201d0b08d0 frames=1 revision=1
+ANIMATION_POPUPS 12 visible-text samples passed
+ANIMATION_INPUT waveform events=1 point=225,502 insets=java.awt.Insets[top=24,left=1,bottom=1,right=1]
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+NaviampRaster X11 present region=0x7d201d0b0180 layers=2 motions=2 restart=1
+ANIMATION_ALPHA opaque=ffffff blended=923456 transparent=ac6824
+ANIMATION_STACKING covered pixels hidden; raised owner restored alpha and text
+NaviampRaster X11 region=0x7d201d0b0180 frames=4 revision=3
+NaviampRaster X11 region=0x7d201d0af900 frames=83 revision=1
+NaviampRaster X11 region=0x7d201d4907a0 frames=84 revision=1
+NaviampRaster X11 region=0x7d201d483f40 frames=84 revision=1
+
+[Incubating] Problems report is available at: file:///home/ursasmar/Projects/naviamp/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 2m 13s
+22 actionable tasks: 5 executed, 17 up-to-date

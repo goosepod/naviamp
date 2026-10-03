@@ -108,6 +108,28 @@ fun NaviampTelevisionAppShell(
     val navigationFocusRequesters = remember {
         NaviampTelevisionDestination.entries.associateWith { FocusRequester() }
     }
+    val accountFocusRequester = remember { FocusRequester() }
+    var restoreAccountFocus by remember { mutableStateOf(false) }
+    var accountChooserWasOpen by remember { mutableStateOf(false) }
+    val accountSelectionGeneration = uiState.connectionSettings.accountSelectionGeneration
+    var observedAccountSelection by remember { mutableStateOf(accountSelectionGeneration) }
+    val accountSwitcher = uiState.connectionSettings.accountSwitcher
+    LaunchedEffect(accountSwitcher.visible, accountSwitcher.addingAccount, connection.connected, accountSelectionGeneration) {
+        if (accountChooserWasOpen && !accountSwitcher.visible && !accountSwitcher.addingAccount && connection.connected) {
+            if (observedAccountSelection != accountSelectionGeneration) {
+                nowPlayingPreview = false
+                withFrameNanos { }
+                navigationFocusRequesters.getValue(NaviampTelevisionDestination.Home).requestFocus()
+            } else {
+                restoreAccountFocus = true
+                withFrameNanos { }
+                accountFocusRequester.requestFocus()
+                restoreAccountFocus = false
+            }
+        }
+        observedAccountSelection = accountSelectionGeneration
+        accountChooserWasOpen = accountSwitcher.visible || accountSwitcher.addingAccount
+    }
     var navigationFocused by remember { mutableStateOf(false) }
     var suppressedFocusActivation by remember { mutableStateOf<NaviampTelevisionDestination?>(null) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -373,6 +395,13 @@ fun NaviampTelevisionAppShell(
                                     returnToNowPlayingFromSearch = false
                                     settingsOpen = true
                                 },
+                                account = connection.savedConnections.firstOrNull { it.current },
+                                accountFocusRequester = accountFocusRequester,
+                                restoreAccountFocus = restoreAccountFocus,
+                                onAccountsSelected = {
+                                    settingsOpen = false
+                                    actions.connectionActions.onOpenAccounts()
+                                },
                             )
                             Box(
                                 modifier = Modifier
@@ -441,6 +470,7 @@ fun NaviampTelevisionAppShell(
                     }
                 }
             }
+            NaviampAccountSwitcher(uiState.connectionSettings, actions.connectionActions, colors)
         }
     }
     }
@@ -477,6 +507,10 @@ private fun TelevisionNavigationBar(
     onClicked: (NaviampTelevisionDestination) -> Unit,
     onEnterContent: (NaviampTelevisionDestination) -> Unit,
     onSettingsSelected: () -> Unit,
+    account: NaviampSavedConnectionUi?,
+    accountFocusRequester: FocusRequester,
+    restoreAccountFocus: Boolean,
+    onAccountsSelected: () -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -522,6 +556,9 @@ private fun TelevisionNavigationBar(
                 )
             }
         }
+        NaviampAccountNavigationButton(account, colors, accountFocusRequester,
+            canFocus = navigationFocused || restoreAccountFocus, onClick = onAccountsSelected)
+        Spacer(Modifier.width(8.dp))
         TelevisionNavigationIconButton(
             icon = NaviampIcons.Settings,
             description = stringResource(Res.string.nav_settings),
@@ -748,7 +785,9 @@ private fun TelevisionConnectionScreen(
 ) {
     val connectionSettings = uiState.connectionSettings
     val connection = connectionSettings.connection
-    NaviampSystemBackHandler(enabled = connection.connected && connection.editingConnection) {
+    val addingAccount = connectionSettings.accountSwitcher.addingAccount
+    val canCancel = connection.connected || addingAccount
+    NaviampSystemBackHandler(enabled = canCancel && connection.editingConnection) {
         actions.connectionActions.onCancelConnectionForm()
     }
     Column(
@@ -764,7 +803,8 @@ private fun TelevisionConnectionScreen(
                 .widthIn(max = 820.dp)
                 .align(Alignment.CenterHorizontally),
         ) {
-            Text(stringResource(Res.string.tv_set_up_naviamp_tv), color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
+            Text(stringResource(if (addingAccount) Res.string.tv_account_add else Res.string.tv_set_up_naviamp_tv),
+                color = colors.primaryText, fontSize = 36.sp, fontWeight = FontWeight.Black)
             Text(
                 stringResource(Res.string.tv_direct_setup_description),
                 color = colors.secondaryText,
@@ -775,10 +815,16 @@ private fun TelevisionConnectionScreen(
                 color = colors.mutedText,
                 fontSize = 14.sp,
             )
-            TelevisionFirstRunConnectSetup(
+            if (!addingAccount) TelevisionFirstRunConnectSetup(
                 connect = uiState.connect,
                 actions = actions.connectActions,
                 colors = colors,
+            )
+            if (!addingAccount && connection.savedConnections.isNotEmpty()) Button(
+                onClick = actions.connectionActions.onOpenAccounts,
+            ) { Text(stringResource(Res.string.tv_accounts)) }
+            if (connectionSettings.accountSwitcher.error != null) Text(
+                stringResource(Res.string.tv_account_switch_failed), color = colors.primaryText,
             )
             NaviampConnectionForm(
                 form = connection.form,
@@ -796,7 +842,7 @@ private fun TelevisionConnectionScreen(
                 onFormChanged = actions.connectionActions.onFormChanged,
                 onConnect = actions.connectionActions.onConnect,
                 onImportSettingsSyncFile = null,
-                onCancel = actions.connectionActions.onCancelConnectionForm.takeIf { connection.connected },
+                onCancel = actions.connectionActions.onCancelConnectionForm.takeIf { canCancel },
             )
         }
     }

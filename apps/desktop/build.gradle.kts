@@ -138,6 +138,8 @@ compose.desktop {
             if (desktopNativePlatform.get().startsWith("linux-")) {
                 // dbus-java obtains the Unix user ID through com.sun.security.auth.module.UnixSystem.
                 modules("jdk.security.auth")
+                // Linux's Java ATK wrapper subscribes to JVM management notifications.
+                modules("java.management")
             }
             if (desktopNativePlatform.get().startsWith("windows-")) {
                 // Compose exposes Windows screen-reader semantics through Java Access Bridge.

@@ -1,0 +1,61 @@
+2026-10-02T09:28:51-07:00
+Linux ursasmar-Standard-PC-Q35-ICH9-2009 7.0.0-34-generic #34-Ubuntu SMP PREEMPT_DYNAMIC Wed Sep  2 14:29:37 UTC 2026 x86_64 GNU/Linux
+openjdk version "21.0.12.1" 2026-08-18
+OpenJDK Runtime Environment (build 21.0.12.1+1-1-26.04.4-Ubuntu)
+OpenJDK 64-Bit Server VM (build 21.0.12.1+1-1-26.04.4-Ubuntu, mixed mode, sharing)
+DISPLAY=:0.0
+Screen 0: minimum 320 x 200, current 1280 x 800, maximum 8192 x 8192
+Virtual-1 connected 1280x800+0+0 (normal left inverted right x axis y axis) 325mm x 203mm
+   1280x800      74.99*+
+   5120x2160     50.00
+   4096x2160     50.00
+   3840x2160     60.00    50.00    59.94
+   1920x1440     60.00
+   2560x1080     50.00
+   1856x1392     60.00
+   1792x1344     60.00
+   2048x1152     60.00
+   1920x1200     59.88
+   1920x1080     60.00    50.00
+   1600x1200     60.00
+   1680x1050     59.95
+   1400x1050     59.98
+   1280x1024     60.02
+   1440x900      59.89
+   1280x960      60.00
+   1360x768      60.02
+   1280x768      59.87
+   1024x768      60.00
+   800x600       60.32
+   640x480       60.00    59.94
+true
+96
+name of display: :0.0
+display: :0  screen: 0
+direct rendering: Yes
+Extended renderer info (GLX_MESA_query_renderer):
+    Vendor: Mesa (0x1af4)
+    Device: virgl (Mesa Intel(R) Graphics (ADL-N)) (0x1010)
+    Version: 26.0.8
+    Accelerated: yes
+    Video memory: 0MB
+    Unified memory: no
+    Preferred profile: core (0x1)
+    Max core profile version: 4.3
+    Max compat profile version: 4.3
+    Max GLES1 profile version: 1.1
+    Max GLES[23] profile version: 3.2
+OpenGL vendor string: Mesa
+OpenGL renderer string: virgl (Mesa Intel(R) Graphics (ADL-N))
+OpenGL core profile version string: 4.3 (Core Profile) Mesa 26.0.8-1ubuntu0.3
+OpenGL core profile shading language version string: 4.30
+OpenGL core profile context flags: (none)
+OpenGL core profile profile mask: core profile
+
+OpenGL version string: 4.3 (Compatibility Profile) Mesa 26.0.8-1ubuntu0.3
+OpenGL shading language version string: 4.30
+OpenGL context flags: (none)
+OpenGL profile mask: compatibility profile
+
+OpenGL ES profile version string: OpenGL ES 3.2 Mesa 26.0.8-1ubuntu0.3
+OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20

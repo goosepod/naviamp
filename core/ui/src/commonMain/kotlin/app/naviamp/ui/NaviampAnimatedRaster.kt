@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -33,6 +34,8 @@ internal interface NaviampRasterPresenter {
 }
 
 internal interface NaviampRasterRegion {
+    /** True when native presentation prepares changes that must be committed in a drawing pass. */
+    val requiresDrawSynchronization: Boolean get() = false
     /**
      * Bounds and clipping are in window pixels, including a non-zero window origin.
      * Adapters translate these into their native parent coordinate system and own the layers
@@ -41,7 +44,7 @@ internal interface NaviampRasterRegion {
     fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean
     /** Notify the shared owner when an asynchronous native attachment can replace its fallback. */
     fun whenReady(callback: () -> Unit) {}
-    /** Commit prepared native changes with the shared content's actual drawing pass. */
+    /** Commit prepared native changes; only drawing-dependent regions defer this to a draw pass. */
     fun synchronizeDraw() {}
     fun translationX(layerIndex: Int): Float? = null
     fun close()
@@ -49,6 +52,7 @@ internal interface NaviampRasterRegion {
 
 internal val LocalNaviampRasterPresenter = staticCompositionLocalOf<NaviampRasterPresenter?> { null }
 internal val LocalNaviampAnimationVisible = staticCompositionLocalOf { true }
+private val LocalNaviampWindowVisible = staticCompositionLocalOf { true }
 
 internal class NaviampRasterPosition {
     var translationX: () -> Float = { 0f }
@@ -58,27 +62,47 @@ private data class RasterSubmission(
     val layers: List<NaviampRasterLayer>, val bounds: Rect, val clip: Rect, val cornerRadius: Float,
 )
 private class RasterSubmissionState { var latest: RasterSubmission? = null }
+private class RasterContentState { var layers: List<NaviampRasterLayer> = emptyList() }
+
+/** Read changing shared values without subscribing the surrounding composition to them. */
+internal class NaviampRasterContent<T>(val value: () -> T, val render: (T) -> List<NaviampRasterLayer>)
 
 /** Compose retains all input/semantics. Presentation effects never install an input surface. */
 @Composable
 internal fun NaviampAnimatedRaster(layers: List<NaviampRasterLayer>, modifier: Modifier, cornerRadius: Float = 0f, position: NaviampRasterPosition? = null) {
+    val content = remember(layers) { NaviampRasterContent({ layers }, { it }) }
+    NaviampAnimatedRaster(content, modifier, cornerRadius, position)
+}
+
+@Composable
+internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifier: Modifier, cornerRadius: Float = 0f, position: NaviampRasterPosition? = null) {
     val visible = LocalNaviampAnimationVisible.current
+    val windowVisible = LocalNaviampWindowVisible.current
     val presenter = LocalNaviampRasterPresenter.current.takeIf { visible }
     val region = remember(presenter) { presenter?.create() }
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var clip by remember { mutableStateOf(Rect.Zero) }
     var presented by remember(region) { mutableStateOf(false) }
-    var elapsed by remember(layers) { mutableLongStateOf(0L) }
+    var elapsed by remember { mutableLongStateOf(0L) }
+    // Pixels belong to the shared component, so changing its native binding must not discard
+    // the content needed by the very first fallback frame (for example when opening a popup).
+    val rasterContent = remember { RasterContentState() }
     val submission = remember(region) { RasterSubmissionState() }
     var readyRevision by remember(region) { mutableIntStateOf(0) }
+    var drawRevision by remember(region) { mutableIntStateOf(0) }
+    var fallbackRevision by remember(region) { mutableIntStateOf(0) }
+    val currentContent by rememberUpdatedState(content)
     SideEffect { position?.translationX = {
-        if (presented) region?.translationX(0) ?: 0f else layers.firstOrNull()?.translation?.valueAt(elapsed) ?: 0f
+        if (presented) region?.translationX(0) ?: 0f else rasterContent.layers.firstOrNull()?.translation?.valueAt(elapsed) ?: 0f
     } }
     val submit by rememberUpdatedState {
-        val next = RasterSubmission(layers, bounds, clip, cornerRadius)
+        val next = RasterSubmission(rasterContent.layers, bounds, clip, cornerRadius)
         if (submission.latest != next) {
             submission.latest = next
-            presented = region?.present(layers, bounds, clip, cornerRadius) == true
+            presented = region?.present(rasterContent.layers, bounds, clip, cornerRadius) == true
+            if (region?.requiresDrawSynchronization == true) drawRevision++
+            else region?.synchronizeDraw()
+            if (!presented) { elapsed = 0L; fallbackRevision++ }
         }
     }
     DisposableEffect(region) {
@@ -86,7 +110,15 @@ internal fun NaviampAnimatedRaster(layers: List<NaviampRasterLayer>, modifier: M
         onDispose { region?.close() }
     }
     SideEffect { submit() }
-    Box(modifier.onGloballyPositioned {
+    LaunchedEffect(Unit) {
+        snapshotFlow { currentContent.let { it to it.value() } }.collect { (source, value) ->
+            // Rasterization happens outside snapshotFlow's read-only snapshot. Native updates
+            // do not change composition/drawing state unless a fallback or deferred commit needs it.
+            rasterContent.layers = source.render(value)
+            submit()
+        }
+    }
+    val presentationModifier = remember(region) { Modifier.onGloballyPositioned {
         bounds = Rect(it.positionInWindow(), androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat()))
         clip = it.boundsInWindow()
         // Layout must reach the presenter before this frame is drawn, not via a later coroutine.
@@ -94,15 +126,22 @@ internal fun NaviampAnimatedRaster(layers: List<NaviampRasterLayer>, modifier: M
     }.drawWithContent {
         // A native surface may become ready without changing pixels or layout.
         readyRevision
-        submit()
-        region?.synchronizeDraw()
+        drawRevision
+        // An immediate native update needs no parent repaint. Keep the callback stable and
+        // avoid observing its changing submission closure as drawing state. Deferred native
+        // backends explicitly request the drawing pass needed to commit their changes.
+        Snapshot.withoutReadObservation {
+            submit()
+            region?.synchronizeDraw()
+        }
         drawContent()
-    }) {
+    } }
+    Box(modifier.then(presentationModifier)) {
         if (region != null) presenter?.Content(region)
-        if (!presented) {
-            LaunchedEffect(layers, visible, clip.isEmpty) {
+        if (!presented && windowVisible) {
+            LaunchedEffect(fallbackRevision, visible, clip.isEmpty) {
                 if (!visible || clip.isEmpty) return@LaunchedEffect
-                val motions = layers.flatMap { listOfNotNull(it.translation, it.revealMotion) }
+                val motions = rasterContent.layers.flatMap { listOfNotNull(it.translation, it.revealMotion) }
                 if (motions.isEmpty()) return@LaunchedEffect
                 val start = withFrameNanos { it }
                 do {
@@ -110,7 +149,8 @@ internal fun NaviampAnimatedRaster(layers: List<NaviampRasterLayer>, modifier: M
                 } while (motions.any { it.repeat || elapsed < it.durationMillis })
             }
             Canvas(Modifier.fillMaxSize()) {
-                layers.forEach { layer ->
+                fallbackRevision
+                rasterContent.layers.forEach { layer ->
                     val fraction = layer.revealMotion?.valueAt(elapsed) ?: layer.reveal
                     clipRect(left = if (layer.clipFromStart) size.width * fraction else 0f,
                         right = if (layer.clipFromStart) size.width else size.width * fraction) {
@@ -138,6 +178,7 @@ internal fun NaviampRasterEnvironment(
     val popups = remember { NaviampPopupRegistry() }
     CompositionLocalProvider(
         LocalNaviampPopupRegistry provides popups,
+        LocalNaviampWindowVisible provides windowVisible,
         LocalNaviampOwnedPopupWindows provides popupsInOwnedWindows,
         // Same-canvas overlays require the shared fallback. Owned popup windows intrinsically
         // stack above native pixels and draw their own scrim, so the original scene can continue.

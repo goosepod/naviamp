@@ -61,6 +61,10 @@ sealed interface NaviampCoreCommand {
         data class Delete(val connection: NaviampSavedConnectionUi) : Connection
         data class ConnectSaved(val connection: NaviampSavedConnectionUi) : Connection
         data object CancelForm : Connection
+        data object OpenAccounts : Connection
+        data object CloseAccounts : Connection
+        data class SwitchAccount(val connection: NaviampSavedConnectionUi) : Connection
+        data object AddAccount : Connection
     }
 
     sealed interface Settings : NaviampCoreCommand {

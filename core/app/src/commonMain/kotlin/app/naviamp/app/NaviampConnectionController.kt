@@ -24,12 +24,14 @@ data class NaviampConnectionRuntimeState(
     val sourceId: String? = null,
     val serverVersion: String? = null,
     val status: String? = null,
+    val retainingExistingConnection: Boolean = false,
 ) {
     val isConnecting: Boolean get() = phase == NaviampConnectionPhase.Connecting
     val connected: Boolean
-        get() = phase == NaviampConnectionPhase.Connected || phase == NaviampConnectionPhase.Offline
+        get() = phase == NaviampConnectionPhase.Connected || phase == NaviampConnectionPhase.Offline ||
+            (isConnecting && retainingExistingConnection)
     val offline: Boolean get() = phase == NaviampConnectionPhase.Offline
-    val restoringConnection: Boolean get() = isConnecting && restoringSavedSession
+    val restoringConnection: Boolean get() = isConnecting && restoringSavedSession && !retainingExistingConnection
 }
 
 data class NaviampConnectionAttemptPlan(
@@ -60,12 +62,18 @@ class NaviampConnectionController(
             else -> NaviampConnectionRestorationSource.None
         }
 
-    fun begin(restoreSavedSession: Boolean): NaviampConnectionAttemptPlan? {
+    fun begin(restoreSavedSession: Boolean, preserveExistingConnection: Boolean = false): NaviampConnectionAttemptPlan? {
         if (state.value.phase == NaviampConnectionPhase.Connecting) return null
+        val previous = state.value
+        val retaining = preserveExistingConnection && previous.connected
+        val restoring = restoreSavedSession || retaining
         mutableState.value = NaviampConnectionRuntimeState(
             phase = NaviampConnectionPhase.Connecting,
-            restoringSavedSession = restoreSavedSession,
+            restoringSavedSession = restoring,
             status = "Connecting...",
+            sourceId = previous.sourceId.takeIf { retaining },
+            serverVersion = previous.serverVersion.takeIf { retaining },
+            retainingExistingConnection = retaining,
         )
         applicationStatus?.publish(
             area = NaviampApplicationStatusArea.Connection,
@@ -73,10 +81,10 @@ class NaviampConnectionController(
             message = "Connecting...",
         )
         return NaviampConnectionAttemptPlan(
-            restoreSavedSession = restoreSavedSession,
-            clearExistingPlayback = !restoreSavedSession,
-            clearProviderData = !restoreSavedSession,
-            runFullLibraryRefresh = !restoreSavedSession,
+            restoreSavedSession = restoring,
+            clearExistingPlayback = !restoring,
+            clearProviderData = !restoring,
+            runFullLibraryRefresh = !restoring,
         )
     }
 
