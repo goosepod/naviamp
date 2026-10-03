@@ -980,6 +980,8 @@
     <string name="artist_appearance_tracks">Tracks</string>
     <string name="album_disc_number">Disc %1$d</string>
     <string name="album_disc_number_title">Disc %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Enter fullscreen</string>
+    <string name="window_exit_fullscreen">Exit fullscreen</string>
     <string name="tv_accounts">Accounts</string>
     <string name="tv_accounts_title">Who's listening?</string>
     <string name="tv_accounts_description">Choose an account or add another.</string>

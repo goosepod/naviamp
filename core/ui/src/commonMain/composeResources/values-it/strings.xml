@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">Brani</string>
     <string name="album_disc_number">Disco %1$d</string>
     <string name="album_disc_number_title">Disco %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Attiva schermo intero</string>
+    <string name="window_exit_fullscreen">Esci da schermo intero</string>
     <string name="tv_accounts">Account</string>
     <string name="tv_accounts_title">Chi sta ascoltando?</string>
     <string name="tv_accounts_description">Scegli un account o aggiungine un altro.</string>

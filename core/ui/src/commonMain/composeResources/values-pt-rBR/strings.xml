@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">Faixas</string>
     <string name="album_disc_number">Disco %1$d</string>
     <string name="album_disc_number_title">Disco %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Entrar em tela cheia</string>
+    <string name="window_exit_fullscreen">Sair da tela cheia</string>
     <string name="tv_accounts">Contas</string>
     <string name="tv_accounts_title">Quem está ouvindo?</string>
     <string name="tv_accounts_description">Escolha uma conta ou adicione outra.</string>

@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">트랙</string>
     <string name="album_disc_number">디스크 %1$d</string>
     <string name="album_disc_number_title">디스크 %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">전체 화면으로 전환</string>
+    <string name="window_exit_fullscreen">전체 화면 종료</string>
     <string name="tv_accounts">계정</string>
     <string name="tv_accounts_title">누가 듣고 있나요?</string>
     <string name="tv_accounts_description">계정을 선택하거나 다른 계정을 추가하세요.</string>

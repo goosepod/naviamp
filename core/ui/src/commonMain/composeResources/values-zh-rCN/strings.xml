@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">曲目</string>
     <string name="album_disc_number">碟片 %1$d</string>
     <string name="album_disc_number_title">碟片 %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">进入全屏</string>
+    <string name="window_exit_fullscreen">退出全屏</string>
     <string name="tv_accounts">账户</string>
     <string name="tv_accounts_title">谁在收听？</string>
     <string name="tv_accounts_description">选择一个账户或添加其他账户。</string>

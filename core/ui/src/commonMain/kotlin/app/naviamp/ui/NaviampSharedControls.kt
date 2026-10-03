@@ -441,6 +441,7 @@ fun SharedBottomNavigationBar(
                     }
                 }
             }
+            NaviampWindowFullscreenButton(colors)
             if (onQueueSelected != null) {
                 val label = stringResource(Res.string.player_queue)
                 NaviampTooltip(label, colors) {
@@ -481,7 +482,12 @@ fun NaviampDropdownMenu(
         containerColor = MenuBackground,
         tonalElevation = 0.dp,
         shadowElevation = 8.dp,
-        modifier = modifier.widthIn(min = 220.dp),
+        modifier = modifier.widthIn(min = 220.dp).onPreviewKeyEvent { event ->
+            if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) {
+                onDismissRequest()
+                true
+            } else false
+        },
         content = {
             NaviampPopupPresence()
             content()

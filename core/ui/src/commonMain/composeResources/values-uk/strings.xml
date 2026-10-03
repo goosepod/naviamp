@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">Треки</string>
     <string name="album_disc_number">Диск %1$d</string>
     <string name="album_disc_number_title">Диск %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Увімкнути повноекранний режим</string>
+    <string name="window_exit_fullscreen">Вийти з повноекранного режиму</string>
     <string name="tv_accounts">Облікові записи</string>
     <string name="tv_accounts_title">Хто слухає?</string>
     <string name="tv_accounts_description">Виберіть обліковий запис або додайте інший.</string>

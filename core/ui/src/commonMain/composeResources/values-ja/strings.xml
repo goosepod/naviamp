@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">トラック</string>
     <string name="album_disc_number">ディスク %1$d</string>
     <string name="album_disc_number_title">ディスク %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">全画面表示にする</string>
+    <string name="window_exit_fullscreen">全画面表示を終了</string>
     <string name="tv_accounts">アカウント</string>
     <string name="tv_accounts_title">誰が聴きますか？</string>
     <string name="tv_accounts_description">アカウントを選択するか、別のアカウントを追加してください。</string>
