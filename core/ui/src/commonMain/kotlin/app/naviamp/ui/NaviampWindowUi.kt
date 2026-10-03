@@ -56,7 +56,7 @@ fun NaviampWindowEnvironment(
             }
             .onKeyEvent { event ->
                 event.type == KeyEventType.KeyDown && event.key == Key.Escape &&
-                    controller.escape(overlayVisible || popups?.visible == true)
+                    controller.escape(overlayVisible || popups?.blocksWindowEscape == true)
             }.focusable()) { content() }
     }
 }

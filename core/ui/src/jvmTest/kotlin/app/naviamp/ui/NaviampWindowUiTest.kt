@@ -54,6 +54,20 @@ class NaviampWindowUiTest {
         onNodeWithContentDescription("Enter fullscreen").assertIsDisplayed()
     }
 
+    @Test fun nonFocusableTooltipDoesNotBlockFullscreenEscape() = runComposeUiTest {
+        val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
+        controller.toggle()
+        setContent {
+            NaviampRasterEnvironment(null, true, false) {
+                NaviampPopupPresence(blocksWindowEscape = false)
+                NaviampWindowEnvironment(controller, DesktopShortcutPlatform.Windows) {
+                    NaviampWindowFullscreenButton(NaviampColors())
+                }
+            }
+        }
+        onNodeWithTag("application-window").performKeyInput { pressKey(Key.Escape) }
+        onNodeWithContentDescription("Enter fullscreen").assertIsDisplayed()
+    }
     @Test fun heldShortcutDoesNotRepeatedlyToggleTheWindow() = runComposeUiTest {
         var requests = 0
         val controller = NaviampWindowController({ requests++; true }, NaviampWindowSnapshot())
