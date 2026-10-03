@@ -9,6 +9,9 @@ windowed geometry remains the device-local geometry saved by the host, even when
 ## Controls
 
 - Enter/Exit fullscreen icon in shared bottom navigation, including the player navigation.
+- Full player and narrow player layouts expose the same control in the player's bottom action row;
+  Split player uses the browser navigation row, so exactly one control is visible.
+- The fullscreen icon uses the muted navigation tint in both window states.
 - F11 toggles fullscreen. On macOS Control–Command–F also toggles it.
 - Escape dismisses a focused menu/dialog first. With no overlay, Escape exits fullscreen.
 - Native window controls report back into the same shared state.
