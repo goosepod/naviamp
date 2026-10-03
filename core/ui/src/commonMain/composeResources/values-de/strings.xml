@@ -959,4 +959,9 @@
     <string name="tv_account_switching">Konto wird gewechselt…</string>
     <string name="tv_account_switch_failed">Die Verbindung zu diesem Konto ist fehlgeschlagen. Versuche es erneut oder wähle ein anderes Konto.</string>
     <string name="tv_account_nav_label">Konten: %1$s</string>
+    <string name="cast_picker_searching">Google Cast-Geräte im lokalen Netzwerk werden gesucht…</string>
+    <string name="cast_picker_discovery_failed">Cast-Geräte konnten nicht gesucht werden. Netzwerk prüfen und erneut versuchen.</string>
+    <string name="cast_picker_connection_failed">Verbindung zu diesem Cast-Gerät fehlgeschlagen. Verfügbarkeit prüfen und erneut versuchen.</string>
+    <string name="cast_picker_target_lost">Dieses Cast-Gerät ist nicht mehr verfügbar. Erneut suchen.</string>
+    <string name="cast_picker_return_local">Zur lokalen Wiedergabe zurückkehren</string>
 </resources>

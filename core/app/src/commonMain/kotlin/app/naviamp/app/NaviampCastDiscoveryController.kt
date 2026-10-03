@@ -10,6 +10,7 @@ data class NaviampCastResolvedService(
     val addresses: List<String>,
     val port: Int,
     val textAttributes: Map<String, String>,
+    val localAddress: String? = null,
 )
 
 data class NaviampCastDiscoveredTarget(
@@ -17,10 +18,11 @@ data class NaviampCastDiscoveredTarget(
     val endpoints: List<NaviampCastEndpoint>,
 )
 
-data class NaviampCastEndpoint(val host: String, val port: Int) {
+data class NaviampCastEndpoint(val host: String, val port: Int, val localAddress: String? = null) {
     init {
         require(host.isNotBlank())
         require(port in 1..65_535)
+        require(localAddress == null || localAddress.isNotBlank())
     }
 }
 
@@ -41,6 +43,7 @@ interface NaviampCastDiscoveryListener {
 /** DNS-SD boundary only. Core interprets TXT data, merges interfaces, and owns result lifetime. */
 interface NaviampCastDiscoveryEffect {
     fun start(serviceType: String, listener: NaviampCastDiscoveryListener)
+    fun refresh() {}
     fun stop()
 }
 
@@ -77,7 +80,7 @@ class NaviampCastDiscoveryController(
                 val name = service.textAttributes["fn"]?.trim()?.takeIf(String::isNotEmpty) ?: return
                 if (service.serviceKey.isBlank() || service.port !in 1..65_535) return
                 val endpoints = service.addresses.map(String::trim).filter(String::isNotEmpty)
-                    .distinct().map { NaviampCastEndpoint(it, service.port) }
+                    .distinct().map { NaviampCastEndpoint(it, service.port, service.localAddress?.trim()?.takeIf(String::isNotEmpty)) }
                 if (endpoints.isEmpty()) return
                 services[service.serviceKey] = Service(
                     NaviampCastTarget(id, name), endpoints,
@@ -123,6 +126,10 @@ class NaviampCastDiscoveryController(
     fun refreshExpiry() {
         if (!state.value.discovering) return
         publish()
+    }
+
+    fun refresh() {
+        if (state.value.discovering) effect.refresh()
     }
 
     /** Selection rechecks expiry so a stale row cannot initiate a connection. */

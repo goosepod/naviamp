@@ -98,6 +98,7 @@ class NaviampCore private constructor(
     private val diagnostics: NaviampCoreDiagnosticsPort,
     private val connectController: NaviampCoreConnectController?,
     private val castController: NaviampCoreCastController?,
+    private val castPicker: NaviampCoreCastPickerController?,
     private val showCastRoutePicker: (() -> Unit)?,
     internal val playbackOutputs: NaviampPlaybackOutputSelectionController,
 ) {
@@ -172,15 +173,20 @@ class NaviampCore private constructor(
     }
 
     fun close() {
+        castPicker?.close()
         castController?.close()
         connectController?.close()
     }
 
-    val castAvailable: Boolean get() = showCastRoutePicker != null
+    val castAvailable: Boolean get() = showCastRoutePicker != null || castPicker != null
+    val castPickerState: StateFlow<app.naviamp.ui.NaviampCastPickerUi>? get() = castPicker?.state
 
-    fun showCastPicker() { showCastRoutePicker?.invoke() }
+    fun showCastPicker() { if (castPicker != null) castPicker.show() else showCastRoutePicker?.invoke() }
+    fun dismissCastPicker() { castPicker?.dismiss() }
+    fun retryCastDiscovery() { castPicker?.retry() }
+    fun selectCastTarget(id: String) { castPicker?.select(id) }
 
-    fun selectLocalPlayback() { castController?.selectLocal() }
+    fun selectLocalPlayback() { if (castPicker != null) castPicker.selectLocal() else castController?.selectLocal() }
 
     /** Runs the shared sliding-session heartbeat until the mounted Core application is disposed. */
     suspend fun maintainProviderSession() {
@@ -660,10 +666,23 @@ class NaviampCore private constructor(
                     playbackOutputs = playbackOutputs,
                 )
             }
+            val castEffect = services.cast?.let { castServices ->
+                castServices.session ?: checkNotNull(castServices.channel).let { native ->
+                    app.naviamp.app.NaviampCastChannelSessionEffect(scope, native.transport,
+                        app.naviamp.app.NaviampCastDeviceAuthentication(native.crypto, services.clockEpochMillis),
+                        services.clockEpochMillis)
+                }
+            }
+            val castSessions = castEffect?.let { NaviampCastSessionController(it, playbackOutputs) }
+            val castPicker = services.cast?.discovery?.let { effect ->
+                NaviampCoreCastPickerController(scope,
+                    app.naviamp.app.NaviampCastDiscoveryController(effect, services.clockEpochMillis),
+                    checkNotNull(castSessions), playbackOutputs)
+            }
             val cast = services.cast?.let { castServices ->
                 NaviampCoreCastController(
                     scope = scope,
-                    sessions = NaviampCastSessionController(castServices.session, playbackOutputs),
+                    sessions = checkNotNull(castSessions),
                     outputs = playbackOutputs,
                     endpoint = NaviampCastMediaEndpointController(
                         server = castServices.server,
@@ -672,6 +691,7 @@ class NaviampCore private constructor(
                             nowEpochMillis = services.clockEpochMillis,
                         ),
                         source = NaviampCoreCastMediaByteSource(providerSource),
+                        localAddress = { castEffect.localAddress },
                     ),
                     providers = providerSource,
                     playback = livePlayback,
@@ -701,6 +721,7 @@ class NaviampCore private constructor(
                 diagnostics = services.diagnostics,
                 connectController = connect,
                 castController = cast,
+                castPicker = castPicker,
                 showCastRoutePicker = services.cast?.showRoutePicker,
                 playbackOutputs = playbackOutputs,
             )

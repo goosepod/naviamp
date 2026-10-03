@@ -7,6 +7,18 @@ import kotlin.test.assertTrue
 
 class NaviampCastDiscoveryControllerTest {
     @Test
+    fun preservesTheDiscoveryInterfaceForEachReceiverEndpoint() {
+        val fixture = Fixture()
+        fixture.controller.start()
+        fixture.effect.listener.onServiceResolved(service("wifi", "tv", "TV").copy(localAddress = "192.0.2.10"))
+        fixture.effect.listener.onServiceResolved(service("other", "tv", "TV").copy(localAddress = "198.51.100.10"))
+        assertEquals(setOf("192.0.2.10", "198.51.100.10"),
+            fixture.controller.target("tv")!!.endpoints.map { it.localAddress }.toSet())
+        fixture.effect.listener.onServiceLost("other")
+        assertEquals("192.0.2.10", fixture.controller.target("tv")!!.endpoints.single().localAddress)
+    }
+
+    @Test
     fun mergesInterfacesByReceiverIdAndKeepsOtherInterfaceOnLoss() {
         val fixture = Fixture()
         fixture.controller.start()

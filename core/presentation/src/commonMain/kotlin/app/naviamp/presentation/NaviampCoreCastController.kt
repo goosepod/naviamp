@@ -23,11 +23,13 @@ import app.naviamp.domain.playback.PlaybackState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 
 /** Shared queue, handoff, receiver status, and return-to-local policy for Cast playback. */
 internal class NaviampCoreCastController(
@@ -46,6 +48,7 @@ internal class NaviampCoreCastController(
     private var statusJob: Job? = null
     private var requestRevision = 0L
     private var activeMediaUrl: String? = null
+    private var activeLeases = emptyList<String>()
     private var remoteWasPlaying = false
     private var finishedMediaUrl: String? = null
     private val commandMutex = Mutex()
@@ -111,76 +114,88 @@ internal class NaviampCoreCastController(
         val revision = ++requestRevision
         loadJob?.cancel()
         loadJob = scope.launch {
-            val wasPlaying = playback.state.value.playbackState in setOf(PlaybackState.Playing, PlaybackState.Loading) ||
-                (activeMediaUrl != null && remoteWasPlaying)
-            val startPosition = positionSeconds ?: playback.state.value.progress.positionSeconds ?: 0.0
-            val media = try {
-                endpoint.start()
-                val url = endpoint.issue(NaviampCastMediaResource(
-                    kind = NaviampCastMediaKind.Track,
-                    sourceId = provider.cacheNamespace,
-                    id = track.id.value,
-                    quality = quality,
-                ))
-                val artwork = track.coverArtId?.let { artworkId ->
-                    endpoint.issue(NaviampCastMediaResource(
-                        kind = NaviampCastMediaKind.Artwork,
+            val issued = mutableListOf<String>()
+            var retained = false
+            try {
+                val wasPlaying = playback.state.value.playbackState in setOf(PlaybackState.Playing, PlaybackState.Loading) ||
+                    (activeMediaUrl != null && remoteWasPlaying)
+                val startPosition = positionSeconds ?: playback.state.value.progress.positionSeconds ?: 0.0
+                val media = try {
+                    endpoint.start()
+                    val url = endpoint.issue(NaviampCastMediaResource(
+                        kind = NaviampCastMediaKind.Track,
                         sourceId = provider.cacheNamespace,
-                        id = artworkId,
-                    ))
+                        id = track.id.value,
+                        quality = quality,
+                    )).also(issued::add)
+                    val artwork = track.coverArtId?.let { artworkId ->
+                        endpoint.issue(NaviampCastMediaResource(
+                            kind = NaviampCastMediaKind.Artwork,
+                            sourceId = provider.cacheNamespace,
+                            id = artworkId,
+                        )).also(issued::add)
+                    }
+                    NaviampCastReceiverMedia(
+                        mediaUrl = url,
+                        contentType = "audio/mpeg",
+                        title = track.title,
+                        artist = track.artistName,
+                        album = track.albumTitle,
+                        artworkUrl = artwork,
+                        durationMillis = track.durationSeconds?.toLong()?.times(1_000),
+                        positionMillis = (startPosition.coerceAtLeast(0.0) * 1_000).toLong(),
+                        autoplay = false,
+                    )
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    if (revision == requestRevision && sessions.currentConnectedSelectionId() == selected) {
+                        sessions.selectLocal()
+                    }
+                    return@launch
                 }
-                NaviampCastReceiverMedia(
-                    mediaUrl = url,
-                    contentType = "audio/mpeg",
-                    title = track.title,
-                    artist = track.artistName,
-                    album = track.albumTitle,
-                    artworkUrl = artwork,
-                    durationMillis = track.durationSeconds?.toLong()?.times(1_000),
-                    positionMillis = (startPosition.coerceAtLeast(0.0) * 1_000).toLong(),
-                    autoplay = false,
-                )
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                if (revision == requestRevision && sessions.currentConnectedSelectionId() == selected) {
-                    sessions.selectLocal()
+                val loaded = try {
+                    withTimeoutOrNull(15_000) { sessions.load(selected, media) } == true
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    false
                 }
-                return@launch
-            }
-            val loaded = try {
-                withTimeoutOrNull(15_000) { sessions.load(selected, media) } == true
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                false
-            }
-            if (revision != requestRevision ||
-                providers.current()?.cacheNamespace != provider.cacheNamespace ||
-                playback.state.value.queue.current?.id != track.id
-            ) return@launch
-            if (!loaded) {
-                if (sessions.currentConnectedSelectionId() == selected) sessions.selectLocal()
-                return@launch
-            }
-            if (!sessions.activatePlaybackAuthority(selected)) return@launch
-            activeMediaUrl = media.mediaUrl
-            finishedMediaUrl = null
-            remoteWasPlaying = wasPlaying
-            local.stop()
-            local.setVisualizerFramesEnabled(false)
-            playback.replace(playback.state.value.copy(
-                playbackState = if (wasPlaying) PlaybackState.Loading else PlaybackState.Paused,
-                progress = PlaybackProgress(startPosition, track.durationSeconds?.toDouble()),
-            ))
-            publishNowPlaying()
-            if (wasPlaying && !commandMutex.withLock {
-                    withTimeoutOrNull(8_000) {
-                        sessions.command(selected, NaviampCastReceiverCommand.Play)
-                    } == true
-                }) {
-                playback.updatePlaybackState(PlaybackState.Paused)
+                if (revision != requestRevision ||
+                    providers.current()?.cacheNamespace != provider.cacheNamespace ||
+                    playback.state.value.queue.current?.id != track.id
+                ) return@launch
+                if (!loaded) {
+                    if (sessions.currentConnectedSelectionId() == selected) sessions.selectLocal()
+                    return@launch
+                }
+                if (!sessions.activatePlaybackAuthority(selected)) return@launch
+                activeMediaUrl = media.mediaUrl
+                val previousLeases = activeLeases
+                activeLeases = issued.toList()
+                retained = true
+                previousLeases.forEach { endpoint.revoke(it) }
+                finishedMediaUrl = null
+                remoteWasPlaying = wasPlaying
+                local.stop()
+                local.setVisualizerFramesEnabled(false)
+                playback.replace(playback.state.value.copy(
+                    playbackState = if (wasPlaying) PlaybackState.Loading else PlaybackState.Paused,
+                    progress = PlaybackProgress(startPosition, track.durationSeconds?.toDouble()),
+                ))
                 publishNowPlaying()
+                if (wasPlaying && !commandMutex.withLock {
+                        withTimeoutOrNull(8_000) {
+                            sessions.command(selected, NaviampCastReceiverCommand.Play)
+                        } == true
+                    }) {
+                    playback.updatePlaybackState(PlaybackState.Paused)
+                    publishNowPlaying()
+                }
+            } finally {
+                if (!retained) withContext(NonCancellable) {
+                    issued.forEach { endpoint.revoke(it) }
+                }
             }
         }
         return true
@@ -256,6 +271,7 @@ internal class NaviampCoreCastController(
         ++requestRevision
         loadJob?.cancel()
         activeMediaUrl = null
+        activeLeases = emptyList()
         finishedMediaUrl = null
         scope.launch { endpoint.stop() }
         if (resumeLocal && playback.state.value.queue.current != null) {

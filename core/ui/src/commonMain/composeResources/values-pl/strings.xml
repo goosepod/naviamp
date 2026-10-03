@@ -246,4 +246,9 @@
     <string name="tv_account_switching">Przełączanie konta…</string>
     <string name="tv_account_switch_failed">Nie można połączyć się z tym kontem. Spróbuj ponownie lub wybierz inne konto.</string>
     <string name="tv_account_nav_label">Konta: %1$s</string>
+    <string name="cast_picker_searching">Wyszukiwanie urządzeń Google Cast w sieci lokalnej…</string>
+    <string name="cast_picker_discovery_failed">Nie można wyszukać urządzeń Cast. Sprawdź sieć i spróbuj ponownie.</string>
+    <string name="cast_picker_connection_failed">Nie można połączyć z tym urządzeniem Cast. Sprawdź jego dostępność i spróbuj ponownie.</string>
+    <string name="cast_picker_target_lost">To urządzenie Cast nie jest już dostępne. Wyszukaj ponownie.</string>
+    <string name="cast_picker_return_local">Powrót do odtwarzania lokalnego</string>
 </resources>

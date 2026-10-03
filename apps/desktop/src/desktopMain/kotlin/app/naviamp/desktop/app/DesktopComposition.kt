@@ -1,6 +1,13 @@
 package app.naviamp.desktop
 
 import app.naviamp.app.BouncyCastleNaviampConnectPakeFactory
+import app.naviamp.app.JvmNaviampCastCryptoEffect
+import app.naviamp.app.NaviampCastSecureTokenSource
+import app.naviamp.desktop.cast.DesktopNaviampCastDiscoveryEffect
+import app.naviamp.desktop.cast.DesktopNaviampCastHttpServerEffect
+import app.naviamp.desktop.cast.DesktopNaviampCastTransportFactory
+import app.naviamp.presentation.NaviampCoreCastServices
+import app.naviamp.presentation.NaviampCoreCastChannelServices
 import app.naviamp.app.JvmNaviampConnectAuthenticatedCipherFactory
 import app.naviamp.app.JvmNaviampConnectIdentityVerifier
 import app.naviamp.app.JvmNaviampConnectTcpTransportFactory
@@ -60,8 +67,10 @@ internal class DesktopComposition private constructor(
     val environment: DesktopNaviampCoreEnvironment,
     private val engine: ReleasablePlaybackEngine,
     private val storage: DesktopStorageRepositories,
+    private val castServer: DesktopNaviampCastHttpServerEffect,
 ) : AutoCloseable {
     override fun close() {
+        castServer.close()
         resetJvmPlatformCoverArtByteLoader()
         engine.release()
         storage.close()
@@ -89,6 +98,7 @@ internal class DesktopComposition private constructor(
                 } ?: transport
             }
             val secureRandom = SecureRandom()
+            val castServer = DesktopNaviampCastHttpServerEffect()
             val connectNetwork = DesktopNaviampConnectNetwork()
             val connectServices = NaviampCoreConnectServices(
                 deviceCapabilities = NaviampCoreBidirectionalConnectCapabilities,
@@ -283,7 +293,15 @@ internal class DesktopComposition private constructor(
             )
             return DesktopComposition(
                 environment = desktopNaviampCoreEnvironment(
-                    services = catalog.services.copy(connect = connectServices),
+                    services = catalog.services.copy(connect = connectServices, cast = NaviampCoreCastServices(
+                        channel = NaviampCoreCastChannelServices(DesktopNaviampCastTransportFactory(), JvmNaviampCastCryptoEffect()),
+                        discovery = DesktopNaviampCastDiscoveryEffect(scope),
+                        server = castServer,
+                        tokens = NaviampCastSecureTokenSource {
+                            java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                                ByteArray(32).also(secureRandom::nextBytes))
+                        },
+                    )),
                     providerSessions = sessions,
                     initialState = catalog.initialState,
                     shellCapabilities = shellCapabilities,
@@ -299,6 +317,7 @@ internal class DesktopComposition private constructor(
                 ),
                 engine = engine,
                 storage = storage,
+                castServer = castServer,
             )
         }
     }

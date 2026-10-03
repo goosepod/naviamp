@@ -127,4 +127,9 @@
     <string name="tv_account_switching">खाता बदला जा रहा है…</string>
     <string name="tv_account_switch_failed">इस खाते से कनेक्ट नहीं हो सका। फिर से कोशिश करें या दूसरा खाता चुनें।</string>
     <string name="tv_account_nav_label">खाते: %1$s</string>
+    <string name="cast_picker_searching">आपके स्थानीय नेटवर्क पर Google Cast डिवाइस खोजे जा रहे हैं…</string>
+    <string name="cast_picker_discovery_failed">Cast डिवाइस नहीं खोजे जा सके। नेटवर्क जाँचें और फिर कोशिश करें।</string>
+    <string name="cast_picker_connection_failed">इस Cast डिवाइस से कनेक्ट नहीं हो सका। इसकी उपलब्धता जाँचें और फिर कोशिश करें।</string>
+    <string name="cast_picker_target_lost">यह Cast डिवाइस अब उपलब्ध नहीं है। फिर से खोजें।</string>
+    <string name="cast_picker_return_local">स्थानीय प्लेबैक पर लौटें</string>
 </resources>

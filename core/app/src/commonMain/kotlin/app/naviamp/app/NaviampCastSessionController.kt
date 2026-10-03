@@ -14,6 +14,7 @@ data class NaviampCastTarget(val id: String, val displayName: String) {
 
 /** Native Cast SDK operations. The host reports SDK events through the listener without owning policy. */
 interface NaviampCastSessionEffect {
+    val localAddress: String? get() = null
     fun start(listener: NaviampCastSessionListener)
     fun stop()
     fun disconnect()

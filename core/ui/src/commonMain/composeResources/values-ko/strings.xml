@@ -127,4 +127,9 @@
     <string name="tv_account_switching">계정 전환 중…</string>
     <string name="tv_account_switch_failed">이 계정에 연결할 수 없습니다. 다시 시도하거나 다른 계정을 선택하세요.</string>
     <string name="tv_account_nav_label">계정: %1$s</string>
+    <string name="cast_picker_searching">로컬 네트워크에서 Google Cast 기기를 검색하는 중…</string>
+    <string name="cast_picker_discovery_failed">Cast 기기를 검색할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.</string>
+    <string name="cast_picker_connection_failed">이 Cast 기기에 연결할 수 없습니다. 사용 가능한지 확인하고 다시 시도하세요.</string>
+    <string name="cast_picker_target_lost">이 Cast 기기를 더 이상 사용할 수 없습니다. 다시 검색하세요.</string>
+    <string name="cast_picker_return_local">로컬 재생으로 돌아가기</string>
 </resources>

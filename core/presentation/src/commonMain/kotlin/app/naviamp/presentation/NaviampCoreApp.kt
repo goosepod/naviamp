@@ -145,6 +145,13 @@ fun NaviampCoreApp(
                 state.overlays.busyMessage?.let { message ->
                     NaviampBusyDialog(message)
                 }
+                core.castPickerState?.let { pickerState ->
+                    val picker by pickerState.collectAsState()
+                    if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
+                        picker, core::selectCastTarget, core::selectLocalPlayback,
+                        core::retryCastDiscovery, core::dismissCastPicker,
+                    )
+                }
                 if (state.overlays.statsForNerdsVisible) {
                     LaunchedEffect(core) {
                         while (true) {

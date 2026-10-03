@@ -127,4 +127,9 @@
     <string name="tv_account_switching">Перемикання облікового запису…</string>
     <string name="tv_account_switch_failed">Не вдалося підключитися до цього облікового запису. Спробуйте ще раз або виберіть інший.</string>
     <string name="tv_account_nav_label">Облікові записи: %1$s</string>
+    <string name="cast_picker_searching">Пошук пристроїв Google Cast у локальній мережі…</string>
+    <string name="cast_picker_discovery_failed">Не вдалося знайти пристрої Cast. Перевірте мережу та повторіть спробу.</string>
+    <string name="cast_picker_connection_failed">Не вдалося підключитися до цього пристрою Cast. Перевірте його доступність і повторіть спробу.</string>
+    <string name="cast_picker_target_lost">Цей пристрій Cast більше недоступний. Повторіть пошук.</string>
+    <string name="cast_picker_return_local">Повернутися до локального відтворення</string>
 </resources>

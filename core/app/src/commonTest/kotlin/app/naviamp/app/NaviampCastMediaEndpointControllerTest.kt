@@ -2,12 +2,55 @@ package app.naviamp.app
 
 import app.naviamp.domain.provider.ProviderMediaByteResponse
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCastMediaEndpointControllerTest {
+    @Test
+    fun concurrentStartsBindOnceAndCancelledStartCleansUp() = runTest {
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var starts = 0
+        var stops = 0
+        val server = object : NaviampCastHttpServerEffect {
+            override suspend fun start(handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String {
+                starts++; entered.complete(Unit); release.await()
+                return "http://192.0.2.1:12345"
+            }
+            override suspend fun stop() { stops++ }
+        }
+        fun endpoint() = NaviampCastMediaEndpointController(server,
+            NaviampCastMediaLeaseController(NaviampCastSecureTokenSource { "abcdefghijklmnopqrstuvwxyz012345" }, { 0L }), FakeSource())
+        val controller = endpoint()
+        val first = async { controller.start() }
+        entered.await()
+        val second = async { controller.start() }
+        release.complete(Unit)
+        first.await(); second.await()
+        assertEquals(1, starts)
+        controller.stop()
+        assertEquals(1, stops)
+
+        val blocked = CompletableDeferred<Unit>()
+        val cancelledServer = object : NaviampCastHttpServerEffect {
+            override suspend fun start(handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String {
+                blocked.complete(Unit)
+                CompletableDeferred<Unit>().await()
+                return "http://192.0.2.1:12345"
+            }
+            override suspend fun stop() { stops++ }
+        }
+        val cancelled = NaviampCastMediaEndpointController(cancelledServer,
+            NaviampCastMediaLeaseController(NaviampCastSecureTokenSource { "abcdefghijklmnopqrstuvwxyz012345" }, { 0L }), FakeSource())
+        val opening = async { cancelled.start() }
+        blocked.await()
+        opening.cancel(); opening.join()
+        assertEquals(2, stops)
+    }
     @Test
     fun servesOnlyActiveLeaseAndForwardsRangeWithoutExposingResourceId() = runTest {
         val server = FakeServer()
@@ -29,8 +72,24 @@ class NaviampCastMediaEndpointControllerTest {
         assertEquals(listOf<Byte>(1, 2, 3), reply.bytes)
         assertEquals(NaviampCastRequestedRange.From(10, 12), source.range)
 
+        endpoint.revoke(url.replace("192.0.2.1", "192.0.2.2"))
+        assertEquals(200, server.request("HEAD", url.substringAfter("192.0.2.1:54321"), null).status)
+        endpoint.revoke(url)
+        assertEquals(404, server.request("GET", url.substringAfter("192.0.2.1:54321"), null).status)
+
         endpoint.stop()
         assertEquals(404, server.request("GET", url.substringAfter("192.0.2.1:54321"), null).status)
+    }
+
+    @Test
+    fun bindsTheInterfaceSelectedByTheCastTransport() = runTest {
+        val server = FakeServer()
+        val endpoint = NaviampCastMediaEndpointController(server,
+            NaviampCastMediaLeaseController(NaviampCastSecureTokenSource { "abcdefghijklmnopqrstuvwxyz012345" }, { 0L }),
+            FakeSource(), localAddress = { "192.0.2.20" })
+        endpoint.start()
+        assertEquals("192.0.2.20", server.localAddress)
+        endpoint.stop()
     }
 
     @Test
@@ -59,6 +118,11 @@ class NaviampCastMediaEndpointControllerTest {
     }
 
     private class FakeServer : NaviampCastHttpServerEffect {
+        var localAddress: String? = null
+        override suspend fun start(localAddress: String?, handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String {
+            this.localAddress = localAddress
+            return start(handler)
+        }
         private lateinit var handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit
         override suspend fun start(handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String {
             this.handler = handler
