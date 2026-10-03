@@ -82,6 +82,43 @@ class NaviampCastChannelTest {
     }
 
     @Test
+    fun senderLaunchesAndControlsConfiguredReceiver() = runTest {
+        val receiverId = "A1B2C3D4"
+        val connection = FakeConnection().also { it.receiverApplicationId = receiverId }
+        val listener = Listener()
+        val sender = NaviampCastChannelSessionEffect(backgroundScope, NaviampCastTransportFactory { connection },
+            NaviampCastDeviceAuthentication(FakeCrypto(), { 1_000 }), { testScheduler.currentTime },
+            receiverApplicationId = receiverId)
+        sender.start(listener)
+        assertTrue(sender.connect(7, target))
+        val launch = connection.sent.mapNotNull { it.text?.let(Json::parseToJsonElement) as? JsonObject }
+            .single { it["type"]?.jsonPrimitive?.content == "LAUNCH" }
+        assertEquals(receiverId, launch["appId"]?.jsonPrimitive?.content)
+        assertEquals(listOf(7L), listener.connected)
+        assertTrue(sender.load(7, media))
+        assertTrue(sender.command(7, NaviampCastReceiverCommand.Pause))
+        assertTrue(sender.command(7, NaviampCastReceiverCommand.Seek(3_000)))
+        sender.disconnect()
+        runCurrent()
+        assertTrue(connection.closed)
+    }
+
+    @Test
+    fun senderRejectsDifferentReceiverApplication() = runTest {
+        val connection = FakeConnection()
+        val listener = Listener()
+        val sender = NaviampCastChannelSessionEffect(backgroundScope, NaviampCastTransportFactory { connection },
+            NaviampCastDeviceAuthentication(FakeCrypto(), { 1_000 }), { testScheduler.currentTime },
+            requestTimeoutMillis = 100, receiverApplicationId = "A1B2C3D4")
+        sender.start(listener)
+        assertFalse(sender.connect(7, target))
+        assertTrue(listener.connected.isEmpty())
+        assertTrue(connection.closed)
+        assertFalse(sender.load(7, media))
+        sender.stop()
+    }
+
+    @Test
     fun idleLoadEchoDoesNotAcceptPlaybackAuthority() = runTest {
         val connection = FakeConnection().also { it.playerState = "IDLE" }
         val sender = NaviampCastChannelSessionEffect(backgroundScope, NaviampCastTransportFactory { connection },
@@ -164,6 +201,7 @@ class NaviampCastChannelTest {
         var wrongSource = false
         var answerHeartbeat = true
         var playerState = "PAUSED"
+        var receiverApplicationId = NaviampCastReceiver.ApplicationId
         override suspend fun send(frame: ByteArray) {
             val message = NaviampCastChannelCodec.decode(frame)
             sent += message
@@ -181,7 +219,7 @@ class NaviampCastChannelTest {
                 body["requestId"]?.let { put("requestId", it) }
                 if (receiver) put("status", buildJsonObject {
                     put("applications", buildJsonArray { add(buildJsonObject {
-                        put("appId", "CC1AD845"); put("transportId", "app-1"); put("sessionId", "session-1")
+                        put("appId", receiverApplicationId); put("transportId", "app-1"); put("sessionId", "session-1")
                     }) })
                     put("volume", buildJsonObject { put("level", 0.5) })
                 }) else put("status", buildJsonArray { add(buildJsonObject {

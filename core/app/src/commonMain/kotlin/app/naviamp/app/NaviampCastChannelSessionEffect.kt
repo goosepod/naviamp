@@ -22,8 +22,12 @@ class NaviampCastChannelSessionEffect(
     private val nowEpochMillis: () -> Long,
     private val requestTimeoutMillis: Long = 10_000,
     private val heartbeatIntervalMillis: Long = 5_000,
+    private val receiverApplicationId: String = NaviampCastReceiver.ApplicationId,
 ) : NaviampCastSessionEffect {
-    init { require(requestTimeoutMillis > 0 && heartbeatIntervalMillis > 0) }
+    init {
+        require(requestTimeoutMillis > 0 && heartbeatIntervalMillis > 0)
+        require(receiverApplicationId.isNotBlank())
+    }
 
     private data class Pending(
         val namespace: String,
@@ -105,7 +109,7 @@ class NaviampCastChannelSessionEffect(
                     put("userAgent", "Naviamp"); put("senderInfo", buildJsonObject { put("sdkType", 2) })
                 })
                 val launched = request(candidate, Receiver, ReceiverNamespace, buildJsonObject {
-                    put("type", "LAUNCH"); put("appId", DefaultMediaReceiver)
+                    put("type", "LAUNCH"); put("appId", receiverApplicationId)
                 })
                 if (launched?.string("type") != "RECEIVER_STATUS" || candidate.applicationTransport == null ||
                     session !== candidate || current != revision) { close(candidate); continue }
@@ -267,7 +271,7 @@ class NaviampCastChannelSessionEffect(
         val status = payload.obj("status") ?: return
         status.obj("volume")?.double("level")?.let { current.volume = (it * 100).toInt().coerceIn(0, 100) }
         val application = status.array("applications").mapNotNull { it as? JsonObject }
-            .firstOrNull { it.string("appId") == DefaultMediaReceiver }
+            .firstOrNull { it.string("appId") == receiverApplicationId }
         if (application == null && current.applicationTransport != null && !current.intentionalClose) {
             failed(current); return
         }
@@ -352,7 +356,6 @@ class NaviampCastChannelSessionEffect(
     }
 
     companion object {
-        const val DefaultMediaReceiver = "CC1AD845"
         const val Receiver = "receiver-0"
         const val Auth = "urn:x-cast:com.google.cast.tp.deviceauth"
         const val Connection = "urn:x-cast:com.google.cast.tp.connection"

@@ -150,9 +150,9 @@ class DesktopNaviampCastReceiverProbeTest {
             (entry as? JsonObject)?.filterKeys { it in setOf("mediaSessionId", "playerState", "idleReason", "currentTime") }
         }
         val apps = ((payload["status"] as? JsonObject)?.get("applications") as? JsonArray)?.map {
-            (it as? JsonObject)?.filterKeys { key -> key in setOf("appId", "transportId", "namespaces") }
+            (it as? JsonObject)?.filterKeys { key -> key in setOf("appId", "displayName", "transportId", "namespaces") }
         }
-        println("CAST_PROBE $direction source=${message.sourceId} destination=${message.destinationId} ns=${message.namespace.substringAfterLast('.')} type=${payload["type"]} request=${payload["requestId"]} mediaSession=${payload["mediaSessionId"]} status=$status apps=$apps")
+        println("CAST_PROBE $direction source=${message.sourceId} destination=${message.destinationId} ns=${message.namespace.substringAfterLast('.')} type=${payload["type"]} reason=${payload["reason"]} request=${payload["requestId"]} mediaSession=${payload["mediaSessionId"]} status=$status apps=$apps")
     }
 
     private fun quietWave(): ByteArray {
