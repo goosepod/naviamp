@@ -28,7 +28,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -1985,7 +1984,7 @@ fun NaviampDownloadsContent(
     }
     if (confirmDeleteAll) {
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { confirmDeleteAll = false },
             title = { Text("Delete all downloads?") },
             text = { Text("This removes every downloaded file shown for the active source. This cannot be undone.") },

@@ -43,7 +43,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -92,7 +91,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.naviamp.domain.playback.EqualizerBandFrequencies
 import app.naviamp.domain.playback.EqualizerPreset
@@ -1453,7 +1451,7 @@ private fun KeyboardShortcutCaptureDialog(
     val focusRequester = remember { FocusRequester() }
     var message by remember { mutableStateOf("Press a key together with at least one modifier") }
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(action.label) },
         text = {
@@ -2521,7 +2519,7 @@ private fun NaviampConnectionsSettingsSection(
     }
         pendingDelete?.let { connection ->
             NaviampPopupPresence()
-            AlertDialog(
+            NaviampAlertDialog(
                 onDismissRequest = { pendingDelete = null },
                 title = { Text(stringResource(Res.string.settings_source_delete_title)) },
                 text = { Text(stringResource(Res.string.settings_source_delete_message, connection.displayName)) },
@@ -2819,7 +2817,7 @@ private fun SharedLocalDataActions(
 
     confirmAction?.let { action ->
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { confirmAction = null },
             title = { Text(action.title()) },
             text = { Text(action.message()) },
@@ -3852,7 +3850,7 @@ private fun AudioOutputSettings(
     }
     if (pendingStrictCrossfadeConfirmation) {
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { pendingStrictCrossfadeConfirmation = false },
             title = { Text(stringResource(Res.string.settings_sample_rate_matching_strict_crossfade_title)) },
             text = { Text(stringResource(Res.string.settings_sample_rate_matching_strict_crossfade_message)) },
@@ -4247,7 +4245,7 @@ private fun GaplessCrossfadeSettings(
         }
         pendingCrossfadeDurationForStrict?.let { seconds ->
             NaviampPopupPresence()
-            AlertDialog(
+            NaviampAlertDialog(
                 onDismissRequest = { pendingCrossfadeDurationForStrict = null },
                 title = { Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_title)) },
                 text = { Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_message)) },
@@ -4567,7 +4565,7 @@ internal fun NaviampRadioDjCreationDialog(
     onDismissRequest: () -> Unit,
 ) {
     NaviampPopupPresence()
-    Dialog(
+    NaviampDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
@@ -5284,7 +5282,7 @@ private fun EqualizerSettings(
     }
     if (profileDialogOpen) {
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { profileDialogOpen = false },
             title = {
                 Text(
@@ -5484,7 +5482,7 @@ private fun DownloadQualitySettings(
     }
     pendingDownloadQualitySettings?.let { pendingSettings ->
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { pendingDownloadQualitySettings = null },
             title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },
             text = {
@@ -5527,7 +5525,7 @@ private fun DownloadQualityChangeDialog(
     onRedownload: () -> Unit,
 ) {
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },
         text = {

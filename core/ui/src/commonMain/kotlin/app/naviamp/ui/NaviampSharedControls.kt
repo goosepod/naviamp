@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupProperties
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -471,14 +472,22 @@ fun NaviampDropdownMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     offset: DpOffset = DpOffset.Zero,
+    containerColor: Color = MenuBackground,
+    properties: PopupProperties = PopupProperties(focusable = true),
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    if (LocalNaviampOwnedPopupWindows.current) {
+        NaviampWindowDropdownMenu(expanded, onDismissRequest, modifier.widthIn(min = 220.dp),
+            offset, containerColor, RoundedCornerShape(4.dp), 8.dp, properties, content)
+        return
+    }
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         offset = offset,
         shape = RoundedCornerShape(4.dp),
-        containerColor = MenuBackground,
+        containerColor = containerColor,
+        properties = properties,
         tonalElevation = 0.dp,
         shadowElevation = 8.dp,
         modifier = modifier.widthIn(min = 220.dp),

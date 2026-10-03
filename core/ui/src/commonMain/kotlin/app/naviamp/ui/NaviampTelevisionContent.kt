@@ -52,7 +52,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -98,7 +97,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.text.KeyboardActions
@@ -652,7 +650,7 @@ internal fun TelevisionInternetRadio(
 
     actionStation?.let { station ->
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { actionStation = null },
             title = { Text(station.item.title) },
             text = { Text(station.streamUrl) },
@@ -698,7 +696,7 @@ internal fun TelevisionInternetRadio(
     }
     deletingStation?.let { station ->
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { deletingStation = null },
             title = { Text(stringResource(Res.string.tv_delete_station)) },
             text = { Text(stringResource(Res.string.tv_delete_named_station, station.item.title)) },
@@ -2020,7 +2018,7 @@ private fun TelevisionQueueActionsDialog(
         NowPlayingItemAction.StartRadio to stringResource(Res.string.tv_start_radio),
     )
     NaviampPopupPresence()
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    NaviampDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.68f))) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(16.dp),

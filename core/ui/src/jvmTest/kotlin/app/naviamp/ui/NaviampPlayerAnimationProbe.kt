@@ -46,6 +46,8 @@ fun main() {
     val verifyPixels = System.getenv("NAVIAMP_PROBE_VERIFY") == "true"
     val lifecycleProbe = System.getenv("NAVIAMP_PROBE_LIFECYCLE") == "true"
     val popupProbe = System.getenv("NAVIAMP_PROBE_POPUPS") == "true"
+    val menuProbe = System.getenv("NAVIAMP_PROBE_MENUS") == "true"
+    val dialogProbe = System.getenv("NAVIAMP_PROBE_DIALOGS") == "true"
     val tooltipProbe = System.getenv("NAVIAMP_PROBE_TOOLTIPS") == "true"
     val hoverProbe = System.getenv("NAVIAMP_PROBE_HOVER") == "true"
     if (integrated) configureNaviampDesktopRasterLayers()
@@ -132,7 +134,18 @@ fun main() {
                 }
             }
         }
-        if (popupVisible) androidx.compose.ui.window.Popup(alignment = androidx.compose.ui.Alignment.TopEnd) {
+        if (popupVisible && dialogProbe) {
+            NaviampPopupPresence()
+            NaviampAlertDialog(onDismissRequest = { popupVisible = false },
+                title = { Text("Probe dialog") }, text = { Text("Steady modal rendering") },
+                confirmButton = { Text("Confirm") })
+        } else if (popupVisible && menuProbe) Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.TopEnd) {
+            Box(Modifier.size(48.dp)) {
+                NaviampDropdownMenu(expanded = true, onDismissRequest = { popupVisible = false }) {
+                    repeat(6) { index -> NaviampDropdownMenuItem("Probe action $index", onClick = {}) }
+                }
+            }
+        } else if (popupVisible) androidx.compose.ui.window.Popup(alignment = androidx.compose.ui.Alignment.TopEnd) {
             NaviampPopupPresence()
             androidx.compose.material3.Surface(
                 color = Color(0xff24242b).copy(alpha = 0.98f),
@@ -144,8 +157,11 @@ fun main() {
         if (integrated) NaviampDesktopRasterHost(window, probeWindowState, content) else content()
         LaunchedEffect(Unit) {
             try {
-            delay(1_000)
+            // Allow the native test window to be raised onto the measured desktop space.
+            delay(if (verifyPixels) 15_000 else 1_000)
             if (verifyPixels) captureProbe(window, "warmup")
+            val baselineSize = probeWindowState.size
+            val baselinePosition = probeWindowState.position
             val counters = probeLayers(window).map { layer ->
                 val count = AtomicLong()
                 val delegate = requireNotNull(layer.renderDelegate)
@@ -157,7 +173,7 @@ fun main() {
                 }
                 "${layer.width}x${layer.height}:${layer.renderApi}" to count
             }
-            println("ANIMATION_PROBE integrated=$integrated compositor=$compositor raster=$raster raw=$raw isolated=$isolated rows=$rowCount layers=${counters.map { it.first }} phase,cpu_percent,frames")
+            println("ANIMATION_PROBE integrated=$integrated compositor=$compositor raster=$raster raw=$raw isolated=$isolated menu=$menuProbe dialog=$dialogProbe rows=$rowCount layers=${counters.map { it.first }} phase,cpu_percent,frames")
             val opened = AtomicLong()
             val closed = AtomicLong()
             val lifecycle = java.awt.event.AWTEventListener { event ->
@@ -165,9 +181,22 @@ fun main() {
                 if (event.id == java.awt.event.WindowEvent.WINDOW_CLOSED) closed.incrementAndGet()
             }
             java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(lifecycle, java.awt.AWTEvent.WINDOW_EVENT_MASK)
-            for (next in System.getenv("NAVIAMP_PROBE_PHASES")?.split(',') ?: if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined") else if (hoverProbe) listOf("hover") else if (tooltipProbe) listOf("static", "tooltip", "dismissed") else listOf("static", "marquee", "waveform", "combined") + if (lifecycleProbe) listOf("paused", "hidden-combined", "restored-combined", "resized-combined") else emptyList()) {
+            val defaultPhases = if (popupProbe && System.getenv("NAVIAMP_PROBE_POPUP_ONLY") == "true")
+                listOf("popup-combined", "restored-combined")
+            else if (popupProbe) listOf("static", "marquee", "waveform", "combined", "popup-combined", "restored-combined")
+            else if (hoverProbe) listOf("hover")
+            else if (tooltipProbe) listOf("static", "tooltip", "dismissed")
+            else listOf("static", "marquee", "waveform", "combined")
+            val phases = System.getenv("NAVIAMP_PROBE_PHASES")?.split(',') ?: (defaultPhases + if (lifecycleProbe) listOf("paused", "hidden-combined", "restored-combined", "resized-combined") else emptyList())
+            val cycles = System.getenv("NAVIAMP_PROBE_CYCLES")?.toIntOrNull()?.coerceIn(1, 5) ?: 1
+            for (cycle in 1..cycles) for (next in phases) {
+                println("ANIMATION_CYCLE $cycle phase=$next")
                 phase = next
                 if (lifecycleProbe) {
+                    if (next == phases.first()) {
+                        probeWindowState.size = baselineSize
+                        probeWindowState.position = baselinePosition
+                    }
                     probeWindowState.isMinimized = next == "hidden-combined"
                     if (next == "resized-combined") {
                         probeWindowState.position = androidx.compose.ui.window.WindowPosition(60.dp, 40.dp)
@@ -187,12 +216,16 @@ fun main() {
                     )
                 }
                 delay(5_000)
+                println("ANIMATION_GEOMETRY cycle=$cycle phase=$next bounds=${window.bounds} scale=${window.graphicsConfiguration.defaultTransform} refresh=${window.graphicsConfiguration.device.displayMode.refreshRate}")
                 if (lifecycleProbe) println("ANIMATION_LIFECYCLE $next state=${window.extendedState} minimized=${probeWindowState.isMinimized} owned=${window.ownedWindows.map { it.name to it.isShowing }}")
                 val openedBefore = opened.get()
                 val closedBefore = closed.get()
                 val initialFrames = counters.map { it.second.get() }
                 val positions = if (compositor) ProbeCompositor.positions(ProbeCompositor.handle).toList() else emptyList()
-                val beforePixels = if (capturePixels) captureProbe(window, "$next-before") else null
+                val dimmed = dialogProbe && popupVisible
+                val popupBounds = window.ownedWindows.filter { it.isShowing }.associateWith { it.bounds }
+                val beforePixels = if (capturePixels) captureProbe(window, "cycle$cycle-$next-before", dimmed) else null
+                if (menuProbe && popupVisible && beforePixels != null) verifyMenuPaint(beforePixels.pixels)
                 val compositorCpu = compositors.associateWith { it.info().totalCpuDuration().orElse(null)?.toNanos() }
                 val startCpu = cpu.processCpuTime
                 val start = System.nanoTime()
@@ -216,10 +249,12 @@ fun main() {
                     check(opened.get() == openedBefore && closed.get() == closedBefore) { "Hover recreated native popup windows" }
                 }
                 if (capturePixels) {
-                    val afterCapture = captureProbe(window, "$next-after")
+                    check(popupBounds.all { (popup, bounds) -> popup.bounds == bounds }) { "Native popup geometry changed" }
+                    val afterCapture = captureProbe(window, "cycle$cycle-$next-after", dimmed)
+                    if (menuProbe && popupVisible) verifyMenuPaint(afterCapture.pixels)
                     val beforeCapture = requireNotNull(beforePixels)
-                    verifyProbeAlpha(afterCapture.pixels, window, alphaBounds)
-                    transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index) }
+                    verifyProbeAlpha(afterCapture.pixels, window, alphaBounds, dimmed)
+                    transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index, dimmed) }
                     val afterPixels = afterCapture.pixels
                     val before = beforeCapture.pixels
                     var changed = 0
@@ -229,7 +264,7 @@ fun main() {
                     for (y in 340 until minOf(580, before.height)) for (x in 24 until minOf(304, before.width)) {
                         if (beforeCapture.nearPointer(x, y) || afterCapture.nearPointer(x, y)) continue
                         val pixel = afterPixels.getRGB(x, y)
-                        if (pixel != before.getRGB(x, y)) {
+                        if (probePixelsDiffer(pixel, before.getRGB(x, y))) {
                             changed++
                             // Window decorations differ between real window managers and Xvfb.
                             // Keep a small overlap so both coordinate layouts cover the third label
@@ -237,12 +272,13 @@ fun main() {
                             if (y < 445) textChanged++
                             if (y in 415..500) waveformChanged++
                         }
-                        if ((pixel shr 16 and 255) > 200 && (pixel shr 8 and 255) > 200 && (pixel and 255) > 200) textPixels++
+                        val threshold = if (dimmed) 80 else 200
+                        if ((pixel shr 16 and 255) > threshold && (pixel shr 8 and 255) > threshold && (pixel and 255) > threshold) textPixels++
                     }
                     var siblingChanges = 0
                     for (y in 60 until minOf(690, before.height)) for (x in 350 until minOf(850, before.width)) {
                         if (beforeCapture.nearPointer(x, y) || afterCapture.nearPointer(x, y)) continue
-                        if (afterPixels.getRGB(x, y) != before.getRGB(x, y)) siblingChanges++
+                        if (probePixelsDiffer(afterPixels.getRGB(x, y), before.getRGB(x, y))) siblingChanges++
                     }
                     println("ANIMATION_PIXELS $next changed=$changed text=$textChanged waveform=$waveformChanged visibleText=$textPixels sibling=$siblingChanges")
                     check(textPixels > 100) { "Cached text is blank" }
@@ -250,7 +286,8 @@ fun main() {
                     if (next == "waveform" || next.endsWith("combined")) check(waveformChanged > 10) { "Waveform did not move" }
                     check(siblingChanges == 0) { "Unrelated content changed" }
                     if (expectFallback && (marquee || smooth)) check(counters.indices.any { counters[it].second.get() > initialFrames[it] }) { "Expected the shared fallback to animate" }
-                    if (!expectFallback && next != "popup-combined") check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
+                    if (!expectFallback && (next != "popup-combined" || System.getProperty("compose.layers.type") == "WINDOW"))
+                        check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
                 }
                 if (compositor) {
                     val after = ProbeCompositor.positions(ProbeCompositor.handle).toList()
@@ -266,12 +303,14 @@ fun main() {
                 // Exercise real owned-window notifications while the compositor timelines run.
                 repeat(12) { index ->
                     popupVisible = index % 2 == 0
-                    delay(80)
-                    val pixels = captureProbe(window, "popup-$index").pixels
+                    delay(if (dialogProbe || menuProbe) 300 else 80)
+                    val dimmed = dialogProbe && popupVisible
+                    val pixels = captureProbe(window, "popup-$index", dimmed, transitioning = dialogProbe).pixels
                     var visibleText = 0
                     for (y in 340 until minOf(450, pixels.height)) for (x in 24 until minOf(304, pixels.width)) {
                         val pixel = pixels.getRGB(x, y)
-                        if ((pixel shr 16 and 255) > 200 && (pixel shr 8 and 255) > 200 && (pixel and 255) > 200) visibleText++
+                        val threshold = if (dimmed) 30 else 200
+                        if ((pixel shr 16 and 255) > threshold && (pixel shr 8 and 255) > threshold && (pixel and 255) > threshold) visibleText++
                     }
                     check(visibleText > 100) { "Text disappeared during popup transition $index" }
                 }
@@ -304,15 +343,52 @@ private data class ProbeCapture(val pixels: java.awt.image.BufferedImage, val po
     fun nearPointer(x: Int, y: Int) = kotlin.math.abs(pointer.x - x) < 100 && kotlin.math.abs(pointer.y - y) < 100
 }
 
-private fun captureProbe(window: java.awt.Window, name: String): ProbeCapture {
+private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean = false,
+    transitioning: Boolean = false): ProbeCapture {
     val origin = window.locationOnScreen
     val pointer = java.awt.MouseInfo.getPointerInfo().location.apply { translate(-origin.x, -origin.y) }
     val image = java.awt.Robot(window.graphicsConfiguration.device)
         .createScreenCapture(java.awt.Rectangle(window.locationOnScreen, window.size))
     val directory = java.io.File("build/animation-probe").apply { mkdirs() }
+    val marker = if (dimmed) 0x302214 else 0x775533
+    // Native translucent-window color conversion shifts this dark marker by several channel
+    // values on macOS. This tolerance applies only to the visibility marker, never motion checks.
+    val pixel = image.getRGB(100, 100)
+    val red = pixel shr 16 and 255
+    val green = pixel shr 8 and 255
+    val blue = pixel and 255
+    val intensity = red / 119.0
+    // Rapid modal reopen samples may legitimately catch the entrance's partially dimmed scrim.
+    // Require the known brown tint and a nonblank intensity throughout that transition.
+    val markerVisible = if (transitioning && dimmed) {
+        intensity in .35..1.04 && kotlin.math.abs(green - 85 * intensity) <= 6 &&
+            kotlin.math.abs(blue - 51 * intensity) <= 6
+    } else !probePixelsDiffer(pixel, marker, if (dimmed) 6 else 2)
+    check(markerVisible) {
+        "Probe is obscured by another window"
+    }
     javax.imageio.ImageIO.write(image, "png", java.io.File(directory, "$name.png"))
-    check(image.getRGB(100, 100) and 0x00ffffff == 0x775533) { "Probe is obscured by another window" }
     return ProbeCapture(image, pointer)
+}
+
+// Display color conversion can dither an otherwise unchanged capture by one channel value.
+// Ignore that noise while still detecting actual content movement or sibling repaint artifacts.
+private fun probePixelsDiffer(first: Int, second: Int, tolerance: Int = 2): Boolean =
+    listOf(0, 8, 16).any { shift -> kotlin.math.abs((first shr shift and 255) - (second shr shift and 255)) > tolerance }
+
+private fun verifyMenuPaint(image: java.awt.image.BufferedImage) {
+    var menuPixels = 0
+    var labelPixels = 0
+    for (y in 0 until image.height) for (x in 2 until image.width - 2) {
+        if (!probePixelsDiffer(image.getRGB(x, y), 0x292c36, 3)) menuPixels++
+        val pixel = image.getRGB(x, y)
+        if ((pixel and 255) > 180 && (pixel shr 8 and 255) > 180 && (pixel shr 16 and 255) > 180 &&
+            listOf(-2, 2).any { !probePixelsDiffer(image.getRGB(x + it, y), 0x292c36, 3) }) labelPixels++
+    }
+    check(menuPixels > 5_000 && labelPixels > 50) {
+        "Owned menu is blank or not visible on the physical display ($menuPixels surface, $labelPixels label pixels)"
+    }
+    println("ANIMATION_MENU surface=$menuPixels labels=$labelPixels")
 }
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
@@ -507,7 +583,7 @@ private fun ProbeAlphaFixture(modifier: Modifier) {
     NaviampAnimatedRaster(layers, modifier.then(probePattern()))
 }
 
-private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect) {
+private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, dimmed: Boolean = false) {
     check(!bounds.isEmpty) { "Alpha fixture was not laid out" }
     val left = window.insets.left + bounds.left.toInt()
     val top = window.insets.top + bounds.top.toInt()
@@ -519,17 +595,21 @@ private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.a
     val blended = sample(105)
     val transparent = sample(210)
     println("ANIMATION_ALPHA opaque=%06x blended=%06x transparent=%06x".format(opaque, blended, transparent))
-    check(matches(opaque, 0xffffff)) { "Opaque raster pixels missing" }
-    check(matches(blended, 0x923456)) { "Premultiplied alpha did not blend over the parent: %06x".format(blended) }
-    check(matches(transparent, 0xac6824)) { "Transparent raster pixels obscured the patterned parent: %06x".format(transparent) }
+    check(matches(opaque, probeScrimColor(0xffffff, dimmed))) { "Opaque raster pixels missing" }
+    check(matches(blended, probeScrimColor(0x923456, dimmed))) { "Premultiplied alpha did not blend over the parent: %06x".format(blended) }
+    check(matches(transparent, probeScrimColor(0xac6824, dimmed))) { "Transparent raster pixels obscured the patterned parent: %06x".format(transparent) }
 }
+
+/** The shared modal's settled black scrim has 60% opacity; retain the same pixel tolerance. */
+private fun probeScrimColor(color: Int, dimmed: Boolean): Int = if (!dimmed) color else
+    listOf(0, 8, 16).fold(0) { result, shift -> result or (((color shr shift and 255) * .4).toInt() shl shift) }
 
 private fun probePattern() = Modifier.drawBehind {
     drawRect(Color(0xff2468ac))
     drawRect(Color(0xffac6824), topLeft = Offset(size.width / 2, 0f), size = Size(size.width / 2, size.height))
 }
 
-private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, index: Int) {
+private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, index: Int, dimmed: Boolean = false) {
     check(!bounds.isEmpty) { "Raster region $index was not laid out" }
     val left = window.insets.left + bounds.left.toInt()
     val top = window.insets.top + bounds.top.toInt()
@@ -538,8 +618,8 @@ private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: j
     val samples = intArrayOf(0, 0)
     for (y in 2 until height - 2) for (x in 2 until width - 2) {
         val side = if (x < width / 2) 0 else 1
-        val expected = if (side == 0) 0x2468ac else 0xac6824
-        if (image.getRGB(left + x, top + y) and 0xffffff == expected) samples[side]++
+        val expected = probeScrimColor(if (side == 0) 0x2468ac else 0xac6824, dimmed)
+        if (!probePixelsDiffer(image.getRGB(left + x, top + y), expected)) samples[side]++
     }
     println("ANIMATION_BACKGROUND region=$index samples=${samples.toList()}")
     check(samples.all { it > width * height / 20 }) { "Raster region $index obscured the patterned parent" }

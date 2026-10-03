@@ -35,7 +35,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
@@ -426,7 +425,7 @@ private fun TelevisionControllersSettings(
     var deviceName by remember(connect.localDeviceName) { mutableStateOf(connect.localDeviceName) }
     if (renameOpen) {
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = { renameOpen = false },
             title = { Text(stringResource(Res.string.tv_name_this_device)) },
             text = {

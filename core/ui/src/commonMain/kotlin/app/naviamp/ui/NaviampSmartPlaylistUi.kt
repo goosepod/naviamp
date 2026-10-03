@@ -11,9 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -122,7 +120,7 @@ fun SmartPlaylistBuilderDialog(
 
     NaviampPopupPresence()
 
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title) },
         text = {
@@ -296,7 +294,7 @@ fun SmartPlaylistBuilderDialog(
     if (passwordPromptOpen) {
         val pendingDefinition = pendingPasswordDefinition
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = {
                 if (!passwordSaving) {
                     passwordPromptOpen = false
@@ -403,7 +401,7 @@ internal fun SmartPlaylistLoadPasswordDialog(
 
     NaviampPopupPresence()
 
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = { if (!loading) onDismissRequest() },
         title = { Text("Navidrome password") },
         text = {
@@ -968,7 +966,7 @@ private fun SmartPlaylistGenreTypeahead(
                     if (focus.isFocused && value.isNotBlank()) expanded = true
                 },
         )
-        DropdownMenu(
+        NaviampDropdownMenu(
             expanded = expanded && value.isNotBlank(),
             onDismissRequest = { expanded = false },
             containerColor = colors.controlSurface,
@@ -1056,7 +1054,7 @@ private fun <T> SmartPlaylistDropdown(
                     }
                 },
         )
-        DropdownMenu(
+        NaviampDropdownMenu(
             expanded = expanded,
             onDismissRequest = {
                 expanded = false
