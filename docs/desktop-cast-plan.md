@@ -3,8 +3,9 @@
 Issue: https://github.com/goosepod/naviamp/issues/171
 
 Implementation branch: `feature/171-desktop-google-cast`, started from GitHub `main` on
-2026-10-03. Physical receiver acceptance uses the owner's Onn 4K Pro. Windows, macOS, and
-Linux remain unverified until each runs the actual app against a receiver.
+2026-10-03. The owner accepted the desktop feature for merge after Windows and Linux testing
+with the Onn 4K Pro. Physical macOS receiver testing remains a follow-up; automated macOS
+coverage does not establish physical playback acceptance.
 
 ## Existing ownership and missing pieces
 
@@ -41,7 +42,7 @@ random generation, and receiver-reachable HTTP binding.
    **Implemented:** bounded protobuf codec, nonce/TLS-bound RSA device proof to Cast roots,
    launch, virtual connections, request correlation, heartbeats, status polling, and controls.
    LOAD waits for usable media status; an IDLE echo cannot activate playback authority.
-   Signed Cast CRL/revocation verification remains a security acceptance item.
+   Signed Cast CRL/revocation verification remains security hardening follow-up #168.
 3. Add a shared receiver picker and presentation actions. Core owns scan lifetime, expiry
    scheduling, selection, loading/failure state, dismissal, and return-to-local actions.
    Put every new user-facing label in all maintained translations. The Android native
@@ -58,8 +59,9 @@ random generation, and receiver-reachable HTTP binding.
    GET/HEAD/ranges/revocation/closure. Packaging includes and verifies `jdk.httpserver`.
 5. Wire Cast services into desktop composition and verify the visible shared picker. Run the
    real sender/receiver matrix, keep a draft PR open, and merge only after acceptance passes.
-   **In progress:** draft PR #216; the Windows picker renders, and the native Onn fixture
-   playback/control probe passes. Full application/provider acceptance remains outstanding.
+   **Accepted by the owner on 2026-10-03:** Windows playback was reported working; Linux
+   application playback, pause/resume, skip, seek, and return to local were confirmed.
+   PR #216 includes the final shared public receiver selection prepared in #218.
 
 Discovery actions and native callbacks must run on the common owner's serialized context.
 The DNS-SD adapter must include interface identity in `serviceKey`, refresh resolved records
@@ -109,6 +111,21 @@ provider credentials. It and the elevation helper remain in ignored `build/` out
 test files are reproducible verification sources; `.windows-testing/` and generated storage
 `bin/` files are ignored and excluded from the feature commit.
 
+### Final owner acceptance (2026-10-03)
+
+The owner reported Windows playback working before starting Linux testing. On Linux, the
+actual application discovered and cast to Living Room TV. The owner confirmed playback,
+pause/resume, skip, seeking, and return to local. A temporary branded receiver test also
+displayed Naviamp on the TV, but branding is deferred to #217: both desktop and Android
+use Google's public Default Media Receiver `CC1AD845`, which needs no user device registration.
+The final public receiver launch probe passed with the Onn and confirmed its application ID
+and display name. Common JVM/Android tests and Linux packaging passed after that selection.
+
+The owner explicitly called the desktop Cast feature complete and requested merge. Remaining
+physical macOS receiver checks, broader provider/format/artwork/volume/lifecycle and recovery
+coverage, and signed Cast CRL/revocation verification are tracked in #168; no unperformed
+physical check is claimed as passed. Branded receiver publication and TV styling remain #217.
+
 ## Platform diff accountability
 
 - `platforms/desktop/src/desktopMain/kotlin/app/naviamp/desktop/cast/DesktopNaviampCastDiscoveryEffect.kt`: JVM NetworkInterface and
@@ -121,8 +138,10 @@ test files are reproducible verification sources; `.windows-testing/` and genera
   effects and owns their final native resource disposal and OS secure random source.
 - `core/app/src/jvmAndAndroidMain/kotlin/app/naviamp/app/JvmNaviampCastCryptoEffect.kt`: JCA X.509/PKIX, RSA
   signatures, and SecureRandom are JVM/Android cryptographic API calls.
+- `apps/android/src/main/kotlin/app/naviamp/android/AndroidNaviampCastOptions.kt`: Android-only
+  CastOptions/OptionsProvider APIs receive the shared public receiver ID.
 
-No Android or iOS host production file is changed. Protocol, roots/nonce/validity policy,
+No iOS host production file is changed. Protocol, roots/nonce/validity policy,
 discovery interpretation, picker, scheduling, playback handoff, and lease cleanup remain common.
 
 For each desktop OS, use online Navidrome and Jellyfin media where available:
