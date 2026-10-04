@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -54,7 +53,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.window.Dialog
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -409,7 +407,7 @@ internal fun NaviampConnectSourceMismatchDialog(
 ) {
     val targetName = recovery.targetName ?: stringResource(Res.string.connect_source_mismatch_playback_device)
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.controlSurface,
         title = { Text(stringResource(Res.string.connect_source_mismatch_title), color = colors.primaryText) },

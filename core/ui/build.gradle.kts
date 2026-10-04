@@ -122,6 +122,8 @@ tasks.register<JavaExec>("playerAnimationProbe") {
     dependsOn("jvmTestClasses")
     classpath = tasks.named<Test>("jvmTest").get().classpath
     mainClass.set("app.naviamp.ui.NaviampPlayerAnimationProbeKt")
+    // Match the Windows application backend; Direct3D is not used by the packaged app.
+    if (System.getProperty("os.name").startsWith("Windows")) systemProperty("skiko.renderApi", "OPENGL")
     providers.environmentVariable("NAVIAMP_PROBE_JFR").orNull?.let { recording ->
         jvmArgs("-XX:StartFlightRecording=filename=$recording,settings=profile,dumponexit=true")
     }

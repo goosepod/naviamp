@@ -23,10 +23,10 @@ import org.jetbrains.skia.RRect
 import org.jetbrains.skiko.SkiaLayer
 import org.jetbrains.skiko.SkikoRenderDelegate
 
-/** Popups share the main canvas; shared overlay ownership handles native raster stacking. */
+/** Compose Desktop owns native popup windows; Core owns their geometry and overlay behavior. */
 fun configureNaviampDesktopRasterLayers() {
     if (System.getProperty("compose.layers.type") == null) {
-        System.setProperty("compose.layers.type", "SAME_CANVAS")
+        System.setProperty("compose.layers.type", "WINDOW")
     }
 }
 
@@ -70,11 +70,13 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     // AWT does not always emit a deiconify event for programmatic Frame state changes.
     // Compose Desktop's native WindowState reports those transitions as well as WM input.
-    NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay, content)
+    NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
+        System.getProperty("compose.layers.type") == "WINDOW", content)
 }
 
 /** Windows and Linux isolate animation in small transparent Skia hardware surfaces. */
 private class DesktopSkiaRasterPresenter(private val window: Window) : NaviampRasterPresenter {
+    override val contentBelowOwnedWindows = true
     private val regions = mutableSetOf<DesktopSkiaRasterRegion>()
     override fun create(): NaviampRasterRegion = DesktopSkiaRasterRegion(window) { regions.remove(it) }.also(regions::add)
     fun reposition() = regions.forEach(DesktopSkiaRasterRegion::reposition)
@@ -184,12 +186,13 @@ private class DesktopSkiaRasterRegion(
     fun reposition() {
         if (!window.isShowing || clip.isEmpty) return
         val location = window.locationOnScreen
-        overlay.setBounds(
+        val nextBounds = java.awt.Rectangle(
             location.x + window.insets.left + (clip.left / scale).toInt(),
             location.y + window.insets.top + (clip.top / scale).toInt(),
             (clip.width / scale).toInt().coerceAtLeast(1),
             (clip.height / scale).toInt().coerceAtLeast(1),
         )
+        if (overlay.bounds != nextBounds) overlay.bounds = nextBounds
     }
 
     private fun forward(event: MouseEvent) {
@@ -211,6 +214,8 @@ internal const val RasterOverlayWindowName = "naviamp-raster-overlay"
 
 /** Only the JAWT/CALayer lifetime and image/JNI type conversions live here. */
 private class MacRasterPresenter(private val window: Window) : NaviampRasterPresenter {
+    // CALayers attached to the main AWT window remain below owned AppKit popup windows.
+    override val contentBelowOwnedWindows = true
     override fun create(): NaviampRasterRegion = object : NaviampRasterRegion {
         var handle = 0L
         var cachedImages = emptyList<ImageBitmap>()

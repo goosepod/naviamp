@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -140,7 +139,7 @@ fun StandardPlaylistEditorDialog(
 
     NaviampPopupPresence()
 
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = { if (!saving) onDismissRequest() },
         title = { Text("Edit $playlistName") },
         text = {
