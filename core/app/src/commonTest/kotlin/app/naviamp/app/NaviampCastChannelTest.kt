@@ -14,6 +14,46 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCastChannelTest {
     @Test
+    fun gracefulShutdownWaitsForReceiverStopBeforeClosingTransport() = runTest {
+        val connection = FakeConnection()
+        val sender = NaviampCastChannelSessionEffect(backgroundScope, NaviampCastTransportFactory { connection },
+            NaviampCastDeviceAuthentication(FakeCrypto(), { 1_000 }), { testScheduler.currentTime })
+        sender.start(Listener())
+        assertTrue(sender.connect(7, target))
+        assertTrue(sender.load(7, media))
+        val gate = CompletableDeferred<Unit>()
+        connection.stopGate = gate
+        val shutdown = async { sender.shutdown() }
+        runCurrent()
+        assertFalse(shutdown.isCompleted)
+        assertFalse(connection.closed)
+        assertEquals(1, connection.sent.count { it.text?.let { Json.parseToJsonElement(it).jsonObject["type"]?.jsonPrimitive?.content } == "STOP" })
+        gate.complete(Unit)
+        shutdown.await()
+        assertTrue(connection.closed)
+        assertFalse(sender.load(7, media))
+    }
+
+    @Test
+    fun gracefulShutdownAlsoWaitsForAnAlreadyRequestedDisconnect() = runTest {
+        val connection = FakeConnection()
+        val sender = NaviampCastChannelSessionEffect(backgroundScope, NaviampCastTransportFactory { connection },
+            NaviampCastDeviceAuthentication(FakeCrypto(), { 1_000 }), { testScheduler.currentTime })
+        sender.start(Listener())
+        assertTrue(sender.connect(7, target))
+        val gate = CompletableDeferred<Unit>()
+        connection.stopGate = gate
+        sender.disconnect()
+        runCurrent()
+        val shutdown = async { sender.shutdown() }
+        runCurrent()
+        assertFalse(shutdown.isCompleted)
+        assertFalse(connection.closed)
+        gate.complete(Unit)
+        shutdown.await()
+        assertTrue(connection.closed)
+    }
+    @Test
     fun codecMatchesGoldenEnvelopeAndRejectsMalformedFrames() {
         val message = NaviampCastChannelMessage("s", "r", "n", text = "{}")
         val golden = byteArrayOf(8, 0, 18, 1, 115, 26, 1, 114, 34, 1, 110, 40, 0, 50, 2, 123, 125)
@@ -205,6 +245,7 @@ class NaviampCastChannelTest {
         var answerHeartbeat = true
         var playerState = "PAUSED"
         var receiverApplicationId = "CC1AD845"
+        var stopGate: CompletableDeferred<Unit>? = null
         override suspend fun send(frame: ByteArray) {
             val message = NaviampCastChannelCodec.decode(frame)
             sent += message
@@ -217,6 +258,7 @@ class NaviampCastChannelTest {
             val type = body["type"]?.jsonPrimitive?.content
             if (type == "CONNECT" || type == "PONG" || type == "PING" && !answerHeartbeat) return
             val receiver = message.namespace == NaviampCastChannelSessionEffect.ReceiverNamespace
+            if (receiver && type == "STOP") stopGate?.await()
             val payload = buildJsonObject {
                 put("type", if (type == "PING") "PONG" else if (receiver) "RECEIVER_STATUS" else if (type == "LOAD") loadReply else "MEDIA_STATUS")
                 body["requestId"]?.let { put("requestId", it) }

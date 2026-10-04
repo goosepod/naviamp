@@ -52,7 +52,7 @@ cmd /d /c 'gradlew.bat :core:app:jvmTest --tests "*Cast*" :core:presentation:jvm
 At the end of the checkpoint the sender was paused and returned to local output,
 keeping Breakdown at 2:33. No production source files changed during this checkpoint.
 
-## Remaining hardening scope
+## Findings from the initial pass
 
 Sender shutdown left audible receiver playback running. Reopening the sender restored
 the local queue paused at its last published position rather than reattaching to the
@@ -72,7 +72,67 @@ been isolated or reproduced sufficiently to attribute it to Cast.
 This first physical pass does not establish signed Cast certificate-revocation validation,
 offline/downloaded-media policy, synchronized lyrics, EQ/normalization/crossfade behavior,
 gapless transitions, Android screen-lock lifetime or iOS support. These remain tracked in
-#168. Branding/publication remains #217; physical macOS verification belongs to #221.
+[#223](https://github.com/goosepod/naviamp/issues/223). Branding/publication remains #217;
+physical macOS verification belongs to #221. The owner limited completion of #168 to
+the seek and sender-close fixes below.
+
+## Corrective implementation and final verification
+
+Shared Core prepares provider-transcoded MP3 as a bounded temporary file before issuing
+a receiver lease. HEAD and byte-range requests now use the same complete bytes and known
+length rather than restarting a chunked provider transcode for every seek. Original MP3
+sources continue to use provider streaming. Preparation is limited to 30 seconds, 256 MiB
+per track and 512 MiB total; a failed or oversized preparation is rejected and cleaned up.
+This adds preparation latency for transcoded sources. Abnormal-process cleanup and broader
+long-track/provider coverage remain in #223.
+
+The shared lifecycle controller waits for Core shutdown before invoking native window exit.
+The shared Cast channel awaits receiver STOP while its response reader remains alive, then
+closes the transport and media endpoint. Existing asynchronous disconnect work is also awaited.
+Shared tests cover incomplete/oversized streams, stable range/HEAD responses, replacement
+lease lifetime, native STOP completion, temporary-file cleanup, duplicate close events and
+shutdown without restarting local audio.
+
+The rebuilt staged Windows app was tested once against Living Room TV:
+
+| Check | Windows sender evidence | Owner TV evidence | Result |
+| --- | --- | --- | --- |
+| FLAC-source paused seek | Bad Company loaded paused; midpoint seek held at 2:50 with Play controls | Owner confirmed about 2:50, correct track/artwork and silence | Passed |
+| FLAC-source playing seek | Resumed from 2:50, then sought backward to 1:01; controls remained playing and progress advanced | Owner confirmed audio jumped backward and continued correctly, with no desktop duplicate | Passed |
+| Sender close during Cast | Closed while playing around 1:25; staged sender processes exited and temporary Cast directory was empty | Owner confirmed TV stopped audio and exited Cast | Passed |
+| Reopen after orderly close | Restored Bad Company paused locally at 1:26, without Cast output badge | No additional TV observation needed; receiver stop was confirmed above | Passed sender restoration |
+
+Final automated checks: 717 executed tests (273 core app, 441 core presentation,
+three desktop Cast-filter matches), zero failures/errors/skips. The opt-in desktop receiver
+probe still returns early without physical configuration and is not counted as receiver
+acceptance. Android app compilation, Windows staging and Core-first architecture verification
+passed. Shared Android targets and the iOS Arm64 presentation dependency graph also compiled
+successfully on this Windows host; that does not establish physical macOS or iOS behavior.
+
+Final host/check command:
+
+```powershell
+cmd /d /c 'gradlew.bat :core:app:jvmTest :core:presentation:jvmTest :platforms:desktop:desktopTest --tests "*Cast*" :apps:android:compileDebugKotlin :apps:desktop:stageLocalTestApp verifyCoreFirstArchitecture -x :platforms:desktop:configureDesktopVisualizerOpenGl -x :platforms:desktop:buildDesktopVisualizerOpenGl -x :platforms:desktop:configureDesktopBassJni -x :platforms:desktop:buildDesktopBassJni --console=plain'
+```
+
+Shared target compilation used `:core:app:compileDebugKotlinAndroid`,
+`:core:presentation:compileDebugKotlinAndroid` and `:core:presentation:compileKotlinIosArm64`.
+A separate `compileCommonMainKotlinMetadata` attempt failed in unchanged
+`NaviampCorePlaylistTransactionController.kt` at existing zero-argument
+`CancellationException()` calls; it is not reported as passing. Actual target compilation
+above passed. The unchanged native DLL reuse qualification from the initial checkpoint
+also applies to this staged app.
+
+### Platform boundary audit
+
+All preparation, budgets, lease lifetime, shutdown ordering and close policy live in common Core.
+Changed host production files have these concrete boundaries:
+
+- `apps/android/.../AndroidNaviampCoreCatalog.kt`: supplies Android `Context.cacheDir` to the file adapter.
+- `apps/desktop/.../DesktopComposition.kt`: supplies the native JVM profile filesystem path to the file adapter.
+- `apps/desktop/.../Main.kt`: translates Compose Desktop's native window-close callback into shared shutdown and executes `exitApplication` after completion.
+- `apps/desktop/.../DesktopNaviampCoreHost.kt`: forwards the lifecycle owner attached to the native Desktop window into the shared Core composition.
+- `core/app/src/jvmAndAndroidMain/.../JvmNaviampCastMediaStore.kt`: implements only JVM `Files`, `Path` and `RandomAccessFile` operations and their native resource lifetime.
 
 Run each targeted case once, then investigate a concrete failure or missing observation.
 Do not repeat unchanged cycles merely to increase the test count. Never print provider

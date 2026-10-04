@@ -172,7 +172,17 @@ class NaviampCore private constructor(
         playbackController.expireSleepTimer()
     }
 
+    private var closed = false
+
+    suspend fun shutdown() {
+        if (closed) return
+        castPicker?.close()
+        try { castController?.shutdown() } finally { close() }
+    }
+
     fun close() {
+        if (closed) return
+        closed = true
         castPicker?.close()
         castController?.close()
         connectController?.close()
@@ -690,7 +700,7 @@ class NaviampCore private constructor(
                             tokens = castServices.tokens,
                             nowEpochMillis = services.clockEpochMillis,
                         ),
-                        source = NaviampCoreCastMediaByteSource(providerSource),
+                        source = NaviampCoreCastMediaByteSource(providerSource, castServices.mediaStore),
                         localAddress = { castEffect.localAddress },
                     ),
                     providers = providerSource,

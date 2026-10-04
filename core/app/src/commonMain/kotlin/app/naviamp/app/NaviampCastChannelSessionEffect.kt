@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 
 /** Portable Cast sender. The injected transport executes TLS/socket effects, never session policy. */
@@ -59,6 +61,7 @@ class NaviampCastChannelSessionEffect(
     private var listener: NaviampCastSessionListener? = null
     private var session: Session? = null
     private var revision = 0L
+    private var disconnectJob: Job? = null
     /** Socket's selected route, used by the media binding effect. Not an interface-selection policy. */
     override val localAddress: String? get() = session?.connection?.localAddress
 
@@ -162,15 +165,34 @@ class NaviampCastChannelSessionEffect(
         session = null
         previous.heartbeat?.cancel()
         previous.progress?.cancel()
-        scope.launch {
-            try {
-                previous.applicationSession?.let { appSession ->
-                    request(previous, Receiver, ReceiverNamespace, buildJsonObject {
-                        put("type", "STOP"); put("sessionId", appSession)
-                    })
-                }
-            } finally { close(previous) }
-        }.invokeOnCompletion { close(previous) }
+        disconnectJob = scope.launch {
+            stopReceiver(previous)
+        }.also { job -> job.invokeOnCompletion { close(previous) } }
+    }
+
+    override suspend fun shutdown() = withContext(NonCancellable) {
+        ++revision
+        listener = null
+        val previous = session
+        session = null
+        previous?.let {
+            it.intentionalClose = true
+            it.heartbeat?.cancel()
+            it.progress?.cancel()
+            stopReceiver(it)
+        }
+        disconnectJob?.join()
+        Unit
+    }
+
+    private suspend fun stopReceiver(previous: Session) {
+        try {
+            previous.applicationSession?.let { appSession ->
+                request(previous, Receiver, ReceiverNamespace, buildJsonObject {
+                    put("type", "STOP"); put("sessionId", appSession)
+                })
+            }
+        } finally { close(previous) }
     }
 
     override suspend fun load(selectionId: Long, media: NaviampCastReceiverMedia): Boolean {

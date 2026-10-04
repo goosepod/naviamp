@@ -97,12 +97,14 @@ internal fun DesktopNaviampCoreHost(
     window: Window,
     modifier: Modifier = Modifier,
     windowController: app.naviamp.ui.NaviampWindowController? = null,
+    lifecycle: app.naviamp.presentation.NaviampCoreLifecycleController? = null,
 ) {
     val core = rememberNaviampCore(
         services = environment.services,
         initialState = environment.initialState,
         actionAvailability = environment.actionAvailability,
         onAsyncFailure = environment.onAsyncFailure,
+        lifecycle = lifecycle,
     )
     val state by core.state.collectAsState()
     val scope = rememberCoroutineScope()

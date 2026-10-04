@@ -33,6 +33,8 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,6 +42,52 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreCastControllerTest {
+    @Test
+    fun shutdownWaitsForReceiverBeforeDeletingMediaAndNeverRestartsLocal() = runTest {
+        val provider = FakeCoreMediaProvider(supportsStreamingTranscode = true)
+        val queueValue = PlaybackQueue(listOf(provider.track), 0)
+        val live = NaviampLivePlaybackController(NaviampLivePlaybackState(
+            currentTrack = provider.track, queue = queueValue,
+            progress = PlaybackProgress(12.0, 180.0), playbackState = PlaybackState.Playing))
+        val queue = NaviampPlaybackQueueCoordinator(live).also { it.restoreQueue(queueValue) }
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val native = FakeSessionEffect()
+        val sessions = NaviampCastSessionController(native, outputs)
+        val local = FakeLocalEffects()
+        val castScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val store = FakeCastMediaStore()
+        var serverStopped = false
+        var token = 0
+        val cast = NaviampCoreCastController(castScope, sessions, outputs,
+            NaviampCastMediaEndpointController(
+                object : NaviampCastHttpServerEffect {
+                    override suspend fun start(handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit) = "http://192.0.2.1:1234"
+                    override suspend fun stop() { serverStopped = true }
+                },
+                NaviampCastMediaLeaseController(NaviampCastSecureTokenSource { "casttoken${(++token).toString().padStart(32, '0')}" }, { 0L }),
+                NaviampCoreCastMediaByteSource(NaviampCoreMediaProviderSource { provider }, store)),
+            NaviampCoreMediaProviderSource { provider }, live, queue, local, {})
+        cast.start()
+        val id = sessions.onTargetSelected(NaviampCastTarget("tv", "TV"))
+        sessions.onConnected(id, "TV")
+        advanceUntilIdle()
+        assertTrue(outputs.hasRemotePlaybackAuthority())
+        native.shutdownGate = kotlinx.coroutines.CompletableDeferred()
+        val shutdown = async { cast.shutdown() }
+        runCurrent()
+        assertFalse(shutdown.isCompleted)
+        assertFalse(serverStopped)
+        assertEquals(0, store.deleted)
+        assertEquals(0, local.starts)
+        native.shutdownGate!!.complete(Unit)
+        shutdown.await()
+        advanceUntilIdle()
+        assertTrue(serverStopped)
+        assertEquals(1, store.deleted)
+        assertEquals(0, local.starts)
+        assertEquals(NaviampPlaybackOutputSelection.Local, outputs.state.value)
+        castScope.cancel()
+    }
     @Test
     fun receiverFinishLoadsNextSharedQueueTrackAndKeepsPlaying() = runTest {
         val provider = FakeCoreMediaProvider(supportsStreamingTranscode = true)
@@ -71,7 +119,7 @@ class NaviampCoreCastControllerTest {
                     tokens = NaviampCastSecureTokenSource { "casttoken${(++token).toString().padStart(32, '0')}" },
                     nowEpochMillis = { 0L },
                 ),
-                source = NaviampCoreCastMediaByteSource(NaviampCoreMediaProviderSource { provider }),
+                source = NaviampCoreCastMediaByteSource(NaviampCoreMediaProviderSource { provider }, FakeCastMediaStore()),
             ),
             providers = NaviampCoreMediaProviderSource { provider },
             playback = live,
@@ -133,7 +181,7 @@ class NaviampCoreCastControllerTest {
                 tokens = NaviampCastSecureTokenSource { "casttoken${(++token).toString().padStart(32, '0')}" },
                 nowEpochMillis = { 0L },
             ),
-            source = NaviampCoreCastMediaByteSource(NaviampCoreMediaProviderSource { provider }),
+            source = NaviampCoreCastMediaByteSource(NaviampCoreMediaProviderSource { provider }, FakeCastMediaStore()),
         )
         val cast = NaviampCoreCastController(
             scope = castScope,
@@ -236,6 +284,8 @@ class NaviampCoreCastControllerTest {
         var disconnects = 0
         val loaded = mutableListOf<NaviampCastReceiverMedia>()
         val commands = mutableListOf<NaviampCastReceiverCommand>()
+        var shutdownGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+        override suspend fun shutdown() { shutdownGate?.await(); disconnect(); stop() }
         override fun start(listener: NaviampCastSessionListener) = Unit
         override fun stop() = Unit
         override fun disconnect() { disconnects++ }

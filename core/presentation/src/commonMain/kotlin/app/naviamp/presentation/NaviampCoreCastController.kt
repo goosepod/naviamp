@@ -30,6 +30,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.cancelAndJoin
 
 /** Shared queue, handoff, receiver status, and return-to-local policy for Cast playback. */
 internal class NaviampCoreCastController(
@@ -91,6 +92,21 @@ internal class NaviampCoreCastController(
 
     fun selectLocal() = sessions.selectLocal()
 
+    suspend fun shutdown() {
+        ++requestRevision
+        loadJob?.cancelAndJoin()
+        outputJob?.cancelAndJoin()
+        statusJob?.cancelAndJoin()
+        outputJob = null
+        statusJob = null
+        try { sessions.shutdown() } finally {
+            withContext(NonCancellable) { endpoint.stop() }
+            activeMediaUrl = null
+            activeLeases = emptyList()
+            remoteWasPlaying = false
+        }
+    }
+
     fun close() {
         loadJob?.cancel()
         outputJob?.cancel()
@@ -107,8 +123,8 @@ internal class NaviampCoreCastController(
         val track = playback.state.value.queue.current ?: return false
         val provider = providers.current() ?: return false
         val quality = when {
-            provider.capabilities.supportsStreamingTranscode -> StreamQuality.Transcoded(AudioCodec.Mp3, 320)
             track.audioInfo?.contentType == "audio/mpeg" -> StreamQuality.Original
+            provider.capabilities.supportsStreamingTranscode -> StreamQuality.Transcoded(AudioCodec.Mp3, 320)
             else -> return false
         }
         val revision = ++requestRevision
