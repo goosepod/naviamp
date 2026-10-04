@@ -46,6 +46,9 @@ internal class NaviampTelevisionLibraryState(
 
     fun grid(view: NaviampLibraryView): LazyGridState = grids.getValue(view)
     fun focusedId(view: NaviampLibraryView): String? = focusedIds[view]
+    fun clearFocus(view: NaviampLibraryView) {
+        focusedIds.remove(view)
+    }
     fun record(view: NaviampLibraryView, id: String) {
         focusedIds[view] = id
         restoreContent = true
@@ -182,7 +185,8 @@ internal fun TelevisionLibrary(
         focusSelector()
     }
 
-    LaunchedEffect(view, ids.isNotEmpty()) {
+    LaunchedEffect(view, ids.isNotEmpty(), catalog.refreshGeneration) {
+        if (viewport.lists.hasPendingRefresh(view, catalog.refreshGeneration)) return@LaunchedEffect
         if (viewport.restoreContent) {
             if (ids.isNotEmpty()) focusContent()
             else if (!catalog.syncStatus.isSyncing) focusSelector()
@@ -193,6 +197,17 @@ internal fun TelevisionLibrary(
             withFrameNanos { }
             focusSelector()
             onEntryFocusHandled(it)
+        }
+    }
+    LaunchedEffect(view, catalog.refreshGeneration) {
+        if (viewport.lists.consumeRefresh(view, catalog.refreshGeneration)) {
+            songFocusJob?.cancel()
+            gridRequest = null
+            viewport.restoreContent = false
+            viewport.clearFocus(view)
+            focusSelector()
+            if (view == NaviampLibraryView.Songs) viewport.lists.listState(view).scrollToItem(0)
+            else viewport.grid(view).scrollToItem(0)
         }
     }
     LaunchedEffect(screen.jumpRequest) {

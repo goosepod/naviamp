@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">Titres</string>
     <string name="album_disc_number">Disque %1$d</string>
     <string name="album_disc_number_title">Disque %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Passer en plein écran</string>
+    <string name="window_exit_fullscreen">Quitter le plein écran</string>
     <string name="tv_accounts">Comptes</string>
     <string name="tv_accounts_title">Qui écoute ?</string>
     <string name="tv_accounts_description">Choisissez un compte ou ajoutez-en un autre.</string>
@@ -127,4 +129,9 @@
     <string name="tv_account_switching">Changement de compte…</string>
     <string name="tv_account_switch_failed">Impossible de se connecter à ce compte. Réessayez ou choisissez un autre compte.</string>
     <string name="tv_account_nav_label">Comptes : %1$s</string>
+    <string name="cast_picker_searching">Recherche d’appareils Google Cast sur votre réseau local…</string>
+    <string name="cast_picker_discovery_failed">Impossible de rechercher les appareils Cast. Vérifiez le réseau et réessayez.</string>
+    <string name="cast_picker_connection_failed">Impossible de se connecter à cet appareil Cast. Vérifiez sa disponibilité et réessayez.</string>
+    <string name="cast_picker_target_lost">Cet appareil Cast n’est plus disponible. Relancez la recherche.</string>
+    <string name="cast_picker_return_local">Revenir à la lecture locale</string>
 </resources>

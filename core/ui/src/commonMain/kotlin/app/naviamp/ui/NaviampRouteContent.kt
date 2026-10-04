@@ -1394,7 +1394,8 @@ fun NaviampLibraryContent(
     val focusIds = if (screen.selectedView == NaviampLibraryView.Songs) filteredTracks.map { it.id } else filteredItems.map { it.id }
     val restoredIndex = focusIds.indexOfFirst { libraryItemFocusTarget(it) == restoredTarget }
     val targetExists = restoredIndex >= 0 || restoredTarget == LibrarySearchFocusTarget
-    androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists) {
+    androidx.compose.runtime.LaunchedEffect(screen.selectedView, targetExists, catalog.refreshGeneration) {
+        if (viewportState.hasPendingRefresh(screen.selectedView, catalog.refreshGeneration)) return@LaunchedEffect
         if (restoredTarget == null && (activeListState.firstVisibleItemIndex > 0 || activeListState.firstVisibleItemScrollOffset > 0)) return@LaunchedEffect
         if (restoredIndex >= 0) {
             if (activeListState.layoutInfo.visibleItemsInfo.none { it.key == focusIds[restoredIndex] }) {
@@ -1410,6 +1411,13 @@ fun NaviampLibraryContent(
             else -> selectorFocusRequesters.getValue(screen.selectedView)
         }
         requester.requestFocus()
+    }
+    androidx.compose.runtime.LaunchedEffect(screen.selectedView, catalog.refreshGeneration) {
+        if (viewportState.consumeRefresh(screen.selectedView, catalog.refreshGeneration)) {
+            activeListState.scrollToItem(0)
+            // Drop the old row focus so detail-return restoration cannot undo refresh.
+            selectorFocusRequesters.getValue(screen.selectedView).requestFocus()
+        }
     }
     androidx.compose.runtime.LaunchedEffect(screen.jumpRequest) {
         val jump = screen.jumpRequest?.takeIf { it.view == screen.selectedView } ?: return@LaunchedEffect

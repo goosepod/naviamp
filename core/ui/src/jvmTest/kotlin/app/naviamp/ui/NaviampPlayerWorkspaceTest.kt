@@ -24,6 +24,37 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPlayerWorkspaceTest {
+    @Test fun fullscreenControlRemainsAvailableOnceAcrossPlayerLayouts() = runDesktopComposeUiTest(1000, 740) {
+        val layout = mutableStateOf(WideNowPlayingLayout.Split)
+        val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
+        setContent {
+            NaviampWindowEnvironment(controller, app.naviamp.domain.settings.DesktopShortcutPlatform.Linux) {
+                NaviampPlayerWorkspace(true, layout.value, { layout.value = it }, player = { panelLayout ->
+                    NaviampNowPlayingPanel(
+                        nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Paused"),
+                        colors = NaviampColors(),
+                        actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                        panelLayout = panelLayout,
+                    )
+                }, browser = {
+                    Column(Modifier.fillMaxSize()) {
+                        Spacer(Modifier.weight(1f))
+                        SharedBottomNavigationBar(NaviampColors(), SharedRoute.Home, onRouteSelected = {})
+                    }
+                })
+            }
+        }
+        onAllNodesWithTag("window-fullscreen").assertCountEquals(1)
+        onNodeWithContentDescription("Enter fullscreen").assertIsDisplayed().performClick()
+        onNodeWithContentDescription("Exit fullscreen").performClick()
+        onNodeWithText("Full player").performClick()
+        onAllNodesWithTag("window-fullscreen").assertCountEquals(1)
+        onNodeWithContentDescription("Enter fullscreen").assertIsDisplayed().performClick()
+        onNodeWithContentDescription("Exit fullscreen").assertIsDisplayed().performClick()
+        onNodeWithText("Split view").performClick()
+        onAllNodesWithTag("window-fullscreen").assertCountEquals(1)
+    }
+
     @Test fun playlistContextUpdatesAndDisappearsInTheRenderedPlayer() = runDesktopComposeUiTest(420, 800) {
         val context = mutableStateOf<NowPlayingQueueContextUi?>(
             NowPlayingQueueContextUi(PlaybackProfileTargetType.Playlist, "Road Trip"),

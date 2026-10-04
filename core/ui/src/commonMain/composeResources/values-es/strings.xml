@@ -956,6 +956,8 @@
     <string name="artist_appearance_tracks">Pistas</string>
     <string name="album_disc_number">Disco %1$d</string>
     <string name="album_disc_number_title">Disco %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Entrar en pantalla completa</string>
+    <string name="window_exit_fullscreen">Salir de pantalla completa</string>
     <string name="tv_accounts">Cuentas</string>
     <string name="tv_accounts_title">¿Quién está escuchando?</string>
     <string name="tv_accounts_description">Elige una cuenta o añade otra.</string>
@@ -963,4 +965,9 @@
     <string name="tv_account_switching">Cambiando de cuenta…</string>
     <string name="tv_account_switch_failed">No se pudo conectar con esta cuenta. Inténtalo de nuevo o elige otra cuenta.</string>
     <string name="tv_account_nav_label">Cuentas: %1$s</string>
+    <string name="cast_picker_searching">Buscando dispositivos Google Cast en tu red local…</string>
+    <string name="cast_picker_discovery_failed">No se pudieron buscar dispositivos Cast. Comprueba la red e inténtalo de nuevo.</string>
+    <string name="cast_picker_connection_failed">No se pudo conectar con este dispositivo Cast. Comprueba su disponibilidad e inténtalo de nuevo.</string>
+    <string name="cast_picker_target_lost">Este dispositivo Cast ya no está disponible. Busca de nuevo.</string>
+    <string name="cast_picker_return_local">Volver a la reproducción local</string>
 </resources>

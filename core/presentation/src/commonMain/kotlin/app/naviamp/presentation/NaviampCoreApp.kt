@@ -89,6 +89,7 @@ fun NaviampCoreApp(
     core: NaviampCore,
     modifier: Modifier = Modifier,
     applicationSurface: NaviampApplicationSurface = NaviampApplicationSurface.Standard,
+    windowController: app.naviamp.ui.NaviampWindowController? = null,
     screenAwakeEffect: app.naviamp.app.NaviampScreenAwakeEffect? = null,
     visualizerBandsProvider: () -> List<Float> = {
         core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
@@ -118,32 +119,45 @@ fun NaviampCoreApp(
     NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
             CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
-                when (applicationSurface) {
-                    NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
-                        modifier = modifier,
-                        uiState = state.shell,
-                        settingsSync = state.settingsSync,
-                        playbackProgress = core.playbackProgress,
-                        visualizerBandsProvider = visualizerBandsProvider,
-                        actions = core.actions.shell,
-                        syncActions = core.actions.settingsSync,
-                        applicationUpdateChecker = applicationUpdateChecker,
-                        castOutput = castOutput,
-                        onCastPicker = core::showCastPicker,
-                        onCastSelectLocal = core::selectLocalPlayback,
-                    )
-                    NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
-                        modifier = modifier,
-                        uiState = state.shell,
-                        settingsSync = state.settingsSync,
-                        playbackProgress = core.playbackProgress,
-                        visualizerBandsProvider = visualizerBandsProvider,
-                        actions = core.actions.shell,
-                        syncActions = core.actions.settingsSync,
-                    )
+                app.naviamp.ui.NaviampWindowEnvironment(
+                    controller = windowController,
+                    platform = state.shell.capabilities.desktopShortcutPlatform,
+                    overlayVisible = state.overlays.busyMessage != null || state.overlays.statsForNerdsVisible,
+                ) {
+                    when (applicationSurface) {
+                        NaviampApplicationSurface.Standard -> NaviampSharedAppShell(
+                            modifier = modifier,
+                            uiState = state.shell,
+                            settingsSync = state.settingsSync,
+                            playbackProgress = core.playbackProgress,
+                            visualizerBandsProvider = visualizerBandsProvider,
+                            actions = core.actions.shell,
+                            syncActions = core.actions.settingsSync,
+                            applicationUpdateChecker = applicationUpdateChecker,
+                            castOutput = castOutput,
+                            onCastPicker = core::showCastPicker,
+                            onCastSelectLocal = core::selectLocalPlayback,
+                        )
+                        NaviampApplicationSurface.Television -> NaviampTelevisionAppShell(
+                            modifier = modifier,
+                            uiState = state.shell,
+                            settingsSync = state.settingsSync,
+                            playbackProgress = core.playbackProgress,
+                            visualizerBandsProvider = visualizerBandsProvider,
+                            actions = core.actions.shell,
+                            syncActions = core.actions.settingsSync,
+                        )
+                    }
                 }
                 state.overlays.busyMessage?.let { message ->
                     NaviampBusyDialog(message)
+                }
+                core.castPickerState?.let { pickerState ->
+                    val picker by pickerState.collectAsState()
+                    if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
+                        picker, core::selectCastTarget, core::selectLocalPlayback,
+                        core::retryCastDiscovery, core::dismissCastPicker,
+                    )
                 }
                 if (state.overlays.statsForNerdsVisible) {
                     LaunchedEffect(core) {

@@ -117,6 +117,43 @@ class NaviampTelevisionLibraryUiTest {
         onNodeWithTag(itemTag("album-2")).assertIsFocused()
     }
 
+    @Test fun refreshResetsAlbumGridAndSongListAndClearsOldFocus() = runDesktopComposeUiTest(1280, 720) {
+        val screen = mutableStateOf(screen().copy(selectedView = NaviampLibraryView.Albums))
+        lateinit var viewport: NaviampTelevisionLibraryState
+        setContent {
+            viewport = rememberNaviampTelevisionLibraryState()
+            LibraryFixture(screen, viewport)
+        }
+        runOnIdle { viewport.grid(NaviampLibraryView.Albums).requestScrollToItem(20, 12) }
+        waitForIdle()
+        runOnIdle {
+            viewport.record(NaviampLibraryView.Albums, "album-20")
+            screen.value = screen.value.copy(albums = screen.value.albums.copy(
+                items = listOf(SharedMediaItemUi("new", "New Album", "Artist")) + screen.value.albums.items,
+                refreshGeneration = 1L,
+            ))
+        }
+        waitForIdle()
+        onNodeWithTag(itemTag("new")).assertIsDisplayed()
+        onNodeWithTag(viewTag(NaviampLibraryView.Albums)).assertIsFocused()
+        runOnIdle {
+            assertEquals(0, viewport.grid(NaviampLibraryView.Albums).firstVisibleItemIndex)
+            assertEquals(0, viewport.grid(NaviampLibraryView.Albums).firstVisibleItemScrollOffset)
+            assertEquals(null, viewport.focusedId(NaviampLibraryView.Albums))
+            screen.value = screen.value.copy(selectedView = NaviampLibraryView.Songs)
+        }
+        waitForIdle()
+        runOnIdle { viewport.lists.listState(NaviampLibraryView.Songs).requestScrollToItem(20, 12) }
+        waitForIdle()
+        runOnIdle { screen.value = screen.value.copy(songs = screen.value.songs.copy(refreshGeneration = 2L)) }
+        waitForIdle()
+        onNodeWithTag(itemTag("song-0")).assertIsDisplayed()
+        runOnIdle {
+            assertEquals(0, viewport.lists.listState(NaviampLibraryView.Songs).firstVisibleItemIndex)
+            assertEquals(0, viewport.lists.listState(NaviampLibraryView.Songs).firstVisibleItemScrollOffset)
+        }
+    }
+
     @Test fun libraryAt720p() = checkSize(1280, 720)
     @Test fun libraryAt1080p() = checkSize(1920, 1080)
     @Test fun libraryAtNative4k() = checkSize(3840, 2160)

@@ -44,6 +44,7 @@ fun main() {
     val integrated = System.getenv("NAVIAMP_PROBE_INTEGRATED") == "true"
     val expectFallback = System.getenv("NAVIAMP_PROBE_EXPECT_FALLBACK") == "true"
     val verifyPixels = System.getenv("NAVIAMP_PROBE_VERIFY") == "true"
+    val fullscreenProbe = System.getenv("NAVIAMP_PROBE_FULLSCREEN") == "true"
     val lifecycleProbe = System.getenv("NAVIAMP_PROBE_LIFECYCLE") == "true"
     val popupProbe = System.getenv("NAVIAMP_PROBE_POPUPS") == "true"
     val menuProbe = System.getenv("NAVIAMP_PROBE_MENUS") == "true"
@@ -191,8 +192,13 @@ fun main() {
             else listOf("static", "marquee", "waveform", "combined")
             val phases = System.getenv("NAVIAMP_PROBE_PHASES")?.split(',') ?: (defaultPhases + if (lifecycleProbe) listOf("paused", "hidden-combined", "restored-combined", "resized-combined") else emptyList())
             val cycles = System.getenv("NAVIAMP_PROBE_CYCLES")?.toIntOrNull()?.coerceIn(1, 5) ?: 1
+            for (mode in if (fullscreenProbe) listOf("windowed", "fullscreen", "restored") else listOf("windowed")) {
+            probeWindowState.placement = if (mode == "fullscreen") androidx.compose.ui.window.WindowPlacement.Fullscreen
+                else androidx.compose.ui.window.WindowPlacement.Floating
+            delay(3_000)
+            println("ANIMATION_WINDOW mode=$mode placement=${probeWindowState.placement} size=${window.size} scale=${window.graphicsConfiguration.defaultTransform} refresh=${window.graphicsConfiguration.device.displayMode.refreshRate}")
             for (cycle in 1..cycles) for (next in phases) {
-                println("ANIMATION_CYCLE $cycle phase=$next")
+                println("ANIMATION_CYCLE $cycle mode=$mode phase=$next")
                 phase = next
                 if (lifecycleProbe) {
                     if (next == phases.first()) {
@@ -226,7 +232,7 @@ fun main() {
                 val positions = if (compositor) ProbeCompositor.positions(ProbeCompositor.handle).toList() else emptyList()
                 val dimmed = dialogProbe && popupVisible
                 val popupBounds = window.ownedWindows.filter { it.isShowing }.associateWith { it.bounds }
-                val beforePixels = if (capturePixels) captureProbe(window, "cycle$cycle-$next-before", dimmed) else null
+                val beforePixels = if (capturePixels) captureProbe(window, "$mode-cycle$cycle-$next-before", dimmed) else null
                 if (menuProbe && popupVisible && beforePixels != null) verifyMenuPaint(beforePixels.pixels)
                 val compositorCpu = compositors.associateWith { it.info().totalCpuDuration().orElse(null)?.toNanos() }
                 val threadIds = threadCpu.allThreadIds
@@ -236,7 +242,7 @@ fun main() {
                 val start = System.nanoTime()
                 delay(if (hoverProbe) 30_000 else 10_000)
                 val percent = (cpu.processCpuTime - startCpu).toDouble() / (System.nanoTime() - start) * 100.0
-                println("ANIMATION_PROBE $next,$percent,${counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }}")
+                println("ANIMATION_PROBE $mode/$next,$percent,${counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }}")
                 val elapsedNanos = System.nanoTime() - start
                 val busyThreads = threadIds.toList().mapNotNull { id ->
                     val before = threadBefore.getValue(id)
@@ -263,7 +269,7 @@ fun main() {
                 }
                 if (capturePixels) {
                     check(popupBounds.all { (popup, bounds) -> popup.bounds == bounds }) { "Native popup geometry changed" }
-                    val afterCapture = captureProbe(window, "cycle$cycle-$next-after", dimmed)
+                    val afterCapture = captureProbe(window, "$mode-cycle$cycle-$next-after", dimmed)
                     if (menuProbe && popupVisible) verifyMenuPaint(afterCapture.pixels)
                     val beforeCapture = requireNotNull(beforePixels)
                     verifyProbeAlpha(afterCapture.pixels, window, alphaBounds, dimmed)
@@ -310,6 +316,7 @@ fun main() {
                     if (next == "waveform" || next.endsWith("combined")) check(after[5] > positions[5] + 1.0) { "Progress did not advance" }
                     if (next != "popup-combined") check(counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }.all { it == 0L }) { "Static parent redrew" }
                 }
+            }
             }
             java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(lifecycle)
             if (verifyPixels) {

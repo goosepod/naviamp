@@ -2,6 +2,10 @@ package app.naviamp.app
 
 import app.naviamp.domain.provider.ProviderMediaByteResponse
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class NaviampCastHttpRequest(
     val method: String,
@@ -17,6 +21,8 @@ interface NaviampCastHttpResponse {
 /** Native socket binding only; request decisions and provider bytes stay in shared code. */
 interface NaviampCastHttpServerEffect {
     suspend fun start(handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String
+    suspend fun start(localAddress: String?, handler: suspend (NaviampCastHttpRequest, NaviampCastHttpResponse) -> Unit): String =
+        start(handler)
     suspend fun stop()
 }
 
@@ -24,17 +30,24 @@ class NaviampCastMediaEndpointController(
     private val server: NaviampCastHttpServerEffect,
     private val leases: NaviampCastMediaLeaseController,
     private val source: NaviampCastMediaByteSource,
+    private val localAddress: () -> String? = { null },
 ) {
     private val requests = NaviampCastMediaRequestController(leases)
     private var baseUrl: String? = null
+    private val lifetime = Mutex()
 
-    suspend fun start() {
-        if (baseUrl != null) return
-        val bound = server.start(::handle).trimEnd('/')
-        require(bound.startsWith("http://") || bound.startsWith("https://")) {
-            "Cast media server must return an HTTP URL."
+    suspend fun start() = lifetime.withLock {
+        if (baseUrl != null) return@withLock
+        try {
+            val bound = server.start(localAddress(), ::handle).trimEnd('/')
+            require(bound.startsWith("http://") || bound.startsWith("https://")) {
+                "Cast media server must return an HTTP URL."
+            }
+            baseUrl = bound
+        } catch (failure: Exception) {
+            withContext(NonCancellable) { server.stop() }
+            throw failure
         }
-        baseUrl = bound
     }
 
     suspend fun issue(resource: NaviampCastMediaResource): String {
@@ -42,7 +55,13 @@ class NaviampCastMediaEndpointController(
         return base + leases.issue(resource).receiverPath
     }
 
-    suspend fun stop() {
+    suspend fun revoke(url: String) {
+        val base = baseUrl ?: return
+        val prefix = "$base/cast/media/"
+        if (url.startsWith(prefix)) leases.revoke(url.removePrefix(prefix))
+    }
+
+    suspend fun stop() = lifetime.withLock {
         leases.revokeAll()
         baseUrl = null
         server.stop()

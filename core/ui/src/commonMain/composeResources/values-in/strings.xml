@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">Lagu</string>
     <string name="album_disc_number">Cakram %1$d</string>
     <string name="album_disc_number_title">Cakram %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">Masuk layar penuh</string>
+    <string name="window_exit_fullscreen">Keluar dari layar penuh</string>
     <string name="tv_accounts">Akun</string>
     <string name="tv_accounts_title">Siapa yang mendengarkan?</string>
     <string name="tv_accounts_description">Pilih akun atau tambahkan akun lain.</string>
@@ -127,4 +129,9 @@
     <string name="tv_account_switching">Beralih akun…</string>
     <string name="tv_account_switch_failed">Tidak dapat terhubung ke akun ini. Coba lagi atau pilih akun lain.</string>
     <string name="tv_account_nav_label">Akun: %1$s</string>
+    <string name="cast_picker_searching">Mencari perangkat Google Cast di jaringan lokal Anda…</string>
+    <string name="cast_picker_discovery_failed">Tidak dapat mencari perangkat Cast. Periksa jaringan dan coba lagi.</string>
+    <string name="cast_picker_connection_failed">Tidak dapat terhubung ke perangkat Cast ini. Pastikan perangkat tersedia dan coba lagi.</string>
+    <string name="cast_picker_target_lost">Perangkat Cast ini tidak lagi tersedia. Cari lagi.</string>
+    <string name="cast_picker_return_local">Kembali ke pemutaran lokal</string>
 </resources>

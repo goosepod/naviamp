@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.bundling.Zip
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
@@ -18,6 +19,11 @@ val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersio
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName, naviampVersionCode)
 val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
 val desktopExecutableDescription = "Naviamp"
+val macOsFullscreenJvmArgs = listOf(
+    "--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED",
+    "--add-exports=java.desktop/sun.awt=ALL-UNNAMED",
+    "--add-exports=java.desktop/sun.lwawt=ALL-UNNAMED",
+)
 val desktopNativePlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(providers.provider(::desktopNativePlatformId))
 val generatedDesktopNativeAppResources =
@@ -110,6 +116,8 @@ compose.desktop {
                 jvmArgs += "-Dnaviamp.visualizer.windowsOpenGl=true"
             }
             desktopNativePlatform.get().startsWith("macos-") -> {
+                // Apple's fullscreen completion callbacks live in the java.desktop Apple API package.
+                jvmArgs += macOsFullscreenJvmArgs
                 jvmArgs += "-Dskiko.renderApi=METAL"
                 jvmArgs += "-Dnaviamp.visualizer.macosMetal=true"
                 jvmArgs += "-Xdock:icon=\$APPDIR/resources/icons/naviamp.png"
@@ -134,7 +142,7 @@ compose.desktop {
             copyright = "Copyright 2026 Naviamp contributors"
             licenseFile.set(rootProject.file("LICENSE"))
             appResourcesRootDir.set(generatedDesktopNativeAppResources)
-            modules("java.net.http", "java.sql")
+            modules("java.net.http", "java.sql", "jdk.httpserver")
             if (desktopNativePlatform.get().startsWith("linux-")) {
                 // dbus-java obtains the Unix user ID through com.sun.security.auth.module.UnixSystem.
                 modules("jdk.security.auth")
@@ -306,6 +314,16 @@ tasks.register("verifyDesktopDistributable") {
         syncDesktopNativeAppResources(appDirectory)
         markDesktopVisualizerMetalExecutable(appDirectory)
         val platform = desktopNativePlatform.get()
+        val castRuntimeRelease = appDirectory.resolve(when {
+            platform.startsWith("macos-") -> "Contents/runtime/Contents/Home/release"
+            platform.startsWith("linux-") -> "lib/runtime/release"
+            else -> "runtime/release"
+        })
+        val castRuntimeModules = castRuntimeRelease.readLines().first { it.startsWith("MODULES=") }
+            .removePrefix("MODULES=").trim('"').split(' ')
+        check("jdk.httpserver" in castRuntimeModules) {
+            "Desktop runtime is missing jdk.httpserver, required for Cast media serving."
+        }
         if (platform.startsWith("linux-")) {
             val runtimeRelease = appDirectory.resolve("lib/runtime/release")
             val runtimeModules = runtimeRelease.readLines().first { it.startsWith("MODULES=") }
@@ -711,3 +729,21 @@ fun linuxDistributionPackageVersion(version: String): String =
     numericDistributionPackageVersion(version).substringBefore('+').replace('-', '~')
 
 fun numericDistributionPackageVersion(version: String): String = version.removePrefix("v")
+
+// Native adapter tests exercise Apple's fullscreen listener registration on the host JDK.
+tasks.withType<Test>().configureEach {
+    if (System.getProperty("os.name").startsWith("Mac")) {
+        jvmArgs(macOsFullscreenJvmArgs)
+    }
+}
+
+tasks.register<JavaExec>("desktopFullscreenProbe") {
+    group = "verification"
+    description = "Checks fullscreen restoration and bottom-edge content in a visible native window."
+    dependsOn("desktopTestClasses")
+    classpath = tasks.named<Test>("desktopTest").get().classpath
+    mainClass.set("app.naviamp.desktop.DesktopFullscreenProbeKt")
+    if (System.getProperty("os.name").startsWith("Mac")) {
+        jvmArgs(macOsFullscreenJvmArgs)
+    }
+}

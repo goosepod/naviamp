@@ -464,3 +464,28 @@ $env:NAVIAMP_PROBE_MENUS = 'true'
 $env:NAVIAMP_PROBE_DIALOGS = 'false' # Swap these two flags for the modal matrix.
 .\gradlew.bat :core:ui:playerAnimationProbe --console=plain
 ```
+
+## October 4 merge preparation
+
+The owner completed the Windows checkpoint and authorized merging PR #197. Physical
+macOS work is tracked in #219 and Linux work in #220, coordinated with #203. Earlier
+instructions to retain the ticket/PR open describe the earlier acceptance state; the
+recorded outliers and unverified screen-reader coverage remain limitations, not passing
+measurements. No additional unchanged physical measurement cycles were run for merge
+preparation.
+
+Merging accepted main 22762b0c exposed conflicts only in NaviampPlayerAnimationProbe.kt.
+The resolution preserves fullscreen/windowed/restored modes from main together with
+popup cycle selection, scrim-aware captures, menu paint and geometry checks. Capture
+names include both window mode and cycle so neither run overwrites the other's evidence.
+Production files merged cleanly; resolution changes only the probe and this record.
+
+Post-resolution verification passed: 492 shared UI JVM tests, zero failures/errors/skips;
+JVM probe compilation; Android shared UI compilation; iOS Arm64 and simulator Arm64
+shared UI klib compilation; and Core-first architecture verification. Required GitHub
+verification remains the final merge gate. Existing Windows physical evidence and its
+native-build qualification above remain applicable.
+
+Native production boundary remains core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopRasterPresenter.kt:
+Compose Desktop/AWT owned-window configuration, JWindow bounds and AppKit/CALayer stacking
+facts. Shared Core owns popup geometry, motion, input, transitions and lifecycle policy.

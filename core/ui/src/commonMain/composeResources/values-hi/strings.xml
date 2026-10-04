@@ -120,6 +120,8 @@
     <string name="artist_appearance_tracks">ट्रैक</string>
     <string name="album_disc_number">डिस्क %1$d</string>
     <string name="album_disc_number_title">डिस्क %1$d — %2$s</string>
+    <string name="window_enter_fullscreen">पूर्ण स्क्रीन में जाएँ</string>
+    <string name="window_exit_fullscreen">पूर्ण स्क्रीन से बाहर निकलें</string>
     <string name="tv_accounts">खाते</string>
     <string name="tv_accounts_title">कौन सुन रहा है?</string>
     <string name="tv_accounts_description">कोई खाता चुनें या दूसरा जोड़ें।</string>
@@ -127,4 +129,9 @@
     <string name="tv_account_switching">खाता बदला जा रहा है…</string>
     <string name="tv_account_switch_failed">इस खाते से कनेक्ट नहीं हो सका। फिर से कोशिश करें या दूसरा खाता चुनें।</string>
     <string name="tv_account_nav_label">खाते: %1$s</string>
+    <string name="cast_picker_searching">आपके स्थानीय नेटवर्क पर Google Cast डिवाइस खोजे जा रहे हैं…</string>
+    <string name="cast_picker_discovery_failed">Cast डिवाइस नहीं खोजे जा सके। नेटवर्क जाँचें और फिर कोशिश करें।</string>
+    <string name="cast_picker_connection_failed">इस Cast डिवाइस से कनेक्ट नहीं हो सका। इसकी उपलब्धता जाँचें और फिर कोशिश करें।</string>
+    <string name="cast_picker_target_lost">यह Cast डिवाइस अब उपलब्ध नहीं है। फिर से खोजें।</string>
+    <string name="cast_picker_return_local">स्थानीय प्लेबैक पर लौटें</string>
 </resources>
