@@ -321,3 +321,138 @@ visible text/progress, unchanged siblings, twelve reopens and pointer input. Phy
 captures visibly contain the title, body, Confirm button and scrim. Modal CPU was
 3.28% and 2.03%; restored samples ranged 5.15–7.34%. These results strengthen
 functional acceptance but do not resolve the CPU baseline or real-app budget gate.
+
+## Windows verification: October 3–4, 2026
+
+Tested the candidate at d59680b3 on the same Ryzen 7 5800H / Radeon Windows machine.
+OpenGL, 2560 × 1440 display, 60 Hz, scale 1.0 and My Custom Plan 1. The final
+GetSystemPowerStatus check reports AC power and no battery. Synthetic windows were
+1000 × 740 with 984 × 701 client surfaces, resized to 1040 × 760. Real-app performance
+samples used a 1264 × 964 window and 1262 × 932 client; subsequent interaction checks
+also used a 1001 × 964 window. These are local Windows results, not cross-platform acceptance.
+
+### Measurement interference and probe changes
+
+The active computer-use session generated frequent native WM_GETOBJECT accessibility
+requests. A temporary test-only Windows message observer identified that traffic; it
+forwarded every message and removed its hooks after sampling. Releasing the automation
+session before timing reduced an isolated real-app paused sample to 0.31% CPU. Earlier
+runs with sustained accessibility polling, concurrent builds or JFR are retained as
+diagnostics, not steady animation-budget evidence. Do not disable accessibility in the
+product to improve measurements. Test reader interaction separately from an idle interval.
+
+The synthetic probe now records per-thread CPU and compilation activity alongside process
+CPU. The real-app observer reattaches if a render delegate is replaced and records whether
+its observer remains attached. Every accepted frame sample below has an attached observer.
+Visible elapsed labels can advance with zero parent frames: NowPlayingPositionLabel uses
+NaviampRasterValueText, which updates the cached raster independently of the parent canvas.
+
+The packaged Windows launcher creates a child application process. Include both PIDs in
+measure-windows.ps1; a wrapper-only sample is invalid. The script now rejects an unavailable
+CPU counter for any requested PID instead of allowing an aggregate to conceal it.
+
+### Full synthetic matrices
+
+Both two-cycle matrices completed with the automation session released, no JFR and the
+physical visibility gates enabled. All 40 ten-second samples recorded zero parent frames.
+Physical menu/dialog captures were visually inspected. Moving text and progress, unchanged
+sibling pixels, stable popup geometry, scrim/alpha/pattern checks, paused motion, minimize,
+restore, resize/clipping, twelve reopen checks per run and waveform pointer input passed.
+Menu captures contained over 65,000 background pixels and 1,000 label-edge pixels.
+
+CPU percentages below mean one process CPU core. Reported zero is counter resolution,
+not a claim that rendering performs no work.
+
+| State | Menu cycle 1 | Menu cycle 2 | Modal cycle 1 | Modal cycle 2 |
+| --- | ---: | ---: | ---: | ---: |
+| Static | 0.94% | 0.00% | 0.94% | 1.09% |
+| Marquee | 2.96% | 0.47% | 0.16% | 0.31% |
+| Waveform | 0.78% | 0.47% | 0.78% | 0.78% |
+| Combined | 0.94% | 1.25% | 1.25% | 0.31% |
+| Overlay + combined | 0.78% | 1.25% | 0.47% | 0.00% |
+| Restored after overlay | 0.62% | 0.47% | 0.31% | 0.47% |
+| Paused | 0.31% | 0.31% | 0.31% | 1.25% |
+| Minimized | 0.31% | 0.78% | 0.16% | 0.78% |
+| Restored after minimize | 0.62% | 1.56% | 0.62% | 0.31% |
+| Resized | 0.62% | 0.16% | 0.78% | 2.18% |
+
+Opening either overlay did not increase CPU relative to the immediately preceding combined
+sample. Nevertheless, eight samples exceed the 1% reference used for the macOS synthetic
+budget. The first marquee outlier coincided with 337 ms of JVM compilation; that does not
+explain all outliers. These results pass rendering/interaction gates and do not establish
+uniform low-CPU acceptance. Further repetitions without an implementation change or a new
+diagnostic hypothesis are not useful.
+
+Settled Windows GPU engine-sum observations during modal cycle 2 reported zero for the probe
+process at counter resolution. DWM means were 5.139 for combined, 2.211 for modal-open and
+2.052 for restored phases; restored combines both restored intervals. Static, paused and
+minimized phases reported zero DWM engine sum. Sampling used phase seconds 6–14, excluding
+entrance and capture work. DWM includes the whole desktop, and engine sums are not percentages
+of total GPU capacity. These observations do not isolate compositor energy or establish a
+GPU budget by themselves.
+
+### Real application and packaged launcher
+
+The diagnostic JVM physically painted menus and track-details dialogs, including the scrim.
+Playback and waveform position advanced under both overlays. Isolated paused samples measured
+0.31% closed, 0.00%/0.16% with a settled menu, and 0.47%/0.78% with a modal. A first menu sample
+used 1.56% and is retained as a transient outlier. Consecutive playing samples on one track used
+5.62% closed, 2.34% menu-open and 3.91% modal-open. Every sampled parent frame count was zero;
+these variable single intervals do not establish a repeatable matched CPU delta.
+
+The uninstrumented staged Naviamp.exe also launched successfully in its configured development
+profile. A long track title and progress visibly advanced, with painted menus and dialogs.
+Separate read-only counter intervals included both the wrapper and actual app process:
+
+| Packaged state | Process CPU | App GPU engine sum | DWM GPU engine sum |
+| --- | ---: | ---: | ---: |
+| Playing combined, closed | 4.73% | 0.04125 | 2.093 |
+| Playing combined, menu | 3.09% | 0.04115 | 2.122 |
+| Playing combined, modal | 4.35% | 0.04205 | 2.128 |
+| Paused, minimized | 0.30% | 0.00000 | 0.000 |
+| Paused, restored | 0.86% | 0.00000 | 3.058 |
+
+These ten-counter intervals lasted approximately 15–17 seconds including counter initialization;
+they are separate from the diagnostic agent's ten-second frame intervals. No parent frame count
+is claimed for the uninstrumented launcher. A wrapper-only zero-CPU interval was rejected.
+
+Real-app pointer playback, waveform seeking, outside-click dismissal, menu Escape cancellation,
+track-details modal opening/closing, modal Tab/Return activation and Escape dismissal were
+checked. At the narrower native size, the visualizer submenu painted, scrolled within its
+viewport and cancelled with Escape. Minimize/restore preserved the paused player and visible
+title motion. Native UIA did not expose the Compose content; a native screen-reader pass and
+complete keyboard traversal are not claimed. No user playlists, favorites or visualizer choices
+were changed by these interaction checks. Test-owned app/probe processes were stopped afterward.
+
+### Build results and remaining gate
+
+All 475 shared UI tests passed. JVM test compilation, Android shared UI compilation, iOS device
+and simulator klib compilation and verifyCoreFirstArchitecture passed. iOS native host execution
+is unavailable on this Windows machine. Staged Windows packaging passed using existing unchanged
+native binaries: the initial native rebuild failed because CMake was absent from that shell's
+PATH, so this is not a clean native-build result. The staged launcher smoke test passed separately.
+This verification follow-up changes test probes and documentation only; it changes no Android,
+Desktop or iOS production file.
+
+Keep #136 and PR #197 open/draft. Remaining acceptance is repeatable real-app CPU behavior,
+native screen-reader/full keyboard verification and the outstanding macOS/Linux physical matrix.
+Do not accept the CPU outliers, lower animation frequency, freeze motion or broaden the budget
+to declare completion. Investigate a specific cause before spending more time on repeated cycles.
+
+Local logs: windows-136-20261003-menu-isolated.log,
+windows-136-20261003-modal-isolated.log, windows-136-20261003-build.log,
+windows-136-20261003-common-build.log and windows-136-20261003-package.log.
+Physical captures and counter JSON remain under build/issue-136-20261003, outside version control.
+
+To reproduce either full matrix in PowerShell, release any active UI inspector before timing:
+
+```powershell
+$env:NAVIAMP_PROBE_INTEGRATED = 'true'
+$env:NAVIAMP_PROBE_POPUPS = 'true'
+$env:NAVIAMP_PROBE_VERIFY = 'true'
+$env:NAVIAMP_PROBE_LIFECYCLE = 'true'
+$env:NAVIAMP_PROBE_CYCLES = '2'
+$env:NAVIAMP_PROBE_MENUS = 'true'
+$env:NAVIAMP_PROBE_DIALOGS = 'false' # Swap these two flags for the modal matrix.
+.\gradlew.bat :core:ui:playerAnimationProbe --console=plain
+```

@@ -64,6 +64,8 @@ fun main() {
     var popupVisible by remember { mutableStateOf(false) }
     val rowCount = remember { System.getenv("NAVIAMP_PROBE_ROWS")?.toIntOrNull()?.coerceIn(0, 1000) ?: 150 }
     val cpu = remember { ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean }
+    val threadCpu = remember { ManagementFactory.getThreadMXBean() }
+    val compilation = remember { ManagementFactory.getCompilationMXBean() }
     val compositors = remember {
         ProcessHandle.allProcesses().use { processes -> processes.filter {
             java.io.File(it.info().command().orElse("")).name in setOf("xfwm4", "xcompmgr", "Xorg", "Xvfb")
@@ -227,12 +229,23 @@ fun main() {
                 val beforePixels = if (capturePixels) captureProbe(window, "cycle$cycle-$next-before", dimmed) else null
                 if (menuProbe && popupVisible && beforePixels != null) verifyMenuPaint(beforePixels.pixels)
                 val compositorCpu = compositors.associateWith { it.info().totalCpuDuration().orElse(null)?.toNanos() }
+                val threadIds = threadCpu.allThreadIds
+                val threadBefore = threadIds.associateWith { threadCpu.getThreadCpuTime(it) }
+                val compilationBefore = compilation.totalCompilationTime
                 val startCpu = cpu.processCpuTime
                 val start = System.nanoTime()
                 delay(if (hoverProbe) 30_000 else 10_000)
                 val percent = (cpu.processCpuTime - startCpu).toDouble() / (System.nanoTime() - start) * 100.0
                 println("ANIMATION_PROBE $next,$percent,${counters.mapIndexed { index, counter -> counter.second.get() - initialFrames[index] }}")
                 val elapsedNanos = System.nanoTime() - start
+                val busyThreads = threadIds.toList().mapNotNull { id ->
+                    val before = threadBefore.getValue(id)
+                    val after = threadCpu.getThreadCpuTime(id)
+                    val name = threadCpu.getThreadInfo(id)?.threadName
+                    if (before < 0 || after < 0 || name == null) null
+                    else name to (after - before) * 100.0 / elapsedNanos
+                }.sortedByDescending { it.second }.take(5)
+                println("ANIMATION_CPU_DETAIL $next compilation_millis=${compilation.totalCompilationTime - compilationBefore} threads=$busyThreads")
                 compositors.forEach { process ->
                     val before = compositorCpu[process]
                     val after = process.info().totalCpuDuration().orElse(null)?.toNanos()

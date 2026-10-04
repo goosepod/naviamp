@@ -18,6 +18,7 @@ import javax.imageio.ImageIO;
 /** Opt-in test agent: observes the actual packaged app; never creates UI or changes playback. */
 public final class ApplicationRenderProbe {
     private static final Map<Component, AtomicLong> frames = new IdentityHashMap<>();
+    private static final Map<Component, Object> observers = new IdentityHashMap<>();
 
     public static void premain(String directory) {
         Thread worker = new Thread(() -> run(Path.of(directory)), "Naviamp application rendering probe");
@@ -57,7 +58,8 @@ public final class ApplicationRenderProbe {
                         .append(':').append(component.getWidth()).append('x').append(component.getHeight())
                         .append(" visible=").append(component.isShowing())
                         .append(" iconified=").append(window instanceof Frame && (((Frame) window).getExtendedState() & Frame.ICONIFIED) != 0)
-                        .append(" frames=").append(counter.get());
+                        .append(" frames=").append(counter.get())
+                        .append(" observer_attached=").append(observerAttached(component));
                 }));
                 boolean afterVisible = capture(directory, phase + "-after");
                 result.append(" physical_captures=").append(beforeVisible).append('/').append(afterVisible);
@@ -93,7 +95,7 @@ public final class ApplicationRenderProbe {
         for (Class<?> type = component.getClass(); type != null; type = type.getSuperclass()) {
             if (type.getName().equals("org.jetbrains.skiko.SkiaLayer")) skiaLayer = true;
         }
-        if (skiaLayer && !frames.containsKey(component)) {
+        if (skiaLayer && !observerAttached(component)) {
             try {
                 Class<?> type = component.getClass();
                 Class<?> api = Class.forName("org.jetbrains.skiko.SkikoRenderDelegate", true, type.getClassLoader());
@@ -108,6 +110,7 @@ public final class ApplicationRenderProbe {
                         });
                     type.getMethod("setRenderDelegate", api).invoke(component, observer);
                     frames.put(component, counter);
+                    observers.put(component, observer);
                 }
             } catch (ReflectiveOperationException failure) {
                 throw new IllegalStateException("Cannot observe Skiko rendering", failure);
@@ -115,6 +118,16 @@ public final class ApplicationRenderProbe {
         }
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) attach(child);
+        }
+    }
+
+    private static boolean observerAttached(Component component) {
+        Object observer = observers.get(component);
+        if (observer == null) return false;
+        try {
+            return component.getClass().getMethod("getRenderDelegate").invoke(component) == observer;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Cannot validate rendering observer", failure);
         }
     }
 }
