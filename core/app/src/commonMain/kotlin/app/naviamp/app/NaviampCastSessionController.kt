@@ -18,6 +18,8 @@ interface NaviampCastSessionEffect {
     fun start(listener: NaviampCastSessionListener)
     fun stop()
     fun disconnect()
+    /** Completes receiver cleanup while the host and its coroutine scope are still alive. */
+    suspend fun shutdown() { disconnect(); stop() }
     /** Explicit shared-picker selection; SDK-owned native pickers keep their callback path. */
     suspend fun connect(selectionId: Long, target: NaviampCastDiscoveredTarget): Boolean = false
     suspend fun load(selectionId: Long, media: NaviampCastReceiverMedia): Boolean = false
@@ -77,6 +79,15 @@ class NaviampCastSessionController(
     private val mutableMediaStatus = MutableStateFlow<NaviampCastReceiverStatus?>(null)
 
     val mediaStatus: StateFlow<NaviampCastReceiverStatus?> = mutableMediaStatus.asStateFlow()
+
+    suspend fun shutdown() {
+        if (!started) return
+        started = false
+        ++lifecycleRevision
+        selectionId = null
+        mutableMediaStatus.value = null
+        try { effect.shutdown() } finally { outputs.selectLocal() }
+    }
 
     fun start() {
         if (started) return

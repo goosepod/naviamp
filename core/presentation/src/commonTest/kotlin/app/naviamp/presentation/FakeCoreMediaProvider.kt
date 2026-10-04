@@ -29,6 +29,8 @@ internal class FakeCoreMediaProvider(
     val nowPlayingReports = mutableListOf<TrackId>()
     val streamRequests = mutableListOf<StreamRequest>()
     var castRangeHeader: String? = null
+    var castLengthKnown = true
+    var castStreamSuccess = true
     val artist = Artist(ArtistId("core-artist"), "Core Artist")
     val album = Album(
         id = AlbumId("core-album"),
@@ -121,9 +123,10 @@ internal class FakeCoreMediaProvider(
     ): Boolean {
         streamRequests += request
         castRangeHeader = rangeHeader
-        onResponse(ProviderMediaByteResponse(206, "audio/mpeg", 3, "bytes 10-12/100"))
+        onResponse(if (rangeHeader == null) ProviderMediaByteResponse(200, "audio/mpeg", if (castLengthKnown) 3 else null, null)
+            else ProviderMediaByteResponse(206, "audio/mpeg", 3, "bytes 10-12/100"))
         if (!headOnly) writeChunk(byteArrayOf(1, 2, 3), 3)
-        return true
+        return castStreamSuccess
     }
     override fun coverArtUrl(coverArtId: String) = "https://example.test/art/$coverArtId"
     override suspend fun bytesForOwnedUrl(url: String): ByteArray? = ownedArtworkBytes

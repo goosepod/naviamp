@@ -87,6 +87,7 @@ data class NaviampCoreRadioServices(
 
 /** Native Cast SDK, LAN socket, secure randomness, and route picker effects. */
 data class NaviampCoreCastServices(
+    val mediaStore: app.naviamp.app.NaviampCastMediaStore,
     val session: NaviampCastSessionEffect? = null,
     val server: NaviampCastHttpServerEffect,
     val tokens: NaviampCastSecureTokenSource,

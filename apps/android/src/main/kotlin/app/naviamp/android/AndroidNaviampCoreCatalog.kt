@@ -249,6 +249,7 @@ class AndroidNaviampCoreCatalog private constructor(
                     services = storedCatalog.services.copy(
                         connect = connectServices,
                         cast = NaviampCoreCastServices(
+                            mediaStore = app.naviamp.app.JvmNaviampCastMediaStore(appContext.cacheDir.toPath().resolve("cast")),
                             session = AndroidNaviampCastSessionEffect(appContext),
                             server = AndroidNaviampCastHttpServerEffect(appContext),
                             tokens = AndroidNaviampCastSecureTokenSource(),

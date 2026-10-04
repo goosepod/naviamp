@@ -35,6 +35,7 @@ class NaviampCastMediaEndpointController(
     private val requests = NaviampCastMediaRequestController(leases)
     private var baseUrl: String? = null
     private val lifetime = Mutex()
+    private val issued = mutableMapOf<String, NaviampCastMediaResource>()
 
     suspend fun start() = lifetime.withLock {
         if (baseUrl != null) return@withLock
@@ -50,21 +51,31 @@ class NaviampCastMediaEndpointController(
         }
     }
 
-    suspend fun issue(resource: NaviampCastMediaResource): String {
+    suspend fun issue(resource: NaviampCastMediaResource): String = lifetime.withLock {
         val base = checkNotNull(baseUrl) { "Cast media endpoint has not started." }
-        return base + leases.issue(resource).receiverPath
+        source.prepare(resource)
+        try {
+            (base + leases.issue(resource).receiverPath).also { issued[it] = resource }
+        } catch (failure: Exception) {
+            if (resource !in issued.values) withContext(NonCancellable) { source.release(resource) }
+            throw failure
+        }
     }
 
-    suspend fun revoke(url: String) {
-        val base = baseUrl ?: return
+    suspend fun revoke(url: String) = lifetime.withLock {
+        val base = baseUrl ?: return@withLock
         val prefix = "$base/cast/media/"
         if (url.startsWith(prefix)) leases.revoke(url.removePrefix(prefix))
+        issued.remove(url)?.let { resource ->
+            if (resource !in issued.values) source.release(resource)
+        }
     }
 
     suspend fun stop() = lifetime.withLock {
         leases.revokeAll()
         baseUrl = null
-        server.stop()
+        issued.clear()
+        try { server.stop() } finally { source.clear() }
     }
 
     private suspend fun handle(request: NaviampCastHttpRequest, response: NaviampCastHttpResponse) {

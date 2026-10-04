@@ -294,6 +294,7 @@ internal class DesktopComposition private constructor(
             return DesktopComposition(
                 environment = desktopNaviampCoreEnvironment(
                     services = catalog.services.copy(connect = connectServices, cast = NaviampCoreCastServices(
+                        mediaStore = app.naviamp.app.JvmNaviampCastMediaStore(dataDirectory.resolve("cast")),
                         channel = NaviampCoreCastChannelServices(DesktopNaviampCastTransportFactory(), JvmNaviampCastCryptoEffect()),
                         discovery = DesktopNaviampCastDiscoveryEffect(scope),
                         server = castServer,

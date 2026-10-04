@@ -10,11 +10,68 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.ProviderMediaByteResponse
+import app.naviamp.app.NaviampCastMediaStore
+import app.naviamp.app.NaviampCastStoredMedia
+import app.naviamp.domain.StreamQuality
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Uses the active shared provider session; credential-bearing URLs never cross the endpoint. */
 class NaviampCoreCastMediaByteSource(
     private val providers: NaviampCoreMediaProviderSource,
+    private val store: NaviampCastMediaStore? = null,
+    private val maxTrackBytes: Long = 256L * 1024 * 1024,
+    private val maxTotalBytes: Long = 512L * 1024 * 1024,
 ) : NaviampCastMediaByteSource {
+    private val prepared = mutableMapOf<NaviampCastMediaResource, NaviampCastStoredMedia>()
+    private val preparation = Mutex()
+
+    override suspend fun prepare(resource: NaviampCastMediaResource) = preparation.withLock {
+        if (resource.kind != NaviampCastMediaKind.Track || resource.quality !is StreamQuality.Transcoded ||
+            resource in prepared) return@withLock
+        val provider = checkNotNull(providers.current()?.takeIf { it.cacheNamespace == resource.sourceId })
+        val budget = minOf(maxTrackBytes, maxTotalBytes - prepared.values.sumOf { it.sizeBytes })
+        require(budget > 0)
+        var received = 0L
+        var expectedLength: Long? = null
+        val file = withTimeout(30_000) {
+            checkNotNull(store) { "Cast transcoding requires temporary byte storage." }.write { writer ->
+                provider.streamTrackBytes(StreamRequest(TrackId(resource.id), resource.quality), null, false,
+                    onResponse = { response ->
+                        check(response.statusCode == 200)
+                        val length = response.contentLength
+                        check(length == null || length in 0..budget)
+                        expectedLength = length
+                    },
+                    writeChunk = { bytes, count ->
+                        check(count >= 0 && count <= bytes.size && count.toLong() <= budget - received)
+                        writer.write(bytes, count)
+                        received += count
+                    },
+                ) && received > 0 && (expectedLength == null || expectedLength == received)
+            }
+        }
+        if (providers.current()?.cacheNamespace != resource.sourceId || file.sizeBytes != received) {
+            withContext(NonCancellable) { file.delete() }
+            error("Cast media source changed during preparation.")
+        }
+        prepared[resource] = file
+    }
+
+    override suspend fun release(resource: NaviampCastMediaResource) = preparation.withLock {
+        prepared.remove(resource)?.delete()
+        Unit
+    }
+
+    override suspend fun clear() = preparation.withLock {
+        val files = prepared.values.toList()
+        prepared.clear()
+        withContext(NonCancellable) { files.forEach { it.delete() } }
+    }
+
     override suspend fun stream(
         resource: NaviampCastMediaResource,
         range: NaviampCastRequestedRange?,
@@ -23,6 +80,29 @@ class NaviampCoreCastMediaByteSource(
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
     ): Boolean {
         val provider = providers.current()?.takeIf { it.cacheNamespace == resource.sourceId } ?: return false
+        if (resource.kind == NaviampCastMediaKind.Track && resource.quality is StreamQuality.Transcoded) {
+            val file = preparation.withLock { prepared[resource] } ?: return false
+            val resolved = range?.resolve(file.sizeBytes)
+            if (range != null && resolved == null) {
+                onResponse(ProviderMediaByteResponse(416, "audio/mpeg", 0, "bytes */${file.sizeBytes}"))
+                return true
+            }
+            val first = resolved?.firstByte ?: 0L
+            val length = resolved?.length ?: file.sizeBytes
+            onResponse(ProviderMediaByteResponse(if (resolved == null) 200 else 206,
+                "audio/mpeg", length, resolved?.contentRange))
+            if (!headOnly) {
+                var offset = first
+                val end = first + length
+                while (offset < end) {
+                    val bytes = file.read(offset, minOf(CHUNK_BYTES.toLong(), end - offset).toInt())
+                    check(bytes.isNotEmpty() && bytes.size.toLong() <= end - offset)
+                    writeChunk(bytes, bytes.size)
+                    offset += bytes.size
+                }
+            }
+            return true
+        }
         return when (resource.kind) {
             NaviampCastMediaKind.Track -> provider.streamTrackBytes(
                 request = StreamRequest(TrackId(resource.id), resource.quality),
