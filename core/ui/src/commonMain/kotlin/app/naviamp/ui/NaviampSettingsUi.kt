@@ -2765,19 +2765,42 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Cast online music from Android to a Google Cast receiver, control playback from your phone, and return to local listening at the current position.",
-            "Pair Naviamp Connect devices across Tailnets by entering an address, with secure pairing and trusted reconnects.",
-            "Connect with an OpenSubsonic API key on compatible Navidrome servers while older authentication methods remain available.",
-            "Swipe across the visualizer to choose the next or previous visualization.",
+            "Cast online music from desktop to a Google Cast receiver, control playback and seeking, and return to local listening at the current position.",
+            "Keep albums and artists downloaded, preview storage needs, and reuse tracks already saved by another collection.",
+            "Use fullscreen mode on desktop and restore the previous window size when leaving fullscreen.",
+            "Control Linux playback through desktop media controls and MPRIS-compatible tools.",
+            "Switch saved accounts on Android TV with a remote-friendly account chooser.",
+            "Choose track or album artwork for individual albums while keeping the global default for everything else.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Improvements",
-        entries = listOf("Optionally refresh lower-quality cached audio on Wi-Fi, navigate the DJ editor more easily, and see the active playlist in Now Playing."),
+        entries = listOf(
+            "Browse multi-disc albums in disc sections and see separate album and track groups under artist appearances.",
+            "Create DJs from Now Playing and select newly saved DJs without reopening the picker.",
+            "See favorite hearts beside album titles and more complete German interface translations.",
+        ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug fixes",
-        entries = listOf("Fixed Subsonic password fallback, Space-key pause on desktop, and encoded text in artist and album descriptions."),
+        entries = listOf(
+            "Return the Library to the top after an explicit refresh and keep artist appearance tracks aligned.",
+            "Allow owners to delete Smart Playlists whose track editing is read-only.",
+            "Restore transparent animation surfaces on Linux X11 and improve Windows menu and dialog stability during animated playback.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
+        title = "Upgrade notes",
+        entries = listOf(
+            "Existing downloads are retained during the automatic database upgrade. Returning to v2.8.0 requires a pre-upgrade database backup; keep the downloaded audio files.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
+        title = "Known issues",
+        entries = listOf(
+            "Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.",
+            "Further macOS and Linux popup performance and accessibility checks remain open, including the Linux full-app CPU budget.",
+        ),
     ),
 )
 
