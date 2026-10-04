@@ -6,6 +6,56 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.9.0
+
+Release branch under local testing; this version has not been published.
+
+Naviamp 2.9.0 brings Google Cast to desktop, extends Keep downloaded to albums and artists,
+and adds desktop fullscreen, Linux media controls and an Android TV account switcher.
+
+### Features
+
+- Cast online music from desktop to a Google Cast receiver, control playback and seeking,
+  and return to local listening at the current position. Closing the Windows sender ends Cast.
+- Keep albums and artists downloaded, preview storage needs, and reuse tracks already saved
+  by another collection. New artist subscriptions default to favorite albums, with an explicit
+  all-albums choice.
+- Use fullscreen mode on desktop and restore the previous window size when leaving fullscreen.
+- Control Linux playback through desktop media controls and MPRIS-compatible tools.
+- Switch saved accounts on Android TV with a remote-friendly account chooser.
+- Choose track or album artwork for individual albums while keeping the global default for
+  everything else.
+
+### Improvements
+
+- Browse multi-disc albums in disc sections and see separate album and track groups under
+  artist appearances.
+- Create DJs from Now Playing and select newly saved DJs without reopening the picker.
+- See favorite hearts beside album titles and more complete German interface translations.
+
+### Bug fixes
+
+- Return the Library to the top after an explicit refresh and keep artist appearance tracks aligned.
+- Allow owners to delete Smart Playlists whose track editing is read-only.
+- Restore transparent animation surfaces on Linux X11 and improve Windows menu and dialog
+  stability during animated playback.
+
+### Upgrade notes
+
+- Existing downloads are retained during the automatic database upgrade. Returning to v2.8.0
+  requires a pre-upgrade database backup; keep the downloaded audio files.
+
+### Known issues
+
+- Google Cast requires online provider media and a reachable local network. Physical macOS
+  verification and broader offline, lyrics and audio-effect support remain follow-ups (#221, #223).
+- Further macOS and Linux popup performance and accessibility checks remain open (#219, #220),
+  including the Linux full-app CPU budget (#203).
+- Android TV and Naviamp Connect remain beta. The iOS artifact is unsigned, and Windows and
+  macOS packages are not publisher-signed.
+
+See [prepared release notes](.github/releases/v2.9.0.md) for issue links and compatibility details.
+
 ## v2.8.0
 
 Naviamp 2.8.0 adds Android Google Cast playback, manual Naviamp Connect pairing across Tailnets,

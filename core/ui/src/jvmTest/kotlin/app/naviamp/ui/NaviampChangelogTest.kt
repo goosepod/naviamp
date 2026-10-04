@@ -6,18 +6,26 @@ import kotlin.test.assertTrue
 
 class NaviampChangelogTest {
     @Test
-    fun release280ContainsTheImportantPublicChangesInSignificanceOrder() {
+    fun release290ContainsTheImportantPublicChangesInSignificanceOrder() {
         val changelog = NaviampAboutUi().changelog
         assertEquals(
-            listOf("Features", "Improvements", "Bug fixes"),
+            listOf("Features", "Improvements", "Bug fixes", "Upgrade notes", "Known issues"),
             changelog.map { it.title },
         )
-        assertEquals(4, changelog[0].entries.size)
+        assertEquals("2.9.0", NaviampAboutUi().version.removePrefix("v"))
+        assertEquals(6, changelog[0].entries.size)
         assertTrue(changelog[0].entries[0].contains("Google Cast"))
-        assertTrue(changelog[0].entries[1].contains("Tailnets"))
-        assertTrue(changelog[0].entries[2].contains("OpenSubsonic API key"))
-        assertTrue(changelog[0].entries[3].contains("visualizer"))
-        assertTrue(changelog[1].entries.single().contains("cached audio"))
-        assertTrue(changelog[2].entries.single().contains("Subsonic password fallback"))
+        assertTrue(changelog[0].entries[0].contains("desktop"))
+        assertTrue(changelog[0].entries[1].contains("downloaded"))
+        assertTrue(changelog[0].entries[2].contains("fullscreen"))
+        assertTrue(changelog[0].entries[3].contains("MPRIS"))
+        assertTrue(changelog[0].entries[4].contains("Android TV"))
+        assertTrue(changelog[0].entries[5].contains("artwork"))
+        assertTrue(changelog[1].entries.any { it.contains("multi-disc") })
+        assertTrue(changelog[1].entries.any { it.contains("DJs") })
+        assertTrue(changelog[2].entries.any { it.contains("Smart Playlists") })
+        assertTrue(changelog[2].entries.any { it.contains("Linux X11") })
+        assertTrue(changelog[3].entries.single().contains("pre-upgrade database backup"))
+        assertTrue(changelog[4].entries.any { it.contains("macOS Cast") })
     }
 }

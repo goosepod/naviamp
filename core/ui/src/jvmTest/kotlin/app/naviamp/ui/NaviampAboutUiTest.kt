@@ -39,6 +39,7 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Cast online music from Android to a Google Cast receiver, control playback from your phone, and return to local listening at the current position.").assertIsDisplayed()
+        onNodeWithText("Cast online music from desktop to a Google Cast receiver, control playback and seeking, and return to local listening at the current position.").assertIsDisplayed()
+        onNodeWithText("Keep albums and artists downloaded, preview storage needs, and reuse tracks already saved by another collection.").assertIsDisplayed()
     }
 }
