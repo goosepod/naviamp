@@ -48,7 +48,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.settings.AlbumSortOrder
-import androidx.compose.ui.window.Dialog
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.window.DialogProperties
 
@@ -641,7 +640,7 @@ private fun TelevisionTrackActionsDialog(
 ) {
     val firstActionFocusRequester = remember { FocusRequester() }
     NaviampPopupPresence()
-    Dialog(
+    NaviampDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {

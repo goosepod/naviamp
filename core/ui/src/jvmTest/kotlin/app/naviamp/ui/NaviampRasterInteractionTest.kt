@@ -454,6 +454,38 @@ class NaviampRasterInteractionTest {
         runOnIdle { assertTrue(presenter.presentations > beforeRestore) }
     }
 
+    @Test fun nestedOwnedPopupsKeepTheSameNativeSceneUntilTheWindowIsHidden() = runComposeUiTest {
+        val presenter = RecordingPresenter(contentBelowOwnedWindows = true)
+        val menu = mutableStateOf(false)
+        val dialog = mutableStateOf(false)
+        val visible = mutableStateOf(true)
+        setContent {
+            NaviampRasterEnvironment(presenter, visible.value, menu.value || dialog.value, true) {
+                BouncingTitleText("A long title rendered beneath owned popup windows", Color.White, 14,
+                    marqueeEnabled = false, modifier = Modifier.width(100.dp))
+                if (menu.value) NaviampPopupPresence()
+                if (dialog.value) NaviampPopupPresence()
+            }
+        }
+        waitForIdle()
+        val before = presenter.presentations
+        runOnIdle { menu.value = true }
+        waitForIdle()
+        runOnIdle { dialog.value = true }
+        waitForIdle()
+        runOnIdle { menu.value = false }
+        waitForIdle()
+        runOnIdle { dialog.value = false }
+        waitForIdle()
+        runOnIdle {
+            assertEquals(0, presenter.closed)
+            assertEquals(before, presenter.presentations)
+            visible.value = false
+        }
+        waitForIdle()
+        runOnIdle { assertEquals(1, presenter.closed) }
+    }
+
     private class RecordingPresenter(override val contentBelowOwnedWindows: Boolean = false,
         val requiresDrawSynchronization: Boolean = false) : NaviampRasterPresenter {
         var offset = 0f

@@ -11,13 +11,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 
 /** Shared modal progress surface for Core-owned operations that may take noticeable time. */
 @Composable
 fun NaviampBusyDialog(message: String) {
     NaviampPopupPresence()
-    Dialog(onDismissRequest = {}) {
+    NaviampDialog(onDismissRequest = {}) {
         Surface(
             shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp,

@@ -2,7 +2,6 @@ package app.naviamp.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,7 +36,7 @@ internal fun NaviampCollectionDownloadDialogs(
 ) {
     downloads.collectionPreview?.let { preview ->
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = actions.onDismissCollection,
             containerColor = colors.controlSurface,
             title = { Text(stringResource(Res.string.download_preview_title, preview.title), color = colors.primaryText) },
@@ -95,7 +94,7 @@ internal fun NaviampCollectionDownloadDialogs(
     }
     downloads.collectionRemoval?.let { removal ->
         NaviampPopupPresence()
-        AlertDialog(
+        NaviampAlertDialog(
             onDismissRequest = actions.onDismissCollection,
             containerColor = colors.controlSurface,
             title = { Text(stringResource(Res.string.download_stop_title, removal.title), color = colors.primaryText) },

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -50,7 +49,7 @@ internal fun NaviampLibrarySourcePicker(
         })
     }
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         modifier = Modifier.testTag(LibrarySourcePickerTestTag),
         onDismissRequest = { if (!picker.loading && !picker.saving) actions.onCancelSources() },
         title = { Text(stringResource(Res.string.library_sources_title)) },

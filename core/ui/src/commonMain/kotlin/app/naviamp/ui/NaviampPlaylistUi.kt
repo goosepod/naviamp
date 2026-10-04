@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -960,7 +959,7 @@ private fun PlaylistBulkToolsDialog(
     }
     val deduplicatedCount = remember(detail.tracks) { detail.tracks.distinctBy { it.id }.size }
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(stringResource(Res.string.playlists_bulk_tools_title)) },
         text = {
@@ -1053,7 +1052,7 @@ fun RenamePlaylistDialog(
 ) {
     var name by remember(playlist.id) { mutableStateOf(playlist.title) }
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.playlists_rename_title)) },
         text = {
@@ -1089,7 +1088,7 @@ fun DeletePlaylistDialog(
     onConfirm: () -> Unit,
 ) {
     NaviampPopupPresence()
-    AlertDialog(
+    NaviampAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.playlists_delete_title)) },
         text = { Text(stringResource(Res.string.playlists_delete_message, playlist.title)) },
