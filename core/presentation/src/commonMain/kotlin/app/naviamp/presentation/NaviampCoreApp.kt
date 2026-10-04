@@ -63,6 +63,7 @@ fun rememberNaviampCore(
     services: NaviampCoreServices,
     initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
     actionAvailability: NaviampCoreActionAvailability = NaviampCoreActionAvailability(),
+    lifecycle: NaviampCoreLifecycleController? = null,
     onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
         throw IllegalStateException("Core command failed: $command", cause)
     },
@@ -77,8 +78,9 @@ fun rememberNaviampCore(
             onAsyncFailure = onAsyncFailure,
         )
     }
-    DisposableEffect(core) {
-        onDispose(core::close)
+    DisposableEffect(core, lifecycle) {
+        val detach = lifecycle?.attach(core::shutdown)
+        onDispose { detach?.invoke(); core.close() }
     }
     return core
 }

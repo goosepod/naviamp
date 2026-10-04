@@ -34,6 +34,7 @@ fun main() {
     configureDesktopApplicationIcon()
     application {
         val scope = rememberCoroutineScope()
+        val lifecycle = remember(scope) { app.naviamp.presentation.NaviampCoreLifecycleController(scope) }
         val composition = remember { DesktopComposition.create(scope) }
         val windowGeometryStore = remember { DesktopWindowGeometryStore() }
         val initialWindowGeometry = remember {
@@ -64,7 +65,7 @@ fun main() {
         }
         Window(
             state = windowState,
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = { lifecycle.requestClose(::exitApplication) },
             title = "Naviamp",
             icon = naviampAppIconPainter(),
         ) {
@@ -82,7 +83,7 @@ fun main() {
                 MinDesktopWindowHeightDp.toInt(),
             )
             app.naviamp.ui.NaviampDesktopRasterHost(window, windowState) {
-                DesktopNaviampCoreHost(composition.environment, window, windowController = windowController)
+                DesktopNaviampCoreHost(composition.environment, window, windowController = windowController, lifecycle = lifecycle)
             }
         }
     }
