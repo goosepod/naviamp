@@ -2,6 +2,14 @@
 
 Issue: https://github.com/goosepod/naviamp/issues/136
 
+Current tracking decision (October 4, 2026): the owner requested closing #136 as completed
+at the Windows checkpoint and moving remaining macOS and Linux work into separate tickets:
+[macOS #219](https://github.com/goosepod/naviamp/issues/219) and
+[Linux #220](https://github.com/goosepod/naviamp/issues/220). Earlier instructions below to
+keep #136 open describe the acceptance decision at those historical checkpoints and are
+superseded by this scope split. Measurements, CPU outliers and unverified accessibility
+remain recorded; closing the ticket does not turn them into passing measurements.
+
 ## Candidate and acceptance budget
 
 Core retains each native raster scene while the host reports separate owned popup windows.
