@@ -247,6 +247,36 @@ class NaviampRasterInteractionTest {
         }
     }
 
+    @Test fun nativeRejectionAfterSuccessRestoresCachedPixelsAndActions() = runComposeUiTest {
+        val presenter = RecordingPresenter()
+        val position = mutableStateOf(0.dp)
+        var activations = 0
+        setContent {
+            Box(Modifier.size(200.dp, 40.dp).background(Color.Black)) {
+                CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
+                    NaviampRasterText(AnnotatedString("Artist"), TextStyle(color = Color.White, fontSize = 16.sp),
+                        25.dp, false, true, Modifier.offset(x = position.value).width(120.dp).testTag("rejected"),
+                        listOf(NaviampTextLink(0, 6, "Artist") { activations++ }))
+                }
+            }
+        }
+        waitForIdle()
+        val cached = presenter.layers.single().image
+        runOnIdle { presenter.ready = false; position.value = 2.dp }
+        waitForIdle()
+        assertSame(cached, presenter.layers.single().image)
+        val node = onNodeWithTag("rejected")
+        val pixels = node.captureToImage().toPixelMap()
+        var visible = 0
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
+            if (pixels[x, y].red > .5f) visible++
+        }
+        assertTrue(visible > 20, "Cached text disappeared after native rejection")
+        node.assertTextEquals("Artist")
+        val actions = node.fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        runOnIdle { assertTrue(actions.single().action()); assertEquals(1, activations) }
+    }
+
     @Test fun restoringVisibilityRecreatesNativePresentationWithSharedMotionAndPixels() = runComposeUiTest {
         val presenter = RecordingPresenter()
         val visible = mutableStateOf(true)

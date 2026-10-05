@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -51,6 +52,9 @@ fun main() {
     val dialogProbe = System.getenv("NAVIAMP_PROBE_DIALOGS") == "true"
     val tooltipProbe = System.getenv("NAVIAMP_PROBE_TOOLTIPS") == "true"
     val hoverProbe = System.getenv("NAVIAMP_PROBE_HOVER") == "true"
+    val nativeAlphaReference = integrated && verifyPixels && !expectFallback &&
+        System.getProperty("os.name").startsWith("Mac") &&
+        System.getenv("NAVIAMP_RASTER_FORCE_SKIA") != "true" && NativeMetalVisualizerHost.libraryAvailable()
     if (integrated) configureNaviampDesktopRasterLayers()
     application {
     val compositor = remember { System.getenv("NAVIAMP_PROBE_COMPOSITOR") == "true" }
@@ -62,6 +66,7 @@ fun main() {
     var waveformCenter by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val transparentBounds = remember { mutableStateListOf(Rect.Zero, Rect.Zero, Rect.Zero, Rect.Zero) }
     var alphaBounds by remember { mutableStateOf(Rect.Zero) }
+    var alphaReferencesVisible by remember { mutableStateOf(false) }
     var popupVisible by remember { mutableStateOf(false) }
     val rowCount = remember { System.getenv("NAVIAMP_PROBE_ROWS")?.toIntOrNull()?.coerceIn(0, 1000) ?: 150 }
     val cpu = remember { ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean }
@@ -119,7 +124,7 @@ fun main() {
                     },
                 )
                 Text(phase, color = Color.White)
-                if (verifyPixels) ProbeAlphaFixture(Modifier.fillMaxWidth().height(32.dp)
+                if (verifyPixels) ProbeAlphaFixture(Modifier.fillMaxWidth().height(40.dp)
                     .onGloballyPositioned {
                         alphaBounds = Rect(it.positionInWindow(), Size(it.size.width.toFloat(), it.size.height.toFloat()))
                     })
@@ -158,11 +163,48 @@ fun main() {
         }
         }
         if (integrated) NaviampDesktopRasterHost(window, probeWindowState, content) else content()
+        DisposableEffect(alphaBounds, nativeAlphaReference, alphaReferencesVisible) {
+            val handles = mutableListOf<Long>()
+            val layer = findSkiaLayer(window)
+            if (nativeAlphaReference && alphaReferencesVisible && layer != null && !alphaBounds.isEmpty) {
+                // Independent native color primitives below the bitmap are the alpha/color oracle.
+                // Core Animation blends in the display profile, not Skia's fixed sRGB arithmetic.
+                listOf(Color.Red, Color.Red.copy(alpha = 128f / 255f), Color(0xff923456), Color.White)
+                    .forEachIndexed { index, color ->
+                        handles += ProbeCompositor.alphaReference(layer.canvas,
+                            (alphaBounds.left + alphaBounds.width * ((35 + index * 70 - 8) / 280f)).toDouble(),
+                            (alphaBounds.top + alphaBounds.height * .8f).toDouble(),
+                            (alphaBounds.width * 16 / 280f).toDouble(), (alphaBounds.height * .2f).toDouble(),
+                            layer.contentScale.toDouble(), color.red.toDouble(), color.green.toDouble(),
+                            color.blue.toDouble(), color.alpha.toDouble())
+                    }
+                check(handles.all { it != 0L }) { "Native alpha references did not attach" }
+            }
+            onDispose { handles.forEach(ProbeCompositor::closeAlphaReference) }
+        }
         LaunchedEffect(Unit) {
             try {
             // Allow the native test window to be raised onto the measured desktop space.
             delay(if (verifyPixels) 15_000 else 1_000)
-            if (verifyPixels) captureProbe(window, "warmup")
+            if (System.getenv("NAVIAMP_PROBE_ACTIVATE") == "true") {
+                java.awt.Desktop.getDesktop().requestForeground(true)
+                if (verifyPixels && System.getProperty("os.name").startsWith("Mac"))
+                    findSkiaLayer(window)?.let { ProbeCompositor.activate(it.canvas) }
+                window.toFront()
+                window.requestFocus()
+                delay(1_000)
+            }
+            val uncalibrated = if (verifyPixels) captureProbe(window, "warmup").pixels else null
+            if (nativeAlphaReference) {
+                // A tagged reference layer can change the window's compositing color space.
+                // Check the subject captured before attaching it, so calibration cannot fix the bug.
+                alphaReferencesVisible = true
+                delay(500)
+                val reference = captureProbe(window, "alpha-reference").pixels
+                verifyProbeAlpha(requireNotNull(uncalibrated), window, alphaBounds,
+                    nativeReference = true, referenceImage = reference)
+            }
+            if (nativeAlphaReference) verifyNativeDecodeFailure(window)
             val baselineSize = probeWindowState.size
             val baselinePosition = probeWindowState.position
             val counters = probeLayers(window).map { layer ->
@@ -224,6 +266,14 @@ fun main() {
                     )
                 }
                 delay(5_000)
+                if (next == "restored-combined" && System.getenv("NAVIAMP_PROBE_ACTIVATE") == "true") {
+                    java.awt.Desktop.getDesktop().requestForeground(true)
+                    if (verifyPixels && System.getProperty("os.name").startsWith("Mac"))
+                        findSkiaLayer(window)?.let { ProbeCompositor.activate(it.canvas) }
+                    window.toFront()
+                    window.requestFocus()
+                    delay(1_000)
+                }
                 println("ANIMATION_GEOMETRY cycle=$cycle phase=$next bounds=${window.bounds} scale=${window.graphicsConfiguration.defaultTransform} refresh=${window.graphicsConfiguration.device.displayMode.refreshRate}")
                 if (lifecycleProbe) println("ANIMATION_LIFECYCLE $next state=${window.extendedState} minimized=${probeWindowState.isMinimized} owned=${window.ownedWindows.map { it.name to it.isShowing }}")
                 val openedBefore = opened.get()
@@ -272,8 +322,10 @@ fun main() {
                     val afterCapture = captureProbe(window, "$mode-cycle$cycle-$next-after", dimmed)
                     if (menuProbe && popupVisible) verifyMenuPaint(afterCapture.pixels)
                     val beforeCapture = requireNotNull(beforePixels)
-                    verifyProbeAlpha(afterCapture.pixels, window, alphaBounds, dimmed)
-                    transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index, dimmed) }
+                    verifyProbeAlpha(afterCapture.pixels, window, alphaBounds, dimmed, nativeAlphaReference)
+                    transparentBounds.forEachIndexed { index, rect -> verifyProbeBackground(afterCapture.pixels, window, rect, index, dimmed,
+                        if (nativeAlphaReference) listOf(alphaPixel(afterCapture.pixels, window, alphaBounds, 70, .9f),
+                            alphaPixel(afterCapture.pixels, window, alphaBounds, 210, .9f)) else null) }
                     val afterPixels = afterCapture.pixels
                     val before = beforeCapture.pixels
                     var changed = 0
@@ -345,7 +397,7 @@ fun main() {
                 delay(300)
                 check(waveformInputEvents > 0) { "Native raster surface intercepted shared waveform input" }
                 println("ANIMATION_INPUT waveform events=$waveformInputEvents point=$inputX,$inputY insets=${window.insets}")
-                if (System.getenv("NAVIAMP_PROBE_STACKING") == "true") verifyProbeStacking(window, alphaBounds, transparentBounds.first())
+                if (System.getenv("NAVIAMP_PROBE_STACKING") == "true") verifyProbeStacking(window, alphaBounds, transparentBounds.first(), nativeAlphaReference)
             }
             exitApplication()
             } catch (failure: Throwable) {
@@ -385,7 +437,7 @@ private fun captureProbe(window: java.awt.Window, name: String, dimmed: Boolean 
             kotlin.math.abs(blue - 51 * intensity) <= 6
     } else !probePixelsDiffer(pixel, marker, if (dimmed) 6 else 2)
     check(markerVisible) {
-        "Probe is obscured by another window"
+        "Probe is obscured by another window (marker=%06x expected=%06x active=%s)".format(pixel and 0xffffff, marker, window.isActive)
     }
     javax.imageio.ImageIO.write(image, "png", java.io.File(directory, "$name.png"))
     return ProbeCapture(image, pointer)
@@ -526,6 +578,28 @@ private object ProbeCompositor {
         property: String, values: DoubleArray, times: DoubleArray, duration: Double, repeat: Boolean)
     external fun clear(handle: Long)
     external fun dispose(handle: Long)
+    external fun alphaReference(component: java.awt.Component, x: Double, y: Double, width: Double,
+        height: Double, scale: Double, red: Double, green: Double, blue: Double, alpha: Double): Long
+    external fun closeAlphaReference(handle: Long)
+    external fun activate(component: java.awt.Component)
+}
+
+/** Exercise the real JNI rejection path; the shared fallback pixels/actions are covered by JVM UI tests. */
+private fun verifyNativeDecodeFailure(window: java.awt.Window) {
+    val type = Class.forName("app.naviamp.ui.DesktopRasterNative")
+    val instance = type.getDeclaredField("INSTANCE").apply { isAccessible = true }.get(null)
+    fun method(name: String) = type.declaredMethods.single { it.name == name }.apply { isAccessible = true }
+    val handle = method("create").invoke(instance, requireNotNull(findSkiaLayer(window)).canvas) as Long
+    check(handle != 0L) { "Native decode-failure fixture did not attach" }
+    try {
+        val accepted = method("presentNormalized").invoke(instance, handle, DoubleArray(10),
+            arrayOf(byteArrayOf(0, 1, 2, 3)), arrayOf(DoubleArray(6)), arrayOf(DoubleArray(0)),
+            arrayOf(DoubleArray(0)), doubleArrayOf(1.0), intArrayOf(0), booleanArrayOf(false)) as Boolean
+        check(!accepted) { "Native decoder accepted malformed PNG pixels" }
+        println("ANIMATION_NATIVE_FAILURE malformed PNG rejected for shared fallback")
+    } finally {
+        method("close").invoke(instance, handle)
+    }
 }
 
 @Composable
@@ -596,28 +670,53 @@ private fun ProbeAlphaFixture(modifier: Modifier) {
             CanvasDrawScope().draw(density, LayoutDirection.Ltr, Canvas(bitmap), Size(bitmap.width.toFloat(), bitmap.height.toFloat())) {
                 drawRect(Color.White, size = Size(size.width / 4, size.height))
                 drawRect(Color.Red.copy(alpha = .5f), topLeft = Offset(size.width / 4, 0f), size = Size(size.width / 4, size.height))
+                drawRect(Color.Red, topLeft = Offset(0f, size.height * .75f), size = Size(size.width / 4, size.height * .25f))
+                drawRect(Color(0xff923456), topLeft = Offset(size.width / 2, size.height * .75f), size = Size(size.width / 4, size.height * .25f))
+            }
+            val file = java.io.File("build/animation-probe/alpha-source.png")
+            file.parentFile.mkdirs()
+            org.jetbrains.skia.Image.makeFromBitmap(bitmap.asSkiaBitmap()).use { image ->
+                image.encodeToData()!!.use { file.writeBytes(it.bytes) }
             }
         }
     }
     val layers = remember(image) { listOf(NaviampRasterLayer(image)) }
-    NaviampAnimatedRaster(layers, modifier.then(probePattern()))
+    Column(modifier) {
+        NaviampAnimatedRaster(layers, Modifier.fillMaxWidth().height(32.dp).then(probePattern()))
+        Box(Modifier.fillMaxWidth().height(8.dp).then(probePattern()))
+    }
 }
 
-private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, dimmed: Boolean = false) {
+private fun alphaPixel(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect,
+    x: Int, row: Float): Int = image.getRGB(window.insets.left + bounds.left.toInt() + (bounds.width * x / 280).toInt(),
+    window.insets.top + bounds.top.toInt() + (bounds.height * row).toInt()) and 0xffffff
+
+private fun verifyProbeAlpha(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect,
+    dimmed: Boolean = false, nativeReference: Boolean = false,
+    referenceImage: java.awt.image.BufferedImage = image) {
     check(!bounds.isEmpty) { "Alpha fixture was not laid out" }
-    val left = window.insets.left + bounds.left.toInt()
-    val top = window.insets.top + bounds.top.toInt()
-    fun sample(x: Int) = image.getRGB(left + (bounds.width * x / 280).toInt(), top + (bounds.height / 2).toInt()) and 0xffffff
-    fun matches(actual: Int, expected: Int) = listOf(0, 8, 16).all {
-        kotlin.math.abs((actual shr it and 255) - (expected shr it and 255)) <= 2
-    }
+    fun sample(x: Int, row: Float = .5f) = alphaPixel(image, window, bounds, x, row)
+    fun referenceSample(x: Int) = alphaPixel(referenceImage, window, bounds, x, .9f)
+    fun expected(color: Int, referenceX: Int) = if (nativeReference) referenceSample(referenceX) else probeScrimColor(color, dimmed)
+    fun matches(actual: Int, expected: Int) = !probePixelsDiffer(actual, expected, 2)
     val opaque = sample(35)
     val blended = sample(105)
     val transparent = sample(210)
-    println("ANIMATION_ALPHA opaque=%06x blended=%06x transparent=%06x".format(opaque, blended, transparent))
-    check(matches(opaque, probeScrimColor(0xffffff, dimmed))) { "Opaque raster pixels missing" }
-    check(matches(blended, probeScrimColor(0x923456, dimmed))) { "Premultiplied alpha did not blend over the parent: %06x".format(blended) }
-    check(matches(transparent, probeScrimColor(0xac6824, dimmed))) { "Transparent raster pixels obscured the patterned parent: %06x".format(transparent) }
+    val expectedBlend = expected(0x923456, 105)
+    println("ANIMATION_ALPHA opaque=%06x blended=%06x transparent=%06x expectedBlend=%06x nativeReference=%s".format(
+        opaque, blended, transparent, expectedBlend, nativeReference))
+    check(matches(opaque, expected(0xffffff, 245))) { "Opaque raster pixels missing" }
+    check(matches(blended, expectedBlend)) { "Raster alpha differs from its independent source-over reference: %06x != %06x".format(blended, expectedBlend) }
+    check(matches(sample(35, .1f), expected(0xffffff, 245)) && matches(sample(105, .1f), expectedBlend)) {
+        "Raster pixels shifted away from shared top-left coordinates"
+    }
+    check(matches(transparent, expected(0xac6824, 210))) { "Transparent raster pixels obscured the patterned parent: %06x".format(transparent) }
+    // These also reject an image color-space mismatch that an opaque white marker cannot detect.
+    check(matches(sample(35, .7f), expected(0xff0000, 35))) { "Opaque red raster differs from its independent color reference" }
+    check(matches(sample(175, .7f), expected(0x923456, 175))) { "Opaque mixed-color raster differs from its independent color reference" }
+    if (nativeReference && !dimmed) {
+        check(matches(referenceSample(70), 0x2468ac) && matches(referenceSample(210), 0xac6824)) { "Calibration backdrop is blank or obscured" }
+    }
 }
 
 /** The shared modal's settled black scrim has 60% opacity; retain the same pixel tolerance. */
@@ -629,7 +728,7 @@ private fun probePattern() = Modifier.drawBehind {
     drawRect(Color(0xffac6824), topLeft = Offset(size.width / 2, 0f), size = Size(size.width / 2, size.height))
 }
 
-private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, index: Int, dimmed: Boolean = false) {
+private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: java.awt.Window, bounds: Rect, index: Int, dimmed: Boolean = false, calibratedPattern: List<Int>? = null) {
     check(!bounds.isEmpty) { "Raster region $index was not laid out" }
     val left = window.insets.left + bounds.left.toInt()
     val top = window.insets.top + bounds.top.toInt()
@@ -638,7 +737,7 @@ private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: j
     val samples = intArrayOf(0, 0)
     for (y in 2 until height - 2) for (x in 2 until width - 2) {
         val side = if (x < width / 2) 0 else 1
-        val expected = probeScrimColor(if (side == 0) 0x2468ac else 0xac6824, dimmed)
+        val expected = calibratedPattern?.get(side) ?: probeScrimColor(if (side == 0) 0x2468ac else 0xac6824, dimmed)
         if (!probePixelsDiffer(image.getRGB(left + x, top + y), expected)) samples[side]++
     }
     println("ANIMATION_BACKGROUND region=$index samples=${samples.toList()}")
@@ -646,7 +745,7 @@ private fun verifyProbeBackground(image: java.awt.image.BufferedImage, window: j
 }
 
 /** Use a real independent top-level window; native raster pixels must follow their owner's stack. */
-private suspend fun verifyProbeStacking(window: java.awt.Window, alphaBounds: Rect, textBounds: Rect) {
+private suspend fun verifyProbeStacking(window: java.awt.Window, alphaBounds: Rect, textBounds: Rect, nativeReference: Boolean) {
     val onTop = window.isAlwaysOnTop
     val cover = javax.swing.JFrame("Raster stacking probe").apply {
         isUndecorated = true
@@ -669,7 +768,7 @@ private suspend fun verifyProbeStacking(window: java.awt.Window, alphaBounds: Re
         window.requestFocus()
         delay(1_000)
         val restored = captureProbe(window, "stack-restored").pixels
-        verifyProbeAlpha(restored, window, alphaBounds)
+        verifyProbeAlpha(restored, window, alphaBounds, nativeReference = nativeReference)
         var text = 0
         for (row in 0 until textBounds.height.toInt()) for (column in 0 until textBounds.width.toInt()) {
             val pixel = restored.getRGB(window.insets.left + textBounds.left.toInt() + column,

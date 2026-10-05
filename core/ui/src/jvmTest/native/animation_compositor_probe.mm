@@ -1,9 +1,78 @@
 #include <jni.h>
 #include <array>
+#include <atomic>
+#include <memory>
 #include <jawt.h>
 #include <jawt_md.h>
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
+#import <CoreFoundation/CoreFoundation.h>
+
+struct AlphaReference {
+ __strong CALayer* parent = nil;
+ __strong CALayer* root = nil;
+ std::atomic_bool closed{false};
+};
+using AlphaHandle = std::shared_ptr<AlphaReference>;
+static void alphaOnAppKit(dispatch_block_t work) {
+ if ([NSThread isMainThread]) { work(); return; }
+ CFRunLoopPerformBlock(CFRunLoopGetMain(), kCFRunLoopCommonModes, work);
+ CFRunLoopWakeUp(CFRunLoopGetMain());
+}
+static CALayer* alphaParent(JNIEnv* env, jobject component) {
+ JAWT awt{}; awt.version=JAWT_VERSION_9;
+ if(!JAWT_GetAWT(env,&awt)) return nil;
+ auto ds=awt.GetDrawingSurface(env,component); if(!ds) return nil;
+ CALayer* parent=nil;
+ if(!(ds->Lock(ds)&JAWT_LOCK_ERROR)) {
+  auto info=ds->GetDrawingSurfaceInfo(ds);
+  if(info && info->platformInfo) {
+   id<JAWT_SurfaceLayers> layers=(__bridge id<JAWT_SurfaceLayers>)info->platformInfo;
+   parent=layers.windowLayer ?: layers.layer;
+  }
+  if(info)ds->FreeDrawingSurfaceInfo(info); ds->Unlock(ds);
+ }
+ awt.FreeDrawingSurface(ds); return parent;
+}
+extern "C" JNIEXPORT jlong JNICALL Java_app_naviamp_ui_ProbeCompositor_alphaReference(
+ JNIEnv* env,jobject,jobject component,jdouble x,jdouble y,jdouble width,jdouble height,
+ jdouble scale,jdouble red,jdouble green,jdouble blue,jdouble alpha) {
+ CALayer* parent=alphaParent(env,component); if(!parent) return 0;
+ auto handle=std::make_shared<AlphaReference>(); handle->parent=parent;
+ alphaOnAppKit(^{
+  if(handle->closed.load())return;
+  [CATransaction begin]; [CATransaction setDisableActions:YES];
+  handle->root=[CALayer layer]; handle->root.anchorPoint=CGPointZero;
+  handle->root.autoresizingMask=kCALayerMaxXMargin | (parent.geometryFlipped ? kCALayerMaxYMargin : kCALayerMinYMargin);
+  handle->root.position=CGPointMake(x/scale,parent.geometryFlipped ? y/scale : parent.bounds.size.height-(y+height)/scale);
+  handle->root.bounds=CGRectMake(0,0,width/scale,height/scale);
+  CGColorSpaceRef space=CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+  const CGFloat values[]={red,green,blue,alpha};
+  CGColorRef color=CGColorCreate(space,values);
+  handle->root.backgroundColor=color;
+  CGColorRelease(color); CGColorSpaceRelease(space);
+  [parent addSublayer:handle->root];
+  [CATransaction commit];
+ });
+ return reinterpret_cast<jlong>(new AlphaHandle(handle));
+}
+extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_ProbeCompositor_closeAlphaReference(JNIEnv*,jobject,jlong ptr) {
+ auto holder=reinterpret_cast<AlphaHandle*>(ptr); if(!holder)return;
+ auto handle=*holder; delete holder; handle->closed.store(true);
+ alphaOnAppKit(^{[handle->root removeFromSuperlayer];handle->root=nil;});
+}
+extern "C" JNIEXPORT void JNICALL Java_app_naviamp_ui_ProbeCompositor_activate(JNIEnv* env,jobject,jobject component) {
+ CALayer* parent=alphaParent(env,component); if(!parent)return;
+ alphaOnAppKit(^{
+  for(CALayer* layer=parent;layer;layer=layer.superlayer) {
+   if([layer.delegate isKindOfClass:[NSView class]]) {
+    NSWindow* window=((NSView*)layer.delegate).window;
+    window.collectionBehavior=(window.collectionBehavior & ~NSWindowCollectionBehaviorCanJoinAllSpaces) | NSWindowCollectionBehaviorMoveToActiveSpace;
+    [window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES]; break;
+   }
+  }
+ });
+}
 struct Host { __strong id<JAWT_SurfaceLayers> surface; __strong CALayer *root; };
 extern "C" JNIEXPORT jlong JNICALL Java_app_naviamp_ui_ProbeCompositor_create(JNIEnv* env, jobject, jobject component) {
  JAWT awt{}; awt.version=JAWT_VERSION_9;

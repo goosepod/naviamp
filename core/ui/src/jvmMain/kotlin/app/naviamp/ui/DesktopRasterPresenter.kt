@@ -239,7 +239,7 @@ private class MacRasterPresenter(private val window: Window) : NaviampRasterPres
                     cachedImages = images
                 }
                 val motions = layers.map { it.translation ?: it.revealMotion }
-                DesktopRasterNative.present(handle,
+                val accepted = DesktopRasterNative.presentNormalized(handle,
                     doubleArrayOf(bounds.left.toDouble(), bounds.top.toDouble(), clip.left.toDouble(), clip.top.toDouble(),
                         clip.width.toDouble(), clip.height.toDouble(), cornerRadius.toDouble(), layer.contentScale.toDouble(),
                         bounds.width.toDouble(), bounds.height.toDouble()), encoded,
@@ -250,6 +250,7 @@ private class MacRasterPresenter(private val window: Window) : NaviampRasterPres
                     motions.map { (it?.durationMillis ?: 1L) / 1000.0 }.toDoubleArray(),
                     layers.map { if (it.translation != null || (it.revealMotion == null && it.reveal == 1f && !it.clipFromStart)) 0 else 1 }.toIntArray(),
                     motions.map { it?.repeat ?: false }.toBooleanArray())
+                if (!accepted) { close(); return false }
                 presentedLayers = layers
                 startedAtNanos = System.nanoTime()
                 true
@@ -284,8 +285,8 @@ internal fun findSkiaLayer(component: Component): SkiaLayer? = when (component) 
 
 private object DesktopRasterNative {
     external fun create(component: Component): Long
-    external fun present(handle: Long, region: DoubleArray, pngs: Array<ByteArray>, geometry: Array<DoubleArray>,
-        values: Array<DoubleArray>, times: Array<DoubleArray>, durations: DoubleArray, kinds: IntArray, repeats: BooleanArray)
+    external fun presentNormalized(handle: Long, region: DoubleArray, pngs: Array<ByteArray>, geometry: Array<DoubleArray>,
+        values: Array<DoubleArray>, times: Array<DoubleArray>, durations: DoubleArray, kinds: IntArray, repeats: BooleanArray): Boolean
     external fun translationX(handle: Long, index: Int): Double
     external fun close(handle: Long)
 }

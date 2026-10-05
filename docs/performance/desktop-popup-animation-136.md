@@ -489,3 +489,133 @@ native-build qualification above remain applicable.
 Native production boundary remains core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopRasterPresenter.kt:
 Compose Desktop/AWT owned-window configuration, JWindow bounds and AppKit/CALayer stacking
 facts. Shared Core owns popup geometry, motion, input, transitions and lifecycle policy.
+
+
+## October 5 macOS raster rendering follow-up (#227)
+
+Issue #227 addresses the native image boundary and a reproduced resize-positioning bug.
+Core's raster contract explicitly supplies sRGB pixels in window top-left coordinates.
+The AppKit adapter prepares named-sRGB premultiplied CoreGraphics images before enqueueing
+CALayer presentation, retains them as native contents, and rejects decode/allocation failures
+through the existing common fallback. It does not change animation cadence or product policy.
+A renamed Boolean JNI entry point also avoids treating an older void-returning library as the
+new adapter. Cached fallback pixels, actions and semantics remain common.
+
+The physical alpha golden needed correction: macOS display compositing is not the probe's
+fixed sRGB arithmetic. Independent named-sRGB CALayer.backgroundColor primitives produce
+0x9e3864 for the half-transparent red reference on this setup; normalized image contents
+produce 0x9d3864. Retain the original two-level per-channel tolerance. Check opaque white,
+opaque red, opaque mixed color, alpha and the bare patterned parent. Capture the subject
+before attaching calibration layers as well, so a reference cannot repair the tested scene.
+The earlier original-decoder observation of 0x9e2764 remains in the raw record. Today's matched
+original-decoder controls produce 0x9e3864 and pass the calibrated alpha check, including the
+original simple fixture. They do not reproduce the earlier 17-level green discrepancy. This
+is not evidence that normalization alone repaired that earlier color discrepancy.
+
+Resize did reproduce a concrete defect: changing 1000x740 to 1040x760 shifted cached native
+pixels downward by 20 pixels while their shared coordinates stayed fixed. Native positions
+were calculated against an unflipped parent's old height. CALayer.autoresizingMask now anchors
+the cached region to the parent's top edge. Test reference layers use the same native anchoring,
+and top-edge plus center pixel checks prevent two misplaced layers validating one another.
+The corrected visible resize run passes alpha, top-origin placement, text/progress motion,
+clipping, unchanged siblings, twelve popup transitions and shared waveform input.
+
+Conditions: Apple M1, Metal, AC power, two LG HDR QHD displays at 2560x1440/75 Hz, scale 1.0;
+1000x740 windows with 1000x708 parent surfaces unless explicitly resized. CPU is percent of
+one process core. Every measured synthetic state reported zero parent frames. Visible
+samples were checked for moving content; minimized samples are not visual passes.
+
+| Synthetic state | Process CPU | Notes |
+| --- | ---: | --- |
+| Static | 0.332% | Visible, unchanged pixels |
+| Marquee | 0.285% | 9,107 changed text pixels |
+| Progress | 0.914% | 218 changed progress pixels |
+| Combined | 0.811% | Text and progress moved; siblings unchanged |
+| Menu + combined | 1.027% | Above the 1% budget; retained |
+| Paused | 0.261% | Unchanged pixels |
+| Minimized, menu run | 0.621% | Native parent hidden; zero frames |
+| Modal + combined | 1.117% | Scrim/alpha and motion passed; above budget |
+| Minimized, modal run | 1.035% | Above budget; zero frames |
+| Restored, modal run | 0.974% | Explicitly raised test window; visible motion |
+| Combined, resize-fix run | 2.865% | 226 ms compilation; above budget, retained |
+| Resized, resize-fix run | 0.988% | 1040x760, correct placement and motion |
+
+The first restore capture was rejected as obscured and was never saved or counted as passing.
+The test-only activation option now raises the restored test-owned window before capture.
+The original resize failure is retained with its physical captures; the corrected run is
+separate. No budget was broadened and no animation was slowed to obtain these results.
+
+The first synthetic matrix recorded whole-desktop WindowServer CPU and whole-device AGX
+utilization alongside the phases. Those counters are not application GPU attribution and
+cannot close the compositor-cost gate. Raw evidence is retained under build/verification-227.
+Native VoiceOver and complete keyboard traversal are not claimed. Keep #219 open for CPU
+outliers, application-attributed compositor/GPU cost and remaining native accessibility work.
+
+Production native-boundary audit:
+
+- core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopRasterPresenter.kt translates the JNI
+  acceptance result and closes the native handle; shared Core owns fallback behavior.
+- native/visualizer-metal/src/naviamp_raster_compositor.mm invokes AppKit PNG decoding,
+  attaches CoreGraphics images to CALayers and applies native parent-resize anchoring.
+- native/visualizer-metal/src/naviamp_raster_image.hpp requires the CoreGraphics image,
+  bitmap-context and color-space ABI to provide premultiplied native storage.
+
+No Android or iOS production file changes. The common owner is NaviampAnimatedRaster;
+its documentation defines the native presentation contract. Verification passed 493 shared
+UI JVM tests, five Desktop tests, Core-first architecture verification, Android shared UI
+compilation, both iOS Arm64 shared UI klib compilations and staging the local Mac app.
+The native CoreGraphics regression checks dimensions, named-sRGB tagging, exact premultiplied
+bytes, transparent RGB, near-zero/near-opaque alpha and null input. Its differently tagged
+input also rejects converting shared sRGB values instead of preserving them.
+
+
+### Staged app evidence
+
+The rebuilt app used an isolated development profile and loopback-only synthetic Subsonic
+tracks, with volume zero. No real Cast receiver was invoked. The observer was attached to
+the real packaged application's surfaces; all visible phases had successful before/after
+physical captures. The minimized phase correctly has no physical captures.
+
+| Staged state | Process CPU | Main parent frames / 10 seconds |
+| --- | ---: | ---: |
+| static | 0.765% | 0 |
+| marquee | 0.630% | 0 |
+| waveform | 1.763% | 0 |
+| combined | 1.845% | 0 |
+| modal | 6.419% | 20 |
+| restored | 2.195% | 0 |
+| paused | 0.762% | 0 |
+| minimized | 0.539% | 0 |
+| restored-window | 0.431% | 0 |
+| resized | 0.446% | 0 |
+
+The statistics modal also redrew its own surface ten times in the interval. Its 6.419% CPU
+versus 1.845% combined closed state, plus twenty main-parent frames, fails the real-app
+popup budget and remains with #219. Provider/playback behavior was left at its normal cadence.
+No full performance acceptance is claimed by #227.
+
+Physical pixel comparisons confirmed 3,245 changed title pixels in the paused marquee state,
+130 progress pixels in the progress-only state, and both title (3,216) and progress (130)
+movement in the combined state. The artwork crop was unchanged in all compared normal-size
+phases. After modal dismissal, pause and restore, title motion remained visible. The 900x700
+resized app was inspected separately; its layout and cached text stayed aligned. The old
+normal-size crop was not used to claim resize motion.
+
+Whole-desktop WindowServer samples were approximately 47–48% CPU and whole-device GPU
+utilization approximately 8–12% in the closed states. All raw per-phase counter samples are
+retained, including modal values. These are background-inclusive observations, not isolated
+Naviamp GPU measurements, and they cannot certify the remaining GPU gate.
+
+Native regression reproduction after staging on macOS Arm64:
+
+```sh
+JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :apps:desktop:stageLocalTestApp -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false
+ctest --test-dir platforms/desktop/build/generated/DesktopVisualizerMetalBuild/macos-arm64 --output-on-failure
+```
+
+For the visible top-origin regression, set NAVIAMP_PROBE_INTEGRATED=true,
+NAVIAMP_PROBE_VERIFY=true, NAVIAMP_PROBE_ACTIVATE=true, NAVIAMP_PROBE_LIFECYCLE=true and
+NAVIAMP_PROBE_PHASES=combined,resized-combined; run :core:ui:playerAnimationProbe with the
+staged resources path and naviamp.visualizer.macosMetal=true. Use a visible unlocked desktop;
+black, obscured or frozen captures must be rejected. Menu/modal matrices use the existing
+NAVIAMP_PROBE_POPUPS, NAVIAMP_PROBE_MENUS and NAVIAMP_PROBE_DIALOGS options.

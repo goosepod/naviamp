@@ -29,3 +29,11 @@ set_target_properties(naviamp_visualizer_metal PROPERTIES
     BUILD_RPATH "@loader_path"
     INSTALL_RPATH "@loader_path"
 )
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(naviamp_raster_image_test tests/raster-image.cpp)
+    target_compile_features(naviamp_raster_image_test PRIVATE cxx_std_17)
+    target_link_libraries(naviamp_raster_image_test PRIVATE "-framework CoreGraphics" "-framework CoreFoundation")
+    add_test(NAME macos_raster_image COMMAND naviamp_raster_image_test)
+endif()

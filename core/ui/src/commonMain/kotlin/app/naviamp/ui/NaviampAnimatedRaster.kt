@@ -15,7 +15,12 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 
-/** Shared pixels and motion; hosts only present these declarative layers. Coordinates are pixels. */
+/**
+ * Shared sRGB pixels and motion; hosts only present these declarative layers. Coordinates are pixels
+ * measured from the window content's top-left, including when a native parent changes size.
+ * Native decoding must preserve these pixel values and alpha semantics. Display color matching
+ * belongs to the native presentation boundary, including its choice of premultiplied storage.
+ */
 internal data class NaviampRasterLayer(
     val image: ImageBitmap,
     val origin: Offset = Offset.Zero,
