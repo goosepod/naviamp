@@ -180,7 +180,7 @@ fun main() {
                     }
                 check(handles.all { it != 0L }) { "Native alpha references did not attach" }
             }
-            onDispose { handles.forEach(ProbeCompositor::closeAlphaReference) }
+            onDispose { handles.forEach { ProbeCompositor.closeAlphaReference(it) } }
         }
         LaunchedEffect(Unit) {
             try {

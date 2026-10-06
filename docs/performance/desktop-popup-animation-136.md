@@ -619,3 +619,8 @@ NAVIAMP_PROBE_PHASES=combined,resized-combined; run :core:ui:playerAnimationProb
 staged resources path and naviamp.visualizer.macosMetal=true. Use a visible unlocked desktop;
 black, obscured or frozen captures must be rejected. Menu/modal matrices use the existing
 NAVIAMP_PROBE_POPUPS, NAVIAMP_PROBE_MENUS and NAVIAMP_PROBE_DIALOGS options.
+
+PR #228's first Windows CI run exposed a test-only shutdown bug: the bound cleanup method
+reference initialized the optional macOS probe library even when its handle list was empty.
+Cleanup now invokes the native helper only inside the per-handle lambda. The no-reference-library
+probe path is checked separately; this adjustment changes no production renderer or animation.
