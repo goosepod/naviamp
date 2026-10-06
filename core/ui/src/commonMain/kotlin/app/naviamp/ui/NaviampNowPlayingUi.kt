@@ -2025,7 +2025,7 @@ private fun RatingRow(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .width(favoriteSlotWidth)
-                .clickable(enabled = canFavorite, onClick = onToggleFavorite),
+                .clickable(enabled = canFavorite, role = Role.Button, onClick = onToggleFavorite),
         ) {
             Icon(
                 imageVector = if (favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
@@ -2041,7 +2041,7 @@ private fun RatingRow(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .width(starSlotWidth)
-                        .clickable(enabled = canRate) {
+                        .clickable(enabled = canRate, role = Role.Button) {
                             onRatingSelected(if (rating == value) null else value)
                         },
                 ) {
@@ -3552,6 +3552,7 @@ fun NaviampTransportIconButton(
                 )
                 .clickable(
                     enabled = enabled,
+                    role = Role.Button,
                     onClick = onClick,
                 ),
         ) {

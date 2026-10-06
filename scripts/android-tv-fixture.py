@@ -21,8 +21,11 @@ parser.add_argument('--tracks', type=int, default=1)
 parser.add_argument('--albums', type=int, default=1)
 parser.add_argument('--unknown-length', action='store_true', help='Omit Content-Length and ranges for finite songs')
 parser.add_argument('--long-metadata', action='store_true', help='Overflow all player metadata rows for full-app animation measurements')
+parser.add_argument('--mixed-metadata', action='store_true', help='Provide one short track and long metadata on remaining tracks for animation isolation')
 parser.add_argument('--accounts', action='store_true', help='Return distinct catalogs for each fixture username')
 args = parser.parse_args()
+if args.mixed_metadata and (args.long_metadata or args.tracks < 2):
+    parser.error('mixed metadata requires at least two tracks and cannot be combined with long metadata')
 if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 240 and 1 <= args.albums <= args.tracks and args.tracks % args.albums == 0):
     parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..240, albums must divide track count')
 
@@ -38,13 +41,17 @@ ALBUMS = [dict(ALBUM, id="fixture-album" if i == 0 else f"fixture-album-{i+1}",
                name=f"Recovery {i+1}", songCount=PER_ALBUM, duration=PER_ALBUM * args.track_seconds) for i in range(args.albums)]
 for i, track in enumerate(TRACKS):
     track.update(albumId=ALBUMS[i // PER_ALBUM]['id'], album=ALBUMS[i // PER_ALBUM]['name'], track=i % PER_ALBUM + 1)
-if args.long_metadata:
-    for track in TRACKS:
+if args.long_metadata or args.mixed_metadata:
+    for i, track in enumerate(TRACKS):
+        if args.mixed_metadata and i == 0:
+            track.update(title='Short fixture', artist='Fixture', album='Fixture')
+            continue
         track.update(title='Long scrolling player title with enough metadata to overflow its viewport',
                      artist='Long scrolling fixture artist with enough text to overflow its viewport',
                      album='Long scrolling fixture album with enough text to overflow its viewport')
-    for album in ALBUMS:
-        album.update(name=TRACKS[0]['album'], artist=TRACKS[0]['artist'])
+    for i, album in enumerate(ALBUMS):
+        track = TRACKS[i * PER_ALBUM]
+        album.update(name=track['album'], artist=track['artist'])
 RATE = 16000
 PCM = b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
 DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*args.track_seconds, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*args.track_seconds) + PCM*args.track_seconds

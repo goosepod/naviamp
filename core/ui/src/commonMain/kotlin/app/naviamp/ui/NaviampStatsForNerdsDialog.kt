@@ -3,17 +3,29 @@ package app.naviamp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
+import androidx.compose.material3.Surface
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.State
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.common_close
+import app.naviamp.ui.generated.resources.tv_stats_for_nerds
+import org.jetbrains.compose.resources.stringResource
 
 /** Shared diagnostics surface. Hosts contribute facts through Core state, never their own window. */
 @Composable
@@ -32,6 +44,40 @@ fun NaviampStatsForNerdsDialog(
             TextButton(onClick = onDismissRequest) { Text("Close") }
         },
     )
+}
+
+/** Read changing diagnostics only inside the independently mounted presentation surface. */
+@Composable
+fun NaviampStatsForNerdsWindowContent(
+    diagnostics: State<NaviampDiagnosticsUi>,
+    onClose: () -> Unit,
+    darkTheme: Boolean,
+) = NaviampStatsForNerdsWindowContent(diagnostics.value, onClose, darkTheme)
+
+/** Shared product content for hosts that supply an independent native diagnostics window. */
+@Composable
+fun NaviampStatsForNerdsWindowContent(
+    diagnostics: NaviampDiagnosticsUi,
+    onClose: () -> Unit,
+    darkTheme: Boolean,
+) {
+    MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
+        Surface(Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(stringResource(Res.string.tv_stats_for_nerds), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Button(onClick = onClose) { Text(stringResource(Res.string.common_close)) }
+                }
+                NaviampStatsForNerdsContent(
+                    diagnostics = diagnostics,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+            }
+        }
+    }
 }
 
 @Composable

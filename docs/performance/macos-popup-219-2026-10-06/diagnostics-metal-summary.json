@@ -1,0 +1,26 @@
+[
+  {
+    "process": "Naviamp (60503)",
+    "channel": "Fragment",
+    "intervals": 2,
+    "channel_ms": 0.092125
+  },
+  {
+    "process": "Naviamp (60503)",
+    "channel": "Vertex",
+    "intervals": 2,
+    "channel_ms": 0.021292
+  },
+  {
+    "process": "WindowServer (415)",
+    "channel": "Fragment",
+    "intervals": 1497,
+    "channel_ms": 81.408836
+  },
+  {
+    "process": "WindowServer (415)",
+    "channel": "Vertex",
+    "intervals": 1512,
+    "channel_ms": 13.98532
+  }
+]

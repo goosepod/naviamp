@@ -34,6 +34,38 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun transportButtonExposesItsRoleAndSupportsKeyboardActivation() = runComposeUiTest {
+        var activations = 0
+        setContent {
+            NaviampTransportIconButton(
+                enabled = true, icon = NaviampTransportIcons.Pause,
+                contentDescription = "Fixture pause", colors = NaviampColors(),
+                onClick = { activations++ },
+            )
+        }
+        val node = onNodeWithContentDescription("Fixture pause")
+        node.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Button))
+        node.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        node.performKeyInput { pressKey(Key.Enter) }
+        runOnIdle { assertEquals(1, activations) }
+    }
+
+    @Test fun sharedDiagnosticsWindowContentKeepsItsCloseActionAccessible() = runComposeUiTest {
+        var closed = false
+        setContent {
+            NaviampStatsForNerdsWindowContent(
+                NaviampDiagnosticsUi(listOf(NaviampDiagnosticsSectionUi("Fixture", listOf("Status" to "Ready")))),
+                onClose = { closed = true }, darkTheme = true,
+            )
+        }
+        onNodeWithText("Status: Ready").assertExists()
+        val close = onNodeWithText("Close")
+        close.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Button))
+        close.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        close.performKeyInput { pressKey(Key.Enter) }
+        runOnIdle { assertTrue(closed) }
+    }
+
     @Test fun rtlWaveformKeyboardMatchesItsVisualAndPointerTimeline() = runComposeUiTest {
         val progress = mutableFloatStateOf(.2f)
         setContent {

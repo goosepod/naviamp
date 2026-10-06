@@ -1,15 +1,14 @@
 package app.naviamp.presentation
 
+import androidx.compose.runtime.State
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.naviamp.ui.NaviampLocaleEnvironment
 import app.naviamp.ui.createNaviampLocaleEffect
@@ -24,7 +23,6 @@ import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
 import app.naviamp.ui.NaviampTelevisionAppShell
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import app.naviamp.app.NaviampPlaybackOutputSelection
 import app.naviamp.app.NaviampRemoteOutputKind
 import app.naviamp.app.NaviampRemoteOutputPhase
@@ -97,8 +95,8 @@ fun NaviampCoreApp(
         core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
     },
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
-    statsForNerdsPresenter: @Composable (NaviampDiagnosticsUi, () -> Unit) -> Unit = { diagnostics, close ->
-        NaviampStatsForNerdsDialog(diagnostics, close)
+    statsForNerdsPresenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit = { diagnostics, close ->
+        NaviampStatsForNerdsDialog(diagnostics.value, close)
     },
 ) {
     val state by core.state.collectAsState()
@@ -112,7 +110,6 @@ fun NaviampCoreApp(
         playbackActive = selectedCast?.playbackAuthorityActive == true,
         unavailable = selectedCast?.phase == NaviampRemoteOutputPhase.Unavailable,
     )
-    var diagnosticsRefreshTick by remember { mutableIntStateOf(0) }
     LaunchedEffect(core, state.shell.connectionSettings.currentSourceId) {
         if (state.shell.connectionSettings.currentSourceId != null) {
             core.maintainProviderSession()
@@ -162,20 +159,22 @@ fun NaviampCoreApp(
                     )
                 }
                 if (state.overlays.statsForNerdsVisible) {
-                    LaunchedEffect(core) {
-                        while (true) {
-                            delay(1_000)
-                            diagnosticsRefreshTick += 1
-                        }
-                    }
-                    statsForNerdsPresenter(
-                        diagnosticsRefreshTick.let { core.statsForNerdsDiagnostics() },
-                        { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
-                    )
+                    NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
                 }
             }
         }
     }
+}
+
+/** Pass unread state so an independent presentation reads updates in its own surface. */
+@Composable
+internal fun NaviampCoreDiagnosticsPresentation(
+    core: NaviampCore,
+    presenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit,
+) {
+    val updates = remember(core) { naviampCoreDiagnosticsUpdates(core::statsForNerdsDiagnostics) }
+    val diagnostics = updates.collectAsState(remember(core) { core.statsForNerdsDiagnostics() })
+    presenter(diagnostics, remember(core) { { core.dispatch(NaviampCoreCommand.Settings.CloseStats) } })
 }
 
 /** The single product surface mounted unchanged by every thin platform client. */
@@ -183,8 +182,8 @@ fun NaviampCoreApp(
 fun NaviampCoreHost(
     environment: NaviampCoreEnvironment,
     modifier: Modifier = Modifier,
-    statsForNerdsPresenter: @Composable (NaviampDiagnosticsUi, () -> Unit) -> Unit = { diagnostics, close ->
-        NaviampStatsForNerdsDialog(diagnostics, close)
+    statsForNerdsPresenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit = { diagnostics, close ->
+        NaviampStatsForNerdsDialog(diagnostics.value, close)
     },
 ) {
     val core = rememberNaviampCore(
