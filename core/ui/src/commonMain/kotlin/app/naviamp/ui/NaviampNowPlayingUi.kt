@@ -1160,7 +1160,7 @@ private fun NowPlayingDetails(
                 Box(modifier = Modifier.weight(1f))
             }
 
-            BoxWithConstraints(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .requiredHeight(if (mobileLayout) 46.dp else 44.dp)
@@ -1168,7 +1168,7 @@ private fun NowPlayingDetails(
                     .padding(horizontal = if (pinBottomActions) 8.dp else 0.dp),
             ) {
                 val windowController = LocalNaviampWindowController.current
-                val fullscreenInMenu = showWindowFullscreen && windowController != null && maxWidth < 380.dp
+                val fullscreenInMenu = showWindowFullscreen && windowController != null && !naviampWindowShowsFullscreenIcon()
                 val bottomActionButtonSize = 33.dp
                 val bottomActionIconSize = 20.dp
                 Row(modifier = Modifier.align(Alignment.CenterStart)) {

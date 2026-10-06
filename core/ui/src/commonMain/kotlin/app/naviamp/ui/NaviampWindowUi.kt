@@ -13,6 +13,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import app.naviamp.domain.settings.DesktopShortcutPlatform
@@ -71,12 +73,20 @@ internal fun naviampWindowToggleShortcut(
     )
 
 @Composable
+internal fun naviampWindowShowsFullscreenIcon(): Boolean {
+    val size = LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current.density
+    return supportsPlayerWorkspace(size.width / density, size.height / density)
+}
+
+@Composable
 internal fun NaviampWindowFullscreenButton(
     colors: NaviampColors,
     buttonSize: Dp = 42.dp,
     iconSize: Dp = 21.dp,
 ) {
     val controller = LocalNaviampWindowController.current ?: return
+    if (!naviampWindowShowsFullscreenIcon()) return
     val fullscreen = controller.state.placement == NaviampWindowPlacement.Fullscreen
     val label = stringResource(if (fullscreen) Res.string.window_exit_fullscreen else Res.string.window_enter_fullscreen)
     NaviampTooltip(label, colors) {
