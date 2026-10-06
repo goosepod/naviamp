@@ -1167,6 +1167,8 @@ private fun NowPlayingDetails(
                     .testTag("now-playing-bottom-actions")
                     .padding(horizontal = if (pinBottomActions) 8.dp else 0.dp),
             ) {
+                val windowController = LocalNaviampWindowController.current
+                val fullscreenInMenu = showWindowFullscreen && windowController != null && !naviampWindowShowsFullscreenIcon()
                 val bottomActionButtonSize = 33.dp
                 val bottomActionIconSize = 20.dp
                 Row(modifier = Modifier.align(Alignment.CenterStart)) {
@@ -1260,7 +1262,7 @@ private fun NowPlayingDetails(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.align(Alignment.CenterEnd),
                 ) {
-                    if (showWindowFullscreen) {
+                    if (showWindowFullscreen && !fullscreenInMenu) {
                         NaviampWindowFullscreenButton(colors, bottomActionButtonSize, bottomActionIconSize)
                     }
                     if (nowPlaying.castAvailable) {
@@ -1287,7 +1289,7 @@ private fun NowPlayingDetails(
                     )
                     Box(modifier = Modifier.requiredSize(bottomActionButtonSize), contentAlignment = Alignment.Center) {
                         NaviampTransportIconButton(
-                            enabled = nowPlayingActionMenuEnabled(nowPlaying),
+                            enabled = nowPlayingActionMenuEnabled(nowPlaying) || fullscreenInMenu,
                             icon = NaviampTransportIcons.MoreVertical,
                             contentDescription = "Track actions",
                             colors = colors,
@@ -1300,6 +1302,17 @@ private fun NowPlayingDetails(
                             onDismissRequest = { actionMenuExpanded = false },
                             offset = DpOffset(0.dp, 6.dp),
                         ) {
+                            if (fullscreenInMenu) {
+                                val fullscreen = windowController?.state?.placement == NaviampWindowPlacement.Fullscreen
+                                NaviampDropdownMenuItem(
+                                    label = stringResource(if (fullscreen) Res.string.window_exit_fullscreen else Res.string.window_enter_fullscreen),
+                                    icon = if (fullscreen) NaviampIcons.ExitFullscreen else NaviampIcons.Fullscreen,
+                                    onClick = {
+                                        actionMenuExpanded = false
+                                        windowController?.toggle()
+                                    },
+                                )
+                            }
                             if (nowPlaying.castAvailable) {
                                 NaviampDropdownMenuItem(
                                     label = stringResource(Res.string.now_playing_cast_to_device),
