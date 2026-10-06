@@ -1,5 +1,8 @@
 package app.naviamp.presentation
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import app.naviamp.ui.NaviampDiagnosticsUi
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -28,20 +31,23 @@ class NaviampCoreDiagnosticsPresentationTest {
         val visible = mutableStateOf(true)
         var applicationCompositions = 0
         var diagnosticsCompositions = 0
+        var windowCompositions = 0
         var displayedFact = ""
         try {
             setContent {
                 SideEffect { applicationCompositions++ }
                 if (visible.value) NaviampCoreDiagnosticsPresentation(core) { diagnostics, _ ->
-                    SideEffect {
+                    SideEffect { windowCompositions++ }
+                    DiagnosticsFixture(diagnostics) { model ->
                         diagnosticsCompositions++
-                        displayedFact = diagnostics.sections.flatMap { it.rows }.toMap()["Fixture"].orEmpty()
+                        displayedFact = model.sections.flatMap { it.rows }.toMap()["Fixture"].orEmpty()
                     }
                 }
             }
             waitForIdle()
             val initialApplicationCompositions = applicationCompositions
             val initialDiagnosticsCompositions = diagnosticsCompositions
+            val initialWindowCompositions = windowCompositions
             val initialReads = snapshotReads
             // Equal snapshots retain the existing diagnostics composition as well as its sibling.
             waitUntil(timeoutMillis = 5_000) { snapshotReads > initialReads }
@@ -52,6 +58,7 @@ class NaviampCoreDiagnosticsPresentationTest {
             runOnIdle { fact = "changed" }
             waitUntil(timeoutMillis = 5_000) { displayedFact == "changed" }
             assertTrue(diagnosticsCompositions > initialDiagnosticsCompositions)
+            assertEquals(initialWindowCompositions, windowCompositions)
             assertEquals(initialApplicationCompositions, applicationCompositions)
 
             runOnIdle { visible.value = false }
@@ -65,4 +72,10 @@ class NaviampCoreDiagnosticsPresentationTest {
             scope.cancel()
         }
     }
+}
+
+@Composable
+private fun DiagnosticsFixture(diagnostics: State<NaviampDiagnosticsUi>, onPresented: (NaviampDiagnosticsUi) -> Unit) {
+    val model = diagnostics.value
+    SideEffect { onPresented(model) }
 }

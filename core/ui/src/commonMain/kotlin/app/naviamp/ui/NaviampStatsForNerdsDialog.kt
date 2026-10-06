@@ -16,6 +16,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.State
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +45,14 @@ fun NaviampStatsForNerdsDialog(
         },
     )
 }
+
+/** Read changing diagnostics only inside the independently mounted presentation surface. */
+@Composable
+fun NaviampStatsForNerdsWindowContent(
+    diagnostics: State<NaviampDiagnosticsUi>,
+    onClose: () -> Unit,
+    darkTheme: Boolean,
+) = NaviampStatsForNerdsWindowContent(diagnostics.value, onClose, darkTheme)
 
 /** Shared product content for hosts that supply an independent native diagnostics window. */
 @Composable

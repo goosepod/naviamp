@@ -1,5 +1,6 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.State
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.DpSize
@@ -15,7 +16,7 @@ import app.naviamp.ui.naviampAppIconPainter
 /** Desktop window shell around the authoritative Core diagnostics model and shared content. */
 @Composable
 internal fun DesktopStatsForNerdsWindow(
-    diagnostics: NaviampDiagnosticsUi,
+    diagnostics: State<NaviampDiagnosticsUi>,
     onClose: () -> Unit,
 ) {
     Window(

@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import androidx.compose.runtime.State
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -94,8 +95,8 @@ fun NaviampCoreApp(
         core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
     },
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
-    statsForNerdsPresenter: @Composable (NaviampDiagnosticsUi, () -> Unit) -> Unit = { diagnostics, close ->
-        NaviampStatsForNerdsDialog(diagnostics, close)
+    statsForNerdsPresenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit = { diagnostics, close ->
+        NaviampStatsForNerdsDialog(diagnostics.value, close)
     },
 ) {
     val state by core.state.collectAsState()
@@ -165,14 +166,14 @@ fun NaviampCoreApp(
     }
 }
 
-/** Refresh only the diagnostics subtree; unchanged snapshots do not invalidate any surface. */
+/** Pass unread state so an independent presentation reads updates in its own surface. */
 @Composable
 internal fun NaviampCoreDiagnosticsPresentation(
     core: NaviampCore,
-    presenter: @Composable (NaviampDiagnosticsUi, () -> Unit) -> Unit,
+    presenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit,
 ) {
     val updates = remember(core) { naviampCoreDiagnosticsUpdates(core::statsForNerdsDiagnostics) }
-    val diagnostics by updates.collectAsState(remember(core) { core.statsForNerdsDiagnostics() })
+    val diagnostics = updates.collectAsState(remember(core) { core.statsForNerdsDiagnostics() })
     presenter(diagnostics, remember(core) { { core.dispatch(NaviampCoreCommand.Settings.CloseStats) } })
 }
 
@@ -181,8 +182,8 @@ internal fun NaviampCoreDiagnosticsPresentation(
 fun NaviampCoreHost(
     environment: NaviampCoreEnvironment,
     modifier: Modifier = Modifier,
-    statsForNerdsPresenter: @Composable (NaviampDiagnosticsUi, () -> Unit) -> Unit = { diagnostics, close ->
-        NaviampStatsForNerdsDialog(diagnostics, close)
+    statsForNerdsPresenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit = { diagnostics, close ->
+        NaviampStatsForNerdsDialog(diagnostics.value, close)
     },
 ) {
     val core = rememberNaviampCore(
