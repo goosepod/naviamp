@@ -111,7 +111,7 @@ val buildAnimationCompositorProbe by tasks.registering(Exec::class) {
         output.parentFile.mkdirs()
         commandLine("/usr/bin/clang++", "-std=c++17", "-fobjc-arc", "-dynamiclib",
             "-I$javaHome/include", "-I$javaHome/include/darwin", source.absolutePath,
-            "-L$javaHome/lib", "-ljawt", "-framework", "AppKit", "-framework", "QuartzCore",
+            "-L$javaHome/lib", "-ljawt", "-framework", "AppKit", "-framework", "QuartzCore", "-framework", "CoreFoundation",
             "-o", output.absolutePath)
     }
 }
@@ -127,7 +127,9 @@ tasks.register<JavaExec>("playerAnimationProbe") {
     providers.environmentVariable("NAVIAMP_PROBE_JFR").orNull?.let { recording ->
         jvmArgs("-XX:StartFlightRecording=filename=$recording,settings=profile,dumponexit=true")
     }
-    if (providers.environmentVariable("NAVIAMP_PROBE_COMPOSITOR").orNull == "true") {
+    if (providers.environmentVariable("NAVIAMP_PROBE_COMPOSITOR").orNull == "true" ||
+        (System.getProperty("os.name").startsWith("Mac") &&
+            providers.environmentVariable("NAVIAMP_PROBE_VERIFY").orNull == "true")) {
         dependsOn(buildAnimationCompositorProbe)
         systemProperty("naviamp.probe.compositor.library", compositorProbeLibrary.get().asFile.absolutePath)
     }
