@@ -1332,18 +1332,6 @@ private fun NowPlayingDetails(
                                     },
                                 )
                             }
-                            nowPlaying.playbackOutputs.forEach { output ->
-                                NaviampDropdownMenuItem(
-                                    label = if (output.selected)
-                                        stringResource(Res.string.now_playing_playback_device, output.displayName)
-                                    else output.displayName,
-                                    enabled = output.available && !output.selected,
-                                    onClick = {
-                                        actionMenuExpanded = false
-                                        actions.onPlaybackOutputSelected(output.deviceId)
-                                    },
-                                )
-                            }
                             nowPlayingTrackMenuActions(
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 isLive = nowPlaying.isLive,

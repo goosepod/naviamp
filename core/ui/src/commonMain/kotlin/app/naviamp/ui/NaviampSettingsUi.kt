@@ -2767,7 +2767,7 @@ private val DefaultNaviampChangelog = listOf(
         entries = listOf(
             "Cast online music from desktop to a Google Cast receiver, control playback and seeking, and return to local listening at the current position.",
             "Keep albums and artists downloaded, preview storage needs, and reuse tracks already saved by another collection.",
-            "Use fullscreen mode on desktop and restore the previous window size when leaving fullscreen.",
+            "Use fullscreen mode on desktop and restore the previous window size when leaving fullscreen. Wide views show a fullscreen button; compact players keep it in the actions menu.",
             "Control Linux playback through desktop media controls and MPRIS-compatible tools.",
             "Switch saved accounts on Android TV with a remote-friendly account chooser.",
             "Choose track or album artwork for individual albums while keeping the global default for everything else.",
@@ -2779,6 +2779,7 @@ private val DefaultNaviampChangelog = listOf(
             "Browse multi-disc albums in disc sections and see separate album and track groups under artist appearances.",
             "Create DJs from Now Playing and select newly saved DJs without reopening the picker.",
             "See favorite hearts beside album titles and more complete German interface translations.",
+            "Keep track actions focused on the current track, with device choices in the Cast picker and Connect controls rather than extra menu rows during local playback.",
         ),
     ),
     NaviampChangelogSectionUi(
@@ -2787,6 +2788,7 @@ private val DefaultNaviampChangelog = listOf(
             "Return the Library to the top after an explicit refresh and keep artist appearance tracks aligned.",
             "Allow owners to delete Smart Playlists whose track editing is read-only.",
             "Restore transparent animation surfaces on Linux X11 and improve Windows menu and dialog stability during animated playback.",
+            "Keep macOS animation layers aligned after resize and prevent Stats for Nerds from redrawing the main window; improve playback-control accessibility.",
         ),
     ),
     NaviampChangelogSectionUi(
@@ -2799,7 +2801,7 @@ private val DefaultNaviampChangelog = listOf(
         title = "Known issues",
         entries = listOf(
             "Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.",
-            "Further macOS and Linux popup performance and accessibility checks remain open, including the Linux full-app CPU budget.",
+            "Further Linux popup performance and accessibility checks remain open, including the full-app CPU budget.",
         ),
     ),
 )
