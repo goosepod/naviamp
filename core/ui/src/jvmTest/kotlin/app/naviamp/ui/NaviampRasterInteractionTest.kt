@@ -34,6 +34,38 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRasterInteractionTest {
+    @Test fun transportButtonExposesItsRoleAndSupportsKeyboardActivation() = runComposeUiTest {
+        var activations = 0
+        setContent {
+            NaviampTransportIconButton(
+                enabled = true, icon = NaviampTransportIcons.Pause,
+                contentDescription = "Fixture pause", colors = NaviampColors(),
+                onClick = { activations++ },
+            )
+        }
+        val node = onNodeWithContentDescription("Fixture pause")
+        node.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Button))
+        node.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        node.performKeyInput { pressKey(Key.Enter) }
+        runOnIdle { assertEquals(1, activations) }
+    }
+
+    @Test fun sharedDiagnosticsWindowContentKeepsItsCloseActionAccessible() = runComposeUiTest {
+        var closed = false
+        setContent {
+            NaviampStatsForNerdsWindowContent(
+                NaviampDiagnosticsUi(listOf(NaviampDiagnosticsSectionUi("Fixture", listOf("Status" to "Ready")))),
+                onClose = { closed = true }, darkTheme = true,
+            )
+        }
+        onNodeWithText("Status: Ready").assertExists()
+        val close = onNodeWithText("Close")
+        close.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Button))
+        close.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        close.performKeyInput { pressKey(Key.Enter) }
+        runOnIdle { assertTrue(closed) }
+    }
+
     @Test fun rtlWaveformKeyboardMatchesItsVisualAndPointerTimeline() = runComposeUiTest {
         val progress = mutableFloatStateOf(.2f)
         setContent {
@@ -245,6 +277,36 @@ class NaviampRasterInteractionTest {
             assertEquals(1, activations)
             assertTrue(presenter.presentations > 0)
         }
+    }
+
+    @Test fun nativeRejectionAfterSuccessRestoresCachedPixelsAndActions() = runComposeUiTest {
+        val presenter = RecordingPresenter()
+        val position = mutableStateOf(0.dp)
+        var activations = 0
+        setContent {
+            Box(Modifier.size(200.dp, 40.dp).background(Color.Black)) {
+                CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter) {
+                    NaviampRasterText(AnnotatedString("Artist"), TextStyle(color = Color.White, fontSize = 16.sp),
+                        25.dp, false, true, Modifier.offset(x = position.value).width(120.dp).testTag("rejected"),
+                        listOf(NaviampTextLink(0, 6, "Artist") { activations++ }))
+                }
+            }
+        }
+        waitForIdle()
+        val cached = presenter.layers.single().image
+        runOnIdle { presenter.ready = false; position.value = 2.dp }
+        waitForIdle()
+        assertSame(cached, presenter.layers.single().image)
+        val node = onNodeWithTag("rejected")
+        val pixels = node.captureToImage().toPixelMap()
+        var visible = 0
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
+            if (pixels[x, y].red > .5f) visible++
+        }
+        assertTrue(visible > 20, "Cached text disappeared after native rejection")
+        node.assertTextEquals("Artist")
+        val actions = node.fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        runOnIdle { assertTrue(actions.single().action()); assertEquals(1, activations) }
     }
 
     @Test fun restoringVisibilityRecreatesNativePresentationWithSharedMotionAndPixels() = runComposeUiTest {

@@ -8,8 +8,6 @@ No changes yet.
 
 ## v2.9.0
 
-Release branch under local testing; this version has not been published.
-
 Naviamp 2.9.0 brings Google Cast to desktop, extends Keep downloaded to albums and artists,
 and adds desktop fullscreen, Linux media controls and an Android TV account switcher.
 
@@ -21,6 +19,7 @@ and adds desktop fullscreen, Linux media controls and an Android TV account swit
   by another collection. New artist subscriptions default to favorite albums, with an explicit
   all-albums choice.
 - Use fullscreen mode on desktop and restore the previous window size when leaving fullscreen.
+  Wide views show a fullscreen button; compact players keep it in the actions menu.
 - Control Linux playback through desktop media controls and MPRIS-compatible tools.
 - Switch saved accounts on Android TV with a remote-friendly account chooser.
 - Choose track or album artwork for individual albums while keeping the global default for
@@ -32,6 +31,8 @@ and adds desktop fullscreen, Linux media controls and an Android TV account swit
   artist appearances.
 - Create DJs from Now Playing and select newly saved DJs without reopening the picker.
 - See favorite hearts beside album titles and more complete German interface translations.
+- Keep track actions focused on the current track, with device choices in the Cast picker and
+  Connect controls rather than extra menu rows during local playback.
 
 ### Bug fixes
 
@@ -39,6 +40,8 @@ and adds desktop fullscreen, Linux media controls and an Android TV account swit
 - Allow owners to delete Smart Playlists whose track editing is read-only.
 - Restore transparent animation surfaces on Linux X11 and improve Windows menu and dialog
   stability during animated playback.
+- Keep macOS animation layers aligned after resize and prevent Stats for Nerds from redrawing
+  the main window; improve playback-control accessibility.
 
 ### Upgrade notes
 
@@ -49,12 +52,12 @@ and adds desktop fullscreen, Linux media controls and an Android TV account swit
 
 - Google Cast requires online provider media and a reachable local network. Physical macOS
   verification and broader offline, lyrics and audio-effect support remain follow-ups (#221, #223).
-- Further macOS and Linux popup performance and accessibility checks remain open (#219, #220),
-  including the Linux full-app CPU budget (#203).
+- Further Linux popup performance and accessibility checks remain open (#220), including the
+  full-app CPU budget (#203).
 - Android TV and Naviamp Connect remain beta. The iOS artifact is unsigned, and Windows and
   macOS packages are not publisher-signed.
 
-See [prepared release notes](.github/releases/v2.9.0.md) for issue links and compatibility details.
+See [release notes](.github/releases/v2.9.0.md) for issue links and compatibility details.
 
 ## v2.8.0
 

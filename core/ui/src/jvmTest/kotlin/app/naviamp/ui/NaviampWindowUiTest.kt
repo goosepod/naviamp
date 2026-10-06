@@ -10,7 +10,47 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampWindowUiTest {
-    @Test fun fullscreenIconUsesTheNavigationMutedTintInBothStates() = runComposeUiTest {
+    @Test fun narrowNavigationOmitsFullscreenIcon() = runDesktopComposeUiTest(320, 668) {
+        val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
+        setContent {
+            NaviampWindowEnvironment(controller, DesktopShortcutPlatform.MacOS) {
+                SharedBottomNavigationBar(NaviampColors(), SharedRoute.Home, onRouteSelected = {})
+            }
+        }
+        onNodeWithTag("window-fullscreen").assertDoesNotExist()
+        onNodeWithContentDescription("Settings").assertIsDisplayed()
+    }
+
+    @Test fun wideButShortNavigationOmitsFullscreenIcon() = runDesktopComposeUiTest(1000, 400) {
+        val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
+        setContent {
+            NaviampWindowEnvironment(controller, DesktopShortcutPlatform.MacOS) {
+                SharedBottomNavigationBar(NaviampColors(), SharedRoute.Home, onRouteSelected = {})
+            }
+        }
+        onNodeWithTag("window-fullscreen").assertDoesNotExist()
+    }
+
+    @Test fun narrowPlayerKeepsFullscreenInMenuAndCollapseSeparate() = runDesktopComposeUiTest(320, 668) {
+        val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
+        setContent {
+            NaviampWindowEnvironment(controller, DesktopShortcutPlatform.MacOS) {
+                NaviampNowPlayingPanel(
+                    nowPlaying = NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Paused"),
+                    colors = NaviampColors(),
+                    actions = NaviampNowPlayingActions({}, {}, {}, {}, {}, {}, {}),
+                )
+            }
+        }
+        onNodeWithTag("window-fullscreen").assertDoesNotExist()
+        onNodeWithContentDescription("Collapse player").assertIsDisplayed()
+        onNodeWithContentDescription("Track actions").performClick()
+        onNodeWithText("Enter fullscreen").assertIsDisplayed().performClick()
+        runOnIdle { assertEquals(NaviampWindowPlacement.Fullscreen, controller.state.placement) }
+        onNodeWithText("Enter fullscreen").assertDoesNotExist()
+    }
+
+    @Test fun fullscreenIconUsesTheNavigationMutedTintInBothStates() = runDesktopComposeUiTest(1000, 740) {
         val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
         val colors = NaviampColors(primaryText = Color.Red, mutedText = Color.Green)
         setContent {
@@ -35,7 +75,7 @@ class NaviampWindowUiTest {
         }
     }
 
-    @Test fun buttonAndShortcutsUseTheSameWindowState() = runComposeUiTest {
+    @Test fun buttonAndShortcutsUseTheSameWindowState() = runDesktopComposeUiTest(1000, 740) {
         val requests = mutableListOf<NaviampWindowSnapshot>()
         val initial = NaviampWindowSnapshot(width = 1100f, height = 700f, x = 40f, y = 60f)
         val controller = NaviampWindowController({ requests.add(it); true }, initial)
@@ -56,7 +96,7 @@ class NaviampWindowUiTest {
         runOnIdle { assertEquals(initial, requests.last()) }
     }
 
-    @Test fun escapeDismissesMenuBeforeExitingFullscreen() = runComposeUiTest {
+    @Test fun escapeDismissesMenuBeforeExitingFullscreen() = runDesktopComposeUiTest(1000, 740) {
         val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
         controller.toggle()
         setContent {
@@ -81,7 +121,7 @@ class NaviampWindowUiTest {
         onNodeWithContentDescription("Enter fullscreen").assertIsDisplayed()
     }
 
-    @Test fun nonFocusableTooltipDoesNotBlockFullscreenEscape() = runComposeUiTest {
+    @Test fun nonFocusableTooltipDoesNotBlockFullscreenEscape() = runDesktopComposeUiTest(1000, 740) {
         val controller = NaviampWindowController({ true }, NaviampWindowSnapshot())
         controller.toggle()
         setContent {
@@ -95,7 +135,7 @@ class NaviampWindowUiTest {
         onNodeWithTag("application-window").performKeyInput { pressKey(Key.Escape) }
         onNodeWithContentDescription("Enter fullscreen").assertIsDisplayed()
     }
-    @Test fun heldShortcutDoesNotRepeatedlyToggleTheWindow() = runComposeUiTest {
+    @Test fun heldShortcutDoesNotRepeatedlyToggleTheWindow() = runDesktopComposeUiTest(1000, 740) {
         var requests = 0
         val controller = NaviampWindowController({ requests++; true }, NaviampWindowSnapshot())
         setContent { NaviampWindowEnvironment(controller, DesktopShortcutPlatform.Windows) {
@@ -111,7 +151,7 @@ class NaviampWindowUiTest {
         runOnIdle { assertEquals(2, requests) }
     }
 
-    @Test fun hostsWithoutAWindowEffectDoNotShowFullscreenControl() = runComposeUiTest {
+    @Test fun hostsWithoutAWindowEffectDoNotShowFullscreenControl() = runDesktopComposeUiTest(1000, 740) {
         setContent { NaviampWindowEnvironment(null, null) { NaviampWindowFullscreenButton(NaviampColors()) } }
         onNodeWithTag("window-fullscreen").assertDoesNotExist()
     }
