@@ -138,7 +138,7 @@ tasks.register<JavaExec>("playerAnimationProbe") {
 // Test-only, visible-window probe of the production visualizer surface and rendering backends.
 tasks.register<JavaExec>("visualizerPerformanceProbe") {
     group = "verification"
-    description = "Runs Audio Sphere and Analog Signal Failure in a visible Mac performance fixture."
+    description = "Runs visualizers in a visible Mac performance fixture."
     dependsOn("jvmTestClasses")
     classpath = tasks.named<Test>("jvmTest").get().classpath
     mainClass.set("app.naviamp.ui.NaviampVisualizerPerformanceProbeKt")

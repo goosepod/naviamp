@@ -39,7 +39,11 @@ fun main() {
         Window(onCloseRequest = ::exitApplication, title = "Naviamp visualizer performance probe", state = state, alwaysOnTop = true) {
             val active = !phase.startsWith("paused") && phase != "static"
             val combined = phase.contains("combined")
-            val visualizer = if (phase.contains("analog")) NaviampVisualizer.AnalogSignalFailure else NaviampVisualizer.AudioSphere
+            val visualizer = when {
+                phase.contains("ocean-ink") -> NaviampVisualizer.OceanOfInk
+                phase.contains("analog") -> NaviampVisualizer.AnalogSignalFailure
+                else -> NaviampVisualizer.AudioSphere
+            }
             // Test-only A/B override. Recreate the production surface when the requested backend changes.
             val backend = when {
                 phase.startsWith("native-") -> "true"

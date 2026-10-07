@@ -1,4 +1,4 @@
-# Audio Sphere and Analog Signal Failure: preliminary Mac investigation
+# Visualizer performance: preliminary Mac investigation
 
 Issue: https://github.com/goosepod/naviamp/issues/241
 
@@ -231,6 +231,54 @@ invalidations. Keep audio analysis and other UI animation cadence independent. D
 and an optional 45 FPS mode are reasonable targets to evaluate; enforce lifecycle/visibility
 and preserve the accepted visuals. A user-facing cap would need shared settings export/import,
 sync and translations. Measure the full app before accepting the result.
+
+## Ocean of Ink follow-up
+
+At the owner's request, extend the same fixture to Ocean of Ink. Its production GLSL, quality
+policy and default backend are unchanged in this follow-up. It uses a 60-step water raymarch,
+two simplex-noise evaluations per height sample, and additional height samples for the surface
+normal. The shared linear frequency sampling correction applies to its Skia translation too.
+Native Metal is an opt-in comparison on Mac; the runtime shader is the available fallback.
+
+Same 358x358 visible fixture, 75 Hz display, full quality, 20 Hz deterministic bands and AC
+conditions. Two ten-second samples per state, with compilation retained and no overlapping build
+or GPU recording during CPU samples. These are exploratory comparisons, not randomized trials.
+
+| State | CPU, % of one core | Parent frames / 10 s |
+| --- | ---: | ---: |
+| Static | 0.930 | 0 |
+| Ocean of Ink, runtime shader | 20.770 | 757.5 |
+| Ocean of Ink, native Metal readback | 25.736 | 764 |
+| Ocean runtime shader plus inline marquee/progress | 21.543 | 748.5 |
+| Paused Ocean, runtime shader | 0.567 | 0 |
+
+Native draw submission averages about 6.6 ms in the fixture metrics, versus roughly 0.1 ms for
+runtime-shader submission. Those are wall-time submission measurements, not GPU execution time.
+Both active paths retain continuous parent rendering and roughly 26 ms median drawing intervals.
+
+Separate ten-second traces record 3,929.743 ms Fragment / 10.078 ms Vertex for runtime Ocean,
+and 2,211.735 ms Fragment / 8.415 ms Vertex / 27.662 ms Compute for native Ocean. Channel
+intervals overlap; these are not GPU utilization or energy. Only the owned probe process is
+included in app totals; whole-desktop WindowServer remains separate. Compared with the earlier
+Analog traces, Ocean has a materially larger shader cost. Native presentation still adds CPU
+cost through synchronous completion, readback and Skia image presentation. An effective frame
+cap should reduce actual shader executions as well as frame requests; backend choice alone does
+not meet the budget.
+
+All physical captures pass ownership/obstruction checks. Runtime Ocean changes 62,285 visualizer
+pixels and native Ocean 54,431 pixels, with zero static-sibling changes. Captures retain the blue
+water and black regions near the horizon in both paths; motion/nonblank checks do not certify
+visual quality. The shader can exhaust its raymarch loop without assigning a sky/water fallback,
+and shader time currently comes from the host frame timestamp converted to Float seconds.
+Review miss handling and precision-safe common elapsed time during the visual/performance work;
+this pass does not establish the cause of each visible black region or a before/after Ocean
+improvement.
+
+The fixture selects `skia-ocean-ink`, `native-ocean-ink`, `skia-ocean-ink-combined` and
+`paused-ocean-ink`. A focused opt-in `naviamp.visualizer.oceanInkMetalProbeTest=true` test checks
+real native output at two times; all 16 focused JVM tests pass with Analog and Ocean native tests
+enabled. No platform production file is modified. Keep full-app lifecycle/input/clipping/
+accessibility and Android/iOS runtime performance outstanding.
 
 ## Proposed acceptance budget for the next implementation
 

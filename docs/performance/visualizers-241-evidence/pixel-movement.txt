@@ -5,3 +5,5 @@ retained/retained-skia-sphere-2: visualizer_changed_pixels=121932 static_sibling
 retained/retained-native-analog-2: visualizer_changed_pixels=127401 static_sibling_changed_pixels=0
 retained/retained-skia-analog-2: visualizer_changed_pixels=127649 static_sibling_changed_pixels=0
 continuous-skia-analog-2: visualizer_changed_pixels=127410 static_sibling_changed_pixels=0
+ocean-skia-ocean-ink-2: visualizer_changed_pixels=62285 static_sibling_changed_pixels=0
+ocean-native-ocean-ink-2: visualizer_changed_pixels=54431 static_sibling_changed_pixels=0

@@ -16,7 +16,16 @@ class NativeMetalShaderTranslatorTest {
     @Test
     fun analogMetalRendererProducesNonblankMovingPixelsWhenFocusedTestIsEnabled() {
         if (System.getProperty("naviamp.visualizer.analogMetalProbeTest") != "true") return
-        val visualizer = NaviampVisualizer.AnalogSignalFailure
+        assertNativeVisualizerProducesMovingPixels(NaviampVisualizer.AnalogSignalFailure)
+    }
+
+    @Test
+    fun oceanInkMetalRendererProducesNonblankMovingPixelsWhenFocusedTestIsEnabled() {
+        if (System.getProperty("naviamp.visualizer.oceanInkMetalProbeTest") != "true") return
+        assertNativeVisualizerProducesMovingPixels(NaviampVisualizer.OceanOfInk)
+    }
+
+    private fun assertNativeVisualizerProducesMovingPixels(visualizer: NaviampVisualizer) {
         NativeMetalVisualizerHost(visualizer, visualizerRenderPolicy(visualizer, VisualizerRenderTier.Full)).use { host ->
             fun render(time: Float): IntArray {
                 return assertNotNull(host.renderImage(
@@ -34,7 +43,7 @@ class NativeMetalShaderTranslatorTest {
             }
             val before = render(1.25f)
             val after = render(2.25f)
-            assertTrue(before.indices.count { before[it] != after[it] } > before.size / 20, "Analog Metal output must move")
+            assertTrue(before.indices.count { before[it] != after[it] } > before.size / 20, "${visualizer.name} Metal output must move")
         }
     }
 
