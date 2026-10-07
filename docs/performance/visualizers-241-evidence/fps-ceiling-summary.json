@@ -1,0 +1,54 @@
+{
+  "60": {
+    "full_quality_interval_ms": 17,
+    "ui_sha256": "e990d9a9b3af8d3cc493e03a91d2ddd53bda59779f659f2f0d9ac0855941a9cf",
+    "states": {
+      "native-analog": {
+        "median_cpu_percent": 26.25030518540703,
+        "median_parent_frames_10s": 763.0,
+        "all_captures_valid": true
+      },
+      "skia-analog": {
+        "median_cpu_percent": 16.77328863609466,
+        "median_parent_frames_10s": 759.5,
+        "all_captures_valid": true
+      },
+      "skia-sphere": {
+        "median_cpu_percent": 21.982164808074465,
+        "median_parent_frames_10s": 762.5,
+        "all_captures_valid": true
+      },
+      "static": {
+        "median_cpu_percent": 0.8835729294364711,
+        "median_parent_frames_10s": 0.0,
+        "all_captures_valid": true
+      }
+    }
+  },
+  "45": {
+    "full_quality_interval_ms": 23,
+    "ui_sha256": "296bfb5e1ec97837e8bcc682ba176327b9392dfe811b218cd2dd01d983344ac5",
+    "states": {
+      "native-analog": {
+        "median_cpu_percent": 25.35003726797264,
+        "median_parent_frames_10s": 760.0,
+        "all_captures_valid": true
+      },
+      "skia-analog": {
+        "median_cpu_percent": 18.499071433625588,
+        "median_parent_frames_10s": 755.5,
+        "all_captures_valid": true
+      },
+      "skia-sphere": {
+        "median_cpu_percent": 20.649666297028503,
+        "median_parent_frames_10s": 763.5,
+        "all_captures_valid": true
+      },
+      "static": {
+        "median_cpu_percent": 0.9292502713169968,
+        "median_parent_frames_10s": 0.0,
+        "all_captures_valid": true
+      }
+    }
+  }
+}

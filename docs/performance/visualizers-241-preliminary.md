@@ -192,11 +192,53 @@ before/after capture changes 127,410 visualizer pixels and zero static sibling p
 
 These are correctness evidence and performance investigation data, not an accepted optimization.
 
+## FPS ceiling experiment
+
+At the owner's request, compare 60 and 45 FPS ceilings using only a temporary change to the
+common Full-tier draw interval. The existing integer-millisecond policy requires 17 ms and 23 ms
+respectively (58.8 and 43.5 FPS ceilings before display quantization). Both experimental JARs
+include the approved continuous-trace correction. Production policy is restored; these are
+draw-gating experiments, not implementations of a correctly paced 60/45 FPS scheduler.
+
+Same visible fixture, display, signal, quality and AC conditions; two ten-second samples per state.
+No Gradle build or GPU recording overlaps the CPU intervals. Keep compilation costs and the
+run-order limitation. Parent frames are actual observed frames, not the configured target.
+
+| State | 60 ceiling CPU, % | 45 ceiling CPU, % | 60 / 45 parent frames per 10 s |
+| --- | ---: | ---: | ---: |
+| static | 0.884 | 0.929 | 0 / 0 |
+| skia-sphere | 21.982 | 20.650 | 762.5 / 763.5 |
+| skia-analog | 16.773 | 18.499 | 759.5 / 755.5 |
+| native-analog | 26.250 | 25.350 | 763 / 760 |
+
+Both thresholds still leave the parent rendering near the display rate. The median visualizer
+drawing interval is around 26 ms in both experiments: the current loop requests every display
+tick and then rejects ticks until enough time has passed. Independent band-input invalidation
+also prevents the draw gate from being a complete cap. These exploratory CPU values do not
+establish a reliable saving from changing the interval alone.
+
+All captures pass native visibility checks. Each effect moves at both ceilings; Analog changes
+127,264 / 127,185 pixels and Sphere 122,025 / 121,518 pixels, with zero static-sibling changes.
+The corrected continuous trace is preserved. Raw CPU/frame/draw samples, artifact hashes,
+selected before/after captures and separate GPU summaries are retained. Separate ten-second
+runtime-Analog traces record 108.572 ms Fragment / 5.538 ms Vertex for the 60 ceiling and
+102.929 ms Fragment / 6.908 ms Vertex for the 45 ceiling. Channels overlap; these are not GPU
+utilization or evidence of a reliable GPU improvement.
+
+Implement the effective cap in common ownership: use precise deadlines, request presentation
+only for due visualizer frames, and snapshot/sample input without causing independent surface
+invalidations. Keep audio analysis and other UI animation cadence independent. Default 60 FPS
+and an optional 45 FPS mode are reasonable targets to evaluate; enforce lifecycle/visibility
+and preserve the accepted visuals. A user-facing cap would need shared settings export/import,
+sync and translations. Measure the full app before accepting the result.
+
 ## Proposed acceptance budget for the next implementation
 
 For this Mac reference at 358x358 and the same display/window/power conditions, aim for at most
 five CPU percentage points above static playback, no sustained parent-surface rendering caused
-by the visualizer, and smooth display-paced motion without lowering playback update frequency.
+by the visualizer, and smooth display-paced motion without lowering playback update frequency. The owner accepts
+visualizer frame caps of 60 FPS and potentially 45 FPS; a lower visualizer cadence is allowed,
+but the cap must reduce actual work rather than simply discard already-requested display ticks.
 Record actual per-frame GPU/presentation percentiles and missed frames; cumulative GPU channel
 totals are not a substitute. Apply the combined, lifecycle, input, clipping and accessibility
 matrix in the full app before accepting this budget. Revisit larger sizes with explicit evidence,
