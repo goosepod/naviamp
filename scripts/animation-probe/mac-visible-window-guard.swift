@@ -9,7 +9,11 @@ guard (args.count == 3 && args[2] == "--rectangles") || args.count == 6,
 }
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
 if args[2] == "--rectangles" {
-    let owned = windows.filter { ($0[kCGWindowOwnerPID as String] as? Int) == pid && ($0[kCGWindowLayer as String] as? Int) == 0 }
+    let owned = windows.filter {
+        ($0[kCGWindowOwnerPID as String] as? Int) == pid &&
+            (($0[kCGWindowLayer as String] as? Int) == 0 ||
+                ($0[kCGWindowName as String] as? String) == "Naviamp visualizer performance probe")
+    }
         .sorted { ($0[kCGWindowName as String] as? String == "Naviamp" ? 0 : 1) < ($1[kCGWindowName as String] as? String == "Naviamp" ? 0 : 1) }
     for window in owned {
         guard let bounds = window[kCGWindowBounds as String] as? NSDictionary,

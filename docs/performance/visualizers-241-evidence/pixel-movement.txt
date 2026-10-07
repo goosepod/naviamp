@@ -1,0 +1,7 @@
+visible-native/sphere-visible-repeat-3: visualizer_changed_pixels=127304 static_sibling_changed_pixels=0
+visible-native/analog-3: visualizer_changed_pixels=127222 static_sibling_changed_pixels=0
+candidate/candidate-skia-analog-3: visualizer_changed_pixels=127506 static_sibling_changed_pixels=0
+retained/retained-skia-sphere-2: visualizer_changed_pixels=121932 static_sibling_changed_pixels=0
+retained/retained-native-analog-2: visualizer_changed_pixels=127401 static_sibling_changed_pixels=0
+retained/retained-skia-analog-2: visualizer_changed_pixels=127649 static_sibling_changed_pixels=0
+continuous-skia-analog-2: visualizer_changed_pixels=127410 static_sibling_changed_pixels=0

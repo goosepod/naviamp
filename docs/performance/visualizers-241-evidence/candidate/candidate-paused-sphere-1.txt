@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=candidate-paused-sphere-1 pid=14168 cpu=0.9400810123542391 compilation_ms=9 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

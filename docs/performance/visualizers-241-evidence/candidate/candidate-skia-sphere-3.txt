@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=candidate-skia-sphere-3 pid=14168 cpu=17.810994860597535 compilation_ms=321 surface=parent:1000x712 visible=true iconified=false frames=761 observer_attached=true physical_captures=true/true

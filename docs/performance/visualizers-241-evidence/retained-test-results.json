@@ -1,0 +1,16 @@
+[
+  {
+    "name": "app.naviamp.ui.VisualizerShaderTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.naviamp.ui.NativeMetalShaderTranslatorTest",
+    "tests": "10",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  }
+]
