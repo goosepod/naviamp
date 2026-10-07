@@ -58,7 +58,8 @@ the release branch. A platform or feature shipping for the first time is one com
 capability; prerelease implementation fixes are not separate public changes.
 
 Order announcement content by product significance. Major launches lead the summary and
-highlights; GitHub release names retain the exact format above. Improvements and fixes to previously released behavior follow.
+highlights; GitHub release names retain the exact format above. Improvements and fixes to
+previously released behavior follow.
 
 ## In-App Release Changelog
 
