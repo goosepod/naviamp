@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=screen-direct-large-analog-2 pid=39634 cpu=7.988754886012874 compilation_ms=0 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

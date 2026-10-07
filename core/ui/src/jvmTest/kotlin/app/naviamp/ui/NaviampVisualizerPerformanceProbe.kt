@@ -33,11 +33,12 @@ fun main() {
         val animatedBands = remember { mutableStateOf(List(32) { 0f }) }
         val progress = remember { mutableFloatStateOf(.2f) }
         val state = rememberWindowState(
-            width = 1000.dp, height = 740.dp,
-            position = WindowPosition.Absolute(800.dp, 400.dp),
+            width = 1280.dp, height = 960.dp,
+            position = WindowPosition.Absolute(800.dp, 200.dp),
         )
         Window(onCloseRequest = ::exitApplication, title = "Naviamp visualizer performance probe", state = state, alwaysOnTop = true) {
             val active = !phase.startsWith("paused") && phase != "static"
+            val direct = phase.contains("direct")
             val combined = phase.contains("combined")
             val visualizer = when {
                 phase.contains("ocean-ink") -> NaviampVisualizer.OceanOfInk
@@ -87,15 +88,30 @@ fun main() {
                     delay(500)
                 }
             }
+            NaviampDesktopRasterHost(window, state) {
+            val gpu = LocalNaviampGpuVisualizerPresenter.current
+            CompositionLocalProvider(
+                LocalNaviampGpuVisualizerPresenter provides gpu.takeIf { direct },
+                LocalNaviampVisualizerFps provides if (phase.contains("45")) 45 else 60,
+                LocalNaviampVisualizerSubmissionObserver provides { accepted, nanos ->
+                    if (accepted) {
+                        val timestamp = System.nanoTime()
+                        val previousDraw = lastDraw.getAndSet(timestamp)
+                        if (previousDraw != 0L && intervals.size < 20_000) intervals.add(timestamp - previousDraw)
+                        draws.incrementAndGet(); drawNanos.addAndGet(nanos)
+                    }
+                },
+            ) {
             Column(Modifier.fillMaxSize().background(Color(0xff24242b)).padding(32.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Text("Visualizer performance fixture: $phase", color = Color.White)
-                Box(Modifier.size(358.dp).background(Color(0xff191922))) {
-                    key(backend) {
-                        if (phase != "static") PlatformLiveVisualizerSurface(
+                Box(Modifier.size(if (phase.contains("large")) 640.dp else 358.dp).background(Color(0xff191922))) {
+                    key(backend, direct) {
+                        if (phase != "static") NaviampPresentedVisualizerSurface(
                             coverArtUrl = null, bandsProvider = { animatedBands.value }, visualizer = visualizer,
                             visualizerColors = NaviampPlayerColors(Color(0xff3d285c), Color(0xff176b72), Color(0xffa14b68), Color(0xff69e3e9)), active = active, tempoBpm = 120,
                             colors = NaviampColors(), lyricStage = LyricMirrorTunnelStage(),
                             modifier = Modifier.fillMaxSize().drawWithContent {
+                                if (direct) { drawContent(); return@drawWithContent }
                                 val started = System.nanoTime()
                                 val previousDraw = lastDraw.getAndSet(started)
                                 if (previousDraw != 0L && intervals.size < 20_000) intervals.add(started - previousDraw)
@@ -116,6 +132,8 @@ fun main() {
                     }
                 }
                 Text("Unchanging sibling content", color = Color.White)
+            }
+            }
             }
         }
     }

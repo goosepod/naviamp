@@ -5,6 +5,7 @@
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <QuartzCore/CATransaction.h>
 
 #include <array>
 #include <algorithm>
@@ -12,6 +13,9 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <memory>
+#include <atomic>
+#import <CoreFoundation/CoreFoundation.h>
 
 namespace {
 
@@ -145,7 +149,7 @@ id<MTLSamplerState> createSamplerState(id<MTLDevice> device) {
     return [device newSamplerStateWithDescriptor:descriptor];
 }
 
-id<MTLRenderPipelineState> createPipeline(id<MTLDevice> device, const std::string& fragmentSource, std::string& errorMessage) {
+id<MTLRenderPipelineState> createPipeline(id<MTLDevice> device, const std::string& fragmentSource, std::string& errorMessage, bool premultiplied = false) {
     NSString* source = [NSString stringWithUTF8String:metalLibrarySource(fragmentSource).c_str()];
     NSError* error = nil;
     id<MTLLibrary> library = [device newLibraryWithSource:source options:nil error:&error];
@@ -159,7 +163,7 @@ id<MTLRenderPipelineState> createPipeline(id<MTLDevice> device, const std::strin
     descriptor.fragmentFunction = [library newFunctionWithName:@"visualizerFragment"];
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
     descriptor.colorAttachments[0].blendingEnabled = YES;
-    descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+    descriptor.colorAttachments[0].sourceRGBBlendFactor = premultiplied ? MTLBlendFactorOne : MTLBlendFactorSourceAlpha;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
     descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
     descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
@@ -463,4 +467,155 @@ Java_app_naviamp_ui_NativeMetalVisualizerHost_nativeDispose(JNIEnv* env, jobject
         });
         delete host;
     }
+}
+
+// Direct presentation ABI. Shared Kotlin supplies uniforms, cadence, clipping and lifecycle.
+// AppKit owns layer attachment; Metal owns a single in-flight command's resource lifetime.
+namespace {
+struct DirectRegion {
+    Host gpu;
+    __strong CALayer* parent = nil;
+    __strong CALayer* clip = nil;
+    __strong CAMetalLayer* drawableLayer = nil;
+    dispatch_queue_t queue = dispatch_queue_create("app.naviamp.visualizer.gpu", DISPATCH_QUEUE_SERIAL);
+    std::atomic_bool ready{false}, visible{false}, busy{false}, closed{false}, failed{false};
+};
+using DirectHandle = std::shared_ptr<DirectRegion>;
+static DirectHandle directRegion(jlong handle) {
+    auto holder = reinterpret_cast<DirectHandle*>(handle);
+    return holder ? *holder : nullptr;
+}
+static void directAppKit(dispatch_block_t work) {
+    if ([NSThread isMainThread]) { work(); return; }
+    CFRunLoopPerformBlock(CFRunLoopGetMain(), kCFRunLoopCommonModes, work);
+    CFRunLoopWakeUp(CFRunLoopGetMain());
+}
+}
+extern "C" JNIEXPORT jlong JNICALL
+Java_app_naviamp_ui_DesktopGpuVisualizerNative_create(JNIEnv* env, jobject, jobject component, jstring shader) {
+    @autoreleasepool {
+        auto region = std::make_shared<DirectRegion>();
+        JAWT awt{}; awt.version = JAWT_VERSION_9;
+        if (!JAWT_GetAWT(env, &awt)) return 0;
+        auto surface = awt.GetDrawingSurface(env, component);
+        if (!surface) return 0;
+        if (!(surface->Lock(surface) & JAWT_LOCK_ERROR)) {
+            auto info = surface->GetDrawingSurfaceInfo(surface);
+            if (info && info->platformInfo) {
+                id<JAWT_SurfaceLayers> layers = (__bridge id<JAWT_SurfaceLayers>)info->platformInfo;
+                region->parent = layers.windowLayer ?: layers.layer;
+            }
+            if (info) surface->FreeDrawingSurfaceInfo(info);
+            surface->Unlock(surface);
+        }
+        awt.FreeDrawingSurface(surface);
+        if (!region->parent) return 0;
+        region->gpu.device = MTLCreateSystemDefaultDevice();
+        if (!region->gpu.device) return 0;
+        region->gpu.commandQueue = [region->gpu.device newCommandQueue];
+        region->gpu.samplerState = createSamplerState(region->gpu.device);
+        std::string error;
+        region->gpu.pipeline = createPipeline(region->gpu.device, jstringToString(env, shader), error, true);
+        if (!region->gpu.pipeline) { throwIllegalState(env, error); return 0; }
+        ensureTextures(&region->gpu);
+        directAppKit(^{
+            if (region->closed.load()) return;
+            region->clip = [CALayer layer];
+            region->clip.anchorPoint = CGPointZero;
+            region->clip.geometryFlipped = YES;
+            region->clip.masksToBounds = YES;
+            region->clip.hidden = YES;
+            region->clip.autoresizingMask = kCALayerMaxXMargin |
+                (region->parent.geometryFlipped ? kCALayerMaxYMargin : kCALayerMinYMargin);
+            region->drawableLayer = [CAMetalLayer layer];
+            region->drawableLayer.anchorPoint = CGPointZero;
+            region->drawableLayer.device = region->gpu.device;
+            region->drawableLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+            region->drawableLayer.framebufferOnly = YES;
+            region->drawableLayer.opaque = NO;
+            region->drawableLayer.maximumDrawableCount = 3;
+            [region->clip addSublayer:region->drawableLayer];
+            [region->parent addSublayer:region->clip];
+            region->ready.store(true);
+        });
+        return reinterpret_cast<jlong>(new DirectHandle(region));
+    }
+}
+extern "C" JNIEXPORT void JNICALL
+Java_app_naviamp_ui_DesktopGpuVisualizerNative_place(JNIEnv* env, jobject, jlong handle, jdoubleArray array) {
+    auto region = directRegion(handle);
+    if (!region || env->GetArrayLength(array) != 10) return;
+    std::array<double, 10> g; env->GetDoubleArrayRegion(array, 0, g.size(), g.data());
+    directAppKit(^{
+        if (region->closed.load() || !region->clip) return;
+        [CATransaction begin]; [CATransaction setDisableActions:YES];
+        const double scale = std::max(g[8], 1.0);
+        const double x = g[4] / scale, y = g[5] / scale, w = g[6] / scale, h = g[7] / scale;
+        region->clip.position = CGPointMake(x, region->parent.geometryFlipped ? y : region->parent.bounds.size.height-y-h);
+        region->clip.bounds = CGRectMake(0, 0, w, h);
+        region->clip.cornerRadius = g[9] / scale;
+        region->drawableLayer.position = CGPointMake((g[0]-g[4])/scale, (g[1]-g[5])/scale);
+        region->drawableLayer.bounds = CGRectMake(0, 0, g[2]/scale, g[3]/scale);
+        region->drawableLayer.contentsScale = scale;
+        region->drawableLayer.drawableSize = CGSizeMake(g[2], g[3]);
+        [CATransaction commit];
+    });
+}
+extern "C" JNIEXPORT void JNICALL
+Java_app_naviamp_ui_DesktopGpuVisualizerNative_setVisible(JNIEnv*, jobject, jlong handle, jboolean visible) {
+    auto region = directRegion(handle); if (!region) return;
+    region->visible.store(visible);
+    directAppKit(^{ if (!region->closed.load()) region->clip.hidden = !visible; });
+}
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_ui_DesktopGpuVisualizerNative_submit(JNIEnv* env, jobject, jlong handle, jfloatArray bands, jintArray values) {
+    auto region = directRegion(handle);
+    if (!region || region->closed.load() || region->failed.load()) return 3;
+    if (!region->ready.load() || !region->visible.load()) return 1;
+    if (env->GetArrayLength(bands) != 32 || env->GetArrayLength(values) != 39) return 3;
+    bool expected = false;
+    if (!region->busy.compare_exchange_strong(expected, true)) return 2;
+    std::array<float, 32> frequencies;
+    std::array<jint, 39> uniforms;
+    env->GetFloatArrayRegion(bands, 0, 32, frequencies.data());
+    env->GetIntArrayRegion(values, 0, 39, uniforms.data());
+    dispatch_async(region->queue, ^{
+        @autoreleasepool {
+            if (region->closed.load() || !region->visible.load()) { region->busy.store(false); return; }
+            auto& gpu = region->gpu;
+            [gpu.frequencyTexture replaceRegion:MTLRegionMake2D(0, 0, 32, 1) mipmapLevel:0
+                                      withBytes:frequencies.data() bytesPerRow:32*sizeof(float)];
+            id<CAMetalDrawable> drawable = [region->drawableLayer nextDrawable];
+            if (!drawable) { region->busy.store(false); return; }
+            MTLRenderPassDescriptor* pass = [MTLRenderPassDescriptor renderPassDescriptor];
+            pass.colorAttachments[0].texture = drawable.texture;
+            pass.colorAttachments[0].loadAction = MTLLoadActionClear;
+            pass.colorAttachments[0].storeAction = MTLStoreActionStore;
+            pass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+            id<MTLCommandBuffer> command = [gpu.commandQueue commandBuffer];
+            id<MTLRenderCommandEncoder> encoder = [command renderCommandEncoderWithDescriptor:pass];
+            if (!encoder) { region->failed.store(true); region->busy.store(false); return; }
+            [encoder setRenderPipelineState:gpu.pipeline];
+            [encoder setFragmentBytes:uniforms.data() length:uniforms.size()*sizeof(jint) atIndex:0];
+            [encoder setFragmentTexture:gpu.frequencyTexture atIndex:0];
+            [encoder setFragmentTexture:gpu.albumArtTexture atIndex:1];
+            [encoder setFragmentSamplerState:gpu.samplerState atIndex:0];
+            [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+            [encoder endEncoding];
+            [command presentDrawable:drawable];
+            [command addCompletedHandler:^(id<MTLCommandBuffer> completed) {
+                if (completed.status == MTLCommandBufferStatusError) region->failed.store(true);
+                region->busy.store(false);
+            }];
+            [command commit];
+        }
+    });
+    return 0;
+}
+extern "C" JNIEXPORT void JNICALL
+Java_app_naviamp_ui_DesktopGpuVisualizerNative_close(JNIEnv*, jobject, jlong handle) {
+    auto holder = reinterpret_cast<DirectHandle*>(handle); if (!holder) return;
+    auto region = *holder; delete holder;
+    region->closed.store(true);
+    directAppKit(^{ [region->clip removeFromSuperlayer]; region->clip = nil; });
 }

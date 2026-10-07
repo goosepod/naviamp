@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=screen-direct-large-ocean-ink-2 pid=39634 cpu=9.154264518748153 compilation_ms=3 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

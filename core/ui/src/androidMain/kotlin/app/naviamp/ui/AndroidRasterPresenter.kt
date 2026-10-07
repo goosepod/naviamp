@@ -36,17 +36,16 @@ import kotlin.math.min
 fun NaviampAndroidRasterHost(content: @Composable () -> Unit) {
     val activity = LocalContext.current as? Activity
     val lifecycle = (activity as? LifecycleOwner)?.lifecycle
+    val gpu = remember(activity) { activity?.let(::AndroidGpuVisualizerPresenter) }
     val presenter = remember(activity) {
         activity?.takeIf { Build.VERSION.SDK_INT >= 29 }?.let(::AndroidRasterPresenter)
     }
     var visible by remember(lifecycle) {
         mutableStateOf(lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true)
     }
-    CompositionLocalProvider(
-        LocalNaviampRasterPresenter provides presenter,
-        LocalNaviampAnimationVisible provides visible,
-        content = content,
-    )
+    CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpu) {
+        NaviampRasterEnvironment(presenter, visible, false, content)
+    }
     DisposableEffect(lifecycle, presenter) {
         val observer = LifecycleEventObserver { _, _ ->
             visible = lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true

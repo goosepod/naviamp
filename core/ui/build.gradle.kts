@@ -1,7 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
-val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true"
+val visualizerProbe = providers.gradleProperty("naviamp.visualizerProbe").orNull == "true"
+val animationProbe = providers.gradleProperty("naviamp.animationProbe").orNull == "true" || visualizerProbe
 
 plugins {
     alias(libs.plugins.android.library)
@@ -80,7 +81,10 @@ android {
         // Keep the standalone native-boundary fixture on the pre-enforced-edge-to-edge model.
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        if (animationProbe) {
+        if (visualizerProbe) {
+            testApplicationId = "app.naviamp.ui.visualizer241.test"
+            testInstrumentationRunnerArguments["class"] = "app.naviamp.ui.AndroidVisualizerProbeTest"
+        } else if (animationProbe) {
             testInstrumentationRunnerArguments["class"] = listOf(
                 "app.naviamp.ui.AndroidAnimationProbeTest",
                 "app.naviamp.ui.AndroidRasterPlacementTest",

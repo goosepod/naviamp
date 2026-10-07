@@ -70,8 +70,14 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     // AWT does not always emit a deiconify event for programmatic Frame state changes.
     // Compose Desktop's native WindowState reports those transitions as well as WM input.
-    NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
-        System.getProperty("compose.layers.type") == "WINDOW", content)
+    val gpuPresenter = remember(window) {
+        if (System.getProperty("os.name").contains("Mac") && NativeMetalVisualizerHost.libraryAvailable())
+            DesktopGpuVisualizerPresenter(window) else null
+    }
+    CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpuPresenter) {
+        NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
+            System.getProperty("compose.layers.type") == "WINDOW", content)
+    }
 }
 
 /** Windows and Linux isolate animation in small transparent Skia hardware surfaces. */

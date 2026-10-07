@@ -5,15 +5,18 @@ import javax.imageio.ImageIO;
 /** Compare retained fixture captures, not live desktop pixels. Rectangles are client-relative. */
 public final class VisualizerPixelDiff {
     public static void main(String[] args) throws Exception {
-        if (args.length != 2) throw new IllegalArgumentException("Usage: VisualizerPixelDiff BEFORE.png AFTER.png");
+        if (args.length < 2 || args.length > 3) throw new IllegalArgumentException("Usage: VisualizerPixelDiff BEFORE.png AFTER.png [VISUALIZER_SIZE]");
         BufferedImage before = ImageIO.read(Path.of(args[0]).toFile());
         BufferedImage after = ImageIO.read(Path.of(args[1]).toFile());
         if (before == null || after == null || before.getWidth() != after.getWidth() || before.getHeight() != after.getHeight()) {
             throw new IllegalArgumentException("Captures must have matching dimensions");
         }
-        // The documented 1000x712, 1x fixture: 358x358 visualizer and an unchanging sibling crop.
-        int changed = difference(before, after, 32, 66, 358, 358);
-        int sibling = difference(before, after, 450, 66, 510, 358);
+        // The 1x fixture keeps a fixed visualizer origin and an unchanging crop to its right.
+        int size = args.length == 3 ? Integer.parseInt(args[2]) : 358;
+        if (size <= 0) throw new IllegalArgumentException("Visualizer size must be positive");
+        int changed = difference(before, after, 32, 66, size, size);
+        int siblingX = size + 92;
+        int sibling = difference(before, after, siblingX, 66, Math.min(510, before.getWidth() - siblingX - 40), size);
         System.out.println("visualizer_changed_pixels=" + changed + " static_sibling_changed_pixels=" + sibling);
     }
 

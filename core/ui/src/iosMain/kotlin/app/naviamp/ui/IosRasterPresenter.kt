@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.asSkiaBitmap
 import kotlinx.cinterop.BetaInteropApi
@@ -14,6 +17,8 @@ import kotlinx.cinterop.usePinned
 import org.jetbrains.skia.Image
 import platform.Foundation.NSData
 import platform.Foundation.NSNumber
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
 import platform.Foundation.create
 import platform.CoreGraphics.CGPointMake
 import platform.QuartzCore.CACurrentMediaTime
@@ -23,12 +28,30 @@ import platform.QuartzCore.kCAAnimationLinear
 import platform.QuartzCore.kCAFillModeForwards
 import platform.UIKit.UIImage
 import platform.UIKit.UIScreen
+import platform.UIKit.UIApplication
+import platform.UIKit.UIApplicationState.UIApplicationStateActive
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
+import platform.UIKit.UIApplicationWillResignActiveNotification
 
 /** UIKit supplies only a CALayer presentation boundary; shared Kotlin owns every motion value. */
 @Composable
 fun NaviampIosRasterHost(rootLayer: () -> CALayer?, content: @Composable () -> Unit) {
     val presenter = remember(rootLayer) { IosRasterPresenter(rootLayer) }
-    CompositionLocalProvider(LocalNaviampRasterPresenter provides presenter, content = content)
+    val gpu = remember(rootLayer) { IosGpuVisualizerPresenter(rootLayer) }
+    var visible by remember { mutableStateOf(UIApplication.sharedApplication.applicationState == UIApplicationStateActive) }
+    DisposableEffect(Unit) {
+        val center = NSNotificationCenter.defaultCenter
+        val observers = listOf(UIApplicationDidBecomeActiveNotification, UIApplicationWillResignActiveNotification).map { name ->
+            center.addObserverForName(name, null, NSOperationQueue.mainQueue) {
+                visible = UIApplication.sharedApplication.applicationState == UIApplicationStateActive &&
+                    name != UIApplicationWillResignActiveNotification
+            }
+        }
+        onDispose { observers.forEach(center::removeObserver) }
+    }
+    CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpu) {
+        NaviampRasterEnvironment(presenter, visible, false, content)
+    }
     DisposableEffect(presenter) { onDispose { presenter.close() } }
 }
 

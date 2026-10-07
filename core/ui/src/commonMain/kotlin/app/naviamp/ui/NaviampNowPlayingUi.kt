@@ -1616,7 +1616,7 @@ private fun LiveVisualizerSurface(
     lyricStage: LyricMirrorTunnelStage,
     modifier: Modifier = Modifier,
 ) {
-    PlatformLiveVisualizerSurface(
+    NaviampPresentedVisualizerSurface(
         coverArtUrl = coverArtUrl,
         bandsProvider = bandsProvider,
         visualizer = visualizer,

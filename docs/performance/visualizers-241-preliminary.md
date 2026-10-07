@@ -8,6 +8,41 @@ here establish compilation, not device performance. The Onn 4K Pro is not part o
 
 ## Rendering paths and required work
 
+### projectM reference
+
+Reviewed projectM's current public C API on 2026-10-07. Its
+[rendering API](https://github.com/projectM-visualizer/projectm/blob/master/src/api/include/projectM-4/render_opengl.h)
+renders a requested frame into OpenGL, including a caller-owned framebuffer. Its
+[audio API](https://github.com/projectM-visualizer/projectm/blob/master/src/api/include/projectM-4/audio.h)
+accepts PCM independently. These boundaries are useful references for keeping audio acquisition,
+shared frame scheduling, and native GPU presentation separate in Naviamp. They do not establish
+projectM's performance on our test machine or the cost of our effects.
+
+The [parameter API](https://github.com/projectM-visualizer/projectm/blob/master/src/api/include/projectM-4/parameters.h)
+supports explicit elapsed frame time and configurable equation mesh dimensions. Its FPS value is
+information supplied to presets, **not a frame limiter**. Naviamp must own its effective 60/45 FPS
+deadlines and suspension policy. The mesh controls are a useful future reference for effects whose
+computation can be separated from display resolution; they are not a direct optimization of Ocean
+of Ink's fragment raymarch.
+
+Apply this design first to existing effects: send uniforms/audio bands to a persistent GPU surface,
+present GPU output without per-frame pixel readback, and measure moving pixels, parent frames, CPU
+and GPU cost. A projectM/MilkDrop backend remains a separate integration after the common surface
+contract is verified. Current direct adapters use Metal on Apple and OpenGL ES on Android; projectM's
+OpenGL renderer is not a drop-in Metal implementation.
+
+Implementation work in progress: the shared presentation contract, 60/45 FPS deadlines, relative
+elapsed time, frame assembly and failure policy have six passing common tests. The six JVM shader
+tests also pass, including a rendered Sphere conversion comparison. Android, JVM, iOS arm64 and
+iOS simulator arm64 compilation and the architecture guard passed on 2026-10-07. The Mac native
+bridge builds. These results establish code/ABI compilation, not runtime acceptance.
+
+The first direct-surface run (`/private/tmp/naviamp-241/direct`, owned PID 55686) failed every physical
+visibility check. Native window inspection found `com.apple.loginwindow` frontmost and the fixture
+absent from the on-screen inventory. Its low CPU readings, zero parent frames and uneven accepted
+submission intervals are **excluded** from performance evidence. The owned fixture was stopped;
+repeat measurements with the desktop unlocked before accepting either performance or appearance.
+
 Audio Sphere uses a runtime shader drawn into the Compose/Skia canvas on Desktop and iOS, and
 Android RuntimeShader on API 33+. Older Android versions use a Canvas approximation. Analog Signal
 Failure has canonical GLSL in common code and prefers native rendering: GLSurfaceView on Android,

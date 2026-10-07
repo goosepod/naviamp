@@ -57,7 +57,7 @@ internal interface NaviampRasterRegion {
 
 internal val LocalNaviampRasterPresenter = staticCompositionLocalOf<NaviampRasterPresenter?> { null }
 internal val LocalNaviampAnimationVisible = staticCompositionLocalOf { true }
-private val LocalNaviampWindowVisible = staticCompositionLocalOf { true }
+internal val LocalNaviampWindowVisible = staticCompositionLocalOf { true }
 
 internal class NaviampRasterPosition {
     var translationX: () -> Float = { 0f }

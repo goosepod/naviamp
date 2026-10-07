@@ -14,6 +14,49 @@ import org.jetbrains.skia.RuntimeShaderBuilder
 
 class VisualizerShaderTest {
     @Test
+    fun directSphereSourcePreservesRenderedBodyPaletteAndInactiveRing() {
+        val native = requireNotNull(naviampGpuVisualizerShader(NaviampVisualizer.AudioSphere))
+        val translated = NativeSkiaShaderTranslator.translateFragmentShader(native.glsl)
+            .replace(Regex("\\boutColor\\s*=\\s*"), "return ")
+            .replace(" return;", "").replace("u_idle", "iIdle")
+        fun render(source: String, time: Float, active: Float): IntArray =
+            RuntimeEffect.makeForShader(source).use { effect ->
+                RuntimeShaderBuilder(effect).use { builder ->
+                    builder.uniform("iResolution", 96f, 96f)
+                    builder.uniform("iTime", time); builder.uniform("iActive", active)
+                    builder.uniform("iEnergy", .3f, .2f, .1f, .25f)
+                    builder.uniform("iBands", FloatArray(32) { (it % 8) / 8f })
+                    builder.uniform("iAccent", .4f, .8f, .9f, 1f)
+                    builder.uniform("iColorA", .25f, .15f, .35f, 1f)
+                    builder.uniform("iColorB", .1f, .4f, .45f, 1f)
+                    builder.uniform("iColorC", .6f, .3f, .4f, 1f)
+                    builder.uniform("iReadable", .95f, .95f, .95f, 1f)
+                    builder.uniform("iIdle", .95f, .95f, .95f, .16f)
+                    builder.makeShader().use { shader ->
+                        Bitmap().use { bitmap ->
+                            assertTrue(bitmap.allocN32Pixels(96, 96))
+                            Paint().use { paint ->
+                                paint.shader = shader
+                                Canvas(bitmap).use { it.clear(0); it.drawRect(Rect.makeWH(96f, 96f), paint) }
+                            }
+                            IntArray(96 * 96) { bitmap.getColor(it % 96, it / 96) }
+                        }
+                    }
+                }
+            }
+        for ((time, active) in listOf(0f to 1f, 1.25f to 1f, 42.5f to 1f, 0f to 0f)) {
+            val expected = render(NaviampVisualizer.AudioSphere.shaderSource, time, active)
+            val actual = render(translated, time, active)
+            expected.indices.forEach { i ->
+                for (shift in listOf(0, 8, 16, 24)) assertTrue(
+                    abs(((expected[i] ushr shift) and 255) - ((actual[i] ushr shift) and 255)) <= 2,
+                    "Sphere pixel $i channel $shift at time $time, active=$active",
+                )
+            }
+        }
+    }
+
+    @Test
     fun nativeFrequencyTextureFallbackInterpolatesBetweenTexelCentersAndClampsEdges() {
         val source = NativeSkiaShaderTranslator.translateFragmentShader("""
             #version 300 es
