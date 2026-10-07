@@ -741,11 +741,7 @@ private fun NowPlayingArtSurface(
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
 
     if (visualizerVisible && visualizerAvailable) {
-        val progress = currentPlaybackProgress(nowPlaying, playbackProgress)
-        val progressNowPlaying = nowPlaying.copy(
-            positionSeconds = progress.positionSeconds ?: nowPlaying.positionSeconds,
-            durationSeconds = nowPlaying.durationSeconds ?: progress.durationSeconds,
-        )
+        val lyricStage = currentVisualizerLyricStage(selectedVisualizer, nowPlaying, playbackProgress)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -763,7 +759,7 @@ private fun NowPlayingArtSurface(
                 active = visualizerActive,
                 tempoBpm = tempoBpm,
                 colors = colors,
-                lyricStage = progressNowPlaying.currentLyricMirrorTunnelStage(),
+                lyricStage = lyricStage,
                 modifier = Modifier
                     .fillMaxSize(),
             )
@@ -1788,6 +1784,21 @@ internal fun NowPlayingPositionLabel(
         val positionSeconds = progressState?.value?.positionSeconds ?: nowPlaying.positionSeconds
         AnnotatedString(if (nowPlaying.isLive) "LIVE" else secondsLabel(positionSeconds))
     }, style = TextStyle(color = colors.primaryText, fontSize = fontSize, textAlign = TextAlign.Center), width = width)
+}
+
+/** Only the lyric effect observes the continuous playback clock; other effects use GPU time. */
+@Composable
+internal fun currentVisualizerLyricStage(
+    visualizer: NaviampVisualizer,
+    nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
+): LyricMirrorTunnelStage {
+    if (visualizer != NaviampVisualizer.LyricMirrorTunnel) return EmptyLyricMirrorTunnelStage
+    val progress = currentPlaybackProgress(nowPlaying, playbackProgress)
+    return nowPlaying.copy(
+        positionSeconds = progress.positionSeconds ?: nowPlaying.positionSeconds,
+        durationSeconds = nowPlaying.durationSeconds ?: progress.durationSeconds,
+    ).currentLyricMirrorTunnelStage()
 }
 
 @Composable

@@ -57,7 +57,12 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
         }
         commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
             implementation(kotlin("test"))
+        }
+        jvmMain.dependencies {
+            // Desktop's native presentation operations run on the Swing event thread.
+            implementation(libs.kotlinx.coroutines.swing)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)

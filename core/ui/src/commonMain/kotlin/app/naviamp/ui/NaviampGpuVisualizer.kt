@@ -11,6 +11,8 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.time.TimeSource
 
@@ -151,25 +153,30 @@ internal fun NaviampPresentedVisualizerSurface(
         region?.setVisible(permitted && !clip.isEmpty)
     }
     LaunchedEffect(region, permitted, active, bounds.size, clip.isEmpty, fps) {
-        if (region == null || !permitted || bounds.isEmpty || clip.isEmpty) return@LaunchedEffect
-        val pacer = NaviampVisualizerPacer(fps)
-        val session = NaviampGpuPresentationSession()
-        fun now() = origin.elapsedNow().inWholeNanoseconds
-        if (active) elapsed.resume(now())
-        try {
-            do {
-                val timestamp = now()
-                val source = Snapshot.withoutReadObservation { provider().toList() }
-                val frame = assembler.prepare(bounds.width.toInt().coerceAtLeast(1), bounds.height.toInt().coerceAtLeast(1), source,
-                    active, elapsed.seconds(timestamp), tempo, palette, theme)
-                val result = region.submit(frame)
-                observer?.invoke(result == NaviampGpuSubmission.Accepted, now() - timestamp)
-                if (!session.receive(result, timestamp)) { failed = true; break }
-                pacer.submitted(timestamp)
-                if (!active && result == NaviampGpuSubmission.Accepted) break
-                delay(pacer.delayMillis(now()).coerceAtLeast(1L))
-            } while (true)
-        } finally { elapsed.pause(now()) }
+        // Compose's UI dispatcher can defer a timer continuation until a later window
+        // frame. Native presentation uses its own deadlines and must not inherit that
+        // parent-window batching; native geometry and submission still run on Main.
+        withContext(Dispatchers.Main.immediate) {
+            if (region == null || !permitted || bounds.isEmpty || clip.isEmpty) return@withContext
+            val pacer = NaviampVisualizerPacer(fps)
+            val session = NaviampGpuPresentationSession()
+            fun now() = origin.elapsedNow().inWholeNanoseconds
+            if (active) elapsed.resume(now())
+            try {
+                do {
+                    val timestamp = now()
+                    val source = Snapshot.withoutReadObservation { provider().toList() }
+                    val frame = assembler.prepare(bounds.width.toInt().coerceAtLeast(1), bounds.height.toInt().coerceAtLeast(1), source,
+                        active, elapsed.seconds(timestamp), tempo, palette, theme)
+                    val result = region.submit(frame)
+                    observer?.invoke(result == NaviampGpuSubmission.Accepted, now() - timestamp)
+                    if (!session.receive(result, timestamp)) { failed = true; break }
+                    pacer.submitted(timestamp)
+                    if (!active && result == NaviampGpuSubmission.Accepted) break
+                    delay(pacer.delayMillis(now()).coerceAtLeast(1L))
+                } while (true)
+            } finally { elapsed.pause(now()) }
+        }
     }
     if (region == null) {
         PlatformLiveVisualizerSurface(coverArtUrl, bandsProvider, visualizer, visualizerColors,
@@ -180,8 +187,17 @@ internal fun NaviampPresentedVisualizerSurface(
         region.place(bounds, clip, 0f)
         region.setVisible(permitted && !clip.isEmpty)
     }) {
-        presenter?.Content(region)
+        if (presenter != null) NaviampGpuVisualizerContent(presenter, region)
         if (!permitted && visible) PlatformLiveVisualizerSurface(coverArtUrl, bandsProvider, visualizer,
             visualizerColors, false, tempoBpm, colors, lyricStage, Modifier.fillMaxSize())
     }
+}
+
+/** Native view factories mount once; changing the region must replace that remembered view. */
+@Composable
+internal fun NaviampGpuVisualizerContent(
+    presenter: NaviampGpuVisualizerPresenter,
+    region: NaviampGpuVisualizerRegion,
+) {
+    key(region) { presenter.Content(region) }
 }

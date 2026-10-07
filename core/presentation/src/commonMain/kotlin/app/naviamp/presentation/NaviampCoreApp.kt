@@ -92,7 +92,7 @@ fun NaviampCoreApp(
     windowController: app.naviamp.ui.NaviampWindowController? = null,
     screenAwakeEffect: app.naviamp.app.NaviampScreenAwakeEffect? = null,
     visualizerBandsProvider: () -> List<Float> = {
-        core.state.value.shell.nowPlaying?.visualizerFrame?.bands.orEmpty()
+        core.visualizerFrame.value?.bands.orEmpty()
     },
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
     statsForNerdsPresenter: @Composable (State<NaviampDiagnosticsUi>, () -> Unit) -> Unit = { diagnostics, close ->

@@ -397,7 +397,6 @@ class NaviampCorePlaybackController(
 
             override fun onVisualizerFrameChanged(frame: PlaybackVisualizerFrame?) {
                 presenter.updateVisualizerFrame(frame)
-                presenter.publish(display)
             }
         })
     }

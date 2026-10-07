@@ -61,6 +61,26 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
     @Test
+    fun audioAnalysisUpdatesTheSampleStreamWithoutRepublishingTheApplication() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        val application = fixture.store.state.value
+        repeat(60) { index ->
+            val frame = app.naviamp.domain.playback.PlaybackVisualizerFrame(listOf(index / 60f), index.toLong())
+            fixture.effects.observer!!.onVisualizerFrameChanged(frame)
+            assertEquals(frame, fixture.presenter.visualizerFrame.value)
+            assertSame(application, fixture.store.state.value)
+        }
+        fixture.effects.observer!!.onVisualizerFrameChanged(null)
+        assertEquals(null, fixture.presenter.visualizerFrame.value)
+        assertSame(application, fixture.store.state.value)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.0, 180.0))
+        fixture.presenter.publish()
+        assertEquals(null, fixture.store.state.value.shell.nowPlaying?.visualizerFrame)
+        assertEquals(31.0, fixture.live.progress.value.positionSeconds)
+    }
+
+    @Test
     fun savedDjAppearsInNowPlayingWithoutAnotherPlaybackEvent() = runTest {
         val fixture = playbackFixture(this)
         val previous = fixture.store.state.value.shell.playback.settings
@@ -802,6 +822,7 @@ private data class PlaybackFixture(
     val sessionRepository: RecordingPlaybackSessionRepository,
     val controller: NaviampCorePlaybackController,
     val savedSettings: List<PlaybackSettings>,
+    val presenter: NaviampCoreNowPlayingPresenter,
 )
 
 private fun playbackFixture(
@@ -861,7 +882,7 @@ private fun playbackFixture(
         nowEpochMillis = nowEpochMillis,
     )
     presenter.publish()
-    return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved)
+    return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved, presenter)
 }
 
 private fun PlaybackFixture.enableSonicAutoplay() {

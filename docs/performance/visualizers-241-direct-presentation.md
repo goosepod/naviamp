@@ -104,6 +104,45 @@ FPS policy. Measure the real full-player surface at actual display resolution: t
 supports the direction but does not establish full-screen GPU cost. The current foreground surface
 must not simply cover controls. MilkDrop/projectM integration remains a separate step.
 
+## Real-player integration follow-up
+
+The isolated physical Pixel benchmark application exposed costs absent from the small fixture.
+At a 1006 × 814 Ocean of Ink surface with scrolling metadata and playback active, repeat
+10-second samples used 53.65% and 52.18% of one CPU core. Removing an unused playback-progress
+subscription alone did not improve this case (58.98%). The combined shared fixes separate FFT
+samples from application-state publication and dispatch the existing native presentation deadlines
+on Main without Compose's parent-window frame batching. Playback updates and the 60 FPS ceiling
+are preserved.
+
+After the combined fixes, the matching active player used 26.14% of one CPU core and recorded
+zero parent-window frames. Its 15-second Perfetto trace recorded 596 GLES draws, approximately
+40 FPS rather than the requested 60 FPS. Mean onDrawFrame duration was 14.89 ms and mean
+eglSwapBuffers duration was 6.71 ms: driver backpressure remains at this larger resolution.
+These are exploratory before/after samples on the same charging phone and layout; baseline thermal
+state was not recorded, so this is not a temperature-controlled causal estimate. The owner judged
+the resulting Ocean animation “much smoother.” Further large-background GPU tuning is deferred.
+
+Switching effects also exposed a native-view lifetime bug: a replacement region did not replace
+the view remembered by AndroidView.factory. The common mount now keys Content by region, with
+a shared regression test checking replacement and disposal. During visual comparison, Android's
+Analog trace appeared flatter than the Mac's. Toggling its surface off and on restored the expected
+wavy style, confirmed by the owner. An initial claim that the image was completely frozen was
+incorrect: the comparison selected the wrong image rows. Corrected comparisons show changing
+pixels both before and after remounting. The rebuilt physical-device app then passed
+Analog → Sphere → Ocean → Analog switching without blank surfaces or manual remounting.
+Analog returned with its wavy trace; captures showed 778,494 changed visualizer pixels out of
+818,884. A subsequent 10-second active Analog sample used 25.17% of one CPU core with zero
+parent-window frames. The nine shared UI regression tests and architecture check passed, and
+the benchmark APK built successfully. These checks establish the surface replacement and live
+rendering result; they do not establish identical pixels at different sizes and animation times.
+
+Desktop Main dispatch requires the coroutines Swing runtime; the shared UI JVM dependency now
+includes it, with a regression test asserting dispatch on the AWT event thread. No platform production
+behavior was added in this integration follow-up. Common Android/JVM/iOS compilation and the
+architecture guard passed; sample-stream and progress-subscription regression tests passed.
+Frozen/loading samples and obscured Mac captures are excluded from acceptance. Full-player
+lifecycle checks and physical iOS performance remain outstanding, so this work stays open.
+
 ## Platform placement audit
 
 Shared model, scheduler, elapsed time, frame assembly, visibility and fallback are in
