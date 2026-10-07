@@ -55,9 +55,14 @@ integration branch, large late merge conflicts, and fixes that exist only in one
    to an issue and pull request when substantive.
 5. Merge each release fix back into `main` immediately, or fix `main` first and cherry-pick it.
 6. Run the complete release verification matrix against the release branch.
-7. Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`.
+7. GitHub release names must be exactly `Naviamp vX.Y.Z` (for example, `Naviamp v2.9.0`).
+Do not append subtitles, feature descriptions, codenames, or other suffixes. Put those details
+in the release body or announcement text.
+
+Create `.github/releases/vX.Y.Z.md` from `.github/RELEASE_TEMPLATE.md`.
 8. Tag the accepted commit. The tag workflow builds all artifacts and creates a draft GitHub Release.
-9. Review and publish the draft, then create an Announcements Discussion linking to the release.
+9. Review the draft and verify its name is exactly `Naviamp vX.Y.Z`, with no descriptive suffix.
+   Publish it, verify the published name, then create an Announcements Discussion linking to the release.
 10. Close the milestone when its shipped state is accurate.
 11. Mirror the accepted commits and tags to Forgejo using the procedure below.
 
@@ -72,6 +77,10 @@ If an issue must be removed after the release branch is cut, prefer fixing or re
 complete pull request rather than assembling a release from an undocumented collection of commits.
 
 ## Release notes and Discord announcements
+
+GitHub release names must be exactly `Naviamp vX.Y.Z` (for example, `Naviamp v2.9.0`).
+Do not append subtitles, feature descriptions, codenames, or other suffixes. Put those details
+in the release body or announcement text.
 
 Create `.github/releases/vX.Y.Z.md` from [`.github/RELEASE_TEMPLATE.md`](../.github/RELEASE_TEMPLATE.md)
 for the GitHub Release body. The tag workflow uses that versioned file verbatim when it exists. If

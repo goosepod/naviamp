@@ -44,6 +44,11 @@ of imported values. Keep only genuinely device-specific settings local.
 
 ## Release Announcements
 
+GitHub release names must be exactly `Naviamp vX.Y.Z` (for example, `Naviamp v2.9.0`).
+Never append a subtitle, feature description, codename, colon, or other suffix. Put feature
+highlights in the release body and announcement text. Verify the exact release name before
+publishing and after publication. This is an explicit owner requirement.
+
 Whenever a new Naviamp release is pushed, create a GitHub Discussion in the **Announcements**
 category that explains what is new, what changed, important fixes, and any upgrade or compatibility
 notes. Feature branches and other unreleased work do not receive release announcements.
@@ -52,8 +57,8 @@ Release notes must compare the release with the previous public release, not nar
 the release branch. A platform or feature shipping for the first time is one complete new
 capability; prerelease implementation fixes are not separate public changes.
 
-Order announcements by product significance. Major launches lead the title, summary, and
-highlights. Improvements and fixes to previously released behavior follow.
+Order announcement content by product significance. Major launches lead the summary and
+highlights; GitHub release names retain the exact format above. Improvements and fixes to previously released behavior follow.
 
 ## In-App Release Changelog
 
