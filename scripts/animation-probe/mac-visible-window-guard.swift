@@ -49,7 +49,7 @@ for window in windows {
     let intersects = uncovered.contains { !$0.intersection(windowRect).isNull && !$0.intersection(windowRect).isEmpty }
     if !intersects { continue }
     if window[kCGWindowOwnerPID as String] as? Int != pid {
-        print("Rejected: test rectangle is obscured")
+        print("Rejected: test rectangle is obscured by PID \(window[kCGWindowOwnerPID as String] as? Int ?? -1), layer \(window[kCGWindowLayer as String] as? Int ?? -1)")
         exit(2)
     }
     uncovered = uncovered.flatMap { subtract($0, windowRect) }

@@ -14,7 +14,7 @@ private class DesktopGpuVisualizerRegion(
     private val window: Window, private val shader: NaviampGpuVisualizerShader,
 ) : NaviampGpuVisualizerRegion {
     private var handle = 0L
-    private var geometry = DoubleArray(10)
+    private var geometry = DoubleArray(12)
     private var visible = false
     private fun attach(): Boolean {
         if (handle != 0L) return true
@@ -30,7 +30,7 @@ private class DesktopGpuVisualizerRegion(
         val scale = findSkiaLayer(window)?.contentScale ?: 1f
         geometry = doubleArrayOf(bounds.left.toDouble(), bounds.top.toDouble(), bounds.width.toDouble(),
             bounds.height.toDouble(), clip.left.toDouble(), clip.top.toDouble(), clip.width.toDouble(),
-            clip.height.toDouble(), scale.toDouble(), cornerRadius.toDouble())
+            clip.height.toDouble(), scale.toDouble(), cornerRadius.toDouble(), geometry[10], geometry[11])
         if (handle != 0L) DesktopGpuVisualizerNative.place(handle, geometry)
     }
     override fun setVisible(visible: Boolean) {
@@ -39,10 +39,15 @@ private class DesktopGpuVisualizerRegion(
         if (handle != 0L) DesktopGpuVisualizerNative.setVisible(handle, visible)
     }
     override fun submit(frame: NaviampGpuVisualizerFrame): NaviampGpuSubmission = try {
-        if (!attach()) NaviampGpuSubmission.NotReady else
+        val raster = frame.rasterSize
+        val resized = geometry[10] != raster.width.toDouble() || geometry[11] != raster.height.toDouble()
+        geometry[10] = raster.width.toDouble(); geometry[11] = raster.height.toDouble()
+        if (!attach()) NaviampGpuSubmission.NotReady else {
+            if (resized) DesktopGpuVisualizerNative.place(handle, geometry)
             NaviampGpuSubmission.entries.getOrElse(DesktopGpuVisualizerNative.submit(handle, frame.bands, frame.uniforms)) {
                 NaviampGpuSubmission.Failed
             }
+        }
     } catch (_: Throwable) { NaviampGpuSubmission.Failed }
     override fun close() {
         if (handle != 0L) DesktopGpuVisualizerNative.close(handle)

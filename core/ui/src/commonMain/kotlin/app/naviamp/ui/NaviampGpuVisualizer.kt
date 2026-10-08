@@ -37,7 +37,10 @@ internal interface NaviampGpuVisualizerRegion {
 internal data class NaviampGpuVisualizerShader(val glsl: String, val metal: String)
 
 /** Packed ABI values are owned here. Adapters upload them unchanged and present a drawable. */
-internal data class NaviampGpuVisualizerFrame(val bands: FloatArray, val uniforms: IntArray)
+internal data class NaviampGpuVisualizerFrame(val bands: FloatArray, val uniforms: IntArray) {
+    val rasterSize: androidx.compose.ui.unit.IntSize
+        get() = androidx.compose.ui.unit.IntSize(Float.fromBits(uniforms[1]).toInt(), Float.fromBits(uniforms[2]).toInt())
+}
 
 /** Busy skips a deadline; an unattached/failed surface gets a bounded, shared fallback policy. */
 internal class NaviampGpuPresentationSession {
@@ -63,7 +66,7 @@ internal val LocalNaviampVisualizerSubmissionObserver = staticCompositionLocalOf
 internal val LocalNaviampGpuCreationFailureObserver = staticCompositionLocalOf<((Throwable) -> Unit)?> { null }
 
 /** Injectable for probes; a product setting can later wrap this shared policy without host copies. */
-internal val LocalNaviampVisualizerFps = staticCompositionLocalOf { 60 }
+internal val LocalNaviampVisualizerFps = staticCompositionLocalOf { 45 }
 
 /** Absolute deadlines retain the requested average cadence; missed frames never build a backlog. */
 internal class NaviampVisualizerPacer(fps: Int) {
@@ -177,7 +180,8 @@ internal fun NaviampPresentedVisualizerSurface(
                     do {
                         val timestamp = now()
                         val source = Snapshot.withoutReadObservation { provider().toList() }
-                        val frame = assembler.prepare(bounds.width.toInt().coerceAtLeast(1), bounds.height.toInt().coerceAtLeast(1), source,
+                        val raster = naviampGpuRasterSize(visualizer, bounds.width.toInt().coerceAtLeast(1), bounds.height.toInt().coerceAtLeast(1))
+                        val frame = assembler.prepare(raster.width, raster.height, source,
                             active, elapsed.seconds(timestamp), tempo, palette, theme)
                         val result = region.submit(frame)
                         observer?.invoke(result == NaviampGpuSubmission.Accepted, now() - timestamp)

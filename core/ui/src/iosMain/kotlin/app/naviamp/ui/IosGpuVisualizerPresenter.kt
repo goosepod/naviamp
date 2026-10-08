@@ -2,6 +2,7 @@
 package app.naviamp.ui
 
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntSize
 import kotlinx.cinterop.*
 import platform.CoreGraphics.*
 import platform.Foundation.NSError
@@ -58,6 +59,7 @@ private class IosGpuVisualizerRegion(
         pixelFormat = MTLPixelFormatBGRA8Unorm; framebufferOnly = true; opaque = false
         anchorPoint = CGPointMake(0.0, 0.0); maximumDrawableCount = 3u
     }
+    private var rasterSize = IntSize.Zero
     private var attached = false
     private var visible = false
     private val busy = AtomicInt(0)
@@ -73,7 +75,6 @@ private class IosGpuVisualizerRegion(
         metal.frame = CGRectMake((bounds.left - clip.left) / scale, (bounds.top - clip.top) / scale,
             bounds.width / scale, bounds.height / scale)
         metal.contentsScale = scale
-        metal.drawableSize = CGSizeMake(bounds.width.toDouble(), bounds.height.toDouble())
         CATransaction.commit()
     }
     override fun setVisible(visible: Boolean) { this.visible = visible; root.hidden = !visible }
@@ -82,6 +83,10 @@ private class IosGpuVisualizerRegion(
         if (!attached || !visible) return NaviampGpuSubmission.NotReady
         if (!busy.compareAndSet(0, 1)) return NaviampGpuSubmission.Busy
         return try {
+            if (rasterSize != frame.rasterSize) {
+                rasterSize = frame.rasterSize
+                metal.drawableSize = CGSizeMake(rasterSize.width.toDouble(), rasterSize.height.toDouble())
+            }
             frame.bands.usePinned {
                 frequencies.replaceRegion(MTLRegionMake2D(0u, 0u, 32u, 1u), 0u, it.addressOf(0), 128u)
             }

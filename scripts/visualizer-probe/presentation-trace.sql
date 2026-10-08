@@ -1,14 +1,27 @@
 -- Run with Perfetto trace_processor query -f this-file.sql trace-file.
--- Capture the real profileable app on the physical device:
--- adb -s SERIAL shell perfetto -o /data/misc/perfetto-traces/visualizer.trace -t 15s sched freq idle gfx view wm
--- Pull that file after completion. Do not interact with the player during capture.
+-- Capture the real profileable app with android-player-sample.py --trace, which retains
+-- process snapshots in an explicit 128 MiB buffer. Legacy CLI defaults can lose metadata
+-- or the beginning of a busy interval. Do not interact with the player during capture.
 -- Thread CPU, including GLES and the parent-window renderer, in seconds.
 SELECT t.name AS thread, SUM(s.dur) / 1e9 AS cpu_seconds
 FROM sched s JOIN thread t USING (utid) JOIN process p USING (upid)
 WHERE p.name = 'app.naviamp.android.benchmark'
 GROUP BY t.utid ORDER BY cpu_seconds DESC;
 
+-- System compositor diagnostic, not app-attributed CPU or an uninstrumented budget result.
+-- Repeat with android-player-sample.py --compositor to exclude gfx tracing overhead.
+SELECT t.name AS compositor_thread, SUM(s.dur) / 1e9 AS cpu_seconds
+FROM sched s JOIN thread t USING (utid) JOIN process p USING (upid)
+WHERE p.name = '/system/bin/surfaceflinger'
+GROUP BY t.utid ORDER BY cpu_seconds DESC;
+
 -- Actual GLES draw callbacks; submission acceptance alone is insufficient.
+SELECT COUNT(*) AS draws, (MAX(s.ts) - MIN(s.ts)) / 1e9 AS draw_span_seconds,
+  (COUNT(*) - 1) * 1e9 / NULLIF(MAX(s.ts) - MIN(s.ts), 0) AS draw_fps
+FROM slice s JOIN thread_track tt ON s.track_id = tt.id
+JOIN thread t USING (utid) JOIN process p USING (upid)
+WHERE p.name = 'app.naviamp.android.benchmark' AND s.name = 'onDrawFrame';
+
 WITH frames AS (
   SELECT s.ts, s.dur FROM slice s
   JOIN thread_track tt ON s.track_id = tt.id

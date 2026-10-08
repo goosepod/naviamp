@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -35,8 +36,9 @@ private class AndroidGpuVisualizerRegion(context: Context, private val shader: N
     private var visible = false
     private var program = 0
     private var frequencyTexture = 0
-    private var viewportWidth = 1
-    private var viewportHeight = 1
+    @Volatile private var viewportWidth = 1
+    @Volatile private var viewportHeight = 1
+    private var rasterSize = IntSize.Zero
     @Volatile private var bounds = Rect.Zero
     @Volatile private var clip = Rect.Zero
     private val frequencyBytes = ByteBuffer.allocateDirect(128).order(ByteOrder.nativeOrder()).asFloatBuffer()
@@ -66,6 +68,15 @@ private class AndroidGpuVisualizerRegion(context: Context, private val shader: N
     }
     override fun submit(frame: NaviampGpuVisualizerFrame): NaviampGpuSubmission {
         if (failed.get()) return NaviampGpuSubmission.Failed
+        val requested = frame.rasterSize
+        if (rasterSize != requested) {
+            rasterSize = requested
+            view.holder.setFixedSize(requested.width, requested.height)
+        }
+        if (viewportWidth != requested.width || viewportHeight != requested.height) {
+            if (visible) view.requestRender()
+            return NaviampGpuSubmission.NotReady
+        }
         if (!ready.get() || !visible) {
             if (visible) view.requestRender()
             return NaviampGpuSubmission.NotReady
@@ -108,11 +119,9 @@ private class AndroidGpuVisualizerRegion(context: Context, private val shader: N
         val frame = pending.get() ?: return
         try {
             GL.glDisable(GL.GL_SCISSOR_TEST); GL.glClearColor(0f, 0f, 0f, 0f); GL.glClear(GL.GL_COLOR_BUFFER_BIT)
-            val b = bounds; val c = clip
+            val rasterClip = naviampGpuRasterClip(bounds, clip, IntSize(viewportWidth, viewportHeight))
             GL.glEnable(GL.GL_SCISSOR_TEST)
-            GL.glScissor((c.left - b.left).toInt().coerceAtLeast(0),
-                (viewportHeight - (c.bottom - b.top)).toInt().coerceAtLeast(0),
-                c.width.toInt().coerceAtLeast(0), c.height.toInt().coerceAtLeast(0))
+            GL.glScissor(rasterClip.left, rasterClip.top, rasterClip.width, rasterClip.height)
             GL.glUseProgram(program)
             GL.glEnable(GL.GL_BLEND); GL.glBlendFunc(GL.GL_ONE, GL.GL_ONE_MINUS_SRC_ALPHA)
             fun f(slot: Int) = Float.fromBits(frame.uniforms[slot])

@@ -65,6 +65,7 @@ class NaviampGpuVisualizerTest {
         assertEquals(32, frame.bands.size)
         assertEquals(39, frame.uniforms.size)
         assertEquals(640f, Float.fromBits(frame.uniforms[1]))
+        assertEquals(androidx.compose.ui.unit.IntSize(640, 640), frame.rasterSize)
         assertEquals(1.25f, Float.fromBits(frame.uniforms[0]))
         assertTrue(frame.bands[0] > 0f)
     }

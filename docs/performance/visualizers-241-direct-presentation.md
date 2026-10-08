@@ -92,8 +92,10 @@ The original aspiration was at most five CPU percentage points above static play
 5.67% for this larger fixture. The measured 60 FPS results are about 2–2.7 points above that
 aspiration; 45 FPS Analog/Ocean are about 0.8–1.2 points above it. On 2026-10-07 the owner explicitly
 accepted getting close enough for this iteration and iterating later. Do not spend this iteration
-chasing those remaining points. Keep 60 FPS as the shared default; 45 FPS remains a probe option,
-not a new setting. No export/import or translated UI copy changes are introduced.
+chasing those remaining points. That checkpoint kept 60 FPS as the shared default and 45 FPS as a
+probe option. The October 8 working-tree candidate below evaluates a shared 45 FPS default; its
+Android performance acceptance remains open. No new setting, export/import or translated UI copy
+changes are introduced.
 
 Keep the umbrella issue open for other effects, Windows/Linux, full-app acceptance, physical iOS
 measurements and future improvements. iOS compilation alone does not establish its performance.
@@ -369,3 +371,166 @@ Ocean of Ink's active/restore smoke checks also passed: 17.55% / 17.12% CPU with
 600 actual draws per 15-second trace (40 FPS), zero parent frames, and 124,165 changed visualizer
 pixels after restore. Its frame-rate limit remains unresolved. Benchmark playback was paused at
 the end of this capture matrix.
+
+### October 8 follow-up experiments (not acceptance)
+
+The working tree now tests a shared 45 FPS policy and an aspect-preserving 262,144-pixel raster
+budget for Ocean of Ink. Analog and Sphere retain their full raster dimensions. Shared code owns
+the raster dimensions and clipping conversion; native adapters apply those dimensions to their
+drawable or buffer. Shader bodies are unchanged. Shared shader quality selection also replaces
+duplicated Android/OpenGL switches, and hidden accessibility observation follows the existing
+shared live visibility signal. All 528 UI JVM tests pass, Android/JVM/iOS device and simulator
+sources compile, the architecture guard passes, and the native Metal test passes. These checks do
+not establish runtime performance on every platform.
+
+The 45 FPS Ocean candidate on the physical Pixel measured **20.81% CPU** over a clean 15-second
+interval with short metadata, zero parent frames and actual visualizer motion. The separate trace
+contains 662 draws over a 14.733-second draw span, approximately 44.9 FPS. This costs more CPU
+than the preceding 40 FPS checkpoint; it is a smoothness result, not a CPU improvement. Long
+metadata measured 26.28% over 30 seconds. Earlier default-config 30-second traces retained only
+part of the interval and lost process metadata; their frame counts must not be divided by 30.
+The probe now records explicit process snapshots in a 128 MiB trace and checks PID continuity.
+
+At 48 kHz, warm short-metadata artwork playback measured 5.20% CPU over 30 seconds and background
+playback measured 3.34%. Startup intervals were higher and are excluded from steady-state claims.
+These are not matched comparisons against the earlier 16 kHz fixture. A translation-only
+SurfaceControl marquee candidate measured 3.32% while paused, still a material animation cost.
+A cached-bitmap SurfaceView canvas trial regressed to 15.35% and was discarded. A subsequent
+ImageView/RenderNode translation experiment compiled; its later physical-device rejection is
+recorded below. Neither rejected path remains in production source.
+
+On the visible Mac test app, small Ocean (289 × 271 physical pixels) measured 9.90% CPU, then
+**8.88%** warm over ten seconds, with zero parent frames and visible ink motion. JVM compilation
+time was respectively 148 ms and 71 ms; it has not been subtracted. A separate Metal trace
+contains 727 fragment intervals over 16.205 seconds (about 44.9 per second): mean 3.696 ms,
+median 3.683 ms, p95 3.877 ms and p99 4.036 ms. Interval durations are not a battery-energy or
+GPU-utilization measurement. Conditions: M1 Mac, macOS 27.0.1, AC power, two 2560 × 1440
+75 Hz displays at 1× scale. A matched artwork baseline and larger-window results remain pending.
+Later captures failed the visibility guard because the Mac locked; they are excluded. One earlier
+progress sample was interrupted by a UI mutation and is also excluded.
+
+Testing then paused at the user's request and because the Mac locked. Both devices became
+available again for the resumption below. No physical iOS performance measurement has been made.
+These experiments do not complete #241.
+
+Native-boundary audit for this follow-up:
+
+- `AndroidGpuVisualizerPresenter.kt`: applies shared dimensions through SurfaceHolder/GLES and
+  converts shared clipping into native GL scissor operations.
+- `AndroidRasterPresenter.kt`: executes Android Bitmap, SurfaceControl fixed viewport/fractional
+  positioning and Choreographer operations; shared code supplies geometry and motion policy.
+- `PlatformLiveVisualizerSurface.android.kt`: delegates shader policy to common code before
+  invoking the existing Android GLES renderer.
+- `DesktopGpuVisualizerPresenter.kt`: passes shared dimensions across the JVM/native Metal ABI.
+- `NativeOpenGlVisualizerHost.jvm.kt`: delegates shader policy to common code for the native
+  OpenGL host.
+- `IosGpuVisualizerPresenter.kt`: applies shared raster dimensions to CAMetalLayer.drawableSize.
+- `naviamp_visualizer_metal.mm`: applies the extended JNI geometry array through CoreAnimation
+  and Metal drawable sizing.
+
+### October 8 physical-device resumption
+
+The retained Android APK SHA-256 is
+`9858174f62f533beca6ef9261bf07144b26474d392c28497d4815839956537d3`.
+Rebuilding after removing the View experiment produced this identical APK. The source compiles,
+the architecture guard passes and the benchmark build succeeds. The fixture remains 48 kHz and
+both devices use their preceding display/power conditions.
+
+Paused SurfaceControl scrolling measured **3.72% CPU** over 30 seconds. Its preceding 15-second
+startup interval was 13.77% and is retained separately. That interval's separate trace contains
+444 animation callbacks with no parent swaps; 11,168 title pixels changed while all 704,200
+sampled artwork pixels remained unchanged. The View experiment measured **34.61%**, then
+**34.79%** warm, with 1,560 RenderThread queueBuffer events in its 15-second trace. Its capture
+showed playback active despite the attempted pause, so it is not a matched paused comparison.
+The parent presentation regression is sufficient to reject it. Its source was removed, the
+retained SurfaceControl APK restored, and normal accessibility/UI interaction recovered.
+
+| Pixel state | Process CPU, one core | Interval | Presentation evidence |
+| --- | ---: | ---: | --- |
+| Analog, short metadata, warm | 24.60% | 30 s | Separate trace: 661 draws / 15 s, no parent swaps |
+| Sphere, short metadata, warm | 24.10% | 30 s | Separate trace: 667 draws / 15 s, no parent swaps |
+| Sphere restored | 24.15% | 15 s | 348,713 changed visualizer pixels; title unchanged |
+| Sphere selected, background playback | 2.40% | 15 s | No draws, animation callbacks or bitmap uploads |
+| Sphere paused | 0.30% | 15 s | No draws/callbacks/uploads; zero changed visualizer pixels |
+
+Both active effects retain approximately 45 FPS and Analog's continuous trace. The Android GPU
+thread costs about 1.83–1.86 CPU seconds per 15-second trace, with eglSwapBuffers averaging
+1.45–1.48 ms wall time. Active CPU remains a material unresolved cost; these results do not
+establish that the 45 FPS policy meets Android's final performance acceptance.
+
+| Mac state | Process CPU, one core | Parent frames / 10 s | JVM compilation |
+| --- | ---: | ---: | ---: |
+| Artwork, 1280 × 960 window | 1.68% | 0 | 27 ms |
+| Ocean, 505 × 493 display pixels | 7.59% / 9.91% | 0 / 0 | 69 / 301 ms |
+| Analog, 505 × 493 display pixels | 4.13% | 0 | 4 ms |
+| Sphere, 505 × 493 display pixels | 4.27% | 0 | 17 ms |
+| Artwork, 2000 × 1200 window | 2.16% | 0 | 13 ms |
+| Sphere, 800 × 770 display pixels | 9.12% | 2 | 25 ms |
+| Sphere, 800 × 770, settled repeat | 7.37% | 0 | 15 ms |
+| Ocean, 800 × 770 display pixels, bounded raster | 7.03% | 0 | 10 ms |
+
+Visible captures passed the native guard. Analog, Sphere and Ocean moved, while their neighboring
+metadata region remained pixel-identical. Wide Ocean changed 52,481 of 616,000 pixels with
+zero changed pixels in the 275,000-pixel metadata region. A separate 505 × 493 Ocean GPU trace
+recorded 694 fragment intervals over 16.076 seconds, averaging 8.397 ms (p95 9.557 ms). The first
+wide Sphere sample includes two resize-related parent frames and requires a settled repeat.
+A planned Mac pause check instead encountered the fixture's ten-minute end; its 0.36% stopped
+sample is not accepted as a pause interaction test. The preceding Sphere capture still showed
+active playback at 9:53. Fresh fixture playback was selected for the wide-window matrix.
+
+Further warm/lifecycle checks:
+
+- Ordinary Android short-metadata playback measured **4.19%** over 30 seconds, with no parent
+  swaps. Its separate 30-second trace contains 35 scheduling callbacks and 29 elapsed-label
+  bitmap replacements, not a continuous parent rendering loop. Progress pixels changed while
+  all 818,884 artwork pixels remained unchanged.
+- Android paused marquee repeated at **3.61%** over 30 seconds. Its separate trace contains
+  909 animation callbacks, zero parent swaps and no bitmap replacements. The title changed
+  11,855 pixels while artwork remained unchanged. Combined scrolling/progress measured
+  **7.66%**, with 913 callbacks and 30 elapsed-label replacements in its separate trace; title
+  and progress moved while artwork remained unchanged. These are not matched-rate A/B claims
+  against earlier 16 kHz runs. A separate sampled stack profile locates the largest main-thread
+  costs in Choreographer/SurfaceControl transaction IPC; its instrumented CPU is not substituted
+  for clean CPU intervals.
+- Wide Mac Ocean paused at **0.70%**, minimized at **0.96%**, and restored while paused at
+  **0.72%**, with zero parent frames. Its paused image was identical; minimized captures were
+  intentionally unavailable. Resumed playback measured **7.32%**, zero parent frames and
+  61,947 changed visualizer pixels. A first subsequent resize sample failed its final visibility
+  capture and is excluded; the unobscured repeat measured **6.86%**, zero parent frames.
+- Mac long-metadata combined artwork playback measured **2.45%**, zero parent frames. The first
+  paused transition measured 3.19% with two parent frames; its settled repeat measured **0.76%**
+  with zero parent frames and 10,685 changed title pixels while artwork remained unchanged.
+  Combined scrolling/progress/Ocean measured **7.16%**, zero parent frames, with both title and
+  ink moving. These checks preserve smooth animation and normal playback update cadence.
+- Wide Ocean's separate GPU trace contains 667 fragment intervals over 15.750 seconds, averaging
+  **8.641 ms** (p95 9.974 ms), and 695 vertex intervals over 15.740 seconds. Raster work remains
+  bounded despite displaying at 800 × 770; interval counts are not a presentation-latency metric.
+- Wide Sphere's settled repeat had 331,340 changed visualizer pixels and unchanged metadata.
+  A verified fresh-track pause measured **0.71%**, zero parent frames and zero changed
+  visualizer pixels. The Mac app was left paused at its normal window size, and the Android
+  benchmark was stopped after the capture matrix.
+
+[App-only process summaries and GPU intervals](visualizers-241-evidence/resumed-device-tests-oct8/README.md)
+retain startup/transition outliers, rejected experiments and visibility failures. Mac results support
+the bounded direct presentation path. Android active visualizer and scrolling costs remain open;
+physical iOS, Windows/Linux and other effects still require runtime verification. Keep #241 and
+its draft PR open.
+
+The compositor check adds a material qualification to the app-only results. Perfetto showed
+SurfaceFlinger CPU of roughly 30% of one core during marquee motion, versus 2.6–4.6% in paused
+short-metadata/artwork traces. Graphics tracing itself adds overhead, so the probe now supports
+`--compositor`: it reads SurfaceFlinger's process CPU counters around the **untraced** CPU interval,
+records the actual counter duration and kernel clock rate, and rejects a compositor restart.
+
+| Untraced matched player state | Naviamp process CPU | SurfaceFlinger process CPU |
+| --- | ---: | ---: |
+| Short metadata, paused, warm (30 s) | 0.37% | 0.82% |
+| Long metadata, paused, warm (30 s) | 3.42% | 21.01% |
+
+No active virtual display or mirroring process was found. SurfaceFlinger manages the whole device;
+these totals are not exact per-app attribution, but the repeated foreground state comparison
+shows why zero parent redraws and low Naviamp CPU cannot establish an Android battery/performance
+fix. The first direct-counter samples (long: 12.83% app / 23.63% compositor; short: 2.41% / 1.55%)
+include startup/track-loading work and remain excluded from steady app claims. Compositor and
+native presentation work must be included in subsequent renderer comparisons. Neither the 45 FPS
+candidate nor scrolling presentation has final Android acceptance.

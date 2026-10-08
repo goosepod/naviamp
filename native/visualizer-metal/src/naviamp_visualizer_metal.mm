@@ -544,8 +544,8 @@ Java_app_naviamp_ui_DesktopGpuVisualizerNative_create(JNIEnv* env, jobject, jobj
 extern "C" JNIEXPORT void JNICALL
 Java_app_naviamp_ui_DesktopGpuVisualizerNative_place(JNIEnv* env, jobject, jlong handle, jdoubleArray array) {
     auto region = directRegion(handle);
-    if (!region || env->GetArrayLength(array) != 10) return;
-    std::array<double, 10> g; env->GetDoubleArrayRegion(array, 0, g.size(), g.data());
+    if (!region || env->GetArrayLength(array) != 12) return;
+    std::array<double, 12> g; env->GetDoubleArrayRegion(array, 0, g.size(), g.data());
     directAppKit(^{
         if (region->closed.load() || !region->clip) return;
         [CATransaction begin]; [CATransaction setDisableActions:YES];
@@ -557,7 +557,7 @@ Java_app_naviamp_ui_DesktopGpuVisualizerNative_place(JNIEnv* env, jobject, jlong
         region->drawableLayer.position = CGPointMake((g[0]-g[4])/scale, (g[1]-g[5])/scale);
         region->drawableLayer.bounds = CGRectMake(0, 0, g[2]/scale, g[3]/scale);
         region->drawableLayer.contentsScale = scale;
-        region->drawableLayer.drawableSize = CGSizeMake(g[2], g[3]);
+        region->drawableLayer.drawableSize = CGSizeMake(g[10] > 0 ? g[10] : g[2], g[11] > 0 ? g[11] : g[3]);
         [CATransaction commit];
     });
 }

@@ -19,6 +19,8 @@ parser.add_argument('--burst-seconds', type=float, default=125)
 parser.add_argument('--track-seconds', type=int, default=600)
 parser.add_argument('--tracks', type=int, default=1)
 parser.add_argument('--albums', type=int, default=1)
+parser.add_argument('--sample-rate', type=int, choices=(16000, 44100, 48000), default=16000,
+                    help='PCM sample rate; compare matching-output audio separately from resampling')
 parser.add_argument('--unknown-length', action='store_true', help='Omit Content-Length and ranges for finite songs')
 parser.add_argument('--long-metadata', action='store_true', help='Overflow all player metadata rows for full-app animation measurements')
 parser.add_argument('--mixed-metadata', action='store_true', help='Provide one short track and long metadata on remaining tracks for animation isolation')
@@ -29,10 +31,11 @@ if args.mixed_metadata and (args.long_metadata or args.tracks < 2):
 if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 240 and 1 <= args.albums <= args.tracks and args.tracks % args.albums == 0):
     parser.error('burst must be 0..600 seconds, track length 30..600 seconds, tracks 1..240, albums must divide track count')
 
+RATE = args.sample_rate
 TRACK = dict(id="fixture-track", title="TV lifecycle fixture", artist="Naviamp Test", album="Recovery",
              albumId="fixture-album", artistId="fixture-artist", duration=args.track_seconds, suffix="wav",
-             contentType="audio/wav", bitRate=256, isDir=False,
-             replayGain=dict(trackGain=-6.0, albumGain=-3.0, trackPeak=1.0, albumPeak=1.0), size=32_000 * args.track_seconds + 44)
+             contentType="audio/wav", bitRate=RATE * 16 // 1000, isDir=False,
+             replayGain=dict(trackGain=-6.0, albumGain=-3.0, trackPeak=1.0, albumPeak=1.0), size=RATE * 2 * args.track_seconds + 44)
 ALBUM = dict(id="fixture-album", name="Recovery", artist="Naviamp Test", artistId="fixture-artist", songCount=args.tracks, duration=args.track_seconds * args.tracks)
 TRACKS = [dict(TRACK, id="fixture-track" if i == 0 else f"fixture-track-{i+1}",
                title="TV lifecycle fixture" if i == 0 else f"TV lifecycle fixture {i+1}") for i in range(args.tracks)]
@@ -52,7 +55,6 @@ if args.long_metadata or args.mixed_metadata:
     for i, album in enumerate(ALBUMS):
         track = TRACKS[i * PER_ALBUM]
         album.update(name=track['album'], artist=track['artist'])
-RATE = 16000
 PCM = b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
 DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*args.track_seconds, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*args.track_seconds) + PCM*args.track_seconds
 lock = threading.Lock()
@@ -84,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
                         try: stream.shutdown(socket.SHUT_RDWR)
                         except OSError: pass
                 elif path.endswith('/on'): offline = False
-                payload = dict(config=dict(tracks=args.tracks, albums=args.albums, trackSeconds=args.track_seconds, burstSeconds=args.burst_seconds), maxActiveStreams=max_active_streams, offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent)
+                payload = dict(config=dict(tracks=args.tracks, albums=args.albums, trackSeconds=args.track_seconds, burstSeconds=args.burst_seconds, sampleRate=RATE), maxActiveStreams=max_active_streams, offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent)
             return self.json(payload)
         action = path.rsplit('/',1)[-1].removesuffix('.view')
         with lock:
@@ -175,9 +177,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(PCM); self.wfile.flush()
                     with lock: bytes_sent += len(PCM)
                     time.sleep(1)
-            for offset in range(start,len(DATA),8192):
-                self.wfile.write(DATA[offset:offset+8192]); self.wfile.flush()
-                with lock: bytes_sent += len(DATA[offset:offset+8192])
+            chunk_size = 8192 if RATE == 16000 else RATE // 2
+            for offset in range(start,len(DATA),chunk_size):
+                self.wfile.write(DATA[offset:offset+chunk_size]); self.wfile.flush()
+                with lock: bytes_sent += len(DATA[offset:offset+chunk_size])
                 if offset - start >= args.burst_seconds * RATE * 2: time.sleep(0.25)
         except (OSError, ConnectionError): pass
         finally:
