@@ -527,11 +527,17 @@ class NaviampCorePlaybackEngineAdapterTest {
             frames,
         )
 
+        adapter.pause()
+        advanceUntilIdle() // Paused playback has no repeating timer, even with demand retained.
+        assertEquals(4, engine.visualizerReads)
+        engine.emitState(PlaybackState.Playing)
+        runCurrent()
+        assertEquals(5, engine.visualizerReads)
         adapter.setVisualizerFramesEnabled(false)
         advanceTimeBy(99L)
         runCurrent()
-        assertEquals(4, engine.visualizerReads)
-        assertEquals(null, frames.last())
+        assertEquals(5, engine.visualizerReads)
+        assertEquals(PlaybackVisualizerFrame(listOf(0.5f), 1L), frames.last())
     }
 
     @Test

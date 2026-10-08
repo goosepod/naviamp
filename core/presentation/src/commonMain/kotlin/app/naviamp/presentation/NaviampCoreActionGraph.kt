@@ -270,6 +270,9 @@ fun createNaviampCoreActions(
             onMediaItemAction = { send(NaviampCoreCommand.Media.ItemAction(it)) },
         ),
         nowPlayingActions = NaviampNowPlayingActions(
+            onVisualizerFrameDemand = { owner, enabled ->
+                send(NaviampCoreCommand.NowPlaying.VisualizerFrameDemand(owner, enabled))
+            },
             onPlaybackAction = { send(NaviampCoreCommand.NowPlaying.Playback(it)) },
             onDisplayAction = { send(NaviampCoreCommand.NowPlaying.Display(it)) },
             onCurrentTrackAction = { send(NaviampCoreCommand.NowPlaying.CurrentTrack(it)) },

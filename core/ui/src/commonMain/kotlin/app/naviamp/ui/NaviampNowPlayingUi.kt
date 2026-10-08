@@ -190,6 +190,7 @@ data class NaviampNowPlayingActions(
     val onPlaylistMembershipApplied: () -> Unit = {},
     val onPlaylistMembershipDismissed: () -> Unit = {},
     val onCreateRadioDj: () -> Unit = {},
+    val onVisualizerFrameDemand: (Any, Boolean) -> Unit = { _, _ -> },
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -413,6 +414,7 @@ fun NaviampNowPlayingPanel(
                                 visualizerBandsProvider = visualizerBandsProvider, selectedVisualizer = selectedVisualizer,
                                 visualizerColors = visualizerColors, visualizerActive = nowPlaying.isPlaying,
                                 tempoBpm = nowPlaying.bpm,
+                                onFrameDemand = actions.onVisualizerFrameDemand,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                                 onVisualizerSwiped = actions::cycleVisualizer,
@@ -481,6 +483,7 @@ fun NaviampNowPlayingPanel(
                         visualizerColors = visualizerColors,
                         visualizerActive = nowPlaying.isPlaying,
                         tempoBpm = nowPlaying.bpm,
+                        onFrameDemand = actions.onVisualizerFrameDemand,
                         onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                         onVisualizerSelected = actions::selectVisualizer,
                         onVisualizerSwiped = actions::cycleVisualizer,
@@ -588,6 +591,7 @@ fun NaviampNowPlayingPanel(
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 tempoBpm = nowPlaying.bpm,
+                                onFrameDemand = actions.onVisualizerFrameDemand,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                                 onVisualizerSwiped = actions::cycleVisualizer,
@@ -649,6 +653,7 @@ fun NaviampNowPlayingPanel(
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 tempoBpm = nowPlaying.bpm,
+                                onFrameDemand = actions.onVisualizerFrameDemand,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                                 onVisualizerSwiped = actions::cycleVisualizer,
@@ -732,6 +737,7 @@ private fun NowPlayingArtSurface(
     visualizerColors: NaviampPlayerColors,
     visualizerActive: Boolean,
     tempoBpm: Int?,
+    onFrameDemand: (Any, Boolean) -> Unit,
     onToggleVisualizer: () -> Unit,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
     onVisualizerSwiped: (VisualizerCycleDirection) -> Unit,
@@ -752,6 +758,7 @@ private fun NowPlayingArtSurface(
                 .then(toggleModifier),
         ) {
             LiveVisualizerSurface(
+                onFrameDemand = onFrameDemand,
                 coverArtUrl = coverArtUrl,
                 bandsProvider = visualizerBandsProvider,
                 visualizer = selectedVisualizer,
@@ -1602,6 +1609,7 @@ private const val LyricMirrorTunnelLineHoldMillis = 5000L
 
 @Composable
 private fun LiveVisualizerSurface(
+    onFrameDemand: (Any, Boolean) -> Unit,
     coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
@@ -1613,6 +1621,7 @@ private fun LiveVisualizerSurface(
     modifier: Modifier = Modifier,
 ) {
     NaviampPresentedVisualizerSurface(
+        onFrameDemand = onFrameDemand,
         coverArtUrl = coverArtUrl,
         bandsProvider = bandsProvider,
         visualizer = visualizer,

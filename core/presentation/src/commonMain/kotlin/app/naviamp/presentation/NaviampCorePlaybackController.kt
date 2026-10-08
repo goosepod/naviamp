@@ -88,7 +88,21 @@ class NaviampCorePlaybackController(
     private var sourceTransitionTargetId: String? = null
     private var connectHandoffAwaitingStart = false
 
+    private val visualizerFrameOwners = mutableSetOf<Any>()
+
+    private fun updateVisualizerSampling() {
+        effects.setVisualizerFramesEnabled(display.visualizerVisible && visualizerFrameOwners.isNotEmpty())
+        // Visibility suspends analysis without discarding the paused/restored picture.
+        if (!display.visualizerVisible) presenter.updateVisualizerFrame(null)
+    }
+
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
+        is NaviampCoreCommand.NowPlaying.VisualizerFrameDemand -> {
+            if (command.enabled) visualizerFrameOwners.add(command.owner)
+            else visualizerFrameOwners.remove(command.owner)
+            updateVisualizerSampling()
+            NaviampCoreImmediateCommandResult.Handled()
+        }
         is NaviampCoreCommand.NowPlaying.Playback,
         is NaviampCoreCommand.NowPlaying.Queue,
         is NaviampCoreCommand.NowPlaying.SleepTimer,
@@ -116,7 +130,7 @@ class NaviampCorePlaybackController(
 
     fun updateDisplay(transform: (NaviampCoreNowPlayingDisplayState) -> NaviampCoreNowPlayingDisplayState) {
         display = transform(display)
-        effects.setVisualizerFramesEnabled(display.visualizerVisible)
+        updateVisualizerSampling()
         presenter.publish(display)
     }
 
@@ -342,7 +356,7 @@ class NaviampCorePlaybackController(
     }
 
     fun attachNativePlayback() {
-        effects.setVisualizerFramesEnabled(display.visualizerVisible)
+        updateVisualizerSampling()
         playback.observe { persistSession(force = false) }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {

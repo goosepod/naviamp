@@ -5,6 +5,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.geometry.Rect
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -23,6 +24,12 @@ class NaviampGpuVisualizerMountTest {
             override fun move(from: Int, to: Int, count: Int) = Unit
             override fun onClear() = Unit
         }, recomposer)
+        val demands = mutableListOf<Pair<Any, Boolean>>()
+        val demand: (Any, Boolean) -> Unit = { owner, enabled -> demands += owner to enabled }
+        val visible = MutableStateFlow(true)
+        val value = mutableIntStateOf(1)
+        val rendered = mutableListOf<Int>()
+        val raster = NaviampRasterContent({ value.intValue }, { rendered += it; emptyList() })
         val mounts = mutableListOf<NaviampGpuVisualizerRegion>()
         val disposals = mutableListOf<NaviampGpuVisualizerRegion>()
         val presenter = object : NaviampGpuVisualizerPresenter {
@@ -39,7 +46,13 @@ class NaviampGpuVisualizerMountTest {
         val regions: List<NaviampGpuVisualizerRegion> = List(3) { Region() }
         val selected = mutableStateOf<NaviampGpuVisualizerRegion>(regions.first())
         try {
-            composition.setContent { NaviampGpuVisualizerContent(presenter, selected.value) }
+            composition.setContent {
+                CompositionLocalProvider(LocalNaviampWindowVisibility provides visible) {
+                    NaviampVisualizerFrameDemand(true, demand)
+                    NaviampObserveRasterContent(raster, true) {}
+                    NaviampGpuVisualizerContent(presenter, selected.value)
+                }
+            }
             runCurrent()
             for ((index, region) in regions.drop(1).withIndex()) {
                 selected.value = region
@@ -48,9 +61,25 @@ class NaviampGpuVisualizerMountTest {
                 assertEquals(regions.take(index + 2), mounts)
                 assertEquals(regions.take(index + 1), disposals)
             }
+            // Hide/restore keeps the owner identity and releases sampling before disposal.
+            for (enabled in listOf(false, true)) {
+                visible.value = enabled
+                runCurrent() // No UI frame or recomposition after the OS visibility notification.
+                if (!enabled) {
+                    value.intValue = 2
+                    Snapshot.sendApplyNotifications(); runCurrent()
+                    assertEquals(listOf(1), rendered)
+                    value.intValue = 3
+                    Snapshot.sendApplyNotifications(); runCurrent()
+                    assertEquals(listOf(1), rendered)
+                }
+            }
         } finally {
             composition.dispose(); recomposer.close(); runner.join()
         }
+        assertEquals(listOf(1, 3), rendered)
+        assertEquals(listOf(true, false, true, false), demands.map { it.second })
+        assertEquals(1, demands.map { it.first }.distinct().size)
         assertEquals(regions, disposals)
     }
 

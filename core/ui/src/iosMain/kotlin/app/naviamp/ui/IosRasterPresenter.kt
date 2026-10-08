@@ -5,8 +5,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.asSkiaBitmap
 import kotlinx.cinterop.BetaInteropApi
@@ -38,19 +38,20 @@ import platform.UIKit.UIApplicationWillResignActiveNotification
 fun NaviampIosRasterHost(rootLayer: () -> CALayer?, content: @Composable () -> Unit) {
     val presenter = remember(rootLayer) { IosRasterPresenter(rootLayer) }
     val gpu = remember(rootLayer) { IosGpuVisualizerPresenter(rootLayer) }
-    var visible by remember { mutableStateOf(UIApplication.sharedApplication.applicationState == UIApplicationStateActive) }
+    val visibility = remember { MutableStateFlow(UIApplication.sharedApplication.applicationState == UIApplicationStateActive) }
+    val visible by visibility.collectAsState()
     DisposableEffect(Unit) {
         val center = NSNotificationCenter.defaultCenter
         val observers = listOf(UIApplicationDidBecomeActiveNotification, UIApplicationWillResignActiveNotification).map { name ->
             center.addObserverForName(name, null, NSOperationQueue.mainQueue) {
-                visible = UIApplication.sharedApplication.applicationState == UIApplicationStateActive &&
+                visibility.value = UIApplication.sharedApplication.applicationState == UIApplicationStateActive &&
                     name != UIApplicationWillResignActiveNotification
             }
         }
         onDispose { observers.forEach(center::removeObserver) }
     }
     CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpu) {
-        NaviampRasterEnvironment(presenter, visible, false, content)
+        NaviampRasterEnvironment(presenter, visible, false, false, visibility, content)
     }
     DisposableEffect(presenter) { onDispose { presenter.close() } }
 }

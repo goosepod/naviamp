@@ -275,3 +275,97 @@ all installed Naviamp app packages. Its shared plan records process CPU, root/si
 accepted submissions; native instrumentation records window FrameMetrics and screenshots outside
 CPU intervals. FrameMetrics GPU duration covers the parent window, not the separate GLES surface.
 The test explicitly rejects an active direct phase that silently falls back.
+
+## October 8 follow-up: visible consumers and cached hidden content
+
+The next shared-code increment addresses two sources of hidden playback work found in the real
+Android player. The visualizer display preference previously enabled FFT sampling even after the
+player was collapsed or its host window was hidden. Mounted shared visualizer surfaces now own
+sampling demand through the common action graph and playback controller. Demand follows window
+visibility, clipping, overlays and playback activity; multiple consumers are independent. The
+engine adapter also cancels its sampling timer on non-playing states. Suspension retains the last
+spectrum; explicitly switching the visualizer off clears it.
+
+The changing elapsed-time raster previously continued measuring text and drawing bitmaps in a
+hidden window. The shared raster observer now retains cached pixels without observing changing
+content while hidden or fully clipped, then renders the latest content on return. This does not
+change the playback polling interval, visible animation cadence, progress behavior or semantics.
+
+Regression coverage includes duplicate acquisition/release, two consumers, display toggles,
+paused sampling with no repeating timer, retained samples, shared action routing, native mount
+replacement, hidden raster updates and restore catching up to the latest value. A live common
+visibility signal lets running effects suspend without waiting for recomposition or a UI frame.
+The Android, AWT and UIKit hosts publish their existing native lifecycle/window facts through
+that signal; scheduling and lifetime decisions remain common.
+
+Device verification uses the same physical Pixel, benchmark package, 1006x814 visualizer,
+60 Hz display, charging state and 16 kHz mono WAV fixture as the preceding checkpoint. The fixture
+uses a static artwork placeholder. Its resampling cost is part of these CPU measurements; these
+figures are not a battery-life estimate or a decoded-music/artwork workload measurement.
+
+The pre-change background artwork samples measured 3.54–4.42% of one core; selecting Analog before
+backgrounding measured 5.83%, with no GLES draws. A separate 10-second background artwork profile
+attributed 42% of sampled process CPU to AudioTrack/BASS, 31% to the main thread (including hidden
+raster text measurement), and 12% to a worker including playback-session persistence. One early
+background artwork trace overlapped a foreground transition and is excluded; its preceding CPU
+interval and the separate stack profile remain valid. The repeat trace has no foreground transition.
+
+An initial recomposition-driven version compiled and passed its ordinary visibility tests but did
+not establish a background CPU reduction (5.59% in a fresh-install interval). Android may suspend
+recomposition before effects see a hidden-window composition local. The final signal must be
+observed directly by running effects; the revised regression toggles host visibility with no UI
+frame/recomposition and checks cancellation and catch-up. The initial APK and measurements are
+retained locally and excluded from final performance claims.
+
+Native-boundary audit for the live signal:
+
+- `core/ui/src/androidMain/kotlin/app/naviamp/ui/AndroidRasterPresenter.kt`: Android Activity
+  lifecycle callbacks publish their STARTED state through a flow rather than only Compose state.
+- `core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopRasterPresenter.kt`: AWT window callbacks
+  publish `isShowing` and native Frame iconification facts; Compose WindowState remains a fallback.
+- `core/ui/src/iosMain/kotlin/app/naviamp/ui/IosRasterPresenter.kt`: UIKit application active/resign
+  notifications publish visibility through a flow rather than only Compose state.
+
+These adapters do not acquire sampling demand, choose polling intervals or schedule rendering.
+The common presentation effects consume the signal, cancel work, retain cached content and resume.
+
+The live-signal APK was then tested on the visible physical Pixel. Warmed plain playback with
+short metadata measured **5.01% of one core** over 30 seconds, with zero parent frames. Its first
+15-second capture was 7.22%; retain that variability rather than treating the startup interval as
+steady state. The progress edge advanced 20 pixels in that first capture. Long combined scrolling
+playback measured 11.18% over 30 seconds; paused scrolling measured 4.05%, with 450 callbacks in
+15 seconds and 13,128 changed title pixels. Visible scrolling remains an unresolved CPU cost.
+
+Background artwork measured 3.48% with short metadata and 3.90% with long metadata. With Analog
+selected, background playback measured **3.86%**, compared with the pre-change 5.83% selected-Analog
+sample. The new background traces contain no GLES draws, animation callbacks or bitmap uploads;
+main-thread trace CPU is 0.148 seconds (short artwork) versus 0.155 seconds (selected Analog) per
+15 seconds. This establishes removal of the selected-visualizer background overhead, while the
+artwork-only baseline is essentially unchanged from the prior clean 3.54% sample. Playback itself
+and remaining shared work still require profiling; no battery-life improvement is quantified.
+
+Visible Analog with short metadata measured 27.76%, 885 actual draws in 15 seconds (59.0 FPS),
+and zero parent frames; restored Analog measured 26.40%, 888 draws (59.2 FPS), and real motion
+(778,469 changed visualizer pixels). The earlier Analog samples included scrolling metadata, so
+these visible CPU numbers are not a matched GPU performance improvement claim.
+
+[Process summaries, conditions and shared test totals](visualizers-241-evidence/android-visible-consumers-oct8/README.md)
+record the accepted captures. All 111 selected shared regressions pass, with Android/JVM/both iOS
+compilation, the architecture guard and the minified benchmark build. Physical iOS and new Mac
+lifecycle measurements, remaining combined-animation budgets and full interaction acceptance
+remain open; this checkpoint does not complete #241.
+
+An interrupted run lost its ADB reverse connection to the local fixture; stalled/blank playback
+captures from that period are excluded. Restoring forwarding and selecting a fresh track restored
+playback. Recovery also exposed an Android foreground-service startup deadline crash, tracked
+separately as [#243](https://github.com/goosepod/naviamp/issues/243); its fix is outside this branch.
+
+Paused Analog with short metadata measured **0.32% of one core**. Its cached picture was unchanged
+across 15 seconds (zero changed visualizer pixels); the following trace had no GLES draws, raster
+uploads or rendering callbacks. This is the expected retained paused image, not an active-motion
+performance result. The long-title paused result above isolates the substantial marquee cost.
+
+Ocean of Ink's active/restore smoke checks also passed: 17.55% / 17.12% CPU with short metadata,
+600 actual draws per 15-second trace (40 FPS), zero parent frames, and 124,165 changed visualizer
+pixels after restore. Its frame-rate limit remains unresolved. Benchmark playback was paused at
+the end of this capture matrix.

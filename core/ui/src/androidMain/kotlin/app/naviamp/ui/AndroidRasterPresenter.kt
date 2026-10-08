@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /** Android publishes only its visible lifecycle and hardware-compositor presentation boundary. */
 @Composable
@@ -36,15 +37,16 @@ fun NaviampAndroidRasterHost(content: @Composable () -> Unit) {
     val presenter = remember(activity) {
         activity?.takeIf { Build.VERSION.SDK_INT >= 29 }?.let(::AndroidRasterPresenter)
     }
-    var visible by remember(lifecycle) {
-        mutableStateOf(lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true)
+    val visibility = remember(lifecycle) {
+        MutableStateFlow(lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true)
     }
+    val visible by visibility.collectAsState()
     CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpu) {
-        NaviampRasterEnvironment(presenter, visible, false, content)
+        NaviampRasterEnvironment(presenter, visible, false, false, visibility, content)
     }
     DisposableEffect(lifecycle, presenter) {
         val observer = LifecycleEventObserver { _, _ ->
-            visible = lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
+            visibility.value = lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
         }
         lifecycle?.addObserver(observer)
         onDispose { lifecycle?.removeObserver(observer); presenter?.close() }

@@ -13,6 +13,9 @@ import androidx.compose.ui.layout.positionInWindow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.ceil
 import kotlin.time.TimeSource
 
@@ -123,9 +126,11 @@ internal fun NaviampPresentedVisualizerSurface(
     coverArtUrl: String?, bandsProvider: () -> List<Float>, visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors, active: Boolean, tempoBpm: Int?, colors: NaviampColors,
     lyricStage: LyricMirrorTunnelStage, modifier: Modifier = Modifier,
+    onFrameDemand: (Any, Boolean) -> Unit = { _, _ -> },
 ) {
     val presenter = LocalNaviampGpuVisualizerPresenter.current
     val visible = LocalNaviampWindowVisible.current && LocalNaviampAnimationVisible.current
+    val visibility = LocalNaviampWindowVisibility.current
     val popups = LocalNaviampPopupRegistry.current
     val ownedPopups = LocalNaviampOwnedPopupWindows.current
     val permitted = presenter != null && visible && !(popups?.visible == true && !ownedPopups)
@@ -138,6 +143,10 @@ internal fun NaviampPresentedVisualizerSurface(
     }
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var clip by remember { mutableStateOf(Rect.Zero) }
+    NaviampVisualizerFrameDemand(
+        enabled = active && visible && !bounds.isEmpty && !clip.isEmpty && (region == null || permitted),
+        onFrameDemand = onFrameDemand,
+    )
     val origin = remember { TimeSource.Monotonic.markNow() }
     val elapsed = remember(visualizer) { NaviampVisualizerElapsedTime() }
     val assembler = remember(visualizer) { NaviampGpuFrameAssembler() }
@@ -152,35 +161,41 @@ internal fun NaviampPresentedVisualizerSurface(
         region?.place(bounds, clip, 0f)
         region?.setVisible(permitted && !clip.isEmpty)
     }
-    LaunchedEffect(region, permitted, active, bounds.size, clip.isEmpty, fps) {
+    LaunchedEffect(region, permitted, active, bounds.size, clip.isEmpty, fps, visibility) {
         // Compose's UI dispatcher can defer a timer continuation until a later window
         // frame. Native presentation uses its own deadlines and must not inherit that
         // parent-window batching; native geometry and submission still run on Main.
         withContext(Dispatchers.Main.immediate) {
-            if (region == null || !permitted || bounds.isEmpty || clip.isEmpty) return@withContext
-            val pacer = NaviampVisualizerPacer(fps)
-            val session = NaviampGpuPresentationSession()
-            fun now() = origin.elapsedNow().inWholeNanoseconds
-            if (active) elapsed.resume(now())
-            try {
-                do {
-                    val timestamp = now()
-                    val source = Snapshot.withoutReadObservation { provider().toList() }
-                    val frame = assembler.prepare(bounds.width.toInt().coerceAtLeast(1), bounds.height.toInt().coerceAtLeast(1), source,
-                        active, elapsed.seconds(timestamp), tempo, palette, theme)
-                    val result = region.submit(frame)
-                    observer?.invoke(result == NaviampGpuSubmission.Accepted, now() - timestamp)
-                    if (!session.receive(result, timestamp)) { failed = true; break }
-                    pacer.submitted(timestamp)
-                    if (!active && result == NaviampGpuSubmission.Accepted) break
-                    delay(pacer.delayMillis(now()).coerceAtLeast(1L))
-                } while (true)
-            } finally { elapsed.pause(now()) }
+            visibility.collectLatest { windowVisible ->
+                region?.setVisible(windowVisible && permitted && !clip.isEmpty)
+                if (!windowVisible || region == null || !permitted || bounds.isEmpty || clip.isEmpty) return@collectLatest
+                val pacer = NaviampVisualizerPacer(fps)
+                val session = NaviampGpuPresentationSession()
+                fun now() = origin.elapsedNow().inWholeNanoseconds
+                if (active) elapsed.resume(now())
+                try {
+                    do {
+                        val timestamp = now()
+                        val source = Snapshot.withoutReadObservation { provider().toList() }
+                        val frame = assembler.prepare(bounds.width.toInt().coerceAtLeast(1), bounds.height.toInt().coerceAtLeast(1), source,
+                            active, elapsed.seconds(timestamp), tempo, palette, theme)
+                        val result = region.submit(frame)
+                        observer?.invoke(result == NaviampGpuSubmission.Accepted, now() - timestamp)
+                        if (!session.receive(result, timestamp)) { failed = true; break }
+                        pacer.submitted(timestamp)
+                        if (!active && result == NaviampGpuSubmission.Accepted) break
+                        delay(pacer.delayMillis(now()).coerceAtLeast(1L))
+                    } while (true)
+                } finally { elapsed.pause(now()) }
+            }
         }
     }
     if (region == null) {
         PlatformLiveVisualizerSurface(coverArtUrl, bandsProvider, visualizer, visualizerColors,
-            active && visible, tempoBpm, colors, lyricStage, modifier)
+            active && visible, tempoBpm, colors, lyricStage, modifier.onGloballyPositioned {
+                bounds = Rect(it.positionInWindow(), Size(it.size.width.toFloat(), it.size.height.toFloat()))
+                clip = it.boundsInWindow()
+            })
     } else Box(modifier.onGloballyPositioned {
         bounds = Rect(it.positionInWindow(), Size(it.size.width.toFloat(), it.size.height.toFloat()))
         clip = it.boundsInWindow()
@@ -200,4 +215,18 @@ internal fun NaviampGpuVisualizerContent(
     region: NaviampGpuVisualizerRegion,
 ) {
     key(region) { presenter.Content(region) }
+}
+
+/** A mounted surface owns demand only while it can display changing audio. */
+@Composable
+internal fun NaviampVisualizerFrameDemand(enabled: Boolean, onFrameDemand: (Any, Boolean) -> Unit) {
+    val owner = remember { Any() }
+    val visibility = LocalNaviampWindowVisibility.current
+    val currentEnabled by rememberUpdatedState(enabled)
+    LaunchedEffect(onFrameDemand, owner, visibility) {
+        try {
+            combine(visibility, snapshotFlow { currentEnabled }) { window, surface -> window && surface }
+                .distinctUntilChanged().collect { onFrameDemand(owner, it) }
+        } finally { onFrameDemand(owner, false) }
+    }
 }
