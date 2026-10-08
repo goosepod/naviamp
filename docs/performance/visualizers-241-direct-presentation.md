@@ -569,3 +569,37 @@ samples include 167–388 ms of JVM compilation and are not substituted for stea
 retain the crossover and exclusions. The next investigation is Android's cached-raster attachment:
 the public window surface API may remove per-region bootstrap SurfaceViews while retaining cached
 pixels, clipping, smooth motion and common placement policy. This has no acceptance claim yet.
+
+
+### October 8 attachment crossover and visible Mac verification
+
+The window attachment investigation did not survive a warmed physical-device crossover. The
+initial paused-scrolling comparison appeared to improve from 4.28% app / 29.66% SurfaceFlinger to
+3.73% / 22.05%. Returning to the original attachment produced **3.60% / 21.83%**. The public-window
+candidate and its common placement helpers were therefore removed: three fewer SurfaceView
+hierarchies did not yield a repeatable saving. Keep the original adapter and animation cadence.
+
+Visible Mac checks retained Metal. Large Ocean of Ink in a 2000 × 1200 window measured **7.09%**
+app CPU, 43 ms compilation and zero parent frames. Its 800 × 770 visualizer crop changed 52,406
+pixels while the 275,000-pixel metadata crop stayed identical. Paused measured **0.78%**, minimized
+**1.01%**, and restored/resized to 1280 × 960 **0.43%**, all with zero parent frames. Restored visible
+captures passed. Sphere's initial 9–10% samples contained 167–313 ms compilation and are not used
+to supersede the earlier settled baseline. Two pre-restore captures failed physical visibility
+and are excluded; the initially failed Ocean selection left a menu open and is also excluded.
+
+The new Metal GPU trace reached its 15-second limit but stalled while saving. It was stopped and
+provides no new GPU-cost evidence; the earlier successful GPU intervals remain the available data.
+
+[Attachment crossover, native checks and exclusions](visualizers-241-evidence/window-attachment-oct8/README.md)
+record this experiment. Android compositor cost remains unresolved; no final animation-budget or
+physical iOS runtime acceptance is claimed.
+
+
+The matched-state cached-canvas follow-up also failed to establish a total-cost win: 10.14% app /
+17.15% compositor, versus the original attachment crossover's 3.60% / 21.83%. A narrower native
+bitmap-upload trial measured 4.88% / 2.98% during normal playback, versus the retained build's
+5.16% / 3.42%. That small single comparison does not justify another native-path change. Both
+experiments were removed; shared behavior and production native adapters remain at the retained
+checkpoint. All 528 shared UI tests, Android/JVM/iOS device/simulator compilation and the
+architecture gate passed again. The refreshed Mac review build's settled paused result was
+0.52% CPU with zero parent frames and verified physical visibility.
