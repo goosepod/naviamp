@@ -190,6 +190,7 @@ data class NaviampNowPlayingActions(
     val onPlaylistMembershipApplied: () -> Unit = {},
     val onPlaylistMembershipDismissed: () -> Unit = {},
     val onCreateRadioDj: () -> Unit = {},
+    val onVisualizerFrameDemand: (Any, Boolean) -> Unit = { _, _ -> },
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -413,6 +414,7 @@ fun NaviampNowPlayingPanel(
                                 visualizerBandsProvider = visualizerBandsProvider, selectedVisualizer = selectedVisualizer,
                                 visualizerColors = visualizerColors, visualizerActive = nowPlaying.isPlaying,
                                 tempoBpm = nowPlaying.bpm,
+                                onFrameDemand = actions.onVisualizerFrameDemand,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                                 onVisualizerSwiped = actions::cycleVisualizer,
@@ -481,6 +483,7 @@ fun NaviampNowPlayingPanel(
                         visualizerColors = visualizerColors,
                         visualizerActive = nowPlaying.isPlaying,
                         tempoBpm = nowPlaying.bpm,
+                        onFrameDemand = actions.onVisualizerFrameDemand,
                         onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                         onVisualizerSelected = actions::selectVisualizer,
                         onVisualizerSwiped = actions::cycleVisualizer,
@@ -588,6 +591,7 @@ fun NaviampNowPlayingPanel(
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 tempoBpm = nowPlaying.bpm,
+                                onFrameDemand = actions.onVisualizerFrameDemand,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                                 onVisualizerSwiped = actions::cycleVisualizer,
@@ -649,6 +653,7 @@ fun NaviampNowPlayingPanel(
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 tempoBpm = nowPlaying.bpm,
+                                onFrameDemand = actions.onVisualizerFrameDemand,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                                 onVisualizerSwiped = actions::cycleVisualizer,
@@ -732,6 +737,7 @@ private fun NowPlayingArtSurface(
     visualizerColors: NaviampPlayerColors,
     visualizerActive: Boolean,
     tempoBpm: Int?,
+    onFrameDemand: (Any, Boolean) -> Unit,
     onToggleVisualizer: () -> Unit,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
     onVisualizerSwiped: (VisualizerCycleDirection) -> Unit,
@@ -741,11 +747,7 @@ private fun NowPlayingArtSurface(
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
 
     if (visualizerVisible && visualizerAvailable) {
-        val progress = currentPlaybackProgress(nowPlaying, playbackProgress)
-        val progressNowPlaying = nowPlaying.copy(
-            positionSeconds = progress.positionSeconds ?: nowPlaying.positionSeconds,
-            durationSeconds = nowPlaying.durationSeconds ?: progress.durationSeconds,
-        )
+        val lyricStage = currentVisualizerLyricStage(selectedVisualizer, nowPlaying, playbackProgress)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -756,6 +758,7 @@ private fun NowPlayingArtSurface(
                 .then(toggleModifier),
         ) {
             LiveVisualizerSurface(
+                onFrameDemand = onFrameDemand,
                 coverArtUrl = coverArtUrl,
                 bandsProvider = visualizerBandsProvider,
                 visualizer = selectedVisualizer,
@@ -763,7 +766,7 @@ private fun NowPlayingArtSurface(
                 active = visualizerActive,
                 tempoBpm = tempoBpm,
                 colors = colors,
-                lyricStage = progressNowPlaying.currentLyricMirrorTunnelStage(),
+                lyricStage = lyricStage,
                 modifier = Modifier
                     .fillMaxSize(),
             )
@@ -1606,6 +1609,7 @@ private const val LyricMirrorTunnelLineHoldMillis = 5000L
 
 @Composable
 private fun LiveVisualizerSurface(
+    onFrameDemand: (Any, Boolean) -> Unit,
     coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
@@ -1616,7 +1620,8 @@ private fun LiveVisualizerSurface(
     lyricStage: LyricMirrorTunnelStage,
     modifier: Modifier = Modifier,
 ) {
-    PlatformLiveVisualizerSurface(
+    NaviampPresentedVisualizerSurface(
+        onFrameDemand = onFrameDemand,
         coverArtUrl = coverArtUrl,
         bandsProvider = bandsProvider,
         visualizer = visualizer,
@@ -1788,6 +1793,21 @@ internal fun NowPlayingPositionLabel(
         val positionSeconds = progressState?.value?.positionSeconds ?: nowPlaying.positionSeconds
         AnnotatedString(if (nowPlaying.isLive) "LIVE" else secondsLabel(positionSeconds))
     }, style = TextStyle(color = colors.primaryText, fontSize = fontSize, textAlign = TextAlign.Center), width = width)
+}
+
+/** Only the lyric effect observes the continuous playback clock; other effects use GPU time. */
+@Composable
+internal fun currentVisualizerLyricStage(
+    visualizer: NaviampVisualizer,
+    nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
+): LyricMirrorTunnelStage {
+    if (visualizer != NaviampVisualizer.LyricMirrorTunnel) return EmptyLyricMirrorTunnelStage
+    val progress = currentPlaybackProgress(nowPlaying, playbackProgress)
+    return nowPlaying.copy(
+        positionSeconds = progress.positionSeconds ?: nowPlaying.positionSeconds,
+        durationSeconds = nowPlaying.durationSeconds ?: progress.durationSeconds,
+    ).currentLyricMirrorTunnelStage()
 }
 
 @Composable

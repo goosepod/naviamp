@@ -142,6 +142,10 @@ class NaviampCorePlaybackEngineAdapter(
     private var preparedForGeneration = -1L
     private var observedTransitionSettings: PlaybackTransitionSettings? = null
     private var playbackState: PlaybackState = PlaybackState.Stopped
+        set(value) {
+            field = value
+            updateVisualizerSampling()
+        }
     private var resumePositionSeconds: Double? = null
     private var visualizerFramesEnabled = false
     private var visualizerSamplingJob: Job? = null
@@ -154,12 +158,15 @@ class NaviampCorePlaybackEngineAdapter(
     override fun setVisualizerFramesEnabled(enabled: Boolean) {
         if (visualizerFramesEnabled == enabled) return
         visualizerFramesEnabled = enabled
-        if (enabled) {
+        updateVisualizerSampling()
+    }
+
+    private fun updateVisualizerSampling() {
+        if (visualizerFramesEnabled && playbackState == PlaybackState.Playing) {
             startVisualizerSampling()
         } else {
             visualizerSamplingJob?.cancel()
             visualizerSamplingJob = null
-            observer?.onVisualizerFrameChanged(null)
         }
     }
 

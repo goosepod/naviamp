@@ -1,0 +1,48 @@
+"thread","cpu_seconds"
+"droid.benchmark",1.064912
+"binder:19429_3",0.034884
+"binder:19429_4",0.024212
+"binder:19429_5",0.008729
+"Jit thread pool",0.002949
+"DefaultDispatch",0.001895
+"DefaultDispatch",0.001230
+"DefaultDispatch",0.000928
+"DefaultDispatch",0.000732
+"DefaultDispatch",0.000603
+"DefaultDispatch",0.000588
+"DefaultDispatch",0.000516
+"DefaultDispatch",0.000459
+"DefaultDispatch",0.000324
+"DefaultDispatch",0.000308
+"DefaultDispatch",0.000216
+"DefaultDispatch",0.000202
+"DefaultDispatch",0.000150
+
+"compositor_thread","cpu_seconds"
+"surfaceflinger",6.790298
+"app",0.772788
+"binder:637_4",0.620314
+"TimerDispatch",0.461611
+"BckgrndExec WL",0.441839
+"binder:637_2",0.131339
+"RegSampIdle",0.045475
+"surfaceflinger",0.032663
+"IdleTimer",0.020849
+"RegionSampling",0.018630
+"TracingMuxer",0.000457
+"BckgrndExec HP",0.000434
+"BckgrndExec LP",0.000051
+
+"draws","draw_span_seconds","draw_fps"
+0,"[NULL]","[NULL]"
+
+"interval_bucket_ms","frames"
+
+"layer_name","buffers","submitted_fps"
+
+"thread","buffer","dequeues","dequeue_fps"
+
+"thread","operation","calls","mean_ms","max_ms"
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",898,859.457890

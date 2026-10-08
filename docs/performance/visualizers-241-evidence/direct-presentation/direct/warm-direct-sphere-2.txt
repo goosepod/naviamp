@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=warm-direct-sphere-2 pid=27288 cpu=4.053095502912575 compilation_ms=15 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

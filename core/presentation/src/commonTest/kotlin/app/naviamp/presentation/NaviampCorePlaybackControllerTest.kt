@@ -61,6 +61,63 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
     @Test
+    fun samplingRequiresDisplayAndAtLeastOneVisibleSurface() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.updateDisplay { it.copy(visualizerVisible = true) }
+        fixture.controller.attachNativePlayback()
+        assertFalse(fixture.effects.visualizerFramesEnabled)
+        val first = Any()
+        val second = Any()
+        fun demand(owner: Any, enabled: Boolean) {
+            assertTrue(fixture.controller.dispatch(
+                NaviampCoreCommand.NowPlaying.VisualizerFrameDemand(owner, enabled),
+            ) is NaviampCoreImmediateCommandResult.Handled)
+        }
+        demand(first, true)
+        demand(first, true)
+        demand(second, true)
+        assertTrue(fixture.effects.visualizerFramesEnabled)
+        demand(first, false)
+        demand(first, false)
+        assertTrue(fixture.effects.visualizerFramesEnabled)
+        fixture.controller.updateDisplay { it.copy(visualizerVisible = false) }
+        assertFalse(fixture.effects.visualizerFramesEnabled)
+        fixture.controller.updateDisplay { it.copy(visualizerVisible = true) }
+        assertTrue(fixture.effects.visualizerFramesEnabled)
+        demand(second, false)
+        assertFalse(fixture.effects.visualizerFramesEnabled)
+        val frame = app.naviamp.domain.playback.PlaybackVisualizerFrame(listOf(0.5f), 1L)
+        fixture.effects.observer!!.onVisualizerFrameChanged(frame)
+        assertEquals(frame, fixture.presenter.visualizerFrame.value)
+        demand(second, true)
+        assertTrue(fixture.effects.visualizerFramesEnabled)
+        demand(second, false)
+        assertEquals(frame, fixture.presenter.visualizerFrame.value)
+        fixture.controller.updateDisplay { it.copy(visualizerVisible = false) }
+        assertEquals(null, fixture.presenter.visualizerFrame.value)
+    }
+
+    @Test
+    fun audioAnalysisUpdatesTheSampleStreamWithoutRepublishingTheApplication() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        val application = fixture.store.state.value
+        repeat(60) { index ->
+            val frame = app.naviamp.domain.playback.PlaybackVisualizerFrame(listOf(index / 60f), index.toLong())
+            fixture.effects.observer!!.onVisualizerFrameChanged(frame)
+            assertEquals(frame, fixture.presenter.visualizerFrame.value)
+            assertSame(application, fixture.store.state.value)
+        }
+        fixture.effects.observer!!.onVisualizerFrameChanged(null)
+        assertEquals(null, fixture.presenter.visualizerFrame.value)
+        assertSame(application, fixture.store.state.value)
+        fixture.effects.observer!!.onProgressChanged(PlaybackProgress(31.0, 180.0))
+        fixture.presenter.publish()
+        assertEquals(null, fixture.store.state.value.shell.nowPlaying?.visualizerFrame)
+        assertEquals(31.0, fixture.live.progress.value.positionSeconds)
+    }
+
+    @Test
     fun savedDjAppearsInNowPlayingWithoutAnotherPlaybackEvent() = runTest {
         val fixture = playbackFixture(this)
         val previous = fixture.store.state.value.shell.playback.settings
@@ -802,6 +859,7 @@ private data class PlaybackFixture(
     val sessionRepository: RecordingPlaybackSessionRepository,
     val controller: NaviampCorePlaybackController,
     val savedSettings: List<PlaybackSettings>,
+    val presenter: NaviampCoreNowPlayingPresenter,
 )
 
 private fun playbackFixture(
@@ -861,7 +919,7 @@ private fun playbackFixture(
         nowEpochMillis = nowEpochMillis,
     )
     presenter.publish()
-    return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved)
+    return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved, presenter)
 }
 
 private fun PlaybackFixture.enableSonicAutoplay() {
@@ -892,6 +950,9 @@ private fun PlaybackFixture.moveToQueueEnd() {
 private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities(supportsVisualizer = true)
     override val playbackSource = PlaybackSource.ProviderStream
+    var visualizerFramesEnabled = false
+        private set
+    override fun setVisualizerFramesEnabled(enabled: Boolean) { visualizerFramesEnabled = enabled }
     var pauses = 0
     var resumes = 0
     var starts = 0

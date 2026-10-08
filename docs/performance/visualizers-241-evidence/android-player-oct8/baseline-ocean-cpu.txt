@@ -1,0 +1,6 @@
+Performance counter statistics:
+
+#           count  event_name   # count / runtime
+  3501.236734(ms)  task-clock   # 0.233244 cpus used
+
+Total test time: 15.011040 seconds.

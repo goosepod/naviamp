@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=sphere-combined-3 pid=88337 cpu=19.892359787180798 compilation_ms=195 surface=parent:1000x712 visible=true iconified=false frames=762 observer_attached=true physical_captures=true/true

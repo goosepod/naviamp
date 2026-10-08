@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=cap45-native-analog-1 pid=83375 cpu=26.964388176856875 compilation_ms=744 surface=parent:1000x712 visible=true iconified=false frames=759 observer_attached=true physical_captures=true/true

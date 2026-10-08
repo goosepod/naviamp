@@ -1,0 +1,8 @@
+Explicitly enabled broader tests, 2026-10-07:
+NativeMetalShaderTranslatorTest.nativeMetalHostRendersPixelsWhenNativeTestIsEnabled:
+  AudioTunnel returned no image. Runtime Metal compilation reports two-argument atan calls
+  (for example atan(lookPath.y, lookPath.x)) unsupported by Metal, among compiler errors.
+  Audio Tunnel source and the Metal translator were not modified by this work.
+NativeMetalShaderTranslatorTest.translatedMetalShadersCompileWhenToolchainTestIsEnabled:
+  missing Metal Toolchain: cannot execute tool metal; xcodebuild -downloadComponent MetalToolchain.
+  No toolchain installation was attempted. Focused Analog runtime-Metal validation passed.

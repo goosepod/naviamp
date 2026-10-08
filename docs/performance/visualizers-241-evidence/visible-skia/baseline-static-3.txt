@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=baseline-static-3 pid=96239 cpu=0.44505964751511623 compilation_ms=13 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

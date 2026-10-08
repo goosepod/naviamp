@@ -14,6 +14,40 @@ import org.jetbrains.skia.ImageInfo
 
 class NativeMetalShaderTranslatorTest {
     @Test
+    fun analogMetalRendererProducesNonblankMovingPixelsWhenFocusedTestIsEnabled() {
+        if (System.getProperty("naviamp.visualizer.analogMetalProbeTest") != "true") return
+        assertNativeVisualizerProducesMovingPixels(NaviampVisualizer.AnalogSignalFailure)
+    }
+
+    @Test
+    fun oceanInkMetalRendererProducesNonblankMovingPixelsWhenFocusedTestIsEnabled() {
+        if (System.getProperty("naviamp.visualizer.oceanInkMetalProbeTest") != "true") return
+        assertNativeVisualizerProducesMovingPixels(NaviampVisualizer.OceanOfInk)
+    }
+
+    private fun assertNativeVisualizerProducesMovingPixels(visualizer: NaviampVisualizer) {
+        NativeMetalVisualizerHost(visualizer, visualizerRenderPolicy(visualizer, VisualizerRenderTier.Full)).use { host ->
+            fun render(time: Float): IntArray {
+                return assertNotNull(host.renderImage(
+                    width = 96, height = 64, bands = List(32) { (it % 8) / 8f }, active = true,
+                    visualizerColors = NaviampPlayerColors.fallback(NaviampColors.Dark), colors = NaviampColors.Dark,
+                    timeSeconds = time, tempoBpm = 120,
+                )).use { image ->
+                    assertTrue(image.hasVisibleVariation())
+                    Bitmap().use { bitmap ->
+                        assertTrue(bitmap.allocPixels(image.imageInfo))
+                        assertTrue(image.readPixels(bitmap))
+                        IntArray(image.width * image.height) { bitmap.getColor(it % image.width, it / image.width) }
+                    }
+                }
+            }
+            val before = render(1.25f)
+            val after = render(2.25f)
+            assertTrue(before.indices.count { before[it] != after[it] } > before.size / 20, "${visualizer.name} Metal output must move")
+        }
+    }
+
+    @Test
     fun translatesEveryNativeVisualizerShaderToMetalContract() {
         val nativeVisualizers = NaviampVisualizer.entries.filter { it.nativeShaderDefinition != null }
         assertTrue(nativeVisualizers.isNotEmpty())

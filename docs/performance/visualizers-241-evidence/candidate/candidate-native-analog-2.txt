@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=candidate-native-analog-2 pid=14168 cpu=25.370385114155127 compilation_ms=264 surface=parent:1000x712 visible=true iconified=false frames=766 observer_attached=true physical_captures=true/true

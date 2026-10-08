@@ -103,6 +103,7 @@ class NaviampCore private constructor(
     internal val playbackOutputs: NaviampPlaybackOutputSelectionController,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
+    val visualizerFrame get() = nowPlayingPresenter.visualizerFrame
 
     fun dispatch(command: NaviampCoreCommand) = commands.dispatch(command)
 

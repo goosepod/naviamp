@@ -1,0 +1,18 @@
+"thread","cpu_seconds"
+"droid.benchmark",0.563485
+"binder:1745_3",0.017577
+"binder:1745_5",0.013834
+"DefaultDispatch",0.013629
+"DefaultDispatch",0.011358
+"Jit thread pool",0.011284
+"DefaultExecutor",0.008879
+"DefaultDispatch",0.007258
+"HeapTaskDaemon",0.000206
+"mali-event-hand",0.000069
+
+"interval_bucket_ms","frames"
+
+"thread","operation","calls","mean_ms","max_ms"
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",454,464.833010

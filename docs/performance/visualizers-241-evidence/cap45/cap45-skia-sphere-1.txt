@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=cap45-skia-sphere-1 pid=83375 cpu=20.650099511077926 compilation_ms=431 surface=parent:1000x712 visible=true iconified=false frames=765 observer_attached=true physical_captures=true/true

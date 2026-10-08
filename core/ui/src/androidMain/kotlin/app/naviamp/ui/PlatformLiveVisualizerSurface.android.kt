@@ -482,7 +482,7 @@ private class AndroidNativeGlslVisualizerRenderer(
     private val renderPolicy: VisualizerRenderPolicy,
     performanceLoggingEnabled: Boolean,
 ) : GLSurfaceView.Renderer, AutoCloseable {
-    private val shaderSpec = visualizer.nativeGlslShaderSpec(renderPolicy)
+    private val shaderSpec = visualizer.nativeShaderSpec(renderPolicy)
     private val perfLogger = AndroidVisualizerPerfLogger("native-gl", visualizer, renderPolicy, performanceLoggingEnabled)
     private val frameLock = Any()
     private var latestFrame: VisualizerFrameInput? = null
@@ -881,12 +881,6 @@ private data class NativeGlslPalette(
     val colorC: FloatArray = floatArrayOf(0f, 0f, 0f, 1f),
 )
 
-private data class NativeGlslShaderSpec(
-    val fragmentSource: String,
-    val renderScale: Float,
-    val maxRaymarchSteps: Int = 0,
-)
-
 private data class NativeGlslQuadBinding(
     val positionHandle: Int,
     val uvHandle: Int,
@@ -896,81 +890,6 @@ private data class NativeGlslQuadBinding(
         GLES20.glDisableVertexAttribArray(uvHandle)
     }
 }
-
-private fun NaviampVisualizer.nativeGlslShaderSpec(renderPolicy: VisualizerRenderPolicy): NativeGlslShaderSpec =
-    when (this) {
-        NaviampVisualizer.AnalogSignalFailure -> NativeGlslShaderSpec(
-            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-        )
-        NaviampVisualizer.AudioTunnel -> NativeGlslShaderSpec(
-            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.62f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 64
-                VisualizerRenderTier.Balanced -> 52
-                VisualizerRenderTier.Constrained -> 38
-            },
-        )
-        NaviampVisualizer.FluidicNebulae -> NativeGlslShaderSpec(
-            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-        )
-        NaviampVisualizer.LyricMirrorTunnel -> NativeGlslShaderSpec(
-            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
-            renderScale = 1.0f,
-        )
-        NaviampVisualizer.OceanHorizon -> NativeGlslShaderSpec(
-            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 0.82f
-                VisualizerRenderTier.Balanced -> 0.62f
-                VisualizerRenderTier.Constrained -> 0.48f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 60
-                VisualizerRenderTier.Balanced -> 60
-                VisualizerRenderTier.Constrained -> 42
-            },
-        )
-        NaviampVisualizer.OceanOfInk -> NativeGlslShaderSpec(
-            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-        )
-        NaviampVisualizer.RaymarchedSphereLiquid -> NativeGlslShaderSpec(
-            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 80
-                VisualizerRenderTier.Balanced -> 64
-                VisualizerRenderTier.Constrained -> 48
-            },
-        )
-        else -> NativeGlslShaderSpec(
-            fragmentSource = NativeGlslShaderSources.FluidicNebulae,
-            renderScale = 1.0f,
-        )
-    }
 
 private fun nativeFloatBuffer(values: FloatArray): FloatBuffer =
     ByteBuffer

@@ -1,0 +1,10 @@
+{
+  "baseline-ui.jar": "6c214947ff81f15513e9d2d17f9666b6b4604a3d0e14fa81865e8300aad5f63d",
+  "baseline-fixture.jar": "151dac115716b29a0752635a2f388d693b5893b94f7e33fa88bbd1021cc6f0fa",
+  "retained-ui.jar": "0ebfbf471c1a14fc8d6301fa33faa128dcdb8ae7ec7f7cf1526b4cc00970ab71",
+  "libnaviamp_visualizer_metal.dylib": "7889e93cb80cdea308e64c221bb0952de44690da33ac4dd085635240f7b6c8b2",
+  "rejected-trial-ui.jar": "d86b12a0fe1875dda8f8bd8cbb627bdda4496590ec1441b7cf4c35ed2bed7c03",
+  "rejected-trial-fixture.jar": "959a7882d282f98a785ce25d5797a39a4785b4dbd0c3410cd626086e1807048e",
+  "continuous-ui.jar": "1409a11ffc2d24fa34d21ebe73a5f8baaf20eb88371aaeb14a13ef9848aa1660",
+  "continuous-fixture.jar": "d85b1f3d10ac9f7bc0de472262d2a459eb9ab5f9aefea09892054de3d05a64d3"
+}

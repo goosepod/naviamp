@@ -1,0 +1,1 @@
+phase=direct-large-ocean-ink draws=1343 mean_draw_ms=0.042363 intervals=1342 p50_interval_ms=16.477834 p95_interval_ms=20.113291

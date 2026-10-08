@@ -1,0 +1,5 @@
+phase,app_cpu_percent_one_core,compositor_cpu_percent_one_core,compositor_interval_seconds,compositor_cpu_seconds,perfetto_active
+untraced-long-paused,12.8311,23.6321,15.360445,3.63,False
+untraced-long-paused-warm,3.4208,21.0137,30.408798,6.39,False
+untraced-short-paused,2.4066,1.5537,15.446677,0.24,False
+untraced-short-paused-warm,0.373,0.8189,30.528459,0.25,False

@@ -257,6 +257,8 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface NowPlaying : NaviampCoreCommand {
+        /** Identity belongs to one mounted shared visualizer surface. */
+        data class VisualizerFrameDemand(val owner: Any, val enabled: Boolean) : NowPlaying
         data class Playback(val request: NowPlayingPlaybackActionRequest) : NowPlaying
         data class Display(val request: NowPlayingDisplayActionRequest) : NowPlaying
         data class CurrentTrack(val request: NowPlayingCurrentTrackUiActionRequest) : NowPlaying
