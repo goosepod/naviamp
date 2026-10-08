@@ -29,3 +29,13 @@ JOIN thread t USING (utid) JOIN process p USING (upid)
 WHERE p.name = 'app.naviamp.android.benchmark'
   AND s.name IN ('onDrawFrame', 'eglSwapBuffers', 'queueBuffer')
 GROUP BY t.utid, s.name ORDER BY calls DESC;
+
+-- Progress/marquee callbacks and raster content replacement. These durations are wall time,
+-- including waits; use sched above for CPU time. A low parent frame count alone is insufficient.
+SELECT t.name AS thread, s.name AS operation, COUNT(*) AS calls,
+  SUM(s.dur) / 1e6 AS total_wall_ms
+FROM slice s JOIN thread_track tt ON s.track_id = tt.id
+JOIN thread t USING (utid) JOIN process p USING (upid)
+WHERE p.name = 'app.naviamp.android.benchmark'
+  AND s.name IN ('animation', 'allocateHardwareBitmap', 'uploadHardwareBitmap')
+GROUP BY t.utid, s.name ORDER BY calls DESC;

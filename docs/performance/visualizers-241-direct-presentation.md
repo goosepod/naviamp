@@ -143,6 +143,99 @@ architecture guard passed; sample-stream and progress-subscription regression te
 Frozen/loading samples and obscured Mac captures are excluded from acceptance. Full-player
 lifecycle checks and physical iOS performance remain outstanding, so this work stays open.
 
+## Android ordinary-playback baseline investigation (2026-10-08)
+
+The owner requested fixing ordinary playback overhead after a 12.17% CPU sample with the artwork placeholder
+and long metadata with a scrolling title. That number describes the whole process, not artwork rendering
+alone. A short-metadata track, with the artwork placeholder and smooth progress but no scrolling, measured 8.35%
+and 7.72% of one core. The same short track playing behind the launcher measured 4.07%; paused
+in the visible player measured 0.42%. These are CPU measurements, not battery-life measurements.
+
+Conditions: physical Pixel 10a, Android 17/API 37, isolated minified/profileable benchmark app,
+1080 × 2424 display, density 420, active 60 Hz mode, USB charging at 100%, thermal status 0.
+Audio is the local synthetic ten-minute WAV fixture; real codecs and streaming conditions need
+separate battery testing. CPU intervals are 15 seconds unless stated otherwise; the 7.72% repeat
+used 20 seconds. Perfetto intervals are separate 15-second captures. Parent-window frames were
+zero in the steady samples; that does not establish zero compositor or GPU cost.
+
+The plain-player trace recorded 446 animation callbacks in 15 seconds. Profiles placed substantial
+main-thread work in `AndroidRasterPresenter.doFrame`, crop submission and SurfaceControl transaction
+application. A 1,000-pixel progress bar on a ten-minute track advances only about 1.7 pixels per
+second. Common code now caches the integer source/destination crops and plans the next visible
+pixel deadline. Android only posts/removes Choreographer callbacks and applies changed SurfaceControl
+geometry. Playback update frequency is unchanged; marquee translation retains its existing cadence.
+Buffer replacement, clipping, seek, resize and hide/restore invalidate the cached presentation.
+
+The pixel-deadline APK (`4fb8f4119884a87f0701c9e810b577aeccd44fccf80af191c44b33a315a95a56`)
+measured 6.41% and 5.73% CPU in short-metadata playback. The progress trace dropped from 446
+animation callbacks to 17 in 15 seconds; main-thread scheduled CPU dropped from 0.826 seconds
+to 0.329 seconds. Captures show the progress edge advancing about 20 pixels during the 15-second
+CPU interval, consistent with the bar width and ten-minute duration. Parent frames stayed zero.
+The once-per-second elapsed-time text still generated 15 hardware bitmap allocations/uploads per
+trace; optimizing that content replacement and the underlying audio baseline remains open.
+
+Static short-metadata pause measured 0.59% CPU with no animation callbacks/uploads. Background
+playback measured 4.98%, also with no raster callbacks/uploads; do not claim an improvement over
+the earlier 4.07% background sample. Long-metadata pause (scrolling title only) measured 3.82%,
+versus the earlier 5.27%. The warmed combined state measured 8.79% over 30 seconds; an earlier
+15-second interval after selecting the track measured 13.02%. Marquee motion/hold phases and
+startup work make short CPU windows variable. These exploratory samples do not establish a
+precise causal percentage reduction for the combined state. The ordinary-player baseline remains
+above idle, and this is not an accepted battery-life fix or completion of Android performance work.
+
+An intermediate crop-only fix measured 6.87% CPU in warmed short-metadata playback but still
+woke around 30 times per second. This intermediate result is not the final scheduler acceptance.
+A spectrum-uniform upload experiment measured 34.27% CPU against 34.61% for active Analog;
+it was discarded because that difference did not justify changing the shader transport.
+
+Ocean with long metadata measured 25.37% CPU, with 597 GLES draws in 15 seconds (39.8 FPS),
+mean onDrawFrame 15.31 ms and mean eglSwapBuffers 6.71 ms. Before/after captures changed
+110,932 of 818,884 visualizer pixels. This is consistent with the earlier roughly 40 FPS GPU-limited
+result, not a new visualizer performance gain. Paused Ocean recorded zero GLES draws and no
+bitmap uploads; its scrolling title remained active (5.44% process CPU in that interval).
+
+Seven new common crop/deadline tests and twelve existing GPU/shader tests passed, followed by the
+two mount/progress-subscription regressions. Common Android, JVM, iOS arm64 and simulator arm64
+compilation and the architecture guard passed before the final Android callback wiring. The final
+Android build and architecture guard passed afterward. This increment changes only one platform
+production file: `androidMain/.../AndroidRasterPresenter.kt`, justified by Android Choreographer,
+SurfaceView/SurfaceControl transactions and the native raster buffer lifetime. Pixel geometry,
+duplicate suppression and deadline/input/cancellation policy are shared.
+
+During lifecycle/menu exploration, some visualizer mounts were blank and are excluded; a fresh
+fixture start restored Ocean, and Ocean → Analog switching then produced the continuous wavy
+trace. The exact blank-mount trigger remains unproven. Full lifecycle/resize acceptance and the
+remaining ordinary/background playback cost stay open; do not treat this checkpoint as merge-ready.
+
+After resuming testing, restored Analog measured 34.06% CPU with 892 GLES draws in 15 seconds
+(59.5 FPS) and 778,907 changing visualizer pixels. Collapsing the full player stopped GLES draws
+in a five-second trace, and selecting another track reopened the live visualizer. The shared
+progress crop responded immediately to pointer seeking, but playback subsequently stayed loading
+with this synthetic stream. That run is excluded from performance acceptance; seek/playback recovery
+is not validated by the immediate crop response. A final warmed plain-playback repeat measured 5.33% CPU, 17 progress callbacks in 15 seconds,
+zero parent frames and an advancing progress edge. Main-thread CPU was 0.272 seconds in its
+separate trace. The final shared check ran all 21 tests together,
+compiled Android/JVM/both iOS targets and passed the architecture guard.
+
+Excluded samples: `baseline-short-artwork` actually had Ocean enabled, and `uniform-analog`
+actually showed artwork. Track selection preserves visualizer visibility, while choosing an effect
+does not enable an inactive visualizer. Their filenames do not establish their test state.
+Fresh-install/warm-up CPU intervals are also excluded from steady-state comparisons.
+
+Reproduce a sample after explicitly checking the visible player and letting startup settle:
+
+```shell
+python3 scripts/visualizer-probe/android-player-sample.py \
+  --serial SERIAL --phase UNIQUE_PHASE --output /private/tmp/naviamp-player-perf --trace
+```
+
+The script leaves the UI untouched, captures before/after screenshots outside CPU intervals,
+records process CPU, thermal/battery state and parent frames, and optionally captures a separate
+Perfetto interval. Run `presentation-trace.sql` with Perfetto trace_processor for thread CPU,
+actual GLES draws, driver wait durations, animation callbacks and bitmap uploads. Check visible
+motion and matching power/display conditions before interpreting a result. Keep raw screenshots
+and system traces local; they may include unrelated private content.
+
 ## Platform placement audit
 
 Shared model, scheduler, elapsed time, frame assembly, visibility and fallback are in

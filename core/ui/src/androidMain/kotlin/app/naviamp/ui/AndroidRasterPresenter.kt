@@ -26,10 +26,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.max
-import kotlin.math.min
 
 /** Android publishes only its visible lifecycle and hardware-compositor presentation boundary. */
 @Composable
@@ -56,13 +52,13 @@ fun NaviampAndroidRasterHost(content: @Composable () -> Unit) {
 }
 
 private class AndroidRasterPresenter(private val activity: Activity) : NaviampRasterPresenter, Choreographer.FrameCallback {
-    private companion object { const val PresentationIntervalMillis = 16L }
     private val regions = mutableSetOf<AndroidRasterRegion>()
     private val transaction = SurfaceControl.Transaction()
-    private var frameScheduled = false
+    private val frameSchedule = NaviampRasterFrameSchedule()
 
     override fun create(): NaviampRasterRegion = AndroidRasterRegion(activity, ::scheduleFrame) {
         regions.remove(it)
+        scheduleFrame()
     }.also(regions::add)
 
     @Composable
@@ -71,17 +67,19 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
     }
 
     private fun scheduleFrame() {
-        if (!frameScheduled && regions.any(AndroidRasterRegion::isAnimating)) {
-            frameScheduled = true
-            Choreographer.getInstance().postFrameCallbackDelayed(this, PresentationIntervalMillis)
-        } else if (!frameScheduled && regions.any(AndroidRasterRegion::hasReadySurface)) {
-            frameScheduled = true
-            Choreographer.getInstance().postFrameCallback(this)
+        val now = SystemClock.uptimeMillis()
+        when (val request = frameSchedule.request(regions.mapNotNull { it.nextFrameDelay(now) }, now)) {
+            NaviampRasterFrameRequest.Unchanged -> Unit
+            NaviampRasterFrameRequest.Cancel -> Choreographer.getInstance().removeFrameCallback(this)
+            is NaviampRasterFrameRequest.Schedule -> {
+                Choreographer.getInstance().removeFrameCallback(this)
+                Choreographer.getInstance().postFrameCallbackDelayed(this, request.delayMillis)
+            }
         }
     }
 
     override fun doFrame(frameTimeNanos: Long) {
-        frameScheduled = false
+        frameSchedule.delivered()
         var changed = false
         regions.forEach { changed = it.appendUpdate(transaction) || changed }
         if (changed) transaction.apply()
@@ -90,7 +88,7 @@ private class AndroidRasterPresenter(private val activity: Activity) : NaviampRa
 
     fun close() {
         Choreographer.getInstance().removeFrameCallback(this)
-        frameScheduled = false
+        frameSchedule.delivered()
         regions.toList().forEach(AndroidRasterRegion::close)
         regions.clear()
         transaction.close()
@@ -111,6 +109,7 @@ private class AndroidRasterRegion(
         var bufferChanged: Boolean = false,
         val source: AndroidRect = AndroidRect(),
         val destination: AndroidRect = AndroidRect(),
+        val cropState: NaviampRasterPixelCropState = NaviampRasterPixelCropState(),
         var visible: Boolean = false,
         var ordered: Boolean = false,
     )
@@ -139,7 +138,6 @@ private class AndroidRasterRegion(
     private var startedAt = 0L
     private var bounds = Rect.Zero
     private var clip = Rect.Zero
-    private var running = false
     private var needsUpdate = false
 
     init {
@@ -177,7 +175,6 @@ private class AndroidRasterRegion(
     override fun present(layers: List<NaviampRasterLayer>, bounds: Rect, clip: Rect, cornerRadius: Float): Boolean {
         if (bounds.isEmpty || clip.isEmpty) {
             requestedLayers = emptyList()
-            running = false
             releaseLayers()
             return false
         }
@@ -189,7 +186,6 @@ private class AndroidRasterRegion(
         this.bounds = bounds
         this.clip = clip
         updateBuffers()
-        running = layers.any { it.translation != null || it.revealMotion != null }
         needsUpdate = true
         if (!hostReady || this.layers.isEmpty()) return false
         return true
@@ -201,9 +197,9 @@ private class AndroidRasterRegion(
         // complete current geometry, so layout/image handoffs can commit without waiting on a
         // root draw that some Android compositors never deliver.
         SurfaceControl.Transaction().use { transaction ->
-            updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
+            val changed = updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
             needsUpdate = false
-            transaction.apply()
+            if (changed) transaction.apply()
         }
         invalidate()
     }
@@ -273,18 +269,16 @@ private class AndroidRasterRegion(
         layers = emptyList()
     }
 
-    fun isAnimating(): Boolean = running && attached && hostReady
-    fun hasReadySurface(): Boolean = needsUpdate && attached && hostReady && layers.isNotEmpty()
+    fun nextFrameDelay(nowMillis: Long): Long? {
+        if (!attached || !hostReady || layers.isEmpty()) return null
+        return if (needsUpdate) 0L else naviampRasterFrameDelay(layers.map { it.spec }, bounds.width, nowMillis - startedAt)
+    }
 
     fun appendUpdate(transaction: SurfaceControl.Transaction): Boolean {
-        if (!attached || needsUpdate || !running) return false
+        if (!attached || needsUpdate) return false
         val elapsed = SystemClock.uptimeMillis() - startedAt
         val changed = updateSurfaces(transaction, elapsed)
         needsUpdate = false
-        running = layers.any {
-            val motion = it.spec.translation ?: it.spec.revealMotion
-            motion != null && (motion.repeat || elapsed < motion.durationMillis)
-        }
         return changed
     }
 
@@ -304,17 +298,13 @@ private class AndroidRasterRegion(
                 val dx = spec.translation?.valueAt(elapsed) ?: 0f
                 val imageLeft = bounds.left + spec.origin.x + dx
                 val imageTop = bounds.top + spec.origin.y
-                var visibleLeft = max(clip.left, imageLeft)
-                var visibleRight = min(clip.right, imageLeft + spec.image.width)
-                val visibleTop = max(clip.top, imageTop)
-                val visibleBottom = min(clip.bottom, imageTop + spec.image.height)
                 val reveal = spec.revealMotion?.valueAt(elapsed) ?: spec.reveal
-                val edge = bounds.left + bounds.width * reveal
-                if (spec.translation == null) {
-                    if (spec.clipFromStart) visibleLeft = max(visibleLeft, edge)
-                    else visibleRight = min(visibleRight, edge)
-                }
-                if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) {
+                val crop = naviampRasterPixelCrop(
+                    Rect(imageLeft, imageTop, imageLeft + spec.image.width, imageTop + spec.image.height),
+                    bounds, clip, if (spec.translation == null) reveal else null, spec.clipFromStart,
+                )
+                if (!layer.cropState.update(crop, force = layer.bufferChanged || !layer.ordered)) return@forEachIndexed
+                if (crop == null) {
                     if (layer.visible) {
                         transaction.setVisibility(layer.control, false)
                         layer.visible = false
@@ -323,12 +313,10 @@ private class AndroidRasterRegion(
                     return@forEachIndexed
                 }
                 layer.source.set(
-                    floor(visibleLeft - imageLeft).toInt(), floor(visibleTop - imageTop).toInt(),
-                    ceil(visibleRight - imageLeft).toInt(), ceil(visibleBottom - imageTop).toInt(),
+                    crop.source.left, crop.source.top, crop.source.right, crop.source.bottom,
                 )
                 layer.destination.set(
-                    floor(visibleLeft - bounds.left).toInt(), floor(visibleTop - bounds.top).toInt(),
-                    ceil(visibleRight - bounds.left).toInt(), ceil(visibleBottom - bounds.top).toInt(),
+                    crop.destination.left, crop.destination.top, crop.destination.right, crop.destination.bottom,
                 )
                 if (!layer.visible) {
                     transaction.setVisibility(layer.control, true)
@@ -372,7 +360,6 @@ private class AndroidRasterRegion(
 
     override fun close() {
         ready = {}
-        running = false
         needsUpdate = false
         requestedLayers = emptyList()
         releaseLayers()
