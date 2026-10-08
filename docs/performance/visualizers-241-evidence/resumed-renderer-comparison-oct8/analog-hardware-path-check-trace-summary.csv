@@ -1,0 +1,73 @@
+"thread","cpu_seconds"
+"RenderThread",1.704165
+"droid.benchmark",0.812222
+"mali-event-hand",0.194063
+"binder:12186_1",0.183431
+"AudioTrack",0.167299
+"DefaultDispatch",0.161571
+"DefaultDispatch",0.147873
+"DefaultExecutor",0.129209
+"GPU completion",0.123443
+"binder:12186_6",0.120394
+"binder:12186_5",0.112544
+"binder:12186_2",0.109716
+"Jit thread pool",0.046613
+"DefaultDispatch",0.042177
+"GrallocUploadTh",0.038289
+"binder:12186_3",0.038154
+"DefaultDispatch",0.033088
+"HeapTaskDaemon",0.032150
+"DefaultDispatch",0.013052
+"FinalizerDaemon",0.007107
+"android.bg",0.006422
+"ReferenceQueueD",0.003956
+"mali-mem-purge",0.002743
+"DefaultDispatch",0.002736
+"DefaultDispatch",0.002042
+"DefaultDispatch",0.001193
+"DefaultDispatch",0.001168
+"DefaultDispatch",0.000628
+"DefaultDispatch",0.000465
+"FinalizerWatchd",0.000371
+"DefaultDispatch",0.000334
+"DefaultDispatch",0.000156
+"DefaultDispatch",0.000132
+"DefaultDispatch",0.000041
+
+"compositor_thread","cpu_seconds"
+"surfaceflinger",4.005221
+"binder:637_3",0.351700
+"app",0.253705
+"TimerDispatch",0.241857
+"BckgrndExec HP",0.185129
+"RenderEngine",0.105094
+"binder:637_1",0.094463
+"RegSampIdle",0.024728
+"surfaceflinger",0.013343
+"IdleTimer",0.011637
+"mali-event-hand",0.011143
+"BckgrndExec WL",0.011072
+"RE Completion",0.009174
+"RegionSampling",0.008663
+"TracingMuxer",0.006538
+"mali-mem-purge",0.000733
+"binder:637_5",0.000032
+
+"draws","draw_span_seconds","draw_fps"
+0,"[NULL]","[NULL]"
+
+"interval_bucket_ms","frames"
+
+"layer_name","buffers","submitted_fps"
+
+"thread","buffer","dequeues","dequeue_fps"
+"RenderThread","dequeueBuffer - 489e1b SurfaceView[app.naviamp.android.benchmark/app.naviamp.android.MainActivity]#18(BLAST Consumer)18",664,44.933646
+
+"thread","operation","calls","mean_ms","max_ms"
+"RenderThread","queueBuffer",1328,0.809164,3.000000
+"droid.benchmark","NaviampHardwareShaderSubmit",665,0.763997,4.083496
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",17,25.113810
+"droid.benchmark","allocateHardwareBitmap",15,121.979740
+"droid.benchmark","uploadHardwareBitmap",15,88.836428

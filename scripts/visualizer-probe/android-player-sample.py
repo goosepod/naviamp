@@ -46,6 +46,9 @@ def main():
     save('-before.png', 'exec-out', 'screencap', '-p')
     save('-thermal.txt', 'shell', 'dumpsys', 'thermalservice')
     save('-battery.txt', 'shell', 'dumpsys', 'battery')
+    frequency_command = ('for policy in /sys/devices/system/cpu/cpufreq/policy*; do '
+                         'printf "%s " "$policy"; cat "$policy/scaling_cur_freq"; done')
+    save('-cpu-frequencies-before.txt', 'shell', frequency_command)
     save('-gfx-reset.txt', 'shell', 'dumpsys', 'gfxinfo', args.package, 'reset')
     compositor = None
     if args.compositor:
@@ -78,16 +81,19 @@ def main():
         (args.output / (args.phase + '-compositor.json')).write_text(json.dumps(summary, indent=2) + '\n')
         print(f"Untraced SurfaceFlinger CPU: {summary['cpu_percent_one_core']:.2f}% of one core")
     save('-gfx.txt', 'shell', 'dumpsys', 'gfxinfo', args.package)
+    save('-cpu-frequencies-after.txt', 'shell', frequency_command)
     save('-after.png', 'exec-out', 'screencap', '-p')
     if args.trace:
         remote = '/data/misc/perfetto-traces/naviamp-' + args.phase + '.trace'
         # Legacy CLI defaults can overwrite process metadata in busy 30-second GPU captures.
         config = f"""buffers {{ size_kb: 131072 fill_policy: RING_BUFFER }}
         duration_ms: {args.seconds * 1000}
+        data_sources {{ config {{ name: "android.surfaceflinger.frametimeline" }} }}
         data_sources {{ config {{ name: "linux.process_stats"
           process_stats_config {{ scan_all_processes_on_start: true }} }} }}
         data_sources {{ config {{ name: "linux.ftrace" ftrace_config {{
           ftrace_events: "sched/sched_switch" ftrace_events: "sched/sched_waking"
+          ftrace_events: "power/cpu_frequency" ftrace_events: "power/cpu_idle"
           ftrace_events: "power/cpu_frequency" ftrace_events: "power/cpu_idle"
           atrace_categories: "gfx" atrace_categories: "view" atrace_categories: "wm"
           atrace_apps: "{args.package}"

@@ -1,0 +1,10 @@
+phase,verified_effect,backend,app_cpu_percent_one_core,surfaceflinger_cpu_percent_one_core,thermal_status,interpretation
+analog-hardware-path-check,Analog Signal Failure,RuntimeShader,22.7241,26.890630180244024,0,native experiment
+sphere-runtime-verified-warm,Audio Sphere,RuntimeShader,24.3871,27.00102253919059,1,native experiment; thermal 1
+ocean-runtime-warm,Ocean of Ink,RuntimeShader,21.2637,24.330242751720423,1,native experiment; thermal 1
+ocean-gles-matched-warm,Ocean of Ink,GLES timer,29.3331,37.62727282178931,1,matched warm reference; thermal 1
+ocean-display-pulse-warm,Ocean of Ink,GLES display pulse,31.6314,38.30475920411388,1,rejected CPU experiment; thermal 1
+ocean-gles-paused-cooling,Ocean of Ink paused,GLES timer,0.6950999999999999,3.046620706730386,1,cooling static
+sphere-gles-fresh-track-total,Audio Tunnel,legacy GLES,23.6622,23.394593235625486,0,EXCLUDED: wrong effect selected
+sphere-hardware-total-warm,Audio Tunnel,legacy GLES,21.6063,22.836194448653117,0,EXCLUDED: wrong effect selected
+ocean-runtime-crossover-warm,Ocean of Ink,RuntimeShader,28.046300000000002,36.77424995963542,1,crossover narrows earlier advantage; retain GLES

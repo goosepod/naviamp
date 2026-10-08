@@ -34,13 +34,30 @@ SELECT ROUND(interval_ms / 5) * 5 AS interval_bucket_ms, COUNT(*) AS frames
 FROM intervals WHERE interval_ms IS NOT NULL
 GROUP BY interval_bucket_ms ORDER BY interval_bucket_ms;
 
--- GLES native draw/driver cost and unrelated parent buffer swaps.
+-- Buffer submissions by native surface distinguish the app window from HardwareRenderer's
+-- visualizer surface; RenderThread queueBuffer alone cannot establish parent-window repainting.
+SELECT layer_name, COUNT(*) AS buffers,
+  (COUNT(*) - 1) * 1e9 / NULLIF(MAX(ts) - MIN(ts), 0) AS submitted_fps
+FROM actual_frame_timeline_slice
+WHERE upid IN (SELECT upid FROM process WHERE name = 'app.naviamp.android.benchmark')
+GROUP BY layer_name ORDER BY buffers DESC;
+
+-- Native buffer names remain available on devices that emit no frame-timeline packets.
+-- VRI[MainActivity] is the parent window; SurfaceView names identify independent surfaces.
+SELECT t.name AS thread, s.name AS buffer, COUNT(*) AS dequeues,
+  (COUNT(*) - 1) * 1e9 / NULLIF(MAX(s.ts) - MIN(s.ts), 0) AS dequeue_fps
+FROM slice s JOIN thread_track tt ON s.track_id = tt.id
+JOIN thread t USING (utid) JOIN process p USING (upid)
+WHERE p.name = 'app.naviamp.android.benchmark' AND s.name GLOB 'dequeueBuffer - *'
+GROUP BY t.utid, s.name ORDER BY dequeues DESC;
+
+-- Native shader draw/driver cost. HardwareRenderer uses RenderThread for its own surface.
 SELECT t.name AS thread, s.name AS operation, COUNT(*) AS calls,
   AVG(s.dur) / 1e6 AS mean_ms, MAX(s.dur) / 1e6 AS max_ms
 FROM slice s JOIN thread_track tt ON s.track_id = tt.id
 JOIN thread t USING (utid) JOIN process p USING (upid)
 WHERE p.name = 'app.naviamp.android.benchmark'
-  AND s.name IN ('onDrawFrame', 'eglSwapBuffers', 'queueBuffer')
+  AND s.name IN ('onDrawFrame', 'NaviampHardwareShaderSubmit', 'eglSwapBuffers', 'queueBuffer')
 GROUP BY t.utid, s.name ORDER BY calls DESC;
 
 -- Progress/marquee callbacks and raster content replacement. These durations are wall time,

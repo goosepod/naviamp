@@ -534,3 +534,38 @@ fix. The first direct-counter samples (long: 12.83% app / 23.63% compositor; sho
 include startup/track-loading work and remain excluded from steady app claims. Compositor and
 native presentation work must be included in subsequent renderer comparisons. Neither the 45 FPS
 candidate nor scrolling presentation has final Android acceptance.
+
+## October 8 backend and pacing comparison
+
+Keep GLES on Android and Metal on Mac/iOS. A native Android Skia surface successfully renders
+all three representative effects, but its warm crossover does not justify replacing GLES.
+Display-aligned GLES also failed to improve CPU. Both experimental implementations were removed;
+the shared 45 FPS target and existing shaders remain intact.
+
+| Ocean, short metadata, light thermal throttling | App CPU | SurfaceFlinger CPU | Separate buffer rate |
+| --- | ---: | ---: | ---: |
+| Native Skia, first settled interval | 21.26% | 24.33% | 45.00 FPS |
+| GLES, matched warm reference | 29.33% | 37.63% | 44.93 FPS |
+| GLES, display-pulse experiment | 31.63% | 38.30% | 44.96 FPS |
+| Native Skia, crossover after GLES | 28.05% | 36.77% | 44.98 FPS |
+
+The first favorable Skia interval did not repeat under the later device conditions. Thermal
+status 1 covers a range of clock states; do not describe the initial difference as an established
+percentage improvement. The crossover puts the paths close enough to retain the simpler existing
+backend. Native Skia Analog measured 22.72% app / 26.89% compositor CPU with 44.93 FPS; verified
+Sphere measured 24.39% / 27.00% with 44.85 FPS. Neither continuously submits parent VRI buffers.
+
+One test setup mistake selected Audio Tunnel after tapping a disabled, already-checked Sphere
+menu entry. Those mislabeled runs are excluded and corrected in the evidence table. They are
+not Sphere measurements or shader-creation failures. Later Sphere selection and native shader
+submissions are verified. The test helper now refuses disabled controls.
+
+The original Mac code resumed at 6.20% CPU, zero compilation and zero parent frames in a visible
+1280 × 960 window. Sphere changed 134,387 pixels while its 140,000-pixel metadata crop stayed
+identical; its paused baseline measured 0.16%. The rejected pacing experiment's Mac startup
+samples include 167–388 ms of JVM compilation and are not substituted for steady results.
+
+[Comparison summaries and provenance](visualizers-241-evidence/resumed-renderer-comparison-oct8/README.md)
+retain the crossover and exclusions. The next investigation is Android's cached-raster attachment:
+the public window surface API may remove per-region bootstrap SurfaceViews while retaining cached
+pixels, clipping, smooth motion and common placement policy. This has no acceptance claim yet.
