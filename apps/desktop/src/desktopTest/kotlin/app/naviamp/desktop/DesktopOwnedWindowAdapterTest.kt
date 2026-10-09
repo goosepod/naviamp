@@ -2,15 +2,22 @@ package app.naviamp.desktop
 
 import java.awt.EventQueue
 import java.awt.Frame
+import java.awt.GraphicsEnvironment
 import java.awt.Window
 import java.awt.event.WindowEvent
 import javax.swing.JDialog
 import kotlin.test.Test
+import kotlin.test.BeforeTest
+import org.junit.Assume.assumeFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DesktopOwnedWindowAdapterTest {
+    @BeforeTest fun requireNativeWindowServer() {
+        assumeFalse("AWT ownership tests require a native window server", GraphicsEnvironment.isHeadless())
+    }
+
     @Test fun toolkitObservationConfiguresARealNewOwnedWindow() {
         lateinit var owner: Frame
         lateinit var child: JDialog
