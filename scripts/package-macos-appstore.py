@@ -101,6 +101,14 @@ def main() -> None:
             command += ['--entitlements', str(root / (entitlements + '-entitlements.plist'))]
         run(*command, str(path))
 
+    def thin_arm64(path: Path) -> None:
+        architectures = subprocess.check_output(['lipo', '-archs', str(path)], text=True).split()
+        if 'arm64' in architectures and len(architectures) > 1:
+            temporary = path.with_name(path.name + '.arm64')
+            run('lipo', str(path), '-thin', 'arm64', '-output', str(temporary))
+            shutil.copymode(path, temporary)
+            temporary.replace(path)
+
     libraries = app / 'Contents/app'
     # SQLite and JNA must load signed native code from the bundle, not extracted
     # temporary files. Signing the other jar members also preserves validation
@@ -120,6 +128,7 @@ def main() -> None:
                 for index, name in enumerate(native):
                     target = Path(temp) / (str(index) + '-' + Path(name).name)
                     target.write_bytes(z.read(name))
+                    thin_arm64(target)
                     sign(target)
                     replacements[name] = target.read_bytes()
                     if name in direct:
@@ -138,6 +147,10 @@ def main() -> None:
         raise ValueError('Input already has custom SQLite/JNA paths; inspect before packaging')
     config.write_text(text + '\njava-options=-Dorg.sqlite.lib.path=$APPDIR\njava-options=-Dorg.sqlite.lib.name=libsqlitejdbc.dylib\njava-options=-Djna.boot.library.path=$APPDIR\n')
     source_info['LSApplicationCategoryType'] = 'public.app-category.music'
+    # App Store Connect requires macOS 12+ for Apple Silicon-only applications.
+    minimum = source_info.get('LSMinimumSystemVersion', '0')
+    if int(minimum.split('.')[0]) < 12:
+        source_info['LSMinimumSystemVersion'] = '12.0'
     write_plist(app / 'Contents/Info.plist', source_info)
     for path in sorted(app.rglob('*'), key=lambda p: len(p.parts), reverse=True):
         if not path.is_file() or path.is_symlink():
@@ -145,6 +158,7 @@ def main() -> None:
         with path.open('rb') as file:
             magic = file.read(4)
         if magic in MACHO:
+            thin_arm64(path)
             # The Metal visualizer is an executable despite its .dylib filename.
             file_kind = subprocess.check_output(['file', '-b', str(path)], text=True)
             executable = 'executable' in file_kind or path.name == 'jspawnhelper'

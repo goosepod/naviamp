@@ -16,6 +16,10 @@ bundle. Their JVM paths point to that location rather than temporary extracted
 libraries. Executable helpers inherit the application's sandbox. The main app
 and runtime carry their matching Apple-issued provisioning profiles.
 
+This store package targets Apple Silicon and macOS 12 or later. Universal native
+libraries with an arm64 slice are reduced to that slice so obsolete 32-bit BASS
+architectures are excluded. The direct-download release artifact remains intact.
+
 Example (substitute local paths and signing identities):
 
 ```sh
