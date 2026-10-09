@@ -499,6 +499,7 @@ fun NaviampDropdownMenu(
         },
         content = {
             NaviampPopupPresence()
+            NaviampMenuActivationEffect(onDismissRequest)
             content()
         },
     )

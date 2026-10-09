@@ -78,6 +78,37 @@ class NaviampPopupSurfaceTest {
         onNodeWithText("Action 0").assertDoesNotExist()
     }
 
+    @Test fun menuDismissesOnExternalActivationButDialogDraftSurvives() = runComposeUiTest {
+        val active = mutableStateOf(true)
+        var menuOpen by mutableStateOf(true)
+        var dialogOpen by mutableStateOf(false)
+        var draft by mutableStateOf("draft")
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true,
+                LocalNaviampWindowGroupActive provides active.value) {
+                Box(Modifier.size(700.dp, 500.dp)) {
+                    NaviampDropdownMenu(menuOpen, { menuOpen = false }) {
+                        NaviampDropdownMenuItem("Menu action", onClick = {})
+                    }
+                    if (dialogOpen) NaviampAlertDialog(
+                        onDismissRequest = { dialogOpen = false },
+                        confirmButton = { Text("Confirm") },
+                        text = { androidx.compose.material3.OutlinedTextField(draft, { draft = it }) },
+                    )
+                }
+            }
+        }
+        onNodeWithText("Menu action").assertExists()
+        runOnIdle { active.value = false }
+        onNodeWithText("Menu action").assertDoesNotExist()
+        runOnIdle { active.value = true; dialogOpen = true }
+        onNode(hasSetTextAction()).performTextReplacement("unsaved input")
+        runOnIdle { active.value = false }
+        assertTrue(dialogOpen)
+        runOnIdle { active.value = true }
+        onNodeWithText("unsaved input").assertExists()
+    }
+
     @Test fun dialogContentDoesNotTriggerOutsideDismissal() = runComposeUiTest {
         var dismissed = false
         setContent {
