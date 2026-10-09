@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">Bu Cast cihazına bağlanılamadı. Kullanılabilir olduğunu kontrol edip tekrar deneyin.</string>
     <string name="cast_picker_target_lost">Bu Cast cihazı artık kullanılamıyor. Yeniden arayın.</string>
     <string name="cast_picker_return_local">Yerel oynatmaya dön</string>
+    <string name="playlist_item_more_actions">Diğer işlemler</string>
+    <string name="playlist_item_move_top">En başa taşı</string>
+    <string name="playlist_item_move_bottom">En sona taşı</string>
+    <string name="playlist_item_move_position">Konuma taşı…</string>
+    <string name="playlist_item_remove">Bu çalma listesinden kaldır</string>
+    <string name="playlist_item_add_to_playlist">Çalma listesine ekle…</string>
+    <string name="playlist_item_unfavorite">Favorilerden çıkar</string>
+    <string name="playlist_item_download">Parçayı indir</string>
+    <string name="playlist_item_go_album">Albüme git</string>
+    <string name="playlist_item_go_artist">Sanatçıya git</string>
+    <string name="playlist_item_details">Parça ayrıntıları</string>
+    <string name="playlist_item_position">Konum (1–%1$d)</string>
+    <string name="playlist_item_move">Taşı</string>
+    <string name="playlist_item_stale_draft">Bu çalma listesi sunucuda değişti. Değişikliklerinizi kaydetmeden önce yeniden yükleyin.</string>
+    <string name="playlist_item_add_queue">Kuyruğa ekle</string>
 </resources>

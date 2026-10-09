@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">تعذر الاتصال بجهاز Cast هذا. تحقق من توفره وحاول مرة أخرى.</string>
     <string name="cast_picker_target_lost">لم يعد جهاز Cast هذا متاحًا. ابحث مرة أخرى.</string>
     <string name="cast_picker_return_local">العودة إلى التشغيل المحلي</string>
+    <string name="playlist_item_more_actions">المزيد من الإجراءات</string>
+    <string name="playlist_item_move_top">نقل إلى البداية</string>
+    <string name="playlist_item_move_bottom">نقل إلى النهاية</string>
+    <string name="playlist_item_move_position">نقل إلى الموضع…</string>
+    <string name="playlist_item_remove">إزالة من قائمة التشغيل هذه</string>
+    <string name="playlist_item_add_to_playlist">إضافة إلى قائمة تشغيل…</string>
+    <string name="playlist_item_unfavorite">إزالة من المفضلة</string>
+    <string name="playlist_item_download">تنزيل المقطع</string>
+    <string name="playlist_item_go_album">الانتقال إلى الألبوم</string>
+    <string name="playlist_item_go_artist">الانتقال إلى الفنان</string>
+    <string name="playlist_item_details">تفاصيل المقطع</string>
+    <string name="playlist_item_position">الموضع (1–%1$d)</string>
+    <string name="playlist_item_move">نقل</string>
+    <string name="playlist_item_stale_draft">تغيّرت قائمة التشغيل هذه على الخادم. أعد تحميلها قبل حفظ تغييراتك.</string>
+    <string name="playlist_item_add_queue">إضافة إلى قائمة الانتظار</string>
 </resources>

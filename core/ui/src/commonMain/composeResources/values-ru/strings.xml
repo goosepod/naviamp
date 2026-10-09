@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">Не удалось подключиться к этому устройству Cast. Проверьте его доступность и повторите попытку.</string>
     <string name="cast_picker_target_lost">Это устройство Cast больше недоступно. Повторите поиск.</string>
     <string name="cast_picker_return_local">Вернуться к локальному воспроизведению</string>
+    <string name="playlist_item_more_actions">Другие действия</string>
+    <string name="playlist_item_move_top">Переместить в начало</string>
+    <string name="playlist_item_move_bottom">Переместить в конец</string>
+    <string name="playlist_item_move_position">Переместить на позицию…</string>
+    <string name="playlist_item_remove">Удалить из этого плейлиста</string>
+    <string name="playlist_item_add_to_playlist">Добавить в плейлист…</string>
+    <string name="playlist_item_unfavorite">Убрать из избранного</string>
+    <string name="playlist_item_download">Скачать трек</string>
+    <string name="playlist_item_go_album">Перейти к альбому</string>
+    <string name="playlist_item_go_artist">Перейти к исполнителю</string>
+    <string name="playlist_item_details">Сведения о треке</string>
+    <string name="playlist_item_position">Позиция (1–%1$d)</string>
+    <string name="playlist_item_move">Переместить</string>
+    <string name="playlist_item_stale_draft">Этот плейлист изменился на сервере. Загрузите его заново перед сохранением изменений.</string>
+    <string name="playlist_item_add_queue">Добавить в очередь</string>
 </resources>

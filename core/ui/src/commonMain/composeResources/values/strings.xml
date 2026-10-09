@@ -994,4 +994,19 @@
     <string name="cast_picker_connection_failed">Could not connect to this Cast device. Check that it is available and retry.</string>
     <string name="cast_picker_target_lost">This Cast device is no longer available. Search again.</string>
     <string name="cast_picker_return_local">Return to local playback</string>
+    <string name="playlist_item_more_actions">More actions</string>
+    <string name="playlist_item_move_top">Move to Top</string>
+    <string name="playlist_item_move_bottom">Move to Bottom</string>
+    <string name="playlist_item_move_position">Move to Position…</string>
+    <string name="playlist_item_remove">Remove from This Playlist</string>
+    <string name="playlist_item_add_to_playlist">Add to Playlist…</string>
+    <string name="playlist_item_unfavorite">Unfavorite</string>
+    <string name="playlist_item_download">Download Track</string>
+    <string name="playlist_item_go_album">Go to Album</string>
+    <string name="playlist_item_go_artist">Go to Artist</string>
+    <string name="playlist_item_details">Track Details</string>
+    <string name="playlist_item_position">Position (1–%1$d)</string>
+    <string name="playlist_item_move">Move</string>
+    <string name="playlist_item_stale_draft">This playlist changed on the server. Reload it before saving your changes.</string>
+    <string name="playlist_item_add_queue">Add to Queue</string>
 </resources>

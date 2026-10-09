@@ -14,6 +14,7 @@ import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.playlistStaleDraftMessage
 import kotlinx.coroutines.CancellationException
 
 /** Audio-engine boundary used only after Core resolves the complete playback transaction. */
@@ -79,6 +80,7 @@ class NaviampCorePlaylistTransactionController(
     private val onPlaylistTracksChanged: suspend (String) -> Unit = {},
     private val playbackProfiles: NaviampCorePlaybackProfileController =
         NaviampCorePlaybackProfileController(stateStore),
+    private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -102,7 +104,7 @@ class NaviampCorePlaylistTransactionController(
             NaviampCoreCommandResult.Completed
         }
         is NaviampCoreCommand.Playlists.UpdateTracks -> {
-            updateTracks(command.playlist, command.tracks.map { TrackId(it.id) })
+            updateTracks(command.playlist, command.tracks.map { TrackId(it.id) }, command.expectedTrackIds)
             NaviampCoreCommandResult.Completed
         }
         is NaviampCoreCommand.SmartPlaylist.Save -> {
@@ -192,17 +194,23 @@ class NaviampCorePlaylistTransactionController(
         }
     }
 
-    private suspend fun updateTracks(item: SharedMediaItemUi, requestedTrackIds: List<TrackId>) {
+    private suspend fun updateTracks(item: SharedMediaItemUi, requestedTrackIds: List<TrackId>, expectedTrackIds: List<String>?) {
         val provider = providerOrPublish() ?: return
         val generation = browseController.sourceGeneration
         fun isCurrent() = generation == browseController.sourceGeneration && providerSource.isCurrent(provider)
         val playlist = browseController.resolvePlaylist(item)
-        if (!playlist.canEdit) throw UnsupportedOperationException()
+        if (playlist.isSmart || !playlist.canEdit) throw UnsupportedOperationException()
         publishStatus("Updating ${playlist.name}...")
         try {
             // Read again on every attempt: a lost response may follow a successful or partial write.
-            val currentTrackIds = provider.playlistTracks(playlist.id).map(Track::id)
+            val currentTracks = provider.playlistTracks(playlist.id)
+            val currentTrackIds = currentTracks.map(Track::id)
             if (!isCurrent()) throw CancellationException()
+            // Reject a stale draft, but allow retrying a write whose response was lost.
+            if (expectedTrackIds != null && currentTrackIds.map { it.value } != expectedTrackIds &&
+                currentTrackIds != requestedTrackIds) {
+                throw IllegalStateException(staleDraftMessage())
+            }
             provider.replacePlaylistTracks(
                 playlistId = playlist.id,
                 currentTrackIds = currentTrackIds,
@@ -211,6 +219,9 @@ class NaviampCorePlaylistTransactionController(
             if (!isCurrent()) throw CancellationException()
             onPlaylistTracksChanged(playlist.id)
             if (!isCurrent()) throw CancellationException()
+            val tracksById = currentTracks.associateBy(Track::id)
+            val savedTracks = requestedTrackIds.mapNotNull(tracksById::get)
+            if (savedTracks.size == requestedTrackIds.size) browseController.reconcileContents(playlist.id, savedTracks)
             browseController.refreshAfterMutation("Updated playlist.")
             if (isCurrent()) publishStatus("Updated playlist.")
         } catch (cause: Throwable) {

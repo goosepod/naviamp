@@ -169,6 +169,58 @@ class NaviampCorePlaylistTransactionControllerTest {
     }
 
     @Test
+    fun smartPlaylistRejectsItemMutationEvenIfProviderMarksItEditable() = runTest {
+        val fixture = fixture()
+        fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
+        assertFailsWith<UnsupportedOperationException> {
+            fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+                playlistItem("smart", "Smart", smart = true), emptyList(),
+            ))
+        }
+        assertTrue(fixture.provider.replacementTrackIds.isEmpty())
+    }
+
+    @Test
+    fun successfulItemEditsReconcileDisplayedAndPlaybackOrder() = runTest {
+        val fixture = fixture()
+        fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
+        val item = playlistItem("playlist-a", "Playlist A")
+        fixture.browse.execute(NaviampCoreCommand.Media.ItemAction(item.playlistActionRequest(NaviampPlaylistMediaCommand.Select)))
+        val requested = listOf("track-2", "track-1", "track-2")
+        fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+            item, requested.map(::trackRow), expectedTrackIds = listOf("track-1", "track-2", "track-2"),
+        ))
+        assertEquals(requested, fixture.store.state.value.shell.playlistDetail.detail?.tracks?.map { it.id })
+    }
+
+    @Test
+    fun checkedSaveRejectsStaleServerOrderWithoutWriting() = runTest {
+        val fixture = fixture()
+        assertFailsWith<IllegalStateException> {
+            fixture.controller.execute(NaviampCoreCommand.Playlists.UpdateTracks(
+                playlistItem("playlist-a", "Playlist A"), listOf(trackRow("track-2")),
+                expectedTrackIds = listOf("track-2", "track-1", "track-2"),
+            ))
+        }
+        assertTrue(fixture.provider.replacementTrackIds.isEmpty())
+        assertEquals("test: reload playlist", fixture.store.state.value.shell.playlistDetail.status)
+    }
+
+    @Test
+    fun checkedSavePreservesDuplicateOccurrencesAndAllowsLostResponseRetry() = runTest {
+        val fixture = fixture()
+        val command = NaviampCoreCommand.Playlists.UpdateTracks(
+            playlistItem("playlist-a", "Playlist A"), listOf(trackRow("track-1"), trackRow("track-2")),
+            expectedTrackIds = listOf("track-1", "track-2", "track-2"),
+        )
+        fixture.provider.afterReplacement = { error("Response lost") }
+        assertFailsWith<IllegalStateException> { fixture.controller.execute(command) }
+        fixture.provider.afterReplacement = {}
+        fixture.controller.execute(command)
+        assertEquals(listOf("track-1", "track-2"), fixture.provider.playlistTracks("playlist-a").map { it.id.value })
+    }
+
+    @Test
     fun renameAndDeleteKeepCoreSelectionConsistent() = runTest {
         val fixture = fixture()
         fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
@@ -280,6 +332,7 @@ class NaviampCorePlaylistTransactionControllerTest {
             downloads = effects,
             sessionPort = sessionPort,
             openNowPlaying = navigation::openNowPlaying,
+            staleDraftMessage = { "test: reload playlist" },
         )
         return TransactionFixture(
             store,
