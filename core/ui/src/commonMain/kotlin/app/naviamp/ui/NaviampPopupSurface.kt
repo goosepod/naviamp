@@ -117,6 +117,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
         val focus = LocalFocusManager.current
         SideEffect { moveFocus = focus::moveFocus }
         NaviampPopupPresence()
+        NaviampMenuActivationEffect(onDismissRequest)
         var menuBounds by remember { mutableStateOf(Rect.Zero) }
         Layout(content = {
             Box(Modifier.padding(32.dp)) {
