@@ -203,7 +203,7 @@ class NaviampCorePlaylistTransactionControllerTest {
             ))
         }
         assertTrue(fixture.provider.replacementTrackIds.isEmpty())
-        assertTrue(fixture.store.state.value.shell.playlistDetail.status.orEmpty().contains("Reload"))
+        assertEquals("test: reload playlist", fixture.store.state.value.shell.playlistDetail.status)
     }
 
     @Test
@@ -332,6 +332,7 @@ class NaviampCorePlaylistTransactionControllerTest {
             downloads = effects,
             sessionPort = sessionPort,
             openNowPlaying = navigation::openNowPlaying,
+            staleDraftMessage = { "test: reload playlist" },
         )
         return TransactionFixture(
             store,

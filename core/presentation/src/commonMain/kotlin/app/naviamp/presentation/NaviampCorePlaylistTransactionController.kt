@@ -14,6 +14,7 @@ import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.playlistStaleDraftMessage
 import kotlinx.coroutines.CancellationException
 
 /** Audio-engine boundary used only after Core resolves the complete playback transaction. */
@@ -79,6 +80,7 @@ class NaviampCorePlaylistTransactionController(
     private val onPlaylistTracksChanged: suspend (String) -> Unit = {},
     private val playbackProfiles: NaviampCorePlaybackProfileController =
         NaviampCorePlaybackProfileController(stateStore),
+    private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -207,7 +209,7 @@ class NaviampCorePlaylistTransactionController(
             // Reject a stale draft, but allow retrying a write whose response was lost.
             if (expectedTrackIds != null && currentTrackIds.map { it.value } != expectedTrackIds &&
                 currentTrackIds != requestedTrackIds) {
-                throw IllegalStateException(app.naviamp.ui.playlistStaleDraftMessage())
+                throw IllegalStateException(staleDraftMessage())
             }
             provider.replacePlaylistTracks(
                 playlistId = playlist.id,
