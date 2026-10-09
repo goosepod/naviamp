@@ -151,6 +151,11 @@ jobs:
       - name: Run Desktop tests with macOS native libraries
         run: ./gradlew -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false desktopTest
 
+      - name: Verify macOS native popup ownership and stacking
+        run: |
+          cmake --build platforms/desktop/build/generated/DesktopVisualizerMetalBuild/macos-arm64 --target naviamp_owned_window_test
+          ctest --test-dir platforms/desktop/build/generated/DesktopVisualizerMetalBuild/macos-arm64 -R macos_owned_window --output-on-failure
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7

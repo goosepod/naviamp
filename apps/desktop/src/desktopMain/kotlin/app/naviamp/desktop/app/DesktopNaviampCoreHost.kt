@@ -6,9 +6,12 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import app.naviamp.ui.LocalNaviampWindowGroupActive
 import app.naviamp.desktop.platform.DesktopMprisService
 import app.naviamp.desktop.platform.desktopGlobalShortcutRegistrar
 import app.naviamp.desktop.platform.desktopScreenAwakeEffect
@@ -134,6 +137,11 @@ internal fun DesktopNaviampCoreHost(
             core.updateGlobalShortcutStatuses(statuses)
         }
     }
+    var windowGroupActive by remember(window) { mutableStateOf(true) }
+    DisposableEffect(window) {
+        val observation = DesktopOwnedWindowAdapter(window) { windowGroupActive = it }.attach()
+        onDispose { observation.close() }
+    }
     val textInputFocusRegistry = rememberNaviampTextInputFocusRegistry()
     DisposableEffect(window, core, textInputFocusRegistry) {
         var spaceHeld = false
@@ -159,7 +167,10 @@ internal fun DesktopNaviampCoreHost(
         focusManager.addKeyEventDispatcher(dispatcher)
         onDispose { focusManager.removeKeyEventDispatcher(dispatcher) }
     }
-    CompositionLocalProvider(LocalNaviampTextInputFocusRegistry provides textInputFocusRegistry) {
+    CompositionLocalProvider(
+        LocalNaviampTextInputFocusRegistry provides textInputFocusRegistry,
+        LocalNaviampWindowGroupActive provides windowGroupActive,
+    ) {
         NaviampCoreApp(
             core = core,
             modifier = modifier,
@@ -172,9 +183,6 @@ internal fun DesktopNaviampCoreHost(
         )
     }
 }
-
-private fun Window?.belongsTo(owner: Window): Boolean =
-    generateSequence(this) { window -> window.owner }.any { window -> window == owner }
 
 private fun bringDesktopWindowToFront(window: Window) {
     EventQueue.invokeLater {
