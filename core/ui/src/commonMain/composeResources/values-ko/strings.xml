@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">이 Cast 기기에 연결할 수 없습니다. 사용 가능한지 확인하고 다시 시도하세요.</string>
     <string name="cast_picker_target_lost">이 Cast 기기를 더 이상 사용할 수 없습니다. 다시 검색하세요.</string>
     <string name="cast_picker_return_local">로컬 재생으로 돌아가기</string>
+    <string name="playlist_item_more_actions">더 많은 작업</string>
+    <string name="playlist_item_move_top">맨 위로 이동</string>
+    <string name="playlist_item_move_bottom">맨 아래로 이동</string>
+    <string name="playlist_item_move_position">지정 위치로 이동…</string>
+    <string name="playlist_item_remove">이 재생목록에서 삭제</string>
+    <string name="playlist_item_add_to_playlist">재생목록에 추가…</string>
+    <string name="playlist_item_unfavorite">즐겨찾기 해제</string>
+    <string name="playlist_item_download">트랙 다운로드</string>
+    <string name="playlist_item_go_album">앨범으로 이동</string>
+    <string name="playlist_item_go_artist">아티스트로 이동</string>
+    <string name="playlist_item_details">트랙 정보</string>
+    <string name="playlist_item_position">위치 (1–%1$d)</string>
+    <string name="playlist_item_move">이동</string>
+    <string name="playlist_item_stale_draft">서버에서 이 재생목록이 변경되었습니다. 변경 사항을 저장하기 전에 다시 불러오세요.</string>
+    <string name="playlist_item_add_queue">대기열에 추가</string>
 </resources>

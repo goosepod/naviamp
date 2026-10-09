@@ -547,7 +547,15 @@ data class NaviampPlaylistsActions(
     val smartPlaylist: NaviampSmartPlaylistActions,
 )
 
+data class PlaylistTrackCapabilities(
+    val canStartRadio: Boolean = false,
+    val canDownload: Boolean = false,
+    val canAddToQueue: Boolean = false,
+    val canAddToPlaylist: Boolean = false,
+)
+
 data class NaviampPlaylistDetailScreenUi(
+    val trackCapabilities: PlaylistTrackCapabilities = PlaylistTrackCapabilities(),
     val selectedPlaylist: SharedMediaItemUi? = null,
     val detail: SharedPlaylistDetailUi? = null,
     val status: String? = null,
@@ -578,7 +586,7 @@ data class NaviampPlaylistDetailActionRequest(
 data class NaviampPlaylistDetailActions(
     val onBack: () -> Unit,
     val onPlaylistAction: (NaviampPlaylistDetailActionRequest) -> Unit,
-    val onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
+    val onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>, List<SharedTrackRowUi>) -> Unit,
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 )
 

@@ -250,7 +250,7 @@ class NaviampCorePlaylistBrowseController(
                 playlistDetail = if (shell.playlistDetail.selectedPlaylist?.id == playlistId) {
                     shell.playlistDetail.copy(
                         selectedPlaylist = mapped,
-                        detail = SharedPlaylistDetailUi(mapped, tracks.map { it.toSharedTrackRowUi(coverArtUrl) }),
+                        detail = SharedPlaylistDetailUi(mapped, tracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(canToggleFavorite = provider.capabilities.supportsTrackFavorites) }),
                         status = null,
                     )
                 } else shell.playlistDetail,
@@ -304,10 +304,18 @@ class NaviampCorePlaylistBrowseController(
                 stateStore.updateShell { shell ->
                     shell.copy(
                         playlistDetail = shell.playlistDetail.copy(
+                            trackCapabilities = app.naviamp.ui.PlaylistTrackCapabilities(
+                                canStartRadio = provider.capabilities.supportsTrackRadio,
+                                canDownload = provider.capabilities.supportsDownloads,
+                                canAddToQueue = true,
+                                canAddToPlaylist = true,
+                            ),
                             selectedPlaylist = mappedPlaylist,
                             detail = SharedPlaylistDetailUi(
                                 playlist = mappedPlaylist,
-                                tracks = tracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
+                                tracks = tracks.map { track -> track.toSharedTrackRowUi(coverArtUrl).copy(
+                                    canToggleFavorite = provider.capabilities.supportsTrackFavorites,
+                                ) },
                             ),
                             status = "Connected.",
                             playbackProfile = playbackProfiles.playlistProfile(resolvedPlaylist.id),

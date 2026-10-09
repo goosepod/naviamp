@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">Kan geen verbinding maken met dit Cast-apparaat. Controleer de beschikbaarheid en probeer opnieuw.</string>
     <string name="cast_picker_target_lost">Dit Cast-apparaat is niet meer beschikbaar. Zoek opnieuw.</string>
     <string name="cast_picker_return_local">Terug naar lokale weergave</string>
+    <string name="playlist_item_more_actions">Meer acties</string>
+    <string name="playlist_item_move_top">Naar boven verplaatsen</string>
+    <string name="playlist_item_move_bottom">Naar onderen verplaatsen</string>
+    <string name="playlist_item_move_position">Naar positie verplaatsen…</string>
+    <string name="playlist_item_remove">Uit deze afspeellijst verwijderen</string>
+    <string name="playlist_item_add_to_playlist">Aan afspeellijst toevoegen…</string>
+    <string name="playlist_item_unfavorite">Uit favorieten verwijderen</string>
+    <string name="playlist_item_download">Nummer downloaden</string>
+    <string name="playlist_item_go_album">Naar album</string>
+    <string name="playlist_item_go_artist">Naar artiest</string>
+    <string name="playlist_item_details">Nummerdetails</string>
+    <string name="playlist_item_position">Positie (1–%1$d)</string>
+    <string name="playlist_item_move">Verplaatsen</string>
+    <string name="playlist_item_stale_draft">Deze afspeellijst is op de server gewijzigd. Laad deze opnieuw voordat je wijzigingen opslaat.</string>
+    <string name="playlist_item_add_queue">Aan wachtrij toevoegen</string>
 </resources>

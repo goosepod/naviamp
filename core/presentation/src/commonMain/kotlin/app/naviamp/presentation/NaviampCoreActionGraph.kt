@@ -245,8 +245,8 @@ fun createNaviampCoreActions(
         playlistDetailActions = NaviampPlaylistDetailActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromPlaylist) },
             onPlaylistAction = { send(NaviampCoreCommand.Playlists.Detail(it)) },
-            onUpdateStandardPlaylist = { playlist, tracks ->
-                handler.execute(NaviampCoreCommand.Playlists.UpdateTracks(playlist, tracks))
+            onUpdateStandardPlaylist = { playlist, expectedTracks, tracks ->
+                handler.execute(NaviampCoreCommand.Playlists.UpdateTracks(playlist, tracks, expectedTracks.map { it.id }))
             },
             onTrackAction = { send(NaviampCoreCommand.Detail.PlaylistTrack(it)) },
         ),

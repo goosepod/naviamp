@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">この Cast デバイスに接続できませんでした。利用可能か確認して再試行してください。</string>
     <string name="cast_picker_target_lost">この Cast デバイスは利用できなくなりました。再検索してください。</string>
     <string name="cast_picker_return_local">ローカル再生に戻る</string>
+    <string name="playlist_item_more_actions">その他の操作</string>
+    <string name="playlist_item_move_top">先頭に移動</string>
+    <string name="playlist_item_move_bottom">末尾に移動</string>
+    <string name="playlist_item_move_position">指定位置に移動…</string>
+    <string name="playlist_item_remove">このプレイリストから削除</string>
+    <string name="playlist_item_add_to_playlist">プレイリストに追加…</string>
+    <string name="playlist_item_unfavorite">お気に入りから削除</string>
+    <string name="playlist_item_download">曲をダウンロード</string>
+    <string name="playlist_item_go_album">アルバムを開く</string>
+    <string name="playlist_item_go_artist">アーティストを開く</string>
+    <string name="playlist_item_details">曲の詳細</string>
+    <string name="playlist_item_position">位置（1–%1$d）</string>
+    <string name="playlist_item_move">移動</string>
+    <string name="playlist_item_stale_draft">このプレイリストはサーバー上で変更されました。変更を保存する前に再読み込みしてください。</string>
+    <string name="playlist_item_add_queue">キューに追加</string>
 </resources>

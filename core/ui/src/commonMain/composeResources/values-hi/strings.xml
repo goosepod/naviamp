@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">इस Cast डिवाइस से कनेक्ट नहीं हो सका। इसकी उपलब्धता जाँचें और फिर कोशिश करें।</string>
     <string name="cast_picker_target_lost">यह Cast डिवाइस अब उपलब्ध नहीं है। फिर से खोजें।</string>
     <string name="cast_picker_return_local">स्थानीय प्लेबैक पर लौटें</string>
+    <string name="playlist_item_more_actions">और कार्रवाइयाँ</string>
+    <string name="playlist_item_move_top">सबसे ऊपर ले जाएँ</string>
+    <string name="playlist_item_move_bottom">सबसे नीचे ले जाएँ</string>
+    <string name="playlist_item_move_position">इस स्थान पर ले जाएँ…</string>
+    <string name="playlist_item_remove">इस प्लेलिस्ट से हटाएँ</string>
+    <string name="playlist_item_add_to_playlist">प्लेलिस्ट में जोड़ें…</string>
+    <string name="playlist_item_unfavorite">पसंदीदा से हटाएँ</string>
+    <string name="playlist_item_download">ट्रैक डाउनलोड करें</string>
+    <string name="playlist_item_go_album">एल्बम पर जाएँ</string>
+    <string name="playlist_item_go_artist">कलाकार पर जाएँ</string>
+    <string name="playlist_item_details">ट्रैक का विवरण</string>
+    <string name="playlist_item_position">स्थान (1–%1$d)</string>
+    <string name="playlist_item_move">ले जाएँ</string>
+    <string name="playlist_item_stale_draft">यह प्लेलिस्ट सर्वर पर बदल गई है। अपने बदलाव सहेजने से पहले इसे फिर से लोड करें।</string>
+    <string name="playlist_item_add_queue">कतार में जोड़ें</string>
 </resources>

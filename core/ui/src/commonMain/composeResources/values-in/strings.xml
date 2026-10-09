@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">Tidak dapat terhubung ke perangkat Cast ini. Pastikan perangkat tersedia dan coba lagi.</string>
     <string name="cast_picker_target_lost">Perangkat Cast ini tidak lagi tersedia. Cari lagi.</string>
     <string name="cast_picker_return_local">Kembali ke pemutaran lokal</string>
+    <string name="playlist_item_more_actions">Tindakan lainnya</string>
+    <string name="playlist_item_move_top">Pindahkan ke awal</string>
+    <string name="playlist_item_move_bottom">Pindahkan ke akhir</string>
+    <string name="playlist_item_move_position">Pindahkan ke posisi…</string>
+    <string name="playlist_item_remove">Hapus dari playlist ini</string>
+    <string name="playlist_item_add_to_playlist">Tambahkan ke playlist…</string>
+    <string name="playlist_item_unfavorite">Hapus dari favorit</string>
+    <string name="playlist_item_download">Unduh lagu</string>
+    <string name="playlist_item_go_album">Buka album</string>
+    <string name="playlist_item_go_artist">Buka artis</string>
+    <string name="playlist_item_details">Detail lagu</string>
+    <string name="playlist_item_position">Posisi (1–%1$d)</string>
+    <string name="playlist_item_move">Pindahkan</string>
+    <string name="playlist_item_stale_draft">Playlist ini telah berubah di server. Muat ulang sebelum menyimpan perubahan Anda.</string>
+    <string name="playlist_item_add_queue">Tambahkan ke antrean</string>
 </resources>

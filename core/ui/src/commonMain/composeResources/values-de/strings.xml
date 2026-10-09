@@ -966,4 +966,19 @@
     <string name="cast_picker_connection_failed">Verbindung zu diesem Cast-Gerät fehlgeschlagen. Verfügbarkeit prüfen und erneut versuchen.</string>
     <string name="cast_picker_target_lost">Dieses Cast-Gerät ist nicht mehr verfügbar. Erneut suchen.</string>
     <string name="cast_picker_return_local">Zur lokalen Wiedergabe zurückkehren</string>
+    <string name="playlist_item_more_actions">Weitere Aktionen</string>
+    <string name="playlist_item_move_top">An den Anfang verschieben</string>
+    <string name="playlist_item_move_bottom">Ans Ende verschieben</string>
+    <string name="playlist_item_move_position">An Position verschieben…</string>
+    <string name="playlist_item_remove">Aus dieser Wiedergabeliste entfernen</string>
+    <string name="playlist_item_add_to_playlist">Zu Wiedergabeliste hinzufügen…</string>
+    <string name="playlist_item_unfavorite">Favorit entfernen</string>
+    <string name="playlist_item_download">Titel herunterladen</string>
+    <string name="playlist_item_go_album">Zum Album</string>
+    <string name="playlist_item_go_artist">Zum Künstler</string>
+    <string name="playlist_item_details">Titeldetails</string>
+    <string name="playlist_item_position">Position (1–%1$d)</string>
+    <string name="playlist_item_move">Verschieben</string>
+    <string name="playlist_item_stale_draft">Diese Wiedergabeliste wurde auf dem Server geändert. Lade sie neu, bevor du deine Änderungen speicherst.</string>
+    <string name="playlist_item_add_queue">Zur Warteschlange hinzufügen</string>
 </resources>

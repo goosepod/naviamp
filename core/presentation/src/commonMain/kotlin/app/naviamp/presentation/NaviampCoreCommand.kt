@@ -139,7 +139,7 @@ sealed interface NaviampCoreCommand {
         data object Refresh : Playlists
         data class ChangeSort(val sortMode: SharedPlaylistSortMode) : Playlists
         data class Detail(val request: NaviampPlaylistDetailActionRequest) : Playlists
-        data class UpdateTracks(val playlist: SharedMediaItemUi, val tracks: List<SharedTrackRowUi>) : Playlists
+        data class UpdateTracks(val playlist: SharedMediaItemUi, val tracks: List<SharedTrackRowUi>, val expectedTrackIds: List<String>? = null) : Playlists
     }
 
     sealed interface SmartPlaylist : NaviampCoreCommand {

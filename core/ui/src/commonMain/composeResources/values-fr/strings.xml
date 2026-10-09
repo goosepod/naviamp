@@ -134,4 +134,19 @@
     <string name="cast_picker_connection_failed">Impossible de se connecter à cet appareil Cast. Vérifiez sa disponibilité et réessayez.</string>
     <string name="cast_picker_target_lost">Cet appareil Cast n’est plus disponible. Relancez la recherche.</string>
     <string name="cast_picker_return_local">Revenir à la lecture locale</string>
+    <string name="playlist_item_more_actions">Autres actions</string>
+    <string name="playlist_item_move_top">Déplacer au début</string>
+    <string name="playlist_item_move_bottom">Déplacer à la fin</string>
+    <string name="playlist_item_move_position">Déplacer à la position…</string>
+    <string name="playlist_item_remove">Retirer de cette playlist</string>
+    <string name="playlist_item_add_to_playlist">Ajouter à une playlist…</string>
+    <string name="playlist_item_unfavorite">Retirer des favoris</string>
+    <string name="playlist_item_download">Télécharger le morceau</string>
+    <string name="playlist_item_go_album">Voir l’album</string>
+    <string name="playlist_item_go_artist">Voir l’artiste</string>
+    <string name="playlist_item_details">Détails du morceau</string>
+    <string name="playlist_item_position">Position (1–%1$d)</string>
+    <string name="playlist_item_move">Déplacer</string>
+    <string name="playlist_item_stale_draft">Cette playlist a changé sur le serveur. Rechargez-la avant d’enregistrer vos modifications.</string>
+    <string name="playlist_item_add_queue">Ajouter à la file d’attente</string>
 </resources>
