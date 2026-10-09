@@ -20,6 +20,12 @@ This store package targets Apple Silicon and macOS 12 or later. Universal native
 libraries with an arm64 slice are reduced to that slice so obsolete 32-bit BASS
 architectures are excluded. The direct-download release artifact remains intact.
 
+The staged bundle is recursively cleared of `com.apple.quarantine` before signing.
+Downloaded provisioning profiles can retain this attribute and cause Apple's
+ITMS-91109 processing rejection. Source bundles and downloaded profiles remain
+unchanged. Verify that the archive and expanded installer payload are also free
+of this attribute before uploading.
+
 Example (substitute local paths and signing identities):
 
 ```sh

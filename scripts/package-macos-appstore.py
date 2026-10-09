@@ -10,6 +10,7 @@ import argparse
 import datetime
 import plistlib
 import shutil
+import stat
 import subprocess
 import tempfile
 import zipfile
@@ -28,6 +29,29 @@ def plist(path: Path) -> dict:
 
 def write_plist(path: Path, value: dict) -> None:
     path.write_bytes(plistlib.dumps(value))
+
+
+def clear_package_quarantine(app: Path) -> None:
+    # Downloaded profiles and copied release resources can retain quarantine.
+    # Clean only the staged bundle; never modify the source or signing inputs.
+    app = app.resolve()
+    attributes = subprocess.check_output(['/usr/bin/xattr', '-lr', str(app)], text=True)
+    for line in attributes.splitlines():
+        if ': com.apple.quarantine:' not in line:
+            continue
+        path = Path(line.split(': com.apple.quarantine:', 1)[0]).resolve()
+        if not path.is_relative_to(app):
+            raise ValueError(f'Quarantined resource resolves outside staged app: {path}')
+        # jlink includes read-only legal resources; preserve their original mode.
+        mode = stat.S_IMODE(path.stat().st_mode)
+        try:
+            path.chmod(mode | stat.S_IWUSR)
+            run('/usr/bin/xattr', '-d', 'com.apple.quarantine', str(path))
+        finally:
+            path.chmod(mode)
+    attributes = subprocess.check_output(['/usr/bin/xattr', '-lr', str(app)], text=True)
+    if ': com.apple.quarantine:' in attributes:
+        raise ValueError('Staged application still contains quarantine attributes')
 
 
 def main() -> None:
@@ -152,6 +176,7 @@ def main() -> None:
     if int(minimum.split('.')[0]) < 12:
         source_info['LSMinimumSystemVersion'] = '12.0'
     write_plist(app / 'Contents/Info.plist', source_info)
+    clear_package_quarantine(app)
     for path in sorted(app.rglob('*'), key=lambda p: len(p.parts), reverse=True):
         if not path.is_file() or path.is_symlink():
             continue
