@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Tidak dapat terhubung ke perangkat Cast ini. Pastikan perangkat tersedia dan coba lagi.</string>
     <string name="cast_picker_target_lost">Perangkat Cast ini tidak lagi tersedia. Cari lagi.</string>
     <string name="cast_picker_return_local">Kembali ke pemutaran lokal</string>
+    <string name="similarity_test">Uji kemiripan</string>
+    <string name="similarity_test_help">Bandingkan kedua metode kemiripan server tanpa mengubah pemutaran.</string>
+    <string name="similarity_no_seed">Hubungkan server dan pilih lagu dari pustaka, lalu coba lagi.</string>
+    <string name="similarity_seed">Lagu uji: %1$s</string>
+    <string name="similarity_support_ready">Server mengiklankan dukungan kemiripan sonik.</string>
+    <string name="similarity_support_missing">Server tidak mengiklankan dukungan kemiripan sonik.</string>
+    <string name="similarity_support_unknown">Dukungan kemiripan sonik tidak dapat diperiksa.</string>
+    <string name="similarity_matches">%1$d kecocokan</string>
+    <string name="similarity_empty">Tidak ada kecocokan yang dapat digunakan.</string>
+    <string name="similarity_timeout">Permintaan kehabisan waktu.</string>
+    <string name="similarity_failed">Permintaan gagal. Periksa log server dan plugin.</string>
+    <string name="similarity_setup">Pastikan plugin Sonic yang kompatibel aktif, alamat API dan token benar, serta server dapat mengaksesnya.</string>
+    <string name="similarity_empty_help">Coba lagu lain yang telah dianalisis. Tidak adanya kecocokan untuk satu lagu tidak membuktikan masalah konfigurasi.</string>
+    <string name="similarity_regular">Kemiripan biasa</string>
+    <string name="similarity_radio_fallback">Kemiripan suara tidak tersedia. Radio menggunakan metode cadangannya.</string>
+    <string name="similarity_radio_empty">Radio tidak menemukan lagu tambahan. Antrean saat ini dipertahankan.</string>
+    <string name="similarity_radio_failed">Antrean Radio tidak dapat dibuat. Antrean saat ini dipertahankan.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

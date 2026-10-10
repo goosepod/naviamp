@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Não foi possível conectar a este dispositivo Cast. Verifique se ele está disponível e tente novamente.</string>
     <string name="cast_picker_target_lost">Este dispositivo Cast não está mais disponível. Pesquise novamente.</string>
     <string name="cast_picker_return_local">Voltar à reprodução local</string>
+    <string name="similarity_test">Testar similaridade</string>
+    <string name="similarity_test_help">Compare os dois métodos de similaridade do servidor sem alterar a reprodução.</string>
+    <string name="similarity_no_seed">Conecte um servidor e selecione uma faixa da biblioteca; depois tente novamente.</string>
+    <string name="similarity_seed">Faixa de teste: %1$s</string>
+    <string name="similarity_support_ready">O servidor anuncia similaridade sonora.</string>
+    <string name="similarity_support_missing">O servidor não anuncia similaridade sonora.</string>
+    <string name="similarity_support_unknown">Não foi possível verificar a similaridade sonora.</string>
+    <string name="similarity_matches">%1$d correspondências</string>
+    <string name="similarity_empty">Nenhuma correspondência utilizável.</string>
+    <string name="similarity_timeout">A solicitação excedeu o tempo limite.</string>
+    <string name="similarity_failed">A solicitação falhou. Verifique os registros do servidor e do plugin.</string>
+    <string name="similarity_setup">Verifique se um plugin Sonic compatível está ativado, se o endereço da API e o token estão corretos e se o servidor consegue acessá-lo.</string>
+    <string name="similarity_empty_help">Tente outra faixa analisada. A falta de correspondências para uma faixa não comprova um problema de configuração.</string>
+    <string name="similarity_regular">Similaridade normal</string>
+    <string name="similarity_radio_fallback">A similaridade sonora estava indisponível. A Rádio usou seu método alternativo.</string>
+    <string name="similarity_radio_empty">A Rádio não encontrou outras faixas. A fila atual foi mantida.</string>
+    <string name="similarity_radio_failed">Não foi possível criar a fila da Rádio. A fila atual foi mantida.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

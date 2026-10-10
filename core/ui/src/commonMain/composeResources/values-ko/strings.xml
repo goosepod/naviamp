@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">이 Cast 기기에 연결할 수 없습니다. 사용 가능한지 확인하고 다시 시도하세요.</string>
     <string name="cast_picker_target_lost">이 Cast 기기를 더 이상 사용할 수 없습니다. 다시 검색하세요.</string>
     <string name="cast_picker_return_local">로컬 재생으로 돌아가기</string>
+    <string name="similarity_test">유사성 테스트</string>
+    <string name="similarity_test_help">재생을 변경하지 않고 서버의 두 유사성 검색 방법을 비교합니다.</string>
+    <string name="similarity_no_seed">서버에 연결하고 라이브러리에서 곡을 선택한 후 다시 시도하세요.</string>
+    <string name="similarity_seed">테스트 곡: %1$s</string>
+    <string name="similarity_support_ready">서버가 음향 유사성 지원을 알립니다.</string>
+    <string name="similarity_support_missing">서버가 음향 유사성 지원을 알리지 않습니다.</string>
+    <string name="similarity_support_unknown">음향 유사성 지원을 확인하지 못했습니다.</string>
+    <string name="similarity_matches">일치 항목 %1$d개</string>
+    <string name="similarity_empty">사용 가능한 일치 항목이 없습니다.</string>
+    <string name="similarity_timeout">요청 시간이 초과되었습니다.</string>
+    <string name="similarity_failed">요청에 실패했습니다. 서버와 플러그인 로그를 확인하세요.</string>
+    <string name="similarity_setup">호환되는 Sonic 플러그인이 활성화되어 있고 API 주소와 토큰이 올바르며 서버에서 접근할 수 있는지 확인하세요.</string>
+    <string name="similarity_empty_help">분석된 다른 곡을 시도하세요. 한 곡에 일치 항목이 없다고 설정 문제로 단정할 수는 없습니다.</string>
+    <string name="similarity_regular">일반 유사성</string>
+    <string name="similarity_radio_fallback">음향 유사도를 사용할 수 없어 라디오가 대체 방식을 사용했습니다.</string>
+    <string name="similarity_radio_empty">라디오에서 추가 곡을 찾지 못했습니다. 현재 대기열을 유지했습니다.</string>
+    <string name="similarity_radio_failed">라디오 대기열을 만들지 못했습니다. 현재 대기열을 유지했습니다.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

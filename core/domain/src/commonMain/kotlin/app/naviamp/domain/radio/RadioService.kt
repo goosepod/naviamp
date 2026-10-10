@@ -19,6 +19,7 @@ class RadioService(
     private val count: Int = DefaultRadioCount,
     private val tuning: RadioTuningSettings = RadioTuningSettings(),
     private val providerResponseService: ProviderResponseService? = null,
+    private val onSonicFallback: (SonicRadioFallbackReason) -> Unit = {},
 ) {
     suspend fun albumSeed(album: Album, loadedTracks: List<Track> = emptyList()): Track? =
         loadedTracks.randomOrNull()
@@ -76,18 +77,23 @@ class RadioService(
         if (preferSonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
             // Capability advertisement does not guarantee a healthy similarity backend.
             // Bound this optional request so regular Radio can still build the queue.
+            var fallback = SonicRadioFallbackReason.Empty
             val sonicTracks = try {
-                withTimeoutOrNull(SonicRadioTimeoutMillis) {
+                val tracks = withTimeoutOrNull(SimilarityRequestTimeoutMillis) {
                     provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
-                }.orEmpty()
+                }
+                if (tracks == null) fallback = SonicRadioFallbackReason.TimedOut
+                tracks.orEmpty()
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (failure: Exception) {
+                fallback = if (failure.isSimilarityTimeout()) SonicRadioFallbackReason.TimedOut else SonicRadioFallbackReason.Failed
                 emptyList()
             }.filterNot { track -> track.id == seedTrack.id }
             if (sonicTracks.isNotEmpty()) {
                 return tunedTrackRadio(seedTrack, sonicTracks)
             }
+            onSonicFallback(fallback)
         }
         return provider.trackRadio(seedTrack.id, count = fetchCount)
             .let { tracks -> tunedTrackRadio(seedTrack, tracks) }
@@ -159,7 +165,6 @@ class RadioService(
         }
 
     private companion object {
-        const val SonicRadioTimeoutMillis = 10_000L
         const val DefaultRadioCount = 50
         const val LibraryRadioCount = 500
     }

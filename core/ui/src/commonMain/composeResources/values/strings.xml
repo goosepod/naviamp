@@ -994,4 +994,22 @@
     <string name="cast_picker_connection_failed">Could not connect to this Cast device. Check that it is available and retry.</string>
     <string name="cast_picker_target_lost">This Cast device is no longer available. Search again.</string>
     <string name="cast_picker_return_local">Return to local playback</string>
+    <string name="similarity_test">Test similarity</string>
+    <string name="similarity_test_help">Compare both server similarity methods without changing playback.</string>
+    <string name="similarity_no_seed">Connect to a server and select a library track, then try again.</string>
+    <string name="similarity_seed">Test track: %1$s</string>
+    <string name="similarity_support_ready">Sonic support is advertised.</string>
+    <string name="similarity_support_missing">Sonic support is not advertised.</string>
+    <string name="similarity_support_unknown">Could not check Sonic support.</string>
+    <string name="similarity_matches">%1$d matches</string>
+    <string name="similarity_empty">No usable matches.</string>
+    <string name="similarity_timeout">Request timed out.</string>
+    <string name="similarity_failed">Request failed. Check server and plugin logs.</string>
+    <string name="similarity_setup">Check that a compatible Sonic plugin is enabled, its API address and token are correct, and the server can reach it.</string>
+    <string name="similarity_empty_help">Try another analyzed track. No matches for one track does not prove a configuration problem.</string>
+    <string name="similarity_regular">Regular similarity</string>
+    <string name="similarity_radio_fallback">Sonic similarity was unavailable. Radio used its fallback.</string>
+    <string name="similarity_radio_empty">Radio found no additional tracks. The current queue was kept.</string>
+    <string name="similarity_radio_failed">The Radio queue could not be built. The current queue was kept.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

@@ -1376,6 +1376,7 @@ data class NaviampSettingsMaintenanceActions(
     val onClearLibrary: () -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onResetDatabase: () -> Unit,
+    val onTestSimilarity: () -> Unit = {},
 )
 
 data class NaviampGeneralSettingsUi(
@@ -1404,6 +1405,9 @@ data class NaviampPlaybackSettingsUi(
     val hoverTooltipsAvailable: Boolean = false,
     val showMobileNetworkQuality: Boolean = false,
     val downloadBytes: Long = 0L,
+    val similarityTest: NaviampSimilarityTestUi = NaviampSimilarityTestUi(),
+    val radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null,
+    val similarityDiagnosticsAvailable: Boolean = false,
 )
 
 data class NaviampCacheSettingsUi(

@@ -705,6 +705,19 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals(before, fixture.live.state.value)
         assertTrue(fixture.effects.selections.isEmpty())
         assertTrue(fixture.effects.appliedQueues.isEmpty())
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Failed, fixture.store.state.value.shell.playback.radioDiagnostics?.outcome)
+    }
+
+    @Test
+    fun emptyRadioRefreshKeepsQueueAndReportsNoExpansion() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.provider.trackRadioTracks = listOf(nowPlayingTrack("current"))
+        val before = fixture.live.state.value
+        fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
+        assertEquals(before, fixture.live.state.value)
+        assertTrue(fixture.effects.appliedQueues.isEmpty())
+        assertEquals(app.naviamp.domain.radio.RadioBuildOutcome.Empty, fixture.store.state.value.overlays.radioNotice?.outcome)
+        assertEquals("Playing current radio while the queue builds.", fixture.store.state.value.overlays.status)
     }
 
     @Test

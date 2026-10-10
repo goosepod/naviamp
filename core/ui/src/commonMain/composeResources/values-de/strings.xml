@@ -966,4 +966,22 @@
     <string name="cast_picker_connection_failed">Verbindung zu diesem Cast-Gerät fehlgeschlagen. Verfügbarkeit prüfen und erneut versuchen.</string>
     <string name="cast_picker_target_lost">Dieses Cast-Gerät ist nicht mehr verfügbar. Erneut suchen.</string>
     <string name="cast_picker_return_local">Zur lokalen Wiedergabe zurückkehren</string>
+    <string name="similarity_test">Ähnlichkeit testen</string>
+    <string name="similarity_test_help">Beide Ähnlichkeitsmethoden des Servers vergleichen, ohne die Wiedergabe zu ändern.</string>
+    <string name="similarity_no_seed">Mit einem Server verbinden und einen Bibliothekstitel auswählen, dann erneut versuchen.</string>
+    <string name="similarity_seed">Testtitel: %1$s</string>
+    <string name="similarity_support_ready">Klangähnlichkeit wird angeboten.</string>
+    <string name="similarity_support_missing">Klangähnlichkeit wird nicht angeboten.</string>
+    <string name="similarity_support_unknown">Klangähnlichkeit konnte nicht geprüft werden.</string>
+    <string name="similarity_matches">%1$d Treffer</string>
+    <string name="similarity_empty">Keine nutzbaren Treffer.</string>
+    <string name="similarity_timeout">Zeitüberschreitung der Anfrage.</string>
+    <string name="similarity_failed">Anfrage fehlgeschlagen. Server- und Plugin-Protokolle prüfen.</string>
+    <string name="similarity_setup">Prüfen, ob ein kompatibles Sonic-Plugin aktiviert ist, API-Adresse und Token stimmen und der Server es erreichen kann.</string>
+    <string name="similarity_empty_help">Einen anderen analysierten Titel versuchen. Fehlende Treffer für einen Titel beweisen keinen Konfigurationsfehler.</string>
+    <string name="similarity_regular">Normale Ähnlichkeit</string>
+    <string name="similarity_radio_fallback">Klangähnlichkeit war nicht verfügbar. Radio verwendete seine Ausweichmethode.</string>
+    <string name="similarity_radio_empty">Radio fand keine weiteren Titel. Die aktuelle Warteschlange wurde beibehalten.</string>
+    <string name="similarity_radio_failed">Die Radio-Warteschlange konnte nicht erstellt werden. Die aktuelle Warteschlange wurde beibehalten.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

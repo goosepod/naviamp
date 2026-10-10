@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Impossibile connettersi a questo dispositivo Cast. Verifica che sia disponibile e riprova.</string>
     <string name="cast_picker_target_lost">Questo dispositivo Cast non è più disponibile. Cerca di nuovo.</string>
     <string name="cast_picker_return_local">Torna alla riproduzione locale</string>
+    <string name="similarity_test">Verifica somiglianza</string>
+    <string name="similarity_test_help">Confronta entrambi i metodi di somiglianza del server senza modificare la riproduzione.</string>
+    <string name="similarity_no_seed">Connettiti a un server e seleziona un brano della libreria, quindi riprova.</string>
+    <string name="similarity_seed">Brano di prova: %1$s</string>
+    <string name="similarity_support_ready">La somiglianza sonora è dichiarata.</string>
+    <string name="similarity_support_missing">La somiglianza sonora non è dichiarata.</string>
+    <string name="similarity_support_unknown">Impossibile verificare la somiglianza sonora.</string>
+    <string name="similarity_matches">%1$d corrispondenze</string>
+    <string name="similarity_empty">Nessuna corrispondenza utilizzabile.</string>
+    <string name="similarity_timeout">La richiesta è scaduta.</string>
+    <string name="similarity_failed">Richiesta non riuscita. Controlla i log del server e del plugin.</string>
+    <string name="similarity_setup">Verifica che un plugin Sonic compatibile sia attivo, che indirizzo API e token siano corretti e che il server possa raggiungerlo.</string>
+    <string name="similarity_empty_help">Prova un altro brano analizzato. Nessuna corrispondenza per un brano non dimostra un problema di configurazione.</string>
+    <string name="similarity_regular">Somiglianza normale</string>
+    <string name="similarity_radio_fallback">La somiglianza sonora non era disponibile. Radio ha usato il metodo alternativo.</string>
+    <string name="similarity_radio_empty">Radio non ha trovato altri brani. La coda attuale è stata mantenuta.</string>
+    <string name="similarity_radio_failed">Impossibile creare la coda Radio. La coda attuale è stata mantenuta.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

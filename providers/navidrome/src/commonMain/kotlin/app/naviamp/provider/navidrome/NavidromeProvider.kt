@@ -128,6 +128,7 @@ class NavidromeProvider(
         connection.copy(nativeToken = nativeToken)
     private val baseCapabilities: ProviderCapabilities =
         ProviderCapabilities(
+            supportsSimilarityDiagnostics = profile.generatedRadio,
             supportsStreamingTranscode = profile.streamingTranscode,
             supportsDownloadTranscode = profile.downloadTranscode,
             supportsArtistRadio = profile.generatedRadio,
@@ -1345,6 +1346,42 @@ class NavidromeProvider(
             .ifEmpty {
                 trackRadioFallback(trackId, count)
             }
+
+    override suspend fun similaritySupport(): app.naviamp.domain.radio.SimilaritySupport = diagnosticRequest {
+        val versions = openSubsonicExtensionVersions(failOnError = true).versions
+        if (versions.supportsOpenSubsonicExtension("sonicSimilarity", 1)) {
+            app.naviamp.domain.radio.SimilaritySupport.Advertised
+        } else app.naviamp.domain.radio.SimilaritySupport.Missing
+    }
+
+    override suspend fun similarityEndpointTracks(
+        trackId: TrackId,
+        endpoint: app.naviamp.domain.radio.SimilarityEndpoint,
+        count: Int,
+    ): List<Track> = diagnosticRequest {
+        val response = when (endpoint) {
+            app.naviamp.domain.radio.SimilarityEndpoint.Regular -> get(
+                "getSimilarSongs.view", mapOf("id" to trackId.value, "count" to count.toString()),
+            ).subsonicResponse()["similarSongs"]?.jsonObject?.arrayValue("song").orEmpty()
+                .mapNotNull { (it as? JsonObject)?.toTrack() }
+            app.naviamp.domain.radio.SimilarityEndpoint.Sonic -> get(
+                "getSonicSimilarTracks.view", mapOf("id" to trackId.value, "count" to count.toString()),
+            ).subsonicResponse().arrayValue("sonicMatch")
+                .mapNotNull { (it as? JsonObject)?.get("entry")?.jsonObject?.toTrack() }
+        }
+        response
+    }
+
+    private suspend fun <T> diagnosticRequest(request: suspend () -> T): T = try {
+        request()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: NavidromeException) {
+        throw app.naviamp.domain.radio.SimilarityRequestException(
+            httpStatus = (failure as? NavidromeHttpException)?.statusCode,
+            serverCode = failure.subsonicErrorCode,
+        )
+    }
 
     override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =
         sonicSimilarTrackMatches(trackId, count).map { match -> match.track }

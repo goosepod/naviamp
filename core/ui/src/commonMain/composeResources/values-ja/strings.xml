@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">この Cast デバイスに接続できませんでした。利用可能か確認して再試行してください。</string>
     <string name="cast_picker_target_lost">この Cast デバイスは利用できなくなりました。再検索してください。</string>
     <string name="cast_picker_return_local">ローカル再生に戻る</string>
+    <string name="similarity_test">類似性をテスト</string>
+    <string name="similarity_test_help">再生を変更せずにサーバーの両方の類似性検索を比較します。</string>
+    <string name="similarity_no_seed">サーバーに接続してライブラリの曲を選び、再試行してください。</string>
+    <string name="similarity_seed">テスト曲: %1$s</string>
+    <string name="similarity_support_ready">サーバーは音響類似性の対応を通知しています。</string>
+    <string name="similarity_support_missing">サーバーは音響類似性の対応を通知していません。</string>
+    <string name="similarity_support_unknown">音響類似性の対応を確認できませんでした。</string>
+    <string name="similarity_matches">一致数: %1$d</string>
+    <string name="similarity_empty">利用できる一致がありません。</string>
+    <string name="similarity_timeout">リクエストがタイムアウトしました。</string>
+    <string name="similarity_failed">リクエストに失敗しました。サーバーとプラグインのログを確認してください。</string>
+    <string name="similarity_setup">対応するSonicプラグインが有効で、APIアドレスとトークンが正しく、サーバーから接続できることを確認してください。</string>
+    <string name="similarity_empty_help">解析済みの別の曲を試してください。1曲で一致がないことだけでは設定の問題とは判断できません。</string>
+    <string name="similarity_regular">通常の類似性</string>
+    <string name="similarity_radio_fallback">音響類似度を利用できませんでした。ラジオは代替方式を使用しました。</string>
+    <string name="similarity_radio_empty">ラジオに追加する曲が見つかりませんでした。現在のキューを保持しました。</string>
+    <string name="similarity_radio_failed">ラジオのキューを作成できませんでした。現在のキューを保持しました。</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

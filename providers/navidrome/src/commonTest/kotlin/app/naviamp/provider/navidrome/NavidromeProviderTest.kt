@@ -2536,6 +2536,48 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun similarityProbeDoesNotConvertUnsupportedRequestsIntoEmptyMatches() = runTest {
+        val provider = NavidromeProvider(connection("https://music.example.test"),
+            RecordingResponseHttpClient("""{"subsonic-response":{"status":"failed","error":{"code":70,"message":"token=secret"}}}"""))
+        val failure = assertFailsWith<app.naviamp.domain.radio.SimilarityRequestException> {
+            provider.similarityEndpointTracks(TrackId("seed"), app.naviamp.domain.radio.SimilarityEndpoint.Sonic, 20)
+        }
+        assertEquals(70, failure.serverCode)
+        assertEquals(null, failure.message)
+    }
+
+    @Test
+    fun similarityProbeEmptyRegularResponseDoesNotLoadAlbumFallback() = runTest {
+        val http = SequencedHttpClient(listOf("""{"subsonic-response":{"status":"ok","similarSongs":{"song":[]}}}"""))
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+        assertTrue(provider.similarityEndpointTracks(TrackId("seed"), app.naviamp.domain.radio.SimilarityEndpoint.Regular, 20).isEmpty())
+        assertEquals(1, http.urls.size)
+        assertTrue(http.urls.single().contains("getSimilarSongs.view"))
+    }
+
+    @Test
+    fun similarityProbeRefreshesSupportAndParsesRawSonicEntries() = runTest {
+        val http = SequencedHttpClient(listOf(
+            """{"subsonic-response":{"status":"ok","openSubsonicExtensions":[{"name":"sonicSimilarity","versions":[1]}]}}""",
+            """{"subsonic-response":{"status":"ok","sonicMatch":[{"entry":{"id":"match","title":"Match","artist":"Artist"},"similarity":0.9}]}}""",
+        ))
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+        assertEquals(app.naviamp.domain.radio.SimilaritySupport.Advertised, provider.similaritySupport())
+        assertEquals(listOf("match"), provider.similarityEndpointTracks(TrackId("seed"), app.naviamp.domain.radio.SimilarityEndpoint.Sonic, 20).map { it.id.value })
+        assertEquals(2, http.urls.size)
+        assertTrue(http.urls[0].contains("getOpenSubsonicExtensions.view"))
+        assertTrue(http.urls[1].contains("getSonicSimilarTracks.view"))
+    }
+
+    @Test
+    fun similarityProbeReportsHttpFailureWithoutCredentialText() = runTest {
+        val provider = NavidromeProvider(connection("https://music.example.test"), FailingNativeHttpClient())
+        val failure = assertFailsWith<app.naviamp.domain.radio.SimilarityRequestException> { provider.similaritySupport() }
+        assertEquals(401, failure.httpStatus)
+        assertEquals(null, failure.message)
+    }
+
+    @Test
     fun trackRadioUsesSimilarSongsAndFiltersSeedTrack() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """

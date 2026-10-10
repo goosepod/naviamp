@@ -1,4 +1,5 @@
 package app.naviamp.presentation
+import app.naviamp.domain.isInternetRadioTrack
 
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampConnectionRuntimeState
@@ -279,6 +280,11 @@ class NaviampCore private constructor(
                 mediaRegistry = mediaRegistry,
                 observedAtIso8601 = services.favoritedAtIso8601,
             )
+            val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
+                livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }
+                    ?: mediaRegistry.tracks().firstOrNull { !it.isInternetRadioTrack() }
+                    ?: provider.tracks(limit = 1).firstOrNull { !it.isInternetRadioTrack() }
+            }
             val settings = NaviampCoreSettingsController(
                 stateStore,
                 services.settings.interfaceSettings,
@@ -286,6 +292,7 @@ class NaviampCore private constructor(
                 services.settings.cacheSettings,
                 services.settings.maintenance,
                 refreshLibrary = catalog::refreshAfterConnection,
+                testSimilarity = similarity::test,
                 onDatabaseReset = { completeDatabaseReset() },
                 onLocalSettingsChanged = { notifyLocalSettingsChanged() },
                 onInterfaceSettingsChanged = { interfaceSettings ->
@@ -539,6 +546,12 @@ class NaviampCore private constructor(
                 services.connection,
                 initialState.connectionInventory,
                   onSourceChanging = { previousSourceId, newSourceId ->
+                    similarity.resetForSourceChange()
+                    stateStore.updateShell { shell -> shell.copy(playback = shell.playback.copy(
+                        similarityTest = app.naviamp.ui.NaviampSimilarityTestUi(), radioDiagnostics = null,
+                        similarityDiagnosticsAvailable = false,
+                    )) }
+                    stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null)) }
                     playback.resetForSourceChange(previousSourceId, newSourceId)
                     playlistMembership.reset()
                     downloads.resetForSourceChange()
@@ -566,6 +579,7 @@ class NaviampCore private constructor(
                                 capabilities = capabilities,
                                 playback = shell.playback.copy(
                                     sonicSimilarityAvailable = capabilities.sonicSimilarity,
+                                    similarityDiagnosticsAvailable = providerCapabilities.supportsSimilarityDiagnostics,
                                 ),
                             )
                         }

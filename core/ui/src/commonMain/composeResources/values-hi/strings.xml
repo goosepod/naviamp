@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">इस Cast डिवाइस से कनेक्ट नहीं हो सका। इसकी उपलब्धता जाँचें और फिर कोशिश करें।</string>
     <string name="cast_picker_target_lost">यह Cast डिवाइस अब उपलब्ध नहीं है। फिर से खोजें।</string>
     <string name="cast_picker_return_local">स्थानीय प्लेबैक पर लौटें</string>
+    <string name="similarity_test">समानता की जाँच करें</string>
+    <string name="similarity_test_help">प्लेबैक बदले बिना सर्वर के दोनों समानता तरीकों की तुलना करें।</string>
+    <string name="similarity_no_seed">सर्वर से जुड़ें और लाइब्रेरी का कोई ट्रैक चुनें, फिर दोबारा कोशिश करें।</string>
+    <string name="similarity_seed">जाँच का ट्रैक: %1$s</string>
+    <string name="similarity_support_ready">सर्वर ध्वनि समानता का समर्थन बताता है।</string>
+    <string name="similarity_support_missing">सर्वर ध्वनि समानता का समर्थन नहीं बताता है।</string>
+    <string name="similarity_support_unknown">ध्वनि समानता के समर्थन की जाँच नहीं हो सकी।</string>
+    <string name="similarity_matches">%1$d मिलान</string>
+    <string name="similarity_empty">कोई उपयोगी मिलान नहीं मिला।</string>
+    <string name="similarity_timeout">अनुरोध का समय समाप्त हो गया।</string>
+    <string name="similarity_failed">अनुरोध विफल रहा। सर्वर और प्लगइन के लॉग देखें।</string>
+    <string name="similarity_setup">जाँचें कि संगत Sonic प्लगइन चालू है, API पता और टोकन सही हैं और सर्वर उस तक पहुँच सकता है।</string>
+    <string name="similarity_empty_help">विश्लेषण किया गया कोई दूसरा ट्रैक आज़माएँ। एक ट्रैक के लिए मिलान न मिलना कॉन्फ़िगरेशन की समस्या का प्रमाण नहीं है।</string>
+    <string name="similarity_regular">सामान्य समानता</string>
+    <string name="similarity_radio_fallback">ध्वनि समानता उपलब्ध नहीं थी। रेडियो ने वैकल्पिक तरीका इस्तेमाल किया।</string>
+    <string name="similarity_radio_empty">रेडियो को अतिरिक्त ट्रैक नहीं मिले। मौजूदा कतार बरकरार रखी गई।</string>
+    <string name="similarity_radio_failed">रेडियो की कतार नहीं बन सकी। मौजूदा कतार बरकरार रखी गई।</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>
