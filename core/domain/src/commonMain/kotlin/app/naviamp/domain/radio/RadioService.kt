@@ -8,6 +8,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 
 fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
     (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
@@ -72,8 +74,17 @@ class RadioService(
         preferSonicSimilarity: Boolean,
     ): List<Track> {
         if (preferSonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
-            val sonicTracks = provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
-                .filterNot { track -> track.id == seedTrack.id }
+            // Capability advertisement does not guarantee a healthy similarity backend.
+            // Bound this optional request so regular Radio can still build the queue.
+            val sonicTracks = try {
+                withTimeoutOrNull(SonicRadioTimeoutMillis) {
+                    provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
+                }.orEmpty()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
+            }.filterNot { track -> track.id == seedTrack.id }
             if (sonicTracks.isNotEmpty()) {
                 return tunedTrackRadio(seedTrack, sonicTracks)
             }
@@ -148,6 +159,7 @@ class RadioService(
         }
 
     private companion object {
+        const val SonicRadioTimeoutMillis = 10_000L
         const val DefaultRadioCount = 50
         const val LibraryRadioCount = 500
     }
