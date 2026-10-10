@@ -2,7 +2,11 @@ package app.naviamp.domain.sonicautoplay
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.SimilarityRequestTimeoutMillis
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 
 class SonicAutoplayService(
     private val provider: () -> MediaProvider?,
@@ -13,17 +17,24 @@ class SonicAutoplayService(
         queue: PlaybackQueue,
         limit: Int = DefaultSonicAutoplayAppendCount,
     ): List<Track> {
-        val activeProvider = provider()
-            ?.takeIf { it.capabilities.supportsSonicSimilarity }
-            ?: return emptyList()
+        val activeProvider = provider() ?: return emptyList()
         val seeds = queue.sonicAutoplaySeeds(seedCount)
         if (seeds.isEmpty()) return emptyList()
 
         val blockedTrackIds = queue.tracks.map { it.id }.toSet()
-        return seeds
-            .flatMapIndexed { seedIndex, seed ->
-                runCatching {
-                    activeProvider.sonicSimilarTrackMatches(seed.id, candidatesPerSeed)
+        suspend fun collectCandidates(load: suspend (Track) -> List<SonicSimilarTrack>): List<Track> {
+            val candidates = mutableListOf<SonicAutoplayCandidate>()
+            // Bound the whole seed batch, keeping any usable results collected before the deadline.
+            withTimeoutOrNull(SimilarityRequestTimeoutMillis) {
+                seeds.forEachIndexed { seedIndex, seed ->
+                    val matches = try {
+                        load(seed)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    candidates += matches
                         .filterNot { match -> match.track.id in blockedTrackIds || match.track.id == seed.id }
                         .mapIndexed { matchIndex, match ->
                             SonicAutoplayCandidate(
@@ -31,13 +42,21 @@ class SonicAutoplayService(
                                 score = match.score(seedIndex, matchIndex),
                             )
                         }
-                }.getOrDefault(emptyList())
+                }
             }
-            .groupBy { candidate -> candidate.track.id }
-            .mapNotNull { (_, candidates) -> candidates.maxByOrNull { it.score } }
-            .sortedByDescending { candidate -> candidate.score }
-            .map { candidate -> candidate.track }
-            .take(limit.coerceAtLeast(1))
+            return candidates.groupBy { it.track.id }
+                .mapNotNull { (_, matches) -> matches.maxByOrNull { it.score } }
+                .sortedByDescending { it.score }
+                .map { it.track }
+                .take(limit.coerceAtLeast(1))
+        }
+        if (activeProvider.capabilities.supportsSonicSimilarity) {
+            val sonic = collectCandidates { activeProvider.sonicSimilarTrackMatches(it.id, candidatesPerSeed) }
+            if (sonic.isNotEmpty()) return sonic
+        }
+        return collectCandidates { seed ->
+            activeProvider.trackRadio(seed.id, candidatesPerSeed).map { SonicSimilarTrack(it) }
+        }
     }
 }
 

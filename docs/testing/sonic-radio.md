@@ -36,6 +36,13 @@ Issue: https://github.com/goosepod/naviamp/issues/250
    an enabled server must remain distinct. An unavailable API must not imply missing plugins.
 10. Try a non-admin account or a source without native login credentials. Both similarity endpoints
     must still be tested. Only the extra plugin details should report the access/login requirement.
+11. Enable Sonic Autoplay and let a queue finish with the Sonic backend failing, timing out, or
+    returning only queued tracks. Regular Radio should supply unique unqueued continuation tracks
+    and playback should resume. Usable Sonic matches must take priority without a regular request.
+    A saved enabled setting must also fall back when Sonic support is no longer advertised.
+12. During the Autoplay fallback, replace the queue, switch sources, or disable Sonic Autoplay.
+    Late results must not append tracks or restart playback. If both paths have no usable results,
+    playback remains finished and no queue modification occurs.
 
 ## Automated checks
 
@@ -48,6 +55,10 @@ and access when Sonic is not advertised. Admin tests cover native JWT refresh, p
 failures, disabled versus empty inventory, safe metadata mapping, independent failure and deadlines,
 and cancellation. Presentation integration tests verify expanded Radio history persistence/replay
 and reject a seed-only result as a successful saved session.
+Sonic Autoplay tests cover regular fallback for missing support, errors, deadlines, empty/queued-only
+matches, deduplication, cancellation, and stale queue/source/setting results. The Sonic batch and
+regular batch each have a ten-second deadline; usable Sonic matches collected before a later seed
+times out are retained, and regular Radio is requested only when no usable Sonic tracks remain.
 
 An opt-in JVM integration test uses an explicitly configured disposable server. Set
 `NAVIAMP_SIMILARITY_TEST_URL`, `NAVIAMP_SIMILARITY_TEST_USER`,
