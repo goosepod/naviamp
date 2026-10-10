@@ -112,6 +112,7 @@ fun createNaviampCoreActions(
             onAudioCacheLocationChanged = { send(NaviampCoreCommand.Settings.ChangeAudioCacheLocation(it)) },
         ),
         maintenanceActions = NaviampSettingsMaintenanceActions(
+            onTestSimilarity = { send(NaviampCoreCommand.Settings.TestSimilarity) },
             onOpenStatsForNerds = { send(NaviampCoreCommand.Settings.OpenStats) },
             onClearCache = { send(NaviampCoreCommand.Settings.ClearCache) },
             onClearLibrary = { send(NaviampCoreCommand.Settings.ClearLibrary) },

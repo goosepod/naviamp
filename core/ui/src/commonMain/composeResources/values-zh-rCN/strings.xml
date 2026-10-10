@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">无法连接此 Cast 设备。请确认设备可用后重试。</string>
     <string name="cast_picker_target_lost">此 Cast 设备已不可用。请重新搜索。</string>
     <string name="cast_picker_return_local">返回本地播放</string>
+    <string name="similarity_test">测试相似度</string>
+    <string name="similarity_test_help">比较服务器的两种相似度查询方式，不改变播放。</string>
+    <string name="similarity_no_seed">连接服务器并选择音乐库中的歌曲，然后重试。</string>
+    <string name="similarity_seed">测试歌曲：%1$s</string>
+    <string name="similarity_support_ready">服务器已声明支持声学相似度。</string>
+    <string name="similarity_support_missing">服务器未声明支持声学相似度。</string>
+    <string name="similarity_support_unknown">无法检查声学相似度支持。</string>
+    <string name="similarity_matches">%1$d 个匹配项</string>
+    <string name="similarity_empty">没有可用的匹配项。</string>
+    <string name="similarity_timeout">请求超时。</string>
+    <string name="similarity_failed">请求失败。请检查服务器和插件日志。</string>
+    <string name="similarity_setup">请确认兼容的 Sonic 插件已启用，API 地址和令牌正确，且服务器能够访问它。</string>
+    <string name="similarity_empty_help">请尝试另一首已分析的歌曲。一首歌曲没有匹配项并不能证明配置有问题。</string>
+    <string name="similarity_regular">常规相似度</string>
+    <string name="similarity_radio_fallback">声学相似度不可用。电台已使用备用方式。</string>
+    <string name="similarity_radio_empty">电台未找到更多歌曲。已保留当前队列。</string>
+    <string name="similarity_radio_failed">无法构建电台队列。已保留当前队列。</string>
+    <string name="similarity_protocol_codes">HTTP：%1$s；API：%2$s</string>
 </resources>

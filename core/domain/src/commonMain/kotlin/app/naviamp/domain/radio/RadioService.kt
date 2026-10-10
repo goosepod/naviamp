@@ -8,6 +8,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 
 fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
     (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
@@ -17,6 +19,7 @@ class RadioService(
     private val count: Int = DefaultRadioCount,
     private val tuning: RadioTuningSettings = RadioTuningSettings(),
     private val providerResponseService: ProviderResponseService? = null,
+    private val onSonicFallback: (SonicRadioFallbackReason) -> Unit = {},
 ) {
     suspend fun albumSeed(album: Album, loadedTracks: List<Track> = emptyList()): Track? =
         loadedTracks.randomOrNull()
@@ -72,11 +75,25 @@ class RadioService(
         preferSonicSimilarity: Boolean,
     ): List<Track> {
         if (preferSonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
-            val sonicTracks = provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
-                .filterNot { track -> track.id == seedTrack.id }
+            // Capability advertisement does not guarantee a healthy similarity backend.
+            // Bound this optional request so regular Radio can still build the queue.
+            var fallback = SonicRadioFallbackReason.Empty
+            val sonicTracks = try {
+                val tracks = withTimeoutOrNull(SimilarityRequestTimeoutMillis) {
+                    provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
+                }
+                if (tracks == null) fallback = SonicRadioFallbackReason.TimedOut
+                tracks.orEmpty()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                fallback = if (failure.isSimilarityTimeout()) SonicRadioFallbackReason.TimedOut else SonicRadioFallbackReason.Failed
+                emptyList()
+            }.filterNot { track -> track.id == seedTrack.id }
             if (sonicTracks.isNotEmpty()) {
                 return tunedTrackRadio(seedTrack, sonicTracks)
             }
+            onSonicFallback(fallback)
         }
         return provider.trackRadio(seedTrack.id, count = fetchCount)
             .let { tracks -> tunedTrackRadio(seedTrack, tracks) }

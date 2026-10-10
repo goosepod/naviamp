@@ -970,4 +970,22 @@
     <string name="cast_picker_connection_failed">No se pudo conectar con este dispositivo Cast. Comprueba su disponibilidad e inténtalo de nuevo.</string>
     <string name="cast_picker_target_lost">Este dispositivo Cast ya no está disponible. Busca de nuevo.</string>
     <string name="cast_picker_return_local">Volver a la reproducción local</string>
+    <string name="similarity_test">Probar similitud</string>
+    <string name="similarity_test_help">Comparar ambos métodos de similitud del servidor sin cambiar la reproducción.</string>
+    <string name="similarity_no_seed">Conecta un servidor y selecciona una pista de la biblioteca; luego inténtalo de nuevo.</string>
+    <string name="similarity_seed">Pista de prueba: %1$s</string>
+    <string name="similarity_support_ready">El servidor anuncia similitud sónica.</string>
+    <string name="similarity_support_missing">El servidor no anuncia similitud sónica.</string>
+    <string name="similarity_support_unknown">No se pudo comprobar la similitud sónica.</string>
+    <string name="similarity_matches">%1$d coincidencias</string>
+    <string name="similarity_empty">No hay coincidencias útiles.</string>
+    <string name="similarity_timeout">La solicitud agotó el tiempo de espera.</string>
+    <string name="similarity_failed">La solicitud falló. Revisa los registros del servidor y del complemento.</string>
+    <string name="similarity_setup">Comprueba que un complemento Sonic compatible esté activado, que su dirección API y token sean correctos y que el servidor pueda acceder a él.</string>
+    <string name="similarity_empty_help">Prueba otra pista analizada. La falta de coincidencias para una pista no demuestra un problema de configuración.</string>
+    <string name="similarity_regular">Similitud normal</string>
+    <string name="similarity_radio_fallback">La similitud sónica no estaba disponible. Radio utilizó su método alternativo.</string>
+    <string name="similarity_radio_empty">Radio no encontró más pistas. Se conservó la cola actual.</string>
+    <string name="similarity_radio_failed">No se pudo crear la cola de Radio. Se conservó la cola actual.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

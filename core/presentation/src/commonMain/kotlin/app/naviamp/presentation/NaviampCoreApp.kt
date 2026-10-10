@@ -10,6 +10,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import app.naviamp.ui.NaviampLocaleEnvironment
 import app.naviamp.ui.createNaviampLocaleEffect
 import app.naviamp.ui.NaviampApplicationUpdateChecker
@@ -118,6 +121,7 @@ fun NaviampCoreApp(
     NaviampLocaleEnvironment(state.shell.general.interfaceSettings.language, remember { createNaviampLocaleEffect() }) {
         NaviampScreenAwakeEnvironment(screenAwakeEffect, state.shell.general.interfaceSettings.keepScreenAwake) {
             CompositionLocalProvider(LocalNaviampApplicationSurface provides applicationSurface) {
+              Box(Modifier.fillMaxSize()) {
                 app.naviamp.ui.NaviampWindowEnvironment(
                     controller = windowController,
                     platform = state.shell.capabilities.desktopShortcutPlatform,
@@ -151,6 +155,13 @@ fun NaviampCoreApp(
                 state.overlays.busyMessage?.let { message ->
                     NaviampBusyDialog(message)
                 }
+                state.overlays.radioNotice?.let { notice ->
+                    app.naviamp.ui.NaviampRadioNotice(
+                        app.naviamp.ui.NaviampColors.Dark, notice,
+                        onDismiss = { core.dispatch(NaviampCoreCommand.Settings.DismissRadioNotice) },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
                 core.castPickerState?.let { pickerState ->
                     val picker by pickerState.collectAsState()
                     if (picker.visible) app.naviamp.ui.NaviampCastPickerDialog(
@@ -161,6 +172,7 @@ fun NaviampCoreApp(
                 if (state.overlays.statsForNerdsVisible) {
                     NaviampCoreDiagnosticsPresentation(core, statsForNerdsPresenter)
                 }
+              }
             }
         }
     }

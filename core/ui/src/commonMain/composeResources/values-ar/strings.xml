@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">تعذر الاتصال بجهاز Cast هذا. تحقق من توفره وحاول مرة أخرى.</string>
     <string name="cast_picker_target_lost">لم يعد جهاز Cast هذا متاحًا. ابحث مرة أخرى.</string>
     <string name="cast_picker_return_local">العودة إلى التشغيل المحلي</string>
+    <string name="similarity_test">اختبار التشابه</string>
+    <string name="similarity_test_help">قارن طريقتَي التشابه في الخادم دون تغيير التشغيل.</string>
+    <string name="similarity_no_seed">اتصل بخادم واختر مقطعًا من المكتبة ثم حاول مجددًا.</string>
+    <string name="similarity_seed">مقطع الاختبار: %1$s</string>
+    <string name="similarity_support_ready">يعلن الخادم دعم التشابه الصوتي.</string>
+    <string name="similarity_support_missing">لا يعلن الخادم دعم التشابه الصوتي.</string>
+    <string name="similarity_support_unknown">تعذر التحقق من دعم التشابه الصوتي.</string>
+    <string name="similarity_matches">عدد النتائج: %1$d</string>
+    <string name="similarity_empty">لا توجد نتائج قابلة للاستخدام.</string>
+    <string name="similarity_timeout">انتهت مهلة الطلب.</string>
+    <string name="similarity_failed">فشل الطلب. تحقق من سجلات الخادم والإضافة.</string>
+    <string name="similarity_setup">تحقق من تفعيل إضافة Sonic متوافقة وصحة عنوان API والرمز وإمكانية وصول الخادم إليها.</string>
+    <string name="similarity_empty_help">جرّب مقطعًا آخر تم تحليله. عدم وجود نتائج لمقطع واحد لا يثبت وجود مشكلة في الإعدادات.</string>
+    <string name="similarity_regular">التشابه العادي</string>
+    <string name="similarity_radio_fallback">لم يكن التشابه الصوتي متاحًا. استخدم الراديو طريقته البديلة.</string>
+    <string name="similarity_radio_empty">لم يجد الراديو مقاطع إضافية. تم الاحتفاظ بقائمة الانتظار الحالية.</string>
+    <string name="similarity_radio_failed">تعذر إنشاء قائمة انتظار الراديو. تم الاحتفاظ بالقائمة الحالية.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

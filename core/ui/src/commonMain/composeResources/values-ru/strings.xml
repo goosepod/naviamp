@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Не удалось подключиться к этому устройству Cast. Проверьте его доступность и повторите попытку.</string>
     <string name="cast_picker_target_lost">Это устройство Cast больше недоступно. Повторите поиск.</string>
     <string name="cast_picker_return_local">Вернуться к локальному воспроизведению</string>
+    <string name="similarity_test">Проверить сходство</string>
+    <string name="similarity_test_help">Сравнить оба метода сходства сервера без изменения воспроизведения.</string>
+    <string name="similarity_no_seed">Подключитесь к серверу и выберите трек из библиотеки, затем повторите попытку.</string>
+    <string name="similarity_seed">Тестовый трек: %1$s</string>
+    <string name="similarity_support_ready">Сервер объявляет поддержку звукового сходства.</string>
+    <string name="similarity_support_missing">Сервер не объявляет поддержку звукового сходства.</string>
+    <string name="similarity_support_unknown">Не удалось проверить поддержку звукового сходства.</string>
+    <string name="similarity_matches">Совпадений: %1$d</string>
+    <string name="similarity_empty">Нет подходящих совпадений.</string>
+    <string name="similarity_timeout">Время ожидания запроса истекло.</string>
+    <string name="similarity_failed">Запрос не выполнен. Проверьте журналы сервера и плагина.</string>
+    <string name="similarity_setup">Проверьте, включён ли совместимый плагин Sonic, верны ли адрес API и токен и может ли сервер подключиться к нему.</string>
+    <string name="similarity_empty_help">Попробуйте другой проанализированный трек. Отсутствие совпадений для одного трека не доказывает ошибку настройки.</string>
+    <string name="similarity_regular">Обычное сходство</string>
+    <string name="similarity_radio_fallback">Звуковое сходство недоступно. Радио использовало запасной метод.</string>
+    <string name="similarity_radio_empty">Радио не нашло дополнительных треков. Текущая очередь сохранена.</string>
+    <string name="similarity_radio_failed">Не удалось создать очередь радио. Текущая очередь сохранена.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

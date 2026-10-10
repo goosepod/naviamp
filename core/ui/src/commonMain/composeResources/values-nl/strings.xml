@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Kan geen verbinding maken met dit Cast-apparaat. Controleer de beschikbaarheid en probeer opnieuw.</string>
     <string name="cast_picker_target_lost">Dit Cast-apparaat is niet meer beschikbaar. Zoek opnieuw.</string>
     <string name="cast_picker_return_local">Terug naar lokale weergave</string>
+    <string name="similarity_test">Gelijkenis testen</string>
+    <string name="similarity_test_help">Vergelijk beide gelijkenismethoden van de server zonder het afspelen te wijzigen.</string>
+    <string name="similarity_no_seed">Maak verbinding met een server en selecteer een bibliotheeknummer. Probeer het daarna opnieuw.</string>
+    <string name="similarity_seed">Testnummer: %1$s</string>
+    <string name="similarity_support_ready">De server meldt ondersteuning voor klankgelijkenis.</string>
+    <string name="similarity_support_missing">De server meldt geen ondersteuning voor klankgelijkenis.</string>
+    <string name="similarity_support_unknown">Klankgelijkenis kon niet worden gecontroleerd.</string>
+    <string name="similarity_matches">%1$d overeenkomsten</string>
+    <string name="similarity_empty">Geen bruikbare overeenkomsten.</string>
+    <string name="similarity_timeout">De aanvraag duurde te lang.</string>
+    <string name="similarity_failed">De aanvraag is mislukt. Controleer de server- en pluginlogboeken.</string>
+    <string name="similarity_setup">Controleer of een compatibele Sonic-plugin is ingeschakeld, het API-adres en token juist zijn en de server deze kan bereiken.</string>
+    <string name="similarity_empty_help">Probeer een ander geanalyseerd nummer. Geen overeenkomsten voor één nummer bewijst geen configuratieprobleem.</string>
+    <string name="similarity_regular">Gewone gelijkenis</string>
+    <string name="similarity_radio_fallback">Klankgelijkenis was niet beschikbaar. Radio gebruikte zijn alternatieve methode.</string>
+    <string name="similarity_radio_empty">Radio vond geen extra nummers. De huidige wachtrij is behouden.</string>
+    <string name="similarity_radio_failed">De Radio-wachtrij kon niet worden gemaakt. De huidige wachtrij is behouden.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

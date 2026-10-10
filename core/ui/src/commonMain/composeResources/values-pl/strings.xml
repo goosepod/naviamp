@@ -253,4 +253,22 @@
     <string name="cast_picker_connection_failed">Nie można połączyć z tym urządzeniem Cast. Sprawdź jego dostępność i spróbuj ponownie.</string>
     <string name="cast_picker_target_lost">To urządzenie Cast nie jest już dostępne. Wyszukaj ponownie.</string>
     <string name="cast_picker_return_local">Powrót do odtwarzania lokalnego</string>
+    <string name="similarity_test">Sprawdź podobieństwo</string>
+    <string name="similarity_test_help">Porównaj obie metody podobieństwa serwera bez zmiany odtwarzania.</string>
+    <string name="similarity_no_seed">Połącz się z serwerem i wybierz utwór z biblioteki, a następnie spróbuj ponownie.</string>
+    <string name="similarity_seed">Testowany utwór: %1$s</string>
+    <string name="similarity_support_ready">Serwer zgłasza podobieństwo dźwiękowe.</string>
+    <string name="similarity_support_missing">Serwer nie zgłasza podobieństwa dźwiękowego.</string>
+    <string name="similarity_support_unknown">Nie można sprawdzić podobieństwa dźwiękowego.</string>
+    <string name="similarity_matches">Liczba dopasowań: %1$d</string>
+    <string name="similarity_empty">Brak użytecznych dopasowań.</string>
+    <string name="similarity_timeout">Upłynął limit czasu żądania.</string>
+    <string name="similarity_failed">Żądanie nie powiodło się. Sprawdź dzienniki serwera i wtyczki.</string>
+    <string name="similarity_setup">Sprawdź, czy zgodna wtyczka Sonic jest włączona, adres API i token są poprawne, a serwer może się z nią połączyć.</string>
+    <string name="similarity_empty_help">Spróbuj innego przeanalizowanego utworu. Brak dopasowań dla jednego utworu nie dowodzi błędu konfiguracji.</string>
+    <string name="similarity_regular">Zwykłe podobieństwo</string>
+    <string name="similarity_radio_fallback">Podobieństwo dźwiękowe było niedostępne. Radio użyło metody zastępczej.</string>
+    <string name="similarity_radio_empty">Radio nie znalazło dodatkowych utworów. Zachowano obecną kolejkę.</string>
+    <string name="similarity_radio_failed">Nie można utworzyć kolejki radia. Zachowano obecną kolejkę.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

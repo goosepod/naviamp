@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Impossible de se connecter à cet appareil Cast. Vérifiez sa disponibilité et réessayez.</string>
     <string name="cast_picker_target_lost">Cet appareil Cast n’est plus disponible. Relancez la recherche.</string>
     <string name="cast_picker_return_local">Revenir à la lecture locale</string>
+    <string name="similarity_test">Tester la similarité</string>
+    <string name="similarity_test_help">Comparer les deux méthodes de similarité du serveur sans modifier la lecture.</string>
+    <string name="similarity_no_seed">Connectez un serveur et sélectionnez un titre de la bibliothèque, puis réessayez.</string>
+    <string name="similarity_seed">Titre testé : %1$s</string>
+    <string name="similarity_support_ready">La similarité sonore est annoncée.</string>
+    <string name="similarity_support_missing">La similarité sonore n’est pas annoncée.</string>
+    <string name="similarity_support_unknown">Impossible de vérifier la similarité sonore.</string>
+    <string name="similarity_matches">%1$d correspondances</string>
+    <string name="similarity_empty">Aucune correspondance utilisable.</string>
+    <string name="similarity_timeout">La requête a expiré.</string>
+    <string name="similarity_failed">La requête a échoué. Consultez les journaux du serveur et du plugin.</string>
+    <string name="similarity_setup">Vérifiez qu’un plugin Sonic compatible est activé, que son adresse API et son jeton sont corrects et que le serveur peut le joindre.</string>
+    <string name="similarity_empty_help">Essayez un autre titre analysé. L’absence de correspondances pour un titre ne prouve pas un problème de configuration.</string>
+    <string name="similarity_regular">Similarité classique</string>
+    <string name="similarity_radio_fallback">La similarité sonore était indisponible. Radio a utilisé sa méthode de secours.</string>
+    <string name="similarity_radio_empty">Radio n’a trouvé aucun titre supplémentaire. La file actuelle a été conservée.</string>
+    <string name="similarity_radio_failed">Impossible de créer la file Radio. La file actuelle a été conservée.</string>
+    <string name="similarity_protocol_codes">HTTP : %1$s ; API : %2$s</string>
 </resources>

@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Не вдалося підключитися до цього пристрою Cast. Перевірте його доступність і повторіть спробу.</string>
     <string name="cast_picker_target_lost">Цей пристрій Cast більше недоступний. Повторіть пошук.</string>
     <string name="cast_picker_return_local">Повернутися до локального відтворення</string>
+    <string name="similarity_test">Перевірити схожість</string>
+    <string name="similarity_test_help">Порівняти обидва методи схожості сервера без зміни відтворення.</string>
+    <string name="similarity_no_seed">Підключіться до сервера й виберіть трек із бібліотеки, потім спробуйте знову.</string>
+    <string name="similarity_seed">Тестовий трек: %1$s</string>
+    <string name="similarity_support_ready">Сервер оголошує підтримку звукової схожості.</string>
+    <string name="similarity_support_missing">Сервер не оголошує підтримку звукової схожості.</string>
+    <string name="similarity_support_unknown">Не вдалося перевірити звукову схожість.</string>
+    <string name="similarity_matches">Збігів: %1$d</string>
+    <string name="similarity_empty">Немає придатних збігів.</string>
+    <string name="similarity_timeout">Час очікування запиту минув.</string>
+    <string name="similarity_failed">Запит не виконано. Перевірте журнали сервера й плагіна.</string>
+    <string name="similarity_setup">Перевірте, чи ввімкнено сумісний плагін Sonic, чи правильні адреса API та токен і чи може сервер підключитися до нього.</string>
+    <string name="similarity_empty_help">Спробуйте інший проаналізований трек. Відсутність збігів для одного треку не доводить помилку налаштування.</string>
+    <string name="similarity_regular">Звичайна схожість</string>
+    <string name="similarity_radio_fallback">Звукова схожість недоступна. Радіо використало запасний метод.</string>
+    <string name="similarity_radio_empty">Радіо не знайшло додаткових треків. Поточну чергу збережено.</string>
+    <string name="similarity_radio_failed">Не вдалося створити чергу радіо. Поточну чергу збережено.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>

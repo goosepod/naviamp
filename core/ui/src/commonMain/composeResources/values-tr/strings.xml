@@ -134,4 +134,22 @@
     <string name="cast_picker_connection_failed">Bu Cast cihazına bağlanılamadı. Kullanılabilir olduğunu kontrol edip tekrar deneyin.</string>
     <string name="cast_picker_target_lost">Bu Cast cihazı artık kullanılamıyor. Yeniden arayın.</string>
     <string name="cast_picker_return_local">Yerel oynatmaya dön</string>
+    <string name="similarity_test">Benzerliği test et</string>
+    <string name="similarity_test_help">Oynatmayı değiştirmeden sunucunun iki benzerlik yöntemini karşılaştırın.</string>
+    <string name="similarity_no_seed">Bir sunucuya bağlanıp kitaplıktan bir parça seçin ve tekrar deneyin.</string>
+    <string name="similarity_seed">Test parçası: %1$s</string>
+    <string name="similarity_support_ready">Sunucu ses benzerliği desteği bildiriyor.</string>
+    <string name="similarity_support_missing">Sunucu ses benzerliği desteği bildirmiyor.</string>
+    <string name="similarity_support_unknown">Ses benzerliği desteği kontrol edilemedi.</string>
+    <string name="similarity_matches">%1$d eşleşme</string>
+    <string name="similarity_empty">Kullanılabilir eşleşme yok.</string>
+    <string name="similarity_timeout">İstek zaman aşımına uğradı.</string>
+    <string name="similarity_failed">İstek başarısız. Sunucu ve eklenti günlüklerini kontrol edin.</string>
+    <string name="similarity_setup">Uyumlu bir Sonic eklentisinin etkin olduğunu, API adresi ve belirtecinin doğru olduğunu ve sunucunun erişebildiğini kontrol edin.</string>
+    <string name="similarity_empty_help">Analiz edilmiş başka bir parça deneyin. Bir parçada eşleşme bulunmaması yapılandırma sorunu olduğunu kanıtlamaz.</string>
+    <string name="similarity_regular">Normal benzerlik</string>
+    <string name="similarity_radio_fallback">Ses benzerliği kullanılamıyordu. Radyo alternatif yöntemini kullandı.</string>
+    <string name="similarity_radio_empty">Radyo ek parça bulamadı. Mevcut kuyruk korundu.</string>
+    <string name="similarity_radio_failed">Radyo kuyruğu oluşturulamadı. Mevcut kuyruk korundu.</string>
+    <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
 </resources>
