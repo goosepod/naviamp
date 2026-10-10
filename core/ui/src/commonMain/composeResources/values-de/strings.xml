@@ -984,4 +984,18 @@
     <string name="similarity_radio_empty">Radio fand keine weiteren Titel. Die aktuelle Warteschlange wurde beibehalten.</string>
     <string name="similarity_radio_failed">Die Radio-Warteschlange konnte nicht erstellt werden. Die aktuelle Warteschlange wurde beibehalten.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Server-Plugin-Details</string>
+    <string name="similarity_admin_required">Plugin-Details erfordern Administratorrechte.</string>
+    <string name="similarity_admin_login">Mit dem Navidrome-Passwort erneut verbinden, um Plugin-Details zu prüfen.</string>
+    <string name="similarity_admin_unavailable">Die API für Server-Plugin-Details ist nicht verfügbar.</string>
+    <string name="similarity_admin_failed">Plugin-Details konnten nicht abgerufen werden. Die Ähnlichkeitsergebnisse sind weiterhin verfügbar.</string>
+    <string name="similarity_admin_plugins_enabled">Plugin-System aktiviert.</string>
+    <string name="similarity_admin_plugins_disabled">Plugin-System deaktiviert. Installierte Plugins können nicht aufgelistet werden.</string>
+    <string name="similarity_admin_empty">Es wurden keine installierten Plugins zurückgegeben.</string>
+    <string name="similarity_admin_agents">Metadaten-Agenten: %1$s</string>
+    <string name="similarity_admin_external_enabled">Externe Dienste aktiviert.</string>
+    <string name="similarity_admin_external_disabled">Externe Dienste deaktiviert.</string>
+    <string name="similarity_admin_plugin_enabled">Aktiviert</string>
+    <string name="similarity_admin_plugin_disabled">Deaktiviert</string>
+    <string name="similarity_admin_plugin_error">Der Server meldet einen Plugin-Fehler. Navidrome-Plugin-Einstellungen und Protokolle prüfen.</string>
 </resources>

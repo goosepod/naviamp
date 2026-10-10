@@ -1012,4 +1012,18 @@
     <string name="similarity_radio_empty">Radio found no additional tracks. The current queue was kept.</string>
     <string name="similarity_radio_failed">The Radio queue could not be built. The current queue was kept.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Server plugin details</string>
+    <string name="similarity_admin_required">Plugin details require administrator access.</string>
+    <string name="similarity_admin_login">Reconnect with your Navidrome password to check plugin details.</string>
+    <string name="similarity_admin_unavailable">The server plugin details API is unavailable.</string>
+    <string name="similarity_admin_failed">Could not retrieve plugin details. The similarity results are still available.</string>
+    <string name="similarity_admin_plugins_enabled">Plugin system enabled.</string>
+    <string name="similarity_admin_plugins_disabled">Plugin system disabled. Installed plugins cannot be listed.</string>
+    <string name="similarity_admin_empty">No installed plugins were returned.</string>
+    <string name="similarity_admin_agents">Metadata agents: %1$s</string>
+    <string name="similarity_admin_external_enabled">External services enabled.</string>
+    <string name="similarity_admin_external_disabled">External services disabled.</string>
+    <string name="similarity_admin_plugin_enabled">Enabled</string>
+    <string name="similarity_admin_plugin_disabled">Disabled</string>
+    <string name="similarity_admin_plugin_error">The server reports a plugin error. Check the Navidrome plugin settings and logs.</string>
 </resources>

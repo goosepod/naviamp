@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">रेडियो को अतिरिक्त ट्रैक नहीं मिले। मौजूदा कतार बरकरार रखी गई।</string>
     <string name="similarity_radio_failed">रेडियो की कतार नहीं बन सकी। मौजूदा कतार बरकरार रखी गई।</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">सर्वर प्लगइन का विवरण</string>
+    <string name="similarity_admin_required">प्लगइन का विवरण देखने के लिए व्यवस्थापक पहुँच चाहिए।</string>
+    <string name="similarity_admin_login">प्लगइन जाँचने के लिए Navidrome पासवर्ड से फिर जुड़ें।</string>
+    <string name="similarity_admin_unavailable">सर्वर प्लगइन विवरण का API उपलब्ध नहीं है।</string>
+    <string name="similarity_admin_failed">प्लगइन विवरण नहीं मिल सका। समानता के परिणाम अभी भी उपलब्ध हैं।</string>
+    <string name="similarity_admin_plugins_enabled">प्लगइन प्रणाली चालू है।</string>
+    <string name="similarity_admin_plugins_disabled">प्लगइन प्रणाली बंद है। इंस्टॉल किए गए प्लगइन की सूची नहीं मिल सकती।</string>
+    <string name="similarity_admin_empty">कोई इंस्टॉल किया गया प्लगइन नहीं लौटाया गया।</string>
+    <string name="similarity_admin_agents">मेटाडेटा एजेंट: %1$s</string>
+    <string name="similarity_admin_external_enabled">बाहरी सेवाएँ चालू हैं।</string>
+    <string name="similarity_admin_external_disabled">बाहरी सेवाएँ बंद हैं।</string>
+    <string name="similarity_admin_plugin_enabled">चालू</string>
+    <string name="similarity_admin_plugin_disabled">बंद</string>
+    <string name="similarity_admin_plugin_error">सर्वर ने प्लगइन की त्रुटि बताई है। Navidrome प्लगइन की सेटिंग और लॉग जाँचें।</string>
 </resources>

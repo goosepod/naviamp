@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">Радио не нашло дополнительных треков. Текущая очередь сохранена.</string>
     <string name="similarity_radio_failed">Не удалось создать очередь радио. Текущая очередь сохранена.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Сведения о плагинах сервера</string>
+    <string name="similarity_admin_required">Для просмотра плагинов нужны права администратора.</string>
+    <string name="similarity_admin_login">Подключитесь заново с паролем Navidrome для проверки плагинов.</string>
+    <string name="similarity_admin_unavailable">API сведений о плагинах сервера недоступен.</string>
+    <string name="similarity_admin_failed">Не удалось получить сведения о плагинах. Результаты сходства доступны.</string>
+    <string name="similarity_admin_plugins_enabled">Система плагинов включена.</string>
+    <string name="similarity_admin_plugins_disabled">Система плагинов отключена. Нельзя получить список установленных плагинов.</string>
+    <string name="similarity_admin_empty">Установленные плагины не возвращены.</string>
+    <string name="similarity_admin_agents">Агенты метаданных: %1$s</string>
+    <string name="similarity_admin_external_enabled">Внешние службы включены.</string>
+    <string name="similarity_admin_external_disabled">Внешние службы отключены.</string>
+    <string name="similarity_admin_plugin_enabled">Включён</string>
+    <string name="similarity_admin_plugin_disabled">Отключён</string>
+    <string name="similarity_admin_plugin_error">Сервер сообщает об ошибке плагина. Проверьте настройки и журналы плагинов Navidrome.</string>
 </resources>

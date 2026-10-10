@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">Radio n’a trouvé aucun titre supplémentaire. La file actuelle a été conservée.</string>
     <string name="similarity_radio_failed">Impossible de créer la file Radio. La file actuelle a été conservée.</string>
     <string name="similarity_protocol_codes">HTTP : %1$s ; API : %2$s</string>
+    <string name="similarity_admin_title">Détails des plugins du serveur</string>
+    <string name="similarity_admin_required">Les détails des plugins nécessitent un accès administrateur.</string>
+    <string name="similarity_admin_login">Reconnectez-vous avec votre mot de passe Navidrome pour consulter les plugins.</string>
+    <string name="similarity_admin_unavailable">L’API des détails des plugins du serveur est indisponible.</string>
+    <string name="similarity_admin_failed">Impossible de récupérer les détails des plugins. Les résultats de similarité restent disponibles.</string>
+    <string name="similarity_admin_plugins_enabled">Système de plugins activé.</string>
+    <string name="similarity_admin_plugins_disabled">Système de plugins désactivé. Les plugins installés ne peuvent pas être listés.</string>
+    <string name="similarity_admin_empty">Aucun plugin installé n’a été renvoyé.</string>
+    <string name="similarity_admin_agents">Agents de métadonnées : %1$s</string>
+    <string name="similarity_admin_external_enabled">Services externes activés.</string>
+    <string name="similarity_admin_external_disabled">Services externes désactivés.</string>
+    <string name="similarity_admin_plugin_enabled">Activé</string>
+    <string name="similarity_admin_plugin_disabled">Désactivé</string>
+    <string name="similarity_admin_plugin_error">Le serveur signale une erreur de plugin. Vérifiez les paramètres et les journaux des plugins Navidrome.</string>
 </resources>

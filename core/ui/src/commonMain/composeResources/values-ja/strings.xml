@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">ラジオに追加する曲が見つかりませんでした。現在のキューを保持しました。</string>
     <string name="similarity_radio_failed">ラジオのキューを作成できませんでした。現在のキューを保持しました。</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">サーバーのプラグイン情報</string>
+    <string name="similarity_admin_required">プラグイン情報には管理者権限が必要です。</string>
+    <string name="similarity_admin_login">プラグインを確認するにはNavidromeのパスワードで再接続してください。</string>
+    <string name="similarity_admin_unavailable">サーバーのプラグイン情報APIを利用できません。</string>
+    <string name="similarity_admin_failed">プラグイン情報を取得できませんでした。類似度の結果は引き続き利用できます。</string>
+    <string name="similarity_admin_plugins_enabled">プラグインシステムは有効です。</string>
+    <string name="similarity_admin_plugins_disabled">プラグインシステムは無効です。インストール済みプラグインを一覧表示できません。</string>
+    <string name="similarity_admin_empty">インストール済みプラグインは返されませんでした。</string>
+    <string name="similarity_admin_agents">メタデータエージェント: %1$s</string>
+    <string name="similarity_admin_external_enabled">外部サービスは有効です。</string>
+    <string name="similarity_admin_external_disabled">外部サービスは無効です。</string>
+    <string name="similarity_admin_plugin_enabled">有効</string>
+    <string name="similarity_admin_plugin_disabled">無効</string>
+    <string name="similarity_admin_plugin_error">サーバーがプラグインのエラーを報告しています。Navidromeのプラグイン設定とログを確認してください。</string>
 </resources>

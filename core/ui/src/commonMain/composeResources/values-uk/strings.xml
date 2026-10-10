@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">Радіо не знайшло додаткових треків. Поточну чергу збережено.</string>
     <string name="similarity_radio_failed">Не вдалося створити чергу радіо. Поточну чергу збережено.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Відомості про плагіни сервера</string>
+    <string name="similarity_admin_required">Для перегляду плагінів потрібні права адміністратора.</string>
+    <string name="similarity_admin_login">Підключіться знову з паролем Navidrome для перевірки плагінів.</string>
+    <string name="similarity_admin_unavailable">API відомостей про плагіни сервера недоступний.</string>
+    <string name="similarity_admin_failed">Не вдалося отримати відомості про плагіни. Результати схожості доступні.</string>
+    <string name="similarity_admin_plugins_enabled">Систему плагінів увімкнено.</string>
+    <string name="similarity_admin_plugins_disabled">Систему плагінів вимкнено. Неможливо отримати список встановлених плагінів.</string>
+    <string name="similarity_admin_empty">Встановлені плагіни не повернуто.</string>
+    <string name="similarity_admin_agents">Агенти метаданих: %1$s</string>
+    <string name="similarity_admin_external_enabled">Зовнішні служби увімкнено.</string>
+    <string name="similarity_admin_external_disabled">Зовнішні служби вимкнено.</string>
+    <string name="similarity_admin_plugin_enabled">Увімкнено</string>
+    <string name="similarity_admin_plugin_disabled">Вимкнено</string>
+    <string name="similarity_admin_plugin_error">Сервер повідомляє про помилку плагіна. Перевірте налаштування та журнали плагінів Navidrome.</string>
 </resources>

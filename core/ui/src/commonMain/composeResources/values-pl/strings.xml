@@ -271,4 +271,18 @@
     <string name="similarity_radio_empty">Radio nie znalazło dodatkowych utworów. Zachowano obecną kolejkę.</string>
     <string name="similarity_radio_failed">Nie można utworzyć kolejki radia. Zachowano obecną kolejkę.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Szczegóły wtyczek serwera</string>
+    <string name="similarity_admin_required">Szczegóły wtyczek wymagają uprawnień administratora.</string>
+    <string name="similarity_admin_login">Połącz się ponownie z hasłem Navidrome, aby sprawdzić wtyczki.</string>
+    <string name="similarity_admin_unavailable">API szczegółów wtyczek serwera jest niedostępne.</string>
+    <string name="similarity_admin_failed">Nie można pobrać szczegółów wtyczek. Wyniki podobieństwa są nadal dostępne.</string>
+    <string name="similarity_admin_plugins_enabled">System wtyczek włączony.</string>
+    <string name="similarity_admin_plugins_disabled">System wtyczek wyłączony. Nie można wyświetlić zainstalowanych wtyczek.</string>
+    <string name="similarity_admin_empty">Nie zwrócono zainstalowanych wtyczek.</string>
+    <string name="similarity_admin_agents">Agenci metadanych: %1$s</string>
+    <string name="similarity_admin_external_enabled">Usługi zewnętrzne włączone.</string>
+    <string name="similarity_admin_external_disabled">Usługi zewnętrzne wyłączone.</string>
+    <string name="similarity_admin_plugin_enabled">Włączona</string>
+    <string name="similarity_admin_plugin_disabled">Wyłączona</string>
+    <string name="similarity_admin_plugin_error">Serwer zgłasza błąd wtyczki. Sprawdź ustawienia i dzienniki wtyczek Navidrome.</string>
 </resources>

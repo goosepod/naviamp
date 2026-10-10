@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">لم يجد الراديو مقاطع إضافية. تم الاحتفاظ بقائمة الانتظار الحالية.</string>
     <string name="similarity_radio_failed">تعذر إنشاء قائمة انتظار الراديو. تم الاحتفاظ بالقائمة الحالية.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">تفاصيل إضافات الخادم</string>
+    <string name="similarity_admin_required">تتطلب تفاصيل الإضافات صلاحيات المسؤول.</string>
+    <string name="similarity_admin_login">أعد الاتصال بكلمة مرور Navidrome للتحقق من الإضافات.</string>
+    <string name="similarity_admin_unavailable">واجهة API لتفاصيل إضافات الخادم غير متاحة.</string>
+    <string name="similarity_admin_failed">تعذر جلب تفاصيل الإضافات. نتائج التشابه ما زالت متاحة.</string>
+    <string name="similarity_admin_plugins_enabled">نظام الإضافات مفعّل.</string>
+    <string name="similarity_admin_plugins_disabled">نظام الإضافات معطّل. لا يمكن عرض الإضافات المثبتة.</string>
+    <string name="similarity_admin_empty">لم تُرجع أي إضافات مثبتة.</string>
+    <string name="similarity_admin_agents">وكلاء البيانات الوصفية: %1$s</string>
+    <string name="similarity_admin_external_enabled">الخدمات الخارجية مفعّلة.</string>
+    <string name="similarity_admin_external_disabled">الخدمات الخارجية معطّلة.</string>
+    <string name="similarity_admin_plugin_enabled">مفعّلة</string>
+    <string name="similarity_admin_plugin_disabled">معطّلة</string>
+    <string name="similarity_admin_plugin_error">يبلغ الخادم عن خطأ في إضافة. تحقق من إعدادات إضافات Navidrome وسجلاتها.</string>
 </resources>

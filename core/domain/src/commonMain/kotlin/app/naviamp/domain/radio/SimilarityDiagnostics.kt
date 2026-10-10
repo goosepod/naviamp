@@ -38,6 +38,7 @@ data class SimilarityDiagnostics(
     val supportFailure: SimilarityEndpointResult?,
     val sonic: SimilarityEndpointResult,
     val regular: SimilarityEndpointResult,
+    val admin: SimilarityAdminDiagnostics = SimilarityAdminDiagnostics(SimilarityAdminStatus.Unavailable),
 )
 
 const val SimilarityRequestTimeoutMillis = 10_000L
@@ -52,8 +53,9 @@ suspend fun testSimilarity(provider: MediaProvider, seed: Track, count: Int = 20
     return coroutineScope {
         val sonic = async { probeEndpoint(provider, seed.id, SimilarityEndpoint.Sonic, count) }
         val regular = async { probeEndpoint(provider, seed.id, SimilarityEndpoint.Regular, count) }
+        val admin = async { testSimilarityAdmin(provider) }
         SimilarityDiagnostics(seed, support,
-            supportResult.takeUnless { it.kind == SimilarityResultKind.Empty }, sonic.await(), regular.await())
+            supportResult.takeUnless { it.kind == SimilarityResultKind.Empty }, sonic.await(), regular.await(), admin.await())
     }
 }
 

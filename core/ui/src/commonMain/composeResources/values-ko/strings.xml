@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">라디오에서 추가 곡을 찾지 못했습니다. 현재 대기열을 유지했습니다.</string>
     <string name="similarity_radio_failed">라디오 대기열을 만들지 못했습니다. 현재 대기열을 유지했습니다.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">서버 플러그인 정보</string>
+    <string name="similarity_admin_required">플러그인 정보를 보려면 관리자 권한이 필요합니다.</string>
+    <string name="similarity_admin_login">플러그인을 확인하려면 Navidrome 비밀번호로 다시 연결하세요.</string>
+    <string name="similarity_admin_unavailable">서버 플러그인 정보 API를 사용할 수 없습니다.</string>
+    <string name="similarity_admin_failed">플러그인 정보를 가져오지 못했습니다. 유사도 결과는 계속 확인할 수 있습니다.</string>
+    <string name="similarity_admin_plugins_enabled">플러그인 시스템이 활성화되어 있습니다.</string>
+    <string name="similarity_admin_plugins_disabled">플러그인 시스템이 비활성화되어 설치된 플러그인을 나열할 수 없습니다.</string>
+    <string name="similarity_admin_empty">설치된 플러그인이 반환되지 않았습니다.</string>
+    <string name="similarity_admin_agents">메타데이터 에이전트: %1$s</string>
+    <string name="similarity_admin_external_enabled">외부 서비스가 활성화되어 있습니다.</string>
+    <string name="similarity_admin_external_disabled">외부 서비스가 비활성화되어 있습니다.</string>
+    <string name="similarity_admin_plugin_enabled">활성화됨</string>
+    <string name="similarity_admin_plugin_disabled">비활성화됨</string>
+    <string name="similarity_admin_plugin_error">서버가 플러그인 오류를 보고합니다. Navidrome 플러그인 설정과 로그를 확인하세요.</string>
 </resources>

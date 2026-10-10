@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertSame
 
 class RadioServiceTest {
@@ -250,6 +251,45 @@ class RadioServiceTest {
         val reasons = mutableListOf<SonicRadioFallbackReason>()
         assertEquals(listOf(track("match")), RadioService(provider, onSonicFallback = reasons::add).trackRadio(track("seed"), true))
         assertEquals(listOf(SonicRadioFallbackReason.TimedOut), reasons)
+    }
+
+    @Test
+    fun adminFailuresAndPermissionsDoNotStopEitherSimilarityEndpoint() = runTest {
+        val base = FakeRadioProvider(sonicTracks = listOf(track("sonic")), radioTracks = listOf(track("regular")))
+        for (status in listOf(SimilarityAdminStatus.NotAdmin, SimilarityAdminStatus.NativeLoginRequired, SimilarityAdminStatus.Failed)) {
+            val provider = object : MediaProvider by base {
+                override suspend fun similarityAdminDiagnostics() = SimilarityAdminDiagnostics(status)
+            }
+            val report = testSimilarity(provider, track("seed"))
+            assertEquals(status, report.admin.status)
+            assertEquals(SimilarityResultKind.Matches, report.sonic.kind)
+            assertEquals(SimilarityResultKind.Matches, report.regular.kind)
+        }
+        val provider = object : MediaProvider by base {
+            override suspend fun similarityAdminDiagnostics(): SimilarityAdminDiagnostics = error("private admin error")
+        }
+        val report = testSimilarity(provider, track("seed"))
+        assertEquals(SimilarityAdminStatus.Failed, report.admin.status)
+        assertEquals(SimilarityResultKind.Matches, report.regular.kind)
+        assertFalse(report.toString().contains("private admin error"))
+    }
+
+    @Test
+    fun adminDeadlineAndCancellationAreIndependentOfEndpointFailures() = runTest {
+        val base = FakeRadioProvider(radioTracks = listOf(track("match")))
+        val slow = object : MediaProvider by base {
+            override suspend fun similarityAdminDiagnostics(): SimilarityAdminDiagnostics {
+                delay(60_000)
+                return SimilarityAdminDiagnostics(SimilarityAdminStatus.Available)
+            }
+        }
+        val report = testSimilarity(slow, track("seed"))
+        assertEquals(SimilarityAdminStatus.TimedOut, report.admin.status)
+        assertEquals(SimilarityResultKind.Matches, report.regular.kind)
+        val cancelled = object : MediaProvider by base {
+            override suspend fun similarityAdminDiagnostics(): SimilarityAdminDiagnostics = throw CancellationException()
+        }
+        assertFailsWith<CancellationException> { testSimilarity(cancelled, track("seed")) }
     }
 
     @Test

@@ -72,6 +72,7 @@ private fun SimilarityReportContent(colors: NaviampColors, test: NaviampSimilari
             null -> Res.string.similarity_support_unknown
         }), color = colors.secondaryText)
         report.supportFailure?.let { SimilarityResultText(colors, it) }
+        SimilarityAdminContent(colors, report.admin)
         Text(stringResource(Res.string.settings_related_sonic_similarity), color = colors.primaryText)
         SimilarityResultText(colors, report.sonic)
         Text(stringResource(Res.string.similarity_regular), color = colors.primaryText)
@@ -88,6 +89,48 @@ private fun SimilarityReportContent(colors: NaviampColors, test: NaviampSimilari
             SonicRadioFallbackReason.TimedOut -> Res.string.similarity_timeout
             SonicRadioFallbackReason.Failed -> Res.string.similarity_failed
         }), color = colors.secondaryText) }
+    }
+}
+
+@Composable
+private fun SimilarityAdminContent(colors: NaviampColors, admin: SimilarityAdminDiagnostics) {
+    Text(stringResource(Res.string.similarity_admin_title), color = colors.primaryText)
+    if (admin.status != SimilarityAdminStatus.Available) {
+        Text(stringResource(when (admin.status) {
+            SimilarityAdminStatus.NotAdmin -> Res.string.similarity_admin_required
+            SimilarityAdminStatus.NativeLoginRequired -> Res.string.similarity_admin_login
+            SimilarityAdminStatus.Unavailable -> Res.string.similarity_admin_unavailable
+            SimilarityAdminStatus.TimedOut -> Res.string.similarity_timeout
+            else -> Res.string.similarity_admin_failed
+        }), color = colors.secondaryText)
+    }
+    admin.httpStatus?.let {
+        Text(stringResource(Res.string.similarity_protocol_codes, it.toString(), "—"), color = colors.secondaryText)
+    }
+    admin.pluginsEnabled?.let {
+        Text(stringResource(if (it) Res.string.similarity_admin_plugins_enabled else Res.string.similarity_admin_plugins_disabled),
+            color = colors.secondaryText)
+    }
+    admin.externalServicesEnabled?.let {
+        Text(stringResource(if (it) Res.string.similarity_admin_external_enabled else Res.string.similarity_admin_external_disabled),
+            color = colors.secondaryText)
+    }
+    admin.agents?.takeIf { it.isNotEmpty() }?.let {
+        Text(stringResource(Res.string.similarity_admin_agents, it.joinToString(", ")), color = colors.secondaryText)
+    }
+    admin.plugins?.let { plugins ->
+        if (plugins.isEmpty()) Text(stringResource(Res.string.similarity_admin_empty), color = colors.secondaryText)
+        plugins.forEach { plugin ->
+            Column(Modifier.padding(vertical = 4.dp)) {
+                Text(plugin.name, color = colors.primaryText)
+                Text(listOfNotNull(plugin.id, plugin.version).joinToString(" · "), color = colors.secondaryText)
+                plugin.enabled?.let {
+                    Text(stringResource(if (it) Res.string.similarity_admin_plugin_enabled else Res.string.similarity_admin_plugin_disabled),
+                        color = colors.secondaryText)
+                }
+                if (plugin.hasError) Text(stringResource(Res.string.similarity_admin_plugin_error), color = colors.secondaryText)
+            }
+        }
     }
 }
 

@@ -64,6 +64,10 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.ConnectionPasswordRequiredStatus
 import app.naviamp.domain.source.SubsonicAuthApiKey
+import app.naviamp.domain.radio.SimilarityAdminDiagnostics
+import app.naviamp.domain.radio.SimilarityAdminStatus
+import app.naviamp.domain.radio.SimilarityPluginInfo
+import app.naviamp.domain.radio.isSimilarityTimeout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -1346,6 +1350,61 @@ class NavidromeProvider(
             .ifEmpty {
                 trackRadioFallback(trackId, count)
             }
+
+    override suspend fun similarityAdminDiagnostics(): SimilarityAdminDiagnostics {
+        if (!profile.nativeAuthentication) return SimilarityAdminDiagnostics(SimilarityAdminStatus.Unavailable)
+        if (nativeToken.isNullOrBlank()) return SimilarityAdminDiagnostics(SimilarityAdminStatus.NativeLoginRequired)
+        var details = SimilarityAdminDiagnostics(SimilarityAdminStatus.Available)
+        try {
+            val config = try {
+                json.parseToJsonElement(nativeHttpResponse("config/").body).jsonObject["config"] as? JsonObject
+                    ?: throw NavidromeException("Invalid admin configuration response")
+            } catch (failure: NavidromeHttpException) {
+                if (failure.statusCode != 404) throw failure
+                null // Older servers may expose plugin inventory without configuration inspection.
+            }
+            details = details.copy(
+                pluginsEnabled = (config?.get("Plugins") as? JsonObject)?.get("Enabled")?.jsonPrimitive?.booleanOrNull,
+                externalServicesEnabled = config?.get("EnableExternalServices")?.jsonPrimitive?.booleanOrNull,
+                agents = config?.get("Agents")?.let { value ->
+                    when (value) {
+                        is JsonArray -> value.mapNotNull { it.jsonPrimitive.contentOrNull }
+                        else -> value.jsonPrimitive.contentOrNull?.split(',')
+                    }?.map { it.trim() }?.filter { it.isNotEmpty() }
+                },
+            )
+            if (details.pluginsEnabled == false) return details
+            val inventory = json.parseToJsonElement(nativeHttpResponse("plugin/").body)
+            val rows = (inventory as? JsonArray) ?: (inventory as? JsonObject)?.get("data") as? JsonArray
+                ?: throw NavidromeException("Invalid plugin inventory response")
+            val plugins = rows.map { value ->
+                val plugin = value as? JsonObject ?: throw NavidromeException("Invalid plugin row")
+                val id = plugin.stringValue("id")?.takeIf { it.isNotBlank() }
+                    ?: throw NavidromeException("Missing plugin ID")
+                val manifest = (plugin["manifest"] as? JsonObject) ?: plugin.stringValue("manifest")?.let {
+                    runCatching { json.parseToJsonElement(it) as? JsonObject }.getOrNull()
+                }
+                SimilarityPluginInfo(
+                    id = id, name = manifest?.stringValue("name") ?: id,
+                    version = manifest?.stringValue("version"),
+                    enabled = plugin["enabled"]?.jsonPrimitive?.booleanOrNull,
+                    hasError = !plugin.stringValue("lastError").isNullOrBlank(),
+                )
+            }
+            return details.copy(plugins = plugins)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: NavidromeHttpException) {
+            return details.copy(status = when (failure.statusCode) {
+                401 -> SimilarityAdminStatus.NativeLoginRequired
+                403 -> SimilarityAdminStatus.NotAdmin
+                404 -> SimilarityAdminStatus.Unavailable
+                else -> SimilarityAdminStatus.Failed
+            }, httpStatus = failure.statusCode)
+        } catch (failure: Exception) {
+            return details.copy(status = if (failure.isSimilarityTimeout()) SimilarityAdminStatus.TimedOut else SimilarityAdminStatus.Failed)
+        }
+    }
 
     override suspend fun similaritySupport(): app.naviamp.domain.radio.SimilaritySupport = diagnosticRequest {
         val versions = openSubsonicExtensionVersions(failOnError = true).versions

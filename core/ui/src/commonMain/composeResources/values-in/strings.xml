@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">Radio tidak menemukan lagu tambahan. Antrean saat ini dipertahankan.</string>
     <string name="similarity_radio_failed">Antrean Radio tidak dapat dibuat. Antrean saat ini dipertahankan.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Detail plugin server</string>
+    <string name="similarity_admin_required">Detail plugin memerlukan akses administrator.</string>
+    <string name="similarity_admin_login">Hubungkan kembali dengan kata sandi Navidrome untuk memeriksa plugin.</string>
+    <string name="similarity_admin_unavailable">API detail plugin server tidak tersedia.</string>
+    <string name="similarity_admin_failed">Detail plugin tidak dapat diambil. Hasil kemiripan tetap tersedia.</string>
+    <string name="similarity_admin_plugins_enabled">Sistem plugin diaktifkan.</string>
+    <string name="similarity_admin_plugins_disabled">Sistem plugin dinonaktifkan. Plugin terpasang tidak dapat ditampilkan.</string>
+    <string name="similarity_admin_empty">Tidak ada plugin terpasang yang dikembalikan.</string>
+    <string name="similarity_admin_agents">Agen metadata: %1$s</string>
+    <string name="similarity_admin_external_enabled">Layanan eksternal diaktifkan.</string>
+    <string name="similarity_admin_external_disabled">Layanan eksternal dinonaktifkan.</string>
+    <string name="similarity_admin_plugin_enabled">Diaktifkan</string>
+    <string name="similarity_admin_plugin_disabled">Dinonaktifkan</string>
+    <string name="similarity_admin_plugin_error">Server melaporkan kesalahan plugin. Periksa pengaturan dan log plugin Navidrome.</string>
 </resources>

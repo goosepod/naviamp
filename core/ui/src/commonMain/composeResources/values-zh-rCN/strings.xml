@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">电台未找到更多歌曲。已保留当前队列。</string>
     <string name="similarity_radio_failed">无法构建电台队列。已保留当前队列。</string>
     <string name="similarity_protocol_codes">HTTP：%1$s；API：%2$s</string>
+    <string name="similarity_admin_title">服务器插件详情</string>
+    <string name="similarity_admin_required">查看插件详情需要管理员权限。</string>
+    <string name="similarity_admin_login">请使用 Navidrome 密码重新连接以检查插件。</string>
+    <string name="similarity_admin_unavailable">服务器插件详情 API 不可用。</string>
+    <string name="similarity_admin_failed">无法获取插件详情。相似度结果仍然可用。</string>
+    <string name="similarity_admin_plugins_enabled">插件系统已启用。</string>
+    <string name="similarity_admin_plugins_disabled">插件系统已禁用，无法列出已安装的插件。</string>
+    <string name="similarity_admin_empty">未返回任何已安装的插件。</string>
+    <string name="similarity_admin_agents">元数据代理：%1$s</string>
+    <string name="similarity_admin_external_enabled">外部服务已启用。</string>
+    <string name="similarity_admin_external_disabled">外部服务已禁用。</string>
+    <string name="similarity_admin_plugin_enabled">已启用</string>
+    <string name="similarity_admin_plugin_disabled">已禁用</string>
+    <string name="similarity_admin_plugin_error">服务器报告插件错误。请检查 Navidrome 插件设置和日志。</string>
 </resources>

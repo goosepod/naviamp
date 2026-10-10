@@ -167,6 +167,8 @@ interface MediaProvider {
     /** Fresh capability discovery and raw responses for an explicit similarity diagnostic. */
     suspend fun similaritySupport(): app.naviamp.domain.radio.SimilaritySupport =
         throw UnsupportedOperationException()
+    suspend fun similarityAdminDiagnostics(): app.naviamp.domain.radio.SimilarityAdminDiagnostics =
+        app.naviamp.domain.radio.SimilarityAdminDiagnostics(app.naviamp.domain.radio.SimilarityAdminStatus.Unavailable)
     suspend fun similarityEndpointTracks(
         trackId: TrackId,
         endpoint: app.naviamp.domain.radio.SimilarityEndpoint,

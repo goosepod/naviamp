@@ -27,6 +27,15 @@ Issue: https://github.com/goosepod/naviamp/issues/250
    notice appears and the current queue is kept. Close the notice and confirm it disappears.
 7. Switch servers while a test is running, including switching back to the original server.
    Old results must be discarded and a new test must be available immediately.
+8. With a Navidrome native admin session, confirm Server plugin details shows global plugin
+   enablement, external-service enablement, configured metadata agents, and the installed plugin
+   names, IDs, versions, and enabled states. A server-reported plugin error must show only generic
+   guidance. No configuration, credentials, local paths, or raw plugin error text should appear.
+9. Disable the plugin system on a disposable server. The popup must say it is disabled and cannot
+   list installed plugins, rather than claim an empty inventory. A successful empty inventory on
+   an enabled server must remain distinct. An unavailable API must not imply missing plugins.
+10. Try a non-admin account or a source without native login credentials. Both similarity endpoints
+    must still be tested. Only the extra plugin details should report the access/login requirement.
 
 ## Automated checks
 
@@ -35,7 +44,10 @@ transport timeouts, cancellation, and independent diagnostic endpoints. Provider
 response parsing, capability refresh, safe protocol codes, and avoiding local Radio fallback in
 endpoint diagnostics. Controller tests cover overlapping requests, cancellation, source changes,
 and queue preservation. Compose tests cover endpoint labels/results, narrow and wide layouts,
-and access when Sonic is not advertised.
+and access when Sonic is not advertised. Admin tests cover native JWT refresh, permission/session
+failures, disabled versus empty inventory, safe metadata mapping, independent failure and deadlines,
+and cancellation. Presentation integration tests verify expanded Radio history persistence/replay
+and reject a seed-only result as a successful saved session.
 
 An opt-in JVM integration test uses an explicitly configured disposable server. Set
 `NAVIAMP_SIMILARITY_TEST_URL`, `NAVIAMP_SIMILARITY_TEST_USER`,
@@ -50,6 +62,12 @@ This integration test expects an unavailable Sonic backend and a library where r
 can return candidates. It does not change the server. Restore any test plugin or configuration
 changes separately. Without the URL environment variable, the live test does not contact a server.
 
+To opt into the separate read-only admin integration check, also set
+`NAVIAMP_SIMILARITY_TEST_ADMIN=true` and `NAVIAMP_SIMILARITY_TEST_PLUGINS` to the expected global
+plugin enablement (`true` or `false`). Run the `inspectNativeAdminApiWithoutChangingServer`
+method in `NavidromeSimilarityLiveTest`. The enabled fixture expects AudioMuse v10 to be installed.
+Native authentication is obtained using the supplied password; the test never changes the server.
+
 ## Recorded live evidence
 
 On the authorized `navidrome-test` container, Navidrome 0.64.2-SNAPSHOT (PR 6227), the plugin-disabled
@@ -60,5 +78,10 @@ returned 20 matches, and Radio added 50 tracks with a recorded failure fallback.
 
 Only `navidrome-test` was recreated. The temporary plugin was disabled and removed afterward;
 the restored container environment and image were checked against the original baseline.
+The native admin check also returned `pluginsEnabled=false` with unknown inventory at baseline,
+then `pluginsEnabled=true` with the installed `audiomuseai` plugin and version `10.0.0` when enabled.
+Both similarity endpoints remained available to the diagnostic test. After removing the fixture,
+the complete environment mapping matched the original Compose service plus image defaults,
+the image matched the baseline, and the installed plugin inventory was empty.
 Successful Sonic playback remains a manual verification case; common/provider tests cover its
 selection and response parsing. Native iOS runtime verification requires a macOS host.

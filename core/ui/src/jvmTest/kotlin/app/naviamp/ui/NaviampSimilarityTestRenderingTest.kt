@@ -21,6 +21,44 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalTestApi::class)
 class NaviampSimilarityTestRenderingTest {
     @Test
+    fun adminMetadataAndDisabledSystemAreDistinctFromAnEmptyInventory() = runDesktopComposeUiTest(480, 800) {
+        val seed = Track(TrackId("seed"), "Admin test", artistName = "Artist", albumTitle = null,
+            durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
+        val admin = mutableStateOf(SimilarityAdminDiagnostics(SimilarityAdminStatus.Available,
+            pluginsEnabled = true, externalServicesEnabled = false, agents = listOf("audiomuseai", "lastfm"),
+            plugins = listOf(SimilarityPluginInfo("audiomuseai", "AudioMuse", "10.0.0", true, true))))
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                NaviampSimilarityTestContent(NaviampColors.Dark,
+                    NaviampSimilarityTestUi(SimilarityTestState.Complete, report = SimilarityDiagnostics(seed,
+                        SimilaritySupport.Advertised, null, SimilarityEndpointResult(SimilarityResultKind.Empty),
+                        SimilarityEndpointResult(SimilarityResultKind.Empty), admin.value)), {})
+            }
+        }
+        onNodeWithText("Test similarity").performClick()
+        onNodeWithText("Plugin system enabled.").assertIsDisplayed()
+        onNodeWithText("External services disabled.").assertIsDisplayed()
+        onNodeWithText("Metadata agents: audiomuseai, lastfm").assertIsDisplayed()
+        onNodeWithText("AudioMuse").assertIsDisplayed()
+        onNodeWithText("audiomuseai · 10.0.0").assertIsDisplayed()
+        onNodeWithText("Enabled").assertIsDisplayed()
+        onNodeWithText("The server reports a plugin error. Check the Navidrome plugin settings and logs.").performScrollTo().assertIsDisplayed()
+        System.getenv("NAVIAMP_SIMILARITY_QA_DIR")?.let { path ->
+            val directory = java.io.File(path).apply { mkdirs() }
+            val image = org.jetbrains.skia.Image.makeFromBitmap(onNode(isDialog()).captureToImage().asSkiaBitmap())
+            val png = checkNotNull(image.encodeToData())
+            java.io.File(directory, "similarity-admin.png").writeBytes(png.bytes)
+            png.close(); image.close()
+        }
+        runOnIdle { admin.value = SimilarityAdminDiagnostics(SimilarityAdminStatus.Available, pluginsEnabled = false) }
+        onNodeWithText("Plugin system disabled. Installed plugins cannot be listed.").performScrollTo().assertIsDisplayed()
+        onNodeWithText("No installed plugins were returned.").assertDoesNotExist()
+        runOnIdle { admin.value = SimilarityAdminDiagnostics(SimilarityAdminStatus.Available, pluginsEnabled = true, plugins = emptyList()) }
+        onNodeWithText("No installed plugins were returned.").assertIsDisplayed()
+        onNodeWithText("Close").performClick()
+    }
+
+    @Test
     fun missingSonicSupportStillAllowsTestingAndRunningTestCannotBeStartedAgain() = runDesktopComposeUiTest(480, 800) {
         var requests = 0
         val test = mutableStateOf(NaviampSimilarityTestUi())
@@ -58,7 +96,8 @@ class NaviampSimilarityTestRenderingTest {
                 val report = SimilarityDiagnostics(seed, SimilaritySupport.Advertised, null,
                     SimilarityEndpointResult(SimilarityResultKind.Failed, httpStatus = 503, serverCode = 0),
                     SimilarityEndpointResult(SimilarityResultKind.Matches, 20,
-                        tracks = (1..20).map { SimilarityTrackInfo("Returned song $it", "Returned artist $it") }))
+                        tracks = (1..20).map { SimilarityTrackInfo("Returned song $it", "Returned artist $it") }),
+                    admin = SimilarityAdminDiagnostics(SimilarityAdminStatus.NotAdmin))
                 setContent {
                     MaterialTheme(colorScheme = darkColorScheme()) {
                         Column(Modifier.fillMaxSize().background(NaviampColors.Dark.background).verticalScroll(rememberScrollState())) {
@@ -74,10 +113,11 @@ class NaviampSimilarityTestRenderingTest {
                 onNodeWithText("Test track: Test song").assertIsDisplayed()
                 onNodeWithText("Artist").assertIsDisplayed()
                 onNodeWithText("Sonic support is advertised.").assertIsDisplayed()
-                onNodeWithText("HTTP: 503; API: 0").assertIsDisplayed()
-                onNodeWithText("20 matches").assertIsDisplayed()
-                onNodeWithText("Returned song 1").assertIsDisplayed()
-                onNodeWithText("Returned artist 1").assertIsDisplayed()
+                onNodeWithText("Plugin details require administrator access.").assertIsDisplayed()
+                onNodeWithText("HTTP: 503; API: 0").performScrollTo().assertIsDisplayed()
+                onNodeWithText("20 matches").performScrollTo().assertIsDisplayed()
+                onNodeWithText("Returned song 1").performScrollTo().assertIsDisplayed()
+                onNodeWithText("Returned artist 1").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Returned song 20").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Returned artist 20").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Sonic similarity was unavailable. Radio used its fallback.").performScrollTo().assertIsDisplayed()

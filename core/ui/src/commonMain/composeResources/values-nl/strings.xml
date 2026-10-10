@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">Radio vond geen extra nummers. De huidige wachtrij is behouden.</string>
     <string name="similarity_radio_failed">De Radio-wachtrij kon niet worden gemaakt. De huidige wachtrij is behouden.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Serverplugindetails</string>
+    <string name="similarity_admin_required">Plugindetails vereisen beheerderstoegang.</string>
+    <string name="similarity_admin_login">Verbind opnieuw met je Navidrome-wachtwoord om plugindetails te bekijken.</string>
+    <string name="similarity_admin_unavailable">De API voor serverplugindetails is niet beschikbaar.</string>
+    <string name="similarity_admin_failed">Plugindetails konden niet worden opgehaald. De gelijkenisresultaten blijven beschikbaar.</string>
+    <string name="similarity_admin_plugins_enabled">Pluginsysteem ingeschakeld.</string>
+    <string name="similarity_admin_plugins_disabled">Pluginsysteem uitgeschakeld. Geïnstalleerde plugins kunnen niet worden weergegeven.</string>
+    <string name="similarity_admin_empty">Er zijn geen geïnstalleerde plugins teruggegeven.</string>
+    <string name="similarity_admin_agents">Metadatabronnen: %1$s</string>
+    <string name="similarity_admin_external_enabled">Externe diensten ingeschakeld.</string>
+    <string name="similarity_admin_external_disabled">Externe diensten uitgeschakeld.</string>
+    <string name="similarity_admin_plugin_enabled">Ingeschakeld</string>
+    <string name="similarity_admin_plugin_disabled">Uitgeschakeld</string>
+    <string name="similarity_admin_plugin_error">De server meldt een pluginfout. Controleer de Navidrome-plugininstellingen en logboeken.</string>
 </resources>

@@ -152,4 +152,18 @@
     <string name="similarity_radio_empty">Radyo ek parça bulamadı. Mevcut kuyruk korundu.</string>
     <string name="similarity_radio_failed">Radyo kuyruğu oluşturulamadı. Mevcut kuyruk korundu.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
+    <string name="similarity_admin_title">Sunucu eklenti ayrıntıları</string>
+    <string name="similarity_admin_required">Eklenti ayrıntıları yönetici erişimi gerektirir.</string>
+    <string name="similarity_admin_login">Eklentileri kontrol etmek için Navidrome parolanızla yeniden bağlanın.</string>
+    <string name="similarity_admin_unavailable">Sunucu eklenti ayrıntıları API’si kullanılamıyor.</string>
+    <string name="similarity_admin_failed">Eklenti ayrıntıları alınamadı. Benzerlik sonuçları hâlâ kullanılabilir.</string>
+    <string name="similarity_admin_plugins_enabled">Eklenti sistemi etkin.</string>
+    <string name="similarity_admin_plugins_disabled">Eklenti sistemi devre dışı. Yüklü eklentiler listelenemiyor.</string>
+    <string name="similarity_admin_empty">Yüklü eklenti döndürülmedi.</string>
+    <string name="similarity_admin_agents">Meta veri aracıları: %1$s</string>
+    <string name="similarity_admin_external_enabled">Harici hizmetler etkin.</string>
+    <string name="similarity_admin_external_disabled">Harici hizmetler devre dışı.</string>
+    <string name="similarity_admin_plugin_enabled">Etkin</string>
+    <string name="similarity_admin_plugin_disabled">Devre dışı</string>
+    <string name="similarity_admin_plugin_error">Sunucu bir eklenti hatası bildiriyor. Navidrome eklenti ayarlarını ve günlüklerini kontrol edin.</string>
 </resources>
