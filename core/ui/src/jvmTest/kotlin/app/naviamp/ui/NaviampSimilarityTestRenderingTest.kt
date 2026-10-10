@@ -41,7 +41,10 @@ class NaviampSimilarityTestRenderingTest {
         onNodeWithText("Related Tracks").performClick()
         onNodeWithText("Test similarity").performScrollTo().performClick()
         assertEquals(1, requests)
-        onNodeWithText("Loading…").assertIsNotEnabled()
+        onNode(isDialog()).assertExists()
+        onAllNodesWithText("Loading…").filter(hasClickAction()).onFirst().assertIsNotEnabled()
+        onNodeWithText("Close").performClick()
+        onNode(isDialog()).assertDoesNotExist()
         runOnIdle { test.value = NaviampSimilarityTestUi() }
         onNodeWithText("Test similarity").assertIsEnabled()
     }
@@ -54,7 +57,8 @@ class NaviampSimilarityTestRenderingTest {
                     durationSeconds = 180, coverArtId = null, audioInfo = null, replayGain = null)
                 val report = SimilarityDiagnostics(seed, SimilaritySupport.Advertised, null,
                     SimilarityEndpointResult(SimilarityResultKind.Failed, httpStatus = 503, serverCode = 0),
-                    SimilarityEndpointResult(SimilarityResultKind.Matches, 20))
+                    SimilarityEndpointResult(SimilarityResultKind.Matches, 20,
+                        tracks = (1..20).map { SimilarityTrackInfo("Returned song $it", "Returned artist $it") }))
                 setContent {
                     MaterialTheme(colorScheme = darkColorScheme()) {
                         Column(Modifier.fillMaxSize().background(NaviampColors.Dark.background).verticalScroll(rememberScrollState())) {
@@ -64,19 +68,29 @@ class NaviampSimilarityTestRenderingTest {
                         }
                     }
                 }
+                onNodeWithText("Test track: Test song").assertDoesNotExist()
+                onNodeWithText("Test similarity").performClick()
+                onNode(isDialog()).assertExists()
                 onNodeWithText("Test track: Test song").assertIsDisplayed()
+                onNodeWithText("Artist").assertIsDisplayed()
                 onNodeWithText("Sonic support is advertised.").assertIsDisplayed()
                 onNodeWithText("HTTP: 503; API: 0").assertIsDisplayed()
                 onNodeWithText("20 matches").assertIsDisplayed()
+                onNodeWithText("Returned song 1").assertIsDisplayed()
+                onNodeWithText("Returned artist 1").assertIsDisplayed()
+                onNodeWithText("Returned song 20").performScrollTo().assertIsDisplayed()
+                onNodeWithText("Returned artist 20").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Sonic similarity was unavailable. Radio used its fallback.").performScrollTo().assertIsDisplayed()
                 val directory = System.getenv("NAVIAMP_SIMILARITY_QA_DIR")?.let { java.io.File(it) }
                 directory?.let {
                     it.mkdirs()
-                    val image = org.jetbrains.skia.Image.makeFromBitmap(onRoot().captureToImage().asSkiaBitmap())
+                    val image = org.jetbrains.skia.Image.makeFromBitmap(onNode(isDialog()).captureToImage().asSkiaBitmap())
                     val png = checkNotNull(image.encodeToData())
                     java.io.File(it, "similarity-$width.png").writeBytes(png.bytes)
                     png.close(); image.close()
                 }
+                onNodeWithText("Close").performClick()
+                onNode(isDialog()).assertDoesNotExist()
             }
         }
     }

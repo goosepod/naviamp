@@ -15,6 +15,8 @@ enum class SimilarityEndpoint { Sonic, Regular }
 enum class SimilaritySupport { Advertised, Missing }
 enum class SimilarityResultKind { Matches, Empty, Unsupported, TimedOut, Failed }
 
+data class SimilarityTrackInfo(val title: String, val artist: String?)
+
 /** Only safe protocol codes cross into the diagnostics UI, never request URLs or error text. */
 class SimilarityRequestException(val httpStatus: Int? = null, val serverCode: Int? = null, val timedOut: Boolean = false) : Exception()
 
@@ -27,6 +29,7 @@ data class SimilarityEndpointResult(
     val count: Int = 0,
     val httpStatus: Int? = null,
     val serverCode: Int? = null,
+    val tracks: List<SimilarityTrackInfo> = emptyList(),
 )
 
 data class SimilarityDiagnostics(
@@ -65,7 +68,8 @@ private suspend fun similarityAttempt(load: suspend () -> List<Track>): Similari
     when {
         tracks == null -> SimilarityEndpointResult(SimilarityResultKind.TimedOut)
         tracks.isEmpty() -> SimilarityEndpointResult(SimilarityResultKind.Empty)
-        else -> SimilarityEndpointResult(SimilarityResultKind.Matches, tracks.size)
+        else -> SimilarityEndpointResult(SimilarityResultKind.Matches, tracks.size,
+            tracks = tracks.map { SimilarityTrackInfo(it.title, it.artistName) })
     }
 } catch (cancelled: CancellationException) {
     throw cancelled

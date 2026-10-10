@@ -204,7 +204,8 @@ class RadioServiceTest {
         )
         val report = testSimilarity(provider, track("seed"))
         assertEquals(SimilaritySupport.Advertised, report.support)
-        assertEquals(SimilarityEndpointResult(SimilarityResultKind.Matches, 1), report.sonic)
+        assertEquals(SimilarityEndpointResult(SimilarityResultKind.Matches, 1,
+            tracks = listOf(SimilarityTrackInfo(track("match").title, track("match").artistName))), report.sonic)
         assertEquals(SimilarityResultKind.Empty, report.regular.kind)
         assertEquals(0, provider.trackRadioCalls)
     }

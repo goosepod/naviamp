@@ -6,7 +6,9 @@ Issue: https://github.com/goosepod/naviamp/issues/250
 
 1. Connect to a Navidrome server and play a library track. Open Settings → Experience →
    Related Tracks → Test similarity. Confirm the displayed test track is the playing track,
-   both endpoint outcomes are reported separately, and playback and the queue remain unchanged.
+   the popup shows both endpoint outcomes separately, with artist and title for the seed and
+   returned matches. Scroll through a longer match list, close the popup, and confirm playback
+   and the queue remain unchanged.
 2. With a working Sonic backend and Sonic Similarity enabled, start Radio. Confirm additional
    tracks arrive without a fallback notice. Disable Sonic Similarity and repeat: regular Radio
    should still work and the preference should remain disabled.
