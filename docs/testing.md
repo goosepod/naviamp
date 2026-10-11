@@ -126,8 +126,8 @@ already current stable versions.
 ### Smart-playlist representative tracks on a fresh profile
 
 The preview reads the synced local track index, rather than the current server playlist
-result. In a fresh profile, use **Settings > Debugging > Refresh library index** before
-checking representative tracks. The explicit action indexes artists, albums, and tracks
+result. In a fresh profile, use **Sync library** in the builder before checking
+representative tracks. **Settings > Debugging > Refresh library index** also remains available. The explicit action indexes artists, albums, and tracks
 in shared code; ordinary catalog refresh stays lightweight. Confirm that a matching
 track appears with its artist, that changing the filter changes the samples, and that
 the preview clearly identifies local examples rather than final server order.
@@ -135,3 +135,19 @@ the preview clearly identifies local examples rather than final server order.
 Regression coverage lives in `NaviampCoreCatalogControllerTest`: full index refresh
 feeds the actual preview port, track-fetch failures do not complete the sync, and a
 source change cancels completion of the old request.
+
+### Library sync from the smart-playlist builder
+
+The Preview area exposes **Sync library** in both creation and editing. It syncs
+metadata through the same shared full-index operation as Settings; it does not
+download audio. The action is disabled while its request is running. Rules and
+server saves remain usable independently. Completion recomputes examples from the
+current rules. Failure shows a localized retry message; closing the builder cancels
+its request.
+
+Check a fresh profile: open the builder, choose Sync library, wait for completion,
+and confirm matching examples appear. Change a rule while sync is running and
+confirm the completed preview reflects that rule. Disconnect the server and check
+the retry message, then reconnect and retry. Common rendered UI tests cover these
+state transitions, duplicate clicks, and dismissal cancellation; shared catalog
+tests cover metadata population and source changes.

@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">同期済みライブラリからの一致例です。サーバー上の最終的な順序は示していません。</string>
     <string name="smart_playlist_preview_empty">同期済みライブラリに一致例がありません。</string>
     <string name="smart_playlist_preview_unsupported">ローカルで未索引のフィールドではプレビューできません：%1$s。</string>
+    <string name="smart_playlist_sync_library">ライブラリを同期</string>
+    <string name="smart_playlist_sync_running">ライブラリを同期中…</string>
+    <string name="smart_playlist_sync_description">一致する曲の例を表示するには、ライブラリのメタデータを同期してください。音声はダウンロードされません。</string>
+    <string name="smart_playlist_sync_failed">ライブラリの同期に失敗しました。もう一度お試しください。</string>
 </resources>

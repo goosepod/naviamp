@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">Eşitlenmiş kitaplığınızdan örnek eşleşmeler; bunlar sunucudaki son sıralamayı göstermez.</string>
     <string name="smart_playlist_preview_empty">Eşitlenmiş kitaplıkta örnek eşleşme yok.</string>
     <string name="smart_playlist_preview_unsupported">Yerel olarak dizine alınmamış şu alanlar için önizleme kullanılamıyor: %1$s.</string>
+    <string name="smart_playlist_sync_library">Kitaplığı eşitle</string>
+    <string name="smart_playlist_sync_running">Kitaplık eşitleniyor…</string>
+    <string name="smart_playlist_sync_description">Eşleşen örnekleri görmek için kitaplık meta verilerini eşitleyin. Ses indirilmez.</string>
+    <string name="smart_playlist_sync_failed">Kitaplık eşitlenemedi. Tekrar deneyin.</string>
 </resources>

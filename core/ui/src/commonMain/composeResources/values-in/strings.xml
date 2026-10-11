@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">Contoh kecocokan dari pustaka tersinkron Anda; sampel ini tidak menunjukkan urutan akhir server.</string>
     <string name="smart_playlist_preview_empty">Tidak ada contoh kecocokan di pustaka tersinkron.</string>
     <string name="smart_playlist_preview_unsupported">Pratinjau tidak tersedia untuk kolom yang belum diindeks secara lokal: %1$s.</string>
+    <string name="smart_playlist_sync_library">Sinkronkan pustaka</string>
+    <string name="smart_playlist_sync_running">Menyinkronkan pustaka…</string>
+    <string name="smart_playlist_sync_description">Sinkronkan metadata pustaka untuk melihat contoh yang cocok. Audio tidak diunduh.</string>
+    <string name="smart_playlist_sync_failed">Sinkronisasi gagal. Coba lagi.</string>
 </resources>

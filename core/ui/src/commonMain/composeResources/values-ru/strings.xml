@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">Примеры из синхронизированной библиотеки; они не отражают итоговый порядок на сервере.</string>
     <string name="smart_playlist_preview_empty">В синхронизированной библиотеке нет примеров совпадений.</string>
     <string name="smart_playlist_preview_unsupported">Просмотр недоступен для полей без локального индекса: %1$s.</string>
+    <string name="smart_playlist_sync_library">Синхронизировать библиотеку</string>
+    <string name="smart_playlist_sync_running">Синхронизация библиотеки…</string>
+    <string name="smart_playlist_sync_description">Синхронизируйте метаданные, чтобы увидеть подходящие примеры. Аудио не скачивается.</string>
+    <string name="smart_playlist_sync_failed">Не удалось синхронизировать библиотеку. Повторите попытку.</string>
 </resources>

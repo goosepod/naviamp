@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">أمثلة من مكتبتك المتزامنة؛ لا تعرض هذه العينات الترتيب النهائي على الخادم.</string>
     <string name="smart_playlist_preview_empty">لا توجد أمثلة مطابقة في المكتبة المتزامنة.</string>
     <string name="smart_playlist_preview_unsupported">المعاينة غير متاحة لهذه الحقول غير المفهرسة محليًا: %1$s.</string>
+    <string name="smart_playlist_sync_library">مزامنة المكتبة</string>
+    <string name="smart_playlist_sync_running">جارٍ مزامنة المكتبة…</string>
+    <string name="smart_playlist_sync_description">زامن بيانات المكتبة لرؤية أمثلة مطابقة. لن يتم تنزيل الصوت.</string>
+    <string name="smart_playlist_sync_failed">فشلت مزامنة المكتبة. حاول مرة أخرى.</string>
 </resources>

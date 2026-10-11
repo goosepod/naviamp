@@ -86,6 +86,7 @@ fun SmartPlaylistBuilderDialog(
     onPreview: suspend (SmartPlaylistDefinition) -> SmartPlaylistPreview = {
         SmartPlaylistPreview(message = "Preview is not available for this connection.")
     },
+    onSyncLibrary: (suspend () -> Unit)? = null,
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
@@ -113,6 +114,9 @@ fun SmartPlaylistBuilderDialog(
     var pendingPasswordDefinition by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
     var livePreview by remember { mutableStateOf<SmartPlaylistPreview?>(null) }
     var previewLoading by remember { mutableStateOf(false) }
+    var librarySyncing by remember { mutableStateOf(false) }
+    var librarySyncFailed by remember { mutableStateOf(false) }
+    var previewRevision by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
     val definition = remember(draft) {
         runCatching { draft.toDefinition() }
@@ -121,9 +125,10 @@ fun SmartPlaylistBuilderDialog(
     val validationMessage = stringResource(Res.string.smart_playlist_validation_fix)
     val jsonPreview = definition.getOrNull()?.toNspJson() ?: validationMessage
 
-    LaunchedEffect(draft) {
+    LaunchedEffect(draft, librarySyncing, previewRevision) {
         livePreview = null
         previewLoading = false
+        if (librarySyncing) return@LaunchedEffect
         val definitionToPreview = definition.getOrNull() ?: return@LaunchedEffect
         delay(SmartPlaylistPreviewDebounceMillis)
         previewLoading = true
@@ -258,10 +263,45 @@ fun SmartPlaylistBuilderDialog(
                 saveMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
+                if (onSyncLibrary != null) {
+                    Text(stringResource(Res.string.smart_playlist_sync_description), color = colors.secondaryText, fontSize = 12.sp)
+                    TextButton(
+                        modifier = Modifier.testTag("smart-playlist-sync-library"),
+                        enabled = !librarySyncing,
+                        onClick = {
+                            if (!librarySyncing) {
+                                librarySyncing = true
+                                librarySyncFailed = false
+                                coroutineScope.launch {
+                                    try {
+                                        onSyncLibrary()
+                                        currentCoroutineContext().ensureActive()
+                                        previewRevision++
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        librarySyncFailed = true
+                                    } finally {
+                                        librarySyncing = false
+                                    }
+                                }
+                            }
+                        },
+                    ) {
+                        Text(stringResource(if (librarySyncing) Res.string.smart_playlist_sync_running else Res.string.smart_playlist_sync_library))
+                    }
+                    if (librarySyncFailed) {
+                        Text(
+                            stringResource(Res.string.smart_playlist_sync_failed),
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            color = colors.favorite, fontSize = 12.sp,
+                        )
+                    }
+                }
                 SmartPlaylistPreviewSection(
                     colors = colors,
                     preview = livePreview.takeIf { definition.isSuccess },
-                    loading = previewLoading,
+                    loading = previewLoading || librarySyncing,
                     invalid = validationIssues.isNotEmpty(),
                 )
                 SmartPlaylistSection(

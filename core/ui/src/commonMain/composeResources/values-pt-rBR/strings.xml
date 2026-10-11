@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">Exemplos da biblioteca sincronizada; estas amostras não mostram a ordem final do servidor.</string>
     <string name="smart_playlist_preview_empty">Nenhum exemplo correspondente na biblioteca sincronizada.</string>
     <string name="smart_playlist_preview_unsupported">Prévia indisponível para estes campos não indexados localmente: %1$s.</string>
+    <string name="smart_playlist_sync_library">Sincronizar biblioteca</string>
+    <string name="smart_playlist_sync_running">Sincronizando biblioteca…</string>
+    <string name="smart_playlist_sync_description">Sincronize os metadados para ver exemplos correspondentes. O áudio não é baixado.</string>
+    <string name="smart_playlist_sync_failed">Falha na sincronização. Tente novamente.</string>
 </resources>

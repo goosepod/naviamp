@@ -1027,4 +1027,8 @@
     <string name="smart_playlist_preview_samples">Beispieltreffer aus Ihrer synchronisierten Bibliothek; die endgültige Serverreihenfolge wird nicht angezeigt.</string>
     <string name="smart_playlist_preview_empty">Keine Beispieltreffer in der synchronisierten Bibliothek.</string>
     <string name="smart_playlist_preview_unsupported">Vorschau für diese lokal nicht indexierten Felder nicht verfügbar: %1$s.</string>
+    <string name="smart_playlist_sync_library">Bibliothek synchronisieren</string>
+    <string name="smart_playlist_sync_running">Bibliothek wird synchronisiert…</string>
+    <string name="smart_playlist_sync_description">Synchronisiere Bibliotheksmetadaten, um passende Beispiele zu sehen. Audio wird nicht heruntergeladen.</string>
+    <string name="smart_playlist_sync_failed">Bibliothekssynchronisierung fehlgeschlagen. Versuche es erneut.</string>
 </resources>

@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">동기화된 라이브러리의 일치 예시이며 서버의 최종 순서를 나타내지 않습니다.</string>
     <string name="smart_playlist_preview_empty">동기화된 라이브러리에 일치 예시가 없습니다.</string>
     <string name="smart_playlist_preview_unsupported">로컬에서 색인되지 않은 필드는 미리 볼 수 없습니다: %1$s.</string>
+    <string name="smart_playlist_sync_library">라이브러리 동기화</string>
+    <string name="smart_playlist_sync_running">라이브러리 동기화 중…</string>
+    <string name="smart_playlist_sync_description">일치하는 곡의 예시를 보려면 라이브러리 메타데이터를 동기화하세요. 오디오는 다운로드되지 않습니다.</string>
+    <string name="smart_playlist_sync_failed">라이브러리 동기화에 실패했습니다. 다시 시도하세요.</string>
 </resources>

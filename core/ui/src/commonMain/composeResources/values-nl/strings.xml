@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">Voorbeelden uit uw gesynchroniseerde bibliotheek; deze tonen niet de uiteindelijke servervolgorde.</string>
     <string name="smart_playlist_preview_empty">Geen overeenkomende voorbeelden in de gesynchroniseerde bibliotheek.</string>
     <string name="smart_playlist_preview_unsupported">Voorbeeld niet beschikbaar voor deze lokaal niet geïndexeerde velden: %1$s.</string>
+    <string name="smart_playlist_sync_library">Bibliotheek synchroniseren</string>
+    <string name="smart_playlist_sync_running">Bibliotheek wordt gesynchroniseerd…</string>
+    <string name="smart_playlist_sync_description">Synchroniseer metadata om passende voorbeelden te zien. Audio wordt niet gedownload.</string>
+    <string name="smart_playlist_sync_failed">Synchronisatie mislukt. Probeer het opnieuw.</string>
 </resources>

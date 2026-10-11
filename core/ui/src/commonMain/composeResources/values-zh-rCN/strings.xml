@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">这些是已同步曲库中的匹配示例，不代表服务器的最终顺序。</string>
     <string name="smart_playlist_preview_empty">已同步曲库中没有匹配示例。</string>
     <string name="smart_playlist_preview_unsupported">以下字段尚未在本地索引，无法预览：%1$s。</string>
+    <string name="smart_playlist_sync_library">同步音乐库</string>
+    <string name="smart_playlist_sync_running">正在同步音乐库…</string>
+    <string name="smart_playlist_sync_description">同步音乐库元数据以查看匹配的曲目示例。不会下载音频。</string>
+    <string name="smart_playlist_sync_failed">音乐库同步失败。请重试。</string>
 </resources>

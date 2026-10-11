@@ -69,6 +69,7 @@ fun createNaviampCoreActions(
             ?.editing ?: error("Core did not return a smart-playlist inspection.")
 
     val smartPlaylist = NaviampSmartPlaylistActions(
+        onSyncLibrary = { handler.execute(NaviampCoreCommand.Settings.RefreshLibrary) },
         onPreview = ::previewSmartPlaylist,
         onSave = { definition -> handler.execute(NaviampCoreCommand.SmartPlaylist.Save(definition)) },
         onUpdate = { playlist, definition ->

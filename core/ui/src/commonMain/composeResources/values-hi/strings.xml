@@ -195,4 +195,8 @@
     <string name="smart_playlist_preview_samples">सिंक की गई लाइब्रेरी से मिलान के उदाहरण; ये नमूने सर्वर का अंतिम क्रम नहीं दिखाते।</string>
     <string name="smart_playlist_preview_empty">सिंक की गई लाइब्रेरी में कोई मिलान उदाहरण नहीं है।</string>
     <string name="smart_playlist_preview_unsupported">इन स्थानीय रूप से अनुक्रमित न किए गए फ़ील्ड के लिए पूर्वावलोकन उपलब्ध नहीं है: %1$s।</string>
+    <string name="smart_playlist_sync_library">लाइब्रेरी सिंक करें</string>
+    <string name="smart_playlist_sync_running">लाइब्रेरी सिंक हो रही है…</string>
+    <string name="smart_playlist_sync_description">मिलते-जुलते उदाहरण देखने के लिए लाइब्रेरी का मेटाडेटा सिंक करें। ऑडियो डाउनलोड नहीं होता।</string>
+    <string name="smart_playlist_sync_failed">लाइब्रेरी सिंक विफल हुआ। फिर से प्रयास करें।</string>
 </resources>

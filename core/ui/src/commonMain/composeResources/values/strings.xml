@@ -1055,4 +1055,8 @@
     <string name="smart_playlist_preview_samples">Example matches from your synced library; these samples do not show the final server order.</string>
     <string name="smart_playlist_preview_empty">No example matches in the synced library.</string>
     <string name="smart_playlist_preview_unsupported">Preview unavailable for these locally unindexed fields: %1$s.</string>
+    <string name="smart_playlist_sync_library">Sync library</string>
+    <string name="smart_playlist_sync_running">Syncing library…</string>
+    <string name="smart_playlist_sync_description">Sync library metadata to see matching examples. Audio is not downloaded.</string>
+    <string name="smart_playlist_sync_failed">Library sync failed. Try syncing again.</string>
 </resources>

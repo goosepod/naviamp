@@ -122,6 +122,15 @@ class NaviampCoreActionGraphTest {
         assertEquals("secret", command.password)
     }
 
+    @Test
+    fun builderLibrarySyncAwaitsTheSharedRefreshCommand() = runTest {
+        val handler = RecordingCoreCommandHandler()
+        val smart = createNaviampCoreActions(handler).shell.playlistsActions.smartPlaylist
+        requireNotNull(smart.onSyncLibrary).invoke()
+        assertEquals(NaviampCoreCommand.Settings.RefreshLibrary, handler.executed.single())
+        assertEquals(emptyList<NaviampCoreCommand>(), handler.dispatched)
+    }
+
     private fun actionsStatePlaybackSettings() = app.naviamp.domain.settings.PlaybackSettings()
 
     private fun smartPlaylistDefinition() = SmartPlaylistDefinition(

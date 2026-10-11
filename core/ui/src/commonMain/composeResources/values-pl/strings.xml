@@ -314,4 +314,8 @@
     <string name="smart_playlist_preview_samples">Przykłady ze zsynchronizowanej biblioteki; nie przedstawiają ostatecznej kolejności serwera.</string>
     <string name="smart_playlist_preview_empty">Brak przykładowych dopasowań w zsynchronizowanej bibliotece.</string>
     <string name="smart_playlist_preview_unsupported">Podgląd niedostępny dla pól nieindeksowanych lokalnie: %1$s.</string>
+    <string name="smart_playlist_sync_library">Synchronizuj bibliotekę</string>
+    <string name="smart_playlist_sync_running">Synchronizowanie biblioteki…</string>
+    <string name="smart_playlist_sync_description">Zsynchronizuj metadane, aby zobaczyć pasujące przykłady. Dźwięk nie jest pobierany.</string>
+    <string name="smart_playlist_sync_failed">Synchronizacja nie powiodła się. Spróbuj ponownie.</string>
 </resources>
