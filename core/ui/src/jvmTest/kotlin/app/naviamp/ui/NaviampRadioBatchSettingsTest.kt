@@ -44,6 +44,17 @@ class NaviampRadioBatchSettingsTest {
         assertTrue(similarityBounds.bottom < radio.fetchSemanticsNode().boundsInRoot.top)
         assertTrue(radio.fetchSemanticsNode().boundsInRoot.bottom < autoplayBounds.top)
         assertTrue(autoplayBounds.bottom < autoplay.fetchSemanticsNode().boundsInRoot.top)
+        // Slider nodes include extra non-drawing interaction space; inspect their tracks in captures.
+        // The labels, values and descriptions share the same inset as the visible slider groups.
+        for (node in listOf(
+            onNodeWithText("Minimum tracks for Radio"), onNodeWithText("Minimum tracks for Autoplay"),
+            onNodeWithText("20 tracks"), onNodeWithText("50 tracks"),
+            onNodeWithText("Related tracks to add when starting Radio.", substring = true),
+            onNodeWithText("Top up short Sonic results with regular Radio.", substring = true))) {
+            val bounds = node.fetchSemanticsNode().boundsInRoot
+            assertTrue(bounds.left >= similarityBounds.left, "Slider text $bounds extends past the control $similarityBounds left boundary")
+            assertTrue(bounds.right <= similarityBounds.right, "Slider text $bounds extends past the control $similarityBounds right boundary")
+        }
         assertEquals(8, autoplay.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].steps)
         autoplay.performSemanticsAction(SemanticsActions.SetProgress) { it(9f) }
         runOnIdle {
