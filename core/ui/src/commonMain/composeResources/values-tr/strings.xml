@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">Kitaplık eşitleniyor…</string>
     <string name="smart_playlist_sync_description">Eşleşen örnekleri görmek için kitaplık meta verilerini eşitleyin. Ses indirilmez.</string>
     <string name="smart_playlist_sync_failed">Kitaplık eşitlenemedi. Tekrar deneyin.</string>
+    <string name="smart_playlist_choose_date">Tarih seç</string>
+    <string name="smart_playlist_use_date">Tarihi kullan</string>
+    <string name="smart_playlist_date_format">Tarih biçimi: YYYY-MM-DD (yıl-ay-gün).</string>
+    <string name="smart_playlist_days_hint">Pozitif bir gün sayısı girin, örneğin 30.</string>
+    <string name="smart_playlist_end_value">Bitiş değeri</string>
 </resources>

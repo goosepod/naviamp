@@ -1059,4 +1059,9 @@
     <string name="smart_playlist_sync_running">Syncing library…</string>
     <string name="smart_playlist_sync_description">Sync library metadata to see matching examples. Audio is not downloaded.</string>
     <string name="smart_playlist_sync_failed">Library sync failed. Try syncing again.</string>
+    <string name="smart_playlist_choose_date">Choose date</string>
+    <string name="smart_playlist_use_date">Use date</string>
+    <string name="smart_playlist_date_format">Date format: YYYY-MM-DD (year-month-day).</string>
+    <string name="smart_playlist_days_hint">Enter a positive number of days, for example 30.</string>
+    <string name="smart_playlist_end_value">End value</string>
 </resources>

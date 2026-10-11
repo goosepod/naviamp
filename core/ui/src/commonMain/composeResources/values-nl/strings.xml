@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">Bibliotheek wordt gesynchroniseerd…</string>
     <string name="smart_playlist_sync_description">Synchroniseer metadata om passende voorbeelden te zien. Audio wordt niet gedownload.</string>
     <string name="smart_playlist_sync_failed">Synchronisatie mislukt. Probeer het opnieuw.</string>
+    <string name="smart_playlist_choose_date">Datum kiezen</string>
+    <string name="smart_playlist_use_date">Datum gebruiken</string>
+    <string name="smart_playlist_date_format">Datumnotatie: YYYY-MM-DD (jaar-maand-dag).</string>
+    <string name="smart_playlist_days_hint">Voer een positief aantal dagen in, bijvoorbeeld 30.</string>
+    <string name="smart_playlist_end_value">Eindwaarde</string>
 </resources>

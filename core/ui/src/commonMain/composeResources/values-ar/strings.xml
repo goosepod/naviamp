@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">جارٍ مزامنة المكتبة…</string>
     <string name="smart_playlist_sync_description">زامن بيانات المكتبة لرؤية أمثلة مطابقة. لن يتم تنزيل الصوت.</string>
     <string name="smart_playlist_sync_failed">فشلت مزامنة المكتبة. حاول مرة أخرى.</string>
+    <string name="smart_playlist_choose_date">اختر التاريخ</string>
+    <string name="smart_playlist_use_date">استخدم التاريخ</string>
+    <string name="smart_playlist_date_format">صيغة التاريخ: YYYY-MM-DD (السنة-الشهر-اليوم).</string>
+    <string name="smart_playlist_days_hint">أدخل عددًا موجبًا من الأيام، مثل 30.</string>
+    <string name="smart_playlist_end_value">القيمة النهائية</string>
 </resources>

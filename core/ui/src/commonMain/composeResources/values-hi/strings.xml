@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">लाइब्रेरी सिंक हो रही है…</string>
     <string name="smart_playlist_sync_description">मिलते-जुलते उदाहरण देखने के लिए लाइब्रेरी का मेटाडेटा सिंक करें। ऑडियो डाउनलोड नहीं होता।</string>
     <string name="smart_playlist_sync_failed">लाइब्रेरी सिंक विफल हुआ। फिर से प्रयास करें।</string>
+    <string name="smart_playlist_choose_date">तारीख चुनें</string>
+    <string name="smart_playlist_use_date">तारीख इस्तेमाल करें</string>
+    <string name="smart_playlist_date_format">तारीख का प्रारूप: YYYY-MM-DD (वर्ष-माह-दिन)।</string>
+    <string name="smart_playlist_days_hint">दिनों की धनात्मक संख्या दर्ज करें, जैसे 30।</string>
+    <string name="smart_playlist_end_value">अंतिम मान</string>
 </resources>

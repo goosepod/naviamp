@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">Синхронізація бібліотеки…</string>
     <string name="smart_playlist_sync_description">Синхронізуйте метадані, щоб побачити відповідні приклади. Аудіо не завантажується.</string>
     <string name="smart_playlist_sync_failed">Не вдалося синхронізувати бібліотеку. Спробуйте ще раз.</string>
+    <string name="smart_playlist_choose_date">Вибрати дату</string>
+    <string name="smart_playlist_use_date">Використати дату</string>
+    <string name="smart_playlist_date_format">Формат дати: YYYY-MM-DD (рік-місяць-день).</string>
+    <string name="smart_playlist_days_hint">Введіть додатну кількість днів, наприклад 30.</string>
+    <string name="smart_playlist_end_value">Кінцеве значення</string>
 </resources>

@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">正在同步音乐库…</string>
     <string name="smart_playlist_sync_description">同步音乐库元数据以查看匹配的曲目示例。不会下载音频。</string>
     <string name="smart_playlist_sync_failed">音乐库同步失败。请重试。</string>
+    <string name="smart_playlist_choose_date">选择日期</string>
+    <string name="smart_playlist_use_date">使用日期</string>
+    <string name="smart_playlist_date_format">日期格式：YYYY-MM-DD（年-月-日）。</string>
+    <string name="smart_playlist_days_hint">请输入正整数天数，例如 30。</string>
+    <string name="smart_playlist_end_value">结束值</string>
 </resources>

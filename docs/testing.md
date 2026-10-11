@@ -164,3 +164,19 @@ change the selected rule. Repeat for sorting and limits.
 including owned popup windows. The still-focused reopening regression failed before the menu-anchor fix. Held
 presses check that the popup opens only after release. Generic dialog tests also
 check that content clicks stay inside the dialog and outside clicks dismiss it.
+
+### Smart-playlist calendar acceptance
+
+For a date field such as Date Added, choose before/after and verify the visible
+YYYY-MM-DD guidance. Open Choose date, select a day, and confirm Use date; verify
+the value and preview update. Reopen and check that the saved day is selected.
+Cancel or press Escape after selecting another day and verify the operand stays
+unchanged. Typed invalid or impossible dates must still show the existing rule
+validation. Check an imported leap-day date and a date before 1970.
+
+Switch the same field to in the last/not in the last: verify a positive day-count
+hint appears and no calendar is offered. Run the calendar UI tests with the owned
+popup dialog enabled, and check the real Windows app for nested-dialog dismissal,
+readable calendar colors, scrolling on a small window, and keyboard operation.
+The calendar-to-ISO conversion is covered by common domain tests for leap years,
+UTC boundaries, invalid values, and the full supported 0001–9999 year range.

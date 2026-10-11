@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">라이브러리 동기화 중…</string>
     <string name="smart_playlist_sync_description">일치하는 곡의 예시를 보려면 라이브러리 메타데이터를 동기화하세요. 오디오는 다운로드되지 않습니다.</string>
     <string name="smart_playlist_sync_failed">라이브러리 동기화에 실패했습니다. 다시 시도하세요.</string>
+    <string name="smart_playlist_choose_date">날짜 선택</string>
+    <string name="smart_playlist_use_date">날짜 사용</string>
+    <string name="smart_playlist_date_format">날짜 형식: YYYY-MM-DD (연-월-일).</string>
+    <string name="smart_playlist_days_hint">양수로 일수를 입력하세요. 예: 30.</string>
+    <string name="smart_playlist_end_value">끝 값</string>
 </resources>

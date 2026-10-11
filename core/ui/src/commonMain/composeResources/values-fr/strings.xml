@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">Synchronisation de la bibliothèque…</string>
     <string name="smart_playlist_sync_description">Synchronisez les métadonnées pour voir des exemples correspondants. Aucun fichier audio ne sera téléchargé.</string>
     <string name="smart_playlist_sync_failed">Échec de la synchronisation. Réessayez.</string>
+    <string name="smart_playlist_choose_date">Choisir une date</string>
+    <string name="smart_playlist_use_date">Utiliser cette date</string>
+    <string name="smart_playlist_date_format">Format de date : YYYY-MM-DD (année-mois-jour).</string>
+    <string name="smart_playlist_days_hint">Saisissez un nombre positif de jours, par exemple 30.</string>
+    <string name="smart_playlist_end_value">Valeur finale</string>
 </resources>

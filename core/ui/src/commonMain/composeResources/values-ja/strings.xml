@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">ライブラリを同期中…</string>
     <string name="smart_playlist_sync_description">一致する曲の例を表示するには、ライブラリのメタデータを同期してください。音声はダウンロードされません。</string>
     <string name="smart_playlist_sync_failed">ライブラリの同期に失敗しました。もう一度お試しください。</string>
+    <string name="smart_playlist_choose_date">日付を選択</string>
+    <string name="smart_playlist_use_date">この日付を使用</string>
+    <string name="smart_playlist_date_format">日付形式: YYYY-MM-DD（年-月-日）。</string>
+    <string name="smart_playlist_days_hint">正の整数で日数を入力してください（例: 30）。</string>
+    <string name="smart_playlist_end_value">終了値</string>
 </resources>

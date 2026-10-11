@@ -63,6 +63,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
 import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.smartPlaylistGenreSuggestions
 import app.naviamp.domain.smartplaylist.updated
+import app.naviamp.domain.smartplaylist.usesCalendarDate
 import app.naviamp.domain.smartplaylist.valueLabel
 import app.naviamp.domain.smartplaylist.validate
 import app.naviamp.domain.smartplaylist.SmartPlaylistValidationIssue
@@ -862,10 +863,11 @@ private fun SmartPlaylistRuleControls(
             onConditionChange = onConditionChange,
         )
         if (condition.operator == SmartPlaylistOperator.InTheRange) {
-            SmartPlaylistTextField(
+            SmartPlaylistOperandField(
+                calendarDate = condition.usesCalendarDate(),
                 value = condition.secondValue,
                 onValueChange = { value -> onConditionChange(condition.copy(secondValue = value)) },
-                label = "End value",
+                label = stringResource(Res.string.smart_playlist_end_value),
                 colors = colors,
             )
         }
@@ -1048,11 +1050,14 @@ private fun SmartPlaylistConditionValueControls(
             )
         }
     } else {
-        SmartPlaylistTextField(
+        SmartPlaylistOperandField(
+            calendarDate = condition.usesCalendarDate(),
             value = condition.value,
             onValueChange = { value -> onConditionChange(condition.copy(value = value)) },
             label = condition.valueLabel(),
             colors = colors,
+            relativeDays = condition.operator == SmartPlaylistOperator.InTheLast ||
+                condition.operator == SmartPlaylistOperator.NotInTheLast,
         )
     }
 }

@@ -199,4 +199,9 @@
     <string name="smart_playlist_sync_running">Menyinkronkan pustaka…</string>
     <string name="smart_playlist_sync_description">Sinkronkan metadata pustaka untuk melihat contoh yang cocok. Audio tidak diunduh.</string>
     <string name="smart_playlist_sync_failed">Sinkronisasi gagal. Coba lagi.</string>
+    <string name="smart_playlist_choose_date">Pilih tanggal</string>
+    <string name="smart_playlist_use_date">Gunakan tanggal</string>
+    <string name="smart_playlist_date_format">Format tanggal: YYYY-MM-DD (tahun-bulan-hari).</string>
+    <string name="smart_playlist_days_hint">Masukkan jumlah hari positif, misalnya 30.</string>
+    <string name="smart_playlist_end_value">Nilai akhir</string>
 </resources>
