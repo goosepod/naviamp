@@ -43,6 +43,25 @@ import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
     @Test
+    fun bulkTrackIndexRetainsKnownFolderScopeWithoutInventingUnscopedIds() = runTest {
+        val http = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String = """
+                {"subsonic-response":{"status":"ok","searchResult3":{"song":[
+                  {"id":"missing","title":"Missing folder"},
+                  {"id":"explicit","title":"Explicit folder","musicFolderId":"server-folder"}
+                ]}}}
+            """.trimIndent()
+        }
+        val scoped = NavidromeProvider(
+            connection("https://music.example.test").copy(selectedMusicFolderIds = listOf("request-folder")), http,
+        ).libraryTracksPage(MediaPageRequest(limit = 10))!!
+        assertEquals(listOf("request-folder", "server-folder"), scoped.items.map { it.musicFolderId })
+        val unscoped = NavidromeProvider(connection("https://music.example.test"), http)
+            .libraryTracksPage(MediaPageRequest(limit = 10))!!
+        assertEquals(listOf(null, "server-folder"), unscoped.items.map { it.musicFolderId })
+    }
+
+    @Test
     fun albumPreservesDiscNumbersTrackNumbersAndDiscTitles() = runTest {
         val http = object : NavidromeHttpClient {
             override suspend fun get(url: String): String = """

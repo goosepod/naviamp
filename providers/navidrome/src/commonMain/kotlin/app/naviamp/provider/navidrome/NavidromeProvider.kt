@@ -555,6 +555,10 @@ class NavidromeProvider(
     override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? =
         if (!bulkMetadataEnumeration) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
             searchForMusicFolder(query = "", songCount = limit, songOffset = offset, musicFolderId = folder).tracks
+                .map { track ->
+                    if (track.musicFolderId == null && folder != null) track.copy(musicFolderId = folder)
+                    else track
+                }
         }
 
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
