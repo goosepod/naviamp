@@ -1,6 +1,8 @@
 package app.naviamp.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -17,6 +19,22 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampSmartPlaylistRoundTripUiTest {
+    @Test
+    fun switchingAnInvalidTrackLimitToUnlimitedRestoresSaving() = runComposeUiTest {
+        var saved: SmartPlaylistDefinition? = null
+        setContent {
+            SmartPlaylistBuilderDialog(colors = NaviampColors(), initialDraft = imported().copy(
+                limitMode = app.naviamp.domain.smartplaylist.SmartPlaylistLimitMode.TrackCount, limit = 0),
+                onDismissRequest = {}, onSave = { saved = it })
+        }
+        onNodeWithTag(SmartPlaylistSaveTestTag).assertIsNotEnabled()
+        onNodeWithText("Track count").performScrollTo().performClick()
+        onNodeWithText("Unlimited").performClick()
+        onNodeWithTag(SmartPlaylistSaveTestTag).assertIsEnabled().performClick()
+        waitUntil(timeoutMillis = 5_000) { saved != null }
+        assertNull(saved!!.limit)
+        assertNull(saved!!.limitPercent)
+    }
     private fun imported(properties: String = "") = SmartPlaylistDraft.fromDefinition(
         SmartPlaylistDefinition.fromNspJson("""{"name":"Mix","all":[{"is":{"loved":true}}]$properties}"""),
     )
