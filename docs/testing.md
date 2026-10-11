@@ -151,3 +151,16 @@ confirm the completed preview reflects that rule. Disconnect the server and chec
 the retry message, then reconnect and retry. Common rendered UI tests cover these
 state transitions, duplicate clicks, and dismissal cancellation; shared catalog
 tests cover metadata population and source changes.
+
+### Smart-playlist picker pointer and keyboard acceptance
+
+Open a field or operator picker with a normal mouse click and with a held press.
+The menu must appear after release and remain available for selection. Select an
+option, reopen the same still-focused picker, press Escape, and reopen it again.
+Type a search query and select a matching option; searching or dismissing must not
+change the selected rule. Repeat for sorting and limits.
+
+`NaviampSmartPlaylistPickerUiTest` exercises the shared picker inside dialogs,
+including owned popup windows. The still-focused reopening regression failed before the menu-anchor fix. Held
+presses check that the popup opens only after release. Generic dialog tests also
+check that content clicks stay inside the dialog and outside clicks dismiss it.

@@ -6,6 +6,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,6 +29,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalFocusManager
@@ -156,13 +161,27 @@ internal fun NaviampDialog(onDismissRequest: () -> Unit, properties: DialogPrope
     val transition = updateTransition(entered, label = "Naviamp dialog")
     val alpha by transition.animateFloat(transitionSpec = { tween(200) }, label = "opacity") { if (it) 1f else .2f }
     val scale by transition.animateFloat(transitionSpec = { tween(200) }, label = "scale") { if (it) 1f else .95f }
+    var dialogBounds by remember { mutableStateOf(Rect.Zero) }
     NaviampViewportPopup(onDismissRequest, PopupProperties(focusable = true,
         dismissOnBackPress = properties.dismissOnBackPress, dismissOnClickOutside = false),
         scrim = Color.Black.copy(alpha = .6f * alpha)) {
         Box(Modifier.fillMaxSize().pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
-            if (properties.dismissOnClickOutside) detectTapGestures { onDismissRequest() }
+            if (properties.dismissOnClickOutside) awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                // Content clicks belong to child controls, including editable menu anchors.
+                // An unconditional tap detector here consumes their opening gesture.
+                if (!dialogBounds.contains(down.position)) {
+                    down.consume()
+                    val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                    if (up != null) {
+                        up.consume()
+                        onDismissRequest()
+                    }
+                }
+            }
         }.padding(24.dp), contentAlignment = Alignment.Center) {
             Box((if (properties.usePlatformDefaultWidth) Modifier.widthIn(max = 560.dp) else Modifier)
+                .onGloballyPositioned { dialogBounds = Rect(it.positionInWindow(), it.size.toSize()) }
                 .graphicsLayer { this.alpha = alpha; scaleX = scale; scaleY = scale }
                 .semantics { dialog() }, propagateMinConstraints = true) { content() }
         }

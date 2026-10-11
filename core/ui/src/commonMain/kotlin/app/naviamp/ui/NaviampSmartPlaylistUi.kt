@@ -11,6 +11,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
@@ -1134,8 +1142,9 @@ private fun SmartPlaylistTextField(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> SmartPlaylistDropdown(
+internal fun <T> SmartPlaylistDropdown(
     label: String,
     value: String,
     colors: NaviampColors,
@@ -1147,7 +1156,19 @@ private fun <T> SmartPlaylistDropdown(
     val normalizedQuery = query.trim().takeUnless { it.equals(value, ignoreCase = true) }.orEmpty()
     val visibleOptions = options
         .filter { (optionLabel, _) -> normalizedQuery.isBlank() || optionLabel.contains(normalizedQuery, ignoreCase = true) }
-    Box(modifier = Modifier.fillMaxWidth()) {
+    // Keep the anchor gesture alive across focus/preview recompositions during a held press.
+    val changeExpanded = remember(value) {
+        { requested: Boolean ->
+            expanded = requested
+            if (!requested) query = value
+        }
+    }
+    // Open on completed anchor activation, rather than text-input focus during mouse press.
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = changeExpanded,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         OutlinedTextField(
             value = if (expanded) query else value,
             onValueChange = {
@@ -1159,11 +1180,14 @@ private fun <T> SmartPlaylistDropdown(
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier
                 .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
                 .naviampTextInputFocus()
-                .onFocusChanged { focusState ->
-                    if (focusState.isFocused) {
-                        expanded = true
-                    }
+                .onPreviewKeyEvent { event ->
+                    if (expanded && event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                        expanded = false
+                        query = value
+                        true
+                    } else false
                 },
         )
         NaviampDropdownMenu(
