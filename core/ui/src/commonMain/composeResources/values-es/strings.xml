@@ -1011,4 +1011,24 @@
     <string name="smart_playlist_inspection_missing">El servidor no proporcionó las reglas de esta lista.</string>
     <string name="smart_playlist_inspection_permission">No tienes permiso para ver las reglas de esta lista.</string>
     <string name="smart_playlist_inspection_not_found">No se encontró esta lista en el servidor.</string>
+    <string name="smart_playlist_limit_unlimited">Sin límite</string>
+    <string name="smart_playlist_limit_tracks">Número de pistas</string>
+    <string name="smart_playlist_limit_percent">Porcentaje</string>
+    <string name="smart_playlist_unsupported_import">Esta lista contiene ajustes no válidos o no compatibles. No se puede editar de forma segura en este editor.</string>
+    <string name="smart_playlist_validation_required">Introduce el valor que falta.</string>
+    <string name="smart_playlist_validation_number">Introduce un número finito.</string>
+    <string name="smart_playlist_validation_date">Introduce una fecha válida con el formato AAAA-MM-DD.</string>
+    <string name="smart_playlist_validation_days">Introduce un número entero positivo de días.</string>
+    <string name="smart_playlist_validation_range">El final del intervalo debe ser igual o posterior al inicio.</string>
+    <string name="smart_playlist_validation_bounds">Introduce un valor dentro del intervalo permitido para este campo.</string>
+    <string name="smart_playlist_validation_choice">Elige un valor admitido por este campo.</string>
+    <string name="smart_playlist_validation_operation">Este campo no admite la operación seleccionada.</string>
+    <string name="smart_playlist_validation_rules">Añade al menos una regla completa.</string>
+    <string name="smart_playlist_validation_limit">Introduce un límite positivo (1–100 para porcentajes).</string>
+    <string name="smart_playlist_validation_fix">Corrige los valores resaltados antes de previsualizar o guardar.</string>
+    <string name="smart_playlist_preview_waiting">Buscando coincidencias en tu biblioteca sincronizada…</string>
+    <string name="smart_playlist_preview_count">Coincidencias en la biblioteca sincronizada: %1$d (%2$d tras el límite).</string>
+    <string name="smart_playlist_preview_samples">Ejemplos de tu biblioteca sincronizada; estas muestras no reflejan el orden final del servidor.</string>
+    <string name="smart_playlist_preview_empty">No hay ejemplos coincidentes en la biblioteca sincronizada.</string>
+    <string name="smart_playlist_preview_unsupported">Vista previa no disponible para estos campos sin indexar localmente: %1$s.</string>
 </resources>

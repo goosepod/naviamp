@@ -175,4 +175,24 @@
     <string name="smart_playlist_inspection_missing">Server tidak menyediakan aturan playlist ini.</string>
     <string name="smart_playlist_inspection_permission">Anda tidak memiliki izin untuk melihat aturan playlist ini.</string>
     <string name="smart_playlist_inspection_not_found">Playlist ini tidak ditemukan di server.</string>
+    <string name="smart_playlist_limit_unlimited">Tanpa batas</string>
+    <string name="smart_playlist_limit_tracks">Jumlah lagu</string>
+    <string name="smart_playlist_limit_percent">Persen</string>
+    <string name="smart_playlist_unsupported_import">Playlist ini berisi pengaturan yang tidak valid atau tidak didukung. Playlist tidak dapat diedit dengan aman di editor ini.</string>
+    <string name="smart_playlist_validation_required">Masukkan nilai yang belum diisi.</string>
+    <string name="smart_playlist_validation_number">Masukkan angka berhingga.</string>
+    <string name="smart_playlist_validation_date">Masukkan tanggal valid dalam format YYYY-MM-DD.</string>
+    <string name="smart_playlist_validation_days">Masukkan jumlah hari berupa bilangan bulat positif.</string>
+    <string name="smart_playlist_validation_range">Akhir rentang tidak boleh lebih kecil dari awalnya.</string>
+    <string name="smart_playlist_validation_bounds">Masukkan nilai dalam rentang yang diizinkan untuk kolom ini.</string>
+    <string name="smart_playlist_validation_choice">Pilih nilai yang didukung kolom ini.</string>
+    <string name="smart_playlist_validation_operation">Kolom ini tidak mendukung operasi yang dipilih.</string>
+    <string name="smart_playlist_validation_rules">Tambahkan setidaknya satu aturan lengkap.</string>
+    <string name="smart_playlist_validation_limit">Masukkan batas positif (1–100 untuk persen).</string>
+    <string name="smart_playlist_validation_fix">Perbaiki nilai yang ditandai sebelum melihat pratinjau atau menyimpan.</string>
+    <string name="smart_playlist_preview_waiting">Memeriksa kecocokan di pustaka tersinkron Anda…</string>
+    <string name="smart_playlist_preview_count">Kecocokan pustaka tersinkron: %1$d (%2$d setelah batas).</string>
+    <string name="smart_playlist_preview_samples">Contoh kecocokan dari pustaka tersinkron Anda; sampel ini tidak menunjukkan urutan akhir server.</string>
+    <string name="smart_playlist_preview_empty">Tidak ada contoh kecocokan di pustaka tersinkron.</string>
+    <string name="smart_playlist_preview_unsupported">Pratinjau tidak tersedia untuk kolom yang belum diindeks secara lokal: %1$s.</string>
 </resources>

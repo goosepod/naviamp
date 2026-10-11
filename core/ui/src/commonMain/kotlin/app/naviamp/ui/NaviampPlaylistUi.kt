@@ -110,6 +110,7 @@ private fun PlaylistsContent(
     var smartPlaylistEditTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var smartPlaylistInspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
     var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistPasswordTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -136,7 +137,7 @@ private fun PlaylistsContent(
                                     smartPlaylistPasswordTarget = playlist
                                     smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
                                 } else {
-                                    smartPlaylistLoadMessage = error.message.orEmpty()
+                                    smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
                                 }
                         }
                     }
@@ -686,6 +687,7 @@ private fun PlaylistDetailContent(
     var smartPlaylistEditorOpen by remember { mutableStateOf(false) }
     var smartPlaylistInspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
     var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistLoading by remember { mutableStateOf(false) }
     var smartPlaylistPasswordPromptOpen by remember { mutableStateOf(false) }
@@ -712,7 +714,7 @@ private fun PlaylistDetailContent(
                             smartPlaylistPasswordPromptOpen = true
                             smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
                         } else {
-                            smartPlaylistLoadMessage = error.message.orEmpty()
+                            smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
                         }
                     }
                 smartPlaylistLoading = false

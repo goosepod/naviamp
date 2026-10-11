@@ -175,4 +175,24 @@
     <string name="smart_playlist_inspection_missing">O servidor não forneceu as regras desta playlist.</string>
     <string name="smart_playlist_inspection_permission">Você não tem permissão para ver as regras desta playlist.</string>
     <string name="smart_playlist_inspection_not_found">Esta playlist não foi encontrada no servidor.</string>
+    <string name="smart_playlist_limit_unlimited">Sem limite</string>
+    <string name="smart_playlist_limit_tracks">Número de faixas</string>
+    <string name="smart_playlist_limit_percent">Porcentagem</string>
+    <string name="smart_playlist_unsupported_import">Esta playlist contém configurações inválidas ou não compatíveis. Ela não pode ser editada com segurança neste editor.</string>
+    <string name="smart_playlist_validation_required">Insira o valor ausente.</string>
+    <string name="smart_playlist_validation_number">Insira um número finito.</string>
+    <string name="smart_playlist_validation_date">Insira uma data válida no formato AAAA-MM-DD.</string>
+    <string name="smart_playlist_validation_days">Insira um número inteiro positivo de dias.</string>
+    <string name="smart_playlist_validation_range">O fim do intervalo deve ser igual ou posterior ao início.</string>
+    <string name="smart_playlist_validation_bounds">Insira um valor dentro do intervalo permitido para este campo.</string>
+    <string name="smart_playlist_validation_choice">Escolha um valor compatível com este campo.</string>
+    <string name="smart_playlist_validation_operation">Este campo não suporta a operação selecionada.</string>
+    <string name="smart_playlist_validation_rules">Adicione pelo menos uma regra completa.</string>
+    <string name="smart_playlist_validation_limit">Insira um limite positivo (1–100 para porcentagem).</string>
+    <string name="smart_playlist_validation_fix">Corrija os valores destacados antes de visualizar ou salvar.</string>
+    <string name="smart_playlist_preview_waiting">Buscando correspondências na biblioteca sincronizada…</string>
+    <string name="smart_playlist_preview_count">Correspondências na biblioteca sincronizada: %1$d (%2$d após o limite).</string>
+    <string name="smart_playlist_preview_samples">Exemplos da biblioteca sincronizada; estas amostras não mostram a ordem final do servidor.</string>
+    <string name="smart_playlist_preview_empty">Nenhum exemplo correspondente na biblioteca sincronizada.</string>
+    <string name="smart_playlist_preview_unsupported">Prévia indisponível para estes campos não indexados localmente: %1$s.</string>
 </resources>

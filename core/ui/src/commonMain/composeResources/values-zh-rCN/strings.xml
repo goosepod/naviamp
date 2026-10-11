@@ -175,4 +175,24 @@
     <string name="smart_playlist_inspection_missing">服务器未提供此播放列表的规则。</string>
     <string name="smart_playlist_inspection_permission">您无权查看此播放列表的规则。</string>
     <string name="smart_playlist_inspection_not_found">服务器上未找到此播放列表。</string>
+    <string name="smart_playlist_limit_unlimited">不限</string>
+    <string name="smart_playlist_limit_tracks">曲目数量</string>
+    <string name="smart_playlist_limit_percent">百分比</string>
+    <string name="smart_playlist_unsupported_import">此播放列表包含无效或不受支持的设置，无法在此编辑器中安全编辑。</string>
+    <string name="smart_playlist_validation_required">请输入缺失的值。</string>
+    <string name="smart_playlist_validation_number">请输入有限数值。</string>
+    <string name="smart_playlist_validation_date">请输入 YYYY-MM-DD 格式的有效日期。</string>
+    <string name="smart_playlist_validation_days">请输入正整数天数。</string>
+    <string name="smart_playlist_validation_range">范围终点不得小于起点。</string>
+    <string name="smart_playlist_validation_bounds">请输入此字段允许范围内的值。</string>
+    <string name="smart_playlist_validation_choice">请选择此字段支持的值。</string>
+    <string name="smart_playlist_validation_operation">此字段不支持所选操作。</string>
+    <string name="smart_playlist_validation_rules">请至少添加一条完整规则。</string>
+    <string name="smart_playlist_validation_limit">请输入正数上限（百分比为 1–100）。</string>
+    <string name="smart_playlist_validation_fix">预览或保存前，请修正标出的值。</string>
+    <string name="smart_playlist_preview_waiting">正在检查已同步曲库中的匹配项…</string>
+    <string name="smart_playlist_preview_count">已同步曲库匹配项：%1$d（应用上限后 %2$d）。</string>
+    <string name="smart_playlist_preview_samples">这些是已同步曲库中的匹配示例，不代表服务器的最终顺序。</string>
+    <string name="smart_playlist_preview_empty">已同步曲库中没有匹配示例。</string>
+    <string name="smart_playlist_preview_unsupported">以下字段尚未在本地索引，无法预览：%1$s。</string>
 </resources>

@@ -56,4 +56,32 @@ class SmartPlaylistEditingTest {
         val original = """{"name":"Overflow","all":[{"is":{"loved":true}}],"limit":4294967297}"""
         assertEquals(original, assertIs<SmartPlaylistEditingResult.ReadOnly>(inspectSmartPlaylistJson(original)).originalJson)
     }
+    @Test fun integratedInspectionPreservesUnlimitedDecimalsAndEffectiveSortDirections() {
+        for (options in listOf("", "\"sort\":\"-AVGRATING,+TITLE\",\"order\":\"desc\",", "\"limitPercent\":25,")) {
+            val original = """{"name":"Integrated",$options"all":[{"gt":{"avgrating":3.75}},{"inTheRange":{"duration":[180.5,240.25]}}]}"""
+            val editing = assertIs<SmartPlaylistEditingResult.Editable>(inspectSmartPlaylistJson(original))
+            val saved = SmartPlaylistDraft.fromDefinition(editing.definition).toDefinition()
+            assertEquals(editing.definition.rules, saved.rules)
+            assertEquals(editing.definition.sort, saved.sort)
+            assertEquals(editing.definition.limit, saved.limit)
+            assertEquals(editing.definition.limitPercent, saved.limitPercent)
+            assertEquals(original, editing.originalJson)
+            assertIs<SmartPlaylistEditingResult.Editable>(inspectSmartPlaylistJson(saved.toNspJson()))
+        }
+        val sorted = assertIs<SmartPlaylistEditingResult.Editable>(inspectSmartPlaylistJson(
+            """{"name":"Sort","all":[{"is":{"loved":true}}],"sort":"-AVGRATING,+TITLE","order":"desc"}"""))
+        assertEquals(listOf(SmartPlaylistSort("avgrating", false), SmartPlaylistSort("title", true)), sorted.definition.sort)
+    }
+
+    @Test fun integratedValidationKeepsInvalidValuesOutOfTheEditor() {
+        for (rule in listOf(
+            """{"after":{"dateadded":"2025-02-29"}}""",
+            """{"inTheRange":{"duration":[240.25,180.5]}}""",
+            """{"gt":{"rating":6}}""",
+        )) {
+            val original = """{"name":"Invalid","all":[$rule]}"""
+            assertEquals(original, assertIs<SmartPlaylistEditingResult.ReadOnly>(inspectSmartPlaylistJson(original)).originalJson)
+        }
+    }
+
 }

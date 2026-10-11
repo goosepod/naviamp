@@ -175,4 +175,24 @@
     <string name="smart_playlist_inspection_missing">De server heeft de regels van deze afspeellijst niet verstrekt.</string>
     <string name="smart_playlist_inspection_permission">Je mag de regels van deze afspeellijst niet bekijken.</string>
     <string name="smart_playlist_inspection_not_found">Deze afspeellijst is niet gevonden op de server.</string>
+    <string name="smart_playlist_limit_unlimited">Onbeperkt</string>
+    <string name="smart_playlist_limit_tracks">Aantal nummers</string>
+    <string name="smart_playlist_limit_percent">Percentage</string>
+    <string name="smart_playlist_unsupported_import">Deze afspeellijst bevat ongeldige of niet-ondersteunde instellingen. Deze kan niet veilig in deze editor worden bewerkt.</string>
+    <string name="smart_playlist_validation_required">Vul de ontbrekende waarde in.</string>
+    <string name="smart_playlist_validation_number">Voer een eindig getal in.</string>
+    <string name="smart_playlist_validation_date">Voer een geldige datum in als JJJJ-MM-DD.</string>
+    <string name="smart_playlist_validation_days">Voer een positief geheel aantal dagen in.</string>
+    <string name="smart_playlist_validation_range">Het einde van het bereik mag niet vóór het begin liggen.</string>
+    <string name="smart_playlist_validation_bounds">Voer een waarde binnen het toegestane bereik van dit veld in.</string>
+    <string name="smart_playlist_validation_choice">Kies een waarde die dit veld ondersteunt.</string>
+    <string name="smart_playlist_validation_operation">Dit veld ondersteunt de gekozen bewerking niet.</string>
+    <string name="smart_playlist_validation_rules">Voeg minstens één volledige regel toe.</string>
+    <string name="smart_playlist_validation_limit">Voer een positieve limiet in (1–100 voor procenten).</string>
+    <string name="smart_playlist_validation_fix">Corrigeer de gemarkeerde waarden voordat u een voorbeeld bekijkt of opslaat.</string>
+    <string name="smart_playlist_preview_waiting">Overeenkomsten in uw gesynchroniseerde bibliotheek zoeken…</string>
+    <string name="smart_playlist_preview_count">Overeenkomsten in gesynchroniseerde bibliotheek: %1$d (%2$d na limiet).</string>
+    <string name="smart_playlist_preview_samples">Voorbeelden uit uw gesynchroniseerde bibliotheek; deze tonen niet de uiteindelijke servervolgorde.</string>
+    <string name="smart_playlist_preview_empty">Geen overeenkomende voorbeelden in de gesynchroniseerde bibliotheek.</string>
+    <string name="smart_playlist_preview_unsupported">Voorbeeld niet beschikbaar voor deze lokaal niet geïndexeerde velden: %1$s.</string>
 </resources>
