@@ -261,7 +261,7 @@ class NaviampCoreCatalogController(
         val provider = providerSource.current() ?: throw IllegalStateException(SearchDisconnectedStatus)
         val sourceId = activeLibrarySourceId() ?: throw IllegalStateException(SearchDisconnectedStatus)
         fun requireCurrentSource() {
-            if (providerSource.current() !== provider || activeLibrarySourceId() != sourceId) {
+            if (!providerSource.isCurrent(provider) || activeLibrarySourceId() != sourceId) {
                 throw CancellationException("Library source changed during index refresh")
             }
         }

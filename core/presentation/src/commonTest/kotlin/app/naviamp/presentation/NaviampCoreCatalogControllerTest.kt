@@ -49,7 +49,9 @@ class NaviampCoreCatalogControllerTest {
         }
         val store = NaviampCoreStateStore()
         store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "source")) }
-        val controller = NaviampCoreCatalogController(store, { provider }, libraryIndex = repository)
+        val controller = NaviampCoreCatalogController(
+            store, { object : MediaProvider by provider {} }, libraryIndex = repository,
+        )
         controller.refreshLocalLibraryIndex()
         assertTrue(repository.syncCompleted)
         assertEquals(listOf("track-2", "track-1"), repository.tracks.map { it.id.value })
