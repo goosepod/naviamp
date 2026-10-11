@@ -14,6 +14,7 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampRadioBatchSettingsTest {
@@ -32,12 +33,17 @@ class NaviampRadioBatchSettingsTest {
             }
         }
         onNodeWithText("Related Tracks").performScrollTo().performClick()
-        onNodeWithText("Minimum tracks for autoplay").assertIsDisplayed()
+        onNodeWithText("Minimum tracks for Autoplay").assertIsDisplayed()
         onNodeWithText("Minimum tracks for Radio").assertIsDisplayed()
         val sliders = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
         sliders.assertCountEquals(2)
-        val autoplay = sliders[0]
-        val radio = sliders[1]
+        val radio = sliders[0]
+        val autoplay = sliders[1]
+        val similarityBounds = onNodeWithText("Sonic Similarity").fetchSemanticsNode().boundsInRoot
+        val autoplayBounds = onNodeWithText("Sonic Autoplay").fetchSemanticsNode().boundsInRoot
+        assertTrue(similarityBounds.bottom < radio.fetchSemanticsNode().boundsInRoot.top)
+        assertTrue(radio.fetchSemanticsNode().boundsInRoot.bottom < autoplayBounds.top)
+        assertTrue(autoplayBounds.bottom < autoplay.fetchSemanticsNode().boundsInRoot.top)
         assertEquals(8, autoplay.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].steps)
         autoplay.performSemanticsAction(SemanticsActions.SetProgress) { it(9f) }
         runOnIdle {
@@ -54,7 +60,7 @@ class NaviampRadioBatchSettingsTest {
             val image = org.jetbrains.skia.Image.makeFromBitmap(onRoot().captureToImage().asSkiaBitmap())
             java.io.File(directory, "radio-batch-settings.png").writeBytes(image.encodeToData()!!.bytes)
         }
-        onNodeWithText("Sonic autoplay").performClick()
+        onNodeWithText("Sonic Autoplay").performClick()
         autoplay.assertIsNotEnabled()
         radio.assertIsEnabled()
     }
