@@ -122,3 +122,16 @@ Gradle Plugin 9.2 are intentionally deferred:
 Compose 1.11 changes native graphics interop APIs, while AGP 9.2 requires Gradle 9.4.1 and an AGP 9
 Kotlin Multiplatform migration. Kotlin 2.3.21, Ktor 3.5.0, SQLDelight 2.3.2, and Kover 0.9.8 are
 already current stable versions.
+
+### Smart-playlist representative tracks on a fresh profile
+
+The preview reads the synced local track index, rather than the current server playlist
+result. In a fresh profile, use **Settings > Debugging > Refresh library index** before
+checking representative tracks. The explicit action indexes artists, albums, and tracks
+in shared code; ordinary catalog refresh stays lightweight. Confirm that a matching
+track appears with its artist, that changing the filter changes the samples, and that
+the preview clearly identifies local examples rather than final server order.
+
+Regression coverage lives in `NaviampCoreCatalogControllerTest`: full index refresh
+feeds the actual preview port, track-fetch failures do not complete the sync, and a
+source change cancels completion of the old request.

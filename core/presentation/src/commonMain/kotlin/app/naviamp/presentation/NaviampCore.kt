@@ -291,7 +291,7 @@ class NaviampCore private constructor(
                 services.playback.settings,
                 services.settings.cacheSettings,
                 services.settings.maintenance,
-                refreshLibrary = catalog::refreshAfterConnection,
+                refreshLibrary = catalog::refreshLocalLibraryIndex,
                 testSimilarity = similarity::test,
                 onDatabaseReset = { completeDatabaseReset() },
                 onLocalSettingsChanged = { notifyLocalSettingsChanged() },
