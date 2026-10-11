@@ -6,6 +6,18 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SmartPlaylistValidationTest {
+    @Test
+    fun unlimitedModeIgnoresAnInactiveInvalidLimit() {
+        val draft = SmartPlaylistDraft(conditions = listOf(SmartPlaylistConditionDraft(value = "Miles Davis")), limit = 0)
+        assertTrue(draft.validate().any { it.code == SmartPlaylistIssueCode.InvalidLimit })
+        val unlimited = draft.copy(limitMode = SmartPlaylistLimitMode.Unlimited)
+        assertTrue(unlimited.validate().isEmpty())
+        assertEquals(null, unlimited.toDefinition().limit)
+        assertEquals(null, unlimited.toDefinition().limitPercent)
+        assertTrue(unlimited.copy(limitMode = SmartPlaylistLimitMode.Percent).validate().any {
+            it.code == SmartPlaylistIssueCode.InvalidLimit
+        })
+    }
     private fun condition(field: String, value: String, operator: SmartPlaylistOperator = SmartPlaylistOperator.Is) =
         SmartPlaylistConditionDraft(SmartPlaylistFieldCatalog.fields.first { it.field == field }, operator, value)
 
