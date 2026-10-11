@@ -550,7 +550,7 @@ class NaviampCorePlaybackController(
         val expectedProvider = providerSource.current()
         val expectedSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         if (!stateStore.state.value.shell.playback.settings.sonicAutoplayEnabled) return
-        if (expectedProvider?.capabilities?.supportsSonicSimilarity != true) return
+        if (expectedProvider == null) return
 
         sonicAutoplayJob?.cancel()
         sonicAutoplayJob = scope.launch {

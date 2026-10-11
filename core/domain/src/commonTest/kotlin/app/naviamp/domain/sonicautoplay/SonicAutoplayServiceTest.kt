@@ -17,6 +17,9 @@ import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.queue.PlaybackQueue
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlin.test.assertFailsWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -45,18 +48,87 @@ class SonicAutoplayServiceTest {
 
         assertEquals(listOf("candidate-2", "candidate-1"), tracks.map { it.id.value })
         assertEquals(listOf("seed-2", "seed-1"), provider.requests)
+        assertEquals(emptyList(), provider.radioRequests)
     }
 
     @Test
-    fun continuationTracksReturnEmptyWhenSonicSimilarityIsUnavailable() = runTest {
-        val provider = FakeSonicProvider(supportsSonicSimilarity = false)
+    fun missingSonicSupportUsesRegularRadio() = runTest {
+        val provider = FakeSonicProvider(supportsSonicSimilarity = false,
+            radioBySeed = mapOf("seed" to listOf(track("regular"))))
         val service = SonicAutoplayService(provider = { provider })
 
         assertEquals(
-            emptyList(),
+            listOf(track("regular")),
             service.continuationTracks(PlaybackQueue(listOf(track("seed")), currentIndex = 0)),
         )
         assertEquals(emptyList(), provider.requests)
+        assertEquals(listOf("seed"), provider.radioRequests)
+    }
+
+    @Test
+    fun emptySeedOnlyAndQueueOnlySonicMatchesFallBackToDistinctUnqueuedRadioTracks() = runTest {
+        for (matches in listOf(emptyList(), listOf(SonicSimilarTrack(track("seed"))),
+            listOf(SonicSimilarTrack(track("old"))))) {
+            val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to matches),
+                radioBySeed = mapOf("seed" to listOf(track("seed"), track("old"), track("new"), track("new"), track("extra"))))
+            val result = SonicAutoplayService({ provider }, seedCount = 1).continuationTracks(
+                PlaybackQueue(listOf(track("old"), track("seed")), 1), limit = 1)
+            assertEquals(listOf(track("new")), result)
+            assertEquals(listOf("seed"), provider.radioRequests)
+        }
+    }
+
+    @Test
+    fun sonicFailureUsesRegularRadioWithoutChangingRankingPolicy() = runTest {
+        val provider = FakeSonicProvider(radioBySeed = mapOf(
+            "seed" to listOf(track("first"), track("second")), "old" to listOf(track("third"))))
+        provider.beforeSonic = { error("backend failure") }
+        assertEquals(listOf("first", "second", "third"), SonicAutoplayService({ provider }).continuationTracks(
+            PlaybackQueue(listOf(track("old"), track("seed")), 1)).map { it.id.value })
+    }
+
+    @Test
+    fun sonicBatchDeadlineFallsBackAfterTenSeconds() = runTest {
+        val provider = FakeSonicProvider(radioBySeed = mapOf("seed" to listOf(track("regular"))))
+        provider.beforeSonic = { delay(60_000) }
+        val started = testScheduler.currentTime
+        assertEquals(listOf(track("regular")), SonicAutoplayService({ provider }).continuationTracks(
+            PlaybackQueue(listOf(track("seed")), 0)))
+        assertEquals(10_000L, testScheduler.currentTime - started)
+    }
+
+    @Test
+    fun usableSonicMatchesSurviveLaterSeedTimeoutWithoutCallingRadio() = runTest {
+        val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to listOf(SonicSimilarTrack(track("sonic")))))
+        provider.beforeSonic = { if (it == "old") delay(60_000) }
+        assertEquals(listOf(track("sonic")), SonicAutoplayService({ provider }).continuationTracks(
+            PlaybackQueue(listOf(track("old"), track("seed")), 1)))
+        assertEquals(emptyList(), provider.radioRequests)
+    }
+
+    @Test
+    fun cancellationFromEitherPhasePropagatesAndDoesNotRequestMoreSeeds() = runTest {
+        for (cancelSonic in listOf(true, false)) {
+            val provider = FakeSonicProvider()
+            if (cancelSonic) provider.beforeSonic = { throw CancellationException() }
+            else provider.beforeRadio = { throw CancellationException() }
+            assertFailsWith<CancellationException> { SonicAutoplayService({ provider }).continuationTracks(
+                PlaybackQueue(listOf(track("old"), track("seed")), 1)) }
+            assertEquals(if (cancelSonic) emptyList() else listOf("seed"), provider.radioRequests)
+        }
+    }
+
+    @Test
+    fun failedOrTimedOutRegularRadioReturnsNoContinuationAndRemainsBounded() = runTest {
+        for (timeout in listOf(true, false)) {
+            val provider = FakeSonicProvider()
+            provider.beforeRadio = { if (timeout) delay(60_000) else error("regular failure") }
+            val started = testScheduler.currentTime
+            assertEquals(emptyList(), SonicAutoplayService({ provider }).continuationTracks(
+                PlaybackQueue(listOf(track("seed")), 0)))
+            assertEquals(if (timeout) 10_000L else 0L, testScheduler.currentTime - started)
+            assertEquals(listOf("seed"), provider.radioRequests)
+        }
     }
 
     @Test
@@ -72,8 +144,12 @@ class SonicAutoplayServiceTest {
     private class FakeSonicProvider(
         private val supportsSonicSimilarity: Boolean = true,
         private val matchesBySeed: Map<String, List<SonicSimilarTrack>> = emptyMap(),
+        private val radioBySeed: Map<String, List<Track>> = emptyMap(),
     ) : MediaProvider {
         val requests = mutableListOf<String>()
+        val radioRequests = mutableListOf<String>()
+        var beforeSonic: suspend (String) -> Unit = {}
+        var beforeRadio: suspend () -> Unit = {}
         override val id: ProviderId = ProviderId("fake")
         override val displayName: String = "Fake"
         override val capabilities: ProviderCapabilities = ProviderCapabilities(
@@ -96,7 +172,13 @@ class SonicAutoplayServiceTest {
         override suspend fun search(query: String, limit: Int): MediaSearchResults = MediaSearchResults()
         override suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int): List<SonicSimilarTrack> {
             requests += trackId.value
+            beforeSonic(trackId.value)
             return matchesBySeed[trackId.value].orEmpty().take(count)
+        }
+        override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+            radioRequests += trackId.value
+            beforeRadio()
+            return radioBySeed[trackId.value].orEmpty().take(count)
         }
         override suspend fun streamUrl(request: StreamRequest): String = error("unused")
         override fun coverArtUrl(coverArtId: String): String = error("unused")

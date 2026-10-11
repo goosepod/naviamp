@@ -272,6 +272,9 @@ fun NaviampSharedSettingsContent(
     supportsAudioOutputDeviceSelection: Boolean = false,
     audioOutputDevices: List<AudioOutputDevice> = emptyList(),
     supportsSonicSimilarity: Boolean = false,
+    similarityTest: NaviampSimilarityTestUi = NaviampSimilarityTestUi(),
+    radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null,
+    onTestSimilarity: (() -> Unit)? = null,
     connectionCapabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
@@ -383,6 +386,9 @@ fun NaviampSharedSettingsContent(
                     desktopShortcutPlatform = desktopShortcutPlatform,
                     globalShortcutStatuses = globalShortcutStatuses,
                     supportsSonicSimilarity = supportsSonicSimilarity,
+                    similarityTest = similarityTest,
+                    radioDiagnostics = radioDiagnostics,
+                    onTestSimilarity = onTestSimilarity,
                     onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                     onCacheSettingsChanged = onCacheSettingsChanged,
@@ -692,6 +698,9 @@ fun NaviampExperienceSettingsSection(
     desktopShortcutPlatform: DesktopShortcutPlatform? = null,
     globalShortcutStatuses: Map<GlobalShortcutAction, GlobalShortcutRegistrationUi> = emptyMap(),
     supportsSonicSimilarity: Boolean,
+    similarityTest: NaviampSimilarityTestUi = NaviampSimilarityTestUi(),
+    radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null,
+    onTestSimilarity: (() -> Unit)? = null,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -716,6 +725,9 @@ fun NaviampExperienceSettingsSection(
                 colors = colors,
                 playbackSettings = playbackSettings,
                 supportsSonicSimilarity = supportsSonicSimilarity,
+                similarityTest = similarityTest,
+                radioDiagnostics = radioDiagnostics,
+                onTestSimilarity = onTestSimilarity,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             )
             ExperienceSettingsPage.Lyrics -> LyricsSettings(
@@ -787,7 +799,7 @@ fun NaviampExperienceSettingsSection(
                 selectedSection = ExperienceSettingsPage.Lyrics
             }
         }
-        if (supportsSonicSimilarity) {
+        if (supportsSonicSimilarity || onTestSimilarity != null) {
             SettingsRow(
                 title = ExperienceSettingsPage.RelatedTracks.title(),
                 subtitle = ExperienceSettingsPage.RelatedTracks.subtitle(),
@@ -5019,6 +5031,9 @@ private fun RelatedTracksSettings(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     supportsSonicSimilarity: Boolean,
+    similarityTest: NaviampSimilarityTestUi,
+    radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics?,
+    onTestSimilarity: (() -> Unit)?,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     if (supportsSonicSimilarity) {
@@ -5048,6 +5063,7 @@ private fun RelatedTracksSettings(
     } else {
         Text(stringResource(Res.string.settings_related_requires_support), color = colors.secondaryText, fontSize = 12.sp)
     }
+    NaviampSimilarityTestContent(colors, similarityTest, onTestSimilarity, radioDiagnostics)
 }
 
 @Composable
