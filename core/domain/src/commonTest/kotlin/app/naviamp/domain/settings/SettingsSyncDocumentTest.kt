@@ -10,6 +10,23 @@ import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
     @Test
+    fun independentRadioBatchSizesRoundTripWithOlderDefaultsAndImportedNormalization() {
+        val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
+            playback = PlaybackSettings(radioMinimumTracks = 40, sonicAutoplayMinimumTracks = 90)))
+        val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.playback
+        assertEquals(40, restored.radioMinimumTracks)
+        assertEquals(90, restored.sonicAutoplayMinimumTracks)
+        val older = SettingsSyncJson.decode("""{"preferences":{"playback":{"sonicAutoplayEnabled":true}}}""").preferences.playback
+        assertEquals(10, older.radioMinimumTracks)
+        assertEquals(10, older.sonicAutoplayMinimumTracks)
+        for ((raw, expected) in listOf(Int.MIN_VALUE to 10, 14 to 10, 15 to 20, 95 to 100, Int.MAX_VALUE to 100)) {
+            val imported = SettingsSyncJson.decode("""{"preferences":{"playback":{"radioMinimumTracks":$raw,"sonicAutoplayMinimumTracks":$raw}}}""").preferences.playback
+            assertEquals(expected, imported.radioMinimumTracks)
+            assertEquals(expected, imported.sonicAutoplayMinimumTracks)
+        }
+    }
+
+    @Test
     fun cachedAudioUpgradeRoundTripsAndOlderExportsDefaultOff() {
         val document = buildSettingsSyncDocument(
             SettingsSyncLocalSnapshot(

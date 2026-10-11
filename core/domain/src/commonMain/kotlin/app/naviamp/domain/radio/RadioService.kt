@@ -77,9 +77,12 @@ class RadioService(
     ): List<Track> {
         val result = similarity.load(SimilarityRequest(
             listOf(seedTrack.id), countPerSeed = fetchCount, preferSonic = preferSonicSimilarity,
+            minimumMatches = count,
         ))
         result.fallback?.let(onSonicFallback)
-        return tunedTrackRadio(seedTrack, result.getOrThrow().flatMap { seed -> seed.matches.map { it.track } })
+        val primary = result.getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
+        val supplemental = result.topUp?.seedMatches.orEmpty().flatMap { seed -> seed.matches.map { it.track } }
+        return tunedTrackRadio(seedTrack, primary + supplemental)
     }
 
     suspend fun libraryRadio(): List<Track> =

@@ -285,4 +285,8 @@
     <string name="similarity_admin_plugin_enabled">Włączona</string>
     <string name="similarity_admin_plugin_disabled">Wyłączona</string>
     <string name="similarity_admin_plugin_error">Serwer zgłasza błąd wtyczki. Sprawdź ustawienia i dzienniki wtyczek Navidrome.</string>
+    <string name="settings_related_autoplay_minimum">Minimum utworów dla autoodtwarzania</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Uzupełnia wyniki Sonic zwykłym Radiem. Dodaje mniej utworów, jeśli brakuje unikalnych dopasowań.</string>
+    <string name="settings_related_radio_minimum">Minimum utworów dla Radia</string>
+    <string name="settings_related_radio_minimum_subtitle">Podobne utwory przy uruchomieniu Radia. Utwór początkowy gra pierwszy. Wyniki Sonic są uzupełniane zwykłym Radiem, jeśli są dostępne.</string>
 </resources>

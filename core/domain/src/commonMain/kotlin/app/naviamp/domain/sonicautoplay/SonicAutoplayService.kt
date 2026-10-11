@@ -5,6 +5,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.SimilarityRequest
 import app.naviamp.domain.radio.SimilarityService
+import app.naviamp.domain.radio.SimilaritySeedMatches
 
 class SonicAutoplayService(
     private val provider: () -> MediaProvider?,
@@ -20,18 +21,24 @@ class SonicAutoplayService(
         if (seeds.isEmpty()) return emptyList()
 
         val blockedTrackIds = queue.tracks.map { it.id }.toSet()
+        val targetCount = limit.coerceIn(1, MaxSonicAutoplayAppendCount)
         val result = SimilarityService(activeProvider).load(SimilarityRequest(
-            seeds.map { it.id }, excludedTrackIds = blockedTrackIds, countPerSeed = candidatesPerSeed,
+            seeds.map { it.id }, excludedTrackIds = blockedTrackIds,
+            countPerSeed = maxOf(candidatesPerSeed, targetCount * 2), minimumMatches = targetCount,
         ))
-        return result.seedMatches.flatMapIndexed { seedIndex, seed ->
-            seed.matches.mapIndexed { matchIndex, match ->
-                SonicAutoplayCandidate(match.track, match.score(seedIndex, matchIndex))
-            }
-        }.groupBy { it.track.id }
-            .mapNotNull { (_, candidates) -> candidates.maxByOrNull { it.score } }
-            .sortedByDescending { it.score }
-            .map { it.track }
-            .take(limit.coerceAtLeast(1))
+        fun ranked(matches: List<SimilaritySeedMatches>): List<Track> =
+            matches.flatMapIndexed { seedIndex, seed ->
+                seed.matches.mapIndexed { matchIndex, match ->
+                    SonicAutoplayCandidate(match.track, match.score(seedIndex, matchIndex))
+                }
+            }.groupBy { it.track.id }
+                .mapNotNull { (_, candidates) -> candidates.maxByOrNull { it.score } }
+                .sortedByDescending { it.score }
+                .map { it.track }
+        // A regular match's default score must never displace a usable Sonic match.
+        return (ranked(result.seedMatches) + ranked(result.topUp?.seedMatches.orEmpty()))
+            .distinctBy { it.id }
+            .take(targetCount)
     }
 }
 
@@ -54,4 +61,5 @@ private const val SeedPenalty = 0.02
 private const val MatchPenalty = 0.001
 const val DefaultSonicAutoplaySeedCount = 3
 const val DefaultSonicAutoplayCandidatesPerSeed = 12
-const val DefaultSonicAutoplayAppendCount = 8
+const val DefaultSonicAutoplayAppendCount = app.naviamp.domain.radio.DefaultRadioMinimumTracks
+const val MaxSonicAutoplayAppendCount = app.naviamp.domain.radio.MaxRadioMinimumTracks

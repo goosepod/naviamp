@@ -25,6 +25,23 @@ import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
     @Test
+    fun independentRadioBatchSizesArePortableAndAppliedNormalized() {
+        val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+            playback = PlaybackSettings(radioMinimumTracks = 30, sonicAutoplayMinimumTracks = 80)), 1L, "test")
+        val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(exported))
+        val applied = applySettingsSyncDocument(restored, FakePlaybackEngine(false),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+        assertEquals(30, applied.playbackSettings.radioMinimumTracks)
+        assertEquals(80, applied.playbackSettings.sonicAutoplayMinimumTracks)
+        val raw = restored.copy(preferences = restored.preferences.copy(playback =
+            PlaybackSettings(radioMinimumTracks = -1, sonicAutoplayMinimumTracks = 999)))
+        val normalized = applySettingsSyncDocument(raw, FakePlaybackEngine(false),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
+        assertEquals(10, normalized.radioMinimumTracks)
+        assertEquals(100, normalized.sonicAutoplayMinimumTracks)
+    }
+
+    @Test
     fun apiKeyProfileRoundTripsModeWithoutExportingTheKey() {
         val source = savedSource().copy(
             authenticationMode = app.naviamp.domain.source.SubsonicAuthApiKey,

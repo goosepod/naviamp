@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">已启用</string>
     <string name="similarity_admin_plugin_disabled">已禁用</string>
     <string name="similarity_admin_plugin_error">服务器报告插件错误。请检查 Navidrome 插件设置和日志。</string>
+    <string name="settings_related_autoplay_minimum">自动播放最少添加曲目数</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Sonic 结果不足时使用普通电台补足。不重复曲目不足时会添加较少的曲目。</string>
+    <string name="settings_related_radio_minimum">电台最少添加曲目数</string>
+    <string name="settings_related_radio_minimum_subtitle">启动电台时添加的相关曲目数。种子曲目先播放。Sonic 结果不足时尽可能使用普通电台补足。</string>
 </resources>

@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">Включён</string>
     <string name="similarity_admin_plugin_disabled">Отключён</string>
     <string name="similarity_admin_plugin_error">Сервер сообщает об ошибке плагина. Проверьте настройки и журналы плагинов Navidrome.</string>
+    <string name="settings_related_autoplay_minimum">Минимум треков для автовоспроизведения</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Дополняет результаты Sonic обычным Радио. Добавляет меньше треков, если недостаточно уникальных совпадений.</string>
+    <string name="settings_related_radio_minimum">Минимум треков для Радио</string>
+    <string name="settings_related_radio_minimum_subtitle">Похожие треки при запуске Радио. Исходный трек играет первым. Короткие результаты Sonic дополняются обычным Радио, если возможно.</string>
 </resources>

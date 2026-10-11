@@ -998,4 +998,8 @@
     <string name="similarity_admin_plugin_enabled">Aktiviert</string>
     <string name="similarity_admin_plugin_disabled">Deaktiviert</string>
     <string name="similarity_admin_plugin_error">Der Server meldet einen Plugin-Fehler. Navidrome-Plugin-Einstellungen und Protokolle prüfen.</string>
+    <string name="settings_related_autoplay_minimum">Mindestanzahl für Autoplay</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Ergänzt zu wenige Sonic-Ergebnisse mit normalem Radio. Bei zu wenigen unterschiedlichen Treffern werden weniger Titel hinzugefügt.</string>
+    <string name="settings_related_radio_minimum">Mindestanzahl für Radio</string>
+    <string name="settings_related_radio_minimum_subtitle">Ähnliche Titel beim Start von Radio. Der Ausgangstitel spielt zuerst. Zu wenige Sonic-Ergebnisse werden nach Möglichkeit mit normalem Radio ergänzt.</string>
 </resources>

@@ -1002,4 +1002,8 @@
     <string name="similarity_admin_plugin_enabled">Activado</string>
     <string name="similarity_admin_plugin_disabled">Desactivado</string>
     <string name="similarity_admin_plugin_error">El servidor informa de un error del complemento. Revisa la configuración y los registros de complementos de Navidrome.</string>
+    <string name="settings_related_autoplay_minimum">Mínimo de pistas para reproducción automática</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Completa resultados Sonic insuficientes con Radio normal. Añade menos pistas si faltan coincidencias únicas.</string>
+    <string name="settings_related_radio_minimum">Mínimo de pistas para Radio</string>
+    <string name="settings_related_radio_minimum_subtitle">Pistas relacionadas al iniciar Radio. La pista inicial suena primero. Completa resultados Sonic insuficientes con Radio normal cuando sea posible.</string>
 </resources>

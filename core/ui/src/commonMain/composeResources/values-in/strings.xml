@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">Diaktifkan</string>
     <string name="similarity_admin_plugin_disabled">Dinonaktifkan</string>
     <string name="similarity_admin_plugin_error">Server melaporkan kesalahan plugin. Periksa pengaturan dan log plugin Navidrome.</string>
+    <string name="settings_related_autoplay_minimum">Minimum lagu untuk putar otomatis</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Melengkapi hasil Sonic dengan Radio biasa. Menambahkan lebih sedikit lagu jika kecocokan unik tidak mencukupi.</string>
+    <string name="settings_related_radio_minimum">Minimum lagu untuk Radio</string>
+    <string name="settings_related_radio_minimum_subtitle">Lagu terkait saat memulai Radio. Lagu awal diputar dahulu. Hasil Sonic yang sedikit dilengkapi dengan Radio biasa jika tersedia.</string>
 </resources>

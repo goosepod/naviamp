@@ -110,8 +110,8 @@ class RadioServiceTest {
 
         val tracks = service.trackRadio(track("seed"), preferSonicSimilarity = true)
 
-        assertEquals(listOf("sonic-one", "sonic-two"), tracks.map { it.id.value })
-        assertEquals(0, provider.trackRadioCalls)
+        assertEquals(listOf("sonic-one", "sonic-two", "provider-radio"), tracks.map { it.id.value })
+        assertEquals(1, provider.trackRadioCalls)
     }
 
     @Test
@@ -592,6 +592,35 @@ class RadioServiceTest {
         ) {
             values.remove("${provider.cacheNamespace}:$resourceType:$resourceId")
         }
+    }
+
+    @Test
+    fun initialRadioSizesKeepSeedSeparateAndTopUpWithoutRepeatingSonic() = runTest {
+        for (size in listOf(10, 50, 100)) {
+            val provider = FakeRadioProvider(supportsSonicSimilarity = true,
+                sonicTracks = listOf(track("seed"), track("sonic"), track("sonic")),
+                radioTracks = listOf(track("seed"), track("sonic")) + (1..120).map { track("regular-$it") })
+            val service = RadioService(provider, count = size)
+            val related = service.trackRadio(track("seed"), true)
+            assertEquals(size, related.size)
+            assertEquals("sonic", related.first().id.value)
+            assertEquals(size, related.map { it.id }.distinct().size)
+            val queue = service.queue(track("seed"), related)
+            assertEquals(size + 1, queue.size)
+            assertEquals("seed", queue.first().id.value)
+            assertEquals(1, provider.trackRadioCalls)
+        }
+    }
+
+    @Test
+    fun enoughSonicRadioMatchesSkipTopUpAndRegularFailureKeepsShortSonicQueue() = runTest {
+        val complete = FakeRadioProvider(supportsSonicSimilarity = true,
+            sonicTracks = (1..10).map { track("sonic-$it") })
+        assertEquals(10, RadioService(complete, count = 10).trackRadio(track("seed"), true).size)
+        assertEquals(0, complete.trackRadioCalls)
+        val failed = FakeRadioProvider(supportsSonicSimilarity = true,
+            sonicTracks = listOf(track("sonic")), radioFailure = IllegalStateException("regular unavailable"))
+        assertEquals(listOf(track("sonic")), RadioService(failed, count = 10).trackRadio(track("seed"), true))
     }
 
     private class FakeRadioProvider(

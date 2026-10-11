@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">चालू</string>
     <string name="similarity_admin_plugin_disabled">बंद</string>
     <string name="similarity_admin_plugin_error">सर्वर ने प्लगइन की त्रुटि बताई है। Navidrome प्लगइन की सेटिंग और लॉग जाँचें।</string>
+    <string name="settings_related_autoplay_minimum">ऑटोप्ले के लिए न्यूनतम ट्रैक</string>
+    <string name="settings_related_autoplay_minimum_subtitle">कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है। पर्याप्त अलग-अलग मेल न होने पर कम ट्रैक जोड़ता है।</string>
+    <string name="settings_related_radio_minimum">रेडियो के लिए न्यूनतम ट्रैक</string>
+    <string name="settings_related_radio_minimum_subtitle">रेडियो शुरू करते समय संबंधित ट्रैक जोड़ता है। शुरुआती ट्रैक पहले बजता है। कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है।</string>
 </resources>

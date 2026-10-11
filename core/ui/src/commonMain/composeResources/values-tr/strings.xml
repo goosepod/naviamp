@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">Etkin</string>
     <string name="similarity_admin_plugin_disabled">Devre dışı</string>
     <string name="similarity_admin_plugin_error">Sunucu bir eklenti hatası bildiriyor. Navidrome eklenti ayarlarını ve günlüklerini kontrol edin.</string>
+    <string name="settings_related_autoplay_minimum">Otomatik oynatma için en az parça</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Sonic sonuçlarını normal Radyo ile tamamlar. Yeterli benzersiz eşleşme yoksa daha az parça ekler.</string>
+    <string name="settings_related_radio_minimum">Radyo için en az parça</string>
+    <string name="settings_related_radio_minimum_subtitle">Radyo başlatılırken eklenecek ilgili parçalar. Başlangıç parçası önce çalar. Sonic sonuçları mümkünse normal Radyo ile tamamlanır.</string>
 </resources>
