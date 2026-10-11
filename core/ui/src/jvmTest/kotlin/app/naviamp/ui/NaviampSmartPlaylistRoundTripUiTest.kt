@@ -55,7 +55,7 @@ class NaviampSmartPlaylistRoundTripUiTest {
     }
 
     @Test
-    fun unrepresentableImportReportsAnErrorAndKeepsTheCurrentDraft() = runComposeUiTest {
+    fun unrepresentableImportIsInspectableAndKeepsTheCurrentDraft() = runComposeUiTest {
         var saved: SmartPlaylistDefinition? = null
         setContent {
             SmartPlaylistBuilderDialog(colors = NaviampColors(), initialDraft = imported(),
@@ -66,7 +66,8 @@ class NaviampSmartPlaylistRoundTripUiTest {
             """{"name":"Broken","all":[{"gt":{"rating":3.75}}]}""",
         )
         onNodeWithText("Validate and load").performScrollTo().performClick()
-        onNodeWithText("This playlist contains invalid or unsupported settings. It cannot be edited safely in this builder.").assertExists()
+        onNodeWithTag("smart-playlist-original-definition").assertExists()
+        onNodeWithText("Close").performClick()
         onNodeWithTag(SmartPlaylistSaveTestTag).performClick()
         waitUntil(timeoutMillis = 5_000) { saved != null }
         assertEquals("Mix", saved!!.name)

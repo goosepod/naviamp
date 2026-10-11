@@ -57,8 +57,8 @@ class SmartPlaylistEditingTest {
         assertEquals(original, assertIs<SmartPlaylistEditingResult.ReadOnly>(inspectSmartPlaylistJson(original)).originalJson)
     }
     @Test fun integratedInspectionPreservesUnlimitedDecimalsAndEffectiveSortDirections() {
-        for (options in listOf("", "\"sort\":\"-AVGRATING,+TITLE\",\"order\":\"desc\",", "\"limitPercent\":25,")) {
-            val original = """{"name":"Integrated",$options"all":[{"gt":{"avgrating":3.75}},{"inTheRange":{"duration":[180.5,240.25]}}]}"""
+        for (options in listOf("", "\"sort\":\"-AVERAGERATING,+TITLE\",\"order\":\"desc\",", "\"limitPercent\":25,")) {
+            val original = """{"name":"Integrated",$options"all":[{"gt":{"averagerating":3.75}},{"inTheRange":{"duration":[180.5,240.25]}}]}"""
             val editing = assertIs<SmartPlaylistEditingResult.Editable>(inspectSmartPlaylistJson(original))
             val saved = SmartPlaylistDraft.fromDefinition(editing.definition).toDefinition()
             assertEquals(editing.definition.rules, saved.rules)
@@ -69,8 +69,8 @@ class SmartPlaylistEditingTest {
             assertIs<SmartPlaylistEditingResult.Editable>(inspectSmartPlaylistJson(saved.toNspJson()))
         }
         val sorted = assertIs<SmartPlaylistEditingResult.Editable>(inspectSmartPlaylistJson(
-            """{"name":"Sort","all":[{"is":{"loved":true}}],"sort":"-AVGRATING,+TITLE","order":"desc"}"""))
-        assertEquals(listOf(SmartPlaylistSort("avgrating", false), SmartPlaylistSort("title", true)), sorted.definition.sort)
+            """{"name":"Sort","all":[{"is":{"loved":true}}],"sort":"-AVERAGERATING,+TITLE","order":"desc"}"""))
+        assertEquals(listOf(SmartPlaylistSort("averagerating", false), SmartPlaylistSort("title", true)), sorted.definition.sort)
     }
 
     @Test fun integratedValidationKeepsInvalidValuesOutOfTheEditor() {

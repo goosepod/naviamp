@@ -97,6 +97,21 @@ Release artifacts cannot start packaging unless this reusable verification workf
 - A responsive Compose image test renders representative phone and Desktop track lists and checks
   track-number/title alignment semantically and at the pixel-output boundary.
 
+## Smart playlist live acceptance
+
+The opt-in `NavidromeSmartPlaylistLiveTest` requires a disposable Navidrome server and
+`NAVIAMP_PLAYLIST_TEST_URL`, `NAVIAMP_PLAYLIST_TEST_USER`, `NAVIAMP_PLAYLIST_TEST_PASSWORD`,
+and `NAVIAMP_PLAYLIST_TEST_DISPOSABLE=true` in the environment. Keep credentials out of source
+files and command arguments. Without a URL, the test makes no server requests.
+
+Run `:providers:navidrome:cleanJvmTest :providers:navidrome:jvmTest --tests '*NavidromeSmartPlaylistLiveTest'`.
+The test creates a uniquely named playlist, checks supported save/reload without introducing
+a limit or changing effective sort directions, then assigns nested rules to that fixture.
+Inspection must retain those server rules and leave matching tracks accessible. The fixture
+is deleted in a `finally` block, and missing-playlist inspection is checked after deletion.
+Existing playlists and server configuration are not modified. This provider check complements
+the shared UI tests; it does not verify native UI interaction, accessibility, or audio playback.
+
 ## Dependency audit policy
 
 Patch and compatible minor releases may be taken on a release branch after the full matrix passes.
