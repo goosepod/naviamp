@@ -18,6 +18,22 @@ import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
     @Test
+    fun independentRadioAndAutoplaySizesPersistWithDefaultsAndNormalization() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(10, catalog.storedSettings.loadPlayback().radioMinimumTracks)
+        assertEquals(10, catalog.storedSettings.loadPlayback().sonicAutoplayMinimumTracks)
+        catalog.savePlayback(PlaybackSettings(radioMinimumTracks = 20, sonicAutoplayMinimumTracks = 70))
+        val restored = naviampCoreSettingsValueCatalog(values).storedSettings.loadPlayback()
+        assertEquals(20, restored.radioMinimumTracks)
+        assertEquals(70, restored.sonicAutoplayMinimumTracks)
+        values.entries[KeyPlayback] = """{"radioMinimumTracks":-1,"sonicAutoplayMinimumTracks":999}"""
+        val normalized = naviampCoreSettingsValueCatalog(values).storedSettings.loadPlayback()
+        assertEquals(10, normalized.radioMinimumTracks)
+        assertEquals(100, normalized.sonicAutoplayMinimumTracks)
+    }
+
+    @Test
     fun olderSonicPreferenceDefaultsToAutomaticAndExplicitChoiceRoundTrips() {
         val values = MemorySettingsValues().apply {
             entries[KeyPlayback] = """{"sonicSimilarityEnabled":false}"""

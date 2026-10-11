@@ -11,6 +11,7 @@ data class SimilarityRequest(
     val excludedTrackIds: Set<TrackId> = emptySet(),
     val countPerSeed: Int = 50,
     val preferSonic: Boolean = true,
+    val minimumMatches: Int = 1,
 )
 
 /** Seed slots retain their order, including empty slots, so callers can preserve ranking policy. */
@@ -23,11 +24,16 @@ class SimilarityResult internal constructor(
     val failure: SimilarityEndpointResult? = null,
     // Kept out of diagnostic metadata. Radio may propagate a fatal provider error; Autoplay stops.
     private val failureCause: Exception? = null,
+    /** Regular matches supplement usable Sonic matches without replacing their ranking or failure policy. */
+    val topUp: SimilarityResult? = null,
 ) {
     val hasMatches: Boolean get() = seedMatches.any { it.matches.isNotEmpty() }
 
     internal fun withFallback(reason: SonicRadioFallbackReason?) =
-        SimilarityResult(source, seedMatches, reason, failure, failureCause)
+        SimilarityResult(source, seedMatches, reason, failure, failureCause, topUp)
+
+    internal fun withTopUp(result: SimilarityResult) =
+        SimilarityResult(source, seedMatches, fallback, failure, failureCause, result)
 
     fun getOrThrow(): List<SimilaritySeedMatches> {
         failureCause?.let { throw it }
@@ -46,7 +52,7 @@ class SimilarityService(private val provider: MediaProvider) {
         val count = request.countPerSeed.coerceAtLeast(1)
         val excluded = request.excludedTrackIds.toSet()
 
-        suspend fun batch(endpoint: SimilarityEndpoint): SimilarityResult {
+        suspend fun batch(endpoint: SimilarityEndpoint, additionalExclusions: Set<TrackId> = emptySet()): SimilarityResult {
             val results = seeds.map { SimilaritySeedMatches(it, emptyList()) }.toMutableList()
             var firstFailure: Exception? = null
             val completed = withTimeoutOrNull(SimilarityRequestTimeoutMillis) {
@@ -63,7 +69,7 @@ class SimilarityService(private val provider: MediaProvider) {
                         emptyList()
                     }
                     results[index] = SimilaritySeedMatches(seed, matches.filterNot {
-                        it.track.id == seed || it.track.id in excluded
+                        it.track.id == seed || it.track.id in excluded || it.track.id in additionalExclusions
                     })
                 }
                 true
@@ -84,7 +90,11 @@ class SimilarityService(private val provider: MediaProvider) {
         var fallback: SonicRadioFallbackReason? = null
         if (request.preferSonic && provider.capabilities.supportsSonicSimilarity) {
             val sonic = batch(SimilarityEndpoint.Sonic)
-            if (sonic.hasMatches) return sonic
+            if (sonic.hasMatches) {
+                val sonicIds = sonic.seedMatches.flatMap { seed -> seed.matches.map { it.track.id } }.toSet()
+                if (sonicIds.size >= request.minimumMatches.coerceAtLeast(1)) return sonic
+                return sonic.withTopUp(batch(SimilarityEndpoint.Regular, sonicIds))
+            }
             fallback = when (sonic.failure?.kind) {
                 SimilarityResultKind.TimedOut -> SonicRadioFallbackReason.TimedOut
                 SimilarityResultKind.Failed -> SonicRadioFallbackReason.Failed

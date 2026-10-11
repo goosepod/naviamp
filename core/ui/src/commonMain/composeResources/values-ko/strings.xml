@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">활성화됨</string>
     <string name="similarity_admin_plugin_disabled">비활성화됨</string>
     <string name="similarity_admin_plugin_error">서버가 플러그인 오류를 보고합니다. Navidrome 플러그인 설정과 로그를 확인하세요.</string>
+    <string name="settings_related_autoplay_minimum">자동 재생 최소 추가 곡 수</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Sonic 결과가 부족하면 일반 Radio로 보충합니다. 고유한 곡이 부족하면 더 적은 곡을 추가합니다.</string>
+    <string name="settings_related_radio_minimum">Radio 최소 추가 곡 수</string>
+    <string name="settings_related_radio_minimum_subtitle">Radio 시작 시 추가할 관련 곡 수입니다. 기준 곡이 먼저 재생됩니다. Sonic 결과가 부족하면 일반 Radio로 보충합니다.</string>
 </resources>

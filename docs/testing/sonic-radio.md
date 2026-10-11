@@ -1,6 +1,6 @@
 # Sonic Radio and similarity diagnostics
 
-Issue: https://github.com/goosepod/naviamp/issues/250
+Issues: https://github.com/goosepod/naviamp/issues/250, https://github.com/goosepod/naviamp/issues/253, https://github.com/goosepod/naviamp/issues/255
 
 ## Manual checks
 
@@ -38,21 +38,37 @@ Issue: https://github.com/goosepod/naviamp/issues/250
     must still be tested. Only the extra plugin details should report the access/login requirement.
 11. Enable Sonic Autoplay and let a queue finish with the Sonic backend failing, timing out, or
     returning only queued tracks. Regular Radio should supply unique unqueued continuation tracks
-    and playback should resume. Usable Sonic matches must take priority without a regular request.
+    and playback should resume. Sonic matches must take priority; regular Radio tops up a short batch.
     A saved enabled setting must also fall back when Sonic support is no longer advertised.
-12. During the Autoplay fallback, replace the queue, switch sources, or disable Sonic Autoplay.
+12. During the Autoplay fallback, replace the queue, switch sources, disable Sonic Autoplay, or
+    change its minimum tracks.
     Late results must not append tracks or restart playback. If both paths have no usable results,
     playback remains finished and no queue modification occurs.
+
+13. Set Minimum tracks for Radio to 20 and Minimum tracks for autoplay to 50. Both sliders must
+    offer 10–100 in steps of ten. Start track Radio with enough matches: expect the seed followed
+    by 20 related tracks. Finish a queue with Autoplay enabled: expect 50 new unique tracks, with
+    Sonic matches before regular top-up matches. Confirm neither endpoint can add queued tracks.
+14. Test short Sonic results with a healthy regular endpoint, then a failed or slow regular endpoint.
+    Short results should be topped up when available; usable Sonic results survive a failed top-up.
+    If the library or Radio tuning cannot supply enough tracks, add the available tracks.
+15. Restart the app and export/import settings, including importing an older file. Independent sizes
+    must survive persistence and sync; older files default both to ten. Imported sizes clamp to
+    10–100 and round to the nearest step of ten. The Radio slider works with Sonic disabled or
+    unavailable; the Autoplay slider is disabled when Autoplay is off.
 
 ## Automated checks
 
 Track Radio and Sonic Autoplay share `SimilarityService` in domain common code. Requests contain
-seed IDs, excluded track IDs, per-seed counts, and the Sonic preference. Results retain scored
-matches in ordered seed slots, selected endpoint, and typed fallback/failure diagnostics. Radio
+seed IDs, excluded track IDs, per-seed counts, the desired minimum, and the Sonic preference. Results retain scored
+matches in ordered seed slots, selected endpoint, typed fallback/failure diagnostics, and separate regular top-up seed slots. Radio
 applies tuning after the request; Autoplay applies recent-seed ranking, deduplication, and append
 limits. A fatal regular error can be explicitly propagated by Radio without exposing its exception
 in diagnostic metadata; Autoplay keeps its finished queue when no continuation is available.
-Both the Sonic and regular batches have one ten-second deadline. Raw endpoint diagnostics bypass
+Both sliders use shared PlaybackSettings serialization, export/import and sync, normalization, and
+defaults. Tests verify that Autoplay uses its own size independently of the Radio size and rejects
+late results after its size changes. Both the Sonic and regular batches have one ten-second deadline.
+Raw endpoint diagnostics bypass
 this playback service so they can still show the actual results of each endpoint.
 
 The common RadioService tests cover success, empty/seed-only results, exceptions, deadlines,
@@ -67,7 +83,8 @@ and reject a seed-only result as a successful saved session.
 Sonic Autoplay tests cover regular fallback for missing support, errors, deadlines, empty/queued-only
 matches, deduplication, cancellation, and stale queue/source/setting results. The Sonic batch and
 regular batch each have a ten-second deadline; usable Sonic matches collected before a later seed
-times out are retained, and regular Radio is requested only when no usable Sonic tracks remain.
+times out are retained, and regular Radio fills a shortfall below the selected minimum, excluding
+the retained Sonic tracks.
 
 An opt-in JVM integration test uses an explicitly configured disposable server. Set
 `NAVIAMP_SIMILARITY_TEST_URL`, `NAVIAMP_SIMILARITY_TEST_USER`,

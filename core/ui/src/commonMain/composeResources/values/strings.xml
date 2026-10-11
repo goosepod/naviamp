@@ -1026,4 +1026,8 @@
     <string name="similarity_admin_plugin_enabled">Enabled</string>
     <string name="similarity_admin_plugin_disabled">Disabled</string>
     <string name="similarity_admin_plugin_error">The server reports a plugin error. Check the Navidrome plugin settings and logs.</string>
+    <string name="settings_related_autoplay_minimum">Minimum tracks for autoplay</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Top up short Sonic results with regular Radio. Adds fewer tracks if there are not enough unique matches.</string>
+    <string name="settings_related_radio_minimum">Minimum tracks for Radio</string>
+    <string name="settings_related_radio_minimum_subtitle">Related tracks to add when starting Radio. The seed plays first. Short Sonic results are topped up with regular Radio when available.</string>
 </resources>

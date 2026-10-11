@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">有効</string>
     <string name="similarity_admin_plugin_disabled">無効</string>
     <string name="similarity_admin_plugin_error">サーバーがプラグインのエラーを報告しています。Navidromeのプラグイン設定とログを確認してください。</string>
+    <string name="settings_related_autoplay_minimum">自動再生で追加する最小曲数</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Sonicの結果が少ない場合は通常のRadioで補います。重複しない曲が不足する場合は追加曲数が少なくなります。</string>
+    <string name="settings_related_radio_minimum">Radioで追加する最小曲数</string>
+    <string name="settings_related_radio_minimum_subtitle">Radio開始時に追加する関連曲数。元の曲が最初に再生されます。Sonicの結果が少ない場合は通常のRadioで補います。</string>
 </resources>

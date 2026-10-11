@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">Attivo</string>
     <string name="similarity_admin_plugin_disabled">Disattivato</string>
     <string name="similarity_admin_plugin_error">Il server segnala un errore del plugin. Controlla le impostazioni e i log dei plugin di Navidrome.</string>
+    <string name="settings_related_autoplay_minimum">Minimo di brani per la riproduzione automatica</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Completa i risultati Sonic con Radio normale. Aggiunge meno brani se mancano risultati unici.</string>
+    <string name="settings_related_radio_minimum">Minimo di brani per Radio</string>
+    <string name="settings_related_radio_minimum_subtitle">Brani correlati avviando Radio. Il brano iniziale suona per primo. I risultati Sonic insufficienti vengono completati con Radio normale quando disponibile.</string>
 </resources>

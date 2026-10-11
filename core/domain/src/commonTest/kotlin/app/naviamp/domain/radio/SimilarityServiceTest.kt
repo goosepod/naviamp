@@ -175,6 +175,53 @@ class SimilarityServiceTest {
         assertEquals(listOf(SimilaritySeedMatches(TrackId("one"), emptyList())), result.getOrThrow())
     }
 
+    @Test
+    fun shortDistinctSonicResultsAreSupplementedWithoutLosingScoresOrSeedSlots() = runTest {
+        val provider = FakeProvider()
+        provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("sonic"), 0.1), SonicSimilarTrack(track("sonic"), 0.2)) }
+        provider.regular = { _, _ -> listOf(track("seed"), track("queued"), track("sonic"), track("regular")) }
+        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")),
+            excludedTrackIds = setOf(TrackId("queued")), minimumMatches = 2))
+        assertEquals(SimilarityEndpoint.Sonic, result.source)
+        assertNull(result.fallback)
+        assertEquals(listOf(0.1, 0.2), result.getOrThrow().single().matches.map { it.similarity })
+        assertEquals(listOf("regular"), result.topUp?.getOrThrow()?.single()?.matches?.map { it.track.id.value })
+        assertEquals(SimilarityEndpoint.Regular, result.topUp?.source)
+        assertEquals(listOf("seed"), provider.regularRequests)
+    }
+
+    @Test
+    fun minimumSatisfiedByUniqueSonicResultsSkipsRegularRadio() = runTest {
+        val provider = FakeProvider()
+        provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("one")), SonicSimilarTrack(track("two"))) }
+        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), minimumMatches = 2))
+        assertNull(result.topUp)
+        assertEquals(emptyList(), provider.regularRequests)
+    }
+
+    @Test
+    fun supplementalFailureOrDeadlineRetainsSonicAndSafeFailureMetadata() = runTest {
+        for (timeout in listOf(false, true)) {
+            val provider = FakeProvider()
+            provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("sonic"))) }
+            provider.regular = { _, _ -> if (timeout) { delay(60_000); emptyList() } else error("SECRET") }
+            val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), minimumMatches = 10))
+            assertEquals(listOf("sonic"), result.getOrThrow().single().matches.map { it.track.id.value })
+            assertEquals(if (timeout) SimilarityResultKind.TimedOut else SimilarityResultKind.Failed, result.topUp?.failure?.kind)
+            assertFalse(result.topUp?.failure.toString().contains("SECRET"))
+        }
+    }
+
+    @Test
+    fun supplementalCancellationPropagatesAfterUsableSonicResults() = runTest {
+        val provider = FakeProvider()
+        provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("sonic"))) }
+        provider.regular = { _, _ -> throw CancellationException() }
+        assertFailsWith<CancellationException> {
+            SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), minimumMatches = 10))
+        }
+    }
+
     private class FakeProvider(supported: Boolean = true) : MediaProvider {
         override val id = ProviderId("similarity-test")
         override val displayName = "Similarity test"

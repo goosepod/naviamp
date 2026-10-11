@@ -468,6 +468,8 @@ data class PlaybackSettings(
     /** Distinguishes the old opt-in default from a user's explicit choice. */
     val sonicSimilarityPreferenceConfigured: Boolean = false,
     val sonicAutoplayEnabled: Boolean = false,
+    val radioMinimumTracks: Int = app.naviamp.domain.radio.DefaultRadioMinimumTracks,
+    val sonicAutoplayMinimumTracks: Int = app.naviamp.domain.radio.DefaultRadioMinimumTracks,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
     val removePlayedTracksFromQueue: Boolean = false,
@@ -488,6 +490,8 @@ data class PlaybackSettings(
 
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
+        radioMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(radioMinimumTracks),
+        sonicAutoplayMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(sonicAutoplayMinimumTracks),
         lyricsTimingPreference = effectiveLyricsTimingPreference(),
         preferSyncedLyrics = false,
         preferWordSyncedLyrics = false,
@@ -631,6 +635,8 @@ data class PlaybackSettingsChange(
 fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): PlaybackSettings {
     val effectiveGapless = playbackEngine.supportsGapless && gaplessEnabled
     return copy(
+        radioMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(radioMinimumTracks),
+        sonicAutoplayMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(sonicAutoplayMinimumTracks),
         replayGainMode = if (playbackEngine.supportsReplayGain) {
             replayGainMode
         } else {

@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">مفعّلة</string>
     <string name="similarity_admin_plugin_disabled">معطّلة</string>
     <string name="similarity_admin_plugin_error">يبلغ الخادم عن خطأ في إضافة. تحقق من إعدادات إضافات Navidrome وسجلاتها.</string>
+    <string name="settings_related_autoplay_minimum">الحد الأدنى للمقاطع للتشغيل التلقائي</string>
+    <string name="settings_related_autoplay_minimum_subtitle">يكمل نتائج Sonic بالراديو العادي. يضيف مقاطع أقل إذا لم تتوفر نتائج فريدة كافية.</string>
+    <string name="settings_related_radio_minimum">الحد الأدنى للمقاطع للراديو</string>
+    <string name="settings_related_radio_minimum_subtitle">مقاطع مشابهة عند بدء الراديو. يشغل المقطع الأول أولا. يكمل نتائج Sonic القليلة بالراديو العادي عند توفره.</string>
 </resources>

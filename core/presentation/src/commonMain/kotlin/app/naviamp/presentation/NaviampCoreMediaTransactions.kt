@@ -207,7 +207,7 @@ class NaviampCoreMediaTransactions(
         busyIndicator.during("Loading track radio...") {
             runCatching {
                 val settings = stateStore.state.value.shell.playback.settings
-                RadioService(provider, tuning = settings.radioTuning)
+                RadioService(provider, count = settings.radioMinimumTracks, tuning = settings.radioTuning)
                     .trackRadio(seed, settings.effectiveSonicSimilarityEnabled())
             }.onSuccess { if (playNext) playNext(it) else addToQueue(it) }
                 .onFailure { publish(it.message ?: "Could not load track radio.") }
@@ -510,7 +510,11 @@ class NaviampCoreMediaTransactions(
         if (!retainCurrent) play(listOf(request.seedTrack))
         publish("Playing ${request.label} while the queue builds.")
         var fallback: app.naviamp.domain.radio.SonicRadioFallbackReason? = null
-        val radioService = RadioService(provider, tuning = radioTuning(), onSonicFallback = { fallback = it })
+        val radioSettings = stateStore.state.value.shell.playback.settings
+        val radioService = RadioService(
+            provider, count = radioSettings.radioMinimumTracks,
+            tuning = radioSettings.radioTuning, onSonicFallback = { fallback = it },
+        )
         stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null)) }
         when (val result = seededRadioBuildResult(request, radioService)) {
             is SeededRadioBuildResult.Ready -> {
@@ -552,7 +556,6 @@ class NaviampCoreMediaTransactions(
         }
     }
 
-    private fun radioTuning() = stateStore.state.value.shell.playback.settings.radioTuning
     private fun recordRadioDiagnostics(result: app.naviamp.domain.radio.RadioBuildDiagnostics?) {
         stateStore.update { state -> state.copy(
             shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = result)),

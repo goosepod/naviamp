@@ -48,7 +48,7 @@ class SonicAutoplayServiceTest {
 
         assertEquals(listOf("candidate-2", "candidate-1"), tracks.map { it.id.value })
         assertEquals(listOf("seed-2", "seed-1"), provider.requests)
-        assertEquals(emptyList(), provider.radioRequests)
+        assertEquals(listOf("seed-2", "seed-1"), provider.radioRequests)
     }
 
     @Test
@@ -98,12 +98,12 @@ class SonicAutoplayServiceTest {
     }
 
     @Test
-    fun usableSonicMatchesSurviveLaterSeedTimeoutWithoutCallingRadio() = runTest {
+    fun usableSonicMatchesSurviveLaterSeedTimeoutAndAttemptRegularTopUp() = runTest {
         val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to listOf(SonicSimilarTrack(track("sonic")))))
         provider.beforeSonic = { if (it == "old") delay(60_000) }
         assertEquals(listOf(track("sonic")), SonicAutoplayService({ provider }).continuationTracks(
             PlaybackQueue(listOf(track("old"), track("seed")), 1)))
-        assertEquals(emptyList(), provider.radioRequests)
+        assertEquals(listOf("seed", "old"), provider.radioRequests)
     }
 
     @Test
@@ -141,6 +141,34 @@ class SonicAutoplayServiceTest {
         assertEquals(listOf("three", "two", "one"), queue.sonicAutoplaySeeds(3).map { it.id.value })
     }
 
+    @Test
+    fun selectedBatchSizesRequestExtraCandidatesAndFillShortSonicResultsFirst() = runTest {
+        for (target in listOf(10, 50, 100)) {
+            val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to listOf(SonicSimilarTrack(track("sonic"), 0.01))),
+                radioBySeed = mapOf("seed" to (listOf(track("seed"), track("sonic"), track("queued")) +
+                    (1..120).flatMap { listOf(track("regular-$it"), track("regular-$it")) })))
+            val tracks = SonicAutoplayService({ provider }, seedCount = 1).continuationTracks(
+                PlaybackQueue(listOf(track("queued"), track("seed")), 1), target)
+            // Duplicate-heavy responses may exhaust the candidate limit before meeting the minimum.
+            assertEquals("sonic", tracks.first().id.value)
+            assertEquals(tracks.size, tracks.map { it.id }.distinct().size)
+            assertEquals(target, tracks.size)
+            kotlin.test.assertTrue(tracks.none { it.id.value in setOf("seed", "queued") })
+            assertEquals(listOf(target * 2), provider.sonicCounts)
+            assertEquals(listOf(target * 2), provider.radioCounts)
+        }
+    }
+
+    @Test
+    fun sufficientSonicMatchesMeetSelectedSizeWithoutRadioAndRetainRanking() = runTest {
+        val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to (1..100).map {
+            SonicSimilarTrack(track("sonic-$it"), it / 100.0) }))
+        val tracks = SonicAutoplayService({ provider }).continuationTracks(PlaybackQueue(listOf(track("seed")), 0), 30)
+        assertEquals(30, tracks.size)
+        assertEquals("sonic-60", tracks.first().id.value)
+        assertEquals(emptyList(), provider.radioRequests)
+    }
+
     private class FakeSonicProvider(
         private val supportsSonicSimilarity: Boolean = true,
         private val matchesBySeed: Map<String, List<SonicSimilarTrack>> = emptyMap(),
@@ -148,6 +176,8 @@ class SonicAutoplayServiceTest {
     ) : MediaProvider {
         val requests = mutableListOf<String>()
         val radioRequests = mutableListOf<String>()
+        val sonicCounts = mutableListOf<Int>()
+        val radioCounts = mutableListOf<Int>()
         var beforeSonic: suspend (String) -> Unit = {}
         var beforeRadio: suspend () -> Unit = {}
         override val id: ProviderId = ProviderId("fake")
@@ -172,11 +202,13 @@ class SonicAutoplayServiceTest {
         override suspend fun search(query: String, limit: Int): MediaSearchResults = MediaSearchResults()
         override suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int): List<SonicSimilarTrack> {
             requests += trackId.value
+            sonicCounts += count
             beforeSonic(trackId.value)
             return matchesBySeed[trackId.value].orEmpty().take(count)
         }
         override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
             radioRequests += trackId.value
+            radioCounts += count
             beforeRadio()
             return radioBySeed[trackId.value].orEmpty().take(count)
         }

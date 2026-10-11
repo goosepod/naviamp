@@ -5060,9 +5060,36 @@ private fun RelatedTracksSettings(
                 onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
             },
         )
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = stringResource(Res.string.settings_related_autoplay_minimum),
+            value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.sonicAutoplayMinimumTracks),
+            detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
+            enabled = playbackSettings.sonicAutoplayEnabled,
+            valueLabel = { stringResource(Res.string.settings_tracks_count, it) },
+            onValueChanged = { count ->
+                onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayMinimumTracks = count))
+            },
+        )
+        Text(
+            stringResource(Res.string.settings_related_autoplay_minimum_subtitle),
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+        )
     } else {
         Text(stringResource(Res.string.settings_related_requires_support), color = colors.secondaryText, fontSize = 12.sp)
     }
+    DetentIntSettingsSlider(
+        colors = colors,
+        title = stringResource(Res.string.settings_related_radio_minimum),
+        value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.radioMinimumTracks),
+        detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
+        valueLabel = { stringResource(Res.string.settings_tracks_count, it) },
+        onValueChanged = { count ->
+            onPlaybackSettingsChanged(playbackSettings.copy(radioMinimumTracks = count))
+        },
+    )
+    Text(stringResource(Res.string.settings_related_radio_minimum_subtitle), color = colors.secondaryText, fontSize = 12.sp)
     NaviampSimilarityTestContent(colors, similarityTest, onTestSimilarity, radioDiagnostics)
 }
 

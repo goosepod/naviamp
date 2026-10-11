@@ -166,4 +166,8 @@
     <string name="similarity_admin_plugin_enabled">Увімкнено</string>
     <string name="similarity_admin_plugin_disabled">Вимкнено</string>
     <string name="similarity_admin_plugin_error">Сервер повідомляє про помилку плагіна. Перевірте налаштування та журнали плагінів Navidrome.</string>
+    <string name="settings_related_autoplay_minimum">Мінімум треків для автовідтворення</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Доповнює результати Sonic звичайним Радіо. Додає менше треків, якщо бракує унікальних збігів.</string>
+    <string name="settings_related_radio_minimum">Мінімум треків для Радіо</string>
+    <string name="settings_related_radio_minimum_subtitle">Схожі треки під час запуску Радіо. Початковий трек грає першим. Короткі результати Sonic доповнюються звичайним Радіо, якщо можливо.</string>
 </resources>
