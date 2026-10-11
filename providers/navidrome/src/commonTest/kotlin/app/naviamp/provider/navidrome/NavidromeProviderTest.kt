@@ -29,6 +29,11 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistSort
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.MediaSourceIdentity
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -2057,6 +2062,61 @@ class NavidromeProviderTest {
             """{"name":"Daily Albums","rules":{"all":[{"inTheLast":{"albumdateadded":30}},{"gt":{"albumsongcount":4}}],"sort":"-albumdateadded,album,discnumber,tracknumber","refreshDelay":"1d12h"}}""",
             httpClient.putBodies.single(),
         )
+    }
+
+    @Test
+    fun editorRoundTripPreservesNativeSortLimitsDecimalsAndMetadata() = runTest {
+        for (limit in listOf("", ",\"limit\":25", ",\"limitPercent\":25")) {
+            val httpClient = RecordingNativeHttpClient(
+                """{"data":{"id":"smart-1","name":"Mix","comment":"Original","public":true,
+                  "rules":{"all":[{"is":{"library_id":2}},{"gt":{"averagerating":3.75}},
+                    {"lt":{"duration":240.5}},{"lt":{"albumduration":3600.25}}],
+                    "sort":"-rating,+title","order":"desc","refreshDelay":"1d"$limit}}}""",
+            )
+            val provider = NavidromeProvider(
+                connection = connection("https://music.example.test", nativeToken = "native-token"),
+                httpClient = httpClient,
+            )
+            val original = provider.smartPlaylistDefinition("smart-1")
+            val edited = app.naviamp.domain.smartplaylist.SmartPlaylistDraft.fromDefinition(original).toDefinition()
+            provider.updateSmartPlaylist("smart-1", edited)
+            val body = Json.parseToJsonElement(httpClient.putBodies.single()).jsonObject
+            assertEquals("Original", body.getValue("comment").jsonPrimitive.content)
+            assertEquals(true, body.getValue("public").jsonPrimitive.boolean)
+            val rules = body.getValue("rules").jsonObject
+            assertEquals("rating,-title", rules.getValue("sort").jsonPrimitive.content)
+            assertEquals("1d", rules.getValue("refreshDelay").jsonPrimitive.content)
+            assertEquals(original.rules.size + 1, rules.getValue("all").jsonArray.size)
+            assertEquals(listOf("2"), edited.libraryIds)
+            assertEquals(limit.contains("\"limit\""), "limit" in rules)
+            assertEquals(limit.contains("\"limitPercent\""), "limitPercent" in rules)
+            val parsed = SmartPlaylistDefinition.fromJsonObject(body)
+            assertEquals(edited.rules, parsed.rules.drop(1))
+        }
+    }
+
+    @Test
+    fun rejectedDecimalSaveIsSurfacedWithoutRetryingAlteredRules() = runTest {
+        val sentBodies = mutableListOf<String>()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = object : NavidromeHttpClient {
+                override suspend fun get(url: String): String = "{}"
+                override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String {
+                    sentBodies += body
+                    throw NavidromeHttpException(400)
+                }
+            },
+        )
+        val definition = smartPlaylistDefinition().copy(rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.GreaterThan, SmartPlaylistFields.AverageRating,
+                SmartPlaylistValue.Decimal(3.75)),
+        ), limit = null)
+        val error = assertFailsWith<NavidromeHttpException> { provider.updateSmartPlaylist("smart-1", definition) }
+        assertEquals(400, error.statusCode)
+        assertEquals(1, sentBodies.size)
+        assertTrue(sentBodies.single().contains("3.75"))
+        assertEquals("native-token", provider.connectionWithCurrentNativeToken().nativeToken)
     }
 
     @Test

@@ -170,4 +170,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Sonic 结果不足时使用普通电台补足。不重复曲目不足时会添加较少的曲目。</string>
     <string name="settings_related_radio_minimum">电台最少添加曲目数</string>
     <string name="settings_related_radio_minimum_subtitle">启动电台时添加的相关曲目数。种子曲目先播放。Sonic 结果不足时尽可能使用普通电台补足。</string>
+    <string name="smart_playlist_limit_unlimited">不限</string>
+    <string name="smart_playlist_limit_tracks">曲目数量</string>
+    <string name="smart_playlist_limit_percent">百分比</string>
+    <string name="smart_playlist_unsupported_import">此播放列表包含无效或不受支持的设置，无法在此编辑器中安全编辑。</string>
 </resources>

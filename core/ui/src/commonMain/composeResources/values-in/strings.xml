@@ -170,4 +170,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Melengkapi hasil Sonic dengan Radio biasa. Menambahkan lebih sedikit lagu jika kecocokan unik tidak mencukupi.</string>
     <string name="settings_related_radio_minimum">Minimum lagu untuk Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Lagu terkait saat memulai Radio. Lagu awal diputar dahulu. Hasil Sonic yang sedikit dilengkapi dengan Radio biasa jika tersedia.</string>
+    <string name="smart_playlist_limit_unlimited">Tanpa batas</string>
+    <string name="smart_playlist_limit_tracks">Jumlah lagu</string>
+    <string name="smart_playlist_limit_percent">Persen</string>
+    <string name="smart_playlist_unsupported_import">Playlist ini berisi pengaturan yang tidak valid atau tidak didukung. Playlist tidak dapat diedit dengan aman di editor ini.</string>
 </resources>

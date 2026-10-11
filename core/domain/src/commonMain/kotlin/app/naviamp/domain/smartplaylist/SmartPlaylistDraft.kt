@@ -35,6 +35,10 @@ data class SmartPlaylistDraft(
 
     companion object {
         fun fromDefinition(definition: SmartPlaylistDefinition): SmartPlaylistDraft {
+            require(definition.rules.all { rule ->
+                rule is SmartPlaylistCondition ||
+                    (rule is SmartPlaylistGroup && rule.rules.all { it is SmartPlaylistCondition })
+            }) { "The builder supports condition-only groups; nested rules cannot be edited safely." }
             val topLevelConditions = definition.rules.mapNotNull { it as? SmartPlaylistCondition }
             val groups = definition.rules.mapNotNull { it as? SmartPlaylistGroup }.map { group ->
                 SmartPlaylistGroupDraft(
@@ -44,10 +48,10 @@ data class SmartPlaylistDraft(
                     }.ifEmpty { listOf(SmartPlaylistConditionDraft()) },
                 )
             }
-            val limitMode = if (definition.limitPercent != null) {
-                SmartPlaylistLimitMode.Percent
-            } else {
-                SmartPlaylistLimitMode.TrackCount
+            val limitMode = when {
+                definition.limitPercent != null -> SmartPlaylistLimitMode.Percent
+                definition.limit != null -> SmartPlaylistLimitMode.TrackCount
+                else -> SmartPlaylistLimitMode.Unlimited
             }
 
             return SmartPlaylistDraft(
@@ -56,7 +60,7 @@ data class SmartPlaylistDraft(
                 match = definition.match,
                 conditions = topLevelConditions.map { it.toDraft() }.ifEmpty { listOf(SmartPlaylistConditionDraft()) },
                 groups = groups,
-                sort = definition.sort.map { it.toDraft() }.ifEmpty { listOf(SmartPlaylistSortDraft()) },
+                sort = definition.sort.map { it.toDraft() },
                 limitMode = limitMode,
                 limit = definition.limitPercent ?: definition.limit ?: 100,
                 isPublic = definition.isPublic ?: false,
@@ -159,15 +163,27 @@ data class SmartPlaylistSortDraft(
 }
 
 private fun SmartPlaylistCondition.toDraft(): SmartPlaylistConditionDraft {
+    require((operator == SmartPlaylistOperator.InTheRange) == (value is SmartPlaylistValue.Range)) {
+        "Imported smart playlist range values must use the range operator."
+    }
+    if (value is SmartPlaylistValue.Range) {
+        require(value.start !is SmartPlaylistValue.Range && value.end !is SmartPlaylistValue.Range) {
+            "Imported smart playlist ranges cannot contain nested ranges."
+        }
+    }
     val fieldOption = SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == field }
         ?: field.smartPlaylistCustomTagFieldOptionOrNull(operator)
         ?: throw IllegalArgumentException("Imported smart playlist field '$field' is not supported by the builder.")
-    return SmartPlaylistConditionDraft(
+    val draft = SmartPlaylistConditionDraft(
         field = fieldOption,
         operator = operator,
         value = value.firstDraftValue(),
         secondValue = value.secondDraftValue(),
     )
+    require(operator in fieldOption.operators && draft.toConditionOrNull() != null) {
+        "Imported smart playlist value cannot be represented safely for field '$field'."
+    }
+    return draft
 }
 
 private fun SmartPlaylistSort.toDraft(): SmartPlaylistSortDraft =
@@ -192,6 +208,7 @@ private fun SmartPlaylistValue.secondDraftValue(): String =
     }
 
 enum class SmartPlaylistLimitMode {
+    Unlimited,
     TrackCount,
     Percent,
 }
@@ -208,7 +225,8 @@ data class SmartPlaylistFieldOption(
         return when (valueType) {
             SmartPlaylistValueType.Text -> SmartPlaylistValue.Text(rawValue)
             SmartPlaylistValueType.Integer -> rawValue.toLongOrNull()?.let { SmartPlaylistValue.Number(it) }
-            SmartPlaylistValueType.Decimal -> rawValue.toDoubleOrNull()?.let { SmartPlaylistValue.Decimal(it) }
+            SmartPlaylistValueType.Decimal -> rawValue.toLongOrNull()?.let { SmartPlaylistValue.Number(it) }
+                ?: rawValue.toDoubleOrNull()?.takeIf { it.isFinite() }?.let { SmartPlaylistValue.Decimal(it) }
             SmartPlaylistValueType.Boolean -> parseBoolean(rawValue)?.let { SmartPlaylistValue.Flag(it) }
             SmartPlaylistValueType.Days -> rawValue.toIntOrNull()?.takeIf { it > 0 }?.let { SmartPlaylistValue.Number(it) }
             SmartPlaylistValueType.Date -> SmartPlaylistValue.Text(rawValue)
@@ -333,10 +351,10 @@ object SmartPlaylistFieldCatalog {
         SmartPlaylistFieldOption(SmartPlaylistFields.TrackNumber, "Track Number", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.DiscNumber, "Disc Number", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Rating, "Rating", SmartPlaylistValueType.Integer, comparableOperators),
-        SmartPlaylistFieldOption(SmartPlaylistFields.AverageRating, "Average Rating", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.AverageRating, "Average Rating", SmartPlaylistValueType.Decimal, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.PlayCount, "Play Count", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Size, "File Size", SmartPlaylistValueType.Integer, comparableOperators),
-        SmartPlaylistFieldOption(SmartPlaylistFields.Duration, "Duration", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Duration, "Duration", SmartPlaylistValueType.Decimal, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Bitrate, "Bitrate", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.BitDepth, "Bit Depth", SmartPlaylistValueType.Integer, nullableComparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.SampleRate, "Sample Rate", SmartPlaylistValueType.Integer, comparableOperators),
@@ -459,7 +477,7 @@ object SmartPlaylistFieldCatalog {
         SmartPlaylistFieldOption(
             SmartPlaylistFields.AlbumDuration,
             SmartPlaylistFields.AlbumDuration,
-            SmartPlaylistValueType.Integer,
+            SmartPlaylistValueType.Decimal,
             comparableOperators,
         ),
         SmartPlaylistFieldOption(

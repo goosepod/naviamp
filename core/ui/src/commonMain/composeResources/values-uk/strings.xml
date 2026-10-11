@@ -170,4 +170,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Доповнює результати Sonic звичайним Радіо. Додає менше треків, якщо бракує унікальних збігів.</string>
     <string name="settings_related_radio_minimum">Мінімум треків для Радіо</string>
     <string name="settings_related_radio_minimum_subtitle">Схожі треки під час запуску Радіо. Початковий трек грає першим. Короткі результати Sonic доповнюються звичайним Радіо, якщо можливо.</string>
+    <string name="smart_playlist_limit_unlimited">Без обмежень</string>
+    <string name="smart_playlist_limit_tracks">Кількість композицій</string>
+    <string name="smart_playlist_limit_percent">Відсоток</string>
+    <string name="smart_playlist_unsupported_import">Цей список відтворення містить недійсні або непідтримувані налаштування. Його неможливо безпечно редагувати в цьому редакторі.</string>
 </resources>

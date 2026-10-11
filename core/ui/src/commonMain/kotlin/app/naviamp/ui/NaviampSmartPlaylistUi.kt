@@ -87,6 +87,7 @@ fun SmartPlaylistBuilderDialog(
             },
         )
     }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var importJson by remember { mutableStateOf("") }
     var importMessage by remember { mutableStateOf<String?>(null) }
     var importOpen by remember { mutableStateOf(false) }
@@ -203,13 +204,13 @@ fun SmartPlaylistBuilderDialog(
                             enabled = importJson.isNotBlank(),
                             onClick = {
                                 runCatching {
-                                    SmartPlaylistDefinition.fromNspJson(importJson)
+                                    SmartPlaylistDraft.fromDefinition(SmartPlaylistDefinition.fromNspJson(importJson))
                                 }.onSuccess { imported ->
-                                    draft = SmartPlaylistDraft.fromDefinition(imported)
+                                    draft = imported
                                     importMessage = "Imported ${imported.name}."
                                     importOpen = false
-                                }.onFailure { error ->
-                                    importMessage = error.message ?: "Could not import smart playlist JSON."
+                                }.onFailure {
+                                    importMessage = unsupportedImportMessage
                                 }
                             },
                         ) {
@@ -394,6 +395,7 @@ internal fun SmartPlaylistLoadPasswordDialog(
     onLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
     onLoaded: (SmartPlaylistDefinition) -> Unit,
 ) {
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var password by remember(playlist.id) { mutableStateOf("") }
     var loading by remember(playlist.id) { mutableStateOf(false) }
     var errorMessage by remember(playlist.id) { mutableStateOf<String?>(null) }
@@ -437,14 +439,17 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     loading = true
                     errorMessage = null
                     coroutineScope.launch {
-                        runCatching { onLoadWithPassword(playlist, passwordToUse) }
+                        runCatching {
+                            onLoadWithPassword(playlist, passwordToUse).also { SmartPlaylistDraft.fromDefinition(it) }
+                        }
                             .onSuccess { definition ->
                                 loading = false
                                 onLoaded(definition)
                             }
                             .onFailure { error ->
                                 loading = false
-                                errorMessage = error.message ?: "Could not authenticate with Navidrome."
+                                errorMessage = if (error is IllegalArgumentException) unsupportedImportMessage
+                                    else error.message ?: "Could not authenticate with Navidrome."
                             }
                     }
                 },
@@ -627,16 +632,12 @@ private fun SmartPlaylistCustomControls(
             SmartPlaylistNestedSection(
                 title = "Sort ${index + 1}",
                 colors = colors,
-                trailing = if (draft.sort.size > 1) {
-                    {
-                        TextButton(
-                            onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
-                        ) {
-                            Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
-                        }
+                trailing = {
+                    TextButton(
+                        onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
+                    ) {
+                        Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
                     }
-                } else {
-                    null
                 },
             ) {
                 SmartPlaylistDropdown(
@@ -669,14 +670,19 @@ private fun SmartPlaylistCustomControls(
         SmartPlaylistDropdown(
             label = "Limit",
             value = when (draft.limitMode) {
-                SmartPlaylistLimitMode.TrackCount -> "Track count"
-                SmartPlaylistLimitMode.Percent -> "Percent"
+                SmartPlaylistLimitMode.Unlimited -> stringResource(Res.string.smart_playlist_limit_unlimited)
+                SmartPlaylistLimitMode.TrackCount -> stringResource(Res.string.smart_playlist_limit_tracks)
+                SmartPlaylistLimitMode.Percent -> stringResource(Res.string.smart_playlist_limit_percent)
             },
             colors = colors,
-            options = listOf("Track count" to SmartPlaylistLimitMode.TrackCount, "Percent" to SmartPlaylistLimitMode.Percent),
+            options = listOf(
+                stringResource(Res.string.smart_playlist_limit_unlimited) to SmartPlaylistLimitMode.Unlimited,
+                stringResource(Res.string.smart_playlist_limit_tracks) to SmartPlaylistLimitMode.TrackCount,
+                stringResource(Res.string.smart_playlist_limit_percent) to SmartPlaylistLimitMode.Percent,
+            ),
             onSelected = { onDraftChange(draft.copy(limitMode = it)) },
         )
-        SmartPlaylistTextField(
+        if (draft.limitMode != SmartPlaylistLimitMode.Unlimited) SmartPlaylistTextField(
             value = draft.limit.toString(),
             onValueChange = { onDraftChange(draft.copy(limit = it.toIntOrNull() ?: draft.limit)) },
             label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",

@@ -170,4 +170,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Complète les résultats Sonic avec Radio classique. Ajoute moins de titres si les résultats uniques sont insuffisants.</string>
     <string name="settings_related_radio_minimum">Minimum de titres pour Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Titres similaires au démarrage de Radio. Le titre initial joue en premier. Les résultats Sonic insuffisants sont complétés avec Radio classique si possible.</string>
+    <string name="smart_playlist_limit_unlimited">Illimité</string>
+    <string name="smart_playlist_limit_tracks">Nombre de titres</string>
+    <string name="smart_playlist_limit_percent">Pourcentage</string>
+    <string name="smart_playlist_unsupported_import">Cette liste contient des paramètres invalides ou non pris en charge. Elle ne peut pas être modifiée en toute sécurité dans cet éditeur.</string>
 </resources>

@@ -108,6 +108,7 @@ private fun PlaylistsContent(
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
     var smartPlaylistEditTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistPasswordTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -117,7 +118,7 @@ private fun PlaylistsContent(
                 NaviampPlaylistMediaCommand.EditSmartPlaylist -> {
                     val playlist = request.item
                     coroutineScope.launch {
-                        runCatching { onSmartPlaylistLoad(playlist) }
+                        runCatching { onSmartPlaylistLoad(playlist).also { SmartPlaylistDraft.fromDefinition(it) } }
                             .onSuccess { definition ->
                                 smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
                                 smartPlaylistEditTarget = playlist
@@ -129,7 +130,7 @@ private fun PlaylistsContent(
                                     smartPlaylistPasswordTarget = playlist
                                     smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
                                 } else {
-                                    smartPlaylistLoadMessage = error.message.orEmpty()
+                                    smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
                                 }
                         }
                     }
@@ -671,6 +672,7 @@ private fun PlaylistDetailContent(
     var bulkToolsOpen by remember { mutableStateOf(false) }
     var smartPlaylistEditorOpen by remember { mutableStateOf(false) }
     var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistLoading by remember { mutableStateOf(false) }
     var smartPlaylistPasswordPromptOpen by remember { mutableStateOf(false) }
@@ -683,7 +685,7 @@ private fun PlaylistDetailContent(
             smartPlaylistLoading = true
             smartPlaylistLoadMessage = null
             coroutineScope.launch {
-                runCatching { onSmartPlaylistLoad(detail.playlist) }
+                runCatching { onSmartPlaylistLoad(detail.playlist).also { SmartPlaylistDraft.fromDefinition(it) } }
                     .onSuccess { definition ->
                         smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
                         smartPlaylistEditorOpen = true
@@ -693,7 +695,7 @@ private fun PlaylistDetailContent(
                             smartPlaylistPasswordPromptOpen = true
                             smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
                         } else {
-                            smartPlaylistLoadMessage = error.message.orEmpty()
+                            smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
                         }
                     }
                 smartPlaylistLoading = false

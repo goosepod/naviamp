@@ -1030,4 +1030,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Top up short Sonic results with regular Radio. Adds fewer tracks if there are not enough unique matches.</string>
     <string name="settings_related_radio_minimum">Minimum tracks for Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Related tracks to add when starting Radio. The seed plays first. Short Sonic results are topped up with regular Radio when available.</string>
+    <string name="smart_playlist_limit_unlimited">Unlimited</string>
+    <string name="smart_playlist_limit_tracks">Track count</string>
+    <string name="smart_playlist_limit_percent">Percent</string>
+    <string name="smart_playlist_unsupported_import">This playlist contains invalid or unsupported settings. It cannot be edited safely in this builder.</string>
 </resources>

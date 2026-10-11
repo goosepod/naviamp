@@ -1006,4 +1006,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Completa resultados Sonic insuficientes con Radio normal. Añade menos pistas si faltan coincidencias únicas.</string>
     <string name="settings_related_radio_minimum">Mínimo de pistas para Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Pistas relacionadas al iniciar Radio. La pista inicial suena primero. Completa resultados Sonic insuficientes con Radio normal cuando sea posible.</string>
+    <string name="smart_playlist_limit_unlimited">Sin límite</string>
+    <string name="smart_playlist_limit_tracks">Número de pistas</string>
+    <string name="smart_playlist_limit_percent">Porcentaje</string>
+    <string name="smart_playlist_unsupported_import">Esta lista contiene ajustes no válidos o no compatibles. No se puede editar de forma segura en este editor.</string>
 </resources>

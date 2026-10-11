@@ -170,4 +170,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Sonic 결과가 부족하면 일반 Radio로 보충합니다. 고유한 곡이 부족하면 더 적은 곡을 추가합니다.</string>
     <string name="settings_related_radio_minimum">Radio 최소 추가 곡 수</string>
     <string name="settings_related_radio_minimum_subtitle">Radio 시작 시 추가할 관련 곡 수입니다. 기준 곡이 먼저 재생됩니다. Sonic 결과가 부족하면 일반 Radio로 보충합니다.</string>
+    <string name="smart_playlist_limit_unlimited">제한 없음</string>
+    <string name="smart_playlist_limit_tracks">트랙 수</string>
+    <string name="smart_playlist_limit_percent">백분율</string>
+    <string name="smart_playlist_unsupported_import">이 재생목록에는 잘못되었거나 지원되지 않는 설정이 있습니다. 이 편집기에서 안전하게 편집할 수 없습니다.</string>
 </resources>

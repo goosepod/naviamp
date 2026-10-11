@@ -1002,4 +1002,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Ergänzt zu wenige Sonic-Ergebnisse mit normalem Radio. Bei zu wenigen unterschiedlichen Treffern werden weniger Titel hinzugefügt.</string>
     <string name="settings_related_radio_minimum">Mindestanzahl für Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Ähnliche Titel beim Start von Radio. Der Ausgangstitel spielt zuerst. Zu wenige Sonic-Ergebnisse werden nach Möglichkeit mit normalem Radio ergänzt.</string>
+    <string name="smart_playlist_limit_unlimited">Unbegrenzt</string>
+    <string name="smart_playlist_limit_tracks">Titelanzahl</string>
+    <string name="smart_playlist_limit_percent">Prozent</string>
+    <string name="smart_playlist_unsupported_import">Diese Wiedergabeliste enthält ungültige oder nicht unterstützte Einstellungen. Sie kann in diesem Editor nicht sicher bearbeitet werden.</string>
 </resources>

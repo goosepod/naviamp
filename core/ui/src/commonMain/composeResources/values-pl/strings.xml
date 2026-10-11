@@ -289,4 +289,8 @@
     <string name="settings_related_autoplay_minimum_subtitle">Uzupełnia wyniki Sonic zwykłym Radiem. Dodaje mniej utworów, jeśli brakuje unikalnych dopasowań.</string>
     <string name="settings_related_radio_minimum">Minimum utworów dla Radia</string>
     <string name="settings_related_radio_minimum_subtitle">Podobne utwory przy uruchomieniu Radia. Utwór początkowy gra pierwszy. Wyniki Sonic są uzupełniane zwykłym Radiem, jeśli są dostępne.</string>
+    <string name="smart_playlist_limit_unlimited">Bez limitu</string>
+    <string name="smart_playlist_limit_tracks">Liczba utworów</string>
+    <string name="smart_playlist_limit_percent">Procent</string>
+    <string name="smart_playlist_unsupported_import">Ta playlista zawiera nieprawidłowe lub nieobsługiwane ustawienia. Nie można jej bezpiecznie edytować w tym edytorze.</string>
 </resources>
