@@ -1,10 +1,12 @@
 package app.naviamp.domain.smartplaylist
 
+import kotlin.random.Random
+
 data class SmartPlaylistDraft(
     val name: String = "New Smart Playlist",
     val comment: String = "",
     val match: SmartPlaylistMatch = SmartPlaylistMatch.All,
-    val conditions: List<SmartPlaylistConditionDraft> = listOf(SmartPlaylistConditionDraft()),
+    val conditions: List<SmartPlaylistConditionDraft> = listOf(SmartPlaylistConditionDraft(isStarter = true)),
     val groups: List<SmartPlaylistGroupDraft> = emptyList(),
     val sort: List<SmartPlaylistSortDraft> = listOf(SmartPlaylistSortDraft()),
     val limitMode: SmartPlaylistLimitMode = SmartPlaylistLimitMode.TrackCount,
@@ -14,8 +16,10 @@ data class SmartPlaylistDraft(
     val refreshDelay: String = "",
 ) {
     fun toDefinition(): SmartPlaylistDefinition {
-        val validConditions = conditions.mapNotNull { it.toRuleOrNull() }
-        val validGroups = groups.mapNotNull { it.toRuleOrNull() }
+        val issues = validate().filter { it.severity == SmartPlaylistIssueSeverity.Error }
+        if (issues.isNotEmpty()) throw SmartPlaylistValidationException(issues)
+        val validConditions = conditions.filterNot { it.isUntouchedStarter }.map { requireNotNull(it.toRuleOrNull()) }
+        val validGroups = groups.map { requireNotNull(it.toRuleOrNull()) }
         val validRules = validConditions + validGroups
         require(validRules.isNotEmpty()) { "Add at least one complete rule or group." }
 
@@ -58,7 +62,7 @@ data class SmartPlaylistDraft(
                 name = definition.name,
                 comment = definition.comment.orEmpty(),
                 match = definition.match,
-                conditions = topLevelConditions.map { it.toDraft() }.ifEmpty { listOf(SmartPlaylistConditionDraft()) },
+                conditions = topLevelConditions.map { it.toDraft() }.ifEmpty { listOf(SmartPlaylistConditionDraft(isStarter = true)) },
                 groups = groups,
                 sort = definition.sort.map { it.toDraft() },
                 limitMode = limitMode,
@@ -74,9 +78,11 @@ data class SmartPlaylistDraft(
 data class SmartPlaylistGroupDraft(
     val match: SmartPlaylistMatch = SmartPlaylistMatch.Any,
     val conditions: List<SmartPlaylistConditionDraft> = listOf(SmartPlaylistConditionDraft()),
+    val id: Long = Random.nextLong(),
 ) {
     fun toRuleOrNull(): SmartPlaylistGroup? {
-        val validConditions = conditions.mapNotNull { it.toRuleOrNull() }
+        if (conditions.any { it.validate(id).isNotEmpty() }) return null
+        val validConditions = conditions.map { it.toRuleOrNull() ?: return null }
         if (validConditions.isEmpty()) return null
         return SmartPlaylistGroup(match = match, rules = validConditions)
     }
@@ -88,8 +94,16 @@ data class SmartPlaylistConditionDraft(
     val value: String = "",
     val secondValue: String = "",
     val genreSelection: SmartPlaylistGenreSelection? = null,
+    val id: Long = Random.nextLong(),
+    val isStarter: Boolean = false,
 ) {
+    val isUntouchedStarter: Boolean
+        get() = isStarter && this.field == SmartPlaylistFieldCatalog.defaultField &&
+            operator == SmartPlaylistFieldCatalog.defaultField.operators.first() &&
+            value.isEmpty() && secondValue.isEmpty() && genreSelection == null
+
     fun toConditionOrNull(): SmartPlaylistCondition? {
+        if (validate().isNotEmpty()) return null
         val parsedValue = parseValue() ?: return null
         return SmartPlaylistCondition(
             operator = operator,
@@ -219,9 +233,10 @@ data class SmartPlaylistFieldOption(
     val valueType: SmartPlaylistValueType,
     val operators: List<SmartPlaylistOperator>,
     val sortable: Boolean = true,
+    val constraints: SmartPlaylistFieldConstraints = smartPlaylistFieldConstraints(field),
 ) {
     fun parseValue(rawValue: String): SmartPlaylistValue? {
-        if (rawValue.isBlank()) return null
+        if (rawValue.isBlank() && rawValue !in constraints.textValues.orEmpty()) return null
         return when (valueType) {
             SmartPlaylistValueType.Text -> SmartPlaylistValue.Text(rawValue)
             SmartPlaylistValueType.Integer -> rawValue.toLongOrNull()?.let { SmartPlaylistValue.Number(it) }
@@ -229,7 +244,7 @@ data class SmartPlaylistFieldOption(
                 ?: rawValue.toDoubleOrNull()?.takeIf { it.isFinite() }?.let { SmartPlaylistValue.Decimal(it) }
             SmartPlaylistValueType.Boolean -> parseBoolean(rawValue)?.let { SmartPlaylistValue.Flag(it) }
             SmartPlaylistValueType.Days -> rawValue.toIntOrNull()?.takeIf { it > 0 }?.let { SmartPlaylistValue.Number(it) }
-            SmartPlaylistValueType.Date -> SmartPlaylistValue.Text(rawValue)
+            SmartPlaylistValueType.Date -> rawValue.takeIf(::isSmartPlaylistCalendarDate)?.let { SmartPlaylistValue.Text(it) }
             SmartPlaylistValueType.PlaylistId -> SmartPlaylistValue.Text(rawValue)
         }
     }

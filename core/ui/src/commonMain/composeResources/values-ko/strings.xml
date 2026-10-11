@@ -174,4 +174,20 @@
     <string name="smart_playlist_limit_tracks">트랙 수</string>
     <string name="smart_playlist_limit_percent">백분율</string>
     <string name="smart_playlist_unsupported_import">이 재생목록에는 잘못되었거나 지원되지 않는 설정이 있습니다. 이 편집기에서 안전하게 편집할 수 없습니다.</string>
+    <string name="smart_playlist_validation_required">누락된 값을 입력하세요.</string>
+    <string name="smart_playlist_validation_number">유한한 숫자를 입력하세요.</string>
+    <string name="smart_playlist_validation_date">YYYY-MM-DD 형식으로 유효한 날짜를 입력하세요.</string>
+    <string name="smart_playlist_validation_days">양의 정수로 일수를 입력하세요.</string>
+    <string name="smart_playlist_validation_range">범위 끝은 시작보다 작을 수 없습니다.</string>
+    <string name="smart_playlist_validation_bounds">이 필드에서 허용되는 범위의 값을 입력하세요.</string>
+    <string name="smart_playlist_validation_choice">이 필드에서 지원하는 값을 선택하세요.</string>
+    <string name="smart_playlist_validation_operation">이 필드는 선택한 작업을 지원하지 않습니다.</string>
+    <string name="smart_playlist_validation_rules">완성된 규칙을 하나 이상 추가하세요.</string>
+    <string name="smart_playlist_validation_limit">양의 제한을 입력하세요(백분율은 1–100).</string>
+    <string name="smart_playlist_validation_fix">미리보기나 저장 전에 표시된 값을 수정하세요.</string>
+    <string name="smart_playlist_preview_waiting">동기화된 라이브러리에서 일치 항목 확인 중…</string>
+    <string name="smart_playlist_preview_count">동기화된 라이브러리 일치 항목: %1$d(제한 적용 후 %2$d).</string>
+    <string name="smart_playlist_preview_samples">동기화된 라이브러리의 일치 예시이며 서버의 최종 순서를 나타내지 않습니다.</string>
+    <string name="smart_playlist_preview_empty">동기화된 라이브러리에 일치 예시가 없습니다.</string>
+    <string name="smart_playlist_preview_unsupported">로컬에서 색인되지 않은 필드는 미리 볼 수 없습니다: %1$s.</string>
 </resources>

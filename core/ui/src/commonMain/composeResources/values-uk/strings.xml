@@ -174,4 +174,20 @@
     <string name="smart_playlist_limit_tracks">Кількість композицій</string>
     <string name="smart_playlist_limit_percent">Відсоток</string>
     <string name="smart_playlist_unsupported_import">Цей список відтворення містить недійсні або непідтримувані налаштування. Його неможливо безпечно редагувати в цьому редакторі.</string>
+    <string name="smart_playlist_validation_required">Введіть відсутнє значення.</string>
+    <string name="smart_playlist_validation_number">Введіть скінченне число.</string>
+    <string name="smart_playlist_validation_date">Введіть коректну дату у форматі РРРР-ММ-ДД.</string>
+    <string name="smart_playlist_validation_days">Введіть додатну цілу кількість днів.</string>
+    <string name="smart_playlist_validation_range">Кінець діапазону не має бути меншим за початок.</string>
+    <string name="smart_playlist_validation_bounds">Введіть значення в дозволеному діапазоні цього поля.</string>
+    <string name="smart_playlist_validation_choice">Виберіть значення, яке підтримує це поле.</string>
+    <string name="smart_playlist_validation_operation">Це поле не підтримує вибрану операцію.</string>
+    <string name="smart_playlist_validation_rules">Додайте принаймні одне повне правило.</string>
+    <string name="smart_playlist_validation_limit">Введіть додатний ліміт (1–100 для відсотків).</string>
+    <string name="smart_playlist_validation_fix">Виправте позначені значення перед переглядом або збереженням.</string>
+    <string name="smart_playlist_preview_waiting">Пошук збігів у синхронізованій бібліотеці…</string>
+    <string name="smart_playlist_preview_count">Збігів у синхронізованій бібліотеці: %1$d (%2$d після ліміту).</string>
+    <string name="smart_playlist_preview_samples">Приклади із синхронізованої бібліотеки; вони не відображають кінцевий порядок на сервері.</string>
+    <string name="smart_playlist_preview_empty">У синхронізованій бібліотеці немає прикладів збігів.</string>
+    <string name="smart_playlist_preview_unsupported">Перегляд недоступний для полів без локального індексу: %1$s.</string>
 </resources>

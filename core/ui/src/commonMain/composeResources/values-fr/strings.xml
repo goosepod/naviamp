@@ -174,4 +174,20 @@
     <string name="smart_playlist_limit_tracks">Nombre de titres</string>
     <string name="smart_playlist_limit_percent">Pourcentage</string>
     <string name="smart_playlist_unsupported_import">Cette liste contient des paramètres invalides ou non pris en charge. Elle ne peut pas être modifiée en toute sécurité dans cet éditeur.</string>
+    <string name="smart_playlist_validation_required">Saisissez la valeur manquante.</string>
+    <string name="smart_playlist_validation_number">Saisissez un nombre fini.</string>
+    <string name="smart_playlist_validation_date">Saisissez une date valide au format AAAA-MM-JJ.</string>
+    <string name="smart_playlist_validation_days">Saisissez un nombre entier positif de jours.</string>
+    <string name="smart_playlist_validation_range">La fin de la plage doit être supérieure ou égale au début.</string>
+    <string name="smart_playlist_validation_bounds">Saisissez une valeur dans la plage autorisée pour ce champ.</string>
+    <string name="smart_playlist_validation_choice">Choisissez une valeur prise en charge par ce champ.</string>
+    <string name="smart_playlist_validation_operation">Ce champ ne prend pas en charge cette opération.</string>
+    <string name="smart_playlist_validation_rules">Ajoutez au moins une règle complète.</string>
+    <string name="smart_playlist_validation_limit">Saisissez une limite positive (1–100 pour les pourcentages).</string>
+    <string name="smart_playlist_validation_fix">Corrigez les valeurs signalées avant la prévisualisation ou la sauvegarde.</string>
+    <string name="smart_playlist_preview_waiting">Recherche dans votre bibliothèque synchronisée…</string>
+    <string name="smart_playlist_preview_count">Correspondances dans la bibliothèque synchronisée : %1$d (%2$d après limite).</string>
+    <string name="smart_playlist_preview_samples">Exemples de votre bibliothèque synchronisée ; ces échantillons ne reflètent pas l’ordre final du serveur.</string>
+    <string name="smart_playlist_preview_empty">Aucun exemple correspondant dans la bibliothèque synchronisée.</string>
+    <string name="smart_playlist_preview_unsupported">Aperçu indisponible pour ces champs non indexés localement : %1$s.</string>
 </resources>

@@ -1006,4 +1006,20 @@
     <string name="smart_playlist_limit_tracks">Titelanzahl</string>
     <string name="smart_playlist_limit_percent">Prozent</string>
     <string name="smart_playlist_unsupported_import">Diese Wiedergabeliste enthält ungültige oder nicht unterstützte Einstellungen. Sie kann in diesem Editor nicht sicher bearbeitet werden.</string>
+    <string name="smart_playlist_validation_required">Geben Sie den fehlenden Wert ein.</string>
+    <string name="smart_playlist_validation_number">Geben Sie eine endliche Zahl ein.</string>
+    <string name="smart_playlist_validation_date">Geben Sie ein gültiges Datum im Format JJJJ-MM-TT ein.</string>
+    <string name="smart_playlist_validation_days">Geben Sie eine positive ganze Anzahl von Tagen ein.</string>
+    <string name="smart_playlist_validation_range">Das Bereichsende darf nicht vor dem Anfang liegen.</string>
+    <string name="smart_playlist_validation_bounds">Geben Sie einen Wert im zulässigen Bereich dieses Felds ein.</string>
+    <string name="smart_playlist_validation_choice">Wählen Sie einen von diesem Feld unterstützten Wert.</string>
+    <string name="smart_playlist_validation_operation">Dieses Feld unterstützt den gewählten Vorgang nicht.</string>
+    <string name="smart_playlist_validation_rules">Fügen Sie mindestens eine vollständige Regel hinzu.</string>
+    <string name="smart_playlist_validation_limit">Geben Sie ein positives Limit ein (1–100 für Prozent).</string>
+    <string name="smart_playlist_validation_fix">Korrigieren Sie die markierten Werte vor der Vorschau oder dem Speichern.</string>
+    <string name="smart_playlist_preview_waiting">Treffer in Ihrer synchronisierten Bibliothek werden geprüft…</string>
+    <string name="smart_playlist_preview_count">Treffer in der synchronisierten Bibliothek: %1$d (%2$d nach Limit).</string>
+    <string name="smart_playlist_preview_samples">Beispieltreffer aus Ihrer synchronisierten Bibliothek; die endgültige Serverreihenfolge wird nicht angezeigt.</string>
+    <string name="smart_playlist_preview_empty">Keine Beispieltreffer in der synchronisierten Bibliothek.</string>
+    <string name="smart_playlist_preview_unsupported">Vorschau für diese lokal nicht indexierten Felder nicht verfügbar: %1$s.</string>
 </resources>

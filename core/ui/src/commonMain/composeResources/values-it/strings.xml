@@ -174,4 +174,20 @@
     <string name="smart_playlist_limit_tracks">Numero di brani</string>
     <string name="smart_playlist_limit_percent">Percentuale</string>
     <string name="smart_playlist_unsupported_import">Questa playlist contiene impostazioni non valide o non supportate. Non può essere modificata in modo sicuro in questo editor.</string>
+    <string name="smart_playlist_validation_required">Inserisci il valore mancante.</string>
+    <string name="smart_playlist_validation_number">Inserisci un numero finito.</string>
+    <string name="smart_playlist_validation_date">Inserisci una data valida nel formato AAAA-MM-GG.</string>
+    <string name="smart_playlist_validation_days">Inserisci un numero intero positivo di giorni.</string>
+    <string name="smart_playlist_validation_range">La fine dell’intervallo deve essere uguale o successiva all’inizio.</string>
+    <string name="smart_playlist_validation_bounds">Inserisci un valore nell’intervallo consentito per questo campo.</string>
+    <string name="smart_playlist_validation_choice">Scegli un valore supportato da questo campo.</string>
+    <string name="smart_playlist_validation_operation">Questo campo non supporta l’operazione selezionata.</string>
+    <string name="smart_playlist_validation_rules">Aggiungi almeno una regola completa.</string>
+    <string name="smart_playlist_validation_limit">Inserisci un limite positivo (1–100 per la percentuale).</string>
+    <string name="smart_playlist_validation_fix">Correggi i valori evidenziati prima dell’anteprima o del salvataggio.</string>
+    <string name="smart_playlist_preview_waiting">Ricerca nella libreria sincronizzata…</string>
+    <string name="smart_playlist_preview_count">Corrispondenze nella libreria sincronizzata: %1$d (%2$d dopo il limite).</string>
+    <string name="smart_playlist_preview_samples">Esempi dalla libreria sincronizzata; questi campioni non mostrano l’ordine finale del server.</string>
+    <string name="smart_playlist_preview_empty">Nessun esempio corrispondente nella libreria sincronizzata.</string>
+    <string name="smart_playlist_preview_unsupported">Anteprima non disponibile per questi campi non indicizzati localmente: %1$s.</string>
 </resources>
