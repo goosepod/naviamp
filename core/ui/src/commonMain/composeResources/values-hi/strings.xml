@@ -170,4 +170,20 @@
     <string name="settings_related_autoplay_minimum_subtitle">कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है। पर्याप्त अलग-अलग मेल न होने पर कम ट्रैक जोड़ता है।</string>
     <string name="settings_related_radio_minimum">रेडियो के लिए न्यूनतम ट्रैक</string>
     <string name="settings_related_radio_minimum_subtitle">रेडियो शुरू करते समय संबंधित ट्रैक जोड़ता है। शुरुआती ट्रैक पहले बजता है। कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है।</string>
+    <string name="smart_playlist_validation_required">अनुपस्थित मान दर्ज करें।</string>
+    <string name="smart_playlist_validation_number">एक सीमित संख्या दर्ज करें।</string>
+    <string name="smart_playlist_validation_date">YYYY-MM-DD प्रारूप में मान्य तारीख दर्ज करें।</string>
+    <string name="smart_playlist_validation_days">दिनों की धनात्मक पूर्ण संख्या दर्ज करें।</string>
+    <string name="smart_playlist_validation_range">सीमा का अंत शुरुआत से कम नहीं होना चाहिए।</string>
+    <string name="smart_playlist_validation_bounds">इस फ़ील्ड की अनुमत सीमा में मान दर्ज करें।</string>
+    <string name="smart_playlist_validation_choice">इस फ़ील्ड द्वारा समर्थित मान चुनें।</string>
+    <string name="smart_playlist_validation_operation">यह फ़ील्ड चुनी गई क्रिया का समर्थन नहीं करती।</string>
+    <string name="smart_playlist_validation_rules">कम से कम एक पूरी नियम प्रविष्टि जोड़ें।</string>
+    <string name="smart_playlist_validation_limit">धनात्मक सीमा दर्ज करें (प्रतिशत के लिए 1–100)।</string>
+    <string name="smart_playlist_validation_fix">पूर्वावलोकन या सहेजने से पहले चिह्नित मान ठीक करें।</string>
+    <string name="smart_playlist_preview_waiting">आपकी सिंक की गई लाइब्रेरी में मिलान जाँचे जा रहे हैं…</string>
+    <string name="smart_playlist_preview_count">सिंक की गई लाइब्रेरी में मिलान: %1$d (सीमा के बाद %2$d)।</string>
+    <string name="smart_playlist_preview_samples">सिंक की गई लाइब्रेरी से मिलान के उदाहरण; ये नमूने सर्वर का अंतिम क्रम नहीं दिखाते।</string>
+    <string name="smart_playlist_preview_empty">सिंक की गई लाइब्रेरी में कोई मिलान उदाहरण नहीं है।</string>
+    <string name="smart_playlist_preview_unsupported">इन स्थानीय रूप से अनुक्रमित न किए गए फ़ील्ड के लिए पूर्वावलोकन उपलब्ध नहीं है: %1$s।</string>
 </resources>

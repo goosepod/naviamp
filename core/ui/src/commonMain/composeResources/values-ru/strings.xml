@@ -170,4 +170,20 @@
     <string name="settings_related_autoplay_minimum_subtitle">Дополняет результаты Sonic обычным Радио. Добавляет меньше треков, если недостаточно уникальных совпадений.</string>
     <string name="settings_related_radio_minimum">Минимум треков для Радио</string>
     <string name="settings_related_radio_minimum_subtitle">Похожие треки при запуске Радио. Исходный трек играет первым. Короткие результаты Sonic дополняются обычным Радио, если возможно.</string>
+    <string name="smart_playlist_validation_required">Введите недостающее значение.</string>
+    <string name="smart_playlist_validation_number">Введите конечное число.</string>
+    <string name="smart_playlist_validation_date">Введите корректную дату в формате ГГГГ-ММ-ДД.</string>
+    <string name="smart_playlist_validation_days">Введите положительное целое число дней.</string>
+    <string name="smart_playlist_validation_range">Конец диапазона не должен быть меньше начала.</string>
+    <string name="smart_playlist_validation_bounds">Введите значение в допустимом диапазоне этого поля.</string>
+    <string name="smart_playlist_validation_choice">Выберите значение, поддерживаемое этим полем.</string>
+    <string name="smart_playlist_validation_operation">Это поле не поддерживает выбранную операцию.</string>
+    <string name="smart_playlist_validation_rules">Добавьте хотя бы одно полное правило.</string>
+    <string name="smart_playlist_validation_limit">Введите положительный лимит (1–100 для процентов).</string>
+    <string name="smart_playlist_validation_fix">Исправьте выделенные значения перед просмотром или сохранением.</string>
+    <string name="smart_playlist_preview_waiting">Поиск совпадений в синхронизированной библиотеке…</string>
+    <string name="smart_playlist_preview_count">Совпадений в синхронизированной библиотеке: %1$d (%2$d после лимита).</string>
+    <string name="smart_playlist_preview_samples">Примеры из синхронизированной библиотеки; они не отражают итоговый порядок на сервере.</string>
+    <string name="smart_playlist_preview_empty">В синхронизированной библиотеке нет примеров совпадений.</string>
+    <string name="smart_playlist_preview_unsupported">Просмотр недоступен для полей без локального индекса: %1$s.</string>
 </resources>

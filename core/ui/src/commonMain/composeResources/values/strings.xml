@@ -1030,4 +1030,20 @@
     <string name="settings_related_autoplay_minimum_subtitle">Top up short Sonic results with regular Radio. Adds fewer tracks if there are not enough unique matches.</string>
     <string name="settings_related_radio_minimum">Minimum tracks for Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Related tracks to add when starting Radio. The seed plays first. Short Sonic results are topped up with regular Radio when available.</string>
+    <string name="smart_playlist_validation_required">Enter the missing value.</string>
+    <string name="smart_playlist_validation_number">Enter a finite number.</string>
+    <string name="smart_playlist_validation_date">Enter a valid date in YYYY-MM-DD format.</string>
+    <string name="smart_playlist_validation_days">Enter a positive whole number of days.</string>
+    <string name="smart_playlist_validation_range">The end of the range must be at least the start.</string>
+    <string name="smart_playlist_validation_bounds">Enter a value within the allowed range for this field.</string>
+    <string name="smart_playlist_validation_choice">Choose a value supported by this field.</string>
+    <string name="smart_playlist_validation_operation">This field does not support the selected operation.</string>
+    <string name="smart_playlist_validation_rules">Add at least one complete rule.</string>
+    <string name="smart_playlist_validation_limit">Enter a positive limit (1–100 for percent).</string>
+    <string name="smart_playlist_validation_fix">Fix the highlighted values before previewing or saving.</string>
+    <string name="smart_playlist_preview_waiting">Checking matches in your synced library…</string>
+    <string name="smart_playlist_preview_count">Synced library matches: %1$d (%2$d after limit).</string>
+    <string name="smart_playlist_preview_samples">Example matches from your synced library; these samples do not show the final server order.</string>
+    <string name="smart_playlist_preview_empty">No example matches in the synced library.</string>
+    <string name="smart_playlist_preview_unsupported">Preview unavailable for these locally unindexed fields: %1$s.</string>
 </resources>

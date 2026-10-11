@@ -170,4 +170,20 @@
     <string name="settings_related_autoplay_minimum_subtitle">Vult Sonic-resultaten aan met gewone Radio. Voegt minder nummers toe als er onvoldoende unieke resultaten zijn.</string>
     <string name="settings_related_radio_minimum">Minimumaantal nummers voor Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Gerelateerde nummers bij het starten van Radio. Het startnummer speelt eerst. Sonic-resultaten worden waar mogelijk aangevuld met gewone Radio.</string>
+    <string name="smart_playlist_validation_required">Vul de ontbrekende waarde in.</string>
+    <string name="smart_playlist_validation_number">Voer een eindig getal in.</string>
+    <string name="smart_playlist_validation_date">Voer een geldige datum in als JJJJ-MM-DD.</string>
+    <string name="smart_playlist_validation_days">Voer een positief geheel aantal dagen in.</string>
+    <string name="smart_playlist_validation_range">Het einde van het bereik mag niet vóór het begin liggen.</string>
+    <string name="smart_playlist_validation_bounds">Voer een waarde binnen het toegestane bereik van dit veld in.</string>
+    <string name="smart_playlist_validation_choice">Kies een waarde die dit veld ondersteunt.</string>
+    <string name="smart_playlist_validation_operation">Dit veld ondersteunt de gekozen bewerking niet.</string>
+    <string name="smart_playlist_validation_rules">Voeg minstens één volledige regel toe.</string>
+    <string name="smart_playlist_validation_limit">Voer een positieve limiet in (1–100 voor procenten).</string>
+    <string name="smart_playlist_validation_fix">Corrigeer de gemarkeerde waarden voordat u een voorbeeld bekijkt of opslaat.</string>
+    <string name="smart_playlist_preview_waiting">Overeenkomsten in uw gesynchroniseerde bibliotheek zoeken…</string>
+    <string name="smart_playlist_preview_count">Overeenkomsten in gesynchroniseerde bibliotheek: %1$d (%2$d na limiet).</string>
+    <string name="smart_playlist_preview_samples">Voorbeelden uit uw gesynchroniseerde bibliotheek; deze tonen niet de uiteindelijke servervolgorde.</string>
+    <string name="smart_playlist_preview_empty">Geen overeenkomende voorbeelden in de gesynchroniseerde bibliotheek.</string>
+    <string name="smart_playlist_preview_unsupported">Voorbeeld niet beschikbaar voor deze lokaal niet geïndexeerde velden: %1$s.</string>
 </resources>

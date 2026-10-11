@@ -170,4 +170,20 @@
     <string name="settings_related_autoplay_minimum_subtitle">يكمل نتائج Sonic بالراديو العادي. يضيف مقاطع أقل إذا لم تتوفر نتائج فريدة كافية.</string>
     <string name="settings_related_radio_minimum">الحد الأدنى للمقاطع للراديو</string>
     <string name="settings_related_radio_minimum_subtitle">مقاطع مشابهة عند بدء الراديو. يشغل المقطع الأول أولا. يكمل نتائج Sonic القليلة بالراديو العادي عند توفره.</string>
+    <string name="smart_playlist_validation_required">أدخل القيمة الناقصة.</string>
+    <string name="smart_playlist_validation_number">أدخل عددًا محدودًا.</string>
+    <string name="smart_playlist_validation_date">أدخل تاريخًا صحيحًا بتنسيق YYYY-MM-DD.</string>
+    <string name="smart_playlist_validation_days">أدخل عددًا صحيحًا موجبًا من الأيام.</string>
+    <string name="smart_playlist_validation_range">يجب ألا تكون نهاية النطاق أقل من بدايته.</string>
+    <string name="smart_playlist_validation_bounds">أدخل قيمة ضمن النطاق المسموح لهذا الحقل.</string>
+    <string name="smart_playlist_validation_choice">اختر قيمة يدعمها هذا الحقل.</string>
+    <string name="smart_playlist_validation_operation">لا يدعم هذا الحقل العملية المحددة.</string>
+    <string name="smart_playlist_validation_rules">أضف قاعدة مكتملة واحدة على الأقل.</string>
+    <string name="smart_playlist_validation_limit">أدخل حدًا موجبًا (1–100 للنسبة المئوية).</string>
+    <string name="smart_playlist_validation_fix">صحح القيم المميزة قبل المعاينة أو الحفظ.</string>
+    <string name="smart_playlist_preview_waiting">جارٍ البحث عن مطابقات في مكتبتك المتزامنة…</string>
+    <string name="smart_playlist_preview_count">المطابقات في المكتبة المتزامنة: %1$d (%2$d بعد الحد).</string>
+    <string name="smart_playlist_preview_samples">أمثلة من مكتبتك المتزامنة؛ لا تعرض هذه العينات الترتيب النهائي على الخادم.</string>
+    <string name="smart_playlist_preview_empty">لا توجد أمثلة مطابقة في المكتبة المتزامنة.</string>
+    <string name="smart_playlist_preview_unsupported">المعاينة غير متاحة لهذه الحقول غير المفهرسة محليًا: %1$s.</string>
 </resources>

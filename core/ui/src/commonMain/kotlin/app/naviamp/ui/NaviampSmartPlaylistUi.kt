@@ -54,12 +54,22 @@ import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.smartPlaylistGenreSuggestions
 import app.naviamp.domain.smartplaylist.updated
 import app.naviamp.domain.smartplaylist.valueLabel
+import app.naviamp.domain.smartplaylist.validate
+import app.naviamp.domain.smartplaylist.SmartPlaylistValidationIssue
+import app.naviamp.domain.smartplaylist.SmartPlaylistIssueCode
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -103,18 +113,23 @@ fun SmartPlaylistBuilderDialog(
     val definition = remember(draft) {
         runCatching { draft.toDefinition() }
     }
-    val jsonPreview = definition.getOrNull()?.toNspJson() ?: definition.exceptionOrNull()?.message.orEmpty()
+    val validationIssues = remember(draft) { draft.validate() }
+    val validationMessage = stringResource(Res.string.smart_playlist_validation_fix)
+    val jsonPreview = definition.getOrNull()?.toNspJson() ?: validationMessage
 
-    LaunchedEffect(definition.getOrNull()) {
+    LaunchedEffect(draft) {
         livePreview = null
         previewLoading = false
         val definitionToPreview = definition.getOrNull() ?: return@LaunchedEffect
         delay(SmartPlaylistPreviewDebounceMillis)
         previewLoading = true
-        livePreview = runCatching { onPreview(definitionToPreview) }
+        val result = runCatching { onPreview(definitionToPreview) }
             .getOrElse { error ->
+                if (error is CancellationException) throw error
                 SmartPlaylistPreview(message = error.message ?: "Could not preview this smart playlist.")
             }
+        currentCoroutineContext().ensureActive()
+        livePreview = result
         previewLoading = false
     }
 
@@ -223,15 +238,23 @@ fun SmartPlaylistBuilderDialog(
                     availableLibraries = availableLibraries,
                     selectedConnectionLibraryIds = selectedConnectionLibraryIds,
                     genreCatalog = genreCatalog,
+                    validationIssues = validationIssues,
                     onDraftChange = { draft = it },
                 )
+                validationIssues.filter {
+                    it.location.conditionId == null && it.location.groupId == null &&
+                        it.code != SmartPlaylistIssueCode.InvalidRefreshDelay
+                }.forEach {
+                    Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
+                }
                 saveMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
                 SmartPlaylistPreviewSection(
                     colors = colors,
-                    preview = livePreview,
+                    preview = livePreview.takeIf { definition.isSuccess },
                     loading = previewLoading,
+                    invalid = validationIssues.isNotEmpty(),
                 )
                 SmartPlaylistSection(
                     title = "Generated JSON",
@@ -470,6 +493,7 @@ private fun SmartPlaylistCustomControls(
     availableLibraries: List<ConnectionFormMusicFolder>,
     selectedConnectionLibraryIds: List<String>,
     genreCatalog: List<SmartPlaylistGenreOption>,
+    validationIssues: List<SmartPlaylistValidationIssue>,
     onDraftChange: (SmartPlaylistDraft) -> Unit,
 ) {
     if (selectedConnectionLibraryIds.size > 1) {
@@ -525,10 +549,11 @@ private fun SmartPlaylistCustomControls(
                 colors = colors,
                 condition = condition,
                 genreCatalog = genreCatalog,
+                issues = validationIssues.filter { it.location.conditionId == condition.id },
                 onConditionChange = { updatedCondition ->
-                    onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition)))
+                    onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition.copy(isStarter = false))))
                 },
-                onRemove = if (draft.conditions.size > 1) {
+                onRemove = if (draft.conditions.size > 1 || draft.groups.isNotEmpty()) {
                     { onDraftChange(draft.copy(conditions = draft.conditions.filterIndexed { i, _ -> i != index })) }
                 } else {
                     null
@@ -555,6 +580,9 @@ private fun SmartPlaylistCustomControls(
                     }
                 },
             ) {
+                validationIssues.filter { it.location.groupId == group.id && it.location.conditionId == null }.forEach {
+                    Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
+                }
                 SmartPlaylistDropdown(
                     label = "Match",
                     value = when (group.match) {
@@ -573,12 +601,13 @@ private fun SmartPlaylistCustomControls(
                         colors = colors,
                         condition = condition,
                         genreCatalog = genreCatalog,
+                        issues = validationIssues.filter { it.location.conditionId == condition.id },
                         onConditionChange = { updatedCondition ->
                             onDraftChange(
                                 draft.copy(
                                     groups = draft.groups.updated(
                                         groupIndex,
-                                        group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition)),
+                                        group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition.copy(isStarter = false))),
                                     ),
                                 ),
                             )
@@ -717,6 +746,7 @@ private fun SmartPlaylistRuleControls(
     colors: NaviampColors,
     condition: SmartPlaylistConditionDraft,
     genreCatalog: List<SmartPlaylistGenreOption>,
+    issues: List<SmartPlaylistValidationIssue>,
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
     onRemove: (() -> Unit)?,
 ) {
@@ -775,14 +805,40 @@ private fun SmartPlaylistRuleControls(
                 colors = colors,
             )
         }
+        issues.forEach { issue ->
+            val message = smartPlaylistIssueMessage(issue)
+            Text(
+                message, color = colors.favorite, fontSize = 12.sp,
+                modifier = Modifier.testTag("smart-playlist-rule-error-${condition.id}")
+                    .semantics { error(message); liveRegion = LiveRegionMode.Polite },
+            )
+        }
     }
 }
+
+@Composable
+private fun smartPlaylistIssueMessage(issue: SmartPlaylistValidationIssue): String = stringResource(
+    when (issue.code) {
+        SmartPlaylistIssueCode.RequiredValue, SmartPlaylistIssueCode.RequiredName -> Res.string.smart_playlist_validation_required
+        SmartPlaylistIssueCode.InvalidNumber -> Res.string.smart_playlist_validation_number
+        SmartPlaylistIssueCode.InvalidDate -> Res.string.smart_playlist_validation_date
+        SmartPlaylistIssueCode.InvalidDays -> Res.string.smart_playlist_validation_days
+        SmartPlaylistIssueCode.ReversedRange -> Res.string.smart_playlist_validation_range
+        SmartPlaylistIssueCode.OutOfBounds -> Res.string.smart_playlist_validation_bounds
+        SmartPlaylistIssueCode.InvalidBoolean, SmartPlaylistIssueCode.InvalidChoice -> Res.string.smart_playlist_validation_choice
+        SmartPlaylistIssueCode.UnsupportedOperator, SmartPlaylistIssueCode.InvalidSort -> Res.string.smart_playlist_validation_operation
+        SmartPlaylistIssueCode.EmptyGroup, SmartPlaylistIssueCode.NoRules -> Res.string.smart_playlist_validation_rules
+        SmartPlaylistIssueCode.InvalidLimit -> Res.string.smart_playlist_validation_limit
+        SmartPlaylistIssueCode.InvalidRefreshDelay -> Res.string.smart_playlist_refresh_delay_invalid
+    },
+)
 
 @Composable
 private fun SmartPlaylistPreviewSection(
     colors: NaviampColors,
     preview: SmartPlaylistPreview?,
     loading: Boolean,
+    invalid: Boolean,
 ) {
     SmartPlaylistSection(title = "Preview", colors = colors) {
         Column(
@@ -790,33 +846,33 @@ private fun SmartPlaylistPreviewSection(
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             when {
-                loading -> Text("Checking synced library…", color = colors.secondaryText, fontSize = 12.sp)
-                preview == null -> Text("Waiting for a complete filter…", color = colors.secondaryText, fontSize = 12.sp)
+                invalid -> Text(stringResource(Res.string.smart_playlist_validation_fix), color = colors.favorite, fontSize = 12.sp)
+                loading || preview == null -> Text(stringResource(Res.string.smart_playlist_preview_waiting), color = colors.secondaryText, fontSize = 12.sp)
                 preview.available -> {
                     val matching = preview.matchingTrackCount ?: 0
                     val result = preview.resultTrackCount ?: matching
                     Text(
-                        buildString {
-                            append(if (matching == 1) "1 matching track" else "$matching matching tracks")
-                            if (result != matching) append(" · $result after limit")
-                        },
+                        stringResource(Res.string.smart_playlist_preview_count, matching, result),
                         color = colors.primaryText,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 12.sp,
                     )
+                    Text(stringResource(Res.string.smart_playlist_preview_samples), color = colors.secondaryText, fontSize = 12.sp)
+                    if (preview.exampleTracks.isEmpty()) {
+                        Text(stringResource(Res.string.smart_playlist_preview_empty), color = colors.secondaryText, fontSize = 12.sp)
+                    }
                     preview.exampleTracks.forEach { track ->
-                        Text(
-                            "${track.title} — ${track.artistName}",
-                            color = colors.secondaryText,
-                            fontSize = 11.sp,
-                        )
+                        Column(modifier = Modifier.fillMaxWidth().testTag("smart-playlist-example-${track.id.value}")) {
+                            Text(track.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(track.artistName, color = colors.secondaryText, fontSize = 12.sp)
+                        }
                     }
                 }
                 preview.message != null -> preview.message?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
                 else -> Text(
-                    "Preview unavailable for locally unindexed fields: ${preview.unsupportedFields.joinToString()}.",
+                    stringResource(Res.string.smart_playlist_preview_unsupported, preview.unsupportedFields.joinToString()),
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )

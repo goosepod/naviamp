@@ -9,6 +9,25 @@ import kotlin.test.assertTrue
 
 class SmartPlaylistPreviewTest {
     @Test
+    fun liveExamplesAreBoundedAndSatisfyEveryActiveRule() {
+        val definition = SmartPlaylistDefinition(
+            name = "Jazz examples",
+            rules = listOf(
+                SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.Genre, SmartPlaylistValue.Text("Jazz")),
+                SmartPlaylistCondition(SmartPlaylistOperator.Contains, SmartPlaylistFields.Title, SmartPlaylistValue.Text("Match")),
+            ),
+        )
+        val tracks = listOf(track("excluded-genre", "Match excluded", listOf("Rock")),
+            track("excluded-title", "Other", listOf("Jazz"))) +
+            (1..10).map { track("$it", "Match $it", listOf("Jazz")) }
+        val preview = previewSmartPlaylist(definition, tracks, nowEpochMillis = 0)
+        assertEquals(10, preview.matchingTrackCount)
+        assertEquals(5, preview.exampleTracks.size)
+        assertTrue(preview.exampleTracks.all { it.genres == listOf("Jazz") && it.title.startsWith("Match") })
+        assertEquals(2, previewSmartPlaylist(definition.copy(limit = 2), tracks, nowEpochMillis = 0).exampleTracks.size)
+    }
+
+    @Test
     fun previewsNestedGenreAliasesAndAppliesTheLimit() {
         val definition = SmartPlaylistDefinition(
             name = "Hip Hop",

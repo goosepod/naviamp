@@ -170,4 +170,20 @@
     <string name="settings_related_autoplay_minimum_subtitle">Sonic 结果不足时使用普通电台补足。不重复曲目不足时会添加较少的曲目。</string>
     <string name="settings_related_radio_minimum">电台最少添加曲目数</string>
     <string name="settings_related_radio_minimum_subtitle">启动电台时添加的相关曲目数。种子曲目先播放。Sonic 结果不足时尽可能使用普通电台补足。</string>
+    <string name="smart_playlist_validation_required">请输入缺失的值。</string>
+    <string name="smart_playlist_validation_number">请输入有限数值。</string>
+    <string name="smart_playlist_validation_date">请输入 YYYY-MM-DD 格式的有效日期。</string>
+    <string name="smart_playlist_validation_days">请输入正整数天数。</string>
+    <string name="smart_playlist_validation_range">范围终点不得小于起点。</string>
+    <string name="smart_playlist_validation_bounds">请输入此字段允许范围内的值。</string>
+    <string name="smart_playlist_validation_choice">请选择此字段支持的值。</string>
+    <string name="smart_playlist_validation_operation">此字段不支持所选操作。</string>
+    <string name="smart_playlist_validation_rules">请至少添加一条完整规则。</string>
+    <string name="smart_playlist_validation_limit">请输入正数上限（百分比为 1–100）。</string>
+    <string name="smart_playlist_validation_fix">预览或保存前，请修正标出的值。</string>
+    <string name="smart_playlist_preview_waiting">正在检查已同步曲库中的匹配项…</string>
+    <string name="smart_playlist_preview_count">已同步曲库匹配项：%1$d（应用上限后 %2$d）。</string>
+    <string name="smart_playlist_preview_samples">这些是已同步曲库中的匹配示例，不代表服务器的最终顺序。</string>
+    <string name="smart_playlist_preview_empty">已同步曲库中没有匹配示例。</string>
+    <string name="smart_playlist_preview_unsupported">以下字段尚未在本地索引，无法预览：%1$s。</string>
 </resources>
