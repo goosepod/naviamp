@@ -46,6 +46,15 @@ Issue: https://github.com/goosepod/naviamp/issues/250
 
 ## Automated checks
 
+Track Radio and Sonic Autoplay share `SimilarityService` in domain common code. Requests contain
+seed IDs, excluded track IDs, per-seed counts, and the Sonic preference. Results retain scored
+matches in ordered seed slots, selected endpoint, and typed fallback/failure diagnostics. Radio
+applies tuning after the request; Autoplay applies recent-seed ranking, deduplication, and append
+limits. A fatal regular error can be explicitly propagated by Radio without exposing its exception
+in diagnostic metadata; Autoplay keeps its finished queue when no continuation is available.
+Both the Sonic and regular batches have one ten-second deadline. Raw endpoint diagnostics bypass
+this playback service so they can still show the actual results of each endpoint.
+
 The common RadioService tests cover success, empty/seed-only results, exceptions, deadlines,
 transport timeouts, cancellation, and independent diagnostic endpoints. Provider tests cover raw
 response parsing, capability refresh, safe protocol codes, and avoiding local Radio fallback in

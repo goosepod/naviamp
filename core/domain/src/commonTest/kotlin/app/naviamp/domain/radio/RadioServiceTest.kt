@@ -23,6 +23,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
@@ -76,6 +77,26 @@ class RadioServiceTest {
         )
         assertEquals(1, provider.artistCalls)
         assertEquals(1, provider.albumCalls)
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun bothTrackRadioEntryPointsUseTheSharedRegularRequestDeadline() = runTest {
+        val provider = object : MediaProvider by FakeRadioProvider() {
+            override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+                delay(60_000)
+                return listOf(track("late"))
+            }
+        }
+        for (byId in listOf(true, false)) {
+            val started = testScheduler.currentTime
+            val service = RadioService(provider)
+            val failure = assertFailsWith<SimilarityRequestException> {
+                if (byId) service.trackRadio(TrackId("seed")) else service.trackRadio(track("seed"), false)
+            }
+            assertTrue(failure.timedOut)
+            assertEquals(10_000L, testScheduler.currentTime - started)
+        }
     }
 
     @Test

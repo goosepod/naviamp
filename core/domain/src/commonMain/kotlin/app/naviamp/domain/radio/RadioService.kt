@@ -8,8 +8,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.withTimeoutOrNull
 
 fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
     (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
@@ -21,6 +19,8 @@ class RadioService(
     private val providerResponseService: ProviderResponseService? = null,
     private val onSonicFallback: (SonicRadioFallbackReason) -> Unit = {},
 ) {
+    private val similarity = SimilarityService(provider)
+
     suspend fun albumSeed(album: Album, loadedTracks: List<Track> = emptyList()): Track? =
         loadedTracks.randomOrNull()
             ?: albumTracks(album.id).randomOrNull()
@@ -67,36 +67,19 @@ class RadioService(
             .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun trackRadio(trackId: TrackId): List<Track> =
-        provider.trackRadio(trackId, count = fetchCount)
+        similarity.load(SimilarityRequest(listOf(trackId), countPerSeed = fetchCount, preferSonic = false))
+            .getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
             .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun trackRadio(
         seedTrack: Track,
         preferSonicSimilarity: Boolean,
     ): List<Track> {
-        if (preferSonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
-            // Capability advertisement does not guarantee a healthy similarity backend.
-            // Bound this optional request so regular Radio can still build the queue.
-            var fallback = SonicRadioFallbackReason.Empty
-            val sonicTracks = try {
-                val tracks = withTimeoutOrNull(SimilarityRequestTimeoutMillis) {
-                    provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
-                }
-                if (tracks == null) fallback = SonicRadioFallbackReason.TimedOut
-                tracks.orEmpty()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                fallback = if (failure.isSimilarityTimeout()) SonicRadioFallbackReason.TimedOut else SonicRadioFallbackReason.Failed
-                emptyList()
-            }.filterNot { track -> track.id == seedTrack.id }
-            if (sonicTracks.isNotEmpty()) {
-                return tunedTrackRadio(seedTrack, sonicTracks)
-            }
-            onSonicFallback(fallback)
-        }
-        return provider.trackRadio(seedTrack.id, count = fetchCount)
-            .let { tracks -> tunedTrackRadio(seedTrack, tracks) }
+        val result = similarity.load(SimilarityRequest(
+            listOf(seedTrack.id), countPerSeed = fetchCount, preferSonic = preferSonicSimilarity,
+        ))
+        result.fallback?.let(onSonicFallback)
+        return tunedTrackRadio(seedTrack, result.getOrThrow().flatMap { seed -> seed.matches.map { it.track } })
     }
 
     suspend fun libraryRadio(): List<Track> =
