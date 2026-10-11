@@ -152,6 +152,7 @@ sealed interface NaviampCoreCommand {
             val definition: SmartPlaylistDefinition,
             val password: String? = null,
         ) : SmartPlaylist
+        data class Inspect(val playlist: SharedMediaItemUi, val password: String? = null) : SmartPlaylist
         data class Load(val playlist: SharedMediaItemUi, val password: String? = null) : SmartPlaylist
     }
 
@@ -276,6 +277,7 @@ sealed interface NaviampCoreCommand {
 
 sealed interface NaviampCoreCommandResult {
     data object Completed : NaviampCoreCommandResult
+    data class SmartPlaylistInspected(val editing: app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult) : NaviampCoreCommandResult
     data class SmartPlaylistLoaded(val definition: SmartPlaylistDefinition) : NaviampCoreCommandResult
     data class SmartPlaylistPreviewed(
         val preview: app.naviamp.domain.smartplaylist.SmartPlaylistPreview,

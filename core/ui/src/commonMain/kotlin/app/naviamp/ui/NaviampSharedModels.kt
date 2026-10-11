@@ -19,6 +19,8 @@ import app.naviamp.domain.settings.GlobalShortcutAction
 import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult
+import app.naviamp.domain.smartplaylist.editingResult
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.media.AlbumReleaseSection
 
@@ -539,6 +541,10 @@ data class NaviampSmartPlaylistActions(
     val onUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     val onLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     val onLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+    val onInspect: suspend (SharedMediaItemUi) -> SmartPlaylistEditingResult = { onLoad(it).editingResult() },
+    val onInspectWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistEditingResult = { item, password ->
+        onLoadWithPassword(item, password).editingResult()
+    },
 )
 
 data class NaviampPlaylistsActions(

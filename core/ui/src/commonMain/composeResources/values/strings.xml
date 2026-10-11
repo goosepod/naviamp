@@ -1030,4 +1030,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Top up short Sonic results with regular Radio. Adds fewer tracks if there are not enough unique matches.</string>
     <string name="settings_related_radio_minimum">Minimum tracks for Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Related tracks to add when starting Radio. The seed plays first. Short Sonic results are topped up with regular Radio when available.</string>
+    <string name="smart_playlist_inspection_title">Smart playlist rules</string>
+    <string name="smart_playlist_inspection_read_only">This playlist uses rules or settings this editor cannot change safely. Its original definition is shown for inspection only.</string>
+    <string name="smart_playlist_inspection_missing">The server did not provide this playlist’s rules.</string>
+    <string name="smart_playlist_inspection_permission">You do not have permission to view this playlist’s rules.</string>
+    <string name="smart_playlist_inspection_not_found">This playlist could not be found on the server.</string>
 </resources>

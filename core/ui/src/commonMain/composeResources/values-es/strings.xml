@@ -1006,4 +1006,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Completa resultados Sonic insuficientes con Radio normal. Añade menos pistas si faltan coincidencias únicas.</string>
     <string name="settings_related_radio_minimum">Mínimo de pistas para Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Pistas relacionadas al iniciar Radio. La pista inicial suena primero. Completa resultados Sonic insuficientes con Radio normal cuando sea posible.</string>
+    <string name="smart_playlist_inspection_title">Reglas de la lista inteligente</string>
+    <string name="smart_playlist_inspection_read_only">Esta lista usa reglas o ajustes que este editor no puede cambiar de forma segura. La definición original se muestra solo para consulta.</string>
+    <string name="smart_playlist_inspection_missing">El servidor no proporcionó las reglas de esta lista.</string>
+    <string name="smart_playlist_inspection_permission">No tienes permiso para ver las reglas de esta lista.</string>
+    <string name="smart_playlist_inspection_not_found">No se encontró esta lista en el servidor.</string>
 </resources>

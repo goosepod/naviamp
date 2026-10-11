@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Melengkapi hasil Sonic dengan Radio biasa. Menambahkan lebih sedikit lagu jika kecocokan unik tidak mencukupi.</string>
     <string name="settings_related_radio_minimum">Minimum lagu untuk Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Lagu terkait saat memulai Radio. Lagu awal diputar dahulu. Hasil Sonic yang sedikit dilengkapi dengan Radio biasa jika tersedia.</string>
+    <string name="smart_playlist_inspection_title">Aturan playlist pintar</string>
+    <string name="smart_playlist_inspection_read_only">Playlist ini menggunakan aturan atau pengaturan yang tidak dapat diubah dengan aman oleh editor ini. Definisi aslinya hanya ditampilkan untuk diperiksa.</string>
+    <string name="smart_playlist_inspection_missing">Server tidak menyediakan aturan playlist ini.</string>
+    <string name="smart_playlist_inspection_permission">Anda tidak memiliki izin untuk melihat aturan playlist ini.</string>
+    <string name="smart_playlist_inspection_not_found">Playlist ini tidak ditemukan di server.</string>
 </resources>

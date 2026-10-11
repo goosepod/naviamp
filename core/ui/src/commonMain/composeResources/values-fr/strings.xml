@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Complète les résultats Sonic avec Radio classique. Ajoute moins de titres si les résultats uniques sont insuffisants.</string>
     <string name="settings_related_radio_minimum">Minimum de titres pour Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Titres similaires au démarrage de Radio. Le titre initial joue en premier. Les résultats Sonic insuffisants sont complétés avec Radio classique si possible.</string>
+    <string name="smart_playlist_inspection_title">Règles de la liste intelligente</string>
+    <string name="smart_playlist_inspection_read_only">Cette liste utilise des règles ou paramètres que cet éditeur ne peut pas modifier en toute sécurité. La définition originale est affichée uniquement pour consultation.</string>
+    <string name="smart_playlist_inspection_missing">Le serveur a omis les règles de cette liste.</string>
+    <string name="smart_playlist_inspection_permission">Vous ne pouvez pas consulter les règles de cette liste.</string>
+    <string name="smart_playlist_inspection_not_found">Cette liste est introuvable sur le serveur.</string>
 </resources>

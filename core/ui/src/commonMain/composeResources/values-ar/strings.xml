@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">يكمل نتائج Sonic بالراديو العادي. يضيف مقاطع أقل إذا لم تتوفر نتائج فريدة كافية.</string>
     <string name="settings_related_radio_minimum">الحد الأدنى للمقاطع للراديو</string>
     <string name="settings_related_radio_minimum_subtitle">مقاطع مشابهة عند بدء الراديو. يشغل المقطع الأول أولا. يكمل نتائج Sonic القليلة بالراديو العادي عند توفره.</string>
+    <string name="smart_playlist_inspection_title">قواعد قائمة التشغيل الذكية</string>
+    <string name="smart_playlist_inspection_read_only">تستخدم هذه القائمة قواعد أو إعدادات لا يمكن لهذا المحرر تغييرها بأمان. يُعرض تعريفها الأصلي للفحص فقط.</string>
+    <string name="smart_playlist_inspection_missing">لم يقدّم الخادم قواعد قائمة التشغيل هذه.</string>
+    <string name="smart_playlist_inspection_permission">ليس لديك إذن لعرض قواعد قائمة التشغيل هذه.</string>
+    <string name="smart_playlist_inspection_not_found">تعذّر العثور على قائمة التشغيل هذه على الخادم.</string>
 </resources>

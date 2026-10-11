@@ -1991,6 +1991,58 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun inspectionPreservesUnknownAndNestedNativeRulesWithoutWriting() = runTest {
+        for (rules in listOf(
+            """{"all":[{"any":[{"all":[{"is":{"loved":true}}]}]}]}""",
+            """{"all":[{"futureOperator":{"futureField":{"value":[1,2]}}}],"futureOption":true}""",
+            """{"all":[{"is":{"futureField":"original"}}]}""",
+        )) {
+            val original = """{"id":"smart-1","name":"Original","public":true,"rules":$rules}"""
+            val http = RecordingNativeHttpClient("""{"data":$original}""")
+            val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "token"), http)
+            val result = kotlin.test.assertIs<app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.ReadOnly>(
+                provider.inspectSmartPlaylist("smart-1"))
+            assertEquals(kotlinx.serialization.json.Json.parseToJsonElement(original),
+                kotlinx.serialization.json.Json.parseToJsonElement(result.originalJson))
+            assertTrue(http.postBodies.isEmpty())
+            assertTrue(http.putBodies.isEmpty())
+        }
+    }
+
+    @Test
+    fun inspectionDistinguishesMissingForbiddenAndDeletedDefinitions() = runTest {
+        val missing = NavidromeProvider(connection("https://music.example.test", nativeToken = "token"),
+            RecordingNativeHttpClient("""{"data":{"id":"smart-1","name":"Missing","rules":null}}"""))
+        assertEquals(app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(), missing.inspectSmartPlaylist("smart-1"))
+        for ((status, reason) in listOf(403 to app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.PermissionDenied,
+            404 to app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.NotFound)) {
+            val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "token"),
+                object : NavidromeHttpClient {
+                    override suspend fun get(url: String): String = throw NavidromeHttpException(status)
+                })
+            assertEquals(app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(reason), provider.inspectSmartPlaylist("smart-1"))
+            assertEquals("token", provider.connectionWithCurrentNativeToken().nativeToken)
+        }
+    }
+
+    @Test
+    fun inspectionKeepsAuthenticationRecoveryDistinctFromUnsupportedRules() = runTest {
+        val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "expired"), FailingNativeHttpClient())
+        assertFailsWith<NavidromeException> { provider.inspectSmartPlaylist("smart-1") }
+        assertNull(provider.connectionWithCurrentNativeToken().nativeToken)
+    }
+
+    @Test
+    fun supportedInspectionStillExtractsEditorLibraryScope() = runTest {
+        val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "token"),
+            RecordingNativeHttpClient("""{"data":{"name":"Scoped","rules":{"all":[{"is":{"library_id":2}},{"is":{"loved":true}}],"limit":25}}}"""))
+        val result = kotlin.test.assertIs<app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Editable>(provider.inspectSmartPlaylist("smart-1"))
+        assertEquals(listOf("2"), result.definition.libraryIds)
+        assertEquals(1, result.definition.rules.size)
+        assertTrue(result.originalJson.contains("library_id"))
+    }
+
+    @Test
     fun smartPlaylistDefinitionUsesNavidromeNativePlaylistApi() = runTest {
         val httpClient = RecordingNativeHttpClient(
             """

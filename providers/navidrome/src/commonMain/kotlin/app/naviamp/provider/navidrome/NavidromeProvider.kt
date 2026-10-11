@@ -1055,6 +1055,23 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun inspectSmartPlaylist(playlistId: String): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult {
+        requireNativeSmartPlaylists()
+        val original = try {
+            getNativeJson("playlist/${playlistId.urlEncode()}").toNativeDataObject()
+        } catch (error: NavidromeHttpException) {
+            return when (error.statusCode) {
+                403 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.PermissionDenied)
+                404 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.NotFound)
+                else -> throw error
+            }
+        }
+        return app.naviamp.domain.smartplaylist.inspectSmartPlaylistObject(original,
+            mapDefinition = { it.withoutLibraryScopeForEditing() })
+    }
+
     override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
         requireNativeSmartPlaylists()
         val response = getNativeJson("playlist/${playlistId.urlEncode()}")

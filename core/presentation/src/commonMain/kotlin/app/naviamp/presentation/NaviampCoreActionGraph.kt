@@ -51,16 +51,22 @@ fun createNaviampCoreActions(
             is NaviampCoreCommandResult.SmartPlaylistPreviewed -> result.preview
             NaviampCoreCommandResult.Completed,
             is NaviampCoreCommandResult.SmartPlaylistLoaded,
+            is NaviampCoreCommandResult.SmartPlaylistInspected,
             -> error("Core did not return a smart-playlist preview.")
         }
 
     suspend fun loadSmartPlaylist(command: NaviampCoreCommand.SmartPlaylist.Load) =
         when (val result = handler.execute(command)) {
             is NaviampCoreCommandResult.SmartPlaylistLoaded -> result.definition
+            is NaviampCoreCommandResult.SmartPlaylistInspected,
             is NaviampCoreCommandResult.SmartPlaylistPreviewed ->
                 error("Core did not return a smart-playlist definition.")
             NaviampCoreCommandResult.Completed -> error("Core did not return a smart-playlist definition.")
         }
+
+    suspend fun inspectSmartPlaylist(item: app.naviamp.ui.SharedMediaItemUi, password: String? = null) =
+        (handler.execute(NaviampCoreCommand.SmartPlaylist.Inspect(item, password)) as? NaviampCoreCommandResult.SmartPlaylistInspected)
+            ?.editing ?: error("Core did not return a smart-playlist inspection.")
 
     val smartPlaylist = NaviampSmartPlaylistActions(
         onPreview = ::previewSmartPlaylist,
@@ -74,6 +80,8 @@ fun createNaviampCoreActions(
         onUpdateWithPassword = { playlist, definition, password ->
             handler.execute(NaviampCoreCommand.SmartPlaylist.Update(playlist, definition, password))
         },
+        onInspect = { inspectSmartPlaylist(it) },
+        onInspectWithPassword = { item, password -> inspectSmartPlaylist(item, password) },
         onLoad = { playlist -> loadSmartPlaylist(NaviampCoreCommand.SmartPlaylist.Load(playlist)) },
         onLoadWithPassword = { playlist, password ->
             loadSmartPlaylist(NaviampCoreCommand.SmartPlaylist.Load(playlist, password))

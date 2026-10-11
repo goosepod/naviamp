@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Sonic sonuçlarını normal Radyo ile tamamlar. Yeterli benzersiz eşleşme yoksa daha az parça ekler.</string>
     <string name="settings_related_radio_minimum">Radyo için en az parça</string>
     <string name="settings_related_radio_minimum_subtitle">Radyo başlatılırken eklenecek ilgili parçalar. Başlangıç parçası önce çalar. Sonic sonuçları mümkünse normal Radyo ile tamamlanır.</string>
+    <string name="smart_playlist_inspection_title">Akıllı çalma listesi kuralları</string>
+    <string name="smart_playlist_inspection_read_only">Bu liste, bu düzenleyicinin güvenle değiştiremeyeceği kurallar veya ayarlar kullanıyor. Özgün tanım yalnızca inceleme için gösterilir.</string>
+    <string name="smart_playlist_inspection_missing">Sunucu bu listenin kurallarını sağlamadı.</string>
+    <string name="smart_playlist_inspection_permission">Bu listenin kurallarını görüntüleme izniniz yok.</string>
+    <string name="smart_playlist_inspection_not_found">Bu liste sunucuda bulunamadı.</string>
 </resources>

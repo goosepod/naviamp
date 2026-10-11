@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है। पर्याप्त अलग-अलग मेल न होने पर कम ट्रैक जोड़ता है।</string>
     <string name="settings_related_radio_minimum">रेडियो के लिए न्यूनतम ट्रैक</string>
     <string name="settings_related_radio_minimum_subtitle">रेडियो शुरू करते समय संबंधित ट्रैक जोड़ता है। शुरुआती ट्रैक पहले बजता है। कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है।</string>
+    <string name="smart_playlist_inspection_title">स्मार्ट प्लेलिस्ट के नियम</string>
+    <string name="smart_playlist_inspection_read_only">इस प्लेलिस्ट के नियम या सेटिंग को यह संपादक सुरक्षित रूप से नहीं बदल सकता। मूल परिभाषा केवल देखने के लिए दिखाई गई है।</string>
+    <string name="smart_playlist_inspection_missing">सर्वर ने इस प्लेलिस्ट के नियम नहीं दिए।</string>
+    <string name="smart_playlist_inspection_permission">आपको इस प्लेलिस्ट के नियम देखने की अनुमति नहीं है।</string>
+    <string name="smart_playlist_inspection_not_found">सर्वर पर यह प्लेलिस्ट नहीं मिली।</string>
 </resources>

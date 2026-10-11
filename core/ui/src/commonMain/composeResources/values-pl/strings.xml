@@ -289,4 +289,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Uzupełnia wyniki Sonic zwykłym Radiem. Dodaje mniej utworów, jeśli brakuje unikalnych dopasowań.</string>
     <string name="settings_related_radio_minimum">Minimum utworów dla Radia</string>
     <string name="settings_related_radio_minimum_subtitle">Podobne utwory przy uruchomieniu Radia. Utwór początkowy gra pierwszy. Wyniki Sonic są uzupełniane zwykłym Radiem, jeśli są dostępne.</string>
+    <string name="smart_playlist_inspection_title">Reguły inteligentnej playlisty</string>
+    <string name="smart_playlist_inspection_read_only">Ta playlista używa reguł lub ustawień, których ten edytor nie może bezpiecznie zmienić. Oryginalna definicja jest wyświetlana tylko do wglądu.</string>
+    <string name="smart_playlist_inspection_missing">Serwer nie udostępnił reguł tej playlisty.</string>
+    <string name="smart_playlist_inspection_permission">Nie masz uprawnień do przeglądania reguł tej playlisty.</string>
+    <string name="smart_playlist_inspection_not_found">Nie znaleziono tej playlisty na serwerze.</string>
 </resources>

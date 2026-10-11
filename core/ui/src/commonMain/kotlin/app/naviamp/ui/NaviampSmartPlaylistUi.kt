@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistConditionDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult
+import app.naviamp.domain.smartplaylist.inspectSmartPlaylistJson
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldCatalog
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldOption
@@ -87,6 +89,7 @@ fun SmartPlaylistBuilderDialog(
             },
         )
     }
+    var inspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
     var importJson by remember { mutableStateOf("") }
     var importMessage by remember { mutableStateOf<String?>(null) }
     var importOpen by remember { mutableStateOf(false) }
@@ -203,10 +206,14 @@ fun SmartPlaylistBuilderDialog(
                             enabled = importJson.isNotBlank(),
                             onClick = {
                                 runCatching {
-                                    SmartPlaylistDefinition.fromNspJson(importJson)
+                                    inspectSmartPlaylistJson(importJson)
                                 }.onSuccess { imported ->
-                                    draft = SmartPlaylistDraft.fromDefinition(imported)
-                                    importMessage = "Imported ${imported.name}."
+                                    if (imported !is SmartPlaylistEditingResult.Editable) {
+                                        inspection = imported
+                                        return@onSuccess
+                                    }
+                                    draft = SmartPlaylistDraft.fromDefinition(imported.definition)
+                                    importMessage = "Imported ${imported.definition.name}."
                                     importOpen = false
                                 }.onFailure { error ->
                                     importMessage = error.message ?: "Could not import smart playlist JSON."
@@ -291,6 +298,9 @@ fun SmartPlaylistBuilderDialog(
         titleContentColor = colors.primaryText,
         textContentColor = colors.secondaryText,
     )
+    inspection?.let { editing ->
+        SmartPlaylistInspectionDialog(editing, colors) { inspection = null }
+    }
     if (passwordPromptOpen) {
         val pendingDefinition = pendingPasswordDefinition
         NaviampPopupPresence()
@@ -391,7 +401,8 @@ internal fun SmartPlaylistLoadPasswordDialog(
     playlist: SharedMediaItemUi,
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
-    onLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+    onInspectWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistEditingResult,
+    onReadOnly: (SmartPlaylistEditingResult) -> Unit,
     onLoaded: (SmartPlaylistDefinition) -> Unit,
 ) {
     var password by remember(playlist.id) { mutableStateOf("") }
@@ -437,10 +448,11 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     loading = true
                     errorMessage = null
                     coroutineScope.launch {
-                        runCatching { onLoadWithPassword(playlist, passwordToUse) }
-                            .onSuccess { definition ->
+                        runCatching { onInspectWithPassword(playlist, passwordToUse) }
+                            .onSuccess { editing ->
                                 loading = false
-                                onLoaded(definition)
+                                if (editing is SmartPlaylistEditingResult.Editable) onLoaded(editing.definition)
+                                else onReadOnly(editing)
                             }
                             .onFailure { error ->
                                 loading = false

@@ -1002,4 +1002,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Ergänzt zu wenige Sonic-Ergebnisse mit normalem Radio. Bei zu wenigen unterschiedlichen Treffern werden weniger Titel hinzugefügt.</string>
     <string name="settings_related_radio_minimum">Mindestanzahl für Radio</string>
     <string name="settings_related_radio_minimum_subtitle">Ähnliche Titel beim Start von Radio. Der Ausgangstitel spielt zuerst. Zu wenige Sonic-Ergebnisse werden nach Möglichkeit mit normalem Radio ergänzt.</string>
+    <string name="smart_playlist_inspection_title">Regeln der intelligenten Wiedergabeliste</string>
+    <string name="smart_playlist_inspection_read_only">Diese Liste verwendet Regeln oder Einstellungen, die dieser Editor nicht sicher ändern kann. Die Originaldefinition wird nur zur Ansicht angezeigt.</string>
+    <string name="smart_playlist_inspection_missing">Der Server hat die Regeln dieser Liste nicht bereitgestellt.</string>
+    <string name="smart_playlist_inspection_permission">Du darfst die Regeln dieser Liste nicht anzeigen.</string>
+    <string name="smart_playlist_inspection_not_found">Diese Liste wurde auf dem Server nicht gefunden.</string>
 </resources>

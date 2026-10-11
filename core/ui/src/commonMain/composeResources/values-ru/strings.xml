@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Дополняет результаты Sonic обычным Радио. Добавляет меньше треков, если недостаточно уникальных совпадений.</string>
     <string name="settings_related_radio_minimum">Минимум треков для Радио</string>
     <string name="settings_related_radio_minimum_subtitle">Похожие треки при запуске Радио. Исходный трек играет первым. Короткие результаты Sonic дополняются обычным Радио, если возможно.</string>
+    <string name="smart_playlist_inspection_title">Правила умного плейлиста</string>
+    <string name="smart_playlist_inspection_read_only">Этот плейлист использует правила или настройки, которые редактор не может безопасно изменить. Исходное определение показано только для просмотра.</string>
+    <string name="smart_playlist_inspection_missing">Сервер не предоставил правила этого плейлиста.</string>
+    <string name="smart_playlist_inspection_permission">У вас нет разрешения на просмотр правил этого плейлиста.</string>
+    <string name="smart_playlist_inspection_not_found">Этот плейлист не найден на сервере.</string>
 </resources>

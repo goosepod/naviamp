@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Sonicの結果が少ない場合は通常のRadioで補います。重複しない曲が不足する場合は追加曲数が少なくなります。</string>
     <string name="settings_related_radio_minimum">Radioで追加する最小曲数</string>
     <string name="settings_related_radio_minimum_subtitle">Radio開始時に追加する関連曲数。元の曲が最初に再生されます。Sonicの結果が少ない場合は通常のRadioで補います。</string>
+    <string name="smart_playlist_inspection_title">スマートプレイリストのルール</string>
+    <string name="smart_playlist_inspection_read_only">このプレイリストには、このエディターでは安全に変更できないルールや設定があります。元の定義は確認用に表示されます。</string>
+    <string name="smart_playlist_inspection_missing">サーバーからこのプレイリストのルールが提供されませんでした。</string>
+    <string name="smart_playlist_inspection_permission">このプレイリストのルールを表示する権限がありません。</string>
+    <string name="smart_playlist_inspection_not_found">サーバーでこのプレイリストが見つかりませんでした。</string>
 </resources>

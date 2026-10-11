@@ -170,4 +170,9 @@
     <string name="settings_related_autoplay_minimum_subtitle">Sonic 결과가 부족하면 일반 Radio로 보충합니다. 고유한 곡이 부족하면 더 적은 곡을 추가합니다.</string>
     <string name="settings_related_radio_minimum">Radio 최소 추가 곡 수</string>
     <string name="settings_related_radio_minimum_subtitle">Radio 시작 시 추가할 관련 곡 수입니다. 기준 곡이 먼저 재생됩니다. Sonic 결과가 부족하면 일반 Radio로 보충합니다.</string>
+    <string name="smart_playlist_inspection_title">스마트 재생목록 규칙</string>
+    <string name="smart_playlist_inspection_read_only">이 재생목록에는 이 편집기에서 안전하게 변경할 수 없는 규칙이나 설정이 있습니다. 원래 정의는 확인용으로만 표시됩니다.</string>
+    <string name="smart_playlist_inspection_missing">서버가 이 재생목록의 규칙을 제공하지 않았습니다.</string>
+    <string name="smart_playlist_inspection_permission">이 재생목록의 규칙을 볼 권한이 없습니다.</string>
+    <string name="smart_playlist_inspection_not_found">서버에서 이 재생목록을 찾을 수 없습니다.</string>
 </resources>
