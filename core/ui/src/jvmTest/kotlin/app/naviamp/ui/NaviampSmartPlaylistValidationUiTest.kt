@@ -123,5 +123,3 @@ class NaviampSmartPlaylistValidationUiTest {
         onNodeWithTag("smart-playlist-example-old").assertDoesNotExist()
     }
 }
-
-
