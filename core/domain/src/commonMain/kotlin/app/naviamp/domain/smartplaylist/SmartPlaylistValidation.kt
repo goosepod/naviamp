@@ -56,7 +56,8 @@ fun SmartPlaylistDraft.validate(): List<SmartPlaylistValidationIssue> = buildLis
         group.conditions.forEach { addAll(it.validate(group.id)) }
     }
     if (activeRules == 0) add(SmartPlaylistValidationIssue(SmartPlaylistIssueCode.NoRules))
-    if (limit <= 0 || (limitMode == SmartPlaylistLimitMode.Percent && limit > 100)) {
+    if (limitMode != SmartPlaylistLimitMode.Unlimited &&
+        (limit <= 0 || (limitMode == SmartPlaylistLimitMode.Percent && limit > 100))) {
         add(SmartPlaylistValidationIssue(SmartPlaylistIssueCode.InvalidLimit))
     }
     if (refreshDelay.isNotBlank() && !SmartPlaylistRefreshDelay.isValid(refreshDelay.trim())) {
