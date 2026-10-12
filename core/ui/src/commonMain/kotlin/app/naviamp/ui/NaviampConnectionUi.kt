@@ -79,7 +79,6 @@ import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.provider.NaviampProviderCatalog
 import app.naviamp.domain.provider.ProviderAvailability
-import app.naviamp.domain.provider.ProviderConnectionIcon
 import app.naviamp.domain.provider.ProviderDescriptor
 import app.naviamp.domain.provider.providerDescriptor
 import app.naviamp.domain.provider.ProviderIdNavidrome
@@ -543,12 +542,7 @@ private fun ProviderSelectionTile(
             )
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Icon(
-            imageVector = provider.icon.toImageVector(),
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(24.dp),
-        )
+        NaviampServiceIcon(provider.id, contentColor)
         Text(
             provider.displayName,
             color = contentColor,
@@ -560,13 +554,6 @@ private fun ProviderSelectionTile(
             Text(stringResource(Res.string.connection_coming_soon), color = colors.mutedText, fontSize = 10.sp, maxLines = 1)
         }
     }
-}
-
-private fun ProviderConnectionIcon.toImageVector() = when (this) {
-    ProviderConnectionIcon.Navidrome -> NaviampIcons.Turntable
-    ProviderConnectionIcon.Subsonic -> NaviampIcons.Globe
-    ProviderConnectionIcon.Jellyfin -> NaviampIcons.Player
-    ProviderConnectionIcon.Bandcamp -> NaviampIcons.Library
 }
 
 @Composable

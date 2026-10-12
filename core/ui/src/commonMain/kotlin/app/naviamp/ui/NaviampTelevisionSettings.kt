@@ -768,9 +768,9 @@ private fun TelevisionSourcesSettings(
         items(saved, key = { it.id }) { source ->
             TelevisionSettingsRow(
                 title = source.displayName,
-                subtitle = listOf(source.providerId, source.username).filter(String::isNotBlank).joinToString(" • "),
+                subtitle = listOf(app.naviamp.domain.provider.providerDescriptor(source.providerId).displayName, source.username).filter(String::isNotBlank).joinToString(" • "),
                 value = if (source.current) stringResource(Res.string.common_current) else source.selectedLibrarySummary,
-                icon = NaviampIcons.Library,
+                serviceProviderId = source.providerId,
                 selected = source.current,
                 colors = colors,
                 onClick = { if (!source.current) actions.onConnectSavedConnection(source) },
@@ -1782,6 +1782,7 @@ private fun TelevisionSettingsRow(
     subtitle: String = "",
     value: String? = null,
     icon: ImageVector? = null,
+    serviceProviderId: String? = null,
     disclosure: Boolean = false,
     selected: Boolean = false,
     enabled: Boolean = true,
@@ -1812,7 +1813,10 @@ private fun TelevisionSettingsRow(
                 shape = shape,
             ),
     ) {
-        icon?.let {
+        if (serviceProviderId != null) {
+            NaviampServiceIcon(serviceProviderId, colors.primaryText, size = 25.dp)
+            Spacer(Modifier.size(13.dp))
+        } else icon?.let {
             Icon(it, contentDescription = null, modifier = Modifier.size(25.dp))
             Spacer(Modifier.size(13.dp))
         }
