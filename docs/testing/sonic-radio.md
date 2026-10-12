@@ -5,7 +5,7 @@ Issue: https://github.com/goosepod/naviamp/issues/273
 ## Shared behavior
 
 Settings → Experience → Radio is always visible. Sonic Similarity and Instant Mix are mutually
-exclusive choices with descriptions. Sonic is disabled when the server does not advertise support.
+exclusive highlighted-row choices with descriptions. Sonic is disabled when the server does not advertise support.
 A saved Sonic selection remains explicit on an unsupported server: requests report unsupported
 rather than silently selecting Instant Mix. TV playback settings use the same common Radio controls.
 
@@ -43,7 +43,7 @@ There is no database migration.
 8. Check admin details with admin/non-admin accounts, missing native credentials, disabled plugins,
    successful empty inventory, and unavailable APIs. No credentials, paths, configuration values,
    or raw plugin error text may appear.
-9. Check keyboard/radio-button accessibility, TV focus, narrow-window clipping and source changes.
+9. Check keyboard/selected-row accessibility, TV focus, narrow-window clipping and source changes.
    Disabled Sonic must not be activatable through pointer or keyboard.
 
 ## Automated checks

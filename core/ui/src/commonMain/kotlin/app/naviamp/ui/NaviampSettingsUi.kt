@@ -2,9 +2,8 @@ package app.naviamp.ui
 import app.naviamp.domain.radio.RadioSimilarityMethod
 import app.naviamp.domain.radio.radioSimilarityMethod
 import app.naviamp.domain.radio.withRadioSimilarityMethod
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
 
 import app.naviamp.ui.generated.resources.settings_keep_screen_awake
 import app.naviamp.ui.generated.resources.settings_keep_screen_awake_description
@@ -50,8 +49,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
@@ -3977,6 +3974,7 @@ internal fun SelectableSettingsRow(
                 color = if (selected && enabled) colors.accent.copy(alpha = 0.16f) else colors.background.copy(alpha = 0f),
                 shape = RoundedCornerShape(6.dp),
             )
+            .semantics { this.selected = selected }
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 8.dp, vertical = SettingsDetailRowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -5108,22 +5106,17 @@ internal fun RadioSimilarityChoices(
             val sonic = method == RadioSimilarityMethod.SonicSimilarity
             val enabled = !sonic || supportsSonic
             val selected = settings.radioSimilarityMethod() == method
-            Row(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)
-                .selectable(selected = selected, enabled = enabled, role = Role.RadioButton,
-                    onClick = { onChanged(settings.withRadioSimilarityMethod(method)) })
-                .padding(vertical = SettingsDetailRowVerticalPadding),
-                verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(if (sonic) Res.string.settings_related_sonic_similarity else Res.string.radio_instant_mix),
-                        color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
-                    Text(stringResource(if (sonic) Res.string.settings_related_sonic_similarity_subtitle else Res.string.radio_instant_mix_description),
-                        color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
-                    if (!enabled) Text(stringResource(Res.string.settings_related_requires_support), color = colors.mutedText,
-                        fontSize = SettingsDetailRowSubtitleSize)
-                }
-                RadioButton(selected = selected, enabled = enabled, onClick = null,
-                    colors = RadioButtonDefaults.colors(selectedColor = colors.accent, unselectedColor = colors.secondaryText))
-            }
+            SelectableSettingsRow(
+                colors = colors,
+                title = stringResource(if (sonic) Res.string.settings_related_sonic_similarity else Res.string.radio_instant_mix),
+                subtitle = listOfNotNull(
+                    stringResource(if (sonic) Res.string.settings_related_sonic_similarity_subtitle else Res.string.radio_instant_mix_description),
+                    stringResource(Res.string.settings_related_requires_support).takeUnless { enabled },
+                ).joinToString("\n"),
+                selected = selected,
+                enabled = enabled,
+                onClick = { onChanged(settings.withRadioSimilarityMethod(method)) },
+            )
         }
     }
 }
