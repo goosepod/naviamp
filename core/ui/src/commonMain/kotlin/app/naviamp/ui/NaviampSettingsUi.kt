@@ -2661,13 +2661,17 @@ private fun NaviampSavedConnectionRow(
                 Icon(NaviampIcons.Trash, contentDescription = stringResource(Res.string.settings_source_delete_content_description), tint = if (enabled) colors.primaryText else colors.mutedText)
             }
         }
-        Text(
-            "${providerDescriptor(connection.providerId).displayName} · ${connection.username}",
-            color = colors.secondaryText,
-            fontSize = 12.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampServiceIcon(connection.providerId, colors.secondaryText)
+            Text(
+                "${providerDescriptor(connection.providerId).displayName} · ${connection.username}",
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
         Text(
             connection.serverUrl,
             color = colors.secondaryText,
