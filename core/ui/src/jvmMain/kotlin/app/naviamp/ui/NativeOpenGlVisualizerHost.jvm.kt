@@ -44,7 +44,7 @@ internal class NativeOpenGlVisualizerHost(
         uploadPendingAlbumArt()
 
         smoothVisualizerBands(bands, smoothBands, uniformBands)
-        val shaderSpec = visualizer.nativeOpenGlShaderSpec(renderPolicy)
+        val shaderSpec = visualizer.nativeShaderSpec(renderPolicy)
         val renderWidth = (width * shaderSpec.renderScale).toInt().coerceAtLeast(64)
         val renderHeight = (height * shaderSpec.renderScale).toInt().coerceAtLeast(64)
         return runCatching {
@@ -94,7 +94,7 @@ internal class NativeOpenGlVisualizerHost(
         uploadPendingAlbumArt()
 
         smoothVisualizerBands(bands, smoothBands, uniformBands)
-        val shaderSpec = visualizer.nativeOpenGlShaderSpec(renderPolicy)
+        val shaderSpec = visualizer.nativeShaderSpec(renderPolicy)
         return runCatching {
             nativeRenderSurface(
                 nativeHandle,
@@ -234,61 +234,6 @@ private data class NativeOpenGlAlbumArt(
     val height: Int,
     val rgbaPixels: ByteArray,
 )
-
-private data class NativeOpenGlShaderSpec(
-    val renderScale: Float,
-    val maxRaymarchSteps: Int = 0,
-)
-
-private fun NaviampVisualizer.nativeOpenGlShaderSpec(renderPolicy: VisualizerRenderPolicy): NativeOpenGlShaderSpec =
-    when (this) {
-        NaviampVisualizer.OceanHorizon -> NativeOpenGlShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 1.0f
-                VisualizerRenderTier.Constrained -> 0.48f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 60
-                VisualizerRenderTier.Balanced -> 60
-                VisualizerRenderTier.Constrained -> 42
-            },
-        )
-        NaviampVisualizer.RaymarchedSphereLiquid -> NativeOpenGlShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 1.0f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 80
-                VisualizerRenderTier.Balanced -> 64
-                VisualizerRenderTier.Constrained -> 48
-            },
-        )
-        NaviampVisualizer.AudioTunnel -> NativeOpenGlShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.90f
-                VisualizerRenderTier.Constrained -> 0.62f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 64
-                VisualizerRenderTier.Balanced -> 52
-                VisualizerRenderTier.Constrained -> 38
-            },
-        )
-        NaviampVisualizer.AnalogSignalFailure,
-        NaviampVisualizer.FluidicNebulae,
-        NaviampVisualizer.OceanOfInk -> NativeOpenGlShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 1.0f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-        )
-        else -> NativeOpenGlShaderSpec(renderScale = 1.0f)
-    }
 
 private fun Color.toFloatArray(): FloatArray =
     floatArrayOf(red, green, blue, alpha)

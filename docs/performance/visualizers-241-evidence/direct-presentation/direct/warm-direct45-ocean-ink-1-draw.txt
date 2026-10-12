@@ -1,0 +1,1 @@
+phase=direct45-ocean-ink draws=814 mean_draw_ms=0.043433 intervals=813 p50_interval_ms=22.031375 p95_interval_ms=26.366

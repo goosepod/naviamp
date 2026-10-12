@@ -13,6 +13,11 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.layout.positionInWindow
 
 /**
@@ -57,7 +62,9 @@ internal interface NaviampRasterRegion {
 
 internal val LocalNaviampRasterPresenter = staticCompositionLocalOf<NaviampRasterPresenter?> { null }
 internal val LocalNaviampAnimationVisible = staticCompositionLocalOf { true }
-private val LocalNaviampWindowVisible = staticCompositionLocalOf { true }
+internal val LocalNaviampWindowVisible = staticCompositionLocalOf { true }
+/** OS visibility must reach running effects even when the host stops recomposition. */
+internal val LocalNaviampWindowVisibility = staticCompositionLocalOf<StateFlow<Boolean>> { MutableStateFlow(true) }
 
 internal class NaviampRasterPosition {
     var translationX: () -> Float = { 0f }
@@ -96,7 +103,6 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
     var readyRevision by remember(region) { mutableIntStateOf(0) }
     var drawRevision by remember(region) { mutableIntStateOf(0) }
     var fallbackRevision by remember(region) { mutableIntStateOf(0) }
-    val currentContent by rememberUpdatedState(content)
     SideEffect { position?.translationX = {
         if (presented) region?.translationX(0) ?: 0f else rasterContent.layers.firstOrNull()?.translation?.valueAt(elapsed) ?: 0f
     } }
@@ -115,13 +121,9 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
         onDispose { region?.close() }
     }
     SideEffect { submit() }
-    LaunchedEffect(Unit) {
-        snapshotFlow { currentContent.let { it to it.value() } }.collect { (source, value) ->
-            // Rasterization happens outside snapshotFlow's read-only snapshot. Native updates
-            // do not change composition/drawing state unless a fallback or deferred commit needs it.
-            rasterContent.layers = source.render(value)
-            submit()
-        }
+    NaviampObserveRasterContent(content, windowVisible && !clip.isEmpty) { layers ->
+        rasterContent.layers = layers
+        submit()
     }
     val presentationModifier = remember(region) { Modifier.onGloballyPositioned {
         bounds = Rect(it.positionInWindow(), androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat()))
@@ -179,11 +181,21 @@ internal fun NaviampRasterEnvironment(
     presenter: NaviampRasterPresenter?, windowVisible: Boolean, overlayVisible: Boolean,
     popupsInOwnedWindows: Boolean,
     content: @Composable () -> Unit,
+) = NaviampRasterEnvironment(presenter, windowVisible, overlayVisible, popupsInOwnedWindows, null, content)
+
+@Composable
+internal fun NaviampRasterEnvironment(
+    presenter: NaviampRasterPresenter?, windowVisible: Boolean, overlayVisible: Boolean,
+    popupsInOwnedWindows: Boolean, windowVisibility: StateFlow<Boolean>?,
+    content: @Composable () -> Unit,
 ) {
+    val composedVisibility = remember { MutableStateFlow(windowVisible) }
+    SideEffect { composedVisibility.value = windowVisible }
     val popups = remember { NaviampPopupRegistry() }
     CompositionLocalProvider(
         LocalNaviampPopupRegistry provides popups,
         LocalNaviampWindowVisible provides windowVisible,
+        LocalNaviampWindowVisibility provides (windowVisibility ?: composedVisibility),
         LocalNaviampOwnedPopupWindows provides popupsInOwnedWindows,
         // Same-canvas overlays require the shared fallback. Owned popup windows intrinsically
         // stack above native pixels and draw their own scrim, so the original scene can continue.
@@ -191,4 +203,24 @@ internal fun NaviampRasterEnvironment(
         LocalNaviampAnimationVisible provides (windowVisible && (!overlayVisible || presenter?.contentBelowOwnedWindows == true)),
         content = content,
     )
+}
+
+/** Hidden/clipped surfaces retain cached pixels and catch up once when they become visible. */
+@Composable
+internal fun <T> NaviampObserveRasterContent(
+    content: NaviampRasterContent<T>, visible: Boolean, onLayers: (List<NaviampRasterLayer>) -> Unit,
+) {
+    val currentContent by rememberUpdatedState(content)
+    val currentOnLayers by rememberUpdatedState(onLayers)
+    val visibility = LocalNaviampWindowVisibility.current
+    val currentVisible by rememberUpdatedState(visible)
+    LaunchedEffect(visibility) {
+        combine(visibility, snapshotFlow { currentVisible }) { window, surface -> window && surface }
+            .distinctUntilChanged().collectLatest { showing ->
+                if (showing) snapshotFlow { currentContent.let { it to it.value() } }.collect { (source, value) ->
+                    // Rendering must run outside snapshotFlow's read-only snapshot.
+                    currentOnLayers(source.render(value))
+                }
+            }
+    }
 }

@@ -1,0 +1,76 @@
+"thread","cpu_seconds"
+"droid.benchmark",0.668985
+"AudioTrack",0.290062
+"GrallocUploadTh",0.087024
+"Jit thread pool",0.084411
+"DefaultDispatch",0.076703
+"DefaultDispatch",0.076623
+"HeapTaskDaemon",0.072445
+"DefaultDispatch",0.050440
+"DefaultDispatch",0.028610
+"DefaultDispatch",0.024427
+"DefaultExecutor",0.023354
+"android.bg",0.019720
+"Profile Saver",0.018220
+"FinalizerDaemon",0.010491
+"mali-event-hand",0.008256
+"binder:19429_2",0.008092
+"mali-mem-purge",0.007215
+"DefaultDispatch",0.005285
+"DefaultDispatch",0.004616
+"DefaultDispatch",0.004337
+"binder:19429_5",0.003484
+"ReferenceQueueD",0.002886
+"DefaultDispatch",0.002539
+"DefaultDispatch",0.001819
+"DefaultDispatch",0.001522
+"DefaultDispatch",0.001243
+"DefaultDispatch",0.001088
+"DefaultDispatch",0.001046
+"DefaultDispatch",0.000870
+"FinalizerWatchd",0.000866
+"DefaultDispatch",0.000829
+"DefaultDispatch",0.000691
+"DefaultDispatch",0.000551
+"DefaultDispatch",0.000382
+"DefaultDispatch",0.000195
+"DefaultDispatch",0.000141
+"DefaultDispatch",0.000082
+"binder:19429_3",0.000019
+
+"compositor_thread","cpu_seconds"
+"surfaceflinger",0.410608
+"app",0.307576
+"binder:637_1",0.185532
+"TimerDispatch",0.166745
+"binder:637_4",0.148435
+"RenderEngine",0.034330
+"IdleTimer",0.030392
+"surfaceflinger",0.020829
+"BckgrndExec WL",0.020559
+"RegSampIdle",0.010099
+"BckgrndExec HP",0.009921
+"RegionSampling",0.006259
+"mali-mem-purge",0.001481
+"TracingMuxer",0.000636
+"mali-event-hand",0.000356
+"RE Completion",0.000252
+"binder:637_3",0.000178
+"mali-event-hand",0.000091
+"BckgrndExec LP",0.000028
+
+"draws","draw_span_seconds","draw_fps"
+0,"[NULL]","[NULL]"
+
+"interval_bucket_ms","frames"
+
+"layer_name","buffers","submitted_fps"
+
+"thread","buffer","dequeues","dequeue_fps"
+
+"thread","operation","calls","mean_ms","max_ms"
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",35,108.788616
+"droid.benchmark","allocateHardwareBitmap",30,344.903971
+"droid.benchmark","uploadHardwareBitmap",30,274.971114

@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=fixed-direct45-analog-2 pid=39634 cpu=3.1961538683916215 compilation_ms=124 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=false/false

@@ -1,0 +1,15 @@
+phase,cpu_percent_one_core,interval_seconds,interpretation
+resume-analog45-short,27.6223,15.015652,clean interval; see report for state and separate trace
+resume-analog45-short-warm,24.5958,30.030679,clean interval; see report for state and separate trace
+resume-artwork-short,4.1921,30.030670,clean interval; see report for state and separate trace
+resume-long-artwork-combined,7.6601,30.030661,clean interval; see report for state and separate trace
+resume-long-paused-final,3.6082,30.031238,clean interval; see report for state and separate trace
+resume-sc-long-paused,13.7695,15.015595,startup; excluded from steady claims
+resume-sc-long-paused-warm,3.718,30.031198,clean interval; see report for state and separate trace
+resume-sphere-background,2.3966,15.016233,clean interval; see report for state and separate trace
+resume-sphere-paused,0.3027,15.016210,clean interval; see report for state and separate trace
+resume-sphere-restored,24.1512,15.015598,clean interval; see report for state and separate trace
+resume-sphere45-short,24.0894,15.015578,clean interval; see report for state and separate trace
+resume-sphere45-short-warm,24.1041,30.014489,clean interval; see report for state and separate trace
+resume-view-long-paused,34.6053,15.001078,rejected renderer; capture remained playing despite attempted pause
+resume-view-long-paused-warm,34.7929,30.030260,rejected renderer; capture remained playing despite attempted pause

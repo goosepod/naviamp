@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=fixed-direct45-sphere-1 pid=39634 cpu=4.2372627044642 compilation_ms=199 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=false/false

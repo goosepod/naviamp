@@ -41,3 +41,41 @@ and progress-only states and long identities for marquee and combined states. Ke
 loopback-only and playback muted. Exercise menus, diagnostics, pause, minimize/restore, resize,
 clipping, input and accessibility, and apply the budgets in `docs/performance/desktop-popup-animation-136.md`.
 A low CPU measurement or an attached render delegate alone is insufficient acceptance evidence.
+
+For repeatable interaction without an automation pointer covering the capture, compile
+`FullAppObserver.java` into a separate jar with `Premain-Class: FullAppObserver`. Add a second
+`-javaagent:/absolute/path/controls.jar=/absolute/path/controls` option to the disposable app.
+Append tab-separated commands to `controls/commands.txt`, each with a unique ID:
+
+```text
+1\tdump
+2\taction\tPlay
+3\tscreens
+4\tmove\t3000\t100
+5\tresize\t1280\t960
+6\tminimize
+7\trestore
+```
+
+Use actual tab characters. Wait for `controls/ID.reply` and for UI state to settle before the next
+command. `dump` includes visible owned popups; `action` uses the exact accessible name. An unnamed
+control can be invoked with `action-path` and its freshly dumped accessible path. Paths are specific
+to the current UI tree. These control commands use public AWT/accessibility APIs; the separate
+legacy `state` and `trace` commands require their optional native bridge. Never mutate the UI while
+a CPU phase is in progress. A locked screen invalidates visible captures even if the app reports
+that its window is showing.
+
+For representative audio-rate checks, the fixture supports `--sample-rate 48000` (also 44100;
+default 16000). Record the rate with every comparison and select a fresh track after replacing a
+fixture. For Android traces, `scripts/visualizer-probe/android-player-sample.py` records an explicit
+128 MiB Perfetto configuration with process snapshots and checks the app PID before and after.
+Check process metadata and retained event span before deriving FPS or thread cost; never divide a
+partially retained frame count by the requested duration. Its CPU and Perfetto intervals are
+separate measurements.
+
+Use `android-player-sample.py --compositor` to read SurfaceFlinger's `/proc/PID/stat` CPU counters
+immediately around the untraced CPU interval. The JSON records the actual elapsed counter interval,
+kernel clock rate and process start identity. This measures the system compositor, so unrelated
+display activity can affect it; keep the physical device untouched. Perfetto graphics instrumentation
+can increase compositor cost and must not replace this direct counter check. Check for virtual
+displays/mirroring, and compare matched static, individual-animation and combined states.

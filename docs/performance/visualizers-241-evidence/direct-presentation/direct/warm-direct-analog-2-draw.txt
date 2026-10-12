@@ -1,0 +1,1 @@
+phase=direct-analog draws=1746 mean_draw_ms=0.031888 intervals=1745 p50_interval_ms=16.409916 p95_interval_ms=20.0955

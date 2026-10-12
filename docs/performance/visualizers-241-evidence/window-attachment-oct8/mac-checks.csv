@@ -1,0 +1,12 @@
+phase,app_cpu_percent_one_core,compilation_ms,parent_frames,physical_captures
+mac-v6-restored-visible,0.5123515616839438,9,0,true/true
+mac-v6-short-active-artwork,4.343282696412889,194,0,true/true
+mac-v6-short-active-artwork-warm,3.0732983583590645,89,0,true/true
+mac-v6-sphere-active,9.782125294577794,219,0,true/true
+mac-v6-sphere-active-warm,10.012626237045662,313,0,true/true
+mac-v6-sphere-wide,9.024220693829504,167,0,true/true
+mac-v6-ocean-wide-verified,7.090952802991714,43,0,true/true
+mac-v6-ocean-paused,0.7846118663699433,0,0,true/true
+mac-v6-minimized-paused,1.0085255391601022,0,0,false/false
+mac-v6-restored-resized-paused,0.4289543753604901,5,0,true/true
+mac-v7-final-paused-settled,0.5181080926416796,5,0,true/true

@@ -1,0 +1,26 @@
+[
+  {
+    "process": "Naviamp (17364)",
+    "channel": "Fragment",
+    "intervals": 694,
+    "channel_ms": 5827.306878,
+    "span_seconds": 16.075807792,
+    "interval_mean_ms": 8.39669578962536,
+    "interval_p50_ms": 8.700667,
+    "interval_p95_ms": 9.55675,
+    "interval_p99_ms": 10.087917,
+    "interval_max_ms": 10.678666
+  },
+  {
+    "process": "Naviamp (17364)",
+    "channel": "Vertex",
+    "intervals": 712,
+    "channel_ms": 3.547078,
+    "span_seconds": 16.091706167,
+    "interval_mean_ms": 0.004981851123595506,
+    "interval_p50_ms": 0.004541,
+    "interval_p95_ms": 0.006916,
+    "interval_p99_ms": 0.016083,
+    "interval_max_ms": 0.042958
+  }
+]

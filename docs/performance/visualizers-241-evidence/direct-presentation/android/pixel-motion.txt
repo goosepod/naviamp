@@ -1,0 +1,12 @@
+inline-sphere colors=17935 changed_gt2=112673 pixels=128164 sibling_changed_gt2=0
+inline-analog colors=1 changed_gt2=0 pixels=128164 sibling_changed_gt2=0
+inline-ocean colors=1 changed_gt2=0 pixels=128164 sibling_changed_gt2=0
+direct-sphere colors=19323 changed_gt2=117895 pixels=128164 sibling_changed_gt2=0
+direct45-sphere colors=11575 changed_gt2=109677 pixels=128164 sibling_changed_gt2=0
+direct-analog colors=25711 changed_gt2=119991 pixels=128164 sibling_changed_gt2=0
+direct45-analog colors=26043 changed_gt2=122224 pixels=128164 sibling_changed_gt2=0
+direct-ocean colors=122 changed_gt2=14627 pixels=128164 sibling_changed_gt2=0
+direct45-ocean colors=37 changed_gt2=10656 pixels=128164 sibling_changed_gt2=0
+direct-large-analog colors=48652 changed_gt2=390015 pixels=409600 sibling_changed_gt2=0
+direct-large-ocean colors=104 changed_gt2=37728 pixels=409600 sibling_changed_gt2=0
+paused-direct-analog colors=17851 changed_gt2=0 pixels=128164 sibling_changed_gt2=0

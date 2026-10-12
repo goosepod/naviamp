@@ -1,0 +1,16 @@
+screen-direct-analog-2-before.png visualizer_changed_pixels=127298 static_sibling_changed_pixels=0
+screen-direct-large-analog-1-before.png visualizer_changed_pixels=406183 static_sibling_changed_pixels=0
+screen-direct-large-analog-2-before.png visualizer_changed_pixels=406531 static_sibling_changed_pixels=0
+screen-direct-large-ocean-ink-1-before.png visualizer_changed_pixels=210809 static_sibling_changed_pixels=0
+screen-direct-large-ocean-ink-2-before.png visualizer_changed_pixels=126810 static_sibling_changed_pixels=0
+screen-direct-ocean-ink-1-before.png visualizer_changed_pixels=49325 static_sibling_changed_pixels=0
+screen-direct-ocean-ink-2-before.png visualizer_changed_pixels=37640 static_sibling_changed_pixels=0
+screen-direct-sphere-1-before.png visualizer_changed_pixels=119962 static_sibling_changed_pixels=0
+screen-direct-sphere-2-before.png visualizer_changed_pixels=123015 static_sibling_changed_pixels=0
+screen-direct45-analog-1-before.png visualizer_changed_pixels=127441 static_sibling_changed_pixels=0
+screen-direct45-analog-2-before.png visualizer_changed_pixels=126570 static_sibling_changed_pixels=0
+screen-direct45-ocean-ink-1-before.png visualizer_changed_pixels=70083 static_sibling_changed_pixels=0
+screen-direct45-ocean-ink-2-before.png visualizer_changed_pixels=55193 static_sibling_changed_pixels=0
+screen-direct45-sphere-1-before.png visualizer_changed_pixels=124608 static_sibling_changed_pixels=0
+screen-direct45-sphere-2-before.png visualizer_changed_pixels=122979 static_sibling_changed_pixels=0
+screen-paused-direct-analog-1-before.png visualizer_changed_pixels=76313 static_sibling_changed_pixels=182580

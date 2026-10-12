@@ -1,0 +1,50 @@
+[
+  {
+    "state": "static",
+    "cpu_median": 1.6301656250466334,
+    "parent_frames_median": 0.0,
+    "visible_samples": 2
+  },
+  {
+    "state": "skia-sphere",
+    "cpu_median": 20.932042896914716,
+    "parent_frames_median": 750.5,
+    "visible_samples": 2
+  },
+  {
+    "state": "skia-analog",
+    "cpu_median": 18.349015030881873,
+    "parent_frames_median": 762.0,
+    "visible_samples": 2
+  },
+  {
+    "state": "native-analog",
+    "cpu_median": 25.71440128489345,
+    "parent_frames_median": 764.5,
+    "visible_samples": 2
+  },
+  {
+    "state": "skia-sphere-combined",
+    "cpu_median": 19.38000118733306,
+    "parent_frames_median": 766.0,
+    "visible_samples": 2
+  },
+  {
+    "state": "skia-analog-combined",
+    "cpu_median": 19.381352289605402,
+    "parent_frames_median": 765.0,
+    "visible_samples": 2
+  },
+  {
+    "state": "paused-sphere",
+    "cpu_median": 1.0495829364361795,
+    "parent_frames_median": 0.0,
+    "visible_samples": 2
+  },
+  {
+    "state": "paused-analog",
+    "cpu_median": 0.510911791434625,
+    "parent_frames_median": 0.0,
+    "visible_samples": 2
+  }
+]

@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=continuous-static-2 pid=67840 cpu=0.7953819173435974 compilation_ms=20 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

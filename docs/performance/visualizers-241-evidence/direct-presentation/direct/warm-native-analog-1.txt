@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=warm-native-analog-1 pid=27288 cpu=25.238329517422926 compilation_ms=549 surface=parent:1000x712 visible=true iconified=false frames=745 observer_attached=true physical_captures=true/true

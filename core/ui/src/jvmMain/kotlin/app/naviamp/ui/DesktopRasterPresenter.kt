@@ -13,6 +13,7 @@ import java.awt.Container
 import java.awt.EventQueue
 import java.awt.Toolkit
 import java.awt.Window
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.awt.event.AWTEventListener
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -45,11 +46,13 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
         else if (linux && LinuxRasterPresenter.libraryAvailable()) LinuxRasterPresenter(window)
         else null
     }
-    var visible by remember(window) { mutableStateOf(window.isShowing) }
+    val visibility = remember(window) { MutableStateFlow(window.isShowing) }
+    val visible by visibility.collectAsState()
     var overlay by remember(window) { mutableStateOf(false) }
     DisposableEffect(window) {
         fun update() {
-            visible = window.isShowing
+            visibility.value = window.isShowing &&
+                ((window as? java.awt.Frame)?.extendedState?.and(java.awt.Frame.ICONIFIED) ?: 0) == 0
             fun hasOverlay(owner: Window): Boolean = owner.ownedWindows.any {
                 it.name != RasterOverlayWindowName && (it.isShowing || hasOverlay(it))
             }
@@ -70,8 +73,14 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     // AWT does not always emit a deiconify event for programmatic Frame state changes.
     // Compose Desktop's native WindowState reports those transitions as well as WM input.
-    NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
-        System.getProperty("compose.layers.type") == "WINDOW", content)
+    val gpuPresenter = remember(window) {
+        if (System.getProperty("os.name").contains("Mac") && NativeMetalVisualizerHost.libraryAvailable())
+            DesktopGpuVisualizerPresenter(window) else null
+    }
+    CompositionLocalProvider(LocalNaviampGpuVisualizerPresenter provides gpuPresenter) {
+        NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
+            System.getProperty("compose.layers.type") == "WINDOW", visibility, content)
+    }
 }
 
 /** Windows and Linux isolate animation in small transparent Skia hardware surfaces. */

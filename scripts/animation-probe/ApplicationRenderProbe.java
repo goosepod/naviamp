@@ -111,6 +111,11 @@ public final class ApplicationRenderProbe {
             // Capture the measured client surface using actual decoration insets.
             Rectangle client = new Rectangle(rect.x + decoration.left, rect.y + decoration.top,
                 rect.width - decoration.left - decoration.right, rect.height - decoration.top - decoration.bottom);
+            // Optional header exclusion for the computer-use pointer overlay. The measured
+            // window size stays unchanged; the complete animated body must remain in capture.
+            int headerInset = Math.max(0, Integer.getInteger("naviamp.probe.captureTopInset", 0));
+            client.y += headerInset;
+            client.height -= headerInset;
             if (client.width <= 24 || client.height <= 24) return false;
             Process validation = new ProcessBuilder(guard, Long.toString(ProcessHandle.current().pid()),
                 "" + client.x, "" + client.y, "" + client.width, "" + client.height).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();

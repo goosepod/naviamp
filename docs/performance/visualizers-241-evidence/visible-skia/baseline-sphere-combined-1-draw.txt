@@ -1,0 +1,1 @@
+phase=sphere-combined draws=960 mean_draw_ms=0.051471 intervals=959 p50_interval_ms=26.141916 p95_interval_ms=27.614916

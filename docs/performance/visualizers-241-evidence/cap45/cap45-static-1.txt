@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=cap45-static-1 pid=83375 cpu=0.9966521976703953 compilation_ms=44 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true
