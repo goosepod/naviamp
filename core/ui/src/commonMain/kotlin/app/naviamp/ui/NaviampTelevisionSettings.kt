@@ -826,9 +826,12 @@ private fun TelevisionPlaybackSettings(
     val capability = uiState.playback
     val settings = capability.settings
     TelevisionSettingsList {
-        if (capability.similarityDiagnosticsAvailable) {
-            item(key = "similarity-test") {
-                NaviampSimilarityTestContent(colors, capability.similarityTest, onTestSimilarity, capability.radioDiagnostics)
+        item(key = "radio-settings") {
+            Column {
+                SettingsSectionTitle(stringResource(Res.string.settings_experience_related_tracks_title), colors)
+                RadioSettingsSection(colors, settings, capability.sonicSimilarityAvailable,
+                    capability.similarityTest, capability.radioDiagnostics,
+                    onTestSimilarity.takeIf { capability.similarityDiagnosticsAvailable }, actions.onPlaybackSettingsChanged)
             }
         }
         if (capability.replayGainAvailable) {

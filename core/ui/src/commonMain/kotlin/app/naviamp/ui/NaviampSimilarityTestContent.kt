@@ -84,11 +84,6 @@ private fun SimilarityReportContent(colors: NaviampColors, test: NaviampSimilari
     }
     radio?.let {
         Text(radioNoticeText(it), color = colors.secondaryText)
-        it.fallback?.let { reason -> Text(stringResource(when (reason) {
-            SonicRadioFallbackReason.Empty -> Res.string.similarity_empty
-            SonicRadioFallbackReason.TimedOut -> Res.string.similarity_timeout
-            SonicRadioFallbackReason.Failed -> Res.string.similarity_failed
-        }), color = colors.secondaryText) }
     }
 }
 
@@ -157,11 +152,17 @@ private fun SimilarityResultText(colors: NaviampColors, result: SimilarityEndpoi
 }
 
 @Composable
-private fun radioNoticeText(result: RadioBuildDiagnostics): String = stringResource(when (result.outcome) {
-    RadioBuildOutcome.Fallback -> Res.string.similarity_radio_fallback
-    RadioBuildOutcome.Empty -> Res.string.similarity_radio_empty
-    RadioBuildOutcome.Failed -> Res.string.similarity_radio_failed
-})
+private fun radioNoticeText(result: RadioBuildDiagnostics): String {
+    val detail = stringResource(when (result.outcome) {
+        RadioBuildOutcome.TimedOut -> Res.string.similarity_timeout
+        RadioBuildOutcome.Unsupported -> Res.string.settings_related_requires_support
+        RadioBuildOutcome.Empty -> Res.string.similarity_radio_empty
+        RadioBuildOutcome.Failed -> Res.string.similarity_failed
+    })
+    val label = stringResource(if (result.autoplay) Res.string.settings_related_sonic_autoplay
+        else Res.string.settings_experience_related_tracks_title)
+    return stringResource(Res.string.radio_status, label, detail)
+}
 
 @Composable
 fun NaviampRadioNotice(colors: NaviampColors, result: RadioBuildDiagnostics, onDismiss: () -> Unit, modifier: Modifier = Modifier) {

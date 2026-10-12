@@ -24,65 +24,57 @@ class SimilarityServiceTest {
         assertEquals(listOf("one", "two"), result.seedMatches.map { it.seedId.value })
         assertEquals(listOf("one-match", "two-match"), result.seedMatches.flatMap { it.matches }.map { it.track.id.value })
         assertEquals(listOf(0.8, 0.8), result.seedMatches.flatMap { it.matches }.map { it.similarity })
-        assertNull(result.fallback)
         assertNull(result.failure)
         assertEquals(emptyList(), provider.regularRequests)
     }
 
-    @Test
-    fun emptySeedOnlyAndExcludedOnlySonicResponsesFallBack() = runTest {
-        for (matches in listOf(emptyList(), listOf(SonicSimilarTrack(track("seed"))),
-            listOf(SonicSimilarTrack(track("queued"))))) {
+    @Test fun emptyOrFilteredSonicResultsNeverCallInstantMix() = runTest {
+        for (matches in listOf(emptyList(), listOf(SonicSimilarTrack(track("seed"))), listOf(SonicSimilarTrack(track("queued"))))) {
             val provider = FakeProvider()
             provider.sonic = { _, _ -> matches }
-            provider.regular = { _, _ -> listOf(track("seed"), track("queued"), track("regular")) }
-            val result = SimilarityService(provider).load(SimilarityRequest(
-                listOf(TrackId("seed")), setOf(TrackId("queued"))))
-            assertEquals(SimilarityEndpoint.Regular, result.source)
-            assertEquals(SonicRadioFallbackReason.Empty, result.fallback)
-            assertEquals(listOf("regular"), result.getOrThrow().single().matches.map { it.track.id.value })
-            assertNull(result.seedMatches.single().matches.single().similarity)
+            provider.regular = { _, _ -> error("Must not substitute") }
+            val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), setOf(TrackId("queued"))))
+            assertEquals(SimilarityEndpoint.Sonic, result.source)
+            assertFalse(result.hasMatches)
+            assertNull(result.failure)
+            assertEquals(emptyList(), provider.regularRequests)
         }
     }
 
-    @Test
-    fun disabledPreferenceOrMissingCapabilitySkipsSonicWithoutClaimingFailure() = runTest {
-        for ((supported, preferred) in listOf(true to false, false to true)) {
-            val provider = FakeProvider(supported)
-            provider.regular = { _, _ -> listOf(track("regular")) }
-            val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), preferSonic = preferred))
-            assertTrue(result.hasMatches)
-            assertEquals(SimilarityEndpoint.Regular, result.source)
-            assertNull(result.fallback)
-            assertEquals(emptyList(), provider.sonicRequests)
-        }
+    @Test fun unsupportedSonicDoesNotSubstituteAndInstantMixWorksWithoutSonicSupport() = runTest {
+        val provider = FakeProvider(false)
+        provider.regular = { _, _ -> listOf(track("regular")) }
+        val unsupported = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed"))))
+        assertEquals(SimilarityResultKind.Unsupported, unsupported.failure?.kind)
+        assertEquals(emptyList(), provider.regularRequests)
+        val regular = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), preferSonic = false))
+        assertEquals(listOf("regular"), regular.getOrThrow().single().matches.map { it.track.id.value })
+        assertEquals(emptyList(), provider.sonicRequests)
     }
 
-    @Test
-    fun sonicFailuresAndTransportTimeoutsProduceTypedFallbackReasons() = runTest {
-        for ((error, reason) in listOf(IllegalStateException("SECRET") to SonicRadioFallbackReason.Failed,
-            SimilarityRequestException(timedOut = true) to SonicRadioFallbackReason.TimedOut)) {
+    @Test fun sonicFailureAndTransportTimeoutAreVisibleWithoutSubstitution() = runTest {
+        for ((error, kind) in listOf(IllegalStateException("SECRET") to SimilarityResultKind.Failed,
+            SimilarityRequestException(timedOut = true) to SimilarityResultKind.TimedOut,
+            UnsupportedOperationException() to SimilarityResultKind.Unsupported)) {
             val provider = FakeProvider()
             provider.sonic = { _, _ -> throw error }
-            provider.regular = { _, _ -> listOf(track("regular")) }
             val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed"))))
-            assertEquals(reason, result.fallback)
-            assertTrue(result.hasMatches)
-            assertNull(result.failure)
-            assertFalse(result.toString().contains("SECRET"))
+            assertEquals(kind, result.failure?.kind)
+            assertFalse(result.hasMatches)
+            assertFalse(result.failure.toString().contains("SECRET"))
+            assertEquals(emptyList(), provider.regularRequests)
         }
     }
 
     @Test
-    fun bothSeedBatchesHaveOneTenSecondDeadlineEach() = runTest {
+    fun selectedSeedBatchHasOneTenSecondDeadline() = runTest {
         val provider = FakeProvider()
         provider.sonic = { _, _ -> delay(60_000); emptyList() }
         provider.regular = { _, _ -> delay(60_000); emptyList() }
         val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("one"), TrackId("two"))))
-        assertEquals(20_000L, testScheduler.currentTime)
+        assertEquals(10_000L, testScheduler.currentTime)
         assertEquals(listOf("one"), provider.sonicRequests)
-        assertEquals(listOf("one"), provider.regularRequests)
-        assertEquals(SonicRadioFallbackReason.TimedOut, result.fallback)
+        assertEquals(emptyList(), provider.regularRequests)
         assertEquals(SimilarityResultKind.TimedOut, result.failure?.kind)
         assertTrue(assertFailsWith<SimilarityRequestException> { result.getOrThrow() }.timedOut)
     }
@@ -98,8 +90,7 @@ class SimilarityServiceTest {
         val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("one"), TrackId("two"), TrackId("three"))))
         assertEquals(listOf(0, 1, 0), result.getOrThrow().map { it.matches.size })
         assertEquals(SimilarityEndpoint.Sonic, result.source)
-        assertNull(result.failure)
-        assertNull(result.fallback)
+        assertEquals(SimilarityResultKind.TimedOut, result.failure?.kind)
         assertEquals(emptyList(), provider.regularRequests)
         assertEquals(10_000L, testScheduler.currentTime)
     }
@@ -108,10 +99,9 @@ class SimilarityServiceTest {
     fun partialRegularSuccessDoesNotBecomeAFatalError() = runTest {
         val provider = FakeProvider()
         provider.regular = { seed, _ -> if (seed.value == "one") error("SECRET") else listOf(track("regular")) }
-        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("one"), TrackId("two"))))
+        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("one"), TrackId("two")), preferSonic = false))
         assertEquals(listOf(0, 1), result.getOrThrow().map { it.matches.size })
-        assertEquals(SonicRadioFallbackReason.Empty, result.fallback)
-        assertNull(result.failure)
+        assertEquals(SimilarityResultKind.Failed, result.failure?.kind)
     }
 
     @Test
@@ -119,7 +109,7 @@ class SimilarityServiceTest {
         val provider = FakeProvider()
         val cause = IllegalStateException("SECRET request-url?password=SECRET")
         provider.regular = { _, _ -> throw cause }
-        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed"))))
+        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), preferSonic = false))
         assertEquals(SimilarityEndpointResult(SimilarityResultKind.Failed), result.failure)
         assertFalse(result.failure.toString().contains("SECRET"))
         assertFalse(result.toString().contains("SECRET"))
@@ -130,7 +120,7 @@ class SimilarityServiceTest {
     fun regularFailureRetainsOnlySafeProtocolCodes() = runTest {
         val provider = FakeProvider()
         provider.regular = { _, _ -> throw SimilarityRequestException(503, 0) }
-        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed"))))
+        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), preferSonic = false))
         assertEquals(SimilarityEndpointResult(SimilarityResultKind.Failed, httpStatus = 503, serverCode = 0), result.failure)
     }
 
@@ -175,51 +165,13 @@ class SimilarityServiceTest {
         assertEquals(listOf(SimilaritySeedMatches(TrackId("one"), emptyList())), result.getOrThrow())
     }
 
-    @Test
-    fun shortDistinctSonicResultsAreSupplementedWithoutLosingScoresOrSeedSlots() = runTest {
+    @Test fun shortSonicResultsRetainScoresWithoutAnyTopUp() = runTest {
         val provider = FakeProvider()
-        provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("sonic"), 0.1), SonicSimilarTrack(track("sonic"), 0.2)) }
-        provider.regular = { _, _ -> listOf(track("seed"), track("queued"), track("sonic"), track("regular")) }
-        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")),
-            excludedTrackIds = setOf(TrackId("queued")), minimumMatches = 2))
-        assertEquals(SimilarityEndpoint.Sonic, result.source)
-        assertNull(result.fallback)
-        assertEquals(listOf(0.1, 0.2), result.getOrThrow().single().matches.map { it.similarity })
-        assertEquals(listOf("regular"), result.topUp?.getOrThrow()?.single()?.matches?.map { it.track.id.value })
-        assertEquals(SimilarityEndpoint.Regular, result.topUp?.source)
-        assertEquals(listOf("seed"), provider.regularRequests)
-    }
-
-    @Test
-    fun minimumSatisfiedByUniqueSonicResultsSkipsRegularRadio() = runTest {
-        val provider = FakeProvider()
-        provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("one")), SonicSimilarTrack(track("two"))) }
-        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), minimumMatches = 2))
-        assertNull(result.topUp)
+        provider.sonic = { _, count -> assertEquals(100, count); listOf(SonicSimilarTrack(track("sonic"), 0.8)) }
+        provider.regular = { _, _ -> throw CancellationException("Must not call") }
+        val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), countPerSeed = 100))
+        assertEquals(listOf(0.8), result.getOrThrow().single().matches.map { it.similarity })
         assertEquals(emptyList(), provider.regularRequests)
-    }
-
-    @Test
-    fun supplementalFailureOrDeadlineRetainsSonicAndSafeFailureMetadata() = runTest {
-        for (timeout in listOf(false, true)) {
-            val provider = FakeProvider()
-            provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("sonic"))) }
-            provider.regular = { _, _ -> if (timeout) { delay(60_000); emptyList() } else error("SECRET") }
-            val result = SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), minimumMatches = 10))
-            assertEquals(listOf("sonic"), result.getOrThrow().single().matches.map { it.track.id.value })
-            assertEquals(if (timeout) SimilarityResultKind.TimedOut else SimilarityResultKind.Failed, result.topUp?.failure?.kind)
-            assertFalse(result.topUp?.failure.toString().contains("SECRET"))
-        }
-    }
-
-    @Test
-    fun supplementalCancellationPropagatesAfterUsableSonicResults() = runTest {
-        val provider = FakeProvider()
-        provider.sonic = { _, _ -> listOf(SonicSimilarTrack(track("sonic"))) }
-        provider.regular = { _, _ -> throw CancellationException() }
-        assertFailsWith<CancellationException> {
-            SimilarityService(provider).load(SimilarityRequest(listOf(TrackId("seed")), minimumMatches = 10))
-        }
     }
 
     private class FakeProvider(supported: Boolean = true) : MediaProvider {

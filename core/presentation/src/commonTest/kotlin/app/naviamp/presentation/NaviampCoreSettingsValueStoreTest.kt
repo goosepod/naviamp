@@ -34,13 +34,13 @@ class NaviampCoreSettingsValueStoreTest {
     }
 
     @Test
-    fun olderSonicPreferenceDefaultsToAutomaticAndExplicitChoiceRoundTrips() {
+    fun olderSonicPreferenceDefaultsToInstantMixAndExplicitChoiceRoundTrips() {
         val values = MemorySettingsValues().apply {
             entries[KeyPlayback] = """{"sonicSimilarityEnabled":false}"""
         }
         val catalog = naviampCoreSettingsValueCatalog(values)
 
-        assertEquals(true, catalog.storedSettings.loadPlayback().effectiveSonicSimilarityEnabled())
+        assertEquals(false, catalog.storedSettings.loadPlayback().effectiveSonicSimilarityEnabled())
 
         catalog.savePlayback(
             PlaybackSettings(

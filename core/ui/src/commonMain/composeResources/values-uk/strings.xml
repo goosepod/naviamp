@@ -148,9 +148,8 @@
     <string name="similarity_setup">Перевірте, чи ввімкнено сумісний плагін Sonic, чи правильні адреса API та токен і чи може сервер підключитися до нього.</string>
     <string name="similarity_empty_help">Спробуйте інший проаналізований трек. Відсутність збігів для одного треку не доводить помилку налаштування.</string>
     <string name="similarity_regular">Звичайна схожість</string>
-    <string name="similarity_radio_fallback">Звукова схожість недоступна. Радіо використало запасний метод.</string>
-    <string name="similarity_radio_empty">Радіо не знайшло додаткових треків. Поточну чергу збережено.</string>
-    <string name="similarity_radio_failed">Не вдалося створити чергу радіо. Поточну чергу збережено.</string>
+    <string name="similarity_radio_empty">Радіо не знайшло додаткових треків.</string>
+    <string name="similarity_radio_failed">Не вдалося створити чергу радіо.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Відомості про плагіни сервера</string>
     <string name="similarity_admin_required">Для перегляду плагінів потрібні права адміністратора.</string>
@@ -166,10 +165,10 @@
     <string name="similarity_admin_plugin_enabled">Увімкнено</string>
     <string name="similarity_admin_plugin_disabled">Вимкнено</string>
     <string name="similarity_admin_plugin_error">Сервер повідомляє про помилку плагіна. Перевірте налаштування та журнали плагінів Navidrome.</string>
-    <string name="settings_related_autoplay_minimum">Мінімум треків для автовідтворення</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Доповнює результати Sonic звичайним Радіо. Додає менше треків, якщо бракує унікальних збігів.</string>
-    <string name="settings_related_radio_minimum">Мінімум треків для Радіо</string>
-    <string name="settings_related_radio_minimum_subtitle">Схожі треки під час запуску Радіо. Початковий трек грає першим. Короткі результати Sonic доповнюються звичайним Радіо, якщо можливо.</string>
+    <string name="settings_related_autoplay_minimum">Розмір добірки автовідтворення</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Нові треки, запитані в кінці черги. Сервер може повернути менше треків.</string>
+    <string name="settings_related_radio_minimum">Розмір добірки Радіо</string>
+    <string name="settings_related_radio_minimum_subtitle">Схожі треки, запитані під час запуску Радіо. Сервер може повернути менше треків.</string>
     <string name="smart_playlist_inspection_title">Правила розумного списку відтворення</string>
     <string name="smart_playlist_inspection_read_only">Цей список використовує правила або налаштування, які редактор не може безпечно змінити. Початкове визначення показано лише для перегляду.</string>
     <string name="smart_playlist_inspection_missing">Сервер не надав правил цього списку.</string>
@@ -204,4 +203,13 @@
     <string name="smart_playlist_date_format">Формат дати: YYYY-MM-DD (рік-місяць-день).</string>
     <string name="smart_playlist_days_hint">Введіть додатну кількість днів, наприклад 30.</string>
     <string name="smart_playlist_end_value">Кінцеве значення</string>
+    <string name="settings_experience_related_tracks_title">Радіо</string>
+    <string name="settings_experience_related_tracks_subtitle">Виберіть, як Радіо знаходить треки та продовжує відтворення.</string>
+    <string name="settings_related_sonic_similarity_subtitle">Шукайте схожі за звучанням треки через службу Sonic Similarity сервера. Потрібна підтримка сервера.</string>
+    <string name="radio_instant_mix_description">Використовуйте рекомендації схожих пісень від сервера. Результати залежать від налаштованих служб і плагінів.</string>
+    <string name="settings_related_sonic_autoplay">Автовідтворення Радіо</string>
+    <string name="settings_related_sonic_autoplay_subtitle">Продовжувати після завершення черги вибраним методом Радіо.</string>
+    <string name="settings_related_requires_support">Sonic Similarity недоступна на цьому сервері. Виберіть Instant Mix або запустіть діагностику.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

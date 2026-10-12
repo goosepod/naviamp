@@ -85,6 +85,8 @@ class NaviampCoreSettingsControllerTest {
     @Test
     fun changingPlaybackSettingsPublishesThePreviousAndSavedSettingsForImmediateSideEffects() {
         val fixture = fixture()
+        fixture.store.updateShell { it.copy(playback = it.playback.copy(settings =
+            it.playback.settings.copy(sonicSimilarityEnabled = true))) }
         val requested = PlaybackSettings(
             sonicSimilarityEnabled = false,
             sonicSimilarityPreferenceConfigured = true,

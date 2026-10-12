@@ -1,4 +1,5 @@
 package app.naviamp.presentation
+import app.naviamp.domain.radio.radioDiagnostics
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackCommandController
@@ -555,7 +556,11 @@ class NaviampCorePlaybackController(
 
         sonicAutoplayJob?.cancel()
         sonicAutoplayJob = scope.launch {
-            val tracks = sonicAutoplay.continuationTracks(expectedQueue, limit = expectedSettings.sonicAutoplayMinimumTracks)
+            var diagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null
+            val tracks = sonicAutoplay.continuationTracks(expectedQueue,
+                limit = expectedSettings.sonicAutoplayMinimumTracks,
+                preferSonicSimilarity = expectedSettings.effectiveSonicSimilarityEnabled(),
+                onResult = { diagnostics = it.radioDiagnostics(autoplay = true) })
             val currentState = playback.state.value
             val currentShell = stateStore.state.value.shell
             val requestIsCurrent =
@@ -563,9 +568,15 @@ class NaviampCorePlaybackController(
                     currentState.queue == expectedQueue &&
                     currentShell.connectionSettings.currentSourceId == expectedSourceId &&
                     currentShell.playback.settings.sonicAutoplayEnabled &&
-                    currentShell.playback.settings.sonicAutoplayMinimumTracks == expectedSettings.sonicAutoplayMinimumTracks
+                    currentShell.playback.settings.sonicAutoplayMinimumTracks == expectedSettings.sonicAutoplayMinimumTracks &&
+                    currentShell.playback.settings.effectiveSonicSimilarityEnabled() == expectedSettings.effectiveSonicSimilarityEnabled() &&
+                    providerSource.isCurrent(expectedProvider)
             if (!requestIsCurrent) return@launch
 
+            stateStore.update { state -> state.copy(
+                shell = state.shell.copy(playback = state.shell.playback.copy(radioDiagnostics = diagnostics)),
+                overlays = state.overlays.copy(radioNotice = diagnostics),
+            ) }
             val update = queue.appendSonicContinuationTracks(tracks)
             if (!update.tracksChanged) return@launch
             effects.applyQueue(update.queue, clearPreparedNext = true)

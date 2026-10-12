@@ -148,9 +148,8 @@
     <string name="similarity_setup">호환되는 Sonic 플러그인이 활성화되어 있고 API 주소와 토큰이 올바르며 서버에서 접근할 수 있는지 확인하세요.</string>
     <string name="similarity_empty_help">분석된 다른 곡을 시도하세요. 한 곡에 일치 항목이 없다고 설정 문제로 단정할 수는 없습니다.</string>
     <string name="similarity_regular">일반 유사성</string>
-    <string name="similarity_radio_fallback">음향 유사도를 사용할 수 없어 라디오가 대체 방식을 사용했습니다.</string>
-    <string name="similarity_radio_empty">라디오에서 추가 곡을 찾지 못했습니다. 현재 대기열을 유지했습니다.</string>
-    <string name="similarity_radio_failed">라디오 대기열을 만들지 못했습니다. 현재 대기열을 유지했습니다.</string>
+    <string name="similarity_radio_empty">라디오에서 추가 곡을 찾지 못했습니다.</string>
+    <string name="similarity_radio_failed">라디오 대기열을 만들지 못했습니다.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">서버 플러그인 정보</string>
     <string name="similarity_admin_required">플러그인 정보를 보려면 관리자 권한이 필요합니다.</string>
@@ -166,10 +165,10 @@
     <string name="similarity_admin_plugin_enabled">활성화됨</string>
     <string name="similarity_admin_plugin_disabled">비활성화됨</string>
     <string name="similarity_admin_plugin_error">서버가 플러그인 오류를 보고합니다. Navidrome 플러그인 설정과 로그를 확인하세요.</string>
-    <string name="settings_related_autoplay_minimum">자동 재생 최소 추가 곡 수</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Sonic 결과가 부족하면 일반 Radio로 보충합니다. 고유한 곡이 부족하면 더 적은 곡을 추가합니다.</string>
-    <string name="settings_related_radio_minimum">Radio 최소 추가 곡 수</string>
-    <string name="settings_related_radio_minimum_subtitle">Radio 시작 시 추가할 관련 곡 수입니다. 기준 곡이 먼저 재생됩니다. Sonic 결과가 부족하면 일반 Radio로 보충합니다.</string>
+    <string name="settings_related_autoplay_minimum">자동 재생 요청 곡 수</string>
+    <string name="settings_related_autoplay_minimum_subtitle">대기열이 끝날 때 요청할 새 곡 수입니다. 더 적은 곡이 반환될 수 있습니다.</string>
+    <string name="settings_related_radio_minimum">라디오 요청 곡 수</string>
+    <string name="settings_related_radio_minimum_subtitle">라디오 시작 시 요청할 관련 곡 수입니다. 더 적은 곡이 반환될 수 있습니다.</string>
     <string name="smart_playlist_inspection_title">스마트 재생목록 규칙</string>
     <string name="smart_playlist_inspection_read_only">이 재생목록에는 이 편집기에서 안전하게 변경할 수 없는 규칙이나 설정이 있습니다. 원래 정의는 확인용으로만 표시됩니다.</string>
     <string name="smart_playlist_inspection_missing">서버가 이 재생목록의 규칙을 제공하지 않았습니다.</string>
@@ -204,4 +203,13 @@
     <string name="smart_playlist_date_format">날짜 형식: YYYY-MM-DD (연-월-일).</string>
     <string name="smart_playlist_days_hint">양수로 일수를 입력하세요. 예: 30.</string>
     <string name="smart_playlist_end_value">끝 값</string>
+    <string name="settings_experience_related_tracks_title">라디오</string>
+    <string name="settings_experience_related_tracks_subtitle">라디오가 곡을 찾고 재생을 이어가는 방법을 선택하세요.</string>
+    <string name="settings_related_sonic_similarity_subtitle">서버의 Sonic Similarity 서비스로 소리가 비슷한 곡을 찾습니다. 서버 지원이 필요합니다.</string>
+    <string name="radio_instant_mix_description">서버의 비슷한 곡 추천을 사용합니다. 결과는 설정된 서비스와 플러그인에 따라 달라집니다.</string>
+    <string name="settings_related_sonic_autoplay">라디오 자동 재생</string>
+    <string name="settings_related_sonic_autoplay_subtitle">대기열이 끝나면 선택한 라디오 방식으로 재생을 이어갑니다.</string>
+    <string name="settings_related_requires_support">이 서버에서 Sonic Similarity를 사용할 수 없습니다. Instant Mix를 선택하거나 진단 테스트를 사용하세요.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

@@ -148,7 +148,7 @@ class SettingsSyncDocumentTest {
     }
 
     @Test
-    fun sonicSimilarityChoiceRoundTripsAndOlderExportsUseAutomaticSupport() {
+    fun sonicSimilarityChoiceRoundTripsAndOlderExportsUseStoredPreference() {
         val disabled = PlaybackSettings(
             sonicSimilarityEnabled = false,
             sonicSimilarityPreferenceConfigured = true,
@@ -165,8 +165,15 @@ class SettingsSyncDocumentTest {
         val older = SettingsSyncJson.decode(
             """{"preferences":{"playback":{"sonicSimilarityEnabled":false}}}""",
         ).preferences.playback
-        assertTrue(older.effectiveSonicSimilarityEnabled())
-        assertFalse(older.sonicSimilarityPreferenceConfigured)
+        assertFalse(older.effectiveSonicSimilarityEnabled())
+        assertTrue(older.sonicSimilarityPreferenceConfigured)
+
+        val legacyAutomatic = older.copy(sonicSimilarityEnabled = false, sonicSimilarityPreferenceConfigured = false)
+        val explicitExport = SettingsSyncJson.decode(SettingsSyncJson.encode(
+            SettingsSyncDocument(preferences = SettingsSyncPreferences(playback = legacyAutomatic))))
+            .preferences.playback
+        assertFalse(explicitExport.effectiveSonicSimilarityEnabled())
+        assertTrue(explicitExport.sonicSimilarityPreferenceConfigured)
     }
 
     @Test

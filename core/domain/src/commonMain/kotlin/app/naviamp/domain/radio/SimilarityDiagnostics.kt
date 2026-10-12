@@ -83,6 +83,15 @@ private suspend fun similarityAttempt(load: suspend () -> List<Track>): Similari
         httpStatus = codes?.httpStatus, serverCode = codes?.serverCode)
 }
 
-enum class SonicRadioFallbackReason { Empty, TimedOut, Failed }
-enum class RadioBuildOutcome { Fallback, Empty, Failed }
-data class RadioBuildDiagnostics(val outcome: RadioBuildOutcome, val fallback: SonicRadioFallbackReason? = null)
+enum class RadioBuildOutcome { Empty, Failed, TimedOut, Unsupported }
+data class RadioBuildDiagnostics(val outcome: RadioBuildOutcome, val autoplay: Boolean = false)
+
+fun SimilarityResult.radioDiagnostics(autoplay: Boolean = false): RadioBuildDiagnostics? = when {
+    failure != null -> RadioBuildDiagnostics(when (failure.kind) {
+        SimilarityResultKind.TimedOut -> RadioBuildOutcome.TimedOut
+        SimilarityResultKind.Unsupported -> RadioBuildOutcome.Unsupported
+        else -> RadioBuildOutcome.Failed
+    }, autoplay)
+    !hasMatches -> RadioBuildDiagnostics(RadioBuildOutcome.Empty, autoplay)
+    else -> null
+}

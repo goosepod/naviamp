@@ -17,7 +17,8 @@ class RadioService(
     private val count: Int = DefaultRadioCount,
     private val tuning: RadioTuningSettings = RadioTuningSettings(),
     private val providerResponseService: ProviderResponseService? = null,
-    private val onSonicFallback: (SonicRadioFallbackReason) -> Unit = {},
+    private val similarityMethod: RadioSimilarityMethod = RadioSimilarityMethod.InstantMix,
+    private val onSimilarityResult: (SimilarityResult) -> Unit = {},
 ) {
     private val similarity = SimilarityService(provider)
 
@@ -40,6 +41,9 @@ class RadioService(
     suspend fun albumRadio(albumId: AlbumId, fallbackTracks: List<Track> = emptyList()): List<Track> {
         val albumTracks = fallbackTracks.ifEmpty { albumTracks(albumId) }
         val seedTrack = albumTracks.randomOrNull()
+        if (similarityMethod == RadioSimilarityMethod.SonicSimilarity) {
+            return seedTrack?.let { trackRadio(it, true) }.orEmpty()
+        }
         val providerTracks = provider.albumRadio(albumId, count = fetchCount)
         if (seedTrack == null) {
             val fallback = providerTracks.ifEmpty { albumTracks.shuffled() }
@@ -62,14 +66,22 @@ class RadioService(
         return generatedRadioQueue(seedTrack, tuned).take(count)
     }
 
-    suspend fun artistRadio(artistId: ArtistId): List<Track> =
-        provider.artistRadio(artistId, count = fetchCount)
+    suspend fun artistRadio(artistId: ArtistId): List<Track> {
+        if (similarityMethod == RadioSimilarityMethod.SonicSimilarity) {
+            val details = providerResponseService?.artist(provider, artistId) ?: provider.artist(artistId)
+            return artistSeed(details.artist, details.albums)?.let { trackRadio(it, true) }.orEmpty()
+        }
+        return provider.artistRadio(artistId, count = fetchCount)
             .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
+    }
 
-    suspend fun trackRadio(trackId: TrackId): List<Track> =
-        similarity.load(SimilarityRequest(listOf(trackId), countPerSeed = fetchCount, preferSonic = false))
-            .getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
+    suspend fun trackRadio(trackId: TrackId): List<Track> {
+        val result = similarity.load(SimilarityRequest(listOf(trackId), countPerSeed = fetchCount,
+            preferSonic = similarityMethod == RadioSimilarityMethod.SonicSimilarity))
+        onSimilarityResult(result)
+        return result.getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
             .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
+    }
 
     suspend fun trackRadio(
         seedTrack: Track,
@@ -77,12 +89,10 @@ class RadioService(
     ): List<Track> {
         val result = similarity.load(SimilarityRequest(
             listOf(seedTrack.id), countPerSeed = fetchCount, preferSonic = preferSonicSimilarity,
-            minimumMatches = count,
         ))
-        result.fallback?.let(onSonicFallback)
+        onSimilarityResult(result)
         val primary = result.getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
-        val supplemental = result.topUp?.seedMatches.orEmpty().flatMap { seed -> seed.matches.map { it.track } }
-        return tunedTrackRadio(seedTrack, primary + supplemental)
+        return tunedTrackRadio(seedTrack, primary, allowArtistExpansion = !preferSonicSimilarity)
     }
 
     suspend fun libraryRadio(): List<Track> =
@@ -111,8 +121,8 @@ class RadioService(
         providerResponseService?.album(provider, albumId)?.tracks
             ?: provider.album(albumId).tracks
 
-    private suspend fun tunedTrackRadio(seedTrack: Track, tracks: List<Track>): List<Track> {
-        val candidateTracks = if (tuning.artistRunMode == RadioArtistRunMode.Mixed) {
+    private suspend fun tunedTrackRadio(seedTrack: Track, tracks: List<Track>, allowArtistExpansion: Boolean): List<Track> {
+        val candidateTracks = if (!allowArtistExpansion || tuning.artistRunMode == RadioArtistRunMode.Mixed) {
             tracks
         } else {
             sameArtistTracks(seedTrack) + tracks

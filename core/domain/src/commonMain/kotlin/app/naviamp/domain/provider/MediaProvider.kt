@@ -168,6 +168,8 @@ interface MediaProvider {
     suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
     suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
     suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
+    /** Selected regular similarity, without client-side substitution when the server returns no matches. */
+    suspend fun instantMixTracks(trackId: TrackId, count: Int = 50): List<Track> = trackRadio(trackId, count)
     /** Fresh capability discovery and raw responses for an explicit similarity diagnostic. */
     suspend fun similaritySupport(): app.naviamp.domain.radio.SimilaritySupport =
         throw UnsupportedOperationException()

@@ -148,9 +148,8 @@
     <string name="similarity_setup">Verifique se um plugin Sonic compatível está ativado, se o endereço da API e o token estão corretos e se o servidor consegue acessá-lo.</string>
     <string name="similarity_empty_help">Tente outra faixa analisada. A falta de correspondências para uma faixa não comprova um problema de configuração.</string>
     <string name="similarity_regular">Similaridade normal</string>
-    <string name="similarity_radio_fallback">A similaridade sonora estava indisponível. A Rádio usou seu método alternativo.</string>
-    <string name="similarity_radio_empty">A Rádio não encontrou outras faixas. A fila atual foi mantida.</string>
-    <string name="similarity_radio_failed">Não foi possível criar a fila da Rádio. A fila atual foi mantida.</string>
+    <string name="similarity_radio_empty">A Rádio não encontrou outras faixas.</string>
+    <string name="similarity_radio_failed">Não foi possível criar a fila da Rádio.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Detalhes dos plugins do servidor</string>
     <string name="similarity_admin_required">Os detalhes dos plugins exigem acesso de administrador.</string>
@@ -166,10 +165,10 @@
     <string name="similarity_admin_plugin_enabled">Ativado</string>
     <string name="similarity_admin_plugin_disabled">Desativado</string>
     <string name="similarity_admin_plugin_error">O servidor informa um erro de plugin. Verifique as configurações e os registros de plugins do Navidrome.</string>
-    <string name="settings_related_autoplay_minimum">Mínimo de faixas para reprodução automática</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Completa resultados Sonic com Rádio normal. Adiciona menos faixas se faltarem correspondências únicas.</string>
-    <string name="settings_related_radio_minimum">Mínimo de faixas para Rádio</string>
-    <string name="settings_related_radio_minimum_subtitle">Faixas relacionadas ao iniciar Rádio. A faixa inicial toca primeiro. Resultados Sonic insuficientes são completados com Rádio normal quando disponível.</string>
+    <string name="settings_related_autoplay_minimum">Tamanho do lote da reprodução automática</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Novas faixas solicitadas ao fim da fila. Menos faixas podem ser retornadas.</string>
+    <string name="settings_related_radio_minimum">Tamanho do lote do Rádio</string>
+    <string name="settings_related_radio_minimum_subtitle">Faixas relacionadas solicitadas ao iniciar o Rádio. Menos faixas podem ser retornadas.</string>
     <string name="smart_playlist_inspection_title">Regras da playlist inteligente</string>
     <string name="smart_playlist_inspection_read_only">Esta playlist usa regras ou configurações que este editor não pode alterar com segurança. A definição original é exibida apenas para consulta.</string>
     <string name="smart_playlist_inspection_missing">O servidor não forneceu as regras desta playlist.</string>
@@ -204,4 +203,13 @@
     <string name="smart_playlist_date_format">Formato de data: YYYY-MM-DD (ano-mês-dia).</string>
     <string name="smart_playlist_days_hint">Insira um número positivo de dias, por exemplo 30.</string>
     <string name="smart_playlist_end_value">Valor final</string>
+    <string name="settings_experience_related_tracks_title">Rádio</string>
+    <string name="settings_experience_related_tracks_subtitle">Escolha como o Rádio encontra faixas e continua a reprodução.</string>
+    <string name="settings_related_sonic_similarity_subtitle">Encontre faixas com som semelhante usando o serviço Sonic Similarity do servidor. Requer suporte do servidor.</string>
+    <string name="radio_instant_mix_description">Use as recomendações de músicas semelhantes do servidor. Os resultados dependem dos serviços e plugins configurados.</string>
+    <string name="settings_related_sonic_autoplay">Reprodução automática do Rádio</string>
+    <string name="settings_related_sonic_autoplay_subtitle">Continue ao fim da fila usando o método de Rádio selecionado.</string>
+    <string name="settings_related_requires_support">Sonic Similarity não está disponível neste servidor. Selecione Instant Mix ou use o teste de diagnóstico.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>
