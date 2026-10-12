@@ -213,7 +213,7 @@ enum class NaviampSettingsCategory(
     Language("Language", "Interface language", NaviampIcons.Globe),
     Experience("Experience", "Appearance and behavior", NaviampIcons.Experience),
     Playback("Playback", "Make your ears happy", NaviampTransportIcons.Play),
-    Downloads("Downloads", "Media on the go", NaviampIcons.Downloads),
+    Downloads("Downloads", "Music on the go", NaviampIcons.Downloads),
     AudioCache("Audio Cache", "Prefetch and playback cache", NaviampIcons.Cache),
     Controllers("Controllers", "Control TVs on this network", NaviampIcons.Player),
     Debugging("Debugging", "Diagnostics and local data", NaviampIcons.Bug),
