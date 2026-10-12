@@ -18,6 +18,7 @@ data class NaviampCoreOverlayState(
     val statsForNerdsVisible: Boolean = false,
     val status: String? = null,
     val busyMessage: String? = null,
+    val radioNotice: app.naviamp.domain.radio.RadioBuildDiagnostics? = null,
 )
 
 /**

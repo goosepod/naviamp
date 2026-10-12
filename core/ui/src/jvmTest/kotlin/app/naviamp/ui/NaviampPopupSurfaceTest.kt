@@ -109,6 +109,25 @@ class NaviampPopupSurfaceTest {
         onNodeWithText("unsaved input").assertExists()
     }
 
+    @Test fun ownedDialogLeavesContentClicksAloneAndStillDismissesOutside() = runComposeUiTest {
+        var dismissed = false
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true) {
+                Box(Modifier.size(700.dp, 500.dp)) {
+                    NaviampAlertDialog(onDismissRequest = { dismissed = true },
+                        confirmButton = { Text("Confirm") },
+                        text = { Text("Dialog content") })
+                }
+            }
+        }
+        onNodeWithText("Dialog content").performMouseInput { click() }
+        runOnIdle { assertFalse(dismissed) }
+        onAllNodes(isRoot()).onLast().performMouseInput {
+            click(androidx.compose.ui.geometry.Offset(8f, 8f))
+        }
+        runOnIdle { assertTrue(dismissed) }
+    }
+
     @Test fun dialogContentDoesNotTriggerOutsideDismissal() = runComposeUiTest {
         var dismissed = false
         setContent {

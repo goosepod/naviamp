@@ -117,6 +117,8 @@ class NaviampCorePlaylistTransactionController(
             updateSmartPlaylist(command.playlist, command.definition, command.password)
             NaviampCoreCommandResult.Completed
         }
+        is NaviampCoreCommand.SmartPlaylist.Inspect ->
+            NaviampCoreCommandResult.SmartPlaylistInspected(inspectSmartPlaylist(command.playlist, command.password))
         is NaviampCoreCommand.SmartPlaylist.Load ->
             NaviampCoreCommandResult.SmartPlaylistLoaded(loadSmartPlaylist(command.playlist, command.password))
         is NaviampCoreCommand.Media.ItemAction -> {
@@ -268,6 +270,17 @@ class NaviampCorePlaylistTransactionController(
             sessionPort.persistActiveSession()
             publishListStatus(cause.message ?: "Could not update smart playlist.")
             throw cause
+        }
+    }
+
+    private suspend fun inspectSmartPlaylist(item: SharedMediaItemUi, password: String?): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult {
+        val provider = smartProvider(password, "load")
+        val playlist = browseController.resolvePlaylist(item)
+        return try {
+            provider.inspectSmartPlaylist(playlist.id)
+        } finally {
+            sessionPort.persistActiveSession()
+            publishListStatus(null)
         }
     }
 

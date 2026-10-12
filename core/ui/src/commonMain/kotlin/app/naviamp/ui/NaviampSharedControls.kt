@@ -134,6 +134,7 @@ internal fun NaviampTextField(
 ) {
     val displayValue = if (forceFloatingLabel && value.isEmpty()) FloatingLabelSentinel else value
     OutlinedTextField(
+        colors = naviampOutlinedTextFieldColors(colors),
         value = displayValue,
         onValueChange = { nextValue ->
             onValueChange(nextValue.replace(FloatingLabelSentinel, ""))

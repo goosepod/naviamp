@@ -549,19 +549,21 @@ class NaviampCorePlaybackController(
         val expectedQueue = expectedState.queue
         val expectedProvider = providerSource.current()
         val expectedSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
-        if (!stateStore.state.value.shell.playback.settings.sonicAutoplayEnabled) return
-        if (expectedProvider?.capabilities?.supportsSonicSimilarity != true) return
+        val expectedSettings = stateStore.state.value.shell.playback.settings
+        if (!expectedSettings.sonicAutoplayEnabled) return
+        if (expectedProvider == null) return
 
         sonicAutoplayJob?.cancel()
         sonicAutoplayJob = scope.launch {
-            val tracks = sonicAutoplay.continuationTracks(expectedQueue)
+            val tracks = sonicAutoplay.continuationTracks(expectedQueue, limit = expectedSettings.sonicAutoplayMinimumTracks)
             val currentState = playback.state.value
             val currentShell = stateStore.state.value.shell
             val requestIsCurrent =
                 currentState.playbackState == PlaybackState.Finished &&
                     currentState.queue == expectedQueue &&
                     currentShell.connectionSettings.currentSourceId == expectedSourceId &&
-                    currentShell.playback.settings.sonicAutoplayEnabled
+                    currentShell.playback.settings.sonicAutoplayEnabled &&
+                    currentShell.playback.settings.sonicAutoplayMinimumTracks == expectedSettings.sonicAutoplayMinimumTracks
             if (!requestIsCurrent) return@launch
 
             val update = queue.appendSonicContinuationTracks(tracks)

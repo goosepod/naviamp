@@ -1071,6 +1071,12 @@ fun NaviampSettingsContent(
         supportsAudioOutputDeviceSelection = playback.audioOutputDeviceSelectionAvailable,
         audioOutputDevices = playback.audioOutputDevices,
         supportsSonicSimilarity = playback.sonicSimilarityAvailable,
+        similarityTest = playback.similarityTest.takeIf { it.sourceId == connectionSettings.currentSourceId }
+            ?: NaviampSimilarityTestUi(),
+        radioDiagnostics = playback.radioDiagnostics,
+        onTestSimilarity = maintenanceActions.onTestSimilarity.takeIf {
+            connectionSettings.currentSourceId != null && playback.similarityDiagnosticsAvailable
+        },
         connectionCapabilities = connectionSettings.capabilities,
         showMobileNetworkQuality = playback.showMobileNetworkQuality,
         downloadBytes = playback.downloadBytes,

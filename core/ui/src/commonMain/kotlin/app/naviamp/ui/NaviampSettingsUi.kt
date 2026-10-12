@@ -213,7 +213,7 @@ enum class NaviampSettingsCategory(
     Language("Language", "Interface language", NaviampIcons.Globe),
     Experience("Experience", "Appearance and behavior", NaviampIcons.Experience),
     Playback("Playback", "Make your ears happy", NaviampTransportIcons.Play),
-    Downloads("Downloads", "Media on the go", NaviampIcons.Downloads),
+    Downloads("Downloads", "Music on the go", NaviampIcons.Downloads),
     AudioCache("Audio Cache", "Prefetch and playback cache", NaviampIcons.Cache),
     Controllers("Controllers", "Control TVs on this network", NaviampIcons.Player),
     Debugging("Debugging", "Diagnostics and local data", NaviampIcons.Bug),
@@ -272,6 +272,9 @@ fun NaviampSharedSettingsContent(
     supportsAudioOutputDeviceSelection: Boolean = false,
     audioOutputDevices: List<AudioOutputDevice> = emptyList(),
     supportsSonicSimilarity: Boolean = false,
+    similarityTest: NaviampSimilarityTestUi = NaviampSimilarityTestUi(),
+    radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null,
+    onTestSimilarity: (() -> Unit)? = null,
     connectionCapabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
@@ -383,6 +386,9 @@ fun NaviampSharedSettingsContent(
                     desktopShortcutPlatform = desktopShortcutPlatform,
                     globalShortcutStatuses = globalShortcutStatuses,
                     supportsSonicSimilarity = supportsSonicSimilarity,
+                    similarityTest = similarityTest,
+                    radioDiagnostics = radioDiagnostics,
+                    onTestSimilarity = onTestSimilarity,
                     onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                     onCacheSettingsChanged = onCacheSettingsChanged,
@@ -508,6 +514,7 @@ internal fun NaviampConnectSettingsSection(
         var manualAddress by rememberSaveable { mutableStateOf("") }
         SettingsSectionTitle("This device", colors)
         OutlinedTextField(
+            colors = naviampOutlinedTextFieldColors(colors),
             value = localDeviceName,
             onValueChange = { if (it.length <= 64) localDeviceName = it },
             singleLine = true,
@@ -531,6 +538,7 @@ internal fun NaviampConnectSettingsSection(
             var password by remember { mutableStateOf("") }
             Text(stringResource(Res.string.connect_setup_password_required), color = colors.secondaryText)
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = password,
                 onValueChange = { password = it },
                 label = { Text(stringResource(Res.string.connection_password)) },
@@ -570,6 +578,7 @@ internal fun NaviampConnectSettingsSection(
             PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = actions.onRefreshTargets)
             Text(stringResource(Res.string.connect_manual_address_hint), color = colors.secondaryText, fontSize = 12.sp)
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = manualAddress,
                 onValueChange = { manualAddress = it },
                 singleLine = true,
@@ -597,6 +606,7 @@ internal fun NaviampConnectSettingsSection(
                 connect.selectedTargetId != null || connect.manualEndpointAwaitingCode
             ) {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = connect.enteredPairingCode,
                     onValueChange = actions.onPairingCodeChanged,
                     singleLine = true,
@@ -630,6 +640,7 @@ internal fun NaviampConnectSettingsSection(
                     )
                 }
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = alias,
                     onValueChange = { if (it.length <= 64) alias = it },
                     singleLine = true,
@@ -692,6 +703,9 @@ fun NaviampExperienceSettingsSection(
     desktopShortcutPlatform: DesktopShortcutPlatform? = null,
     globalShortcutStatuses: Map<GlobalShortcutAction, GlobalShortcutRegistrationUi> = emptyMap(),
     supportsSonicSimilarity: Boolean,
+    similarityTest: NaviampSimilarityTestUi = NaviampSimilarityTestUi(),
+    radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null,
+    onTestSimilarity: (() -> Unit)? = null,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -716,6 +730,9 @@ fun NaviampExperienceSettingsSection(
                 colors = colors,
                 playbackSettings = playbackSettings,
                 supportsSonicSimilarity = supportsSonicSimilarity,
+                similarityTest = similarityTest,
+                radioDiagnostics = radioDiagnostics,
+                onTestSimilarity = onTestSimilarity,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             )
             ExperienceSettingsPage.Lyrics -> LyricsSettings(
@@ -787,7 +804,7 @@ fun NaviampExperienceSettingsSection(
                 selectedSection = ExperienceSettingsPage.Lyrics
             }
         }
-        if (supportsSonicSimilarity) {
+        if (supportsSonicSimilarity || onTestSimilarity != null) {
             SettingsRow(
                 title = ExperienceSettingsPage.RelatedTracks.title(),
                 subtitle = ExperienceSettingsPage.RelatedTracks.subtitle(),
@@ -1153,6 +1170,7 @@ private fun AppBackgroundSettings(
                     .border(1.dp, colors.border, RoundedCornerShape(8.dp)),
             )
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = colorDraft,
                 onValueChange = { input ->
                     colorDraft = input.take(7).uppercase()
@@ -4651,6 +4669,7 @@ private fun RadioDjSettingsSection(
                     onEditorOpenChanged(false)
                 }
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = draftName,
                     onValueChange = { draftName = it },
                     singleLine = true,
@@ -5019,6 +5038,9 @@ private fun RelatedTracksSettings(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     supportsSonicSimilarity: Boolean,
+    similarityTest: NaviampSimilarityTestUi,
+    radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics?,
+    onTestSimilarity: (() -> Unit)?,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     if (supportsSonicSimilarity) {
@@ -5036,6 +5058,23 @@ private fun RelatedTracksSettings(
                 )
             },
         )
+    } else {
+        Text(stringResource(Res.string.settings_related_requires_support), color = colors.secondaryText, fontSize = 12.sp)
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)) {
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = stringResource(Res.string.settings_related_radio_minimum),
+            value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.radioMinimumTracks),
+            detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
+            valueLabel = { stringResource(Res.string.settings_tracks_count, it) },
+            onValueChanged = { count ->
+                onPlaybackSettingsChanged(playbackSettings.copy(radioMinimumTracks = count))
+            },
+        )
+        Text(stringResource(Res.string.settings_related_radio_minimum_subtitle), color = colors.secondaryText, fontSize = 12.sp)
+    }
+    if (supportsSonicSimilarity) {
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.sonicAutoplayEnabled,
@@ -5045,9 +5084,26 @@ private fun RelatedTracksSettings(
                 onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
             },
         )
-    } else {
-        Text(stringResource(Res.string.settings_related_requires_support), color = colors.secondaryText, fontSize = 12.sp)
+        Column(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)) {
+            DetentIntSettingsSlider(
+                colors = colors,
+                title = stringResource(Res.string.settings_related_autoplay_minimum),
+                value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.sonicAutoplayMinimumTracks),
+                detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
+                enabled = playbackSettings.sonicAutoplayEnabled,
+                valueLabel = { stringResource(Res.string.settings_tracks_count, it) },
+                onValueChanged = { count ->
+                    onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayMinimumTracks = count))
+                },
+            )
+            Text(
+                stringResource(Res.string.settings_related_autoplay_minimum_subtitle),
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+            )
+        }
     }
+    NaviampSimilarityTestContent(colors, similarityTest, onTestSimilarity, radioDiagnostics)
 }
 
 @Composable
@@ -5320,6 +5376,7 @@ private fun EqualizerSettings(
             },
             text = {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = profileName,
                     onValueChange = { profileName = it },
                     singleLine = true,

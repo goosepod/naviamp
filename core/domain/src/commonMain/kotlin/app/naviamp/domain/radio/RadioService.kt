@@ -17,7 +17,10 @@ class RadioService(
     private val count: Int = DefaultRadioCount,
     private val tuning: RadioTuningSettings = RadioTuningSettings(),
     private val providerResponseService: ProviderResponseService? = null,
+    private val onSonicFallback: (SonicRadioFallbackReason) -> Unit = {},
 ) {
+    private val similarity = SimilarityService(provider)
+
     suspend fun albumSeed(album: Album, loadedTracks: List<Track> = emptyList()): Track? =
         loadedTracks.randomOrNull()
             ?: albumTracks(album.id).randomOrNull()
@@ -64,22 +67,22 @@ class RadioService(
             .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun trackRadio(trackId: TrackId): List<Track> =
-        provider.trackRadio(trackId, count = fetchCount)
+        similarity.load(SimilarityRequest(listOf(trackId), countPerSeed = fetchCount, preferSonic = false))
+            .getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
             .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun trackRadio(
         seedTrack: Track,
         preferSonicSimilarity: Boolean,
     ): List<Track> {
-        if (preferSonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
-            val sonicTracks = provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
-                .filterNot { track -> track.id == seedTrack.id }
-            if (sonicTracks.isNotEmpty()) {
-                return tunedTrackRadio(seedTrack, sonicTracks)
-            }
-        }
-        return provider.trackRadio(seedTrack.id, count = fetchCount)
-            .let { tracks -> tunedTrackRadio(seedTrack, tracks) }
+        val result = similarity.load(SimilarityRequest(
+            listOf(seedTrack.id), countPerSeed = fetchCount, preferSonic = preferSonicSimilarity,
+            minimumMatches = count,
+        ))
+        result.fallback?.let(onSonicFallback)
+        val primary = result.getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
+        val supplemental = result.topUp?.seedMatches.orEmpty().flatMap { seed -> seed.matches.map { it.track } }
+        return tunedTrackRadio(seedTrack, primary + supplemental)
     }
 
     suspend fun libraryRadio(): List<Track> =

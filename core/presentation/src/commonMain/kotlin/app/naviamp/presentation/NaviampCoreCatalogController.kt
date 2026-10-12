@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.domain.Album
 import app.naviamp.domain.library.AlbumLibraryIndex
 import app.naviamp.domain.library.orderAlbumCatalog
+import app.naviamp.domain.library.syncLibraryIndexAndMarkScanChecked
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.LibraryAlbumSortOrder
 import app.naviamp.domain.provider.MediaPageRequest
@@ -24,6 +25,8 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.toSharedTrackRowUi
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Owns Search and Library state, provider transactions, paging, and stale-result rejection. */
 class NaviampCoreCatalogController(
@@ -41,6 +44,7 @@ class NaviampCoreCatalogController(
         updateLibraryCatalog(NaviampLibraryView.Albums) { it.copy(albumSortOrder = order) }
     }
 
+    private val fullIndexRefreshMutex = Mutex()
     private var searchGeneration = 0L
     private data class LibraryLoadState(
         var generation: Long = 0L,
@@ -245,6 +249,33 @@ class NaviampCoreCatalogController(
         mediaRegistry.updateLibraryArtists(emptyList(), true)
         mediaRegistry.updateLibraryAlbums(emptyList(), true)
         mediaRegistry.updateLibraryTracks(emptyList(), true)
+    }
+
+    /** Explicit local-data refresh, including the tracks consumed by smart-playlist previews. */
+    suspend fun refreshLocalLibraryIndex() = fullIndexRefreshMutex.withLock {
+        val repository = libraryIndex
+        if (repository == null) {
+            refreshAfterConnection()
+            return@withLock
+        }
+        val provider = providerSource.current() ?: throw IllegalStateException(SearchDisconnectedStatus)
+        val sourceId = activeLibrarySourceId() ?: throw IllegalStateException(SearchDisconnectedStatus)
+        fun requireCurrentSource() {
+            if (!providerSource.isCurrent(provider) || activeLibrarySourceId() != sourceId) {
+                throw CancellationException("Library source changed during index refresh")
+            }
+        }
+        syncLibraryIndexAndMarkScanChecked(
+            sourceId = sourceId,
+            provider = provider,
+            libraryIndexRepository = repository,
+            artistLimit = Int.MAX_VALUE,
+            albumPageSize = MaximumMediaPageSize,
+            includeAlbumTracks = true,
+            onProgress = { requireCurrentSource() },
+        )
+        requireCurrentSource()
+        refreshAfterConnection()
     }
 
     suspend fun refreshAfterConnection() {

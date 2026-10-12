@@ -110,6 +110,27 @@ class NaviampCoreActionGraphTest {
         assertEquals("secret", command.password)
     }
 
+    @Test
+    fun inspectionAndPasswordRecoveryUseTheCommonCommandGraph() = runTest {
+        val editing = app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.ReadOnly("original rules")
+        val handler = RecordingCoreCommandHandler(NaviampCoreCommandResult.SmartPlaylistInspected(editing))
+        val smart = createNaviampCoreActions(handler).shell.playlistsActions.smartPlaylist
+        val item = SharedMediaItemUi("p", "Smart", "")
+        assertEquals(editing, smart.onInspectWithPassword(item, "secret"))
+        val command = assertIs<NaviampCoreCommand.SmartPlaylist.Inspect>(handler.executed.single())
+        assertEquals(item, command.playlist)
+        assertEquals("secret", command.password)
+    }
+
+    @Test
+    fun builderLibrarySyncAwaitsTheSharedRefreshCommand() = runTest {
+        val handler = RecordingCoreCommandHandler()
+        val smart = createNaviampCoreActions(handler).shell.playlistsActions.smartPlaylist
+        requireNotNull(smart.onSyncLibrary).invoke()
+        assertEquals(NaviampCoreCommand.Settings.RefreshLibrary, handler.executed.single())
+        assertEquals(emptyList<NaviampCoreCommand>(), handler.dispatched)
+    }
+
     private fun actionsStatePlaybackSettings() = app.naviamp.domain.settings.PlaybackSettings()
 
     private fun smartPlaylistDefinition() = SmartPlaylistDefinition(

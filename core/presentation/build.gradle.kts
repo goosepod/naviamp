@@ -27,6 +27,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(compose.runtime)
+            implementation(compose.foundation)
             implementation(compose.ui)
         }
         commonTest.dependencies {

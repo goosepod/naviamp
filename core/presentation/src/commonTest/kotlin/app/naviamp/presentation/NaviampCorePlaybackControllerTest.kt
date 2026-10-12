@@ -435,6 +435,63 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun nativeQueueEndUsesRegularAutoplayForEmptyFailedTimedOutOrMissingSonic() = runTest {
+        for (mode in listOf("empty", "failed", "timeout", "missing")) {
+            val fixture = playbackFixture(this, supportsSonicSimilarity = mode != "missing")
+            fixture.enableSonicAutoplay()
+            fixture.moveToQueueEnd()
+            fixture.provider.beforeSonicRequest = {
+                when (mode) {
+                    "failed" -> error("Unavailable Sonic backend")
+                    "timeout" -> kotlinx.coroutines.delay(60_000)
+                }
+            }
+            fixture.provider.radioTracksBySeed["five"] = listOf(playbackTrack("five"), playbackTrack("regular"), playbackTrack("regular"))
+            fixture.controller.attachNativePlayback()
+            fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+            advanceUntilIdle()
+            assertEquals(listOf("five", "four", "three"), fixture.provider.radioRequests)
+            assertEquals(listOf("one", "two", "three", "four", "five", "regular"),
+                fixture.live.state.value.queue.tracks.map { it.id.value })
+            assertEquals("regular", fixture.live.state.value.currentTrack?.id?.value)
+            assertEquals(listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next), fixture.effects.navigation)
+        }
+    }
+
+    @Test
+    fun staleOrDisabledRegularAutoplayCannotAppendOrRestartPlayback() = runTest {
+        for (change in listOf("queue", "source", "setting", "count")) {
+            val started = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val fixture = playbackFixture(this)
+            fixture.enableSonicAutoplay()
+            fixture.moveToQueueEnd()
+            fixture.provider.beforeRadioRequest = { started.complete(Unit); release.await() }
+            fixture.provider.radioTracksBySeed["five"] = listOf(playbackTrack("stale"))
+            fixture.controller.attachNativePlayback()
+            fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+            started.await()
+            when (change) {
+                "queue" -> fixture.live.replace(fixture.live.state.value.copy(
+                    queue = PlaybackQueue(listOf(playbackTrack("replacement")), 0),
+                    currentTrack = playbackTrack("replacement"), playbackState = PlaybackState.Playing))
+                "source" -> fixture.store.updateShell { shell -> shell.copy(
+                    connectionSettings = shell.connectionSettings.copy(currentSourceId = "other")) }
+                "setting" -> fixture.store.updateShell { shell -> shell.copy(
+                    playback = shell.playback.copy(settings = shell.playback.settings.copy(sonicAutoplayEnabled = false))) }
+                "count" -> fixture.store.updateShell { shell -> shell.copy(
+                    playback = shell.playback.copy(settings = shell.playback.settings.copy(sonicAutoplayMinimumTracks = 20))) }
+            }
+            val expectedQueue = fixture.live.state.value.queue
+            release.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(expectedQueue, fixture.live.state.value.queue)
+            assertEquals(emptyList(), fixture.effects.navigation)
+            assertEquals(emptyList(), fixture.effects.queues)
+        }
+    }
+
+    @Test
     fun nativeQueueEndAppendsSonicAutoplayTracksAndStartsTheFirstContinuation() = runTest {
         val fixture = playbackFixture(this, recreateProviderWrapper = true)
         fixture.enableSonicAutoplay()
@@ -449,6 +506,7 @@ class NaviampCorePlaybackControllerTest {
         advanceUntilIdle()
 
         assertEquals(listOf("five", "four", "three"), fixture.provider.sonicRequests)
+        assertEquals(listOf("five", "four", "three"), fixture.provider.radioRequests)
         assertEquals(
             listOf("one", "two", "three", "four", "five", "sonic-one"),
             fixture.live.state.value.queue.tracks.map { it.id.value },
@@ -465,6 +523,25 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun nativeQueueEndUsesAutoplaySizeIndependentlyAndTopsUpShortSonicResults() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.enableSonicAutoplay()
+        fixture.store.updateShell { shell -> shell.copy(playback = shell.playback.copy(settings =
+            shell.playback.settings.copy(radioMinimumTracks = 10, sonicAutoplayMinimumTracks = 30))) }
+        fixture.moveToQueueEnd()
+        fixture.provider.sonicMatchesBySeed["five"] = listOf(SonicSimilarTrack(playbackTrack("sonic"), 0.01))
+        fixture.provider.radioTracksBySeed["five"] = listOf(playbackTrack("five"), playbackTrack("sonic")) +
+            (1..50).map { playbackTrack("regular-$it") }
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        advanceUntilIdle()
+        assertEquals(35, fixture.live.state.value.queue.tracks.size)
+        assertEquals("sonic", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals("regular-29", fixture.live.state.value.queue.tracks.last().id.value)
+        assertEquals(35, fixture.live.state.value.queue.tracks.map { it.id }.distinct().size)
+    }
+
+    @Test
     fun nativeQueueEndDoesNotRequestSonicTracksWhenAutoplayIsDisabled() = runTest {
         val fixture = playbackFixture(this)
         fixture.moveToQueueEnd()
@@ -477,6 +554,7 @@ class NaviampCorePlaybackControllerTest {
         advanceUntilIdle()
 
         assertEquals(emptyList(), fixture.provider.sonicRequests)
+        assertEquals(emptyList(), fixture.provider.radioRequests)
         assertEquals("five", fixture.live.state.value.currentTrack?.id?.value)
         assertEquals(emptyList(), fixture.effects.navigation)
         assertEquals(emptyList(), fixture.effects.queues)
@@ -976,8 +1054,11 @@ private class PlaybackTestProvider(
     val listenTimestamps = mutableListOf<Long>()
     val sonicRequests = mutableListOf<String>()
     val sonicMatchesBySeed = mutableMapOf<String, List<SonicSimilarTrack>>()
+    val radioRequests = mutableListOf<String>()
+    val radioTracksBySeed = mutableMapOf<String, List<Track>>()
     val unavailableTrackIds = mutableSetOf<String>()
     var beforeSonicRequest: suspend () -> Unit = {}
+    var beforeRadioRequest: suspend () -> Unit = {}
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId): AlbumDetails = error("Not used")
@@ -991,6 +1072,11 @@ private class PlaybackTestProvider(
         sonicRequests += trackId.value
         beforeSonicRequest()
         return sonicMatchesBySeed[trackId.value].orEmpty().take(count)
+    }
+    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+        radioRequests += trackId.value
+        beforeRadioRequest()
+        return radioTracksBySeed[trackId.value].orEmpty().take(count)
     }
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         created += "$name:${trackIds.joinToString(",") { it.value }}"

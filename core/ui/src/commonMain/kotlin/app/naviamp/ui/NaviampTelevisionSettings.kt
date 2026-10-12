@@ -371,6 +371,7 @@ private fun TelevisionSettingsCategoryPage(
             uiState,
             colors,
             actions.valueActions,
+            actions.maintenanceActions.onTestSimilarity,
             firstFocusRequester,
             returnFocusRequester,
             returnChoice,
@@ -430,6 +431,7 @@ private fun TelevisionControllersSettings(
             title = { Text(stringResource(Res.string.tv_name_this_device)) },
             text = {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = deviceName,
                     onValueChange = { if (it.length <= 64) deviceName = it },
                     singleLine = true,
@@ -815,6 +817,7 @@ private fun TelevisionPlaybackSettings(
     uiState: NaviampAppShellUiState,
     colors: NaviampColors,
     actions: NaviampSettingsValueActions,
+    onTestSimilarity: () -> Unit,
     firstFocusRequester: FocusRequester,
     returnFocusRequester: FocusRequester,
     returnChoice: TelevisionSettingsChoicePage?,
@@ -823,6 +826,11 @@ private fun TelevisionPlaybackSettings(
     val capability = uiState.playback
     val settings = capability.settings
     TelevisionSettingsList {
+        if (capability.similarityDiagnosticsAvailable) {
+            item(key = "similarity-test") {
+                NaviampSimilarityTestContent(colors, capability.similarityTest, onTestSimilarity, capability.radioDiagnostics)
+            }
+        }
         if (capability.replayGainAvailable) {
             item(key = "replay-gain") {
                 TelevisionSettingsRow(

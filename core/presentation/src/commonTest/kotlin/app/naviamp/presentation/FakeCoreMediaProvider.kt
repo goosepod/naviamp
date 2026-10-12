@@ -25,6 +25,7 @@ internal class FakeCoreMediaProvider(
     supportsStreamingTranscode: Boolean = false,
     private val failNowPlayingReports: Boolean = false,
     private val ownedArtworkBytes: ByteArray? = null,
+    private val additionalLibraryTracks: List<Track> = emptyList(),
 ) : MediaProvider {
     val nowPlayingReports = mutableListOf<TrackId>()
     val streamRequests = mutableListOf<StreamRequest>()
@@ -76,7 +77,7 @@ internal class FakeCoreMediaProvider(
     override suspend fun album(albumId: AlbumId) = AlbumDetails(album, listOf(track))
     override suspend fun artist(artistId: ArtistId) = ArtistDetails(artist, listOf(album))
     override suspend fun artists(limit: Int) = listOf(artist)
-    override suspend fun tracks(limit: Int) = listOf(track)
+    override suspend fun tracks(limit: Int) = (listOf(track) + additionalLibraryTracks).take(limit)
     override suspend fun search(query: String, limit: Int) = MediaSearchResults(
         artists = listOf(artist),
         albums = listOf(album),
@@ -95,7 +96,7 @@ internal class FakeCoreMediaProvider(
         genre: String?,
         fromYear: Int?,
         toYear: Int?,
-    ) = listOf(track)
+    ) = (listOf(track) + additionalLibraryTracks).take(limit)
     override suspend fun findSonicPath(
         startTrackId: TrackId,
         endTrackId: TrackId,

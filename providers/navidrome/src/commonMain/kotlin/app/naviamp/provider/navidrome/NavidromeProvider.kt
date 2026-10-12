@@ -64,6 +64,10 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.ConnectionPasswordRequiredStatus
 import app.naviamp.domain.source.SubsonicAuthApiKey
+import app.naviamp.domain.radio.SimilarityAdminDiagnostics
+import app.naviamp.domain.radio.SimilarityAdminStatus
+import app.naviamp.domain.radio.SimilarityPluginInfo
+import app.naviamp.domain.radio.isSimilarityTimeout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -128,6 +132,7 @@ class NavidromeProvider(
         connection.copy(nativeToken = nativeToken)
     private val baseCapabilities: ProviderCapabilities =
         ProviderCapabilities(
+            supportsSimilarityDiagnostics = profile.generatedRadio,
             supportsStreamingTranscode = profile.streamingTranscode,
             supportsDownloadTranscode = profile.downloadTranscode,
             supportsArtistRadio = profile.generatedRadio,
@@ -550,6 +555,10 @@ class NavidromeProvider(
     override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? =
         if (!bulkMetadataEnumeration) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
             searchForMusicFolder(query = "", songCount = limit, songOffset = offset, musicFolderId = folder).tracks
+                .map { track ->
+                    if (track.musicFolderId == null && folder != null) track.copy(musicFolderId = folder)
+                    else track
+                }
         }
 
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
@@ -1050,6 +1059,23 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun inspectSmartPlaylist(playlistId: String): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult {
+        requireNativeSmartPlaylists()
+        val original = try {
+            getNativeJson("playlist/${playlistId.urlEncode()}").toNativeDataObject()
+        } catch (error: NavidromeHttpException) {
+            return when (error.statusCode) {
+                403 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.PermissionDenied)
+                404 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.NotFound)
+                else -> throw error
+            }
+        }
+        return app.naviamp.domain.smartplaylist.inspectSmartPlaylistObject(original,
+            mapDefinition = { it.withoutLibraryScopeForEditing() })
+    }
+
     override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
         requireNativeSmartPlaylists()
         val response = getNativeJson("playlist/${playlistId.urlEncode()}")
@@ -1345,6 +1371,97 @@ class NavidromeProvider(
             .ifEmpty {
                 trackRadioFallback(trackId, count)
             }
+
+    override suspend fun similarityAdminDiagnostics(): SimilarityAdminDiagnostics {
+        if (!profile.nativeAuthentication) return SimilarityAdminDiagnostics(SimilarityAdminStatus.Unavailable)
+        if (nativeToken.isNullOrBlank()) return SimilarityAdminDiagnostics(SimilarityAdminStatus.NativeLoginRequired)
+        var details = SimilarityAdminDiagnostics(SimilarityAdminStatus.Available)
+        try {
+            val config = try {
+                json.parseToJsonElement(nativeHttpResponse("config/").body).jsonObject["config"] as? JsonObject
+                    ?: throw NavidromeException("Invalid admin configuration response")
+            } catch (failure: NavidromeHttpException) {
+                if (failure.statusCode != 404) throw failure
+                null // Older servers may expose plugin inventory without configuration inspection.
+            }
+            details = details.copy(
+                pluginsEnabled = (config?.get("Plugins") as? JsonObject)?.get("Enabled")?.jsonPrimitive?.booleanOrNull,
+                externalServicesEnabled = config?.get("EnableExternalServices")?.jsonPrimitive?.booleanOrNull,
+                agents = config?.get("Agents")?.let { value ->
+                    when (value) {
+                        is JsonArray -> value.mapNotNull { it.jsonPrimitive.contentOrNull }
+                        else -> value.jsonPrimitive.contentOrNull?.split(',')
+                    }?.map { it.trim() }?.filter { it.isNotEmpty() }
+                },
+            )
+            if (details.pluginsEnabled == false) return details
+            val inventory = json.parseToJsonElement(nativeHttpResponse("plugin/").body)
+            val rows = (inventory as? JsonArray) ?: (inventory as? JsonObject)?.get("data") as? JsonArray
+                ?: throw NavidromeException("Invalid plugin inventory response")
+            val plugins = rows.map { value ->
+                val plugin = value as? JsonObject ?: throw NavidromeException("Invalid plugin row")
+                val id = plugin.stringValue("id")?.takeIf { it.isNotBlank() }
+                    ?: throw NavidromeException("Missing plugin ID")
+                val manifest = (plugin["manifest"] as? JsonObject) ?: plugin.stringValue("manifest")?.let {
+                    runCatching { json.parseToJsonElement(it) as? JsonObject }.getOrNull()
+                }
+                SimilarityPluginInfo(
+                    id = id, name = manifest?.stringValue("name") ?: id,
+                    version = manifest?.stringValue("version"),
+                    enabled = plugin["enabled"]?.jsonPrimitive?.booleanOrNull,
+                    hasError = !plugin.stringValue("lastError").isNullOrBlank(),
+                )
+            }
+            return details.copy(plugins = plugins)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: NavidromeHttpException) {
+            return details.copy(status = when (failure.statusCode) {
+                401 -> SimilarityAdminStatus.NativeLoginRequired
+                403 -> SimilarityAdminStatus.NotAdmin
+                404 -> SimilarityAdminStatus.Unavailable
+                else -> SimilarityAdminStatus.Failed
+            }, httpStatus = failure.statusCode)
+        } catch (failure: Exception) {
+            return details.copy(status = if (failure.isSimilarityTimeout()) SimilarityAdminStatus.TimedOut else SimilarityAdminStatus.Failed)
+        }
+    }
+
+    override suspend fun similaritySupport(): app.naviamp.domain.radio.SimilaritySupport = diagnosticRequest {
+        val versions = openSubsonicExtensionVersions(failOnError = true).versions
+        if (versions.supportsOpenSubsonicExtension("sonicSimilarity", 1)) {
+            app.naviamp.domain.radio.SimilaritySupport.Advertised
+        } else app.naviamp.domain.radio.SimilaritySupport.Missing
+    }
+
+    override suspend fun similarityEndpointTracks(
+        trackId: TrackId,
+        endpoint: app.naviamp.domain.radio.SimilarityEndpoint,
+        count: Int,
+    ): List<Track> = diagnosticRequest {
+        val response = when (endpoint) {
+            app.naviamp.domain.radio.SimilarityEndpoint.Regular -> get(
+                "getSimilarSongs.view", mapOf("id" to trackId.value, "count" to count.toString()),
+            ).subsonicResponse()["similarSongs"]?.jsonObject?.arrayValue("song").orEmpty()
+                .mapNotNull { (it as? JsonObject)?.toTrack() }
+            app.naviamp.domain.radio.SimilarityEndpoint.Sonic -> get(
+                "getSonicSimilarTracks.view", mapOf("id" to trackId.value, "count" to count.toString()),
+            ).subsonicResponse().arrayValue("sonicMatch")
+                .mapNotNull { (it as? JsonObject)?.get("entry")?.jsonObject?.toTrack() }
+        }
+        response
+    }
+
+    private suspend fun <T> diagnosticRequest(request: suspend () -> T): T = try {
+        request()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: NavidromeException) {
+        throw app.naviamp.domain.radio.SimilarityRequestException(
+            httpStatus = (failure as? NavidromeHttpException)?.statusCode,
+            serverCode = failure.subsonicErrorCode,
+        )
+    }
 
     override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =
         sonicSimilarTrackMatches(trackId, count).map { match -> match.track }

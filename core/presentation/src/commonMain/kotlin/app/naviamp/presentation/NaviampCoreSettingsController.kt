@@ -91,6 +91,7 @@ class NaviampCoreSettingsController(
     private val onLocalSettingsChanged: () -> Unit = {},
     private val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
     private val onPlaybackSettingsChanged: (previous: PlaybackSettings, current: PlaybackSettings) -> Unit = { _, _ -> },
+    private val testSimilarity: suspend () -> Unit = {},
 ) : NaviampCoreCommandController {
     fun saveAlbumArtworkPreference(albumId: String, preference: AlbumArtworkPreference) {
         val shell = stateStore.state.value.shell
@@ -155,8 +156,12 @@ class NaviampCoreSettingsController(
                 )
             }
             NaviampCoreCommand.Settings.OpenStats -> updateStatsVisibility(true)
+            NaviampCoreCommand.Settings.DismissRadioNotice -> stateStore.update {
+                it.copy(overlays = it.overlays.copy(radioNotice = null))
+            }
             NaviampCoreCommand.Settings.CloseStats -> updateStatsVisibility(false)
             NaviampCoreCommand.Settings.ClearCache,
+            NaviampCoreCommand.Settings.TestSimilarity,
             NaviampCoreCommand.Settings.ClearLibrary,
             NaviampCoreCommand.Settings.RefreshLibrary,
             NaviampCoreCommand.Settings.ResetDatabase,
@@ -166,6 +171,10 @@ class NaviampCoreSettingsController(
     }
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
+        if (command == NaviampCoreCommand.Settings.TestSimilarity) {
+            testSimilarity()
+            return NaviampCoreCommandResult.Completed
+        }
         if (command == NaviampCoreCommand.Settings.RefreshLibrary) {
             refreshLibrary()
             stateStore.update { state ->
