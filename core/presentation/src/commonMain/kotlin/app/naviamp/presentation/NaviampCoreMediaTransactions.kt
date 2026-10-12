@@ -1,4 +1,6 @@
 package app.naviamp.presentation
+import app.naviamp.domain.radio.radioDiagnostics
+import app.naviamp.domain.radio.radioSimilarityMethod
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
@@ -207,7 +209,8 @@ class NaviampCoreMediaTransactions(
         busyIndicator.during("Loading track radio...") {
             runCatching {
                 val settings = stateStore.state.value.shell.playback.settings
-                RadioService(provider, count = settings.radioMinimumTracks, tuning = settings.radioTuning)
+                RadioService(provider, count = settings.radioMinimumTracks, tuning = settings.radioTuning,
+                    onSimilarityResult = { recordRadioDiagnostics(it.radioDiagnostics()) })
                     .trackRadio(seed, settings.effectiveSonicSimilarityEnabled())
             }.onSuccess { if (playNext) playNext(it) else addToQueue(it) }
                 .onFailure { publish(it.message ?: "Could not load track radio.") }
@@ -509,21 +512,27 @@ class NaviampCoreMediaTransactions(
             currentPlayback.queue.current?.id == request.seedTrack.id
         if (!retainCurrent) play(listOf(request.seedTrack))
         publish("Playing ${request.label} while the queue builds.")
-        var fallback: app.naviamp.domain.radio.SonicRadioFallbackReason? = null
+        var diagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics? = null
         val radioSettings = stateStore.state.value.shell.playback.settings
         val radioService = RadioService(
             provider, count = radioSettings.radioMinimumTracks,
-            tuning = radioSettings.radioTuning, onSonicFallback = { fallback = it },
+            tuning = radioSettings.radioTuning,
+            similarityMethod = radioSettings.radioSimilarityMethod(),
+            onSimilarityResult = { result -> result.radioDiagnostics()?.let { diagnostics = it } },
         )
+        fun currentRadioSettings() = stateStore.state.value.shell.playback.settings.let {
+            it.radioSimilarityMethod() == radioSettings.radioSimilarityMethod() &&
+                it.radioMinimumTracks == radioSettings.radioMinimumTracks
+        }
         stateStore.update { it.copy(overlays = it.overlays.copy(radioNotice = null)) }
         when (val result = seededRadioBuildResult(request, radioService)) {
             is SeededRadioBuildResult.Ready -> {
                 val stillPlayingSeed = playback.state.value.currentTrack?.id == request.seedTrack.id &&
                     playback.state.value.queue.current?.id == request.seedTrack.id
-                if (!stillPlayingSeed || sourceId != activeSourceId() || !providerSource.isCurrent(provider)) return
+                if (!stillPlayingSeed || sourceId != activeSourceId() || !providerSource.isCurrent(provider) || !currentRadioSettings()) return
                 if (result.queue.size <= 1) {
-                    recordRadioDiagnostics(app.naviamp.domain.radio.RadioBuildDiagnostics(
-                        app.naviamp.domain.radio.RadioBuildOutcome.Empty, fallback,
+                    recordRadioDiagnostics(diagnostics ?: app.naviamp.domain.radio.RadioBuildDiagnostics(
+                        app.naviamp.domain.radio.RadioBuildOutcome.Empty,
                     ))
                     return
                 }
@@ -538,17 +547,15 @@ class NaviampCoreMediaTransactions(
                 }
                 rememberRecentRadio(result.recentRadioStream, result.queue)
                 onStarted()
-                recordRadioDiagnostics(fallback?.let { app.naviamp.domain.radio.RadioBuildDiagnostics(
-                    app.naviamp.domain.radio.RadioBuildOutcome.Fallback, it,
-                ) })
+                recordRadioDiagnostics(diagnostics?.takeUnless { it.outcome == app.naviamp.domain.radio.RadioBuildOutcome.Empty })
                 publish("Playing ${request.label}.")
             }
             is SeededRadioBuildResult.Failed -> {
                 if (result.error is CancellationException) throw result.error
-                if (sourceId == activeSourceId() && providerSource.isCurrent(provider) &&
+                if (sourceId == activeSourceId() && providerSource.isCurrent(provider) && currentRadioSettings() &&
                     playback.state.value.currentTrack?.id == request.seedTrack.id) {
-                    recordRadioDiagnostics(app.naviamp.domain.radio.RadioBuildDiagnostics(
-                        app.naviamp.domain.radio.RadioBuildOutcome.Failed, fallback,
+                    recordRadioDiagnostics(diagnostics ?: app.naviamp.domain.radio.RadioBuildDiagnostics(
+                        app.naviamp.domain.radio.RadioBuildOutcome.Failed,
                     ))
                     publish("Playing ${request.label}; the rest of the queue could not be built.")
                 }

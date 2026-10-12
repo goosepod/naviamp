@@ -1,92 +1,62 @@
-# Sonic Radio and similarity diagnostics
+# Radio methods and similarity diagnostics
 
-Issues: https://github.com/goosepod/naviamp/issues/250, https://github.com/goosepod/naviamp/issues/253, https://github.com/goosepod/naviamp/issues/255
+Issue: https://github.com/goosepod/naviamp/issues/273
 
-## Manual checks
+## Shared behavior
 
-1. Connect to a Navidrome server and play a library track. Open Settings → Experience →
-   Related Tracks → Test similarity. Confirm the displayed test track is the playing track,
-   the popup shows both endpoint outcomes separately, with artist and title for the seed and
-   returned matches. Scroll through a longer match list, close the popup, and confirm playback
-   and the queue remain unchanged.
-2. With a working Sonic backend and Sonic Similarity enabled, start Radio. Confirm additional
-   tracks arrive without a fallback notice. Disable Sonic Similarity and repeat: regular Radio
-   should still work and the preference should remain disabled.
-3. On a disposable server, enable a Sonic plugin but configure its backend to an unreachable
-   address. Test similarity should show advertised support, a Sonic failure, and the actual
-   regular endpoint result. Start Radio with Sonic enabled: it should recover through the
-   existing provider fallback and show a dismissible fallback notice.
-4. Test a slow Sonic request and a response containing only the seed. Radio should recover
-   after the ten-second Sonic deadline or the unusable response. Cancelling playback or
-   changing the source must not apply an old queue/result to the new source.
-5. Without a Sonic plugin, Related Tracks must still expose Test similarity on Navidrome.
-   Missing support must be distinct from an advertised but failing backend. A regular endpoint
-   with no matches must be shown as empty even if provider Radio can find local album/artist
-   candidates.
-6. When neither Radio path produces additional tracks, confirm the explicit no-additional-tracks
-   notice appears and the current queue is kept. Close the notice and confirm it disappears.
-7. Switch servers while a test is running, including switching back to the original server.
-   Old results must be discarded and a new test must be available immediately.
-8. With a Navidrome native admin session, confirm Server plugin details shows global plugin
-   enablement, external-service enablement, configured metadata agents, and the installed plugin
-   names, IDs, versions, and enabled states. A server-reported plugin error must show only generic
-   guidance. No configuration, credentials, local paths, or raw plugin error text should appear.
-9. Disable the plugin system on a disposable server. The popup must say it is disabled and cannot
-   list installed plugins, rather than claim an empty inventory. A successful empty inventory on
-   an enabled server must remain distinct. An unavailable API must not imply missing plugins.
-10. Try a non-admin account or a source without native login credentials. Both similarity endpoints
-    must still be tested. Only the extra plugin details should report the access/login requirement.
-11. Enable Sonic Autoplay and let a queue finish with the Sonic backend failing, timing out, or
-    returning only queued tracks. Regular Radio should supply unique unqueued continuation tracks
-    and playback should resume. Sonic matches must take priority; regular Radio tops up a short batch.
-    A saved enabled setting must also fall back when Sonic support is no longer advertised.
-12. During the Autoplay fallback, replace the queue, switch sources, disable Sonic Autoplay, or
-    change its minimum tracks.
-    Late results must not append tracks or restart playback. If both paths have no usable results,
-    playback remains finished and no queue modification occurs.
+Settings → Experience → Radio is always visible. Sonic Similarity and Instant Mix are mutually
+exclusive choices with descriptions. Sonic is disabled when the server does not advertise support.
+A saved Sonic selection remains explicit on an unsupported server: requests report unsupported
+rather than silently selecting Instant Mix. TV playback settings use the same common Radio controls.
 
-13. Set Minimum tracks for Radio to 20 and Minimum tracks for autoplay to 50. Both sliders must
-    offer 10–100 in steps of ten. Start track Radio with enough matches: expect the seed followed
-    by 20 related tracks. Finish a queue with Autoplay enabled: expect 50 new unique tracks, with
-    Sonic matches before regular top-up matches. Confirm neither endpoint can add queued tracks.
-14. Test short Sonic results with a healthy regular endpoint, then a failed or slow regular endpoint.
-    Short results should be topped up when available; usable Sonic results survive a failed top-up.
-    If the library or Radio tuning cannot supply enough tracks, add the available tracks.
-15. Restart the app and export/import settings, including importing an older file. Independent sizes
-    must survive persistence and sync; older files default both to ten. Imported sizes clamp to
-    10–100 and round to the nearest step of ten. The Radio slider works with Sonic disabled or
-    unavailable; the Autoplay slider is disabled when Autoplay is off.
+Radio Autoplay uses the selected method, with its own independent batch size. Both sizes request
+10–100 tracks in steps of ten; fewer usable tracks are valid. Sonic never calls Instant Mix as
+fallback or top-up. Short and partial Sonic results remain usable; partial failures retain visible
+diagnostics. Instant Mix uses the server’s similar-song recommendations, which may also be backed
+by plugins. Selected Navidrome Instant Mix does not substitute local artist/album candidates for
+empty endpoint results.
+
+The existing serialized preference and Autoplay keys remain compatible with local storage,
+export/import, and sync. Stored explicit choices survive. Unconfigured settings and older exports
+with the original false default use Instant Mix; they no longer automatically opt into Sonic.
+There is no database migration.
+
+## Acceptance checks
+
+1. Connect to a server without Sonic support, including the demo server. Radio stays visible.
+   Sonic is disabled with guidance; Instant Mix and Radio Autoplay remain available.
+2. On a supported server, select each method. Selection is exclusive. Start track Radio and finish
+   a queue with Radio Autoplay enabled. Verify only the selected endpoint is requested.
+3. Test short Sonic results with healthy Instant Mix. Keep only Sonic tracks. Test duplicate-heavy
+   responses, queued tracks, and partial failures. No cross-method top-up is permitted.
+4. Test empty, unsupported, failed, and timed-out Sonic. Radio does not expand with another method.
+   Autoplay remains finished when no tracks are available and shows a notice. Refreshing Radio on
+   the current track retains its session; starting another seed already selects that seed. Feedback
+   must not claim that the previous queue was kept.
+5. During either method’s Autoplay request, change the method, size, queue, source, or disable
+   Autoplay. Late results must not append or restart playback.
+6. Change batch sizes independently, restart, export/import and sync. Verify both methods and
+   Autoplay survive, plus defaults for old documents and normalized imported sizes.
+7. Open Test similarity. Both raw endpoints are tested without changing playback. Verify seed and
+   match titles/artists, long-list scrolling, timeout, safe protocol codes, and no-match guidance.
+   Source changes discard stale tests.
+8. Check admin details with admin/non-admin accounts, missing native credentials, disabled plugins,
+   successful empty inventory, and unavailable APIs. No credentials, paths, configuration values,
+   or raw plugin error text may appear.
+9. Check keyboard/radio-button accessibility, TV focus, narrow-window clipping and source changes.
+   Disabled Sonic must not be activatable through pointer or keyboard.
 
 ## Automated checks
 
-Track Radio and Sonic Autoplay share `SimilarityService` in domain common code. Requests contain
-seed IDs, excluded track IDs, per-seed counts, the desired minimum, and the Sonic preference. Results retain scored
-matches in ordered seed slots, selected endpoint, typed fallback/failure diagnostics, and separate regular top-up seed slots. Radio
-applies tuning after the request; Autoplay applies recent-seed ranking, deduplication, and append
-limits. A fatal regular error can be explicitly propagated by Radio without exposing its exception
-in diagnostic metadata; Autoplay keeps its finished queue when no continuation is available.
-Both sliders use shared PlaybackSettings serialization, export/import and sync, normalization, and
-defaults. Tests verify that Autoplay uses its own size independently of the Radio size and rejects
-late results after its size changes. Both the Sonic and regular batches have one ten-second deadline.
-Raw endpoint diagnostics bypass
-this playback service so they can still show the actual results of each endpoint.
+Common tests cover selected endpoints, filtering, ranking, short/partial results, safe errors,
+deadlines, cancellation, and portable settings. Presentation tests cover method selection, feedback,
+and stale-result rejection. Rendered UI tests cover always-visible Radio, unavailable Sonic,
+exclusive choices, capability loss, independent sliders, and the diagnostic popup. Provider tests
+verify request paths and that empty Instant Mix never triggers local candidate substitution.
 
-The common RadioService tests cover success, empty/seed-only results, exceptions, deadlines,
-transport timeouts, cancellation, and independent diagnostic endpoints. Provider tests cover raw
-response parsing, capability refresh, safe protocol codes, and avoiding local Radio fallback in
-endpoint diagnostics. Controller tests cover overlapping requests, cancellation, source changes,
-and queue preservation. Compose tests cover endpoint labels/results, narrow and wide layouts,
-and access when Sonic is not advertised. Admin tests cover native JWT refresh, permission/session
-failures, disabled versus empty inventory, safe metadata mapping, independent failure and deadlines,
-and cancellation. Presentation integration tests verify expanded Radio history persistence/replay
-and reject a seed-only result as a successful saved session.
-Sonic Autoplay tests cover regular fallback for missing support, errors, deadlines, empty/queued-only
-matches, deduplication, cancellation, and stale queue/source/setting results. The Sonic batch and
-regular batch each have a ten-second deadline; usable Sonic matches collected before a later seed
-times out are retained, and regular Radio fills a shortfall below the selected minimum, excluding
-the retained Sonic tracks.
+## Optional read-only server probe
 
-An opt-in JVM integration test uses an explicitly configured disposable server. Set
+Set the disposable test server credentials in environment variables:
 `NAVIAMP_SIMILARITY_TEST_URL`, `NAVIAMP_SIMILARITY_TEST_USER`,
 `NAVIAMP_SIMILARITY_TEST_PASSWORD`, and `NAVIAMP_SIMILARITY_TEST_SUPPORT`
 (`Missing` or `Advertised`), then run:
@@ -105,7 +75,7 @@ plugin enablement (`true` or `false`). Run the `inspectNativeAdminApiWithoutChan
 method in `NavidromeSimilarityLiveTest`. The enabled fixture expects AudioMuse v10 to be installed.
 Native authentication is obtained using the supplied password; the test never changes the server.
 
-## Recorded live evidence
+## Historical live evidence (before issue #273)
 
 On the authorized `navidrome-test` container, Navidrome 0.64.2-SNAPSHOT (PR 6227), the plugin-disabled
 baseline reported missing support, Sonic HTTP 404, and 20 regular endpoint matches. Radio added

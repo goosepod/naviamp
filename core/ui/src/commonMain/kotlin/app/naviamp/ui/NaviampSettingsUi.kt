@@ -1,4 +1,10 @@
 package app.naviamp.ui
+import app.naviamp.domain.radio.RadioSimilarityMethod
+import app.naviamp.domain.radio.radioSimilarityMethod
+import app.naviamp.domain.radio.withRadioSimilarityMethod
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 
 import app.naviamp.ui.generated.resources.settings_keep_screen_awake
 import app.naviamp.ui.generated.resources.settings_keep_screen_awake_description
@@ -44,6 +50,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
@@ -726,7 +734,7 @@ fun NaviampExperienceSettingsSection(
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onCacheSettingsChanged = onCacheSettingsChanged,
             )
-            ExperienceSettingsPage.RelatedTracks -> RelatedTracksSettings(
+            ExperienceSettingsPage.Radio -> RadioSettingsSection(
                 colors = colors,
                 playbackSettings = playbackSettings,
                 supportsSonicSimilarity = supportsSonicSimilarity,
@@ -804,14 +812,14 @@ fun NaviampExperienceSettingsSection(
                 selectedSection = ExperienceSettingsPage.Lyrics
             }
         }
-        if (supportsSonicSimilarity || onTestSimilarity != null) {
+        run {
             SettingsRow(
-                title = ExperienceSettingsPage.RelatedTracks.title(),
-                subtitle = ExperienceSettingsPage.RelatedTracks.subtitle(),
+                title = ExperienceSettingsPage.Radio.title(),
+                subtitle = ExperienceSettingsPage.Radio.subtitle(),
                 colors = colors,
-                value = playbackSettings.relatedTracksSummary(),
+                value = playbackSettings.radioSummary(),
             ) {
-                selectedSection = ExperienceSettingsPage.RelatedTracks
+                selectedSection = ExperienceSettingsPage.Radio
             }
         }
         SettingsRow(
@@ -929,7 +937,7 @@ fun NaviampExperienceSettingsSection(
 
 private enum class ExperienceSettingsPage {
     Player,
-    RelatedTracks,
+    Radio,
     Lyrics,
     TextSize,
     AppBackground,
@@ -944,7 +952,7 @@ private enum class ExperienceSettingsPage {
 private fun ExperienceSettingsPage.title(): String =
     when (this) {
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
-        ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_title)
+        ExperienceSettingsPage.Radio -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
         ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_title)
         ExperienceSettingsPage.AppBackground -> "App Background"
@@ -959,7 +967,7 @@ private fun ExperienceSettingsPage.title(): String =
 private fun ExperienceSettingsPage.subtitle(): String =
     when (this) {
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
-        ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
+        ExperienceSettingsPage.Radio -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
         ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_subtitle)
         ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
@@ -2125,13 +2133,11 @@ private fun PlaybackSettings.lyricsSummary(): String =
     ).takeIf { it.isNotEmpty() }?.joinToString(", ") ?: stringResource(Res.string.common_off)
 
 @Composable
-private fun PlaybackSettings.relatedTracksSummary(): String? =
-    when {
-        effectiveSonicSimilarityEnabled() && sonicAutoplayEnabled -> stringResource(Res.string.settings_related_autoplay_summary)
-        effectiveSonicSimilarityEnabled() -> stringResource(Res.string.settings_related_summary)
-        sonicAutoplayEnabled -> stringResource(Res.string.settings_autoplay_summary)
-        else -> null
-    }
+private fun PlaybackSettings.radioSummary(): String =
+    listOfNotNull(
+        stringResource(if (effectiveSonicSimilarityEnabled()) Res.string.settings_related_sonic_similarity else Res.string.radio_instant_mix),
+        stringResource(Res.string.settings_related_sonic_autoplay).takeIf { sonicAutoplayEnabled },
+    ).joinToString(", ")
 
 @Composable
 private fun SettingsDetailHeader(
@@ -5034,7 +5040,7 @@ private fun <T> List<T>.moveItem(fromIndex: Int, toIndex: Int): List<T> {
 }
 
 @Composable
-private fun RelatedTracksSettings(
+internal fun RadioSettingsSection(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     supportsSonicSimilarity: Boolean,
@@ -5043,24 +5049,7 @@ private fun RelatedTracksSettings(
     onTestSimilarity: (() -> Unit)?,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
-    if (supportsSonicSimilarity) {
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = playbackSettings.effectiveSonicSimilarityEnabled(),
-            label = stringResource(Res.string.settings_related_sonic_similarity),
-            subtitle = stringResource(Res.string.settings_related_sonic_similarity_subtitle),
-            onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(
-                    playbackSettings.copy(
-                        sonicSimilarityEnabled = enabled,
-                        sonicSimilarityPreferenceConfigured = true,
-                    ),
-                )
-            },
-        )
-    } else {
-        Text(stringResource(Res.string.settings_related_requires_support), color = colors.secondaryText, fontSize = 12.sp)
-    }
+    RadioSimilarityChoices(colors, playbackSettings, supportsSonicSimilarity, onPlaybackSettingsChanged)
     Column(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)) {
         DetentIntSettingsSlider(
             colors = colors,
@@ -5074,7 +5063,7 @@ private fun RelatedTracksSettings(
         )
         Text(stringResource(Res.string.settings_related_radio_minimum_subtitle), color = colors.secondaryText, fontSize = 12.sp)
     }
-    if (supportsSonicSimilarity) {
+    run {
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.sonicAutoplayEnabled,
@@ -5104,6 +5093,39 @@ private fun RelatedTracksSettings(
         }
     }
     NaviampSimilarityTestContent(colors, similarityTest, onTestSimilarity, radioDiagnostics)
+}
+
+/** Shared method selection also appears on TV; unavailable Sonic never changes the stored choice. */
+@Composable
+internal fun RadioSimilarityChoices(
+    colors: NaviampColors,
+    settings: PlaybackSettings,
+    supportsSonic: Boolean,
+    onChanged: (PlaybackSettings) -> Unit,
+) {
+    Column(Modifier.selectableGroup()) {
+        RadioSimilarityMethod.entries.forEach { method ->
+            val sonic = method == RadioSimilarityMethod.SonicSimilarity
+            val enabled = !sonic || supportsSonic
+            val selected = settings.radioSimilarityMethod() == method
+            Row(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)
+                .selectable(selected = selected, enabled = enabled, role = Role.RadioButton,
+                    onClick = { onChanged(settings.withRadioSimilarityMethod(method)) })
+                .padding(vertical = SettingsDetailRowVerticalPadding),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(if (sonic) Res.string.settings_related_sonic_similarity else Res.string.radio_instant_mix),
+                        color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
+                    Text(stringResource(if (sonic) Res.string.settings_related_sonic_similarity_subtitle else Res.string.radio_instant_mix_description),
+                        color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                    if (!enabled) Text(stringResource(Res.string.settings_related_requires_support), color = colors.mutedText,
+                        fontSize = SettingsDetailRowSubtitleSize)
+                }
+                RadioButton(selected = selected, enabled = enabled, onClick = null,
+                    colors = RadioButtonDefaults.colors(selectedColor = colors.accent, unselectedColor = colors.secondaryText))
+            }
+        }
+    }
 }
 
 @Composable

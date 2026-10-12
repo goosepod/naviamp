@@ -42,6 +42,21 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
+    @Test fun selectedInstantMixUsesOnlyTheSimilarSongsEndpointEvenWhenEmpty() = runTest {
+        val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"ok","similarSongs":{"song":[]}}}""")
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+        assertEquals(emptyList(), provider.instantMixTracks(TrackId("seed"), 30))
+        assertEquals(1, http.urls.size)
+        assertTrue(http.urls.single().contains("/getSimilarSongs.view?"))
+    }
+
+    @Test fun unsupportedSonicResponseIsReportedInsteadOfPretendingThereAreNoMatches() = runTest {
+        val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Not supported"}}}""")
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+        assertFailsWith<UnsupportedOperationException> { provider.sonicSimilarTrackMatches(TrackId("seed"), 30) }
+        assertEquals(1, http.urls.size)
+    }
+
     @Test
     fun bulkTrackIndexRetainsKnownFolderScopeWithoutInventingUnscopedIds() = runTest {
         val http = object : NavidromeHttpClient {

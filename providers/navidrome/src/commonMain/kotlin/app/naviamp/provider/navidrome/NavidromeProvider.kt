@@ -1360,6 +1360,10 @@ class NavidromeProvider(
             albumRadioFallback(albumId, count)
         }
 
+    override suspend fun instantMixTracks(trackId: TrackId, count: Int): List<Track> =
+        similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
+            .filterNot { it.id == trackId }
+
     override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> =
         similarSongs(
             endpoint = "getSimilarSongs.view",
@@ -1492,7 +1496,7 @@ class NavidromeProvider(
                 .filterNot { it.track.id == trackId }
         }.getOrElse { cause ->
             if (cause is NavidromeException && (cause.subsonicErrorCode == 70 ||
-                    cause is NavidromeHttpException && cause.statusCode in listOf(404, 501))) emptyList()
+                    cause is NavidromeHttpException && cause.statusCode in listOf(404, 501))) throw UnsupportedOperationException()
             else throw cause
         }
 

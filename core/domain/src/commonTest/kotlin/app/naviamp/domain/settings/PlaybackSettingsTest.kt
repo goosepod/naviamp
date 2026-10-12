@@ -196,8 +196,8 @@ class PlaybackSettingsTest {
     }
 
     @Test
-    fun sonicSimilarityDefaultsOnUntilTheUserMakesAnExplicitChoice() {
-        assertEquals(true, PlaybackSettings().effectiveSonicSimilarityEnabled())
+    fun sonicSimilarityDefaultsToInstantMixUntilExplicitlyEnabled() {
+        assertEquals(false, PlaybackSettings().effectiveSonicSimilarityEnabled())
         assertEquals(
             false,
             PlaybackSettings(

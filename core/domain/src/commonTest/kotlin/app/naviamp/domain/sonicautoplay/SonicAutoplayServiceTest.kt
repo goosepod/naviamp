@@ -48,62 +48,62 @@ class SonicAutoplayServiceTest {
 
         assertEquals(listOf("candidate-2", "candidate-1"), tracks.map { it.id.value })
         assertEquals(listOf("seed-2", "seed-1"), provider.requests)
-        assertEquals(listOf("seed-2", "seed-1"), provider.radioRequests)
+        assertEquals(emptyList(), provider.radioRequests)
     }
 
     @Test
-    fun missingSonicSupportUsesRegularRadio() = runTest {
+    fun explicitInstantMixWorksWithoutSonicSupport() = runTest {
         val provider = FakeSonicProvider(supportsSonicSimilarity = false,
             radioBySeed = mapOf("seed" to listOf(track("regular"))))
         val service = SonicAutoplayService(provider = { provider })
 
         assertEquals(
             listOf(track("regular")),
-            service.continuationTracks(PlaybackQueue(listOf(track("seed")), currentIndex = 0)),
+            service.continuationTracks(PlaybackQueue(listOf(track("seed")), currentIndex = 0), preferSonicSimilarity = false),
         )
         assertEquals(emptyList(), provider.requests)
         assertEquals(listOf("seed"), provider.radioRequests)
     }
 
     @Test
-    fun emptySeedOnlyAndQueueOnlySonicMatchesFallBackToDistinctUnqueuedRadioTracks() = runTest {
+    fun emptySonicNeverSubstitutes() = runTest {
         for (matches in listOf(emptyList(), listOf(SonicSimilarTrack(track("seed"))),
             listOf(SonicSimilarTrack(track("old"))))) {
             val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to matches),
                 radioBySeed = mapOf("seed" to listOf(track("seed"), track("old"), track("new"), track("new"), track("extra"))))
             val result = SonicAutoplayService({ provider }, seedCount = 1).continuationTracks(
                 PlaybackQueue(listOf(track("old"), track("seed")), 1), limit = 1)
-            assertEquals(listOf(track("new")), result)
-            assertEquals(listOf("seed"), provider.radioRequests)
+            assertEquals(emptyList(), result)
+            assertEquals(emptyList(), provider.radioRequests)
         }
     }
 
     @Test
-    fun sonicFailureUsesRegularRadioWithoutChangingRankingPolicy() = runTest {
+    fun sonicFailureReturnsNoContinuation() = runTest {
         val provider = FakeSonicProvider(radioBySeed = mapOf(
             "seed" to listOf(track("first"), track("second")), "old" to listOf(track("third"))))
         provider.beforeSonic = { error("backend failure") }
-        assertEquals(listOf("first", "second", "third"), SonicAutoplayService({ provider }).continuationTracks(
+        assertEquals(emptyList(), SonicAutoplayService({ provider }).continuationTracks(
             PlaybackQueue(listOf(track("old"), track("seed")), 1)).map { it.id.value })
     }
 
     @Test
-    fun sonicBatchDeadlineFallsBackAfterTenSeconds() = runTest {
+    fun sonicBatchDeadlineStopsAfterTenSeconds() = runTest {
         val provider = FakeSonicProvider(radioBySeed = mapOf("seed" to listOf(track("regular"))))
         provider.beforeSonic = { delay(60_000) }
         val started = testScheduler.currentTime
-        assertEquals(listOf(track("regular")), SonicAutoplayService({ provider }).continuationTracks(
+        assertEquals(emptyList(), SonicAutoplayService({ provider }).continuationTracks(
             PlaybackQueue(listOf(track("seed")), 0)))
         assertEquals(10_000L, testScheduler.currentTime - started)
     }
 
     @Test
-    fun usableSonicMatchesSurviveLaterSeedTimeoutAndAttemptRegularTopUp() = runTest {
+    fun usableSonicMatchesSurviveTimeoutWithoutTopUp() = runTest {
         val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to listOf(SonicSimilarTrack(track("sonic")))))
         provider.beforeSonic = { if (it == "old") delay(60_000) }
         assertEquals(listOf(track("sonic")), SonicAutoplayService({ provider }).continuationTracks(
             PlaybackQueue(listOf(track("old"), track("seed")), 1)))
-        assertEquals(listOf("seed", "old"), provider.radioRequests)
+        assertEquals(emptyList(), provider.radioRequests)
     }
 
     @Test
@@ -113,7 +113,7 @@ class SonicAutoplayServiceTest {
             if (cancelSonic) provider.beforeSonic = { throw CancellationException() }
             else provider.beforeRadio = { throw CancellationException() }
             assertFailsWith<CancellationException> { SonicAutoplayService({ provider }).continuationTracks(
-                PlaybackQueue(listOf(track("old"), track("seed")), 1)) }
+                PlaybackQueue(listOf(track("old"), track("seed")), 1), preferSonicSimilarity = cancelSonic) }
             assertEquals(if (cancelSonic) emptyList() else listOf("seed"), provider.radioRequests)
         }
     }
@@ -125,7 +125,7 @@ class SonicAutoplayServiceTest {
             provider.beforeRadio = { if (timeout) delay(60_000) else error("regular failure") }
             val started = testScheduler.currentTime
             assertEquals(emptyList(), SonicAutoplayService({ provider }).continuationTracks(
-                PlaybackQueue(listOf(track("seed")), 0)))
+                PlaybackQueue(listOf(track("seed")), 0), preferSonicSimilarity = false))
             assertEquals(if (timeout) 10_000L else 0L, testScheduler.currentTime - started)
             assertEquals(listOf("seed"), provider.radioRequests)
         }
@@ -142,7 +142,7 @@ class SonicAutoplayServiceTest {
     }
 
     @Test
-    fun selectedBatchSizesRequestExtraCandidatesAndFillShortSonicResultsFirst() = runTest {
+    fun shortSonicBatchRemainsShortAtEverySelectedSize() = runTest {
         for (target in listOf(10, 50, 100)) {
             val provider = FakeSonicProvider(matchesBySeed = mapOf("seed" to listOf(SonicSimilarTrack(track("sonic"), 0.01))),
                 radioBySeed = mapOf("seed" to (listOf(track("seed"), track("sonic"), track("queued")) +
@@ -152,10 +152,10 @@ class SonicAutoplayServiceTest {
             // Duplicate-heavy responses may exhaust the candidate limit before meeting the minimum.
             assertEquals("sonic", tracks.first().id.value)
             assertEquals(tracks.size, tracks.map { it.id }.distinct().size)
-            assertEquals(target, tracks.size)
+            assertEquals(1, tracks.size)
             kotlin.test.assertTrue(tracks.none { it.id.value in setOf("seed", "queued") })
             assertEquals(listOf(target * 2), provider.sonicCounts)
-            assertEquals(listOf(target * 2), provider.radioCounts)
+            assertEquals(emptyList(), provider.radioCounts)
         }
     }
 

@@ -148,9 +148,8 @@
     <string name="similarity_setup">تحقق من تفعيل إضافة Sonic متوافقة وصحة عنوان API والرمز وإمكانية وصول الخادم إليها.</string>
     <string name="similarity_empty_help">جرّب مقطعًا آخر تم تحليله. عدم وجود نتائج لمقطع واحد لا يثبت وجود مشكلة في الإعدادات.</string>
     <string name="similarity_regular">التشابه العادي</string>
-    <string name="similarity_radio_fallback">لم يكن التشابه الصوتي متاحًا. استخدم الراديو طريقته البديلة.</string>
-    <string name="similarity_radio_empty">لم يجد الراديو مقاطع إضافية. تم الاحتفاظ بقائمة الانتظار الحالية.</string>
-    <string name="similarity_radio_failed">تعذر إنشاء قائمة انتظار الراديو. تم الاحتفاظ بالقائمة الحالية.</string>
+    <string name="similarity_radio_empty">لم يجد الراديو مقاطع إضافية.</string>
+    <string name="similarity_radio_failed">تعذر إنشاء قائمة انتظار الراديو.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">تفاصيل إضافات الخادم</string>
     <string name="similarity_admin_required">تتطلب تفاصيل الإضافات صلاحيات المسؤول.</string>
@@ -166,10 +165,10 @@
     <string name="similarity_admin_plugin_enabled">مفعّلة</string>
     <string name="similarity_admin_plugin_disabled">معطّلة</string>
     <string name="similarity_admin_plugin_error">يبلغ الخادم عن خطأ في إضافة. تحقق من إعدادات إضافات Navidrome وسجلاتها.</string>
-    <string name="settings_related_autoplay_minimum">الحد الأدنى للمقاطع للتشغيل التلقائي</string>
-    <string name="settings_related_autoplay_minimum_subtitle">يكمل نتائج Sonic بالراديو العادي. يضيف مقاطع أقل إذا لم تتوفر نتائج فريدة كافية.</string>
-    <string name="settings_related_radio_minimum">الحد الأدنى للمقاطع للراديو</string>
-    <string name="settings_related_radio_minimum_subtitle">مقاطع مشابهة عند بدء الراديو. يشغل المقطع الأول أولا. يكمل نتائج Sonic القليلة بالراديو العادي عند توفره.</string>
+    <string name="settings_related_autoplay_minimum">حجم دفعة التشغيل التلقائي</string>
+    <string name="settings_related_autoplay_minimum_subtitle">المقاطع الجديدة المطلوبة عند انتهاء قائمة الانتظار. قد يتم إرجاع مقاطع أقل.</string>
+    <string name="settings_related_radio_minimum">حجم دفعة الراديو</string>
+    <string name="settings_related_radio_minimum_subtitle">المقاطع ذات الصلة المطلوبة عند بدء الراديو. قد يتم إرجاع مقاطع أقل.</string>
     <string name="smart_playlist_inspection_title">قواعد قائمة التشغيل الذكية</string>
     <string name="smart_playlist_inspection_read_only">تستخدم هذه القائمة قواعد أو إعدادات لا يمكن لهذا المحرر تغييرها بأمان. يُعرض تعريفها الأصلي للفحص فقط.</string>
     <string name="smart_playlist_inspection_missing">لم يقدّم الخادم قواعد قائمة التشغيل هذه.</string>
@@ -204,4 +203,13 @@
     <string name="smart_playlist_date_format">صيغة التاريخ: YYYY-MM-DD (السنة-الشهر-اليوم).</string>
     <string name="smart_playlist_days_hint">أدخل عددًا موجبًا من الأيام، مثل 30.</string>
     <string name="smart_playlist_end_value">القيمة النهائية</string>
+    <string name="settings_experience_related_tracks_title">الراديو</string>
+    <string name="settings_experience_related_tracks_subtitle">اختر كيفية عثور الراديو على المقاطع ومتابعة التشغيل.</string>
+    <string name="settings_related_sonic_similarity_subtitle">ابحث عن مقاطع متشابهة صوتيًا باستخدام خدمة Sonic Similarity على الخادم. يتطلب دعم الخادم.</string>
+    <string name="radio_instant_mix_description">استخدم توصيات الأغاني المشابهة من الخادم. تعتمد النتائج على الخدمات والإضافات المهيأة.</string>
+    <string name="settings_related_sonic_autoplay">التشغيل التلقائي للراديو</string>
+    <string name="settings_related_sonic_autoplay_subtitle">تابع التشغيل عند انتهاء قائمة الانتظار باستخدام طريقة الراديو المحددة.</string>
+    <string name="settings_related_requires_support">Sonic Similarity غير متاحة على هذا الخادم. اختر Instant Mix أو استخدم اختبار التشخيص.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

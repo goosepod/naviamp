@@ -148,9 +148,8 @@
     <string name="similarity_setup">Pastikan plugin Sonic yang kompatibel aktif, alamat API dan token benar, serta server dapat mengaksesnya.</string>
     <string name="similarity_empty_help">Coba lagu lain yang telah dianalisis. Tidak adanya kecocokan untuk satu lagu tidak membuktikan masalah konfigurasi.</string>
     <string name="similarity_regular">Kemiripan biasa</string>
-    <string name="similarity_radio_fallback">Kemiripan suara tidak tersedia. Radio menggunakan metode cadangannya.</string>
-    <string name="similarity_radio_empty">Radio tidak menemukan lagu tambahan. Antrean saat ini dipertahankan.</string>
-    <string name="similarity_radio_failed">Antrean Radio tidak dapat dibuat. Antrean saat ini dipertahankan.</string>
+    <string name="similarity_radio_empty">Radio tidak menemukan lagu tambahan.</string>
+    <string name="similarity_radio_failed">Antrean Radio tidak dapat dibuat.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Detail plugin server</string>
     <string name="similarity_admin_required">Detail plugin memerlukan akses administrator.</string>
@@ -166,10 +165,10 @@
     <string name="similarity_admin_plugin_enabled">Diaktifkan</string>
     <string name="similarity_admin_plugin_disabled">Dinonaktifkan</string>
     <string name="similarity_admin_plugin_error">Server melaporkan kesalahan plugin. Periksa pengaturan dan log plugin Navidrome.</string>
-    <string name="settings_related_autoplay_minimum">Minimum lagu untuk putar otomatis</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Melengkapi hasil Sonic dengan Radio biasa. Menambahkan lebih sedikit lagu jika kecocokan unik tidak mencukupi.</string>
-    <string name="settings_related_radio_minimum">Minimum lagu untuk Radio</string>
-    <string name="settings_related_radio_minimum_subtitle">Lagu terkait saat memulai Radio. Lagu awal diputar dahulu. Hasil Sonic yang sedikit dilengkapi dengan Radio biasa jika tersedia.</string>
+    <string name="settings_related_autoplay_minimum">Ukuran kumpulan putar otomatis</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Lagu baru yang diminta saat antrean berakhir. Jumlah yang dikembalikan bisa lebih sedikit.</string>
+    <string name="settings_related_radio_minimum">Ukuran kumpulan Radio</string>
+    <string name="settings_related_radio_minimum_subtitle">Lagu terkait yang diminta saat memulai Radio. Jumlah yang dikembalikan bisa lebih sedikit.</string>
     <string name="smart_playlist_inspection_title">Aturan playlist pintar</string>
     <string name="smart_playlist_inspection_read_only">Playlist ini menggunakan aturan atau pengaturan yang tidak dapat diubah dengan aman oleh editor ini. Definisi aslinya hanya ditampilkan untuk diperiksa.</string>
     <string name="smart_playlist_inspection_missing">Server tidak menyediakan aturan playlist ini.</string>
@@ -204,4 +203,13 @@
     <string name="smart_playlist_date_format">Format tanggal: YYYY-MM-DD (tahun-bulan-hari).</string>
     <string name="smart_playlist_days_hint">Masukkan jumlah hari positif, misalnya 30.</string>
     <string name="smart_playlist_end_value">Nilai akhir</string>
+    <string name="settings_experience_related_tracks_title">Radio</string>
+    <string name="settings_experience_related_tracks_subtitle">Pilih cara Radio menemukan lagu dan melanjutkan pemutaran.</string>
+    <string name="settings_related_sonic_similarity_subtitle">Temukan lagu dengan suara serupa melalui layanan Sonic Similarity server. Memerlukan dukungan server.</string>
+    <string name="radio_instant_mix_description">Gunakan rekomendasi lagu serupa dari server. Hasil bergantung pada layanan dan plugin yang dikonfigurasi.</string>
+    <string name="settings_related_sonic_autoplay">Putar Otomatis Radio</string>
+    <string name="settings_related_sonic_autoplay_subtitle">Lanjutkan saat antrean berakhir menggunakan metode Radio yang dipilih.</string>
+    <string name="settings_related_requires_support">Sonic Similarity tidak tersedia di server ini. Pilih Instant Mix atau gunakan tes diagnostik.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>
