@@ -18,6 +18,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.editingResult
 import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
@@ -115,6 +116,9 @@ interface MediaProvider {
     suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
         throw UnsupportedOperationException("Smart playlist edits are not supported by $displayName.")
     }
+    suspend fun inspectSmartPlaylist(playlistId: String): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult =
+        smartPlaylistDefinition(playlistId).editingResult()
+
     suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
         throw UnsupportedOperationException("Smart playlist loading is not supported by $displayName.")
     }

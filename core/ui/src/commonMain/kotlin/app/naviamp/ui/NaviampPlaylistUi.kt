@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import kotlinx.coroutines.launch
@@ -64,12 +65,13 @@ fun NaviampPlaylistsContent(
         onSortModeChanged = actions.onSortModeChanged,
         onPlaylistAction = mediaActions.onMediaItemAction,
         onSmartPlaylistPreview = actions.smartPlaylist.onPreview,
+        onSmartPlaylistSyncLibrary = actions.smartPlaylist.onSyncLibrary,
         onSmartPlaylistSave = actions.smartPlaylist.onSave,
         onSmartPlaylistUpdate = actions.smartPlaylist.onUpdate,
         onSmartPlaylistSaveWithPassword = actions.smartPlaylist.onSaveWithPassword,
         onSmartPlaylistUpdateWithPassword = actions.smartPlaylist.onUpdateWithPassword,
-        onSmartPlaylistLoad = actions.smartPlaylist.onLoad,
-        onSmartPlaylistLoadWithPassword = actions.smartPlaylist.onLoadWithPassword,
+        onSmartPlaylistLoad = actions.smartPlaylist.onInspect,
+        onSmartPlaylistLoadWithPassword = actions.smartPlaylist.onInspectWithPassword,
         capabilities = NaviampSharedMediaCapabilities.playlist,
         playlistChoices = playlistChoices,
         availableLibraries = screen.availableLibraries,
@@ -89,13 +91,14 @@ private fun PlaylistsContent(
     onRefresh: () -> Unit,
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistAction: (NaviampMediaItemActionRequest) -> Unit,
+    onSmartPlaylistSyncLibrary: (suspend () -> Unit)?,
     onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
-    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
-    onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistEditingResult,
+    onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistEditingResult,
     capabilities: NaviampPlaylistMediaCapabilities,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
@@ -107,7 +110,9 @@ private fun PlaylistsContent(
     var playlistToAddToPlaylist by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
     var smartPlaylistEditTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
+    var smartPlaylistInspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
     var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistPasswordTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -118,8 +123,13 @@ private fun PlaylistsContent(
                     val playlist = request.item
                     coroutineScope.launch {
                         runCatching { onSmartPlaylistLoad(playlist) }
-                            .onSuccess { definition ->
-                                smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
+                            .onSuccess { editing ->
+                                if (editing !is SmartPlaylistEditingResult.Editable) {
+                                    smartPlaylistInspection = editing
+                                    smartPlaylistLoadMessage = null
+                                    return@onSuccess
+                                }
+                                smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(editing.definition)
                                 smartPlaylistEditTarget = playlist
                                 smartPlaylistBuilderOpen = true
                                 smartPlaylistLoadMessage = null
@@ -129,7 +139,7 @@ private fun PlaylistsContent(
                                     smartPlaylistPasswordTarget = playlist
                                     smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
                                 } else {
-                                    smartPlaylistLoadMessage = error.message.orEmpty()
+                                    smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
                                 }
                         }
                     }
@@ -276,6 +286,7 @@ private fun PlaylistsContent(
             selectedConnectionLibraryIds = selectedConnectionLibraryIds,
             genreCatalog = genreCatalog,
             onPreview = onSmartPlaylistPreview,
+            onSyncLibrary = onSmartPlaylistSyncLibrary,
             onDismissRequest = {
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -303,12 +314,19 @@ private fun PlaylistsContent(
             },
         )
     }
+    smartPlaylistInspection?.let { editing ->
+        SmartPlaylistInspectionDialog(editing, colors) { smartPlaylistInspection = null }
+    }
     smartPlaylistPasswordTarget?.let { playlist ->
         SmartPlaylistLoadPasswordDialog(
             playlist = playlist,
             colors = colors,
             onDismissRequest = { smartPlaylistPasswordTarget = null },
-            onLoadWithPassword = onSmartPlaylistLoadWithPassword,
+            onInspectWithPassword = onSmartPlaylistLoadWithPassword,
+            onReadOnly = { editing ->
+                smartPlaylistInspection = editing
+                smartPlaylistPasswordTarget = null
+            },
             onLoaded = { definition ->
                 smartPlaylistPasswordTarget = null
                 smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
@@ -619,10 +637,11 @@ fun NaviampPlaylistDetailContent(
         },
         onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
         onSmartPlaylistPreview = playlistsActions.smartPlaylist.onPreview,
+        onSmartPlaylistSyncLibrary = playlistsActions.smartPlaylist.onSyncLibrary,
         onSmartPlaylistUpdate = playlistsActions.smartPlaylist.onUpdate,
         onSmartPlaylistUpdateWithPassword = playlistsActions.smartPlaylist.onUpdateWithPassword,
-        onSmartPlaylistLoad = playlistsActions.smartPlaylist.onLoad,
-        onSmartPlaylistLoadWithPassword = playlistsActions.smartPlaylist.onLoadWithPassword,
+        onSmartPlaylistLoad = playlistsActions.smartPlaylist.onInspect,
+        onSmartPlaylistLoadWithPassword = playlistsActions.smartPlaylist.onInspectWithPassword,
         onTrackSelected = { track ->
             actions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
         },
@@ -653,11 +672,12 @@ private fun PlaylistDetailContent(
     playbackProfileStatus: String?,
     onPlaybackProfileSaved: (app.naviamp.domain.playback.PlaybackProfile) -> Unit,
     onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
+    onSmartPlaylistSyncLibrary: (suspend () -> Unit)?,
     onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
-    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
-    onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistEditingResult,
+    onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistEditingResult,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
@@ -670,7 +690,9 @@ private fun PlaylistDetailContent(
     var addToPlaylistOpen by remember { mutableStateOf(false) }
     var bulkToolsOpen by remember { mutableStateOf(false) }
     var smartPlaylistEditorOpen by remember { mutableStateOf(false) }
+    var smartPlaylistInspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
     var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistLoading by remember { mutableStateOf(false) }
     var smartPlaylistPasswordPromptOpen by remember { mutableStateOf(false) }
@@ -684,8 +706,12 @@ private fun PlaylistDetailContent(
             smartPlaylistLoadMessage = null
             coroutineScope.launch {
                 runCatching { onSmartPlaylistLoad(detail.playlist) }
-                    .onSuccess { definition ->
-                        smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
+                    .onSuccess { editing ->
+                        if (editing !is SmartPlaylistEditingResult.Editable) {
+                            smartPlaylistInspection = editing
+                            return@onSuccess
+                        }
+                        smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(editing.definition)
                         smartPlaylistEditorOpen = true
                     }
                     .onFailure { error ->
@@ -693,7 +719,7 @@ private fun PlaylistDetailContent(
                             smartPlaylistPasswordPromptOpen = true
                             smartPlaylistLoadMessage = "Enter your Navidrome password to edit this smart playlist."
                         } else {
-                            smartPlaylistLoadMessage = error.message.orEmpty()
+                            smartPlaylistLoadMessage = if (error is IllegalArgumentException) unsupportedImportMessage else error.message.orEmpty()
                         }
                     }
                 smartPlaylistLoading = false
@@ -902,6 +928,7 @@ private fun PlaylistDetailContent(
             selectedConnectionLibraryIds = selectedConnectionLibraryIds,
             genreCatalog = genreCatalog,
             onPreview = onSmartPlaylistPreview,
+            onSyncLibrary = onSmartPlaylistSyncLibrary,
             onDismissRequest = {
                 smartPlaylistEditorOpen = false
                 smartPlaylistInitialDraft = SmartPlaylistDraft()
@@ -918,12 +945,19 @@ private fun PlaylistDetailContent(
             },
         )
     }
+    smartPlaylistInspection?.let { editing ->
+        SmartPlaylistInspectionDialog(editing, colors) { smartPlaylistInspection = null }
+    }
     if (smartPlaylistPasswordPromptOpen) {
         SmartPlaylistLoadPasswordDialog(
             playlist = detail.playlist,
             colors = colors,
             onDismissRequest = { smartPlaylistPasswordPromptOpen = false },
-            onLoadWithPassword = onSmartPlaylistLoadWithPassword,
+            onInspectWithPassword = onSmartPlaylistLoadWithPassword,
+            onReadOnly = { editing ->
+                smartPlaylistInspection = editing
+                smartPlaylistPasswordPromptOpen = false
+            },
             onLoaded = { definition ->
                 smartPlaylistPasswordPromptOpen = false
                 smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
@@ -970,6 +1004,7 @@ private fun PlaylistBulkToolsDialog(
                     fontSize = 12.sp,
                 )
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = copyName,
                     onValueChange = { copyName = it },
                     label = { Text(stringResource(Res.string.playlists_new_name)) },
@@ -1057,6 +1092,7 @@ fun RenamePlaylistDialog(
         title = { Text(stringResource(Res.string.playlists_rename_title)) },
         text = {
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = name,
                 onValueChange = { name = it },
                 label = { Text(stringResource(Res.string.playlists_name)) },

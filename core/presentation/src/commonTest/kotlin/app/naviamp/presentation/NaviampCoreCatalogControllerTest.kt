@@ -42,6 +42,62 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreCatalogControllerTest {
     @Test
+    fun explicitLocalIndexRefreshPopulatesTracksForSmartPlaylistSamples() = runTest {
+        val repository = CatalogIndexRepository()
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun libraryTracksPage(request: MediaPageRequest) = tracksPage(request)
+        }
+        val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "source")) }
+        val controller = NaviampCoreCatalogController(
+            store, { object : MediaProvider by provider {} }, libraryIndex = repository,
+        )
+        controller.refreshLocalLibraryIndex()
+        assertTrue(repository.syncCompleted)
+        assertEquals(listOf("track-2", "track-1"), repository.tracks.map { it.id.value })
+        val preview = naviampCoreSmartPlaylistPreviewPort({ "source" }, repository, { 0L })
+            .preview(app.naviamp.domain.smartplaylist.SmartPlaylistDefinition.fromNspJson("""{"name":"Songs","all":[{"contains":{"title":"Song"}}]}"""))
+        assertEquals(2, preview.matchingTrackCount)
+        assertEquals(setOf("First Song", "Second Song"), preview.exampleTracks.map { it.title }.toSet())
+    }
+
+    @Test
+    fun failedTrackIndexRefreshCannotReportCompletedSync() = runTest {
+        val repository = CatalogIndexRepository()
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track> = error("Offline")
+        }
+        val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "source")) }
+        val controller = NaviampCoreCatalogController(store, { provider }, libraryIndex = repository)
+        assertFailsWith<IllegalStateException> { controller.refreshLocalLibraryIndex() }
+        assertFalse(repository.syncCompleted)
+        assertTrue(repository.tracks.isEmpty())
+    }
+
+    @Test
+    fun sourceChangeCancelsOldFullIndexRefreshWithoutReportingSuccess() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val repository = CatalogIndexRepository()
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track> {
+                gate.await()
+                return tracksPage(request)
+            }
+        }
+        val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "old")) }
+        val controller = NaviampCoreCatalogController(store, { provider }, libraryIndex = repository)
+        val refresh = launch { controller.refreshLocalLibraryIndex() }
+        runCurrent()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "new")) }
+        gate.complete(Unit)
+        refresh.join()
+        assertTrue(refresh.isCancelled)
+        assertFalse(repository.syncCompleted)
+    }
+
+    @Test
     fun explicitRefreshSignalsOnlyItsCatalogAfterLoadingAndEachTimeItCompletes() = runTest {
         val gate = CompletableDeferred<Unit>()
         val provider = object : MediaProvider by CatalogTestProvider() {
@@ -836,6 +892,8 @@ private class CatalogTestProvider(
         override fun replaceLibraryGenreInventory(sourceId: String, genres: List<Genre>) {
             this.genres = genres
         }
+
+        override fun libraryTracksForSmartPlaylistPreview(sourceId: String): List<Track> = tracks.toList()
 
         override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot =
             LibrarySnapshot(artists = artists.toList())

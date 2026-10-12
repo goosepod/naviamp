@@ -208,6 +208,23 @@ class NaviampCorePlaylistTransactionControllerTest {
     }
 
     @Test
+    fun unsupportedInspectionDoesNotWriteOrRemoveListeningAndManagement() = runTest {
+        val fixture = fixture()
+        val item = playlistItem("smart", "Smart", smart = true)
+        val editing = app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.ReadOnly("{nested rules}")
+        fixture.provider.inspection = editing
+        val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Inspect(item, "secret"))
+        assertEquals(NaviampCoreCommandResult.SmartPlaylistInspected(editing), result)
+        assertEquals(1, fixture.persistedSessions())
+        assertTrue(fixture.provider.smartUpdates.isEmpty())
+        assertTrue(fixture.provider.smartCreates.isEmpty())
+        fixture.controller.execute(detail(item, NaviampPlaylistDetailCommand.Play(false)))
+        assertEquals(listOf("smart:false"), fixture.effects.plays)
+        fixture.controller.execute(detail(item, NaviampPlaylistDetailCommand.Delete))
+        assertEquals(listOf("smart"), fixture.provider.deleted)
+    }
+
+    @Test
     fun newlyCreatedSmartPlaylistKeepsManagementActionsWhileServerListCatchesUp() = runTest {
         val fixture = fixture()
         fixture.provider.staleSmartCreationList = true
@@ -452,6 +469,8 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
         smartUpdates += "$playlistId:${definition.name}"
     }
 
+    var inspection: app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult? = null
+    override suspend fun inspectSmartPlaylist(playlistId: String) = inspection ?: super.inspectSmartPlaylist(playlistId)
     override suspend fun smartPlaylistDefinition(playlistId: String) = smartDefinition
     override suspend fun streamUrl(request: StreamRequest) = "https://stream.example"
     override fun coverArtUrl(coverArtId: String) = "https://art.example/$coverArtId"

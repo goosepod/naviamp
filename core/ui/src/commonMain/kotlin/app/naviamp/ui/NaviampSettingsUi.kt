@@ -514,6 +514,7 @@ internal fun NaviampConnectSettingsSection(
         var manualAddress by rememberSaveable { mutableStateOf("") }
         SettingsSectionTitle("This device", colors)
         OutlinedTextField(
+            colors = naviampOutlinedTextFieldColors(colors),
             value = localDeviceName,
             onValueChange = { if (it.length <= 64) localDeviceName = it },
             singleLine = true,
@@ -537,6 +538,7 @@ internal fun NaviampConnectSettingsSection(
             var password by remember { mutableStateOf("") }
             Text(stringResource(Res.string.connect_setup_password_required), color = colors.secondaryText)
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = password,
                 onValueChange = { password = it },
                 label = { Text(stringResource(Res.string.connection_password)) },
@@ -576,6 +578,7 @@ internal fun NaviampConnectSettingsSection(
             PrimaryButton("Find Naviamp devices", colors, enabled = true, onClick = actions.onRefreshTargets)
             Text(stringResource(Res.string.connect_manual_address_hint), color = colors.secondaryText, fontSize = 12.sp)
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = manualAddress,
                 onValueChange = { manualAddress = it },
                 singleLine = true,
@@ -603,6 +606,7 @@ internal fun NaviampConnectSettingsSection(
                 connect.selectedTargetId != null || connect.manualEndpointAwaitingCode
             ) {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = connect.enteredPairingCode,
                     onValueChange = actions.onPairingCodeChanged,
                     singleLine = true,
@@ -636,6 +640,7 @@ internal fun NaviampConnectSettingsSection(
                     )
                 }
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = alias,
                     onValueChange = { if (it.length <= 64) alias = it },
                     singleLine = true,
@@ -1165,6 +1170,7 @@ private fun AppBackgroundSettings(
                     .border(1.dp, colors.border, RoundedCornerShape(8.dp)),
             )
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = colorDraft,
                 onValueChange = { input ->
                     colorDraft = input.take(7).uppercase()
@@ -4663,6 +4669,7 @@ private fun RadioDjSettingsSection(
                     onEditorOpenChanged(false)
                 }
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = draftName,
                     onValueChange = { draftName = it },
                     singleLine = true,
@@ -5369,6 +5376,7 @@ private fun EqualizerSettings(
             },
             text = {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = profileName,
                     onValueChange = { profileName = it },
                     singleLine = true,

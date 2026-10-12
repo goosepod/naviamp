@@ -555,6 +555,10 @@ class NavidromeProvider(
     override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? =
         if (!bulkMetadataEnumeration) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
             searchForMusicFolder(query = "", songCount = limit, songOffset = offset, musicFolderId = folder).tracks
+                .map { track ->
+                    if (track.musicFolderId == null && folder != null) track.copy(musicFolderId = folder)
+                    else track
+                }
         }
 
     override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
@@ -1053,6 +1057,23 @@ class NavidromeProvider(
             endpoint = "playlist/${playlistId.urlEncode()}",
             body = json.encodeToString(JsonObject.serializer(), body),
         )
+    }
+
+    override suspend fun inspectSmartPlaylist(playlistId: String): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult {
+        requireNativeSmartPlaylists()
+        val original = try {
+            getNativeJson("playlist/${playlistId.urlEncode()}").toNativeDataObject()
+        } catch (error: NavidromeHttpException) {
+            return when (error.statusCode) {
+                403 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.PermissionDenied)
+                404 -> app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult.Unavailable(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistDefinitionUnavailable.NotFound)
+                else -> throw error
+            }
+        }
+        return app.naviamp.domain.smartplaylist.inspectSmartPlaylistObject(original,
+            mapDefinition = { it.withoutLibraryScopeForEditing() })
     }
 
     override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
