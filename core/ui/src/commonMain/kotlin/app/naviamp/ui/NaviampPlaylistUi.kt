@@ -636,6 +636,8 @@ fun NaviampPlaylistDetailContent(
             )
         },
         onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
+        onTrackAction = actions.onTrackAction,
+        trackCapabilities = screen.trackCapabilities,
         onSmartPlaylistPreview = playlistsActions.smartPlaylist.onPreview,
         onSmartPlaylistSyncLibrary = playlistsActions.smartPlaylist.onSyncLibrary,
         onSmartPlaylistUpdate = playlistsActions.smartPlaylist.onUpdate,
@@ -671,7 +673,7 @@ private fun PlaylistDetailContent(
     playbackProfile: app.naviamp.domain.playback.PlaybackProfile,
     playbackProfileStatus: String?,
     onPlaybackProfileSaved: (app.naviamp.domain.playback.PlaybackProfile) -> Unit,
-    onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
+    onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>, List<SharedTrackRowUi>) -> Unit,
     onSmartPlaylistSyncLibrary: (suspend () -> Unit)?,
     onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
@@ -684,6 +686,8 @@ private fun PlaylistDetailContent(
     selectedConnectionLibraryIds: List<String> = emptyList(),
     genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
     detailScrollState: ScrollState,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    trackCapabilities: PlaylistTrackCapabilities = PlaylistTrackCapabilities(),
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
@@ -838,23 +842,33 @@ private fun PlaylistDetailContent(
                 .verticalScroll(detailScrollState),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-        if (detail.playlist.isSmartPlaylist || !detail.playlist.canEditPlaylist) {
-            SmartPlaylistTrackList(
-                colors = colors,
-                tracks = detail.tracks,
-                onTrackSelected = onTrackSelected,
-            )
-        } else {
-            StandardPlaylistManagementList(
-                colors = colors,
-                initialTracks = detail.tracks,
-                onTrackSelected = onTrackSelected,
-                onSave = { tracks -> onUpdateStandardPlaylist(detail.playlist, tracks) },
-                externallyDisplayedStatus = status,
-                scrollState = detailScrollState,
-                dragViewportTop = detailViewportBounds.top,
-                dragViewportBottom = detailViewportBounds.bottom,
-            )
+        androidx.compose.runtime.key(detail.playlist.id) {
+            if (detail.playlist.isSmartPlaylist || !detail.playlist.canEditPlaylist) {
+                SmartPlaylistTrackList(
+                    colors = colors,
+                    tracks = detail.tracks,
+                    onTrackSelected = onTrackSelected,
+                    onTrackAction = onTrackAction,
+                    capabilities = trackCapabilities,
+                    playlistChoices = playlistChoices.filterNot { it.id == detail.playlist.id },
+                    isSmartPlaylist = detail.playlist.isSmartPlaylist,
+                )
+            } else {
+                StandardPlaylistManagementList(
+                    colors = colors,
+                    initialTracks = detail.tracks,
+                    onTrackSelected = onTrackSelected,
+                    onSave = { tracks -> onUpdateStandardPlaylist(detail.playlist, detail.tracks, tracks) },
+                    onSaveWithBaseline = { baseline, tracks -> onUpdateStandardPlaylist(detail.playlist, baseline, tracks) },
+                    onTrackAction = onTrackAction,
+                    capabilities = trackCapabilities,
+                    playlistChoices = playlistChoices.filterNot { it.id == detail.playlist.id },
+                    externallyDisplayedStatus = status,
+                    scrollState = detailScrollState,
+                    dragViewportTop = detailViewportBounds.top,
+                    dragViewportBottom = detailViewportBounds.bottom,
+                )
+            }
         }
         }
     }

@@ -160,7 +160,7 @@ class NaviampCoreRequiredActionContractTest {
             assertEquals(definition, onLoad(playlist))
             assertEquals(definition, onLoadWithPassword(playlist, "password"))
         }
-        actions.playlistDetailActions.onUpdateStandardPlaylist(playlist, listOf(track))
+        actions.playlistDetailActions.onUpdateStandardPlaylist(playlist, listOf(track), listOf(track))
 
         assertEquals(7, handler.executed.size)
         assertIs<NaviampCoreCommand.SmartPlaylist.Save>(handler.executed[0])
@@ -169,7 +169,7 @@ class NaviampCoreRequiredActionContractTest {
         assertIs<NaviampCoreCommand.SmartPlaylist.Update>(handler.executed[3])
         assertIs<NaviampCoreCommand.SmartPlaylist.Load>(handler.executed[4])
         assertIs<NaviampCoreCommand.SmartPlaylist.Load>(handler.executed[5])
-        assertIs<NaviampCoreCommand.Playlists.UpdateTracks>(handler.executed[6])
+        assertEquals(listOf(track.id), assertIs<NaviampCoreCommand.Playlists.UpdateTracks>(handler.executed[6]).expectedTrackIds)
     }
 
     @Test

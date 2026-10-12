@@ -247,7 +247,7 @@ class NaviampPlaylistDetailSmartEditUiTest {
 private fun testPlaylistDetailActions() = NaviampPlaylistDetailActions(
     onBack = {},
     onPlaylistAction = {},
-    onUpdateStandardPlaylist = { _, _ -> },
+    onUpdateStandardPlaylist = { _, _, _ -> },
     onTrackAction = {},
 )
 

@@ -548,6 +548,7 @@ data class NaviampRowMenuItem(
     val icon: ImageVector,
     val onClick: () -> Unit,
     val enabled: Boolean = true,
+    val dividerBefore: Boolean = false,
 )
 
 data class NaviampDetailAction(
@@ -613,12 +614,13 @@ fun NaviampRowOverflowMenu(
     buttonSize: androidx.compose.ui.unit.Dp = 28.dp,
     iconSize: androidx.compose.ui.unit.Dp = 17.dp,
     selected: Boolean = false,
+    contentDescription: String = stringResource(Res.string.playlist_item_more_actions),
 ) {
     if (items.isEmpty()) return
 
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
-        NaviampTooltip("More actions", colors) {
+        NaviampTooltip(contentDescription, colors) {
             IconButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier
@@ -628,7 +630,7 @@ fun NaviampRowOverflowMenu(
             ) {
                 Icon(
                     imageVector = NaviampTransportIcons.MoreVertical,
-                    contentDescription = "More actions",
+                    contentDescription = contentDescription,
                     tint = if (selected) colors.primaryText else colors.mutedText,
                     modifier = Modifier.size(iconSize),
                 )
@@ -639,6 +641,7 @@ fun NaviampRowOverflowMenu(
             onDismissRequest = { expanded = false },
         ) {
             items.forEach { item ->
+                if (item.dividerBefore) androidx.compose.material3.HorizontalDivider()
                 NaviampDropdownMenuItem(
                     label = item.label,
                     icon = item.icon,
