@@ -738,6 +738,23 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun delayedRadioCannotAppendAfterTheSelectedMethodChanges() = runTest {
+        val fixture = mediaFixture(this)
+        val gate = CompletableDeferred<Unit>()
+        fixture.provider.trackRadioGate = gate
+        fixture.provider.trackRadioTracks = listOf(nowPlayingTrack("stale"))
+        val request = async { fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio)) }
+        runCurrent()
+        val before = fixture.live.state.value
+        fixture.store.updateShell { it.copy(playback = it.playback.copy(settings =
+            it.playback.settings.copy(sonicSimilarityEnabled = true))) }
+        gate.complete(Unit)
+        request.await()
+        assertEquals(before, fixture.live.state.value)
+        assertTrue(fixture.effects.appliedQueues.isEmpty())
+    }
+
+    @Test
     fun radioForADifferentSeedStillStartsPlaybackImmediately() = runTest {
         val fixture = mediaFixture(this)
         val gate = CompletableDeferred<Unit>()

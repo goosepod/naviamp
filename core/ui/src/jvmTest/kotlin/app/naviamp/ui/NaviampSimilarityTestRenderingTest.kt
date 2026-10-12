@@ -76,7 +76,7 @@ class NaviampSimilarityTestRenderingTest {
                 }
             }
         }
-        onNodeWithText("Related Tracks").performClick()
+        onNodeWithText("Radio").performClick()
         onNodeWithText("Test similarity").performScrollTo().performClick()
         assertEquals(1, requests)
         onNode(isDialog()).assertExists()
@@ -103,7 +103,7 @@ class NaviampSimilarityTestRenderingTest {
                         Column(Modifier.fillMaxSize().background(NaviampColors.Dark.background).verticalScroll(rememberScrollState())) {
                             NaviampSimilarityTestContent(NaviampColors.Dark,
                                 NaviampSimilarityTestUi(SimilarityTestState.Complete, report = report), {},
-                                RadioBuildDiagnostics(RadioBuildOutcome.Fallback, SonicRadioFallbackReason.Failed))
+                                RadioBuildDiagnostics(RadioBuildOutcome.Failed))
                         }
                     }
                 }
@@ -120,7 +120,7 @@ class NaviampSimilarityTestRenderingTest {
                 onNodeWithText("Returned artist 1").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Returned song 20").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Returned artist 20").performScrollTo().assertIsDisplayed()
-                onNodeWithText("Sonic similarity was unavailable. Radio used its fallback.").performScrollTo().assertIsDisplayed()
+                onNodeWithText("Radio: Request failed. Check server and plugin logs.").performScrollTo().assertIsDisplayed()
                 val directory = System.getenv("NAVIAMP_SIMILARITY_QA_DIR")?.let { java.io.File(it) }
                 directory?.let {
                     it.mkdirs()

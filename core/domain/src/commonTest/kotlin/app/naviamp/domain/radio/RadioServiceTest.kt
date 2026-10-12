@@ -83,7 +83,7 @@ class RadioServiceTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun bothTrackRadioEntryPointsUseTheSharedRegularRequestDeadline() = runTest {
         val provider = object : MediaProvider by FakeRadioProvider() {
-            override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+            override suspend fun instantMixTracks(trackId: TrackId, count: Int): List<Track> {
                 delay(60_000)
                 return listOf(track("late"))
             }
@@ -110,12 +110,12 @@ class RadioServiceTest {
 
         val tracks = service.trackRadio(track("seed"), preferSonicSimilarity = true)
 
-        assertEquals(listOf("sonic-one", "sonic-two", "provider-radio"), tracks.map { it.id.value })
-        assertEquals(1, provider.trackRadioCalls)
+        assertEquals(listOf("sonic-one", "sonic-two"), tracks.map { it.id.value })
+        assertEquals(0, provider.trackRadioCalls)
     }
 
     @Test
-    fun trackRadioFallsBackToProviderRadioWhenSonicIsDisabledOrEmpty() = runTest {
+    fun trackRadioReturnsEmptyWithoutSubstitution() = runTest {
         val provider = FakeRadioProvider(
             supportsSonicSimilarity = true,
             sonicTracks = emptyList(),
@@ -125,36 +125,27 @@ class RadioServiceTest {
 
         val tracks = service.trackRadio(track("seed"), preferSonicSimilarity = true)
 
-        assertEquals(listOf("provider-radio"), tracks.map { it.id.value })
+        assertEquals(emptyList(), tracks)
+        assertEquals(0, provider.trackRadioCalls)
     }
 
-    @Test
-    fun trackRadioFallsBackWhenSonicRequestFails() = runTest {
-        val provider = FakeRadioProvider(
-            supportsSonicSimilarity = true,
-            sonicFailure = IllegalStateException("Similarity backend unavailable"),
-            radioTracks = listOf(track("regular")),
-        )
-
-        val reasons = mutableListOf<SonicRadioFallbackReason>()
-        assertEquals(listOf(track("regular")), RadioService(provider, onSonicFallback = reasons::add).trackRadio(track("seed"), true))
-        assertEquals(listOf(SonicRadioFallbackReason.Failed), reasons)
-        assertEquals(1, provider.trackRadioCalls)
+    @Test fun trackRadioReportsSonicFailureWithoutSubstitution() = runTest {
+        val failure = IllegalStateException("backend unavailable")
+        val provider = FakeRadioProvider(supportsSonicSimilarity = true, sonicFailure = failure)
+        val diagnostics = mutableListOf<RadioBuildDiagnostics?>()
+        assertSame(failure, assertFailsWith<IllegalStateException> {
+            RadioService(provider, onSimilarityResult = { diagnostics += it.radioDiagnostics() }).trackRadio(track("seed"), true)
+        })
+        assertEquals(listOf<RadioBuildDiagnostics?>(RadioBuildDiagnostics(RadioBuildOutcome.Failed)), diagnostics)
+        assertEquals(0, provider.trackRadioCalls)
     }
 
-    @Test
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun trackRadioFallsBackWhenSonicRequestExceedsItsBudget() = runTest {
-        val provider = FakeRadioProvider(
-            supportsSonicSimilarity = true,
-            sonicDelayMillis = 60_000,
-            sonicTracks = listOf(track("late-sonic")),
-            radioTracks = listOf(track("regular")),
-        )
-
-        assertEquals(listOf(track("regular")), RadioService(provider).trackRadio(track("seed"), true))
+    @Test @OptIn(ExperimentalCoroutinesApi::class)
+    fun trackRadioTimeoutDoesNotSubstitute() = runTest {
+        val provider = FakeRadioProvider(supportsSonicSimilarity = true, sonicDelayMillis = 60_000)
+        assertTrue(assertFailsWith<SimilarityRequestException> { RadioService(provider).trackRadio(track("seed"), true) }.timedOut)
         assertEquals(10_000L, testScheduler.currentTime)
-        assertEquals(1, provider.trackRadioCalls)
+        assertEquals(0, provider.trackRadioCalls)
     }
 
     @Test
@@ -179,42 +170,25 @@ class RadioServiceTest {
         assertEquals(0, provider.trackRadioCalls)
     }
 
-    @Test
-    fun trackRadioFallsBackWhenSonicReturnsOnlyTheSeed() = runTest {
-        val provider = FakeRadioProvider(
-            supportsSonicSimilarity = true,
-            sonicTracks = listOf(track("seed")),
-            radioTracks = listOf(track("regular")),
-        )
-
-        assertEquals(listOf(track("regular")), RadioService(provider).trackRadio(track("seed"), true))
-        assertEquals(1, provider.trackRadioCalls)
+    @Test fun seedOnlySonicDoesNotSubstitute() = runTest {
+        val provider = FakeRadioProvider(supportsSonicSimilarity = true, sonicTracks = listOf(track("seed")))
+        assertEquals(emptyList(), RadioService(provider).trackRadio(track("seed"), true))
+        assertEquals(0, provider.trackRadioCalls)
     }
 
-    @Test
-    fun trackRadioSkipsSonicWhenDisabledOrUnsupported() = runTest {
-        for ((supported, enabled) in listOf(true to false, false to true)) {
-            val provider = FakeRadioProvider(
-                supportsSonicSimilarity = supported,
-                radioTracks = listOf(track("regular")),
-            )
-            assertEquals(listOf(track("regular")), RadioService(provider).trackRadio(track("seed"), enabled))
-            assertEquals(0, provider.sonicCalls)
-        }
+    @Test fun unsupportedSonicIsReportedAndExplicitInstantMixWorks() = runTest {
+        val provider = FakeRadioProvider(radioTracks = listOf(track("regular")))
+        assertFailsWith<SimilarityRequestException> { RadioService(provider).trackRadio(track("seed"), true) }
+        assertEquals(0, provider.trackRadioCalls)
+        assertEquals(listOf(track("regular")), RadioService(provider).trackRadio(track("seed"), false))
+        assertEquals(0, provider.sonicCalls)
     }
 
-    @Test
-    fun trackRadioPropagatesRegularRadioFailureAfterSonicFailure() = runTest {
-        val failure = IllegalStateException("Regular Radio unavailable")
-        val provider = FakeRadioProvider(
-            supportsSonicSimilarity = true,
-            sonicFailure = IllegalStateException("Sonic unavailable"),
-            radioFailure = failure,
-        )
-
-        assertSame(failure, assertFailsWith<IllegalStateException> {
-            RadioService(provider).trackRadio(track("seed"), true)
-        })
+    @Test fun explicitInstantMixPropagatesItsFailureWithoutSonicCalls() = runTest {
+        val failure = IllegalStateException("Regular unavailable")
+        val provider = FakeRadioProvider(supportsSonicSimilarity = true, radioFailure = failure)
+        assertSame(failure, assertFailsWith<IllegalStateException> { RadioService(provider).trackRadio(track("seed"), false) })
+        assertEquals(0, provider.sonicCalls)
     }
 
     @Test
@@ -261,17 +235,11 @@ class RadioServiceTest {
         assertEquals(SimilarityResultKind.Matches, report.regular.kind)
     }
 
-    @Test
-    fun transportTimeoutIsReportedAsTimeoutAndRadioFallsBack() = runTest {
-        val provider = FakeRadioProvider(
-            supportsSonicSimilarity = true,
-            sonicFailure = SimilarityRequestException(timedOut = true),
-            radioTracks = listOf(track("match")),
-        )
+    @Test fun transportTimeoutRemainsVisibleWithoutSubstitution() = runTest {
+        val provider = FakeRadioProvider(supportsSonicSimilarity = true, sonicFailure = SimilarityRequestException(timedOut = true))
         assertEquals(SimilarityResultKind.TimedOut, testSimilarity(provider, track("seed")).sonic.kind)
-        val reasons = mutableListOf<SonicRadioFallbackReason>()
-        assertEquals(listOf(track("match")), RadioService(provider, onSonicFallback = reasons::add).trackRadio(track("seed"), true))
-        assertEquals(listOf(SonicRadioFallbackReason.TimedOut), reasons)
+        assertTrue(assertFailsWith<SimilarityRequestException> { RadioService(provider).trackRadio(track("seed"), true) }.timedOut)
+        assertEquals(0, provider.trackRadioCalls)
     }
 
     @Test
@@ -595,25 +563,25 @@ class RadioServiceTest {
     }
 
     @Test
-    fun initialRadioSizesKeepSeedSeparateAndTopUpWithoutRepeatingSonic() = runTest {
+    fun shortSonicRadioKeepsSeedSeparateWithoutTopUp() = runTest {
         for (size in listOf(10, 50, 100)) {
             val provider = FakeRadioProvider(supportsSonicSimilarity = true,
                 sonicTracks = listOf(track("seed"), track("sonic"), track("sonic")),
                 radioTracks = listOf(track("seed"), track("sonic")) + (1..120).map { track("regular-$it") })
             val service = RadioService(provider, count = size)
             val related = service.trackRadio(track("seed"), true)
-            assertEquals(size, related.size)
+            assertEquals(1, related.size)
             assertEquals("sonic", related.first().id.value)
-            assertEquals(size, related.map { it.id }.distinct().size)
+            assertEquals(1, related.map { it.id }.distinct().size)
             val queue = service.queue(track("seed"), related)
-            assertEquals(size + 1, queue.size)
+            assertEquals(2, queue.size)
             assertEquals("seed", queue.first().id.value)
-            assertEquals(1, provider.trackRadioCalls)
+            assertEquals(0, provider.trackRadioCalls)
         }
     }
 
     @Test
-    fun enoughSonicRadioMatchesSkipTopUpAndRegularFailureKeepsShortSonicQueue() = runTest {
+    fun completeAndShortSonicRadioNeverRequestRegularTracks() = runTest {
         val complete = FakeRadioProvider(supportsSonicSimilarity = true,
             sonicTracks = (1..10).map { track("sonic-$it") })
         assertEquals(10, RadioService(complete, count = 10).trackRadio(track("seed"), true).size)
@@ -621,6 +589,22 @@ class RadioServiceTest {
         val failed = FakeRadioProvider(supportsSonicSimilarity = true,
             sonicTracks = listOf(track("sonic")), radioFailure = IllegalStateException("regular unavailable"))
         assertEquals(listOf(track("sonic")), RadioService(failed, count = 10).trackRadio(track("seed"), true))
+    }
+
+    @Test fun selectedSonicAppliesToAlbumArtistAndTrackSeedsWithoutRegularRequests() = runTest {
+        val base = FakeRadioProvider(supportsSonicSimilarity = true, sonicTracks = listOf(track("sonic")),
+            albumTracksById = mapOf(AlbumId("album-one") to listOf(track("album-track", artistId = ArtistId("artist-one")))))
+        val provider = object : MediaProvider by base {
+            override suspend fun instantMixTracks(trackId: TrackId, count: Int): List<Track> = error("Must not call Instant Mix")
+            override suspend fun albumRadio(albumId: AlbumId, count: Int): List<Track> = error("Must not call regular album Radio")
+            override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> = error("Must not call regular artist Radio")
+        }
+        val service = RadioService(provider, similarityMethod = RadioSimilarityMethod.SonicSimilarity)
+        assertEquals(listOf(track("sonic")), service.albumRadio(AlbumId("album-one")))
+        assertEquals(listOf(track("sonic")), service.artistRadio(ArtistId("artist-one")))
+        assertEquals(listOf(track("sonic")), service.trackRadio(TrackId("seed")))
+        assertEquals(3, base.sonicCalls)
+        assertEquals(0, base.trackRadioCalls)
     }
 
     private class FakeRadioProvider(

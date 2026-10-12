@@ -465,8 +465,8 @@ data class PlaybackSettings(
     val preferWordSyncedLyrics: Boolean = false,
     val lyricsSearchOrder: List<LyricsSourcePreference> = DefaultLyricsSearchOrder,
     val sonicSimilarityEnabled: Boolean = false,
-    /** Distinguishes the old opt-in default from a user's explicit choice. */
-    val sonicSimilarityPreferenceConfigured: Boolean = false,
+    /** Retained for older clients; Radio always exports an explicit method choice. */
+    val sonicSimilarityPreferenceConfigured: Boolean = true,
     val sonicAutoplayEnabled: Boolean = false,
     val radioMinimumTracks: Int = app.naviamp.domain.radio.DefaultRadioMinimumTracks,
     val sonicAutoplayMinimumTracks: Int = app.naviamp.domain.radio.DefaultRadioMinimumTracks,
@@ -490,6 +490,7 @@ data class PlaybackSettings(
 
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
+        sonicSimilarityPreferenceConfigured = true,
         radioMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(radioMinimumTracks),
         sonicAutoplayMinimumTracks = app.naviamp.domain.radio.normalizedRadioMinimumTracks(sonicAutoplayMinimumTracks),
         lyricsTimingPreference = effectiveLyricsTimingPreference(),
@@ -504,13 +505,9 @@ fun PlaybackSettings.normalized(): PlaybackSettings =
         downloadQuality = downloadQuality.normalized(),
     )
 
-/**
- * Sonic similarity is available by default once a server advertises it. Older settings documents
- * stored the original false default without recording whether the user chose it, so they remain
- * automatic until the user explicitly changes the preference.
- */
+/** The stored preference is explicit; unconfigured documents default to Instant Mix. */
 fun PlaybackSettings.effectiveSonicSimilarityEnabled(): Boolean =
-    sonicSimilarityEnabled || !sonicSimilarityPreferenceConfigured
+    sonicSimilarityEnabled
 
 @Serializable
 enum class DownloadedTrackPlayback(

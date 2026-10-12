@@ -219,8 +219,8 @@
     <string name="settings_experience_empty">Erlebnissteuerelemente werden hier angezeigt, sobald sie hinzugefügt werden.</string>
     <string name="settings_experience_player_title">Spieler</string>
     <string name="settings_experience_player_subtitle">Warteschlangenverhalten, Aktuelle Wiedergabe und Wellenformen</string>
-    <string name="settings_experience_related_tracks_title">Verwandte Titel</string>
-    <string name="settings_experience_related_tracks_subtitle">Klangähnlichkeit und Autoplay</string>
+    <string name="settings_experience_related_tracks_title">Radio</string>
+    <string name="settings_experience_related_tracks_subtitle">Wählen, wie Radio Titel findet und die Wiedergabe fortsetzt.</string>
     <string name="settings_experience_waveforms_title">Wellenformen</string>
     <string name="settings_experience_waveforms_subtitle">Verfolgen Sie Wellenformen und Details</string>
     <string name="settings_related_autoplay_summary">Verwandte Themen: Autoplay</string>
@@ -419,10 +419,10 @@
     <string name="settings_radio_artist_blocks">%1$d gleich / %2$d anders</string>
     <string name="settings_related_lyrics_download">Liedtexte für Titel herunterladen</string>
     <string name="settings_related_sonic_similarity">Klangähnlichkeit</string>
-    <string name="settings_related_sonic_similarity_subtitle">Nutzen Sie die vom Server bereitgestellte Ähnlichkeit, um Titel in der Nähe zu finden.</string>
-    <string name="settings_related_sonic_autoplay">Sonic-Autoplay</string>
-    <string name="settings_related_sonic_autoplay_subtitle">Beginnen Sie mit der entsprechenden Musik, wenn die Warteschlange endet.</string>
-    <string name="settings_related_requires_support">Verwandte Titel erfordern für klangliche Ähnlichkeit Serverunterstützung.</string>
+    <string name="settings_related_sonic_similarity_subtitle">Ähnlich klingende Titel über den Sonic-Similarity-Dienst des Servers finden. Serverunterstützung erforderlich.</string>
+    <string name="settings_related_sonic_autoplay">Radio-Autoplay</string>
+    <string name="settings_related_sonic_autoplay_subtitle">Nach dem Ende der Warteschlange mit der gewählten Radio-Methode weiterspielen.</string>
+    <string name="settings_related_requires_support">Sonic Similarity ist auf diesem Server nicht verfügbar. Instant Mix wählen oder den Diagnosetest verwenden.</string>
     <string name="settings_debug_logging">Debug-Protokollierung</string>
     <string name="settings_equalizer_no_profiles">Noch keine gespeicherten Profile.</string>
     <string name="settings_equalizer_enable">Equalizer aktivieren</string>
@@ -995,9 +995,8 @@
     <string name="similarity_setup">Prüfen, ob ein kompatibles Sonic-Plugin aktiviert ist, API-Adresse und Token stimmen und der Server es erreichen kann.</string>
     <string name="similarity_empty_help">Einen anderen analysierten Titel versuchen. Fehlende Treffer für einen Titel beweisen keinen Konfigurationsfehler.</string>
     <string name="similarity_regular">Normale Ähnlichkeit</string>
-    <string name="similarity_radio_fallback">Klangähnlichkeit war nicht verfügbar. Radio verwendete seine Ausweichmethode.</string>
-    <string name="similarity_radio_empty">Radio fand keine weiteren Titel. Die aktuelle Warteschlange wurde beibehalten.</string>
-    <string name="similarity_radio_failed">Die Radio-Warteschlange konnte nicht erstellt werden. Die aktuelle Warteschlange wurde beibehalten.</string>
+    <string name="similarity_radio_empty">Radio fand keine weiteren Titel.</string>
+    <string name="similarity_radio_failed">Die Radio-Warteschlange konnte nicht erstellt werden.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Server-Plugin-Details</string>
     <string name="similarity_admin_required">Plugin-Details erfordern Administratorrechte.</string>
@@ -1013,10 +1012,10 @@
     <string name="similarity_admin_plugin_enabled">Aktiviert</string>
     <string name="similarity_admin_plugin_disabled">Deaktiviert</string>
     <string name="similarity_admin_plugin_error">Der Server meldet einen Plugin-Fehler. Navidrome-Plugin-Einstellungen und Protokolle prüfen.</string>
-    <string name="settings_related_autoplay_minimum">Mindestanzahl für Autoplay</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Ergänzt zu wenige Sonic-Ergebnisse mit normalem Radio. Bei zu wenigen unterschiedlichen Treffern werden weniger Titel hinzugefügt.</string>
-    <string name="settings_related_radio_minimum">Mindestanzahl für Radio</string>
-    <string name="settings_related_radio_minimum_subtitle">Ähnliche Titel beim Start von Radio. Der Ausgangstitel spielt zuerst. Zu wenige Sonic-Ergebnisse werden nach Möglichkeit mit normalem Radio ergänzt.</string>
+    <string name="settings_related_autoplay_minimum">Titel pro Autoplay-Anfrage</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Am Ende der Warteschlange angeforderte neue Titel. Es können weniger Titel zurückgegeben werden.</string>
+    <string name="settings_related_radio_minimum">Titel pro Radio-Anfrage</string>
+    <string name="settings_related_radio_minimum_subtitle">Beim Start von Radio angeforderte ähnliche Titel. Es können weniger Titel zurückgegeben werden.</string>
     <string name="smart_playlist_inspection_title">Regeln der intelligenten Wiedergabeliste</string>
     <string name="smart_playlist_inspection_read_only">Diese Liste verwendet Regeln oder Einstellungen, die dieser Editor nicht sicher ändern kann. Die Originaldefinition wird nur zur Ansicht angezeigt.</string>
     <string name="smart_playlist_inspection_missing">Der Server hat die Regeln dieser Liste nicht bereitgestellt.</string>
@@ -1051,4 +1050,7 @@
     <string name="smart_playlist_date_format">Datumsformat: YYYY-MM-DD (Jahr-Monat-Tag).</string>
     <string name="smart_playlist_days_hint">Eine positive Anzahl von Tagen eingeben, zum Beispiel 30.</string>
     <string name="smart_playlist_end_value">Endwert</string>
+    <string name="radio_instant_mix_description">Ähnliche Titel vom Server empfehlen lassen. Die Ergebnisse hängen von seinen Diensten und Plugins ab.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

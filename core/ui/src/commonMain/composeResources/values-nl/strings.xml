@@ -163,9 +163,8 @@
     <string name="similarity_setup">Controleer of een compatibele Sonic-plugin is ingeschakeld, het API-adres en token juist zijn en de server deze kan bereiken.</string>
     <string name="similarity_empty_help">Probeer een ander geanalyseerd nummer. Geen overeenkomsten voor één nummer bewijst geen configuratieprobleem.</string>
     <string name="similarity_regular">Gewone gelijkenis</string>
-    <string name="similarity_radio_fallback">Klankgelijkenis was niet beschikbaar. Radio gebruikte zijn alternatieve methode.</string>
-    <string name="similarity_radio_empty">Radio vond geen extra nummers. De huidige wachtrij is behouden.</string>
-    <string name="similarity_radio_failed">De Radio-wachtrij kon niet worden gemaakt. De huidige wachtrij is behouden.</string>
+    <string name="similarity_radio_empty">Radio vond geen extra nummers.</string>
+    <string name="similarity_radio_failed">De Radio-wachtrij kon niet worden gemaakt.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Serverplugindetails</string>
     <string name="similarity_admin_required">Plugindetails vereisen beheerderstoegang.</string>
@@ -181,10 +180,10 @@
     <string name="similarity_admin_plugin_enabled">Ingeschakeld</string>
     <string name="similarity_admin_plugin_disabled">Uitgeschakeld</string>
     <string name="similarity_admin_plugin_error">De server meldt een pluginfout. Controleer de Navidrome-plugininstellingen en logboeken.</string>
-    <string name="settings_related_autoplay_minimum">Minimumaantal nummers voor automatisch afspelen</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Vult Sonic-resultaten aan met gewone Radio. Voegt minder nummers toe als er onvoldoende unieke resultaten zijn.</string>
-    <string name="settings_related_radio_minimum">Minimumaantal nummers voor Radio</string>
-    <string name="settings_related_radio_minimum_subtitle">Gerelateerde nummers bij het starten van Radio. Het startnummer speelt eerst. Sonic-resultaten worden waar mogelijk aangevuld met gewone Radio.</string>
+    <string name="settings_related_autoplay_minimum">Aantal nummers per automatisch afspelen</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Nieuwe nummers aangevraagd aan het einde van de wachtrij. Er kunnen minder nummers worden teruggegeven.</string>
+    <string name="settings_related_radio_minimum">Aantal nummers per Radio-aanvraag</string>
+    <string name="settings_related_radio_minimum_subtitle">Verwante nummers aangevraagd bij het starten van Radio. Er kunnen minder nummers worden teruggegeven.</string>
     <string name="smart_playlist_inspection_title">Regels van slimme afspeellijst</string>
     <string name="smart_playlist_inspection_read_only">Deze afspeellijst gebruikt regels of instellingen die deze editor niet veilig kan wijzigen. De oorspronkelijke definitie wordt alleen ter inzage getoond.</string>
     <string name="smart_playlist_inspection_missing">De server heeft de regels van deze afspeellijst niet verstrekt.</string>
@@ -219,4 +218,13 @@
     <string name="smart_playlist_date_format">Datumnotatie: YYYY-MM-DD (jaar-maand-dag).</string>
     <string name="smart_playlist_days_hint">Voer een positief aantal dagen in, bijvoorbeeld 30.</string>
     <string name="smart_playlist_end_value">Eindwaarde</string>
+    <string name="settings_experience_related_tracks_title">Radio</string>
+    <string name="settings_experience_related_tracks_subtitle">Kies hoe Radio nummers vindt en verder afspeelt.</string>
+    <string name="settings_related_sonic_similarity_subtitle">Vind nummers met vergelijkbaar geluid via de Sonic Similarity-dienst van de server. Vereist serverondersteuning.</string>
+    <string name="radio_instant_mix_description">Gebruik aanbevelingen voor vergelijkbare nummers van de server. Resultaten hangen af van de ingestelde diensten en plug-ins.</string>
+    <string name="settings_related_sonic_autoplay">Radio automatisch afspelen</string>
+    <string name="settings_related_sonic_autoplay_subtitle">Speel verder aan het einde van de wachtrij met de gekozen Radio-methode.</string>
+    <string name="settings_related_requires_support">Sonic Similarity is niet beschikbaar op deze server. Kies Instant Mix of gebruik de diagnostische test.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

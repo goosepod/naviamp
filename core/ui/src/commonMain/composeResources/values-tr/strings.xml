@@ -163,9 +163,8 @@
     <string name="similarity_setup">Uyumlu bir Sonic eklentisinin etkin olduğunu, API adresi ve belirtecinin doğru olduğunu ve sunucunun erişebildiğini kontrol edin.</string>
     <string name="similarity_empty_help">Analiz edilmiş başka bir parça deneyin. Bir parçada eşleşme bulunmaması yapılandırma sorunu olduğunu kanıtlamaz.</string>
     <string name="similarity_regular">Normal benzerlik</string>
-    <string name="similarity_radio_fallback">Ses benzerliği kullanılamıyordu. Radyo alternatif yöntemini kullandı.</string>
-    <string name="similarity_radio_empty">Radyo ek parça bulamadı. Mevcut kuyruk korundu.</string>
-    <string name="similarity_radio_failed">Radyo kuyruğu oluşturulamadı. Mevcut kuyruk korundu.</string>
+    <string name="similarity_radio_empty">Radyo ek parça bulamadı.</string>
+    <string name="similarity_radio_failed">Radyo kuyruğu oluşturulamadı.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Sunucu eklenti ayrıntıları</string>
     <string name="similarity_admin_required">Eklenti ayrıntıları yönetici erişimi gerektirir.</string>
@@ -181,10 +180,10 @@
     <string name="similarity_admin_plugin_enabled">Etkin</string>
     <string name="similarity_admin_plugin_disabled">Devre dışı</string>
     <string name="similarity_admin_plugin_error">Sunucu bir eklenti hatası bildiriyor. Navidrome eklenti ayarlarını ve günlüklerini kontrol edin.</string>
-    <string name="settings_related_autoplay_minimum">Otomatik oynatma için en az parça</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Sonic sonuçlarını normal Radyo ile tamamlar. Yeterli benzersiz eşleşme yoksa daha az parça ekler.</string>
-    <string name="settings_related_radio_minimum">Radyo için en az parça</string>
-    <string name="settings_related_radio_minimum_subtitle">Radyo başlatılırken eklenecek ilgili parçalar. Başlangıç parçası önce çalar. Sonic sonuçları mümkünse normal Radyo ile tamamlanır.</string>
+    <string name="settings_related_autoplay_minimum">Otomatik çalma parça sayısı</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Kuyruk bitince istenen yeni parçalar. Daha az parça dönebilir.</string>
+    <string name="settings_related_radio_minimum">Radyo parça sayısı</string>
+    <string name="settings_related_radio_minimum_subtitle">Radyo başlatılırken istenen ilgili parçalar. Daha az parça dönebilir.</string>
     <string name="smart_playlist_inspection_title">Akıllı çalma listesi kuralları</string>
     <string name="smart_playlist_inspection_read_only">Bu liste, bu düzenleyicinin güvenle değiştiremeyeceği kurallar veya ayarlar kullanıyor. Özgün tanım yalnızca inceleme için gösterilir.</string>
     <string name="smart_playlist_inspection_missing">Sunucu bu listenin kurallarını sağlamadı.</string>
@@ -219,4 +218,13 @@
     <string name="smart_playlist_date_format">Tarih biçimi: YYYY-MM-DD (yıl-ay-gün).</string>
     <string name="smart_playlist_days_hint">Pozitif bir gün sayısı girin, örneğin 30.</string>
     <string name="smart_playlist_end_value">Bitiş değeri</string>
+    <string name="settings_experience_related_tracks_title">Radyo</string>
+    <string name="settings_experience_related_tracks_subtitle">Radyonun parçaları nasıl bulacağını ve çalmayı sürdüreceğini seçin.</string>
+    <string name="settings_related_sonic_similarity_subtitle">Sunucunun Sonic Similarity hizmetiyle benzer sesli parçalar bulun. Sunucu desteği gerektirir.</string>
+    <string name="radio_instant_mix_description">Sunucunun benzer şarkı önerilerini kullanın. Sonuçlar yapılandırılmış hizmet ve eklentilere bağlıdır.</string>
+    <string name="settings_related_sonic_autoplay">Radyo Otomatik Çalma</string>
+    <string name="settings_related_sonic_autoplay_subtitle">Kuyruk bitince seçilen Radyo yöntemiyle çalmayı sürdürün.</string>
+    <string name="settings_related_requires_support">Sonic Similarity bu sunucuda kullanılamıyor. Instant Mix seçin veya tanılama testini kullanın.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

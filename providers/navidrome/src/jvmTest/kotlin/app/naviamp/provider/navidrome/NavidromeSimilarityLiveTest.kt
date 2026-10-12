@@ -31,7 +31,7 @@ class NavidromeSimilarityLiveTest {
     }
 
     @Test
-    fun probeUsesRealServerAndRadioRecoversFromUnavailableSonicBackend() = runBlocking {
+    fun probeUsesRealServerAndRadioReportsUnavailableSonicWithoutSubstitution() = runBlocking {
         val url = System.getenv("NAVIAMP_SIMILARITY_TEST_URL") ?: return@runBlocking
         val user = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_USER"))
         val password = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_PASSWORD"))
@@ -43,11 +43,15 @@ class NavidromeSimilarityLiveTest {
         assertEquals(SimilaritySupport.valueOf(expected), report.support)
         assertTrue(report.sonic.kind != SimilarityResultKind.Matches)
         println("Similarity live check: support=${report.support}, sonic=${report.sonic}, regular=${report.regular}")
-        val reasons = mutableListOf<SonicRadioFallbackReason>()
-        val tracks = RadioService(provider, onSonicFallback = reasons::add).trackRadio(seed, preferSonicSimilarity = true)
-        assertTrue(tracks.isNotEmpty(), "Regular Radio must still return tracks from the test library")
-        if (report.support == SimilaritySupport.Advertised) assertTrue(reasons.isNotEmpty())
-        assertTrue(tracks.none { it.id == seed.id })
-        println("Similarity live check: Radio added ${tracks.size} tracks, fallback=$reasons")
+        var diagnostics: RadioBuildDiagnostics? = null
+        val tracks = runCatching {
+            RadioService(provider, onSimilarityResult = { diagnostics = it.radioDiagnostics() })
+                .trackRadio(seed, preferSonicSimilarity = true)
+        }.getOrDefault(emptyList())
+        assertTrue(tracks.isEmpty(), "Unavailable Sonic must not return regular tracks")
+        assertTrue(diagnostics != null)
+        val regular = RadioService(provider).trackRadio(seed, preferSonicSimilarity = false)
+        assertTrue(regular.isNotEmpty(), "Explicit Instant Mix should use the test server recommendations")
+        println("Similarity live check: Sonic diagnostics=$diagnostics, explicit Instant Mix tracks=${regular.size}")
     }
 }

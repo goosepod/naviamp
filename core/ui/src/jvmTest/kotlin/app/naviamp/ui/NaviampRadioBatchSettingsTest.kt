@@ -32,25 +32,25 @@ class NaviampRadioBatchSettingsTest {
                     onCacheSettingsChanged = {})
             }
         }
-        onNodeWithText("Related Tracks").performScrollTo().performClick()
-        onNodeWithText("Minimum tracks for Autoplay").assertIsDisplayed()
-        onNodeWithText("Minimum tracks for Radio").assertIsDisplayed()
+        onNodeWithText("Radio").performScrollTo().performClick()
+        onNodeWithText("Autoplay batch size").assertIsDisplayed()
+        onNodeWithText("Radio batch size").assertIsDisplayed()
         val sliders = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
         sliders.assertCountEquals(2)
         val radio = sliders[0]
         val autoplay = sliders[1]
         val similarityBounds = onNodeWithText("Sonic Similarity").fetchSemanticsNode().boundsInRoot
-        val autoplayBounds = onNodeWithText("Sonic Autoplay").fetchSemanticsNode().boundsInRoot
+        val autoplayBounds = onNodeWithText("Radio Autoplay").fetchSemanticsNode().boundsInRoot
         assertTrue(similarityBounds.bottom < radio.fetchSemanticsNode().boundsInRoot.top)
         assertTrue(radio.fetchSemanticsNode().boundsInRoot.bottom < autoplayBounds.top)
         assertTrue(autoplayBounds.bottom < autoplay.fetchSemanticsNode().boundsInRoot.top)
         // Slider nodes include extra non-drawing interaction space; inspect their tracks in captures.
         // The labels, values and descriptions share the same inset as the visible slider groups.
         for (node in listOf(
-            onNodeWithText("Minimum tracks for Radio"), onNodeWithText("Minimum tracks for Autoplay"),
+            onNodeWithText("Radio batch size"), onNodeWithText("Autoplay batch size"),
             onNodeWithText("20 tracks"), onNodeWithText("50 tracks"),
-            onNodeWithText("Related tracks to add when starting Radio.", substring = true),
-            onNodeWithText("Top up short Sonic results with regular Radio.", substring = true))) {
+            onNodeWithText("Related tracks requested when starting Radio.", substring = true),
+            onNodeWithText("New tracks requested when the queue ends.", substring = true))) {
             val bounds = node.fetchSemanticsNode().boundsInRoot
             assertTrue(bounds.left >= similarityBounds.left, "Slider text $bounds extends past the control $similarityBounds left boundary")
             assertTrue(bounds.right <= similarityBounds.right, "Slider text $bounds extends past the control $similarityBounds right boundary")
@@ -71,7 +71,7 @@ class NaviampRadioBatchSettingsTest {
             val image = org.jetbrains.skia.Image.makeFromBitmap(onRoot().captureToImage().asSkiaBitmap())
             java.io.File(directory, "radio-batch-settings.png").writeBytes(image.encodeToData()!!.bytes)
         }
-        onNodeWithText("Sonic Autoplay").performClick()
+        onNodeWithText("Radio Autoplay").performClick()
         autoplay.assertIsNotEnabled()
         radio.assertIsEnabled()
     }

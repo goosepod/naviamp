@@ -132,8 +132,8 @@
     <string name="settings_experience_empty">Los controles de experiencia aparecerán aquí cuando se agreguen.</string>
     <string name="settings_experience_player_title">Reproductor</string>
     <string name="settings_experience_player_subtitle">Comportamiento de cola, reproducción actual y formas de onda</string>
-    <string name="settings_experience_related_tracks_title">Pistas relacionadas</string>
-    <string name="settings_experience_related_tracks_subtitle">Similitud sónica y reproducción automática</string>
+    <string name="settings_experience_related_tracks_title">Radio</string>
+    <string name="settings_experience_related_tracks_subtitle">Elige cómo Radio encuentra canciones y continúa la reproducción.</string>
     <string name="settings_experience_waveforms_title">Formas de onda</string>
     <string name="settings_experience_waveforms_subtitle">Formas de onda y detalle de pistas</string>
     <string name="settings_related_autoplay_summary">Relacionadas, automática</string>
@@ -336,10 +336,10 @@
     <string name="settings_radio_artist_blocks">%1$d mismo / %2$d otros</string>
     <string name="settings_related_lyrics_download">Descargar letras para pistas</string>
     <string name="settings_related_sonic_similarity">Similitud sónica</string>
-    <string name="settings_related_sonic_similarity_subtitle">Usar la similitud del servidor para encontrar pistas cercanas.</string>
-    <string name="settings_related_sonic_autoplay">Reproducción sónica automática</string>
-    <string name="settings_related_sonic_autoplay_subtitle">Iniciar música relacionada cuando termine la cola.</string>
-    <string name="settings_related_requires_support">Las pistas relacionadas requieren soporte del servidor para similitud sónica.</string>
+    <string name="settings_related_sonic_similarity_subtitle">Busca canciones con sonido similar mediante Sonic Similarity del servidor. Requiere compatibilidad del servidor.</string>
+    <string name="settings_related_sonic_autoplay">Reproducción automática de Radio</string>
+    <string name="settings_related_sonic_autoplay_subtitle">Continúa al terminar la cola con el método de Radio seleccionado.</string>
+    <string name="settings_related_requires_support">Sonic Similarity no está disponible en este servidor. Selecciona Instant Mix o usa la prueba de diagnóstico.</string>
     <string name="settings_debug_logging">Registro de depuración</string>
     <string name="settings_equalizer_no_profiles">No hay perfiles guardados.</string>
     <string name="settings_equalizer_enable">Activar ecualizador</string>
@@ -999,9 +999,8 @@
     <string name="similarity_setup">Comprueba que un complemento Sonic compatible esté activado, que su dirección API y token sean correctos y que el servidor pueda acceder a él.</string>
     <string name="similarity_empty_help">Prueba otra pista analizada. La falta de coincidencias para una pista no demuestra un problema de configuración.</string>
     <string name="similarity_regular">Similitud normal</string>
-    <string name="similarity_radio_fallback">La similitud sónica no estaba disponible. Radio utilizó su método alternativo.</string>
-    <string name="similarity_radio_empty">Radio no encontró más pistas. Se conservó la cola actual.</string>
-    <string name="similarity_radio_failed">No se pudo crear la cola de Radio. Se conservó la cola actual.</string>
+    <string name="similarity_radio_empty">Radio no encontró más pistas.</string>
+    <string name="similarity_radio_failed">No se pudo crear la cola de Radio.</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
     <string name="similarity_admin_title">Detalles de complementos del servidor</string>
     <string name="similarity_admin_required">Los detalles de complementos requieren acceso de administrador.</string>
@@ -1017,10 +1016,10 @@
     <string name="similarity_admin_plugin_enabled">Activado</string>
     <string name="similarity_admin_plugin_disabled">Desactivado</string>
     <string name="similarity_admin_plugin_error">El servidor informa de un error del complemento. Revisa la configuración y los registros de complementos de Navidrome.</string>
-    <string name="settings_related_autoplay_minimum">Mínimo de pistas para reproducción automática</string>
-    <string name="settings_related_autoplay_minimum_subtitle">Completa resultados Sonic insuficientes con Radio normal. Añade menos pistas si faltan coincidencias únicas.</string>
-    <string name="settings_related_radio_minimum">Mínimo de pistas para Radio</string>
-    <string name="settings_related_radio_minimum_subtitle">Pistas relacionadas al iniciar Radio. La pista inicial suena primero. Completa resultados Sonic insuficientes con Radio normal cuando sea posible.</string>
+    <string name="settings_related_autoplay_minimum">Tamaño del lote de reproducción automática</string>
+    <string name="settings_related_autoplay_minimum_subtitle">Canciones nuevas solicitadas al terminar la cola. Puede devolver menos canciones.</string>
+    <string name="settings_related_radio_minimum">Tamaño del lote de Radio</string>
+    <string name="settings_related_radio_minimum_subtitle">Canciones relacionadas solicitadas al iniciar Radio. Puede devolver menos canciones.</string>
     <string name="smart_playlist_inspection_title">Reglas de la lista inteligente</string>
     <string name="smart_playlist_inspection_read_only">Esta lista usa reglas o ajustes que este editor no puede cambiar de forma segura. La definición original se muestra solo para consulta.</string>
     <string name="smart_playlist_inspection_missing">El servidor no proporcionó las reglas de esta lista.</string>
@@ -1055,4 +1054,7 @@
     <string name="smart_playlist_date_format">Formato de fecha: YYYY-MM-DD (año-mes-día).</string>
     <string name="smart_playlist_days_hint">Introduce un número positivo de días, por ejemplo 30.</string>
     <string name="smart_playlist_end_value">Valor final</string>
+    <string name="radio_instant_mix_description">Usa las recomendaciones de canciones similares del servidor. Los resultados dependen de sus servicios y complementos.</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

@@ -163,7 +163,6 @@
     <string name="similarity_setup">जाँचें कि संगत Sonic प्लगइन चालू है, API पता और टोकन सही हैं और सर्वर उस तक पहुँच सकता है।</string>
     <string name="similarity_empty_help">विश्लेषण किया गया कोई दूसरा ट्रैक आज़माएँ। एक ट्रैक के लिए मिलान न मिलना कॉन्फ़िगरेशन की समस्या का प्रमाण नहीं है।</string>
     <string name="similarity_regular">सामान्य समानता</string>
-    <string name="similarity_radio_fallback">ध्वनि समानता उपलब्ध नहीं थी। रेडियो ने वैकल्पिक तरीका इस्तेमाल किया।</string>
     <string name="similarity_radio_empty">रेडियो को अतिरिक्त ट्रैक नहीं मिले। मौजूदा कतार बरकरार रखी गई।</string>
     <string name="similarity_radio_failed">रेडियो की कतार नहीं बन सकी। मौजूदा कतार बरकरार रखी गई।</string>
     <string name="similarity_protocol_codes">HTTP: %1$s; API: %2$s</string>
@@ -181,10 +180,10 @@
     <string name="similarity_admin_plugin_enabled">चालू</string>
     <string name="similarity_admin_plugin_disabled">बंद</string>
     <string name="similarity_admin_plugin_error">सर्वर ने प्लगइन की त्रुटि बताई है। Navidrome प्लगइन की सेटिंग और लॉग जाँचें।</string>
-    <string name="settings_related_autoplay_minimum">ऑटोप्ले के लिए न्यूनतम ट्रैक</string>
-    <string name="settings_related_autoplay_minimum_subtitle">कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है। पर्याप्त अलग-अलग मेल न होने पर कम ट्रैक जोड़ता है।</string>
-    <string name="settings_related_radio_minimum">रेडियो के लिए न्यूनतम ट्रैक</string>
-    <string name="settings_related_radio_minimum_subtitle">रेडियो शुरू करते समय संबंधित ट्रैक जोड़ता है। शुरुआती ट्रैक पहले बजता है। कम Sonic परिणामों को सामान्य रेडियो से पूरा करता है।</string>
+    <string name="settings_related_autoplay_minimum">ऑटोप्ले बैच का आकार</string>
+    <string name="settings_related_autoplay_minimum_subtitle">कतार समाप्त होने पर माँगे जाने वाले नए गाने। कम गाने लौट सकते हैं।</string>
+    <string name="settings_related_radio_minimum">रेडियो बैच का आकार</string>
+    <string name="settings_related_radio_minimum_subtitle">रेडियो शुरू करते समय माँगे जाने वाले संबंधित गाने। कम गाने लौट सकते हैं।</string>
     <string name="smart_playlist_inspection_title">स्मार्ट प्लेलिस्ट के नियम</string>
     <string name="smart_playlist_inspection_read_only">इस प्लेलिस्ट के नियम या सेटिंग को यह संपादक सुरक्षित रूप से नहीं बदल सकता। मूल परिभाषा केवल देखने के लिए दिखाई गई है।</string>
     <string name="smart_playlist_inspection_missing">सर्वर ने इस प्लेलिस्ट के नियम नहीं दिए।</string>
@@ -219,4 +218,13 @@
     <string name="smart_playlist_date_format">तारीख का प्रारूप: YYYY-MM-DD (वर्ष-माह-दिन)।</string>
     <string name="smart_playlist_days_hint">दिनों की धनात्मक संख्या दर्ज करें, जैसे 30।</string>
     <string name="smart_playlist_end_value">अंतिम मान</string>
+    <string name="settings_experience_related_tracks_title">रेडियो</string>
+    <string name="settings_experience_related_tracks_subtitle">चुनें कि रेडियो गाने कैसे ढूँढे और प्लेबैक कैसे जारी रखे।</string>
+    <string name="settings_related_sonic_similarity_subtitle">सर्वर की Sonic Similarity सेवा से मिलती-जुलती ध्वनि वाले गाने ढूँढें। सर्वर का समर्थन आवश्यक है।</string>
+    <string name="radio_instant_mix_description">सर्वर के मिलते-जुलते गानों के सुझाव इस्तेमाल करें। परिणाम कॉन्फ़िगर की गई सेवाओं और प्लगइन पर निर्भर करते हैं।</string>
+    <string name="settings_related_sonic_autoplay">रेडियो ऑटोप्ले</string>
+    <string name="settings_related_sonic_autoplay_subtitle">कतार समाप्त होने पर चुनी गई रेडियो विधि से प्लेबैक जारी रखें।</string>
+    <string name="settings_related_requires_support">इस सर्वर पर Sonic Similarity उपलब्ध नहीं है। Instant Mix चुनें या निदान परीक्षण इस्तेमाल करें।</string>
+    <string name="radio_instant_mix">Instant Mix</string>
+    <string name="radio_status">%1$s: %2$s</string>
 </resources>

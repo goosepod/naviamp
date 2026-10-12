@@ -1,4 +1,5 @@
 package app.naviamp.domain.settings
+import app.naviamp.domain.radio.withRadioSimilarityMethod
 
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
@@ -24,6 +25,25 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test fun explicitRadioMethodsAndAutoplaySurvivePortableExportImportAndSync() {
+        for (method in app.naviamp.domain.radio.RadioSimilarityMethod.entries) {
+            val settings = PlaybackSettings().withRadioSimilarityMethod(method)
+                .copy(sonicAutoplayEnabled = true, radioMinimumTracks = 40, sonicAutoplayMinimumTracks = 70)
+            val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(playback = settings), 1L, "test")
+            val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(exported))
+            val applied = applySettingsSyncDocument(restored, FakePlaybackEngine(false),
+                RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository()).playbackSettings
+            assertEquals(settings.sonicSimilarityEnabled, applied.sonicSimilarityEnabled)
+            assertTrue(applied.sonicSimilarityPreferenceConfigured)
+            assertTrue(applied.sonicAutoplayEnabled)
+            assertEquals(40, applied.radioMinimumTracks)
+            assertEquals(70, applied.sonicAutoplayMinimumTracks)
+        }
+        assertFalse(SettingsSyncJson.decode("{}").preferences.playback.effectiveSonicSimilarityEnabled())
+        assertTrue(SettingsSyncJson.decode("""{"preferences":{"playback":{"sonicSimilarityEnabled":true}}}""")
+            .preferences.playback.effectiveSonicSimilarityEnabled())
+    }
+
     @Test
     fun independentRadioBatchSizesArePortableAndAppliedNormalized() {
         val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
