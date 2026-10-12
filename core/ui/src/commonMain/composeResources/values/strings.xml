@@ -45,7 +45,7 @@
     <string name="settings_category_playback_title">Playback</string>
     <string name="settings_category_playback_subtitle">Make your ears happy</string>
     <string name="settings_category_downloads_title">Downloads</string>
-    <string name="settings_category_downloads_subtitle">Media on the go</string>
+    <string name="settings_category_downloads_subtitle">Music on the go</string>
     <string name="settings_category_audio_cache_title">Audio Cache</string>
     <string name="settings_category_audio_cache_subtitle">Prefetch and playback cache</string>
     <string name="settings_category_debugging_title">Debugging</string>
