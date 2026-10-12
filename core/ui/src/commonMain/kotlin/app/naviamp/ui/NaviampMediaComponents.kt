@@ -2208,9 +2208,9 @@ internal fun InternetRadioStationDialog(
         title = { Text(if (initialStation == null) stringResource(Res.string.tv_new_station) else stringResource(Res.string.connection_edit_station)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(Res.string.favorite_artists_sort_name)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
-                OutlinedTextField(value = streamUrl, onValueChange = { streamUrl = it }, label = { Text(stringResource(Res.string.connection_stream_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
-                OutlinedTextField(value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text(stringResource(Res.string.connection_home_page_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(colors = naviampOutlinedTextFieldColors(), value = name, onValueChange = { name = it }, label = { Text(stringResource(Res.string.favorite_artists_sort_name)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(colors = naviampOutlinedTextFieldColors(), value = streamUrl, onValueChange = { streamUrl = it }, label = { Text(stringResource(Res.string.connection_stream_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(colors = naviampOutlinedTextFieldColors(), value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text(stringResource(Res.string.connection_home_page_url)) }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
             }
         },
         confirmButton = {

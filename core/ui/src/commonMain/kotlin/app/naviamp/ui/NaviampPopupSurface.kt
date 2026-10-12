@@ -76,7 +76,9 @@ private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: Popup
     scrim: Color = Color.Transparent, content: @Composable BoxScope.() -> Unit) {
     Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
         properties = properties) {
-        Box(Modifier.fillMaxSize().clipToBounds().background(scrim), content = content)
+        NaviampOwnedWindowFocusScope {
+            Box(Modifier.fillMaxSize().clipToBounds().background(scrim), content = content)
+        }
     }
 }
 

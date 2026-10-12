@@ -2804,6 +2804,7 @@ fun AddToPlaylistDialog(
                 }
                 if (createNew) {
                     OutlinedTextField(
+                        colors = naviampOutlinedTextFieldColors(colors),
                         value = playlistName,
                         onValueChange = { playlistName = it },
                         label = { Text("Playlist name") },
@@ -2946,6 +2947,7 @@ fun TrackPlaylistMembershipDialog(
                     Text(stringResource(Res.string.playlist_membership_create_description, membership.trackTitle),
                         color = colors.secondaryText, fontSize = 12.sp)
                     OutlinedTextField(
+                        colors = naviampOutlinedTextFieldColors(colors),
                         value = playlistName,
                         onValueChange = { playlistName = it },
                         label = { Text(stringResource(Res.string.playlists_name)) },
@@ -3103,6 +3105,7 @@ fun SaveQueueAsPlaylistDialog(
                 Text(description, color = colors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = playlistName,
                     onValueChange = { playlistName = it },
                     label = { Text("Playlist name") },

@@ -1004,6 +1004,7 @@ private fun PlaylistBulkToolsDialog(
                     fontSize = 12.sp,
                 )
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = copyName,
                     onValueChange = { copyName = it },
                     label = { Text(stringResource(Res.string.playlists_new_name)) },
@@ -1091,6 +1092,7 @@ fun RenamePlaylistDialog(
         title = { Text(stringResource(Res.string.playlists_rename_title)) },
         text = {
             OutlinedTextField(
+                colors = naviampOutlinedTextFieldColors(colors),
                 value = name,
                 onValueChange = { name = it },
                 label = { Text(stringResource(Res.string.playlists_name)) },

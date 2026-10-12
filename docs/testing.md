@@ -180,3 +180,19 @@ popup dialog enabled, and check the real Windows app for nested-dialog dismissal
 readable calendar colors, scrolling on a small window, and keyboard operation.
 The calendar-to-ISO conversion is covered by common domain tests for leap years,
 UTC boundaries, invalid values, and the full supported 0001–9999 year range.
+
+### Text-entry caret visibility
+
+Focus a shared text field in both dark and light palettes. Confirm the caret is
+readable against the field surface, then use Home, End, and arrow keys to move it
+and insert text in the middle of an existing value. Check smart-playlist names,
+numeric/date operands, searchable field/operator pickers, and multiline imports.
+Password entry should keep masking; disabled inputs should remain non-editable.
+`NaviampTextCaretUiTest` checks actual foreground-colored caret pixels, movement
+with the insertion position, and insertion in dark, light, and error-state inputs.
+The color policy uses the built-in Compose caret; it does not add a separate
+animation or change blink timing, selection, or keyboard behavior. Owned dialog
+content uses the shared owner-group activation fact for window focus so an input
+receiving typing can display its caret. The focus regression checks active and
+inactive groups, native geometry preservation, and fallback to native focus when
+no group fact is available.

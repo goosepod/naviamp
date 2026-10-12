@@ -962,6 +962,7 @@ internal fun TelevisionSearch(
         if (searchHeaderVisible) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = screen.query,
                     onValueChange = actions.onQueryChanged,
                     label = { Text(stringResource(Res.string.tv_artists_albums_or_tracks)) },

@@ -431,6 +431,7 @@ private fun TelevisionControllersSettings(
             title = { Text(stringResource(Res.string.tv_name_this_device)) },
             text = {
                 OutlinedTextField(
+                    colors = naviampOutlinedTextFieldColors(colors),
                     value = deviceName,
                     onValueChange = { if (it.length <= 64) deviceName = it },
                     singleLine = true,
