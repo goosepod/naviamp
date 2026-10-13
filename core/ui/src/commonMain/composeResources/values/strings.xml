@@ -77,7 +77,8 @@
     <string name="common_connecting">Connecting</string>
 
     <string name="connect_source_mismatch_title">Different music sources</string>
-    <string name="connect_source_mismatch_message">%1$s cannot play this selection because it uses a different music source. Switch this device's source in Settings, or securely set up the playback device with this device's current source. Playback and both queues were left unchanged.</string>
+    <!-- Music source means the provider, server, account, and selected libraries/music folders. This device is the device displaying this message; %1$s is the playback device's name. -->
+    <string name="connect_source_mismatch_message">%1$s cannot play this selection because it uses a different music source. Switch this device's music source in Settings, or securely set up the playback device to use this device's current music source. Playback and both queues were left unchanged.</string>
     <string name="connect_source_mismatch_set_up">Set up %1$s</string>
     <string name="connect_source_mismatch_open_settings">Open settings</string>
     <string name="connect_source_mismatch_not_now">Not now</string>
