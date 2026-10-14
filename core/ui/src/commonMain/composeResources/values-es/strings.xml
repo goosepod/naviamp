@@ -1057,4 +1057,12 @@
     <string name="radio_instant_mix_description">Usa las recomendaciones de canciones similares del servidor. Los resultados dependen de sus servicios y complementos.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">Elegir lista de reproducción</string>
+    <string name="smart_playlist_reference_search">Buscar listas de reproducción</string>
+    <string name="smart_playlist_reference_loading">Cargando listas…</string>
+    <string name="smart_playlist_reference_failed">No se pudieron cargar las listas.</string>
+    <string name="smart_playlist_reference_missing">Lista no disponible: %1$s. Se conserva su ID guardado.</string>
+    <string name="smart_playlist_reference_self">Una lista no puede referirse a sí misma.</string>
+    <string name="smart_playlist_reference_retry">Intentar de nuevo</string>
+    <string name="smart_playlist_reference_empty">No hay listas coincidentes.</string>
 </resources>

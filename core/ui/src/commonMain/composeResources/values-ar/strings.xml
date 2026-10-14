@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">Sonic Similarity غير متاحة على هذا الخادم. اختر Instant Mix أو استخدم اختبار التشخيص.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">اختر قائمة تشغيل</string>
+    <string name="smart_playlist_reference_search">ابحث عن قوائم تشغيل</string>
+    <string name="smart_playlist_reference_loading">جارٍ تحميل قوائم التشغيل…</string>
+    <string name="smart_playlist_reference_failed">تعذر تحميل قوائم التشغيل.</string>
+    <string name="smart_playlist_reference_missing">قائمة التشغيل غير متاحة: %1$s. يتم الاحتفاظ بمعرّفها المحفوظ.</string>
+    <string name="smart_playlist_reference_self">لا يمكن لقائمة التشغيل الإشارة إلى نفسها.</string>
+    <string name="smart_playlist_reference_retry">حاول مجددًا</string>
+    <string name="smart_playlist_reference_empty">لا توجد قوائم تشغيل مطابقة.</string>
 </resources>

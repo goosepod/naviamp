@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">Sonic Similarity bu sunucuda kullanılamıyor. Instant Mix seçin veya tanılama testini kullanın.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">Çalma listesi seç</string>
+    <string name="smart_playlist_reference_search">Çalma listelerinde ara</string>
+    <string name="smart_playlist_reference_loading">Çalma listeleri yükleniyor…</string>
+    <string name="smart_playlist_reference_failed">Çalma listeleri yüklenemedi.</string>
+    <string name="smart_playlist_reference_missing">Çalma listesi kullanılamıyor: %1$s. Kayıtlı kimliği korunur.</string>
+    <string name="smart_playlist_reference_self">Bir çalma listesi kendisine başvuramaz.</string>
+    <string name="smart_playlist_reference_retry">Yeniden dene</string>
+    <string name="smart_playlist_reference_empty">Eşleşen çalma listesi yok.</string>
 </resources>

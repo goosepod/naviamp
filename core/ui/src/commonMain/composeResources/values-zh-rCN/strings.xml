@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">此服务器上的 Sonic Similarity 不可用。 请选择 Instant Mix 或使用诊断测试。</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s：%2$s</string>
+    <string name="smart_playlist_reference_choose">选择播放列表</string>
+    <string name="smart_playlist_reference_search">搜索播放列表</string>
+    <string name="smart_playlist_reference_loading">正在加载播放列表…</string>
+    <string name="smart_playlist_reference_failed">无法加载播放列表。</string>
+    <string name="smart_playlist_reference_missing">播放列表不可用：%1$s。已保存的 ID 将保留。</string>
+    <string name="smart_playlist_reference_self">播放列表不能引用自身。</string>
+    <string name="smart_playlist_reference_retry">重试</string>
+    <string name="smart_playlist_reference_empty">没有匹配的播放列表。</string>
 </resources>

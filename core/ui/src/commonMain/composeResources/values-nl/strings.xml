@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">Sonic Similarity is niet beschikbaar op deze server. Kies Instant Mix of gebruik de diagnostische test.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">Afspeellijst kiezen</string>
+    <string name="smart_playlist_reference_search">Afspeellijsten zoeken</string>
+    <string name="smart_playlist_reference_loading">Afspeellijsten laden…</string>
+    <string name="smart_playlist_reference_failed">Kan afspeellijsten niet laden.</string>
+    <string name="smart_playlist_reference_missing">Afspeellijst niet beschikbaar: %1$s. De opgeslagen ID blijft behouden.</string>
+    <string name="smart_playlist_reference_self">Een afspeellijst kan niet naar zichzelf verwijzen.</string>
+    <string name="smart_playlist_reference_retry">Opnieuw proberen</string>
+    <string name="smart_playlist_reference_empty">Geen overeenkomende afspeellijsten.</string>
 </resources>

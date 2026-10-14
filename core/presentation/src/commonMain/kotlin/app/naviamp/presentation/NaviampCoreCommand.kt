@@ -145,6 +145,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface SmartPlaylist : NaviampCoreCommand {
+        data object References : SmartPlaylist
         data class Preview(val definition: SmartPlaylistDefinition) : SmartPlaylist
         data class Save(val definition: SmartPlaylistDefinition, val password: String? = null) : SmartPlaylist
         data class Update(
@@ -276,6 +277,9 @@ sealed interface NaviampCoreCommand {
 }
 
 sealed interface NaviampCoreCommandResult {
+    data class SmartPlaylistReferencesLoaded(
+        val references: List<app.naviamp.domain.smartplaylist.SmartPlaylistReference>,
+    ) : NaviampCoreCommandResult
     data object Completed : NaviampCoreCommandResult
     data class SmartPlaylistInspected(val editing: app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult) : NaviampCoreCommandResult
     data class SmartPlaylistLoaded(val definition: SmartPlaylistDefinition) : NaviampCoreCommandResult

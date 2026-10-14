@@ -346,4 +346,12 @@
     <string name="settings_related_requires_support">Sonic Similarity jest niedostępne na tym serwerze. Wybierz Instant Mix lub użyj testu diagnostycznego.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">Wybierz playlistę</string>
+    <string name="smart_playlist_reference_search">Szukaj playlist</string>
+    <string name="smart_playlist_reference_loading">Ładowanie playlist…</string>
+    <string name="smart_playlist_reference_failed">Nie udało się wczytać playlist.</string>
+    <string name="smart_playlist_reference_missing">Playlista niedostępna: %1$s. Jej zapisany identyfikator zostaje zachowany.</string>
+    <string name="smart_playlist_reference_self">Playlista nie może odwoływać się do samej siebie.</string>
+    <string name="smart_playlist_reference_retry">Spróbuj ponownie</string>
+    <string name="smart_playlist_reference_empty">Brak pasujących playlist.</string>
 </resources>

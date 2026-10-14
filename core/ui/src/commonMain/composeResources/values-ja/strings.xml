@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">このサーバーでは Sonic Similarity を利用できません。 Instant Mix を選択するか、診断テストを使用してください。</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s：%2$s</string>
+    <string name="smart_playlist_reference_choose">プレイリストを選択</string>
+    <string name="smart_playlist_reference_search">プレイリストを検索</string>
+    <string name="smart_playlist_reference_loading">プレイリストを読み込み中…</string>
+    <string name="smart_playlist_reference_failed">プレイリストを読み込めませんでした。</string>
+    <string name="smart_playlist_reference_missing">プレイリストが利用できません: %1$s。保存済みのIDは保持されます。</string>
+    <string name="smart_playlist_reference_self">プレイリストは自身を参照できません。</string>
+    <string name="smart_playlist_reference_retry">再試行</string>
+    <string name="smart_playlist_reference_empty">一致するプレイリストはありません。</string>
 </resources>

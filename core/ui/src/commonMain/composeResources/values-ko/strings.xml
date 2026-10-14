@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">이 서버에서 Sonic Similarity를 사용할 수 없습니다. Instant Mix를 선택하거나 진단 테스트를 사용하세요.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">재생목록 선택</string>
+    <string name="smart_playlist_reference_search">재생목록 검색</string>
+    <string name="smart_playlist_reference_loading">재생목록 불러오는 중…</string>
+    <string name="smart_playlist_reference_failed">재생목록을 불러올 수 없습니다.</string>
+    <string name="smart_playlist_reference_missing">재생목록을 사용할 수 없습니다: %1$s. 저장된 ID는 유지됩니다.</string>
+    <string name="smart_playlist_reference_self">재생목록은 자기 자신을 참조할 수 없습니다.</string>
+    <string name="smart_playlist_reference_retry">다시 시도</string>
+    <string name="smart_playlist_reference_empty">일치하는 재생목록이 없습니다.</string>
 </resources>

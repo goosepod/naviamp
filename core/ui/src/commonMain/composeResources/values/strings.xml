@@ -1082,4 +1082,12 @@
     <string name="radio_instant_mix_description">Use the server’s similar-song recommendations. Results depend on its configured services and plugins.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">Choose playlist</string>
+    <string name="smart_playlist_reference_search">Search playlists</string>
+    <string name="smart_playlist_reference_loading">Loading playlists…</string>
+    <string name="smart_playlist_reference_failed">Could not load playlists.</string>
+    <string name="smart_playlist_reference_missing">Playlist unavailable: %1$s. Its saved ID is preserved.</string>
+    <string name="smart_playlist_reference_self">A playlist cannot reference itself.</string>
+    <string name="smart_playlist_reference_retry">Try again</string>
+    <string name="smart_playlist_reference_empty">No matching playlists.</string>
 </resources>

@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">इस सर्वर पर Sonic Similarity उपलब्ध नहीं है। Instant Mix चुनें या निदान परीक्षण इस्तेमाल करें।</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">प्लेलिस्ट चुनें</string>
+    <string name="smart_playlist_reference_search">प्लेलिस्ट खोजें</string>
+    <string name="smart_playlist_reference_loading">प्लेलिस्ट लोड हो रही हैं…</string>
+    <string name="smart_playlist_reference_failed">प्लेलिस्ट लोड नहीं हो सकीं।</string>
+    <string name="smart_playlist_reference_missing">प्लेलिस्ट उपलब्ध नहीं है: %1$s। उसका सहेजा गया ID सुरक्षित है।</string>
+    <string name="smart_playlist_reference_self">प्लेलिस्ट स्वयं का संदर्भ नहीं दे सकती।</string>
+    <string name="smart_playlist_reference_retry">फिर कोशिश करें</string>
+    <string name="smart_playlist_reference_empty">कोई मिलती-जुलती प्लेलिस्ट नहीं।</string>
 </resources>

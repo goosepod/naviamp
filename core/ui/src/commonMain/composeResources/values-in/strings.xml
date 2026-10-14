@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">Sonic Similarity tidak tersedia di server ini. Pilih Instant Mix atau gunakan tes diagnostik.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">Pilih daftar putar</string>
+    <string name="smart_playlist_reference_search">Cari daftar putar</string>
+    <string name="smart_playlist_reference_loading">Memuat daftar putar…</string>
+    <string name="smart_playlist_reference_failed">Tidak dapat memuat daftar putar.</string>
+    <string name="smart_playlist_reference_missing">Daftar putar tidak tersedia: %1$s. ID yang tersimpan tetap dipertahankan.</string>
+    <string name="smart_playlist_reference_self">Daftar putar tidak dapat merujuk dirinya sendiri.</string>
+    <string name="smart_playlist_reference_retry">Coba lagi</string>
+    <string name="smart_playlist_reference_empty">Tidak ada daftar putar yang cocok.</string>
 </resources>

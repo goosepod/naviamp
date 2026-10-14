@@ -64,6 +64,7 @@ fun NaviampPlaylistsContent(
         onRefresh = actions.onRefresh,
         onSortModeChanged = actions.onSortModeChanged,
         onPlaylistAction = mediaActions.onMediaItemAction,
+        onSmartPlaylistReferences = actions.smartPlaylist.onReferences,
         onSmartPlaylistPreview = actions.smartPlaylist.onPreview,
         onSmartPlaylistSyncLibrary = actions.smartPlaylist.onSyncLibrary,
         onSmartPlaylistSave = actions.smartPlaylist.onSave,
@@ -92,6 +93,7 @@ private fun PlaylistsContent(
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistAction: (NaviampMediaItemActionRequest) -> Unit,
     onSmartPlaylistSyncLibrary: (suspend () -> Unit)?,
+    onSmartPlaylistReferences: suspend () -> List<app.naviamp.domain.smartplaylist.SmartPlaylistReference> = { emptyList() },
     onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
@@ -272,6 +274,7 @@ private fun PlaylistsContent(
         SmartPlaylistBuilderDialog(
             colors = colors,
             initialDraft = smartPlaylistInitialDraft,
+            currentPlaylistId = editTarget?.id,
             title = if (editTarget == null) {
                 stringResource(Res.string.playlists_smart)
             } else {
@@ -285,6 +288,7 @@ private fun PlaylistsContent(
             availableLibraries = availableLibraries,
             selectedConnectionLibraryIds = selectedConnectionLibraryIds,
             genreCatalog = genreCatalog,
+            onReferences = onSmartPlaylistReferences,
             onPreview = onSmartPlaylistPreview,
             onSyncLibrary = onSmartPlaylistSyncLibrary,
             onDismissRequest = {
@@ -638,6 +642,7 @@ fun NaviampPlaylistDetailContent(
         onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
         onTrackAction = actions.onTrackAction,
         trackCapabilities = screen.trackCapabilities,
+        onSmartPlaylistReferences = playlistsActions.smartPlaylist.onReferences,
         onSmartPlaylistPreview = playlistsActions.smartPlaylist.onPreview,
         onSmartPlaylistSyncLibrary = playlistsActions.smartPlaylist.onSyncLibrary,
         onSmartPlaylistUpdate = playlistsActions.smartPlaylist.onUpdate,
@@ -675,6 +680,7 @@ private fun PlaylistDetailContent(
     onPlaybackProfileSaved: (app.naviamp.domain.playback.PlaybackProfile) -> Unit,
     onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>, List<SharedTrackRowUi>) -> Unit,
     onSmartPlaylistSyncLibrary: (suspend () -> Unit)?,
+    onSmartPlaylistReferences: suspend () -> List<app.naviamp.domain.smartplaylist.SmartPlaylistReference> = { emptyList() },
     onSmartPlaylistPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
@@ -936,11 +942,13 @@ private fun PlaylistDetailContent(
         SmartPlaylistBuilderDialog(
             colors = colors,
             initialDraft = smartPlaylistInitialDraft,
+            currentPlaylistId = detail.playlist.id,
             title = stringResource(Res.string.playlists_edit_smart),
             saveLabel = stringResource(Res.string.playlists_update),
             availableLibraries = availableLibraries,
             selectedConnectionLibraryIds = selectedConnectionLibraryIds,
             genreCatalog = genreCatalog,
+            onReferences = onSmartPlaylistReferences,
             onPreview = onSmartPlaylistPreview,
             onSyncLibrary = onSmartPlaylistSyncLibrary,
             onDismissRequest = {

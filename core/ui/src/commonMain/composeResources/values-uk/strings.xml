@@ -227,4 +227,12 @@
     <string name="settings_related_requires_support">Sonic Similarity недоступна на цьому сервері. Виберіть Instant Mix або запустіть діагностику.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_reference_choose">Вибрати плейлист</string>
+    <string name="smart_playlist_reference_search">Пошук плейлистів</string>
+    <string name="smart_playlist_reference_loading">Завантаження плейлистів…</string>
+    <string name="smart_playlist_reference_failed">Не вдалося завантажити плейлисти.</string>
+    <string name="smart_playlist_reference_missing">Плейлист недоступний: %1$s. Збережений ідентифікатор буде збережено.</string>
+    <string name="smart_playlist_reference_self">Плейлист не може посилатися на самого себе.</string>
+    <string name="smart_playlist_reference_retry">Спробувати знову</string>
+    <string name="smart_playlist_reference_empty">Відповідних плейлистів немає.</string>
 </resources>
