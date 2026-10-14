@@ -6,9 +6,9 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
-## v2.10.0
+## v2.10.1
 
-Naviamp 2.10.0 makes smart playlists safer and easier to build, gives Radio and Sonic Autoplay clearer controls, and fixes Android playback recovery crashes.
+Naviamp 2.10.1 makes smart playlists safer and easier to build, gives Radio and Sonic Autoplay clearer controls, and fixes Android playback recovery crashes.
 
 ### Improvements
 
@@ -34,7 +34,7 @@ Naviamp 2.10.0 makes smart playlists safer and easier to build, gives Radio and 
 - Further Linux popup performance and accessibility checks remain open, including the full-app CPU budget.
 - Android TV and Naviamp Connect remain beta. Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.
 
-See [release notes](.github/releases/v2.10.0.md) for issue links and compatibility details.
+See [release notes](.github/releases/v2.10.1.md) for issue links and compatibility details.
 
 ## v2.9.0
 

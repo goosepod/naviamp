@@ -6,13 +6,13 @@ import kotlin.test.assertTrue
 
 class NaviampChangelogTest {
     @Test
-    fun release2100ContainsTheImportantPublicChangesInSignificanceOrder() {
+    fun release2101ContainsTheImportantPublicChangesInSignificanceOrder() {
         val changelog = NaviampAboutUi().changelog
         assertEquals(
             listOf("Improvements", "Bug fixes", "Upgrade notes", "Known issues"),
             changelog.map { it.title },
         )
-        assertEquals("2.10.0", NaviampAboutUi().version.removePrefix("v"))
+        assertEquals("v2.10.1", NaviampAboutUi().version)
         assertEquals(5, changelog[0].entries.size)
         assertTrue(changelog[0].entries[0].contains("named playlist references"))
         assertTrue(changelog[0].entries[0].contains("owner-aware"))
