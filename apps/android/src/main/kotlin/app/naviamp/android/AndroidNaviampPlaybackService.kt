@@ -69,7 +69,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         }
         attachBridge()
         when (intent?.action) {
-            ActionPlayPause -> if (snapshot.state == NaviampExternalPlaybackState.Playing) bridge?.pause() else bridge?.play()
+            ActionPlayPause -> bridge?.playPause()
             ActionPrevious -> bridge?.previous()
             ActionNext -> bridge?.next()
             ActionFavorite -> bridge?.toggleFavorite()

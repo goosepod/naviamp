@@ -2788,38 +2788,27 @@ private val DefaultNaviampLibraries = listOf(
 // Release notes stay in English and out of localized string resources.
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
-        title = "Features",
-        entries = listOf(
-            "Cast online music from desktop to a Google Cast receiver, control playback and seeking, and return to local listening at the current position.",
-            "Keep albums and artists downloaded, preview storage needs, and reuse tracks already saved by another collection.",
-            "Use fullscreen mode on desktop and restore the previous window size when leaving fullscreen. Wide views show a fullscreen button; compact players keep it in the actions menu.",
-            "Control Linux playback through desktop media controls and MPRIS-compatible tools.",
-            "Switch saved accounts on Android TV with a remote-friendly account chooser.",
-            "Choose track or album artwork for individual albums while keeping the global default for everything else.",
-        ),
-    ),
-    NaviampChangelogSectionUi(
         title = "Improvements",
         entries = listOf(
-            "Browse multi-disc albums in disc sections and see separate album and track groups under artist appearances.",
-            "Create DJs from Now Playing and select newly saved DJs without reopening the picker.",
-            "See favorite hearts beside album titles and more complete German interface translations.",
-            "Keep track actions focused on the current track, with device choices in the Cast picker and Connect controls rather than extra menu rows during local playback.",
+            "Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.",
+            "Preview example matches from your synced library, sync directly from the builder, and select calendar dates with clear format guidance.",
+            "Choose Radio and Sonic similarity explicitly, configure their initial batch sizes independently, and keep regular Radio supplied with new tracks.",
+            "Find playlist actions first in track menus, with controls that respect smart-playlist membership.",
+            "Recognize connected services by their official icons and see clearer connection labels and updated German wording.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
-            "Return the Library to the top after an explicit refresh and keep artist appearance tracks aligned.",
-            "Allow owners to delete Smart Playlists whose track editing is read-only.",
-            "Restore transparent animation surfaces on Linux X11 and improve Windows menu and dialog stability during animated playback.",
-            "Keep macOS animation layers aligned after resize and prevent Stats for Nerds from redrawing the main window; improve playback-control accessibility.",
+            "Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.",
+            "Keep incomplete smart-playlist rules from disappearing on save, preserve sort, limit and decimal semantics, and protect unsupported definitions from destructive editing.",
+            "Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
-            "Existing downloads are retained during the automatic database upgrade. Returning to v2.8.0 requires a pre-upgrade database backup; keep the downloaded audio files.",
+            "No special upgrade steps are required. Radio method selection is explicit; choose another method if Sonic fails.",
         ),
     ),
     NaviampChangelogSectionUi(
@@ -2827,6 +2816,7 @@ private val DefaultNaviampChangelog = listOf(
         entries = listOf(
             "Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.",
             "Further Linux popup performance and accessibility checks remain open, including the full-app CPU budget.",
+            "Android TV and Naviamp Connect remain beta. Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
         ),
     ),
 )

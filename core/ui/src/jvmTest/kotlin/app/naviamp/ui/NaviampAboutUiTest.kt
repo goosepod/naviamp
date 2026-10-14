@@ -13,6 +13,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runDesktopComposeUiTest
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.graphics.toArgb
 import app.naviamp.domain.network.NaviampAppBuildNumber
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -47,9 +51,42 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Cast online music from desktop to a Google Cast receiver, control playback and seeking, and return to local listening at the current position.").assertIsDisplayed()
-        onNodeWithText("Keep albums and artists downloaded, preview storage needs, and reuse tracks already saved by another collection.").assertIsDisplayed()
-        onNodeWithText("Keep macOS animation layers aligned after resize and prevent Stats for Nerds from redrawing the main window; improve playback-control accessibility.")
+        onNodeWithText("Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
+        onNodeWithText("Known issues").assertIsDisplayed()
+        val roots = onAllNodes(isRoot())
+        var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
+        waitUntil(timeoutMillis = 5_000) {
+            val image = roots[roots.fetchSemanticsNodes().lastIndex].captureToImage()
+            if (changelogBodyHasPainted(image)) {
+                rendered = image
+                true
+            } else false
+        }
+        writeAboutReleaseImage(requireNotNull(rendered))
+        onNodeWithText("Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.")
             .performScrollTo().assertIsDisplayed()
     }
+}
+
+private fun changelogBodyHasPainted(image: androidx.compose.ui.graphics.ImageBitmap): Boolean {
+    val pixels = image.toPixelMap()
+    var paintedPixels = 0
+    // Semantics can update before the desktop frame paints. Require real text pixels
+    // in the lower body, beyond the header and first changelog entry.
+    for (y in pixels.height / 2 until pixels.height) for (x in 0 until pixels.width) {
+        val pixel = pixels[x, y]
+        if (pixel.alpha > 0.5f && maxOf(pixel.red, pixel.green, pixel.blue) > 0.2f) {
+            if (++paintedPixels >= 100) return true
+        }
+    }
+    return false
+}
+
+private fun writeAboutReleaseImage(image: androidx.compose.ui.graphics.ImageBitmap) {
+    val pixels = image.toPixelMap()
+    val output = java.awt.image.BufferedImage(pixels.width, pixels.height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+    for (y in 0 until pixels.height) for (x in 0 until pixels.width) output.setRGB(x, y, pixels[x, y].toArgb())
+    val file = java.io.File("build/reports/release-2.10/about-changelog.png")
+    file.parentFile.mkdirs()
+    javax.imageio.ImageIO.write(output, "png", file)
 }

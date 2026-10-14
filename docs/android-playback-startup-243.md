@@ -2,7 +2,7 @@
 
 ## Failure and ownership
 
-On 2026-10-14, physical Pixel 10a `5A131JEA306253` (Android 17/API 37) crash history confirmed
+On 2026-10-14, physical Pixel 10a (Android 17/API 37) crash history confirmed
 the October 8 benchmark failure: `ForegroundServiceDidNotStartInTimeException` in
 `AndroidNaviampPlaybackService`. It also contained October 10 failures in the normal published
 package from `ForegroundServiceStartNotAllowedException` at the lifecycle's native start call.
