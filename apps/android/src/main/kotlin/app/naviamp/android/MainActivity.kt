@@ -72,7 +72,7 @@ class MainActivity : FragmentActivity() {
                     settingsImportRequest = null
                 }
             }
-            AndroidNaviampPlaybackLifecycle(runtime.core)
+            AndroidNaviampPlaybackLifecycle(runtime.core, lifecycle)
             CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides systemBackDispatcher) {
                 NaviampAndroidRasterHost {
                     Box {
