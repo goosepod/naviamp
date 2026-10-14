@@ -1070,4 +1070,13 @@
     <string name="smart_playlist_advanced">Avanzado</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">Sin límite de pistas.</string>
+    <string name="smart_playlist_reference_choose">Elegir lista de reproducción</string>
+    <string name="smart_playlist_reference_search">Buscar listas de reproducción</string>
+    <string name="smart_playlist_reference_loading">Cargando listas…</string>
+    <string name="smart_playlist_reference_failed">No se pudieron cargar las listas.</string>
+    <string name="smart_playlist_reference_missing">Lista no disponible: %1$s. Se conserva su ID guardado.</string>
+    <string name="smart_playlist_reference_self">Una lista no puede referirse a sí misma.</string>
+    <string name="smart_playlist_reference_retry">Intentar de nuevo</string>
+    <string name="smart_playlist_reference_empty">No hay listas coincidentes.</string>
+    <string name="smart_playlist_reference_owner_access">El propietario de la lista debe tener acceso a las listas referenciadas.</string>
 </resources>

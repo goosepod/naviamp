@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">詳細設定</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">曲数制限なし。</string>
+    <string name="smart_playlist_reference_choose">プレイリストを選択</string>
+    <string name="smart_playlist_reference_search">プレイリストを検索</string>
+    <string name="smart_playlist_reference_loading">プレイリストを読み込み中…</string>
+    <string name="smart_playlist_reference_failed">プレイリストを読み込めませんでした。</string>
+    <string name="smart_playlist_reference_missing">プレイリストが利用できません: %1$s。保存済みのIDは保持されます。</string>
+    <string name="smart_playlist_reference_self">プレイリストは自身を参照できません。</string>
+    <string name="smart_playlist_reference_retry">再試行</string>
+    <string name="smart_playlist_reference_empty">一致するプレイリストはありません。</string>
+    <string name="smart_playlist_reference_owner_access">参照先のプレイリストは、プレイリストの所有者がアクセスできる必要があります。</string>
 </resources>

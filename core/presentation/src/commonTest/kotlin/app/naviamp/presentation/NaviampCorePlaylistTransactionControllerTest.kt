@@ -38,6 +38,45 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCorePlaylistTransactionControllerTest {
+    @Test fun updatingAnImportedSelfReferenceIsRejectedBeforeProviderMutation() = runTest {
+        val fixture = fixture()
+        fixture.browse.refreshAfterConnection()
+        val definition = SmartPlaylistDefinition("Self", rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.InPlaylist, "id", SmartPlaylistValue.Text("smart")),
+        ))
+        assertFailsWith<IllegalArgumentException> {
+            fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Update(playlistItem("smart", "Smart", true), definition))
+        }
+        assertTrue(fixture.provider.smartUpdates.isEmpty())
+    }
+    @Test fun membershipReferencesIncludeSmartPlaylistsWithoutTrackEditingPermission() = runTest {
+        val fixture = fixture()
+        val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References)
+            as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded
+        assertEquals(setOf("playlist-a", "playlist-b", "smart"), result.references.map { it.id }.toSet())
+        assertTrue(result.references.single { it.id == "smart" }.isSmart)
+        assertEquals(1, fixture.persistedSessions())
+    }
+
+    @Test fun referenceLookupFailureIsRecoverableAndDoesNotMutatePlaylists() = runTest {
+        val fixture = fixture()
+        fixture.provider.playlistListFailure = IllegalStateException("lookup failed")
+        assertFailsWith<IllegalStateException> { fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References) }
+        fixture.provider.playlistListFailure = null
+        val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References)
+            as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded
+        assertEquals(3, result.references.size)
+        assertEquals(2, fixture.persistedSessions())
+        assertTrue(fixture.provider.smartUpdates.isEmpty())
+    }
+
+    @Test fun referencesFromASwitchedSourceAreDiscarded() = runTest {
+        val fixture = fixture()
+        fixture.provider.beforePlaylistList = { fixture.switchSource(null) }
+        assertFailsWith<kotlinx.coroutines.CancellationException> {
+            fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References)
+        }
+    }
     @Test
     fun playbackQueueAndDownloadReceiveResolvedDomainTransactions() = runTest {
         val fixture = fixture()
@@ -350,6 +389,7 @@ class NaviampCorePlaylistTransactionControllerTest {
             sessionPort = sessionPort,
             openNowPlaying = navigation::openNowPlaying,
             staleDraftMessage = { "test: reload playlist" },
+            selfReferenceMessage = { "test: self reference" },
         )
         return TransactionFixture(
             store,
@@ -458,6 +498,8 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
     val smartCreates = mutableListOf<String>()
     val smartUpdates = mutableListOf<String>()
     var staleSmartCreationList = false
+    var playlistListFailure: Throwable? = null
+    var beforePlaylistList: suspend () -> Unit = {}
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
@@ -466,10 +508,14 @@ private class TransactionTestProvider(override val cacheNamespace: String = "ori
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()
-    override suspend fun playlists(limit: Int) = playlistItems.map { playlist ->
+    override suspend fun playlists(limit: Int): List<Playlist> {
+        beforePlaylistList()
+        playlistListFailure?.let { throw it }
+        return playlistItems.map { playlist ->
         if (staleSmartCreationList && playlist.id == "smart-created") {
             playlist.copy(trackCount = 12, isSmart = false, canEdit = false, canManage = false)
         } else playlist
+        }
     }
     override suspend fun playlistTracks(playlistId: String): List<Track> {
         beforeRead()

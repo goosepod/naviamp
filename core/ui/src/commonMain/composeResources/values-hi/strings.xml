@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">उन्नत</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">ट्रैक की कोई सीमा नहीं।</string>
+    <string name="smart_playlist_reference_choose">प्लेलिस्ट चुनें</string>
+    <string name="smart_playlist_reference_search">प्लेलिस्ट खोजें</string>
+    <string name="smart_playlist_reference_loading">प्लेलिस्ट लोड हो रही हैं…</string>
+    <string name="smart_playlist_reference_failed">प्लेलिस्ट लोड नहीं हो सकीं।</string>
+    <string name="smart_playlist_reference_missing">प्लेलिस्ट उपलब्ध नहीं है: %1$s। उसका सहेजा गया ID सुरक्षित है।</string>
+    <string name="smart_playlist_reference_self">प्लेलिस्ट स्वयं का संदर्भ नहीं दे सकती।</string>
+    <string name="smart_playlist_reference_retry">फिर कोशिश करें</string>
+    <string name="smart_playlist_reference_empty">कोई मिलती-जुलती प्लेलिस्ट नहीं।</string>
+    <string name="smart_playlist_reference_owner_access">प्लेलिस्ट के मालिक के पास संदर्भित प्लेलिस्ट का ऐक्सेस होना चाहिए।</string>
 </resources>

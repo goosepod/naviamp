@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">Gelişmiş</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">Parça sınırı yok.</string>
+    <string name="smart_playlist_reference_choose">Çalma listesi seç</string>
+    <string name="smart_playlist_reference_search">Çalma listelerinde ara</string>
+    <string name="smart_playlist_reference_loading">Çalma listeleri yükleniyor…</string>
+    <string name="smart_playlist_reference_failed">Çalma listeleri yüklenemedi.</string>
+    <string name="smart_playlist_reference_missing">Çalma listesi kullanılamıyor: %1$s. Kayıtlı kimliği korunur.</string>
+    <string name="smart_playlist_reference_self">Bir çalma listesi kendisine başvuramaz.</string>
+    <string name="smart_playlist_reference_retry">Yeniden dene</string>
+    <string name="smart_playlist_reference_empty">Eşleşen çalma listesi yok.</string>
+    <string name="smart_playlist_reference_owner_access">Başvurulan çalma listeleri, listenin sahibi tarafından erişilebilir olmalıdır.</string>
 </resources>

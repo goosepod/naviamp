@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">Geavanceerd</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">Geen limiet voor nummers.</string>
+    <string name="smart_playlist_reference_choose">Afspeellijst kiezen</string>
+    <string name="smart_playlist_reference_search">Afspeellijsten zoeken</string>
+    <string name="smart_playlist_reference_loading">Afspeellijsten laden…</string>
+    <string name="smart_playlist_reference_failed">Kan afspeellijsten niet laden.</string>
+    <string name="smart_playlist_reference_missing">Afspeellijst niet beschikbaar: %1$s. De opgeslagen ID blijft behouden.</string>
+    <string name="smart_playlist_reference_self">Een afspeellijst kan niet naar zichzelf verwijzen.</string>
+    <string name="smart_playlist_reference_retry">Opnieuw proberen</string>
+    <string name="smart_playlist_reference_empty">Geen overeenkomende afspeellijsten.</string>
+    <string name="smart_playlist_reference_owner_access">De eigenaar van de afspeellijst moet toegang hebben tot de verwijzingen.</string>
 </resources>

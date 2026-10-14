@@ -1066,4 +1066,13 @@
     <string name="smart_playlist_advanced">Erweitert</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">Keine Titelbegrenzung.</string>
+    <string name="smart_playlist_reference_choose">Playlist auswählen</string>
+    <string name="smart_playlist_reference_search">Playlists suchen</string>
+    <string name="smart_playlist_reference_loading">Playlists werden geladen…</string>
+    <string name="smart_playlist_reference_failed">Playlists konnten nicht geladen werden.</string>
+    <string name="smart_playlist_reference_missing">Playlist nicht verfügbar: %1$s. Die gespeicherte ID bleibt erhalten.</string>
+    <string name="smart_playlist_reference_self">Eine Playlist kann nicht auf sich selbst verweisen.</string>
+    <string name="smart_playlist_reference_retry">Erneut versuchen</string>
+    <string name="smart_playlist_reference_empty">Keine passenden Playlists.</string>
+    <string name="smart_playlist_reference_owner_access">Referenzierte Playlists müssen für den Besitzer der Playlist zugänglich sein.</string>
 </resources>

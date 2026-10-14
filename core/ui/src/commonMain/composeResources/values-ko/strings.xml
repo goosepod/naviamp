@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">고급</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">곡 수 제한 없음.</string>
+    <string name="smart_playlist_reference_choose">재생목록 선택</string>
+    <string name="smart_playlist_reference_search">재생목록 검색</string>
+    <string name="smart_playlist_reference_loading">재생목록 불러오는 중…</string>
+    <string name="smart_playlist_reference_failed">재생목록을 불러올 수 없습니다.</string>
+    <string name="smart_playlist_reference_missing">재생목록을 사용할 수 없습니다: %1$s. 저장된 ID는 유지됩니다.</string>
+    <string name="smart_playlist_reference_self">재생목록은 자기 자신을 참조할 수 없습니다.</string>
+    <string name="smart_playlist_reference_retry">다시 시도</string>
+    <string name="smart_playlist_reference_empty">일치하는 재생목록이 없습니다.</string>
+    <string name="smart_playlist_reference_owner_access">재생목록 소유자가 참조된 재생목록에 접근할 수 있어야 합니다.</string>
 </resources>

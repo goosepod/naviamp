@@ -8,6 +8,8 @@ import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistPreview
 import app.naviamp.domain.smartplaylist.previewSmartPlaylist
+import app.naviamp.domain.smartplaylist.toSmartPlaylistReference
+import app.naviamp.domain.smartplaylist.referencesPlaylist
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.ui.NaviampMediaItemCommand
 import app.naviamp.ui.NaviampPlaylistDetailActionRequest
@@ -15,6 +17,7 @@ import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.playlistStaleDraftMessage
+import app.naviamp.ui.smartPlaylistSelfReferenceMessage
 import kotlinx.coroutines.CancellationException
 
 /** Audio-engine boundary used only after Core resolves the complete playback transaction. */
@@ -81,6 +84,7 @@ class NaviampCorePlaylistTransactionController(
     private val playbackProfiles: NaviampCorePlaybackProfileController =
         NaviampCorePlaybackProfileController(stateStore),
     private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
+    private val selfReferenceMessage: suspend () -> String = ::smartPlaylistSelfReferenceMessage,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -99,6 +103,19 @@ class NaviampCorePlaylistTransactionController(
     }
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? = when (command) {
+        NaviampCoreCommand.SmartPlaylist.References -> {
+            val provider = smartProvider(null, "load")
+            val generation = browseController.sourceGeneration
+            val references = try {
+                provider.playlists(Int.MAX_VALUE).map { it.toSmartPlaylistReference() }
+            } finally {
+                sessionPort.persistActiveSession()
+            }
+            if (generation != browseController.sourceGeneration || !providerSource.isCurrent(provider)) {
+                throw CancellationException("Playlist reference source changed")
+            }
+            NaviampCoreCommandResult.SmartPlaylistReferencesLoaded(references)
+        }
         is NaviampCoreCommand.Playlists.Detail -> {
             executeDetail(command.request)
             NaviampCoreCommandResult.Completed
@@ -261,6 +278,9 @@ class NaviampCorePlaylistTransactionController(
         if (!item.canManagePlaylist) throw UnsupportedOperationException()
         val provider = smartProvider(password, "update")
         val playlist = browseController.resolvePlaylist(item)
+        if (definition.referencesPlaylist(playlist.id)) {
+            throw IllegalArgumentException(selfReferenceMessage())
+        }
         publishListStatus("Updating ${definition.name}...")
         try {
             provider.updateSmartPlaylist(playlist.id, definition)
