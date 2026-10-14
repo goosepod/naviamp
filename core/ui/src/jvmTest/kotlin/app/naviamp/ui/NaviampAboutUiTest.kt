@@ -52,11 +52,34 @@ class NaviampAboutUiTest {
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
         onNodeWithText("Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
+        onNodeWithText("Known issues").assertIsDisplayed()
         val roots = onAllNodes(isRoot())
-        writeAboutReleaseImage(roots[roots.fetchSemanticsNodes().lastIndex].captureToImage())
+        var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
+        waitUntil(timeoutMillis = 5_000) {
+            val image = roots[roots.fetchSemanticsNodes().lastIndex].captureToImage()
+            if (changelogBodyHasPainted(image)) {
+                rendered = image
+                true
+            } else false
+        }
+        writeAboutReleaseImage(requireNotNull(rendered))
         onNodeWithText("Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.")
             .performScrollTo().assertIsDisplayed()
     }
+}
+
+private fun changelogBodyHasPainted(image: androidx.compose.ui.graphics.ImageBitmap): Boolean {
+    val pixels = image.toPixelMap()
+    var paintedPixels = 0
+    // Semantics can update before the desktop frame paints. Require real text pixels
+    // in the lower body, beyond the header and first changelog entry.
+    for (y in pixels.height / 2 until pixels.height) for (x in 0 until pixels.width) {
+        val pixel = pixels[x, y]
+        if (pixel.alpha > 0.5f && maxOf(pixel.red, pixel.green, pixel.blue) > 0.2f) {
+            if (++paintedPixels >= 100) return true
+        }
+    }
+    return false
 }
 
 private fun writeAboutReleaseImage(image: androidx.compose.ui.graphics.ImageBitmap) {
