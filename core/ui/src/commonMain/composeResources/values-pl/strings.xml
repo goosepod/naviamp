@@ -346,4 +346,17 @@
     <string name="settings_related_requires_support">Sonic Similarity jest niedostępne na tym serwerze. Wybierz Instant Mix lub użyj testu diagnostycznego.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_summary">Podsumowanie</string>
+    <string name="smart_playlist_summary_all">Wszystkie warunki: %1$s</string>
+    <string name="smart_playlist_summary_any">Dowolny warunek: %1$s</string>
+    <string name="smart_playlist_summary_sort">Priorytet sortowania: %1$s</string>
+    <string name="smart_playlist_summary_tracks">Najwyżej %1$d utworów.</string>
+    <string name="smart_playlist_summary_percent">%1$d% pasujących utworów.</string>
+    <string name="smart_playlist_owner_notice">Ulubione, oceny i historia dotyczą właściciela playlisty, także publicznej. Lokalny podgląd używa indeksu zalogowanego konta.</string>
+    <string name="smart_playlist_preview_coverage">Lokalna kopia: %1$d zindeksowanych utworów. Może być niepełna lub nieaktualna.</string>
+    <string name="smart_playlist_preview_no_index">Brak zindeksowanych utworów. Zsynchronizuj bibliotekę przed podglądem; serwer może nadal mieć pasujące utwory.</string>
+    <string name="smart_playlist_options">Opcje</string>
+    <string name="smart_playlist_advanced">Zaawansowane</string>
+    <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
+    <string name="smart_playlist_summary_unlimited">Bez limitu utworów.</string>
 </resources>

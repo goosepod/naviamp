@@ -227,4 +227,17 @@
     <string name="settings_related_requires_support">Sonic Similarity não está disponível neste servidor. Selecione Instant Mix ou use o teste de diagnóstico.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_summary">Resumo</string>
+    <string name="smart_playlist_summary_all">Todas estas condições: %1$s</string>
+    <string name="smart_playlist_summary_any">Qualquer destas condições: %1$s</string>
+    <string name="smart_playlist_summary_sort">Prioridade de ordenação: %1$s</string>
+    <string name="smart_playlist_summary_tracks">No máximo %1$d faixas.</string>
+    <string name="smart_playlist_summary_percent">%1$d% das faixas correspondentes.</string>
+    <string name="smart_playlist_owner_notice">Favoritos, avaliações e histórico usam o proprietário da playlist, mesmo quando pública. A prévia local usa os dados indexados da conta conectada.</string>
+    <string name="smart_playlist_preview_coverage">Cópia local: %1$d faixas indexadas. Pode estar incompleta ou desatualizada.</string>
+    <string name="smart_playlist_preview_no_index">Nenhuma faixa indexada disponível. Sincronize a biblioteca antes da prévia; o servidor ainda pode ter resultados.</string>
+    <string name="smart_playlist_options">Opções</string>
+    <string name="smart_playlist_advanced">Avançado</string>
+    <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
+    <string name="smart_playlist_summary_unlimited">Sem limite de faixas.</string>
 </resources>

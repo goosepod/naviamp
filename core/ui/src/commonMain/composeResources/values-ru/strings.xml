@@ -227,4 +227,17 @@
     <string name="settings_related_requires_support">Sonic Similarity недоступна на этом сервере. Выберите Instant Mix или запустите диагностику.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_summary">Сводка</string>
+    <string name="smart_playlist_summary_all">Все условия: %1$s</string>
+    <string name="smart_playlist_summary_any">Любое из условий: %1$s</string>
+    <string name="smart_playlist_summary_sort">Приоритет сортировки: %1$s</string>
+    <string name="smart_playlist_summary_tracks">Не более %1$d треков.</string>
+    <string name="smart_playlist_summary_percent">%1$d% подходящих треков.</string>
+    <string name="smart_playlist_owner_notice">Избранное, оценки и история относятся к владельцу плейлиста, даже публичного. Локальный просмотр использует индекс вошедшей учётной записи.</string>
+    <string name="smart_playlist_preview_coverage">Локальная копия: %1$d треков в индексе. Она может быть неполной или устаревшей.</string>
+    <string name="smart_playlist_preview_no_index">В индексе нет треков. Синхронизируйте библиотеку перед просмотром; на сервере всё ещё могут быть совпадения.</string>
+    <string name="smart_playlist_options">Параметры</string>
+    <string name="smart_playlist_advanced">Дополнительно</string>
+    <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
+    <string name="smart_playlist_summary_unlimited">Без ограничения числа треков.</string>
 </resources>

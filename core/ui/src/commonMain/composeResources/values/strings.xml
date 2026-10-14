@@ -1082,4 +1082,17 @@
     <string name="radio_instant_mix_description">Use the server’s similar-song recommendations. Results depend on its configured services and plugins.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_summary">Summary</string>
+    <string name="smart_playlist_summary_all">All of: %1$s</string>
+    <string name="smart_playlist_summary_any">Any of: %1$s</string>
+    <string name="smart_playlist_summary_sort">Sort priority: %1$s</string>
+    <string name="smart_playlist_summary_tracks">At most %1$d tracks.</string>
+    <string name="smart_playlist_summary_percent">%1$d% of matching tracks.</string>
+    <string name="smart_playlist_owner_notice">Favorites, ratings and listening history use the playlist owner, even for public playlists. Local preview uses the signed-in account’s indexed data.</string>
+    <string name="smart_playlist_preview_coverage">Local snapshot: %1$d indexed tracks. It may be incomplete or outdated.</string>
+    <string name="smart_playlist_preview_no_index">No indexed tracks are available. Sync your library before previewing; the server may still have matches.</string>
+    <string name="smart_playlist_options">Options</string>
+    <string name="smart_playlist_advanced">Advanced</string>
+    <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
+    <string name="smart_playlist_summary_unlimited">No track limit.</string>
 </resources>
