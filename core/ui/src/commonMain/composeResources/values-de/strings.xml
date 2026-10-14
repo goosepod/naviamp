@@ -163,7 +163,7 @@
     <string name="common_reconnect">Wieder verbinden</string>
     <string name="common_connecting">Verbinden</string>
     <string name="connect_source_mismatch_title">Verschiedene Musikquellen</string>
-    <string name="connect_source_mismatch_message">%1$s kann diese Auswahl nicht abspielen, da eine andere Musikquelle verwendet wird. Wechseln Sie die Quelle dieses Geräts in den Einstellungen oder richten Sie das Wiedergabegerät sicher mit der aktuellen Quelle dieses Geräts ein. Die Wiedergabe und beide Warteschlangen blieben unverändert.</string>
+    <string name="connect_source_mismatch_message">%1$s kann diese Auswahl nicht abspielen, da eine andere Musikquelle verwendet wird. Wechseln Sie die Musikquelle dieses Geräts in den Einstellungen oder richten Sie das Wiedergabegerät sicher so ein, dass es die aktuelle Musikquelle dieses Geräts verwendet. Die Wiedergabe und beide Warteschlangen blieben unverändert.</string>
     <string name="connect_source_mismatch_set_up">Richten Sie %1$s ein</string>
     <string name="connect_source_mismatch_open_settings">Einstellungen öffnen</string>
     <string name="connect_source_mismatch_not_now">Nicht jetzt</string>
