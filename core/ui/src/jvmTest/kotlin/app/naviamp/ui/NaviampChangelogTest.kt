@@ -24,7 +24,7 @@ class NaviampChangelogTest {
         assertTrue(changelog[1].entries[1].contains("unsupported definitions"))
         assertTrue(changelog[1].entries[2].contains("popups"))
         assertTrue(changelog[2].entries.single().contains("No special upgrade steps"))
-        assertTrue(changelog[2].entries.single().contains("silently switching"))
+        assertTrue(changelog[2].entries.single().contains("Radio method selection is explicit"))
         assertTrue(changelog[3].entries.any { it.contains("macOS Cast") })
         assertTrue(changelog[3].entries.any { it.contains("Linux") })
         assertTrue(changelog[0].entries.none { it.contains("Cast online music from desktop") })
