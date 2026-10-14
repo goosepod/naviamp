@@ -6,6 +6,36 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 No changes yet.
 
+## v2.10.0
+
+Naviamp 2.10.0 makes smart playlists safer and easier to build, gives Radio and Sonic Autoplay clearer controls, and fixes Android playback recovery crashes.
+
+### Improvements
+
+- Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.
+- Preview example matches from your synced library, sync directly from the builder, and select calendar dates with clear format guidance.
+- Choose Radio and Sonic similarity explicitly, configure their initial batch sizes independently, and keep regular Radio supplied with new tracks.
+- Find playlist actions first in track menus, with controls that respect smart-playlist membership.
+- Recognize connected services by their official icons and see clearer connection labels and updated German wording.
+
+### Bug fixes
+
+- Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.
+- Keep incomplete smart-playlist rules from disappearing on save, preserve sort, limit and decimal semantics, and protect unsupported definitions from destructive editing.
+- Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see.
+
+### Upgrade notes
+
+- No special upgrade steps are required. Radio method selection is explicit; choose another method if Sonic fails.
+
+### Known issues
+
+- Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.
+- Further Linux popup performance and accessibility checks remain open, including the full-app CPU budget.
+- Android TV and Naviamp Connect remain beta. Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.
+
+See [release notes](.github/releases/v2.10.0.md) for issue links and compatibility details.
+
 ## v2.9.0
 
 Naviamp 2.9.0 brings Google Cast to desktop, extends Keep downloaded to albums and artists,
