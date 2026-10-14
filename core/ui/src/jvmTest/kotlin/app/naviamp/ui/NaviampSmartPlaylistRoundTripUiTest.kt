@@ -79,6 +79,7 @@ class NaviampSmartPlaylistRoundTripUiTest {
             SmartPlaylistBuilderDialog(colors = NaviampColors(), initialDraft = imported(),
                 onDismissRequest = {}, onSave = { saved = it })
         }
+        onNodeWithTag("smart-playlist-advanced-toggle").performScrollTo().performClick()
         onNodeWithText("Import JSON").performScrollTo().performClick()
         onNodeWithText("Paste .nsp or Navidrome smart playlist JSON").performScrollTo().performTextInput(
             """{"name":"Broken","all":[{"gt":{"rating":3.75}}]}""",

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import app.naviamp.domain.smartplaylist.SmartPlaylistConditionDraft
@@ -46,6 +47,7 @@ class NaviampSmartPlaylistLibraryUiTest {
             )
         }
 
+        onNodeWithTag("smart-playlist-options-toggle").performScrollTo().performClick()
         onNodeWithText("Libraries").assertExists()
         onNodeWithText("Ambient").assertExists()
         onNodeWithText("Rock").assertExists()
@@ -103,6 +105,7 @@ class NaviampSmartPlaylistLibraryUiTest {
         }
 
         onNodeWithText("Album Date Added").assertExists()
+        onNodeWithText("Options").performScrollTo().performClick()
         onNodeWithText("Refresh delay").assertExists()
         onNodeWithText("Use a valid duration such as 12h, 1d, or 1w.").assertExists()
     }

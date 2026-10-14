@@ -114,6 +114,8 @@ fun SmartPlaylistBuilderDialog(
     var importJson by remember { mutableStateOf("") }
     var importMessage by remember { mutableStateOf<String?>(null) }
     var importOpen by remember { mutableStateOf(false) }
+    var optionsOpen by remember { mutableStateOf(false) }
+    var advancedOpen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
     var passwordPromptOpen by remember { mutableStateOf(false) }
@@ -207,66 +209,21 @@ fun SmartPlaylistBuilderDialog(
                         }
                     }
                 }
-                SmartPlaylistSection(
-                    title = "Import",
-                    colors = colors,
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { importOpen = !importOpen }) {
-                            Text(if (importOpen) "Hide import" else "Import JSON", color = colors.accent)
-                        }
-                        importMessage?.let { message ->
-                            Text(message, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        }
-                    }
-                    if (importOpen) {
-                        OutlinedTextField(
-                            colors = naviampOutlinedTextFieldColors(colors),
-                            value = importJson,
-                            onValueChange = {
-                                importJson = it
-                                importMessage = null
-                            },
-                            label = { Text("Paste .nsp or Navidrome smart playlist JSON", color = colors.secondaryText) },
-                            minLines = 4,
-                            maxLines = 8,
-                            textStyle = TextStyle(fontSize = 12.sp),
-                            modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
-                        )
-                        TextButton(
-                            enabled = importJson.isNotBlank(),
-                            onClick = {
-                                runCatching {
-                                    inspectSmartPlaylistJson(importJson)
-                                }.onSuccess { imported ->
-                                    if (imported !is SmartPlaylistEditingResult.Editable) {
-                                        inspection = imported
-                                        return@onSuccess
-                                    }
-                                    draft = SmartPlaylistDraft.fromDefinition(imported.definition)
-                                    importMessage = "Imported ${imported.definition.name}."
-                                    importOpen = false
-                                }.onFailure {
-                                    importMessage = unsupportedImportMessage
-                                }
-                            },
-                        ) {
-                            Text("Validate and load", color = colors.accent)
-                        }
-                    }
-                }
                 SmartPlaylistCustomControls(
                     colors = colors,
                     draft = draft,
-                    availableLibraries = availableLibraries,
-                    selectedConnectionLibraryIds = selectedConnectionLibraryIds,
                     genreCatalog = genreCatalog,
                     validationIssues = validationIssues,
                     onDraftChange = { draft = it },
                 )
+                TextButton(modifier = Modifier.testTag("smart-playlist-options-toggle"), onClick = { optionsOpen = !optionsOpen }) {
+                    Text(stringResource(Res.string.smart_playlist_options))
+                }
+                if (optionsOpen) SmartPlaylistOptionsControls(colors, draft, availableLibraries, selectedConnectionLibraryIds) { draft = it }
+                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors) }
                 validationIssues.filter {
                     it.location.conditionId == null && it.location.groupId == null &&
-                        it.code != SmartPlaylistIssueCode.InvalidRefreshDelay
+                        (it.code != SmartPlaylistIssueCode.InvalidRefreshDelay || !optionsOpen)
                 }.forEach {
                     Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
                 }
@@ -312,22 +269,75 @@ fun SmartPlaylistBuilderDialog(
                     colors = colors,
                     preview = livePreview.takeIf { definition.isSuccess },
                     loading = previewLoading || librarySyncing,
-                    invalid = validationIssues.isNotEmpty(),
+                    invalid = definition.isFailure,
                 )
-                SmartPlaylistSection(
-                    title = "Generated JSON",
-                    colors = colors,
-                ) {
-                    OutlinedTextField(
-                        colors = naviampOutlinedTextFieldColors(colors),
-                        value = jsonPreview,
-                        onValueChange = {},
-                        readOnly = true,
-                        minLines = 6,
-                        maxLines = 10,
-                        textStyle = TextStyle(fontSize = 12.sp),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                TextButton(modifier = Modifier.testTag("smart-playlist-advanced-toggle"), onClick = { advancedOpen = !advancedOpen }) {
+                    Text(stringResource(Res.string.smart_playlist_advanced))
+                }
+                if (advancedOpen) {
+                    SmartPlaylistSection(
+                        title = "Import",
+                        colors = colors,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { importOpen = !importOpen }) {
+                                Text(if (importOpen) "Hide import" else "Import JSON", color = colors.accent)
+                            }
+                            importMessage?.let { message ->
+                                Text(message, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            }
+                        }
+                        if (importOpen) {
+                            OutlinedTextField(
+                                colors = naviampOutlinedTextFieldColors(colors),
+                                value = importJson,
+                                onValueChange = {
+                                    importJson = it
+                                    importMessage = null
+                                },
+                                label = { Text("Paste .nsp or Navidrome smart playlist JSON", color = colors.secondaryText) },
+                                minLines = 4,
+                                maxLines = 8,
+                                textStyle = TextStyle(fontSize = 12.sp),
+                                modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
+                            )
+                            TextButton(
+                                enabled = importJson.isNotBlank(),
+                                onClick = {
+                                    runCatching {
+                                        inspectSmartPlaylistJson(importJson)
+                                    }.onSuccess { imported ->
+                                        if (imported !is SmartPlaylistEditingResult.Editable) {
+                                            inspection = imported
+                                            return@onSuccess
+                                        }
+                                        draft = SmartPlaylistDraft.fromDefinition(imported.definition)
+                                        importMessage = "Imported ${imported.definition.name}."
+                                        importOpen = false
+                                    }.onFailure {
+                                        importMessage = unsupportedImportMessage
+                                    }
+                                },
+                            ) {
+                                Text("Validate and load", color = colors.accent)
+                            }
+                        }
+                    }
+                    SmartPlaylistSection(
+                        title = "Generated JSON",
+                        colors = colors,
+                    ) {
+                        OutlinedTextField(
+                            colors = naviampOutlinedTextFieldColors(colors),
+                            value = jsonPreview,
+                            onValueChange = {},
+                            readOnly = true,
+                            minLines = 6,
+                            maxLines = 10,
+                            textStyle = TextStyle(fontSize = 12.sp),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         },
@@ -558,48 +568,10 @@ internal fun SmartPlaylistLoadPasswordDialog(
 private fun SmartPlaylistCustomControls(
     colors: NaviampColors,
     draft: SmartPlaylistDraft,
-    availableLibraries: List<ConnectionFormMusicFolder>,
-    selectedConnectionLibraryIds: List<String>,
     genreCatalog: List<SmartPlaylistGenreOption>,
     validationIssues: List<SmartPlaylistValidationIssue>,
     onDraftChange: (SmartPlaylistDraft) -> Unit,
 ) {
-    if (selectedConnectionLibraryIds.size > 1) {
-        val selectedIds = draft.selectedLibraryIds.orEmpty().toSet()
-        val libraries = selectedConnectionLibraryIds.map { id ->
-            availableLibraries.firstOrNull { library -> library.id == id }
-                ?: ConnectionFormMusicFolder(id = id, name = id)
-        }
-        SmartPlaylistSection(title = "Libraries", colors = colors) {
-            Text(
-                "Choose which of this connection's libraries the playlist can use.",
-                color = colors.secondaryText,
-                fontSize = 12.sp,
-            )
-            libraries.forEach { library ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = library.id in selectedIds,
-                        onCheckedChange = { checked ->
-                            val updated = if (checked) {
-                                selectedIds + library.id
-                            } else {
-                                selectedIds - library.id
-                            }
-                            if (updated.isNotEmpty()) {
-                                onDraftChange(
-                                    draft.copy(
-                                        selectedLibraryIds = selectedConnectionLibraryIds.filter { it in updated },
-                                    ),
-                                )
-                            }
-                        },
-                    )
-                    Text(library.name, color = colors.primaryText, fontSize = 13.sp)
-                }
-            }
-        }
-    }
     SmartPlaylistSection(title = "Filters", colors = colors) {
         SmartPlaylistDropdown(
             label = "Match",
@@ -780,6 +752,56 @@ private fun SmartPlaylistCustomControls(
             label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
             colors = colors,
         )
+
+    }
+}
+
+
+@Composable
+private fun SmartPlaylistOptionsControls(
+    colors: NaviampColors,
+    draft: SmartPlaylistDraft,
+    availableLibraries: List<ConnectionFormMusicFolder>,
+    selectedConnectionLibraryIds: List<String>,
+    onDraftChange: (SmartPlaylistDraft) -> Unit,
+) {
+    if (selectedConnectionLibraryIds.size > 1) {
+        val selectedIds = draft.selectedLibraryIds.orEmpty().toSet()
+        val libraries = selectedConnectionLibraryIds.map { id ->
+            availableLibraries.firstOrNull { library -> library.id == id }
+                ?: ConnectionFormMusicFolder(id = id, name = id)
+        }
+        SmartPlaylistSection(title = "Libraries", colors = colors) {
+            Text(
+                "Choose which of this connection's libraries the playlist can use.",
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+            )
+            libraries.forEach { library ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = library.id in selectedIds,
+                        onCheckedChange = { checked ->
+                            val updated = if (checked) {
+                                selectedIds + library.id
+                            } else {
+                                selectedIds - library.id
+                            }
+                            if (updated.isNotEmpty()) {
+                                onDraftChange(
+                                    draft.copy(
+                                        selectedLibraryIds = selectedConnectionLibraryIds.filter { it in updated },
+                                    ),
+                                )
+                            }
+                        },
+                    )
+                    Text(library.name, color = colors.primaryText, fontSize = 13.sp)
+                }
+            }
+        }
+    }
+    SmartPlaylistSection(title = stringResource(Res.string.smart_playlist_options), colors = colors) {
         SmartPlaylistTextField(
             value = draft.refreshDelay,
             onValueChange = { onDraftChange(draft.copy(refreshDelay = it)) },
@@ -915,6 +937,9 @@ private fun SmartPlaylistPreviewSection(
             modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPreviewTestTag),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
+            preview?.indexedTrackCount?.let { count ->
+                Text(stringResource(Res.string.smart_playlist_preview_coverage, count), color = colors.secondaryText, fontSize = 12.sp)
+            }
             when {
                 invalid -> Text(stringResource(Res.string.smart_playlist_validation_fix), color = colors.favorite, fontSize = 12.sp)
                 loading || preview == null -> Text(stringResource(Res.string.smart_playlist_preview_waiting), color = colors.secondaryText, fontSize = 12.sp)
@@ -938,6 +963,8 @@ private fun SmartPlaylistPreviewSection(
                         }
                     }
                 }
+                preview.indexedTrackCount == 0 && preview.unsupportedFields.isEmpty() ->
+                    Text(stringResource(Res.string.smart_playlist_preview_no_index), color = colors.secondaryText, fontSize = 12.sp)
                 preview.message != null -> preview.message?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
@@ -1272,7 +1299,7 @@ private fun List<SmartPlaylistFieldOption>.smartPlaylistMenuOrder(commonFields: 
     )
 
 @Composable
-private fun smartPlaylistFieldLabel(option: SmartPlaylistFieldOption): String = when (option.field) {
+internal fun smartPlaylistFieldLabel(option: SmartPlaylistFieldOption): String = when (option.field) {
     SmartPlaylistFields.AlbumDateAdded -> stringResource(Res.string.smart_playlist_field_album_date_added)
     SmartPlaylistFields.AlbumDateModified -> stringResource(Res.string.smart_playlist_field_album_date_modified)
     SmartPlaylistFields.AlbumDuration -> stringResource(Res.string.smart_playlist_field_album_duration)
