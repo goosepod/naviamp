@@ -235,4 +235,5 @@
     <string name="smart_playlist_reference_self">प्लेलिस्ट स्वयं का संदर्भ नहीं दे सकती।</string>
     <string name="smart_playlist_reference_retry">फिर कोशिश करें</string>
     <string name="smart_playlist_reference_empty">कोई मिलती-जुलती प्लेलिस्ट नहीं।</string>
+    <string name="smart_playlist_reference_owner_access">प्लेलिस्ट के मालिक के पास संदर्भित प्लेलिस्ट का ऐक्सेस होना चाहिए।</string>
 </resources>

@@ -1090,4 +1090,5 @@
     <string name="smart_playlist_reference_self">A playlist cannot reference itself.</string>
     <string name="smart_playlist_reference_retry">Try again</string>
     <string name="smart_playlist_reference_empty">No matching playlists.</string>
+    <string name="smart_playlist_reference_owner_access">Referenced playlists must be accessible to the playlist owner.</string>
 </resources>

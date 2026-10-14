@@ -17,6 +17,8 @@ class NaviampSmartPlaylistReferencePickerTest {
         onNodeWithTag("smart-playlist-reference-open").performClick()
         onNodeWithTag("smart-playlist-reference-search").performClick().performKeyInput {
             pressKey(Key.Tab)
+        }
+        onNodeWithTag("smart-playlist-reference-target").assertIsFocused().performKeyInput {
             pressKey(Key.Enter)
         }
         runOnIdle { assertEquals("target", selected) }

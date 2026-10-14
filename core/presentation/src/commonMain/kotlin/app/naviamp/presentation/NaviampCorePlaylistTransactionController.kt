@@ -84,6 +84,7 @@ class NaviampCorePlaylistTransactionController(
     private val playbackProfiles: NaviampCorePlaybackProfileController =
         NaviampCorePlaybackProfileController(stateStore),
     private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
+    private val selfReferenceMessage: suspend () -> String = ::smartPlaylistSelfReferenceMessage,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -105,7 +106,11 @@ class NaviampCorePlaylistTransactionController(
         NaviampCoreCommand.SmartPlaylist.References -> {
             val provider = smartProvider(null, "load")
             val generation = browseController.sourceGeneration
-            val references = provider.playlists(Int.MAX_VALUE).map { it.toSmartPlaylistReference() }
+            val references = try {
+                provider.playlists(Int.MAX_VALUE).map { it.toSmartPlaylistReference() }
+            } finally {
+                sessionPort.persistActiveSession()
+            }
             if (generation != browseController.sourceGeneration || !providerSource.isCurrent(provider)) {
                 throw CancellationException("Playlist reference source changed")
             }
@@ -274,7 +279,7 @@ class NaviampCorePlaylistTransactionController(
         val provider = smartProvider(password, "update")
         val playlist = browseController.resolvePlaylist(item)
         if (definition.referencesPlaylist(playlist.id)) {
-            throw IllegalArgumentException(smartPlaylistSelfReferenceMessage())
+            throw IllegalArgumentException(selfReferenceMessage())
         }
         publishListStatus("Updating ${definition.name}...")
         try {

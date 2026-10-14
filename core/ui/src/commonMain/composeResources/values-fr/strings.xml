@@ -235,4 +235,5 @@
     <string name="smart_playlist_reference_self">Une playlist ne peut pas se référencer elle-même.</string>
     <string name="smart_playlist_reference_retry">Réessayer</string>
     <string name="smart_playlist_reference_empty">Aucune playlist correspondante.</string>
+    <string name="smart_playlist_reference_owner_access">Les playlists référencées doivent être accessibles au propriétaire de la playlist.</string>
 </resources>

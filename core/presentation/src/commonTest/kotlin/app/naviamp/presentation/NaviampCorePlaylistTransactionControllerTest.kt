@@ -55,6 +55,7 @@ class NaviampCorePlaylistTransactionControllerTest {
             as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded
         assertEquals(setOf("playlist-a", "playlist-b", "smart"), result.references.map { it.id }.toSet())
         assertTrue(result.references.single { it.id == "smart" }.isSmart)
+        assertEquals(1, fixture.persistedSessions())
     }
 
     @Test fun referenceLookupFailureIsRecoverableAndDoesNotMutatePlaylists() = runTest {
@@ -65,6 +66,7 @@ class NaviampCorePlaylistTransactionControllerTest {
         val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.References)
             as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded
         assertEquals(3, result.references.size)
+        assertEquals(2, fixture.persistedSessions())
         assertTrue(fixture.provider.smartUpdates.isEmpty())
     }
 
@@ -387,6 +389,7 @@ class NaviampCorePlaylistTransactionControllerTest {
             sessionPort = sessionPort,
             openNowPlaying = navigation::openNowPlaying,
             staleDraftMessage = { "test: reload playlist" },
+            selfReferenceMessage = { "test: self reference" },
         )
         return TransactionFixture(
             store,

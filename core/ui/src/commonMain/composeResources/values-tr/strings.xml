@@ -235,4 +235,5 @@
     <string name="smart_playlist_reference_self">Bir çalma listesi kendisine başvuramaz.</string>
     <string name="smart_playlist_reference_retry">Yeniden dene</string>
     <string name="smart_playlist_reference_empty">Eşleşen çalma listesi yok.</string>
+    <string name="smart_playlist_reference_owner_access">Başvurulan çalma listeleri, listenin sahibi tarafından erişilebilir olmalıdır.</string>
 </resources>

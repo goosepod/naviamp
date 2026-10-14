@@ -235,4 +235,5 @@
     <string name="smart_playlist_reference_self">Плейлист не може посилатися на самого себе.</string>
     <string name="smart_playlist_reference_retry">Спробувати знову</string>
     <string name="smart_playlist_reference_empty">Відповідних плейлистів немає.</string>
+    <string name="smart_playlist_reference_owner_access">Власник плейлиста повинен мати доступ до плейлистів, на які він посилається.</string>
 </resources>

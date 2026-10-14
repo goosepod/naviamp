@@ -235,4 +235,5 @@
     <string name="smart_playlist_reference_self">Daftar putar tidak dapat merujuk dirinya sendiri.</string>
     <string name="smart_playlist_reference_retry">Coba lagi</string>
     <string name="smart_playlist_reference_empty">Tidak ada daftar putar yang cocok.</string>
+    <string name="smart_playlist_reference_owner_access">Pemilik daftar putar harus dapat mengakses daftar putar yang dirujuk.</string>
 </resources>

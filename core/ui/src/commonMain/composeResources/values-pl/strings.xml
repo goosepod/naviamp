@@ -354,4 +354,5 @@
     <string name="smart_playlist_reference_self">Playlista nie może odwoływać się do samej siebie.</string>
     <string name="smart_playlist_reference_retry">Spróbuj ponownie</string>
     <string name="smart_playlist_reference_empty">Brak pasujących playlist.</string>
+    <string name="smart_playlist_reference_owner_access">Właściciel playlisty musi mieć dostęp do wskazanych playlist.</string>
 </resources>

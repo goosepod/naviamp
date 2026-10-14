@@ -235,4 +235,5 @@
     <string name="smart_playlist_reference_self">재생목록은 자기 자신을 참조할 수 없습니다.</string>
     <string name="smart_playlist_reference_retry">다시 시도</string>
     <string name="smart_playlist_reference_empty">일치하는 재생목록이 없습니다.</string>
+    <string name="smart_playlist_reference_owner_access">재생목록 소유자가 참조된 재생목록에 접근할 수 있어야 합니다.</string>
 </resources>

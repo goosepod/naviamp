@@ -235,4 +235,5 @@
     <string name="smart_playlist_reference_self">Een afspeellijst kan niet naar zichzelf verwijzen.</string>
     <string name="smart_playlist_reference_retry">Opnieuw proberen</string>
     <string name="smart_playlist_reference_empty">Geen overeenkomende afspeellijsten.</string>
+    <string name="smart_playlist_reference_owner_access">De eigenaar van de afspeellijst moet toegang hebben tot de verwijzingen.</string>
 </resources>

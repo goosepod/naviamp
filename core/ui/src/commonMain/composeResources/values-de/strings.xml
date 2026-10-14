@@ -1061,4 +1061,5 @@
     <string name="smart_playlist_reference_self">Eine Playlist kann nicht auf sich selbst verweisen.</string>
     <string name="smart_playlist_reference_retry">Erneut versuchen</string>
     <string name="smart_playlist_reference_empty">Keine passenden Playlists.</string>
+    <string name="smart_playlist_reference_owner_access">Referenzierte Playlists müssen für den Besitzer der Playlist zugänglich sein.</string>
 </resources>
