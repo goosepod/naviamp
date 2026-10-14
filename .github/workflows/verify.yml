@@ -68,6 +68,9 @@ jobs:
           ref: ${{ inputs.source_ref || github.ref }}
           fetch-depth: 0
 
+      - name: Validate release version metadata
+        run: scripts/validate-version.sh
+
       - name: Validate documentation-only changes
         if: needs.changes.outputs.run_full == 'false'
         env:
