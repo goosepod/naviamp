@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">متقدم</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">بلا حد لعدد المقاطع.</string>
+    <string name="smart_playlist_reference_choose">اختر قائمة تشغيل</string>
+    <string name="smart_playlist_reference_search">ابحث عن قوائم تشغيل</string>
+    <string name="smart_playlist_reference_loading">جارٍ تحميل قوائم التشغيل…</string>
+    <string name="smart_playlist_reference_failed">تعذر تحميل قوائم التشغيل.</string>
+    <string name="smart_playlist_reference_missing">قائمة التشغيل غير متاحة: %1$s. يتم الاحتفاظ بمعرّفها المحفوظ.</string>
+    <string name="smart_playlist_reference_self">لا يمكن لقائمة التشغيل الإشارة إلى نفسها.</string>
+    <string name="smart_playlist_reference_retry">حاول مجددًا</string>
+    <string name="smart_playlist_reference_empty">لا توجد قوائم تشغيل مطابقة.</string>
+    <string name="smart_playlist_reference_owner_access">يجب أن يتمكن مالك قائمة التشغيل من الوصول إلى القوائم المشار إليها.</string>
 </resources>

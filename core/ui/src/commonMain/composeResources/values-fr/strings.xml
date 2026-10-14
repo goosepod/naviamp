@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">Avancé</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">Aucune limite de titres.</string>
+    <string name="smart_playlist_reference_choose">Choisir une playlist</string>
+    <string name="smart_playlist_reference_search">Rechercher des playlists</string>
+    <string name="smart_playlist_reference_loading">Chargement des playlists…</string>
+    <string name="smart_playlist_reference_failed">Impossible de charger les playlists.</string>
+    <string name="smart_playlist_reference_missing">Playlist indisponible : %1$s. Son identifiant enregistré est conservé.</string>
+    <string name="smart_playlist_reference_self">Une playlist ne peut pas se référencer elle-même.</string>
+    <string name="smart_playlist_reference_retry">Réessayer</string>
+    <string name="smart_playlist_reference_empty">Aucune playlist correspondante.</string>
+    <string name="smart_playlist_reference_owner_access">Les playlists référencées doivent être accessibles au propriétaire de la playlist.</string>
 </resources>

@@ -532,6 +532,7 @@ data class NaviampPlaylistsScreenUi(
 )
 
 data class NaviampSmartPlaylistActions(
+    val onReferences: suspend () -> List<app.naviamp.domain.smartplaylist.SmartPlaylistReference> = { emptyList() },
     val onSyncLibrary: (suspend () -> Unit)? = null,
     val onPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview = {
         app.naviamp.domain.smartplaylist.SmartPlaylistPreview(message = "Preview is unavailable.")

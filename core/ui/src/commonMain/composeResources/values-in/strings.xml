@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">Lanjutan</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">Tanpa batas jumlah lagu.</string>
+    <string name="smart_playlist_reference_choose">Pilih daftar putar</string>
+    <string name="smart_playlist_reference_search">Cari daftar putar</string>
+    <string name="smart_playlist_reference_loading">Memuat daftar putar…</string>
+    <string name="smart_playlist_reference_failed">Tidak dapat memuat daftar putar.</string>
+    <string name="smart_playlist_reference_missing">Daftar putar tidak tersedia: %1$s. ID yang tersimpan tetap dipertahankan.</string>
+    <string name="smart_playlist_reference_self">Daftar putar tidak dapat merujuk dirinya sendiri.</string>
+    <string name="smart_playlist_reference_retry">Coba lagi</string>
+    <string name="smart_playlist_reference_empty">Tidak ada daftar putar yang cocok.</string>
+    <string name="smart_playlist_reference_owner_access">Pemilik daftar putar harus dapat mengakses daftar putar yang dirujuk.</string>
 </resources>

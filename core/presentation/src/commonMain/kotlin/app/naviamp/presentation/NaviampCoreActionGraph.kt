@@ -52,6 +52,7 @@ fun createNaviampCoreActions(
             NaviampCoreCommandResult.Completed,
             is NaviampCoreCommandResult.SmartPlaylistLoaded,
             is NaviampCoreCommandResult.SmartPlaylistInspected,
+            is NaviampCoreCommandResult.SmartPlaylistReferencesLoaded,
             -> error("Core did not return a smart-playlist preview.")
         }
 
@@ -59,6 +60,7 @@ fun createNaviampCoreActions(
         when (val result = handler.execute(command)) {
             is NaviampCoreCommandResult.SmartPlaylistLoaded -> result.definition
             is NaviampCoreCommandResult.SmartPlaylistInspected,
+            is NaviampCoreCommandResult.SmartPlaylistReferencesLoaded,
             is NaviampCoreCommandResult.SmartPlaylistPreviewed ->
                 error("Core did not return a smart-playlist definition.")
             NaviampCoreCommandResult.Completed -> error("Core did not return a smart-playlist definition.")
@@ -69,6 +71,9 @@ fun createNaviampCoreActions(
             ?.editing ?: error("Core did not return a smart-playlist inspection.")
 
     val smartPlaylist = NaviampSmartPlaylistActions(
+        onReferences = {
+            (handler.execute(NaviampCoreCommand.SmartPlaylist.References) as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded).references
+        },
         onSyncLibrary = { handler.execute(NaviampCoreCommand.Settings.RefreshLibrary) },
         onPreview = ::previewSmartPlaylist,
         onSave = { definition -> handler.execute(NaviampCoreCommand.SmartPlaylist.Save(definition)) },

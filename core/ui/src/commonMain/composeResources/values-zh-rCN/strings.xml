@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">高级</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">无曲目数量限制。</string>
+    <string name="smart_playlist_reference_choose">选择播放列表</string>
+    <string name="smart_playlist_reference_search">搜索播放列表</string>
+    <string name="smart_playlist_reference_loading">正在加载播放列表…</string>
+    <string name="smart_playlist_reference_failed">无法加载播放列表。</string>
+    <string name="smart_playlist_reference_missing">播放列表不可用：%1$s。已保存的 ID 将保留。</string>
+    <string name="smart_playlist_reference_self">播放列表不能引用自身。</string>
+    <string name="smart_playlist_reference_retry">重试</string>
+    <string name="smart_playlist_reference_empty">没有匹配的播放列表。</string>
+    <string name="smart_playlist_reference_owner_access">播放列表所有者必须能够访问所引用的播放列表。</string>
 </resources>

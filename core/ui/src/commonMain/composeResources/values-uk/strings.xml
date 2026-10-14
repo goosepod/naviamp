@@ -240,4 +240,13 @@
     <string name="smart_playlist_advanced">Додатково</string>
     <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
     <string name="smart_playlist_summary_unlimited">Без обмеження кількості треків.</string>
+    <string name="smart_playlist_reference_choose">Вибрати плейлист</string>
+    <string name="smart_playlist_reference_search">Пошук плейлистів</string>
+    <string name="smart_playlist_reference_loading">Завантаження плейлистів…</string>
+    <string name="smart_playlist_reference_failed">Не вдалося завантажити плейлисти.</string>
+    <string name="smart_playlist_reference_missing">Плейлист недоступний: %1$s. Збережений ідентифікатор буде збережено.</string>
+    <string name="smart_playlist_reference_self">Плейлист не може посилатися на самого себе.</string>
+    <string name="smart_playlist_reference_retry">Спробувати знову</string>
+    <string name="smart_playlist_reference_empty">Відповідних плейлистів немає.</string>
+    <string name="smart_playlist_reference_owner_access">Власник плейлиста повинен мати доступ до плейлистів, на які він посилається.</string>
 </resources>

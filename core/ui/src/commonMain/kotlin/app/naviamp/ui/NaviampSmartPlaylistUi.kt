@@ -41,6 +41,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.smartplaylist.SmartPlaylistReference
+import app.naviamp.domain.smartplaylist.smartPlaylistReferenceMatches
+import app.naviamp.domain.smartplaylist.referencesPlaylist
+import app.naviamp.domain.smartplaylist.selectOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistConditionDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult
@@ -92,6 +96,8 @@ fun SmartPlaylistBuilderDialog(
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
     genreCatalog: List<SmartPlaylistGenreOption> = emptyList(),
+    currentPlaylistId: String? = null,
+    onReferences: suspend () -> List<SmartPlaylistReference> = { emptyList() },
     onPreview: suspend (SmartPlaylistDefinition) -> SmartPlaylistPreview = {
         SmartPlaylistPreview(message = "Preview is not available for this connection.")
     },
@@ -129,8 +135,32 @@ fun SmartPlaylistBuilderDialog(
     var librarySyncFailed by remember { mutableStateOf(false) }
     var previewRevision by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
-    val definition = remember(draft) {
-        runCatching { draft.toDefinition() }
+    var references by remember { mutableStateOf<List<SmartPlaylistReference>>(emptyList()) }
+    var referencesLoading by remember { mutableStateOf(true) }
+    var referencesFailed by remember { mutableStateOf(false) }
+    var referencesRevision by remember { mutableStateOf(0) }
+    LaunchedEffect(onReferences, referencesRevision) {
+        referencesLoading = true
+        referencesFailed = false
+        try {
+            val loaded = onReferences()
+            currentCoroutineContext().ensureActive()
+            references = loaded
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            referencesFailed = true
+        } finally {
+            referencesLoading = false
+        }
+    }
+    val selfReferenceMessage = stringResource(Res.string.smart_playlist_reference_self)
+    val definition = remember(draft, currentPlaylistId, selfReferenceMessage) {
+        runCatching {
+            draft.toDefinition().also {
+                require(currentPlaylistId == null || !it.referencesPlaylist(currentPlaylistId)) { selfReferenceMessage }
+            }
+        }
     }
     val validationIssues = remember(draft) { draft.validate() }
     val validationMessage = stringResource(Res.string.smart_playlist_validation_fix)
@@ -214,6 +244,11 @@ fun SmartPlaylistBuilderDialog(
                     draft = draft,
                     genreCatalog = genreCatalog,
                     validationIssues = validationIssues,
+                    references = references,
+                    referencesLoading = referencesLoading,
+                    referencesFailed = referencesFailed,
+                    currentPlaylistId = currentPlaylistId,
+                    onReferencesRetry = { referencesRevision++ },
                     onDraftChange = { draft = it },
                 )
                 TextButton(modifier = Modifier.testTag("smart-playlist-options-toggle"), onClick = { optionsOpen = !optionsOpen }) {
@@ -226,6 +261,10 @@ fun SmartPlaylistBuilderDialog(
                         (it.code != SmartPlaylistIssueCode.InvalidRefreshDelay || !optionsOpen)
                 }.forEach {
                     Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
+                }
+                if (definition.exceptionOrNull()?.message == selfReferenceMessage) {
+                    Text(selfReferenceMessage, color = colors.favorite,
+                        modifier = Modifier.semantics { error(selfReferenceMessage); liveRegion = LiveRegionMode.Polite })
                 }
                 saveMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
@@ -570,6 +609,12 @@ private fun SmartPlaylistCustomControls(
     draft: SmartPlaylistDraft,
     genreCatalog: List<SmartPlaylistGenreOption>,
     validationIssues: List<SmartPlaylistValidationIssue>,
+    references: List<SmartPlaylistReference>,
+    referencesLoading: Boolean,
+    referencesFailed: Boolean,
+    currentPlaylistId: String?,
+    onReferencesRetry: () -> Unit,
+
     onDraftChange: (SmartPlaylistDraft) -> Unit,
 ) {
     SmartPlaylistSection(title = "Filters", colors = colors) {
@@ -589,6 +634,11 @@ private fun SmartPlaylistCustomControls(
                 colors = colors,
                 condition = condition,
                 genreCatalog = genreCatalog,
+                references = references,
+                referencesLoading = referencesLoading,
+                referencesFailed = referencesFailed,
+                currentPlaylistId = currentPlaylistId,
+                onReferencesRetry = onReferencesRetry,
                 issues = validationIssues.filter { it.location.conditionId == condition.id },
                 onConditionChange = { updatedCondition ->
                     onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition.copy(isStarter = false))))
@@ -641,6 +691,11 @@ private fun SmartPlaylistCustomControls(
                         colors = colors,
                         condition = condition,
                         genreCatalog = genreCatalog,
+                references = references,
+                referencesLoading = referencesLoading,
+                referencesFailed = referencesFailed,
+                currentPlaylistId = currentPlaylistId,
+                onReferencesRetry = onReferencesRetry,
                         issues = validationIssues.filter { it.location.conditionId == condition.id },
                         onConditionChange = { updatedCondition ->
                             onDraftChange(
@@ -838,6 +893,12 @@ private fun SmartPlaylistRuleControls(
     condition: SmartPlaylistConditionDraft,
     genreCatalog: List<SmartPlaylistGenreOption>,
     issues: List<SmartPlaylistValidationIssue>,
+    references: List<SmartPlaylistReference>,
+    referencesLoading: Boolean,
+    referencesFailed: Boolean,
+    currentPlaylistId: String?,
+    onReferencesRetry: () -> Unit,
+
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
     onRemove: (() -> Unit)?,
 ) {
@@ -878,7 +939,7 @@ private fun SmartPlaylistRuleControls(
             options = condition.field.operators.map { it.displayLabel() to it },
             onSelected = { operator ->
                 onConditionChange(
-                    condition.copy(operator = operator, value = "", secondValue = "", genreSelection = null),
+                    condition.selectOperator(operator),
                 )
             },
         )
@@ -886,6 +947,11 @@ private fun SmartPlaylistRuleControls(
             colors = colors,
             condition = condition,
             genreCatalog = genreCatalog,
+            references = references,
+            referencesLoading = referencesLoading,
+            referencesFailed = referencesFailed,
+            currentPlaylistId = currentPlaylistId,
+            onReferencesRetry = onReferencesRetry,
             onConditionChange = onConditionChange,
         )
         if (condition.operator == SmartPlaylistOperator.InTheRange) {
@@ -1027,8 +1093,18 @@ private fun SmartPlaylistConditionValueControls(
     colors: NaviampColors,
     condition: SmartPlaylistConditionDraft,
     genreCatalog: List<SmartPlaylistGenreOption>,
+    references: List<SmartPlaylistReference>,
+    referencesLoading: Boolean,
+    referencesFailed: Boolean,
+    currentPlaylistId: String?,
+    onReferencesRetry: () -> Unit,
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
 ) {
+    if (condition.field.valueType == SmartPlaylistValueType.PlaylistId) {
+        SmartPlaylistReferencePicker(condition.value, references, referencesLoading, referencesFailed,
+            currentPlaylistId, onReferencesRetry, colors) { id -> onConditionChange(condition.copy(value = id)) }
+        return
+    }
     if (condition.field.valueType == SmartPlaylistValueType.Boolean ||
         condition.operator == SmartPlaylistOperator.IsMissing ||
         condition.operator == SmartPlaylistOperator.IsPresent
