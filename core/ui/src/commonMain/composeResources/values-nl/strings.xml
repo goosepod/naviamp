@@ -227,4 +227,17 @@
     <string name="settings_related_requires_support">Sonic Similarity is niet beschikbaar op deze server. Kies Instant Mix of gebruik de diagnostische test.</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_summary">Samenvatting</string>
+    <string name="smart_playlist_summary_all">Alle voorwaarden: %1$s</string>
+    <string name="smart_playlist_summary_any">Een van deze voorwaarden: %1$s</string>
+    <string name="smart_playlist_summary_sort">Sorteerprioriteit: %1$s</string>
+    <string name="smart_playlist_summary_tracks">Maximaal %1$d nummers.</string>
+    <string name="smart_playlist_summary_percent">%1$d% van de overeenkomende nummers.</string>
+    <string name="smart_playlist_owner_notice">Favorieten, beoordelingen en luistergeschiedenis gelden voor de eigenaar, ook bij openbare afspeellijsten. Het lokale voorbeeld gebruikt de geïndexeerde gegevens van het aangemelde account.</string>
+    <string name="smart_playlist_preview_coverage">Lokale kopie: %1$d geïndexeerde nummers. Deze kan onvolledig of verouderd zijn.</string>
+    <string name="smart_playlist_preview_no_index">Geen geïndexeerde nummers beschikbaar. Synchroniseer de bibliotheek voor het voorbeeld; de server kan nog overeenkomsten hebben.</string>
+    <string name="smart_playlist_options">Opties</string>
+    <string name="smart_playlist_advanced">Geavanceerd</string>
+    <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
+    <string name="smart_playlist_summary_unlimited">Geen limiet voor nummers.</string>
 </resources>

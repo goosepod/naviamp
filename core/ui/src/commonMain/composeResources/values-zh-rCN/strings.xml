@@ -227,4 +227,17 @@
     <string name="settings_related_requires_support">此服务器上的 Sonic Similarity 不可用。 请选择 Instant Mix 或使用诊断测试。</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s：%2$s</string>
+    <string name="smart_playlist_summary">摘要</string>
+    <string name="smart_playlist_summary_all">所有条件：%1$s</string>
+    <string name="smart_playlist_summary_any">任一条件：%1$s</string>
+    <string name="smart_playlist_summary_sort">排序优先级：%1$s</string>
+    <string name="smart_playlist_summary_tracks">最多 %1$d 首曲目。</string>
+    <string name="smart_playlist_summary_percent">匹配曲目的 %1$d%。</string>
+    <string name="smart_playlist_owner_notice">即使是公开播放列表，也使用所有者的收藏、评分和收听记录。本地预览使用当前登录账户的索引数据。</string>
+    <string name="smart_playlist_preview_coverage">本地快照：%1$d 首已索引曲目。可能不完整或已过时。</string>
+    <string name="smart_playlist_preview_no_index">没有已索引曲目。请在预览前同步音乐库；服务器上仍可能有匹配项。</string>
+    <string name="smart_playlist_options">选项</string>
+    <string name="smart_playlist_advanced">高级</string>
+    <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
+    <string name="smart_playlist_summary_unlimited">无曲目数量限制。</string>
 </resources>

@@ -8,6 +8,7 @@ data class SmartPlaylistPreview(
     val exampleTracks: List<Track> = emptyList(),
     val unsupportedFields: List<String> = emptyList(),
     val message: String? = null,
+    val indexedTrackCount: Int? = null,
 ) {
     val available: Boolean
         get() = matchingTrackCount != null
@@ -25,8 +26,11 @@ fun previewSmartPlaylist(
         unsupported += SmartPlaylistFields.LibraryId
     }
     if (unsupported.isNotEmpty()) {
-        return SmartPlaylistPreview(unsupportedFields = unsupported.sorted())
+        return SmartPlaylistPreview(unsupportedFields = unsupported.sorted(), indexedTrackCount = tracks.size)
     }
+
+    // An empty local index cannot establish that the server has zero matches.
+    if (tracks.isEmpty()) return SmartPlaylistPreview(indexedTrackCount = 0)
 
     val selectedLibraryIds = definition.libraryIds?.toSet()
     val matches = tracks.asSequence()
@@ -50,6 +54,7 @@ fun previewSmartPlaylist(
         matchingTrackCount = matches.size,
         resultTrackCount = resultCount,
         exampleTracks = matches.take(minOf(exampleLimit.coerceAtLeast(0), resultCount)),
+        indexedTrackCount = tracks.size,
     )
 }
 

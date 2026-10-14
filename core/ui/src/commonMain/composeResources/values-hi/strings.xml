@@ -227,4 +227,17 @@
     <string name="settings_related_requires_support">इस सर्वर पर Sonic Similarity उपलब्ध नहीं है। Instant Mix चुनें या निदान परीक्षण इस्तेमाल करें।</string>
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
+    <string name="smart_playlist_summary">सारांश</string>
+    <string name="smart_playlist_summary_all">सभी शर्तें: %1$s</string>
+    <string name="smart_playlist_summary_any">कोई भी शर्त: %1$s</string>
+    <string name="smart_playlist_summary_sort">क्रम की प्राथमिकता: %1$s</string>
+    <string name="smart_playlist_summary_tracks">अधिकतम %1$d ट्रैक।</string>
+    <string name="smart_playlist_summary_percent">मिलने वाले ट्रैक का %1$d%।</string>
+    <string name="smart_playlist_owner_notice">पसंदीदा, रेटिंग और सुनने का इतिहास सार्वजनिक प्लेलिस्ट में भी उसके मालिक का होता है। स्थानीय पूर्वावलोकन वर्तमान खाते के अनुक्रमित डेटा का उपयोग करता है।</string>
+    <string name="smart_playlist_preview_coverage">स्थानीय प्रति: %1$d अनुक्रमित ट्रैक। यह अधूरी या पुरानी हो सकती है।</string>
+    <string name="smart_playlist_preview_no_index">कोई अनुक्रमित ट्रैक उपलब्ध नहीं है। पूर्वावलोकन से पहले लाइब्रेरी सिंक करें; सर्वर पर अभी भी मिलते ट्रैक हो सकते हैं।</string>
+    <string name="smart_playlist_options">विकल्प</string>
+    <string name="smart_playlist_advanced">उन्नत</string>
+    <string name="smart_playlist_summary_condition">%1$s %2$s %3$s</string>
+    <string name="smart_playlist_summary_unlimited">ट्रैक की कोई सीमा नहीं।</string>
 </resources>
