@@ -843,7 +843,7 @@
         <item quantity="other">%1$d Veröffentlichungen</item>
     </plurals>
     <string name="tv_home_mixes_for_you">Mixe für dich</string>
-    <string name="tv_home_navibeat_mixes">NaviBeat-Mischungen</string>
+    <string name="tv_home_navibeat_mixes">NaviBeat Mixes</string>
     <string name="tv_home_recently_played">Kürzlich gespielt</string>
     <string name="tv_home_mix_builders">Mix Builder</string>
     <string name="tv_home_more_like_recent_plays">Eher aktuelle Stücke</string>
