@@ -18,6 +18,46 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test fun certificateImportUpdatesOnlyItsSelectedFieldAndPreservesOtherCredentials() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { kind -> "/private/$kind" })
+        val original = ConnectionFormState(serverUrl = "https://music.example", password = "unchanged", clientCertificatePassword = "certificate-password")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(original))
+        fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ServerAuthority))
+        val server = fixture.store.state.value.shell.connectionSettings.connection.form
+        assertEquals(original.copy(customCertificatePath = "/private/ServerAuthority"), server)
+        fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity))
+        assertEquals(server.copy(clientCertificatePath = "/private/ClientIdentity"), fixture.store.state.value.shell.connectionSettings.connection.form)
+    }
+
+    @Test fun cancelledCertificateSelectionLeavesTheFormUnchanged() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { null })
+        val before = fixture.store.state.value.shell.connectionSettings.connection.form
+        fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity))
+        assertEquals(before, fixture.store.state.value.shell.connectionSettings.connection.form)
+    }
+
+    @Test fun lateCertificateSelectionDoesNotOverwriteAnotherForm() = kotlinx.coroutines.test.runTest {
+        val selected = CompletableDeferred<String?>()
+        val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { selected.await() })
+        val choosing = launch { fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity)) }
+        runCurrent()
+        val next = ConnectionFormState(serverUrl = "https://another.example", password = "other")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(next))
+        selected.complete("/private/late.p12")
+        choosing.join()
+        assertEquals(next, fixture.store.state.value.shell.connectionSettings.connection.form)
+    }
+
+    @Test fun certificateImportFailureIsRecoverableAndKeepsTheOldCertificate() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { error("Native picker read failed") })
+        val before = ConnectionFormState(clientCertificatePath = "/old.p12")
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(before))
+        fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity))
+        val after = fixture.store.state.value.shell.connectionSettings.connection
+        assertEquals(before, after.form)
+        assertEquals("connection_certificate_import_failed", after.status)
+        assertTrue(after.statusIsError)
+    }
     @Test fun accountHandoffKeepsBothSavedAccountsAndUsesStoredCredentials() = kotlinx.coroutines.test.runTest {
         val changes = mutableListOf<Pair<String?, String>>()
         val homeRequests = mutableListOf<String>()
@@ -703,6 +743,7 @@ class NaviampCoreConnectionControllerTest {
         savedRecords: List<NaviampCoreSavedConnectionRecord> = listOf(savedRecord()),
         selectedMusicFolderIds: List<String> = emptyList(),
         availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
+        certificateFiles: NaviampCoreCertificateFilePort? = null,
     ): ConnectionFixture {
         val inventory = NaviampCoreConnectionInventory(
             connections = savedRecords.takeIf { hasSavedConnection }.orEmpty(),
@@ -728,6 +769,7 @@ class NaviampCoreConnectionControllerTest {
                 onConnected = onConnected,
                 onUserConnected = onUserConnected,
                 onOfflineRestored = onOfflineRestored,
+                certificateFiles = certificateFiles,
             ),
         )
     }

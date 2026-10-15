@@ -232,6 +232,13 @@ jobs:
           fi
           adb shell input keyevent 82
 
+      - name: Start disposable mobile mTLS fixture
+        run: |
+          bash scripts/start-mobile-mtls-fixture.sh
+          for port in 59974 59975 59976 59977; do
+            adb reverse "tcp:$port" "tcp:$port"
+          done
+
       - name: Exercise native boundaries and raster animation
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
@@ -248,6 +255,10 @@ jobs:
               | tee "/tmp/naviamp-dnssd-repeat-$attempt.txt"
             grep -q '^OK (5 tests)' "/tmp/naviamp-dnssd-repeat-$attempt.txt"
           done
+
+      - name: Stop disposable mobile mTLS fixture
+        if: always()
+        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
 
       - name: Capture Android discovery diagnostics
         if: failure()
@@ -270,6 +281,7 @@ jobs:
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
+            build/mobile-mtls-fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
 
@@ -403,6 +415,9 @@ jobs:
         with:
           packages: platform-tools
 
+      - name: Start disposable mobile mTLS fixture
+        run: bash scripts/start-mobile-mtls-fixture.sh
+
       - name: Compile device target and run all simulator tests
         run: |
           mkdir -p build/ci-timings
@@ -423,6 +438,10 @@ jobs:
             echo '| --- | ---: |'
             echo "| Gradle simulator tests and device compile | ${elapsed_seconds}s |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stop disposable mobile mTLS fixture
+        if: always()
+        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
 
       - name: Build the production iOS app
         run: |
@@ -468,6 +487,7 @@ jobs:
             **/build/reports/tests/iosSimulatorArm64Test/**
             build/reports/profile/**
             build/ci-timings/ios.tsv
+            build/mobile-mtls-fixture.log
             build/ios-keychain-tests.xcresult
 
   evidence:

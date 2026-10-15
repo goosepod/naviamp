@@ -249,4 +249,5 @@
     <string name="smart_playlist_reference_retry">Повторить</string>
     <string name="smart_playlist_reference_empty">Подходящих плейлистов нет.</string>
     <string name="smart_playlist_reference_owner_access">Владельцу плейлиста должны быть доступны плейлисты, на которые он ссылается.</string>
+    <string name="connection_certificate_import_failed">Не удалось импортировать сертификат.</string>
 </resources>

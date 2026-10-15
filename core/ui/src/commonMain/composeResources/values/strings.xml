@@ -1104,4 +1104,5 @@
     <string name="smart_playlist_reference_retry">Try again</string>
     <string name="smart_playlist_reference_empty">No matching playlists.</string>
     <string name="smart_playlist_reference_owner_access">Referenced playlists must be accessible to the playlist owner.</string>
+    <string name="connection_certificate_import_failed">Could not import the certificate.</string>
 </resources>

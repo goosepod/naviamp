@@ -53,6 +53,7 @@ kotlin {
         }
         iosTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(project(":core:testkit"))
         }
     }
 }

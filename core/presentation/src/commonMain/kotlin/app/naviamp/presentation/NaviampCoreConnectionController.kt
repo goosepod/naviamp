@@ -49,6 +49,7 @@ class NaviampCoreConnectionController(
     private val onConnected: (String) -> Unit = {},
     private val onUserConnected: (String) -> Unit = {},
     private val onOfflineRestored: (String) -> Unit = {},
+    private val certificateFiles: NaviampCoreCertificateFilePort? = null,
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
@@ -154,6 +155,7 @@ class NaviampCoreConnectionController(
                 }
             }
             NaviampCoreCommand.Connection.Connect,
+            is NaviampCoreCommand.Connection.ChooseCertificate,
             NaviampCoreCommand.Connection.EditCurrent,
             is NaviampCoreCommand.Connection.Edit,
             is NaviampCoreCommand.Connection.Delete,
@@ -173,6 +175,7 @@ class NaviampCoreConnectionController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
+            is NaviampCoreCommand.Connection.ChooseCertificate -> chooseCertificate(command.kind)
             NaviampCoreCommand.Connection.Connect -> {
                 val request = NaviampCoreConnectionRequest.Form(
                     stateStore.state.value.shell.connectionSettings.connection.form, editingConnectionId)
@@ -207,6 +210,28 @@ class NaviampCoreConnectionController(
             else -> return null
         }
         return NaviampCoreCommandResult.Completed
+    }
+
+    private suspend fun chooseCertificate(kind: NaviampConnectionCertificateKind) {
+        val port = certificateFiles ?: return
+        val before = stateStore.state.value.shell.connectionSettings.connection
+        if (before.isConnecting) return
+        val editing = editingConnectionId
+        val path = try { port.chooseAndCopy(kind) } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+                connection = shell.connectionSettings.connection.copy(status = "connection_certificate_import_failed", statusIsError = true),
+            )) }
+            return
+        }?.takeIf { it.isNotBlank() } ?: return
+        // Do not apply a late picker result to another form or overwrite edits made while it was open.
+        val current = stateStore.state.value.shell.connectionSettings.connection
+        if (editing != editingConnectionId || current.form != before.form || current.isConnecting) return
+        updateForm(when (kind) {
+            NaviampConnectionCertificateKind.ServerAuthority -> before.form.copy(customCertificatePath = path)
+            NaviampConnectionCertificateKind.ClientIdentity -> before.form.copy(clientCertificatePath = path)
+        })
     }
 
     private suspend fun connect(

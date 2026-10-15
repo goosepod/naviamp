@@ -249,4 +249,5 @@
     <string name="smart_playlist_reference_retry">Coba lagi</string>
     <string name="smart_playlist_reference_empty">Tidak ada daftar putar yang cocok.</string>
     <string name="smart_playlist_reference_owner_access">Pemilik daftar putar harus dapat mengakses daftar putar yang dirujuk.</string>
+    <string name="connection_certificate_import_failed">Tidak dapat mengimpor sertifikat.</string>
 </resources>

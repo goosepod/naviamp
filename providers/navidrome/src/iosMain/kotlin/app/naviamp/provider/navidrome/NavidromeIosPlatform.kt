@@ -6,50 +6,43 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
 import io.ktor.client.plugins.HttpTimeout
 import platform.Foundation.NSURLAuthenticationMethodServerTrust
+import platform.Foundation.NSURLAuthenticationMethodClientCertificate
+import platform.Foundation.NSURLSessionAuthChallengeCancelAuthenticationChallenge
 import platform.Foundation.NSURLCredential
 import platform.Foundation.NSURLSessionAuthChallengePerformDefaultHandling
 import platform.Foundation.NSURLSessionAuthChallengeUseCredential
 import platform.Foundation.credentialForTrust
 import platform.Foundation.serverTrust
-import platform.Security.errSecSuccess
-import platform.Security.SecTrustCopyCertificateChain
-import platform.Security.SecTrustEvaluateWithError
-import platform.Security.SecTrustSetAnchorCertificates
 
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
 
 actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient {
     tlsSettings.requireSupportedBy(navidromeTlsCapabilities())
+    val material = NavidromeAppleTlsMaterial(tlsSettings)
     return HttpClient(Darwin) {
         engine {
-            if (tlsSettings.insecureSkipTlsVerification) {
-                handleChallenge { _, _, challenge, completionHandler ->
+            handleChallenge { _, _, challenge, completionHandler ->
                     val protectionSpace = challenge.protectionSpace
-                    val serverTrust = protectionSpace.serverTrust
-                    if (
-                        protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust &&
-                        serverTrust != null
-                    ) {
-                        val peerChain = SecTrustCopyCertificateChain(serverTrust)
-                        val anchorStatus = peerChain?.let {
-                            SecTrustSetAnchorCertificates(serverTrust, it)
-                        }
-                        val reevaluated = anchorStatus == errSecSuccess &&
-                            SecTrustEvaluateWithError(serverTrust, null)
-                        val accepted = peerChain != null && reevaluated
-                        if (accepted) {
-                            completionHandler(
-                                NSURLSessionAuthChallengeUseCredential,
-                                NSURLCredential.credentialForTrust(serverTrust),
-                            )
-                        } else {
-                            completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, null)
-                        }
-                    } else {
-                        completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, null)
+                    val kind = when (protectionSpace.authenticationMethod) {
+                        NSURLAuthenticationMethodServerTrust -> NavidromeTlsChallenge.ServerTrust
+                        NSURLAuthenticationMethodClientCertificate -> NavidromeTlsChallenge.ClientIdentity
+                        else -> NavidromeTlsChallenge.Other
                     }
-                }
+                    when (tlsSettings.challengeAction(kind, challenge.previousFailureCount)) {
+                        NavidromeTlsChallengeAction.Cancel -> completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, null)
+                        NavidromeTlsChallengeAction.DefaultHandling -> completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, null)
+                        NavidromeTlsChallengeAction.UseClientIdentity -> {
+                            val credential = material.credential
+                            completionHandler(if (credential != null) NSURLSessionAuthChallengeUseCredential else NSURLSessionAuthChallengeCancelAuthenticationChallenge, credential)
+                        }
+                        NavidromeTlsChallengeAction.EvaluateServerTrust -> {
+                            val trust = protectionSpace.serverTrust
+                            val accepted = trust != null && runCatching { material.evaluateServerTrust(trust, tlsSettings.insecureSkipTlsVerification) }.getOrDefault(false)
+                            completionHandler(if (accepted) NSURLSessionAuthChallengeUseCredential else NSURLSessionAuthChallengeCancelAuthenticationChallenge,
+                                if (accepted) NSURLCredential.credentialForTrust(trust!!) else null)
+                        }
+                    }
             }
         }
         expectSuccess = false
@@ -64,6 +57,6 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): 
 actual fun navidromeTlsCapabilities(): NavidromeTlsCapabilities =
     NavidromeTlsCapabilities(
         insecureSkipVerification = true,
-        customServerCertificates = false,
-        clientCertificates = false,
+        customServerCertificates = true,
+        clientCertificates = true,
     )

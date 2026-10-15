@@ -53,6 +53,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Connection : NaviampCoreCommand {
+        data class ChooseCertificate(val kind: NaviampConnectionCertificateKind) : Connection
         data class ChangeForm(val form: ConnectionFormState) : Connection
         data object Connect : Connection
         data object EditCurrent : Connection
