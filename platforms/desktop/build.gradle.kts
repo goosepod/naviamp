@@ -259,6 +259,9 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
     .configureEach { dependsOn(prepareDesktopNativeResources) }
 
 tasks.named<Test>("desktopTest") {
+    // BASS codec registrations are process-global and outlive BASS_Free. Keep native
+    // integration suites isolated so one suite cannot pre-register another's plugins.
+    forkEvery = 1
     val castProbe = providers.environmentVariable("NAVIAMP_CAST_PROBE").orElse("")
     inputs.property("castProbe", castProbe)
     inputs.property("castPlaybackProbe", providers.environmentVariable("NAVIAMP_CAST_PLAYBACK_PROBE").orElse("false"))
