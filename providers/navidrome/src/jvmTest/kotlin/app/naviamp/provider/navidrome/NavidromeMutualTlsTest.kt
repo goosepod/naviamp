@@ -104,9 +104,13 @@ class NavidromeMutualTlsTest {
                     withTimeout(15_000) { KtorNavidromeHttpClient(ktor).get("${server.baseUrl}/rest/ping.view") }
                 }
                 val details = generateSequence(failure) { it.cause }.joinToString { "${it::class.simpleName}: ${it.message}" }
-                // CIO reports a server-aborted client-auth handshake as EOF; JDK trust failures
-                // can surface directly as CertPathBuilderException rather than SSLException.
-                assertTrue(listOf("tls", "ssl", "cert", "pkix", "EOFException").any { details.contains(it, ignoreCase = true) },
+                // A rejected client-auth handshake can surface as EOF/reset/abort depending on
+                // OS and timing. Assert exception types instead of OS-localized socket messages.
+                // The successful control below rules out an unavailable server; timeouts must fail.
+                val causes = generateSequence(failure) { it.cause }.toList()
+                assertTrue(causes.none { it is kotlinx.coroutines.CancellationException || it is java.net.SocketTimeoutException } &&
+                    causes.any { it is java.io.IOException || it is java.security.GeneralSecurityException ||
+                        it::class.simpleName.orEmpty().contains("TLS", ignoreCase = true) },
                     "Expected a TLS authentication failure, got $details")
                 assertTrue(server.requestedPaths.isEmpty(), "Rejected TLS must never reach an authenticated HTTP handler")
             } finally { ktor.close() }
