@@ -48,8 +48,14 @@ CI starts it with `bash scripts/start-mobile-mtls-fixture.sh`; Android CI forwar
 isolated emulator with `adb reverse`. The helper first prepares its classpath with Gradle and then
 runs Java independently, allowing the test build to acquire Gradle's execution locks.
 
-On macOS, start the helper, run `./gradlew :platforms:ios:iosSimulatorArm64Test`, then stop the helper
-with `curl --fail http://127.0.0.1:59974/stop`. Android reproduction commands are in the emulator job in
+On macOS, boot an isolated iOS simulator with `xcrun simctl boot <device-id>` and wait with
+`xcrun simctl bootstatus <device-id> -b`. Start the helper, run
+`./gradlew :platforms:ios:iosSimulatorArm64Test -Pnaviamp.ios.testDevice=<device-id>`, then stop the helper
+with `curl --fail http://127.0.0.1:59974/stop` and shut down that simulator. The native TLS test disables
+Kotlin's standalone simulator mode so Apple Security can contact the simulator's trust service;
+see [Kotlin's documented HTTPS testing requirement](https://kotlinlang.org/docs/whatsnew19.html#ability-to-configure-standalone-mode-for-ios-simulator-tests-in-kotlin-native).
+CI clones a dedicated simulator so parallel standalone common tests cannot shut it down.
+Android reproduction commands are in the emulator job in
 [the Verify workflow](../.github/workflows/verify.yml). Use an isolated emulator for that job.
 
 ## Desktop mutual TLS

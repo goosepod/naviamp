@@ -68,8 +68,12 @@ val stageIosSimulatorTestBassFrameworks by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("bin/iosSimulatorArm64/debugTest/Frameworks"))
 }
 
-tasks.named("iosSimulatorArm64Test") {
+tasks.named<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest>("iosSimulatorArm64Test") {
     dependsOn(stageIosSimulatorTestBassFrameworks)
+    // Apple Security needs the booted simulator's trustd service for real HTTPS.
+    // Standalone simctl execution cannot provide that service.
+    standalone.set(false)
+    device.set(providers.gradleProperty("naviamp.ios.testDevice").orElse("booted"))
 }
 
 val verifyIosBassInventory by tasks.registering {

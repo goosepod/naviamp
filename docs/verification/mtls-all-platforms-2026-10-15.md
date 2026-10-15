@@ -32,6 +32,11 @@ API 30 PKCS12 decoder limitation. JVM-based hosts now share an OkHttp/JCA adapte
 verification and an explicit bundled crypto-provider instance. It does not register a global JCA
 provider. iOS uses Apple Security and connection-scoped NSURLSession challenge handling.
 
+The iOS native test requires a fully booted simulator rather than Kotlin's default standalone
+execution. The latter failed Apple Security trust evaluation with OSStatus -26276 before client
+authentication. CI provisions a dedicated simulator and collects trust-service diagnostics; this
+keeps strict certificate validation intact and isolates it from parallel common-test simulator use.
+
 ## Shared ownership
 
 Core owns TLS capability policy, certificate format parsing, challenge decisions, connection-form
