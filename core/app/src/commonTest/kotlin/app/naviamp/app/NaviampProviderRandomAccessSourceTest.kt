@@ -8,6 +8,13 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.ProviderMediaByteResponse
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import app.naviamp.domain.playback.PlaybackRandomAccessSource
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -19,6 +26,25 @@ import kotlin.test.assertTrue
 
 class NaviampProviderRandomAccessSourceTest {
     private val request = StreamRequest(TrackId("track"), StreamQuality.Original)
+
+    @Test fun closingANativeFileCursorCancelsItsBlockedReadWithoutRevokingOtherCursors() = runTest {
+        withContext(Dispatchers.Default) {
+            val entered = CompletableDeferred<Unit>()
+            val source = object : PlaybackRandomAccessSource {
+                override val lengthBytes = 100L
+                override suspend fun read(offset: Long, count: Int): ByteArray {
+                    entered.complete(Unit)
+                    awaitCancellation()
+                }
+            }
+            val cursor = BassFileCallbacks(source)
+            val reader = async { cursor.read(1) }
+            withTimeout(3_000) { entered.await() }
+            cursor.close()
+            assertTrue(withTimeout(3_000) { reader.await() }.isEmpty())
+            assertTrue(BassFileCallbacks(source).seek(80), "Closing one native cursor must not close its shared source")
+        }
+    }
 
     @Test fun nativeFileCursorReadsAndSeeksUsingBoundedAuthenticatedRanges() = runTest {
         val bytes = ByteArray(3_000_000) { (it % 251).toByte() }
@@ -82,6 +108,7 @@ class NaviampProviderRandomAccessSourceTest {
         try {
             val source = assertNotNull(NaviampProviderRandomAccessSource.open(provider, request, lifetime) { true })
             assertFailsWith<IllegalStateException> { source.read(0, 20) }
+            assertNotNull(source.failure)
         } finally { lifetime.cancel() }
     }
 }

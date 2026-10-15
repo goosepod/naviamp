@@ -130,16 +130,22 @@ class DesktopMutualTlsIntegrationTest {
                                     "Playback must start while the upstream tail is still blocked")
                                 assertEquals(1L, server.releaseRemainingAudio.count)
                                 adapter.pause(); awaitState(PlaybackState.Paused)
+                                val beforeSeek = server.requestedRanges.size
                                 adapter.seek(30.0); awaitState(PlaybackState.Paused)
                                 withTimeout(5_000) {
                                     while ((progressUpdates.receive().positionSeconds ?: 0.0) < 29.5) { }
                                 }
-                                assertTrue(server.requestedRanges.any { it.substringAfter("bytes=").substringBefore('-').toLongOrNull()?.let { start -> start > 0 } == true },
-                                    "Seeking outside the buffered prefix must request an upstream byte range: ${server.requestedRanges}")
-                                server.releaseRemainingAudio.countDown()
                                 adapter.resume(); awaitState(PlaybackState.Playing)
+                                withTimeout(5_000) {
+                                    while (server.requestedRanges.toList().drop(beforeSeek).none {
+                                        it.substringAfter("bytes=").substringBefore('-').toLongOrNull()?.let { start -> start in 800_000..1_100_000 } == true
+                                    }) kotlinx.coroutines.delay(10)
+                                }
                                 assertTrue(server.peerSubjects.isNotEmpty())
-                                assertTrue(server.peerSubjects.all { it == if (provideIdentity) "CN=Naviamp Test Client" else "anonymous" })
+                                assertTrue(server.peerSubjects.toList().all { it == if (provideIdentity) "CN=Naviamp Test Client" else "anonymous" })
+                                val stopping = kotlin.time.TimeSource.Monotonic.markNow()
+                                adapter.stop()
+                                assertTrue(stopping.elapsedNow().inWholeMilliseconds < 3_000, "Stop must cancel pending authenticated reads")
                             }
                         } finally {
                             server.releaseRemainingAudio.countDown()

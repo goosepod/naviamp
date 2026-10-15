@@ -49,7 +49,7 @@ internal class NaviampProviderRandomAccessSource(
     }
 
     private suspend fun fetch(start: Long): ByteArray {
-        val end = minOf(start + BLOCK_SIZE - 1, lengthBytes - 1)
+        val end = start + minOf(BLOCK_SIZE, lengthBytes - start) - 1
         val bytes = ByteArray((end - start + 1).toInt())
         var received = 0
         var accepted = false

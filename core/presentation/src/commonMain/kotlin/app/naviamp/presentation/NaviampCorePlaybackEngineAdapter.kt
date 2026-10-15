@@ -412,6 +412,9 @@ class NaviampCorePlaybackEngineAdapter(
             }.getOrElse { failure ->
                 if (failure is kotlinx.coroutines.CancellationException) throw failure
                 if (requestGeneration == generation) {
+                    authenticatedStreams?.clearCurrent()
+                    authenticatedStreams?.clearPrepared()
+                    engine.stop()
                     playbackState = PlaybackState.Error(failure.message ?: "Could not resolve the audio stream.")
                     observer?.onStateChanged(playbackState)
                 }
@@ -472,6 +475,7 @@ class NaviampCorePlaybackEngineAdapter(
                 request = request,
                 onStateChanged = { state ->
                     if (requestGeneration == generation) {
+                        if (state is PlaybackState.Error) authenticatedStreams?.clearCurrent()
                         if (
                             state is PlaybackState.Error &&
                             state.reason == PlaybackFailureReason.UnsupportedFormat &&

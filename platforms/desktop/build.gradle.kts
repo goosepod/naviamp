@@ -278,6 +278,16 @@ tasks.named<Test>("desktopTest") {
     )
 }
 
+tasks.register<JavaExec>("runDesktopMutualTlsAppFixture") {
+    group = "verification"
+    description = "Serve disposable mTLS media and seed a fresh profile for visible-app acceptance"
+    dependsOn("desktopTestClasses")
+    classpath = tasks.named<Test>("desktopTest").get().classpath
+    mainClass.set("app.naviamp.desktop.DesktopMutualTlsAppFixtureKt")
+    args(providers.gradleProperty("naviamp.mtls.fixtureDirectory")
+        .orElse(layout.buildDirectory.dir("mtls-app-fixture").map { it.asFile.absolutePath }).get())
+}
+
 fun desktopNativePlatformId(): String {
     val os = System.getProperty("os.name").lowercase().let { name ->
         when {

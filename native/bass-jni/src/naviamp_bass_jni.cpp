@@ -16,6 +16,8 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
+#include <limits>
 #include <cmath>
 #include <cstdlib>
 #include <string>
@@ -47,6 +49,7 @@ struct BassApi {
     SetConfigPtrProc BASS_SetConfigPtr = nullptr;
     StreamCreateUrlProc BASS_StreamCreateURL = nullptr;
     StreamCreateFileProc BASS_StreamCreateFile = nullptr;
+    decltype(&::BASS_StreamCreateFileUser) BASS_StreamCreateFileUser = nullptr;
     decltype(&::BASS_ChannelGetInfo) BASS_ChannelGetInfo = nullptr;
     decltype(&::BASS_Mixer_StreamAddChannel) BASS_Mixer_StreamAddChannel = nullptr;
     decltype(&::BASS_Mixer_ChannelSetMatrix) BASS_Mixer_ChannelSetMatrix = nullptr;
@@ -112,6 +115,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_SetConfigPtr", bassApi.BASS_SetConfigPtr) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateURL", bassApi.BASS_StreamCreateURL) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateFile", bassApi.BASS_StreamCreateFile) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_StreamCreateFileUser", bassApi.BASS_StreamCreateFileUser) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetInfo", bassApi.BASS_ChannelGetInfo) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_StreamAddChannel", bassApi.BASS_Mixer_StreamAddChannel) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelSetMatrix", bassApi.BASS_Mixer_ChannelSetMatrix) && ok;
@@ -197,6 +201,7 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_SetConfig bassApi.BASS_SetConfig
 #define BASS_SetConfigPtr bassApi.BASS_SetConfigPtr
 #define BASS_StreamCreateURL bassApi.BASS_StreamCreateURL
+#define BASS_StreamCreateFileUser bassApi.BASS_StreamCreateFileUser
 #define BASS_StreamCreateFile bassApi.BASS_StreamCreateFile
 #define BASS_ChannelGetInfo bassApi.BASS_ChannelGetInfo
 #define BASS_Mixer_StreamAddChannel bassApi.BASS_Mixer_StreamAddChannel
@@ -608,6 +613,112 @@ jlong length_bytes(jint stream) {
     QWORD bytes = BASS_ChannelGetLength(static_cast<DWORD>(stream), BASS_POS_BYTE);
     if (bytes == static_cast<QWORD>(-1)) return -1;
     return static_cast<jlong>(bytes);
+}
+
+// FILEPROCS is synchronous. Core supplies the cursor, authenticated ranges and bounded cache;
+// this bridge only attaches native decoder threads and translates JNI arrays/resource lifetime.
+struct CallbackEnv {
+    JavaVM* vm;
+    JNIEnv* env = nullptr;
+    bool attached = false;
+    explicit CallbackEnv(JavaVM* value) : vm(value) {
+        jint result = vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+        if (result == JNI_EDETACHED) {
+#if defined(__ANDROID__)
+            attached = vm->AttachCurrentThread(&env, nullptr) == JNI_OK;
+#else
+            attached = vm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) == JNI_OK;
+#endif
+            if (!attached) env = nullptr;
+        } else if (result != JNI_OK) env = nullptr;
+    }
+    ~CallbackEnv() { if (attached) vm->DetachCurrentThread(); }
+    bool failed() { if (env && env->ExceptionCheck()) { env->ExceptionClear(); return true; } return env == nullptr; }
+};
+
+struct RandomAccessRegistration {
+    JavaVM* vm = nullptr;
+    jobject callbacks = nullptr;
+    jmethodID length = nullptr, read = nullptr, seek = nullptr, close = nullptr;
+    std::atomic<int> references{2}; // creation call and BASS; close may run during failed creation
+    std::atomic<bool> closed{false};
+    void release() {
+        if (references.fetch_sub(1) == 1) {
+            CallbackEnv callback(vm);
+            if (callback.env) callback.env->DeleteGlobalRef(callbacks);
+            delete this;
+        }
+    }
+};
+
+struct RandomAccessCall {
+    RandomAccessRegistration* file;
+    explicit RandomAccessCall(void* user) : file(static_cast<RandomAccessRegistration*>(user)) { file->references.fetch_add(1); }
+    ~RandomAccessCall() { file->release(); }
+};
+
+void CALLBACK random_access_close(void* user) {
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    if (file->closed.exchange(true)) return;
+    CallbackEnv callback(file->vm);
+    if (callback.env) { callback.env->CallVoidMethod(file->callbacks, file->close); callback.failed(); }
+    file->release();
+}
+
+QWORD CALLBACK random_access_length(void* user) {
+    RandomAccessCall held(user);
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    CallbackEnv callback(file->vm);
+    if (!callback.env || file->closed) return 0;
+    jlong length = callback.env->CallLongMethod(file->callbacks, file->length);
+    return callback.failed() || length < 0 ? 0 : static_cast<QWORD>(length);
+}
+
+DWORD CALLBACK random_access_read(void* buffer, DWORD length, void* user) {
+    RandomAccessCall held(user);
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    CallbackEnv callback(file->vm);
+    if (!callback.env || file->closed || length > static_cast<DWORD>(std::numeric_limits<jint>::max())) return 0;
+    auto bytes = static_cast<jbyteArray>(callback.env->CallObjectMethod(file->callbacks, file->read, static_cast<jint>(length)));
+    if (callback.failed() || !bytes) return 0;
+    jsize count = callback.env->GetArrayLength(bytes);
+    if (count < 0 || static_cast<DWORD>(count) > length) { callback.env->DeleteLocalRef(bytes); return 0; }
+    callback.env->GetByteArrayRegion(bytes, 0, count, static_cast<jbyte*>(buffer));
+    callback.env->DeleteLocalRef(bytes);
+    return callback.failed() ? 0 : static_cast<DWORD>(count);
+}
+
+BOOL CALLBACK random_access_seek(QWORD offset, void* user) {
+    RandomAccessCall held(user);
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    CallbackEnv callback(file->vm);
+    if (!callback.env || file->closed || offset > static_cast<QWORD>(std::numeric_limits<jlong>::max())) return FALSE;
+    jboolean result = callback.env->CallBooleanMethod(file->callbacks, file->seek, static_cast<jlong>(offset));
+    return !callback.failed() && result == JNI_TRUE;
+}
+
+HSTREAM create_random_access_stream(JNIEnv* env, jobject callbacks, jboolean decode) {
+    auto* file = new RandomAccessRegistration;
+    env->GetJavaVM(&file->vm);
+    file->callbacks = env->NewGlobalRef(callbacks);
+    jclass type = env->GetObjectClass(callbacks);
+    file->length = env->GetMethodID(type, "length", "()J");
+    file->read = env->GetMethodID(type, "read", "(I)[B");
+    file->seek = env->GetMethodID(type, "seek", "(J)Z");
+    file->close = env->GetMethodID(type, "close", "()V");
+    env->DeleteLocalRef(type);
+    if (env->ExceptionCheck() || !file->vm || !file->callbacks || !file->length || !file->read || !file->seek || !file->close) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        if (file->callbacks) env->DeleteGlobalRef(file->callbacks);
+        delete file;
+        return 0;
+    }
+    BASS_FILEPROCS procs{random_access_close, random_access_length, random_access_read, random_access_seek};
+    HSTREAM stream = BASS_StreamCreateFileUser(STREAMFILE_NOBUFFER,
+        BASS_SAMPLE_FLOAT | BASS_ASYNCFILE | (decode == JNI_TRUE ? BASS_STREAM_DECODE : 0), &procs, file);
+    if (stream == 0) random_access_close(file);
+    file->release();
+    return stream;
 }
 
 void CALLBACK desktop_end_sync_proc(HSYNC handle, DWORD channel, DWORD data, void* user) {
@@ -1178,6 +1289,18 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlStre
     HSTREAM stream = create_url_stream(chars, stream_flags());
     env->ReleaseStringUTFChars(url, chars);
     return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateRandomAccessStream(JNIEnv* env, jobject thiz, jobject callbacks, jboolean decode) {
+    (void)thiz;
+    return static_cast<jint>(create_random_access_stream(env, callbacks, decode));
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateRandomAccessStream(JNIEnv* env, jobject thiz, jobject callbacks, jboolean decode) {
+    (void)thiz;
+    return static_cast<jint>(create_random_access_stream(env, callbacks, decode));
 }
 
 extern "C" JNIEXPORT jint JNICALL
