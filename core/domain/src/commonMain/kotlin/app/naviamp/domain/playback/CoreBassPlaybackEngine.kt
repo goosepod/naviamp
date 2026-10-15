@@ -224,7 +224,7 @@ open class CoreBassPlaybackEngine(
                             bass = bass,
                             request = activeRequest,
                             plan = creationPlan,
-                        ).getOrThrow()
+                        ).getOrElse { throw activeRequest.randomAccess?.failure ?: it }
                         if (!execution.isCurrent(currentPlaybackId)) {
                             freeCreatedPlayback(bass, createdPlayback)
                             createdPlayback = null
@@ -263,6 +263,7 @@ open class CoreBassPlaybackEngine(
 
                         var pollingState = BassPlaybackPollingState()
                         while (execution.isCurrent(currentPlaybackId)) {
+                            activeRequest.randomAccess?.failure?.let { throw it }
                             val snapshot = bass.bassPlaybackSnapshot(
                                 playbackHandle = playbackHandle,
                                 sourceHandle = currentSourceStream,
@@ -479,6 +480,7 @@ open class CoreBassPlaybackEngine(
                         replayGainFactor = plan.replayGainFactor,
                         stereoDownmixEnabled = stereoDownmixEnabled,
                         playbackDecode = true,
+                        randomAccess = request.randomAccess,
                     ).getOrThrow()
                     crossfadeActive = prepared.crossfadeActive
                     attachEndSync(bass, prepared.sourceHandle, execution.currentPlaybackId, isLive = request.isLive)
@@ -779,6 +781,7 @@ open class CoreBassPlaybackEngine(
             replayGainFactor = plan.replayGainFactor,
             stereoDownmixEnabled = stereoDownmixEnabled,
             playbackDecode = plan.useMixer,
+            randomAccess = request.randomAccess,
         ).map { playback -> bassPlaybackActivated(playback, plan.replayGainAdjustment) }
     }
 

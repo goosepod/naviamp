@@ -15,12 +15,14 @@ import javax.imageio.ImageIO
 import java.util.Collections
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicLong
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 
 /** Real loopback HTTPS and disposable identities; never changes an OS or JVM trust store. */
-class NaviampMutualTlsFixture : AutoCloseable {
+class NaviampMutualTlsFixture(audioSeconds: Int = 1) : AutoCloseable {
     val directory: Path = Files.createTempDirectory("naviamp-mtls-")
     val serverCa: Path = directory.resolve("ca.crt")
     val clientKeyStore: Path = directory.resolve("client.p12")
@@ -30,7 +32,7 @@ class NaviampMutualTlsFixture : AutoCloseable {
         check(ImageIO.write(BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB), "png", output))
         output.toByteArray()
     }
-    val audio: ByteArray = tone()
+    val audio: ByteArray = tone(audioSeconds)
     private val servers = mutableListOf<Server>()
 
     init {
@@ -77,11 +79,15 @@ class NaviampMutualTlsFixture : AutoCloseable {
         check(process.exitValue() == 0) { "Disposable certificate generation failed: ${Files.readString(output)}" }
     }
 
-    fun startServer(): Server = Server().also { servers += it }
+    fun startServer(requireClientCertificate: Boolean = true, pauseAudioAfterBytes: Int? = null): Server =
+        Server(requireClientCertificate, pauseAudioAfterBytes).also { servers += it }
 
-    inner class Server internal constructor() : AutoCloseable {
+    inner class Server internal constructor(requireClientCertificate: Boolean, private val pauseAudioAfterBytes: Int?) : AutoCloseable {
         val requestedPaths: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val peerSubjects: MutableList<String> = Collections.synchronizedList(mutableListOf())
+        val requestedRanges: MutableList<String> = Collections.synchronizedList(mutableListOf())
+        val audioBytesSent = AtomicLong()
+        val releaseRemainingAudio = CountDownLatch(1)
         private val workers = Executors.newCachedThreadPool { runnable ->
             Thread(runnable, "naviamp-mtls-fixture").apply { isDaemon = true }
         }
@@ -106,7 +112,7 @@ class NaviampMutualTlsFixture : AutoCloseable {
                 override fun configure(parameters: HttpsParameters) {
                     parameters.setSSLParameters(context.defaultSSLParameters.apply {
                         protocols = arrayOf("TLSv1.2")
-                        needClientAuth = true
+                        needClientAuth = requireClientCertificate
                     })
                 }
             }
@@ -115,9 +121,11 @@ class NaviampMutualTlsFixture : AutoCloseable {
                 val exchange = raw as com.sun.net.httpserver.HttpsExchange
                 exchange.use {
                     // Reaching HTTP is insufficient: assert the actual authenticated TLS identity too.
-                    peerSubjects += exchange.sslSession.peerPrincipal.name
+                    peerSubjects += if (requireClientCertificate) exchange.sslSession.peerPrincipal.name
+                        else runCatching { exchange.sslSession.peerPrincipal.name }.getOrDefault("anonymous")
                     requestedPaths += exchange.requestURI.path
                     val endpoint = exchange.requestURI.path.substringAfterLast('/')
+                    val audioRequest = endpoint in setOf("stream.view", "download.view")
                     val bytes = when (endpoint) {
                         "getCoverArt.view" -> artwork
                         "stream.view", "download.view" -> audio
@@ -131,12 +139,33 @@ class NaviampMutualTlsFixture : AutoCloseable {
                             "stream.view", "download.view" -> "audio/wav"
                             else -> "application/json"
                         })
+                        exchange.responseHeaders.add("Accept-Ranges", "bytes")
+                        val range = exchange.requestHeaders.getFirst("Range")?.takeIf { audioRequest }
+                        range?.let { requestedRanges += it }
+                        val first = range?.substringAfter("bytes=")?.substringBefore('-')?.toIntOrNull() ?: 0
+                        val last = range?.substringAfter('-')?.toIntOrNull()?.coerceAtMost(bytes.lastIndex) ?: bytes.lastIndex
+                        if (first !in bytes.indices || last < first) {
+                            exchange.responseHeaders.add("Content-Range", "bytes */${bytes.size}")
+                            exchange.sendResponseHeaders(416, -1)
+                            return@use
+                        }
+                        val length = last - first + 1
+                        if (range != null) exchange.responseHeaders.add("Content-Range", "bytes $first-$last/${bytes.size}")
+                        val status = if (range == null) 200 else 206
                         if (exchange.requestMethod == "HEAD") {
-                            exchange.responseHeaders.add("Content-Length", bytes.size.toString())
-                            exchange.sendResponseHeaders(200, -1)
+                            exchange.responseHeaders.add("Content-Length", length.toString())
+                            exchange.sendResponseHeaders(status, -1)
                         } else {
-                            exchange.sendResponseHeaders(200, bytes.size.toLong())
-                            exchange.responseBody.write(bytes)
+                            exchange.sendResponseHeaders(status, length.toLong())
+                            val prefix = if (audioRequest) pauseAudioAfterBytes?.coerceIn(1, length) ?: length else length
+                            exchange.responseBody.write(bytes, first, prefix)
+                            exchange.responseBody.flush()
+                            if (audioRequest) audioBytesSent.addAndGet(prefix.toLong())
+                            if (prefix < length) {
+                                check(releaseRemainingAudio.await(30, TimeUnit.SECONDS)) { "Audio gate was never released" }
+                                exchange.responseBody.write(bytes, first + prefix, length - prefix)
+                                if (audioRequest) audioBytesSent.addAndGet((length - prefix).toLong())
+                            }
                         }
                     }
                 }
@@ -147,6 +176,7 @@ class NaviampMutualTlsFixture : AutoCloseable {
         override fun close() {
             if (closed) return
             closed = true
+            releaseRemainingAudio.countDown()
             server.stop(0)
             workers.shutdownNow()
             check(workers.awaitTermination(5, TimeUnit.SECONDS)) { "mTLS fixture workers did not stop" }
@@ -166,7 +196,7 @@ class NaviampMutualTlsFixture : AutoCloseable {
         return """{"subsonic-response":{"status":"ok","version":"1.16.1","serverVersion":"fixture","type":"navidrome"$content}}"""
     }
 
-    private val song = """{"id":"track","title":"TLS Tone","artist":"TLS Artist","artistId":"artist","album":"TLS Album","albumId":"album","coverArt":"cover","duration":1,"contentType":"audio/wav","suffix":"wav","bitRate":256,"samplingRate":16000,"channelCount":1}"""
+    private val song = """{"id":"track","title":"TLS Tone","artist":"TLS Artist","artistId":"artist","album":"TLS Album","albumId":"album","coverArt":"cover","duration":$audioSeconds,"contentType":"audio/wav","suffix":"wav","bitRate":256,"samplingRate":16000,"channelCount":1}"""
 
     override fun close() {
         servers.forEach { it.close() }
@@ -175,9 +205,9 @@ class NaviampMutualTlsFixture : AutoCloseable {
         }
     }
 
-    private fun tone(): ByteArray {
+    private fun tone(seconds: Int): ByteArray {
         val rate = 16_000
-        val samples = ShortArray(rate) { index ->
+        val samples = ShortArray(rate * seconds) { index ->
             (kotlin.math.sin(2 * Math.PI * 440 * index / rate) * 4_000).toInt().toShort()
         }
         return ByteBuffer.allocate(44 + samples.size * 2).order(ByteOrder.LITTLE_ENDIAN).apply {
