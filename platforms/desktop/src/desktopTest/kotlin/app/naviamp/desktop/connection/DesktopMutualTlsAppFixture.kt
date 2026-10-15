@@ -17,6 +17,7 @@ import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.createDefaultNavidromeKtorClient
 import app.naviamp.storage.DefaultStorageDatabaseFileName
 import app.naviamp.storage.NaviampStorageDatabase
+import app.naviamp.storage.initializeNaviampStorageDatabase
 import app.naviamp.storage.StorageMediaSourceStore
 import app.naviamp.storage.StoragePlaybackSessionStore
 import app.naviamp.testkit.NaviampMutualTlsFixture
@@ -44,8 +45,7 @@ fun main(args: Array<String>) = runBlocking {
             val directory = profile.resolve("Roaming").resolve(name)
             Files.createDirectories(directory)
             JdbcSqliteDriver("jdbc:sqlite:${directory.resolve(DefaultStorageDatabaseFileName)}").use { driver ->
-                NaviampStorageDatabase.Schema.create(driver)
-                val queries = NaviampStorageDatabase(driver).naviampStorageQueries
+                val queries = initializeNaviampStorageDatabase(driver).naviampStorageQueries
                 // Only disposable fixture credentials. The real app reads the legacy plain value
                 // and applies its normal protected-storage migration; no OS secret is extracted.
                 val source = StorageMediaSourceStore(queries, System::currentTimeMillis).upsertProviderMediaSource(
