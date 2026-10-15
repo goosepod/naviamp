@@ -292,7 +292,7 @@ jobs:
 
       - name: Run Desktop tests with Windows native libraries
         shell: powershell
-        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest
+        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest :providers:navidrome:jvmTest
 
       - name: Verify packaged Windows idle CPU
         shell: powershell
@@ -313,6 +313,7 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/desktopTest/**
+            providers/navidrome/build/reports/tests/jvmTest/**
             build/windows-animation-probe.txt
 
   desktop-linux:
