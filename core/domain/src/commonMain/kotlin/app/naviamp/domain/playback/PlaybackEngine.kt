@@ -305,6 +305,7 @@ data class PlaybackRequest(
     val startPositionSeconds: Double? = null,
     /** A live source has no successful natural end; retry reconnects at the live edge. */
     val isLive: Boolean = false,
+    val randomAccess: PlaybackRandomAccessSource? = null,
 )
 
 fun PlaybackRequest.downloadFallbackRequest(positionSeconds: Double? = null): PlaybackRequest? =
@@ -312,6 +313,7 @@ fun PlaybackRequest.downloadFallbackRequest(positionSeconds: Double? = null): Pl
         copy(
             url = downloadedUrl,
             fallbackUrl = null,
+            randomAccess = null,
             startPositionSeconds = positionSeconds ?: startPositionSeconds,
         )
     }

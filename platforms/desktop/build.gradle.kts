@@ -259,6 +259,9 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
     .configureEach { dependsOn(prepareDesktopNativeResources) }
 
 tasks.named<Test>("desktopTest") {
+    // BASS codec registrations are process-global and outlive BASS_Free. Keep native
+    // integration suites isolated so one suite cannot pre-register another's plugins.
+    forkEvery = 1
     val castProbe = providers.environmentVariable("NAVIAMP_CAST_PROBE").orElse("")
     inputs.property("castProbe", castProbe)
     inputs.property("castPlaybackProbe", providers.environmentVariable("NAVIAMP_CAST_PLAYBACK_PROBE").orElse("false"))
@@ -276,6 +279,16 @@ tasks.named<Test>("desktopTest") {
             resources.dir("playback/bass/$platform").asFile.absolutePath
         }.get(),
     )
+}
+
+tasks.register<JavaExec>("runDesktopMutualTlsAppFixture") {
+    group = "verification"
+    description = "Serve disposable mTLS media and seed a fresh profile for visible-app acceptance"
+    dependsOn("desktopTestClasses")
+    classpath = tasks.named<Test>("desktopTest").get().classpath
+    mainClass.set("app.naviamp.desktop.DesktopMutualTlsAppFixtureKt")
+    args(providers.gradleProperty("naviamp.mtls.fixtureDirectory")
+        .orElse(layout.buildDirectory.dir("mtls-app-fixture").map { it.asFile.absolutePath }).get())
 }
 
 fun desktopNativePlatformId(): String {

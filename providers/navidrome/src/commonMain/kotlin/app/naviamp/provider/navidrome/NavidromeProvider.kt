@@ -107,6 +107,8 @@ class NavidromeProvider(
     private val profile = subsonicProviderProfile(connection.providerId)
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
+    override val requiresAuthenticatedPlaybackTransport: Boolean
+        get() = connection.tlsSettings != NavidromeTlsSettings() || customHeaders.isNotEmpty()
     override val source: String = NavidromeAgentMetadataSource
     override val selectedMusicFolderIds: List<String> =
         normalizedMusicFolderIds(connection.selectedMusicFolderIds)

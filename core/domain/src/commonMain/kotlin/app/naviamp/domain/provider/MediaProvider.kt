@@ -25,6 +25,8 @@ interface MediaProvider {
     val id: ProviderId
     val displayName: String
     val capabilities: ProviderCapabilities
+    /** Native URL consumers cannot reproduce this connection's TLS identity/trust or headers. */
+    val requiresAuthenticatedPlaybackTransport: Boolean get() = false
     val cacheNamespace: String
         get() = id.value
     val selectedMusicFolderIds: List<String>

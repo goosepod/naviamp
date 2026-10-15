@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, kotlin.concurrent.atomics.ExperimentalAtomicApi::class)
 
 package app.naviamp.ios.playback
 
@@ -81,11 +81,21 @@ import app.naviamp.ios.bass.native.BASS_PluginFree
 import app.naviamp.ios.bass.native.BASS_PluginLoad
 import app.naviamp.ios.bass.native.BASS_SetConfig
 import app.naviamp.ios.bass.native.BASS_StreamCreateFile
+import app.naviamp.ios.bass.native.BASS_StreamCreateFileUser
+import app.naviamp.ios.bass.native.BASS_FILEPROCS
+import app.naviamp.ios.bass.native.BASS_ASYNCFILE
+import app.naviamp.domain.playback.BassFileCallbacks
+import app.naviamp.domain.playback.PlaybackRandomAccessSource
+import kotlin.concurrent.atomics.AtomicBoolean
+import platform.posix.memcpy
 import app.naviamp.ios.bass.native.BASS_StreamCreateURL
 import app.naviamp.ios.bass.native.BASS_StreamFree
 import app.naviamp.ios.bass.native.BASS_SYNC_END
 import app.naviamp.ios.bass.native.BASS_SYNC_ONETIME
 import kotlinx.cinterop.COpaquePointer
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.plus
 import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
@@ -251,6 +261,27 @@ class IosBassAudioBackend : BassAudioBackend {
 
     override fun createUrlStream(url: String): Result<BassStreamHandle> =
         createUrl(url, (BASS_STREAM_STATUS or BASS_SAMPLE_FLOAT).toUInt(), "BASS_StreamCreateURL failed")
+
+    override fun createRandomAccessStream(source: PlaybackRandomAccessSource, decode: Boolean): Result<BassStreamHandle> {
+        ensureCodecPluginsLoaded()
+        val state = IosBassFileRegistration(BassFileCallbacks(source))
+        val reference = StableRef.create(state)
+        return memScoped {
+            val procs = alloc<BASS_FILEPROCS> {
+                close = IosBassFileClose
+                length = IosBassFileLength
+                read = IosBassFileRead
+                seek = IosBassFileSeek
+            }
+            val flags = BASS_SAMPLE_FLOAT or BASS_ASYNCFILE or if (decode) BASS_STREAM_DECODE else 0
+            val stream = BASS_StreamCreateFileUser(0u, flags.toUInt(), procs.ptr, reference.asCPointer())
+            if (stream == 0u && state.closed.compareAndSet(false, true)) {
+                state.callbacks.close()
+                reference.dispose()
+            }
+            stream.handleResult("BASS_StreamCreateFile failed")
+        }
+    }
 
     override fun createFileDecodeStream(path: String): Result<BassStreamHandle> =
         createFile(
@@ -649,4 +680,37 @@ private val IosBassEndSyncProc = staticCFunction {
     if (user != null) {
         user.asStableRef<IosBassEndSync>().get().fire(channel)
     }
+}
+
+// Native FILEPROCS ABI only. Core owns byte fetching, cursor bounds and cancellation.
+private class IosBassFileRegistration(val callbacks: BassFileCallbacks, val closed: AtomicBoolean = AtomicBoolean(false))
+private val IosBassFileClose = staticCFunction { user: COpaquePointer? ->
+    if (user != null) {
+        val reference = user.asStableRef<IosBassFileRegistration>()
+        val state = reference.get()
+        if (state.closed.compareAndSet(false, true)) {
+            state.callbacks.close()
+            reference.dispose()
+        }
+    }
+}
+private val IosBassFileLength = staticCFunction { user: COpaquePointer? ->
+    user?.asStableRef<IosBassFileRegistration>()?.get()?.callbacks?.length()?.toULong() ?: 0uL
+}
+private val IosBassFileRead = staticCFunction { buffer: COpaquePointer?, count: UInt, user: COpaquePointer? ->
+    if (buffer == null || user == null || count > Int.MAX_VALUE.toUInt()) 0u else {
+        val callbacks = user.asStableRef<IosBassFileRegistration>().get().callbacks
+        var copied = 0
+        while (copied < count.toInt()) {
+            val bytes = callbacks.read(count.toInt() - copied)
+            if (bytes.isEmpty()) break
+            bytes.usePinned { memcpy(buffer.reinterpret<ByteVar>() + copied, it.addressOf(0), bytes.size.toULong()) }
+            copied += bytes.size
+        }
+        copied.toUInt()
+    }
+}
+private val IosBassFileSeek = staticCFunction { offset: ULong, user: COpaquePointer? ->
+    if (user != null && offset <= Long.MAX_VALUE.toULong() &&
+        user.asStableRef<IosBassFileRegistration>().get().callbacks.seek(offset.toLong())) 1 else 0
 }
