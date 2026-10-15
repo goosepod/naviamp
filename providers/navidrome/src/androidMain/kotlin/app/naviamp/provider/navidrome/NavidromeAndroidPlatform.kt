@@ -5,8 +5,5 @@ import io.ktor.client.HttpClient
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
 
-actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient =
+actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings, onTlsChallenge: (NavidromeTlsChallengeEvent) -> Unit): HttpClient =
     createNavidromeJvmKtorClient(tlsSettings)
-
-actual fun navidromeTlsCapabilities(): NavidromeTlsCapabilities =
-    NavidromeTlsCapabilities(insecureSkipVerification = true, customServerCertificates = true, clientCertificates = true)

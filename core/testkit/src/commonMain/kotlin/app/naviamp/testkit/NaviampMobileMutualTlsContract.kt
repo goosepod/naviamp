@@ -29,19 +29,21 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlin.io.encoding.Base64
 import kotlin.time.TimeSource
 
 /** Hosts supply only private test-file IO and their real native playback boundary. */
 interface NaviampMobileMutualTlsHost {
-    fun writePrivateFile(name: String, bytes: ByteArray): String
+    suspend fun writePrivateFile(name: String, bytes: ByteArray): String
     fun createEngine(): CoreBassPlaybackEngine
 }
 
 /** One real HTTPS contract runs unchanged against Android and Apple TLS/native decoder adapters. */
 suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = withContext(Dispatchers.Default) {
     val manifest = mobileTlsFixtureRequest("/fixture")
-    fun file(key: String, name: String) = host.writePrivateFile(name, Base64.decode(manifest.getValue(key)))
+    suspend fun file(key: String, name: String) = host.writePrivateFile(name, Base64.decode(manifest.getValue(key)))
     val settings = NavidromeTlsSettings(
         customCertificatePath = file("ca", "ca.pem"),
         clientCertificateKeyStorePath = file("identity", "client.p12"),
@@ -72,10 +74,12 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     rejected(settings.copy(customCertificatePath = wrongHostCa, clientCertificateKeyStorePath = wrongHostIdentity), "https://127.0.0.1:59977")
     check(mobileTlsFixtureRequest("/state").getValue("wrongHostRequests") == "0")
     // A positive control on the same host prevents outages from passing every negative test.
-    val client = createDefaultNavidromeKtorClient(settings)
+    val challenges = MutableStateFlow<List<app.naviamp.provider.navidrome.NavidromeTlsChallengeEvent>>(emptyList())
+    val client = createDefaultNavidromeKtorClient(settings) { event -> challenges.update { it + event } }
     try {
         val media = provider("https://127.0.0.1:59975", settings, client)
-        check(media.validateConnection().serverVersion == "fixture")
+        try { check(media.validateConnection().serverVersion == "fixture") }
+        catch (failure: Exception) { throw AssertionError("Valid mTLS connection failed; native TLS challenge facts=${challenges.value}", failure) }
         check(media.artists(10).single().name == "TLS Artist")
         check(checkNotNull(media.bytesForOwnedUrl(media.coverArtUrl("cover"))).isNotEmpty())
         val track = checkNotNull(media.track(TrackId("track")))

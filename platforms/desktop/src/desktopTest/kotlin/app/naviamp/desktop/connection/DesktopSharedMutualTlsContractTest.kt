@@ -17,8 +17,14 @@ class DesktopSharedMutualTlsContractTest {
         try {
             withNaviampMobileMutualTlsFixture { _ -> runBlocking {
                 verifyNaviampMobileMutualTls(object : NaviampMobileMutualTlsHost {
-                    override fun writePrivateFile(name: String, bytes: ByteArray): String =
-                        directory.resolve(name).also { Files.write(it, bytes) }.toString()
+                    override suspend fun writePrivateFile(name: String, bytes: ByteArray): String {
+                        val source = directory.resolve(name).also { Files.write(it, bytes) }
+                        val port = app.naviamp.desktop.settings.DesktopCoreCertificateFilePort(directory.resolve("imported")) { source.toFile() }
+                        val kind = if (name.endsWith(".p12")) app.naviamp.presentation.NaviampConnectionCertificateKind.ClientIdentity else app.naviamp.presentation.NaviampConnectionCertificateKind.ServerAuthority
+                        val imported = checkNotNull(port.chooseAndCopy(kind))
+                        Files.delete(source)
+                        return imported
+                    }
                     override fun createEngine(): CoreBassPlaybackEngine {
                         val backend = DesktopBassAudioBackend(DesktopBassJniBinding.load().getOrThrow())
                         val output = System.getProperty("naviamp.bass.test.outputDevice")

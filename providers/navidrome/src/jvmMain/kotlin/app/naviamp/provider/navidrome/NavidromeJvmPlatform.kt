@@ -8,13 +8,10 @@ import javax.net.ssl.SSLContext
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
 
-actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient {
+actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings, onTlsChallenge: (NavidromeTlsChallengeEvent) -> Unit): HttpClient {
     NavidromeTls.applyJvmDefaults(tlsSettings)
     return createNavidromeJvmKtorClient(tlsSettings)
 }
-
-actual fun navidromeTlsCapabilities(): NavidromeTlsCapabilities =
-    NavidromeTlsCapabilities(insecureSkipVerification = true, customServerCertificates = true, clientCertificates = true)
 
 /** JVM legacy URLConnection defaults; provider clients always retain their own TLS material. */
 object NavidromeTls {

@@ -13,6 +13,11 @@ import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+
+// Explicit provider instance: older Android PKCS12 implementations lack modern PBKDF2 support.
+// Do not install/replace a process-wide JCA provider or change any connection's trust store.
+private val NavidromePkcs12Provider by lazy { BouncyCastleProvider() }
 
 /** JVM/Android KeyStore and SSLSocketFactory boundary, shared between both JVM-based hosts. */
 internal class NavidromeJvmTlsMaterial(settings: NavidromeTlsSettings) {
@@ -38,7 +43,7 @@ internal class NavidromeJvmTlsMaterial(settings: NavidromeTlsSettings) {
     private val keys: Array<KeyManager> = if (settings.hasClientCertificate) {
         val password = settings.clientCertificateKeyStorePassword.orEmpty().toCharArray()
         try {
-            val store = KeyStore.getInstance("PKCS12").apply {
+            val store = KeyStore.getInstance("PKCS12", NavidromePkcs12Provider).apply {
                 File(checkNotNull(settings.clientCertificateKeyStorePath)).inputStream().use { load(it, password) }
             }
             require(store.aliases().asSequence().any { store.isKeyEntry(it) })

@@ -3,18 +3,34 @@ package app.naviamp.provider.navidrome
 import kotlin.io.encoding.Base64
 
 /** Platform TLS engines report facts; this policy chooses connection-scoped authentication. */
-internal enum class NavidromeTlsChallenge { ServerTrust, ClientIdentity, Other }
-internal enum class NavidromeTlsChallengeAction { DefaultHandling, EvaluateServerTrust, UseClientIdentity, Cancel }
+enum class NavidromeTlsChallenge { ServerTrust, ClientIdentity, Other }
+enum class NavidromeTlsChallengeAction { DefaultHandling, EvaluateServerTrust, UseClientIdentity, Cancel }
+
+data class NavidromeTlsChallengeEvent(
+    val challenge: NavidromeTlsChallenge,
+    val previousFailures: Long,
+    val action: NavidromeTlsChallengeAction,
+    val accepted: Boolean? = null,
+    val nativeError: String? = null,
+)
+
+internal fun reportNavidromeTlsChallenge(observer: (NavidromeTlsChallengeEvent) -> Unit, event: NavidromeTlsChallengeEvent) {
+    // Diagnostics must never escape an OS authentication callback or interfere with its completion.
+    runCatching { observer(event) }
+}
 
 internal fun NavidromeTlsSettings.challengeAction(
     challenge: NavidromeTlsChallenge,
     previousFailures: Long,
 ): NavidromeTlsChallengeAction = when {
+    // A fresh server-trust object must always be evaluated. Authentication retry counts
+    // do not establish whether this handshake's certificate/hostname is trustworthy.
+    challenge == NavidromeTlsChallenge.ServerTrust ->
+        if (hasCustomCertificate || insecureSkipTlsVerification) NavidromeTlsChallengeAction.EvaluateServerTrust
+        else NavidromeTlsChallengeAction.DefaultHandling
     previousFailures > 0 -> NavidromeTlsChallengeAction.Cancel
     challenge == NavidromeTlsChallenge.ClientIdentity && hasClientCertificate -> NavidromeTlsChallengeAction.UseClientIdentity
     challenge == NavidromeTlsChallenge.ClientIdentity -> NavidromeTlsChallengeAction.Cancel
-    challenge == NavidromeTlsChallenge.ServerTrust && (hasCustomCertificate || insecureSkipTlsVerification) ->
-        NavidromeTlsChallengeAction.EvaluateServerTrust
     else -> NavidromeTlsChallengeAction.DefaultHandling
 }
 

@@ -28,11 +28,11 @@ internal class NavidromeAppleTlsMaterial(settings: NavidromeTlsSettings) {
         } }
     }
 
-    fun evaluateServerTrust(trust: SecTrustRef, usePeerAnchors: Boolean): Boolean {
+    fun evaluateServerTrust(trust: SecTrustRef, usePeerAnchors: Boolean): Pair<Boolean, String?> {
         if (usePeerAnchors) {
-            val peerChain = SecTrustCopyCertificateChain(trust) ?: return false
+            val peerChain = SecTrustCopyCertificateChain(trust) ?: return false to null
             return try {
-                SecTrustSetAnchorCertificates(trust, peerChain) == errSecSuccess && SecTrustEvaluateWithError(trust, null)
+                if (SecTrustSetAnchorCertificates(trust, peerChain) == errSecSuccess) evaluateAppleTrust(trust) else false to null
             } finally { CFRelease(peerChain) }
         }
         val array = checkNotNull(CFArrayCreateMutable(null, 0, kCFTypeArrayCallBacks.ptr))
@@ -42,11 +42,19 @@ internal class NavidromeAppleTlsMaterial(settings: NavidromeTlsSettings) {
                 try { CFArrayAppendValue(array, certificate) } finally { CFRelease(certificate) }
             } }
             // Preserve NSURLSession's SSL policy, including the requested server hostname.
-            return SecTrustSetAnchorCertificates(trust, array) == errSecSuccess &&
-                SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess &&
-                SecTrustEvaluateWithError(trust, null)
+            return if (SecTrustSetAnchorCertificates(trust, array) == errSecSuccess &&
+                SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess) evaluateAppleTrust(trust) else false to null
         } finally { CFRelease(array) }
     }
+}
+
+private fun evaluateAppleTrust(trust: SecTrustRef): Pair<Boolean, String?> = memScoped {
+    val error = alloc<CFErrorRefVar>().apply { value = null }
+    val accepted = SecTrustEvaluateWithError(trust, error.ptr)
+    val description = error.value?.let { failure ->
+        try { interpretObjCPointer<NSError>(failure.rawValue).localizedDescription } finally { CFRelease(failure) }
+    }
+    accepted to description
 }
 
 private fun readAppleTlsFile(path: String): ByteArray {

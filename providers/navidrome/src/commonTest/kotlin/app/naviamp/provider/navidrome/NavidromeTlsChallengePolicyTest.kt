@@ -19,7 +19,7 @@ class NavidromeTlsChallengePolicyTest {
     @Test fun privateTrustUsesAnExplicitServerEvaluation() {
         for (settings in listOf(NavidromeTlsSettings(customCertificatePath = "/ca.pem"), NavidromeTlsSettings(insecureSkipTlsVerification = true))) {
             assertEquals(NavidromeTlsChallengeAction.EvaluateServerTrust, settings.challengeAction(NavidromeTlsChallenge.ServerTrust, 0))
-            assertEquals(NavidromeTlsChallengeAction.Cancel, settings.challengeAction(NavidromeTlsChallenge.ServerTrust, 1))
+            assertEquals(NavidromeTlsChallengeAction.EvaluateServerTrust, settings.challengeAction(NavidromeTlsChallenge.ServerTrust, 1))
         }
     }
 

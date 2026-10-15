@@ -18,6 +18,36 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test fun openingAnotherIdenticalFormRevokesAPendingCertificateSelection() = kotlinx.coroutines.test.runTest {
+        val selected = CompletableDeferred<String?>()
+        val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { selected.await() })
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.New)
+        val choosing = launch { fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity)) }
+        runCurrent()
+        fixture.controller.dispatch(NaviampCoreCommand.Connection.New)
+        val before = fixture.store.state.value.shell.connectionSettings.connection.form
+        selected.complete("/private/old-form.p12")
+        choosing.join()
+        assertEquals(before, fixture.store.state.value.shell.connectionSettings.connection.form)
+    }
+
+    @Test fun latestCertificateSelectionWinsEvenWhenTheOlderReadFinishesFirst() = kotlinx.coroutines.test.runTest {
+        val first = CompletableDeferred<String?>()
+        val latest = CompletableDeferred<String?>()
+        var calls = 0
+        val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { if (calls++ == 0) first.await() else latest.await() })
+        val old = launch { fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity)) }
+        runCurrent()
+        val next = launch { fixture.controller.execute(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity)) }
+        runCurrent()
+        val before = fixture.store.state.value.shell.connectionSettings.connection.form
+        first.complete("/old.p12")
+        old.join()
+        assertEquals(before, fixture.store.state.value.shell.connectionSettings.connection.form)
+        latest.complete("/latest.p12")
+        next.join()
+        assertEquals("/latest.p12", fixture.store.state.value.shell.connectionSettings.connection.form.clientCertificatePath)
+    }
     @Test fun certificateImportUpdatesOnlyItsSelectedFieldAndPreservesOtherCredentials() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { kind -> "/private/$kind" })
         val original = ConnectionFormState(serverUrl = "https://music.example", password = "unchanged", clientCertificatePassword = "certificate-password")
