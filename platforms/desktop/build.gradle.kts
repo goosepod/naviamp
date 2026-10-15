@@ -247,6 +247,7 @@ kotlin {
         }
         val desktopTest by getting {
             dependencies {
+                implementation(project(":core:testkit"))
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
             }

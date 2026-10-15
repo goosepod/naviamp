@@ -30,6 +30,36 @@ Kover measures JVM and Android unit-test execution. Kotlin/Native, XCTest, Andro
 and native C/JNI execution are intentionally represented by explicit CI gates rather than being
 misreported as JVM line coverage.
 
+## Desktop mutual TLS
+
+Mutual TLS checks run in ordinary provider `jvmTest` and Desktop `desktopTest`, including
+`make test`, `make desktop-test`, and the Windows CI gate. No server account or opt-in flag is
+needed. The fixture uses the active JDK's `keytool` to generate a temporary private CA, a server
+identity, a valid PKCS12 client identity, and an unrelated client identity. Its HTTPS server binds
+only to loopback on an ephemeral port and requires a client certificate. Certificates, databases,
+and audio are deleted after the tests; OS trust stores and user credentials are untouched.
+
+To run just these tests on Windows with the normal native-build prerequisites installed:
+
+```powershell
+./gradlew.bat :providers:navidrome:jvmTest :platforms:desktop:desktopTest --tests '*MutualTls*' '-Pkotlin.native.enableKlibsCrossCompilation=false' '-Pnaviamp.bass.platform=windows-x64' '-Pnaviamp.bass.test.outputDevice=0'
+```
+
+`NavidromeMutualTlsTest` verifies real production HTTP handshakes, browsing, artwork, streamed and
+downloaded audio bytes, missing/untrusted client certificates, an untrusted private server CA, an
+incorrect PKCS12 password, recovery with valid credentials, and independence from subsequent JVM
+default-client initialization. Every successful request must present the expected client identity.
+Each rejected handshake is followed by a successful connection to the same server.
+
+`DesktopMutualTlsIntegrationTest` closes and reopens a real SQLDelight database with production
+credential encryption and a disposable encryption key, creates a fresh provider from the saved TLS
+settings, downloads audio through the shared byte store, and decodes/plays/pauses/seeks it with native
+BASS. This checks database reopen rather than a full application-process restart, and playback of
+authenticated downloaded audio rather than uncached native URL streaming. A no-sound output device
+keeps the CI test silent. The test fails if audio falls back to the unauthenticated shared HTTP client.
+Uncached native URL playback failed a separate Windows probe and remains tracked in
+[#294](https://github.com/goosepod/naviamp/issues/294); these passing tests do not establish that support.
+
 ## Opt-in Connect cross-device instrumentation
 
 `AndroidNaviampConnectCrossDeviceInstrumentedTest` (discovery) and
