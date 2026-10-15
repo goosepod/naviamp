@@ -234,7 +234,7 @@ open class CoreBassPlaybackEngine(
                         stream = playbackHandle
                         currentSourceStream = createdPlayback.sourceHandle
                         currentReplayGainAdjustment = createdPlayback.replayGainAdjustment
-                        val endState = attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged, activeRequest.isLive)
+                        val endState = attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged, activeRequest.isLive, activeRequest.randomAccess)
                         createdPlayback = null
                         applyOutputVolume(bass)
                         applyEqualizer(bass)
@@ -483,7 +483,7 @@ open class CoreBassPlaybackEngine(
                         randomAccess = request.randomAccess,
                     ).getOrThrow()
                     crossfadeActive = prepared.crossfadeActive
-                    attachEndSync(bass, prepared.sourceHandle, execution.currentPlaybackId, isLive = request.isLive)
+                    attachEndSync(bass, prepared.sourceHandle, execution.currentPlaybackId, isLive = request.isLive, randomAccess = request.randomAccess)
                     preparedBassPlaybackSucceeded(
                         preparedHandle = prepared.sourceHandle,
                         request = request,
@@ -702,7 +702,7 @@ open class CoreBassPlaybackEngine(
         currentReplayGainAdjustment = update.replayGainAdjustment
         applyEqualizer(bass)
         crossfadeActive = false
-        val endState = attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged, request.isLive)
+        val endState = attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged, request.isLive, request.randomAccess)
         applyPreparedReset(update.preparedReset)
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
@@ -791,6 +791,7 @@ open class CoreBassPlaybackEngine(
         currentPlaybackId: Int,
         stateCallback: ((PlaybackState) -> Unit)? = null,
         isLive: Boolean = false,
+        randomAccess: PlaybackRandomAccessSource? = null,
     ): () -> PlaybackState {
         val handle = BassStreamHandle(source)
         // Capture before a truncated download can change the native end estimate. Byte counts,
@@ -799,7 +800,7 @@ open class CoreBassPlaybackEngine(
         val audioEnd = bass.filePosition(handle, BassFilePosition.End)
         var failure: PlaybackState.Error? = null
         val endState = {
-            failure ?: bassStreamEndState(
+            failure ?: randomAccess?.failure?.let { PlaybackState.Error(it.message ?: "BASS playback failed.") } ?: bassStreamEndState(
                 isLive = isLive,
                 fileSizeBytes = fileSize,
                 audioEndBytes = audioEnd,

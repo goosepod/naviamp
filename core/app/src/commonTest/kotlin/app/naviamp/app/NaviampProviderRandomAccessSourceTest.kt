@@ -70,6 +70,8 @@ class NaviampProviderRandomAccessSourceTest {
             assertTrue(cursor.seek(2_900_000))
             assertContentEquals(bytes.copyOfRange(2_900_000, 2_900_020), cursor.read(20))
             assertEquals(3, ranges.size)
+            assertTrue(cursor.seek(0))
+            assertEquals(65_536, cursor.read(2_000_000).size, "Large decoder requests must use bounded transfer arrays")
             assertTrue(ranges.all { range ->
                 range.substringAfter('-').toLong() - range.substringAfter('=').substringBefore('-').toLong() < 131_072
             })

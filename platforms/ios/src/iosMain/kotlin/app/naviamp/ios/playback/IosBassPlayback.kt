@@ -93,6 +93,9 @@ import app.naviamp.ios.bass.native.BASS_StreamFree
 import app.naviamp.ios.bass.native.BASS_SYNC_END
 import app.naviamp.ios.bass.native.BASS_SYNC_ONETIME
 import kotlinx.cinterop.COpaquePointer
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.plus
 import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
@@ -696,9 +699,15 @@ private val IosBassFileLength = staticCFunction { user: COpaquePointer? ->
 }
 private val IosBassFileRead = staticCFunction { buffer: COpaquePointer?, count: UInt, user: COpaquePointer? ->
     if (buffer == null || user == null || count > Int.MAX_VALUE.toUInt()) 0u else {
-        val bytes = user.asStableRef<IosBassFileRegistration>().get().callbacks.read(count.toInt())
-        if (bytes.isNotEmpty()) bytes.usePinned { memcpy(buffer, it.addressOf(0), bytes.size.toULong()) }
-        bytes.size.toUInt()
+        val callbacks = user.asStableRef<IosBassFileRegistration>().get().callbacks
+        var copied = 0
+        while (copied < count.toInt()) {
+            val bytes = callbacks.read(count.toInt() - copied)
+            if (bytes.isEmpty()) break
+            bytes.usePinned { memcpy(buffer.reinterpret<ByteVar>() + copied, it.addressOf(0), bytes.size.toULong()) }
+            copied += bytes.size
+        }
+        copied.toUInt()
     }
 }
 private val IosBassFileSeek = staticCFunction { offset: ULong, user: COpaquePointer? ->

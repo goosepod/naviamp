@@ -679,13 +679,18 @@ DWORD CALLBACK random_access_read(void* buffer, DWORD length, void* user) {
     auto* file = static_cast<RandomAccessRegistration*>(user);
     CallbackEnv callback(file->vm);
     if (!callback.env || file->closed || length > static_cast<DWORD>(std::numeric_limits<jint>::max())) return 0;
-    auto bytes = static_cast<jbyteArray>(callback.env->CallObjectMethod(file->callbacks, file->read, static_cast<jint>(length)));
-    if (callback.failed() || !bytes) return 0;
-    jsize count = callback.env->GetArrayLength(bytes);
-    if (count < 0 || static_cast<DWORD>(count) > length) { callback.env->DeleteLocalRef(bytes); return 0; }
-    callback.env->GetByteArrayRegion(bytes, 0, count, static_cast<jbyte*>(buffer));
-    callback.env->DeleteLocalRef(bytes);
-    return callback.failed() ? 0 : static_cast<DWORD>(count);
+    DWORD copied = 0;
+    while (copied < length && !file->closed) {
+        auto bytes = static_cast<jbyteArray>(callback.env->CallObjectMethod(file->callbacks, file->read, static_cast<jint>(length - copied)));
+        if (callback.failed() || !bytes) break;
+        jsize count = callback.env->GetArrayLength(bytes);
+        if (count <= 0 || static_cast<DWORD>(count) > length - copied) { callback.env->DeleteLocalRef(bytes); break; }
+        callback.env->GetByteArrayRegion(bytes, 0, count, static_cast<jbyte*>(buffer) + copied);
+        callback.env->DeleteLocalRef(bytes);
+        if (callback.failed()) break;
+        copied += static_cast<DWORD>(count);
+    }
+    return copied;
 }
 
 BOOL CALLBACK random_access_seek(QWORD offset, void* user) {

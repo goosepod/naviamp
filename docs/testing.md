@@ -52,13 +52,37 @@ default-client initialization. Every successful request must present the expecte
 Each rejected handshake is followed by a successful connection to the same server.
 
 `DesktopMutualTlsIntegrationTest` closes and reopens a real SQLDelight database with production
-credential encryption and a disposable encryption key, creates a fresh provider from the saved TLS
-settings, downloads audio through the shared byte store, and decodes/plays/pauses/seeks it with native
-BASS. This checks database reopen rather than a full application-process restart, and playback of
-authenticated downloaded audio rather than uncached native URL streaming. A no-sound output device
-keeps the CI test silent. The test fails if audio falls back to the unauthenticated shared HTTP client.
-Uncached native URL playback failed a separate Windows probe and remains tracked in
-[#294](https://github.com/goosepod/naviamp/issues/294); these passing tests do not establish that support.
+credential encryption and a disposable encryption key, restores TLS settings, and exercises downloaded
+audio plus normal uncached playback through the shared application adapter and native BASS. Its
+long-track fixture withholds the tail of a full response: playback must start without a complete
+download, remain paused after a seek beyond buffered audio, fetch the seek target through authenticated
+ranges, resume, and stop promptly. Persistent audio caching is disabled. Separate cases isolate private
+server CA trust and rejection of a missing client identity. A no-sound output device keeps CI silent.
+
+`NaviampPlaybackStreamRelayTest` and `NaviampProviderRandomAccessSourceTest` cover shared authorization,
+streaming backpressure, range validation, current/prepared lease revocation, source changes, bounded
+range caching and native cursor cancellation. Original media uses native random-access callbacks when
+the provider supports finite ranges with a known total length. Sequential/unknown-length streams use
+the loopback relay; transcoded seeking uses the provider's advertised time-offset capability. A server
+that supports neither ranges nor time offsets retains the native decoder's buffered-seeking limit.
+Android instrumentation and iOS native tests also exercise the shared file-callback ABI.
+
+For a visible Windows app check, first stage the app, then run this optional fixture in a separate
+terminal with a new absolute directory:
+
+```powershell
+./gradlew.bat :platforms:desktop:runDesktopMutualTlsAppFixture '-Pnaviamp.mtls.fixtureDirectory=C:/path/to/new/disposable-profile' '-Pnaviamp.bass.platform=windows-x64'
+```
+
+The fixture writes `ready.txt`, seeds both normal/development profiles under `<directory>/Roaming`,
+and serves a three-minute track for ten minutes. Launch the staged app with its process `APPDATA`
+set to that `Roaming` directory and `LOCALAPPDATA` to `<directory>/Local`. The disposable profile pins
+no-sound output, mutes playback, disables audio caching/prefetch and restores the fixture track.
+Check play, pause, seeking beyond buffered audio, resume, and complete app restart. `requests.txt`
+records paths, ranges and authenticated identities without credential-bearing queries. Create a
+`stop` file in the fixture directory to finish early. Certificates are deleted when it stops; the
+explicitly chosen disposable profile and acceptance records remain for inspection. This optional
+visible-app check supplements the automatic database-reopen and native playback regressions.
 
 ## Opt-in Connect cross-device instrumentation
 

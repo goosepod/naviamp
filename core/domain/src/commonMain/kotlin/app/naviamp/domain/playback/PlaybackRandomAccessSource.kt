@@ -21,7 +21,7 @@ class BassFileCallbacks(private val source: PlaybackRandomAccessSource) {
         return true
     }
     fun read(count: Int): ByteArray = if (!lifetime.isActive || count <= 0) byteArrayOf() else runCatching {
-        runBlocking(lifetime) { source.read(position, count) }.also { bytes ->
+        runBlocking(lifetime) { source.read(position, minOf(count, 65_536)) }.also { bytes ->
             check(bytes.size <= count && bytes.size.toLong() <= source.lengthBytes - position)
             position += bytes.size
         }
