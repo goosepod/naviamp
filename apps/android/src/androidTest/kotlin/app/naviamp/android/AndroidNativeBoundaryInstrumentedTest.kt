@@ -31,6 +31,12 @@ class AndroidNativeBoundaryInstrumentedTest {
         val bass = AndroidBassJni.load().getOrThrow()
         assertTrue(bass.init())
         try {
+            val invalid = app.naviamp.domain.playback.BassFileCallbacks(object : app.naviamp.domain.playback.PlaybackRandomAccessSource {
+                override val lengthBytes = 64L
+                override suspend fun read(offset: Long, count: Int) = ByteArray(minOf(count.toLong(), lengthBytes - offset).toInt())
+            })
+            assertEquals(0, bass.createRandomAccessStream(invalid, true))
+            assertFalse(invalid.seek(0), "Failed native creation must close the callback cursor")
             val stream = bass.createRandomAccessStream(app.naviamp.domain.playback.BassFileCallbacks(source), true)
             assertTrue(stream != 0, "Native callbacks failed: ${bass.lastErrorCode}")
             try {

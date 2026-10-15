@@ -30,6 +30,11 @@ class IosBassDecodeIntegrationTest {
         val backend = IosBassAudioBackend()
         assertTrue(BASS_Init(0, SampleRate.toUInt(), 0u, null, null) != 0)
         try {
+            val invalid = object : app.naviamp.domain.playback.PlaybackRandomAccessSource {
+                override val lengthBytes = 64L
+                override suspend fun read(offset: Long, count: Int) = ByteArray(minOf(count.toLong(), lengthBytes - offset).toInt())
+            }
+            assertTrue(backend.createRandomAccessStream(invalid, true).isFailure)
             val stream = backend.createRandomAccessStream(source, true).getOrThrow()
             try {
                 backend.seek(stream, 0.5).getOrThrow()
