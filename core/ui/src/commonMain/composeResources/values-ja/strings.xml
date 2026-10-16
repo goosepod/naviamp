@@ -249,4 +249,5 @@
     <string name="smart_playlist_reference_retry">再試行</string>
     <string name="smart_playlist_reference_empty">一致するプレイリストはありません。</string>
     <string name="smart_playlist_reference_owner_access">参照先のプレイリストは、プレイリストの所有者がアクセスできる必要があります。</string>
+    <string name="connection_certificate_import_failed">証明書をインポートできませんでした。</string>
 </resources>

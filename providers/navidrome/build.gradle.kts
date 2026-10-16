@@ -15,6 +15,7 @@ kotlin {
     jvm()
     iosArm64()
     iosSimulatorArm64()
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
         commonMain.dependencies {
@@ -31,13 +32,15 @@ kotlin {
             implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
         }
 
-        androidMain.dependencies {
-            implementation(libs.ktor.client.cio)
+        val jvmAndAndroidMain by creating {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(libs.ktor.client.okhttp)
+                implementation(libs.bouncycastle.provider)
+            }
         }
-
-        jvmMain.dependencies {
-            implementation(libs.ktor.client.cio)
-        }
+        androidMain.get().dependsOn(jvmAndAndroidMain)
+        jvmMain.get().dependsOn(jvmAndAndroidMain)
 
         jvmTest.dependencies {
             implementation(project(":core:testkit"))
@@ -54,6 +57,7 @@ android {
     compileSdk = 36
     defaultConfig {
         minSdk = 26
+        consumerProguardFiles("consumer-rules.pro")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

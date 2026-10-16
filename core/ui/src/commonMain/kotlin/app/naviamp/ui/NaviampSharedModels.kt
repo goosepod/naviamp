@@ -1349,6 +1349,8 @@ data class NaviampConnectionSettingsActions(
     val onCloseAccounts: () -> Unit = {},
     val onSwitchAccount: (NaviampSavedConnectionUi) -> Unit = {},
     val onAddAccount: () -> Unit = {},
+    val onChooseServerCertificate: (() -> Unit)? = null,
+    val onChooseClientCertificate: (() -> Unit)? = null,
 ) {
     fun updateForm(
         current: ConnectionFormState,

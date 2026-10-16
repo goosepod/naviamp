@@ -368,4 +368,5 @@
     <string name="smart_playlist_reference_retry">Spróbuj ponownie</string>
     <string name="smart_playlist_reference_empty">Brak pasujących playlist.</string>
     <string name="smart_playlist_reference_owner_access">Właściciel playlisty musi mieć dostęp do wskazanych playlist.</string>
+    <string name="connection_certificate_import_failed">Nie udało się zaimportować certyfikatu.</string>
 </resources>

@@ -249,4 +249,5 @@
     <string name="smart_playlist_reference_retry">Réessayer</string>
     <string name="smart_playlist_reference_empty">Aucune playlist correspondante.</string>
     <string name="smart_playlist_reference_owner_access">Les playlists référencées doivent être accessibles au propriétaire de la playlist.</string>
+    <string name="connection_certificate_import_failed">Impossible d’importer le certificat.</string>
 </resources>

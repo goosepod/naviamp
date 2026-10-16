@@ -545,6 +545,7 @@ class NaviampCore private constructor(
                 stateStore,
                 services.connection,
                 initialState.connectionInventory,
+                certificateFiles = services.certificateFiles,
                   onSourceChanging = { previousSourceId, newSourceId ->
                     similarity.resetForSourceChange()
                     stateStore.updateShell { shell -> shell.copy(playback = shell.playback.copy(
@@ -734,7 +735,8 @@ class NaviampCore private constructor(
             return NaviampCore(
                 stateStore = stateStore,
                 playbackProgress = livePlayback.progress,
-                actions = createNaviampCoreActions(commandHandler, actionAvailability, connect?.actions),
+                actions = createNaviampCoreActions(commandHandler,
+                    actionAvailability.copy(chooseCertificate = services.certificateFiles != null), connect?.actions),
                 commands = commandHandler,
                 playbackController = playback,
                 nowPlayingController = nowPlaying,

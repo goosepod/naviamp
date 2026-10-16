@@ -30,6 +30,35 @@ Kover measures JVM and Android unit-test execution. Kotlin/Native, XCTest, Andro
 and native C/JNI execution are intentionally represented by explicit CI gates rather than being
 misreported as JVM line coverage.
 
+## Mobile mutual TLS
+
+`AndroidMutualTlsPlaybackInstrumentedTest` and `IosMutualTlsPlaybackIntegrationTest` run the same
+`verifyNaviampMobileMutualTls` contract through the real provider TLS engine, shared playback adapter
+and native BASS backend. The required API 30/API 35 emulator and iOS simulator CI jobs run these tests
+unconditionally. Certificate files pass through each platform's production private-copy adapter; the
+original selected files are deleted before connecting. No server account, TV or real device is needed.
+
+The contract rejects missing/untrusted identities, wrong PKCS12 passwords, untrusted server CAs and a
+certificate whose hostname does not match. A valid connection then browses and loads artwork, starts
+uncached audio before a full download, pauses, seeks beyond buffered bytes to 90 seconds, resumes and
+stops promptly. A private-CA-only control separates server trust from client authentication.
+
+Mobile tests use a standalone companion JVM with disposable keys and loopback ports 59974–59977.
+CI starts it with `bash scripts/start-mobile-mtls-fixture.sh`; Android CI forwards those ports to its
+isolated emulator with `adb reverse`. The helper first prepares its classpath with Gradle and then
+runs Java independently, allowing the test build to acquire Gradle's execution locks.
+
+On macOS, boot an isolated iOS simulator with `xcrun simctl boot <device-id>` and wait with
+`xcrun simctl bootstatus <device-id> -b`. Start the helper, run
+`./gradlew :platforms:ios:iosSimulatorArm64Test -Pnaviamp.ios.testDevice=<device-id>`, then stop the helper
+with `curl --fail http://127.0.0.1:59974/stop` and shut down that simulator. The native TLS test disables
+Kotlin's standalone simulator mode so Apple Security can contact the simulator's trust service;
+see [Kotlin's documented HTTPS testing requirement](https://kotlinlang.org/docs/whatsnew19.html#ability-to-configure-standalone-mode-for-ios-simulator-tests-in-kotlin-native).
+CI compiles both native targets and runs common standalone tests first, then clones a dedicated
+simulator and executes the already-linked native TLS/BASS test binary in a separate required step.
+Android reproduction commands are in the emulator job in
+[the Verify workflow](../.github/workflows/verify.yml). Use an isolated emulator for that job.
+
 ## Desktop mutual TLS
 
 Mutual TLS checks run in ordinary provider `jvmTest` and Desktop `desktopTest`, including
@@ -38,6 +67,8 @@ needed. The fixture uses the active JDK's `keytool` to generate a temporary priv
 identity, a valid PKCS12 client identity, and an unrelated client identity. Its HTTPS server binds
 only to loopback on an ephemeral port and requires a client certificate. Certificates, databases,
 and audio are deleted after the tests; OS trust stores and user credentials are untouched.
+`DesktopSharedMutualTlsContractTest` additionally runs the mobile contract on Windows, macOS and
+Linux, reserving the same four loopback ports for the duration of that test.
 
 To run just these tests on Windows with the normal native-build prerequisites installed:
 

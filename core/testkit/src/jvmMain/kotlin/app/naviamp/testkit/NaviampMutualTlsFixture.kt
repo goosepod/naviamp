@@ -22,7 +22,10 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 
 /** Real loopback HTTPS and disposable identities; never changes an OS or JVM trust store. */
-class NaviampMutualTlsFixture(audioSeconds: Int = 1) : AutoCloseable {
+class NaviampMutualTlsFixture(
+    audioSeconds: Int = 1,
+    serverSubjectAlternativeNames: String = "DNS:localhost,IP:127.0.0.1",
+) : AutoCloseable {
     val directory: Path = Files.createTempDirectory("naviamp-mtls-")
     val serverCa: Path = directory.resolve("ca.crt")
     val clientKeyStore: Path = directory.resolve("client.p12")
@@ -40,7 +43,7 @@ class NaviampMutualTlsFixture(audioSeconds: Int = 1) : AutoCloseable {
             key("ca.p12", "-genkeypair", "-alias", "ca", "-keyalg", "RSA", "-keysize", "2048",
                 "-dname", "CN=Naviamp Test CA", "-validity", "2", "-ext", "bc=ca:true", "-ext", "ku=keyCertSign,cRLSign")
             key("ca.p12", "-exportcert", "-alias", "ca", "-rfc", "-file", serverCa.toString())
-            issuedIdentity("server", "serverAuth", "CN=localhost", "DNS:localhost,IP:127.0.0.1")
+            issuedIdentity("server", "serverAuth", "CN=localhost", serverSubjectAlternativeNames)
             issuedIdentity("client", "clientAuth", "CN=Naviamp Test Client")
             key("untrusted.p12", "-genkeypair", "-alias", "identity", "-keyalg", "RSA", "-keysize", "2048",
                 "-dname", "CN=Untrusted Test Client", "-validity", "2", "-ext", "eku=clientAuth")
@@ -79,10 +82,10 @@ class NaviampMutualTlsFixture(audioSeconds: Int = 1) : AutoCloseable {
         check(process.exitValue() == 0) { "Disposable certificate generation failed: ${Files.readString(output)}" }
     }
 
-    fun startServer(requireClientCertificate: Boolean = true, pauseAudioAfterBytes: Int? = null): Server =
-        Server(requireClientCertificate, pauseAudioAfterBytes).also { servers += it }
+    fun startServer(requireClientCertificate: Boolean = true, pauseAudioAfterBytes: Int? = null, port: Int = 0): Server =
+        Server(requireClientCertificate, pauseAudioAfterBytes, port).also { servers += it }
 
-    inner class Server internal constructor(requireClientCertificate: Boolean, private val pauseAudioAfterBytes: Int?) : AutoCloseable {
+    inner class Server internal constructor(requireClientCertificate: Boolean, private val pauseAudioAfterBytes: Int?, port: Int) : AutoCloseable {
         val requestedPaths: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val peerSubjects: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val requestedRanges: MutableList<String> = Collections.synchronizedList(mutableListOf())
@@ -91,7 +94,7 @@ class NaviampMutualTlsFixture(audioSeconds: Int = 1) : AutoCloseable {
         private val workers = Executors.newCachedThreadPool { runnable ->
             Thread(runnable, "naviamp-mtls-fixture").apply { isDaemon = true }
         }
-        private val server = HttpsServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        private val server = HttpsServer.create(InetSocketAddress("127.0.0.1", port), 0)
         private var closed = false
         val baseUrl: String get() = "https://127.0.0.1:${server.address.port}"
 
