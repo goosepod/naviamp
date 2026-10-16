@@ -54,7 +54,8 @@ On macOS, boot an isolated iOS simulator with `xcrun simctl boot <device-id>` an
 with `curl --fail http://127.0.0.1:59974/stop` and shut down that simulator. The native TLS test disables
 Kotlin's standalone simulator mode so Apple Security can contact the simulator's trust service;
 see [Kotlin's documented HTTPS testing requirement](https://kotlinlang.org/docs/whatsnew19.html#ability-to-configure-standalone-mode-for-ios-simulator-tests-in-kotlin-native).
-CI clones a dedicated simulator so parallel standalone common tests cannot shut it down.
+CI compiles both native targets and runs common standalone tests first, then clones a dedicated
+simulator and executes the already-linked native TLS/BASS test binary in a separate required step.
 Android reproduction commands are in the emulator job in
 [the Verify workflow](../.github/workflows/verify.yml). Use an isolated emulator for that job.
 

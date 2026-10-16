@@ -34,8 +34,9 @@ provider. iOS uses Apple Security and connection-scoped NSURLSession challenge h
 
 The iOS native test requires a fully booted simulator rather than Kotlin's default standalone
 execution. The latter failed Apple Security trust evaluation with OSStatus -26276 before client
-authentication. CI provisions a dedicated simulator and collects trust-service diagnostics; this
-keeps strict certificate validation intact and isolates it from parallel common-test simulator use.
+authentication. CI compiles first, then provisions a dedicated simulator for a separate required
+native-test step and collects trust-service diagnostics. This keeps strict certificate validation
+intact and isolates the native runtime from common-test simulator use.
 
 ## Shared ownership
 
