@@ -4,7 +4,9 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 ## Unreleased
 
-No changes yet.
+### Bug fixes
+
+- Keep Library search controls stationary, preserve complete search results without refreshing the library, and restore the previous browse list when clearing a search.
 
 ## v2.10.1
 
