@@ -290,4 +290,9 @@
     <string name="artist_playlists_empty">Geen van je lijsten bevat deze artiest.</string>
     <string name="settings_show_artist_playlists">Afspeellijsten op artiestpagina&apos;s tonen</string>
     <string name="settings_show_artist_playlists_subtitle">Toon zelfgemaakte lijsten met nummers van deze artiest.</string>
+    <string name="settings_show_artist_top_tracks">Populaire nummers op artiestpagina’s tonen</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Toon de populairste nummers van de artiest.</string>
+    <string name="settings_artist_top_tracks_limit">Maximumaantal populaire nummers</string>
+    <string name="settings_artist_top_tracks_count">%1$d nummers</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Toon maximaal dit aantal overeenkomende nummers uit je bibliotheek.</string>
 </resources>

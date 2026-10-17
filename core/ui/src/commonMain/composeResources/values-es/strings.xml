@@ -1120,4 +1120,9 @@
     <string name="artist_playlists_empty">Ninguna de tus listas contiene a este artista.</string>
     <string name="settings_show_artist_playlists">Mostrar listas en páginas de artistas</string>
     <string name="settings_show_artist_playlists_subtitle">Muestra las listas que creaste con canciones del artista.</string>
+    <string name="settings_show_artist_top_tracks">Mostrar canciones destacadas en las páginas de artistas</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Mostrar las canciones más populares del artista.</string>
+    <string name="settings_artist_top_tracks_limit">Máximo de canciones destacadas</string>
+    <string name="settings_artist_top_tracks_count">%1$d canciones</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Mostrar como máximo esta cantidad de canciones coincidentes de tu biblioteca.</string>
 </resources>

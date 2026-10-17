@@ -290,4 +290,9 @@
     <string name="artist_playlists_empty">В ваших плейлистах нет этого исполнителя.</string>
     <string name="settings_show_artist_playlists">Показывать плейлисты на страницах исполнителей</string>
     <string name="settings_show_artist_playlists_subtitle">Показывать созданные вами плейлисты с треками исполнителя.</string>
+    <string name="settings_show_artist_top_tracks">Показывать популярные треки на страницах исполнителей</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Показывать самые популярные треки исполнителя.</string>
+    <string name="settings_artist_top_tracks_limit">Максимум популярных треков</string>
+    <string name="settings_artist_top_tracks_count">%1$d треков</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Показывать не более указанного числа подходящих треков из медиатеки.</string>
 </resources>

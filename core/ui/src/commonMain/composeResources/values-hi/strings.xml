@@ -290,4 +290,9 @@
     <string name="artist_playlists_empty">आपकी किसी प्लेलिस्ट में यह कलाकार नहीं है।</string>
     <string name="settings_show_artist_playlists">कलाकार पृष्ठों पर प्लेलिस्ट दिखाएँ</string>
     <string name="settings_show_artist_playlists_subtitle">आपकी बनाई प्लेलिस्ट दिखाएँ जिनमें कलाकार के गाने हैं।</string>
+    <string name="settings_show_artist_top_tracks">कलाकार पेज पर लोकप्रिय ट्रैक दिखाएँ</string>
+    <string name="settings_show_artist_top_tracks_subtitle">कलाकार के सबसे लोकप्रिय ट्रैक दिखाएँ।</string>
+    <string name="settings_artist_top_tracks_limit">लोकप्रिय ट्रैक की अधिकतम संख्या</string>
+    <string name="settings_artist_top_tracks_count">%1$d ट्रैक</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">अपनी लाइब्रेरी से अधिकतम इतने मेल खाने वाले ट्रैक दिखाएँ।</string>
 </resources>

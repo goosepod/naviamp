@@ -22,6 +22,7 @@ Naviamp 2.10.0 completes certificate-protected server connections across Android
 - Choose Radio and Sonic similarity explicitly, configure their initial batch sizes independently, and keep regular Radio supplied with new tracks.
 - Find playlist actions first in track menus, with controls that respect smart-playlist membership.
 - Recognize connected services by their official icons and see clearer connection labels and updated German wording.
+- Show or hide Top Tracks on artist pages and choose a maximum of 5–50 tracks in steps of five. The default remains 10 tracks.
 
 ### Bug fixes
 

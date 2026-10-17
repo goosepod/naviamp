@@ -37,6 +37,16 @@ class SettingsSyncMappingTest {
             RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
         assertTrue(older.interfaceSettings.showArtistPlaylists)
     }
+
+    @Test fun artistTopTracksApplyThroughExportImportAndSync() {
+        for (visible in listOf(true, false)) for (limit in ArtistTopTracksLimits) {
+            val settings = InterfaceSettings(showArtistTopTracks = visible, artistTopTracksLimit = limit)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+    }
     @Test fun explicitRadioMethodsAndAutoplaySurvivePortableExportImportAndSync() {
         for (method in app.naviamp.domain.radio.RadioSimilarityMethod.entries) {
             val settings = PlaybackSettings().withRadioSimilarityMethod(method)

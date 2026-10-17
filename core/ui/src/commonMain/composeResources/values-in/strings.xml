@@ -290,4 +290,9 @@
     <string name="artist_playlists_empty">Tidak ada daftar putar Anda yang memuat artis ini.</string>
     <string name="settings_show_artist_playlists">Tampilkan daftar putar di halaman artis</string>
     <string name="settings_show_artist_playlists_subtitle">Tampilkan daftar putar buatan Anda yang memuat lagu artis ini.</string>
+    <string name="settings_show_artist_top_tracks">Tampilkan Lagu Teratas di halaman artis</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Tampilkan lagu artis yang paling populer.</string>
+    <string name="settings_artist_top_tracks_limit">Maksimum Lagu Teratas</string>
+    <string name="settings_artist_top_tracks_count">%1$d lagu</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Tampilkan paling banyak sejumlah ini lagu yang cocok dari pustaka Anda.</string>
 </resources>

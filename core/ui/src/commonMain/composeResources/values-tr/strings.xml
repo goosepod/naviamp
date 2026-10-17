@@ -290,4 +290,9 @@
     <string name="artist_playlists_empty">Oluşturduğunuz listelerde bu sanatçı yok.</string>
     <string name="settings_show_artist_playlists">Sanatçı sayfalarında çalma listelerini göster</string>
     <string name="settings_show_artist_playlists_subtitle">Bu sanatçının parçalarını içeren kendi oluşturduğunuz listeleri gösterir.</string>
+    <string name="settings_show_artist_top_tracks">Sanatçı sayfalarında popüler parçaları göster</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Sanatçının en popüler parçalarını göster.</string>
+    <string name="settings_artist_top_tracks_limit">En fazla popüler parça sayısı</string>
+    <string name="settings_artist_top_tracks_count">%1$d parça</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Kitaplığınızdaki eşleşen parçalardan en fazla bu kadarını göster.</string>
 </resources>

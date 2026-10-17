@@ -89,6 +89,7 @@ android {
                 "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
                 "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
                 "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
+                "app.naviamp.ui.NaviampArtistTopTracksUiTest",
             ).joinToString(",")
         }
     }

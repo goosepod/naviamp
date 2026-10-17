@@ -290,4 +290,9 @@
     <string name="artist_playlists_empty">Aucune de vos listes ne contient cet artiste.</string>
     <string name="settings_show_artist_playlists">Afficher les listes sur les pages des artistes</string>
     <string name="settings_show_artist_playlists_subtitle">Affiche vos propres listes contenant des titres de cet artiste.</string>
+    <string name="settings_show_artist_top_tracks">Afficher les titres populaires sur les pages des artistes</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Afficher les titres les plus populaires de l’artiste.</string>
+    <string name="settings_artist_top_tracks_limit">Nombre maximal de titres populaires</string>
+    <string name="settings_artist_top_tracks_count">%1$d titres</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Afficher au maximum ce nombre de titres correspondants de votre bibliothèque.</string>
 </resources>

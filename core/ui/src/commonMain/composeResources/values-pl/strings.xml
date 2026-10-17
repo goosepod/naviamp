@@ -409,4 +409,9 @@
     <string name="artist_playlists_empty">Żadna z Twoich playlist nie zawiera tego artysty.</string>
     <string name="settings_show_artist_playlists">Pokazuj playlisty na stronach artystów</string>
     <string name="settings_show_artist_playlists_subtitle">Pokazuj utworzone przez Ciebie playlisty z utworami artysty.</string>
+    <string name="settings_show_artist_top_tracks">Pokazuj najpopularniejsze utwory na stronach wykonawców</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Pokazuj najpopularniejsze utwory wykonawcy.</string>
+    <string name="settings_artist_top_tracks_limit">Maksymalna liczba popularnych utworów</string>
+    <string name="settings_artist_top_tracks_count">%1$d utworów</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Pokazuj najwyżej tyle pasujących utworów z biblioteki.</string>
 </resources>

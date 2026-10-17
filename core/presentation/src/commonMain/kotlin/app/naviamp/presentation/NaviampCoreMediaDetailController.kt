@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import app.naviamp.domain.media.loadArtistPlaylists
 import app.naviamp.ui.SharedArtistPlaylistsUi
+import app.naviamp.ui.toSharedTrackRowUi
 
 data class NaviampCoreArtistDiscoveryServices(
     val sourceId: () -> String? = { null },
@@ -44,6 +45,7 @@ data class NaviampCoreArtistDiscoveryServices(
         artistId: ArtistId,
         primaryAlbumIds: Set<AlbumId>,
     ) -> ArtistDiscographyAppearances = { _, _, _ -> ArtistDiscographyAppearances() },
+    val artistTopTracks: suspend (String, Artist, Int) -> List<ArtistPopularTrackMatch> = popularTracks,
 )
 
 /** Builds provider-backed discovery once for every host; platforms supply only durable storage. */
@@ -83,6 +85,9 @@ fun providerArtistDiscoveryServices(
     return NaviampCoreArtistDiscoveryServices(
         sourceId = sourceId,
         popularTracks = popular::popularTracks,
+        artistTopTracks = { source, artist, limit ->
+            popular.popularTracks(source, artist, limit, ensureRequestedLimit = true)
+        },
         similarArtists = similar::similarArtists,
         discographyAppearances = { activeSourceId, artistId, primaryAlbumIds ->
             libraryIndex.artistDiscographyAppearances(activeSourceId, artistId, primaryAlbumIds)
@@ -140,8 +145,49 @@ class NaviampCoreMediaDetailController(
         }
     }
 
+    private var topTracksGeneration = 0L
+    private var topTracksJob: Job? = null
+    private var topTracksPreferences = stateStore.state.value.shell.general.interfaceSettings.normalized().let {
+        it.showArtistTopTracks to it.artistTopTracksLimit
+    }
+
+    private fun cancelArtistTopTracks() {
+        topTracksGeneration++
+        topTracksJob?.cancel()
+        topTracksJob = null
+    }
+
+    private fun refreshArtistTopTracks() {
+        cancelArtistTopTracks()
+        val settings = stateStore.state.value.shell.general.interfaceSettings.normalized()
+        topTracksPreferences = settings.showArtistTopTracks to settings.artistTopTracksLimit
+        if (!settings.showArtistTopTracks) return
+        val provider = providerSource.current() ?: return
+        val artist = mediaRegistry.artistDetails?.artist ?: return
+        val generation = topTracksGeneration
+        val artistLoad = artistGeneration
+        topTracksJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val popular = loadArtistPopularTracksUpdate(
+                sourceId = discovery.sourceId(), artist = artist,
+                fetchLimit = maxOf(app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit, settings.artistTopTracksLimit),
+                displayLimit = settings.artistTopTracksLimit, loadPopularTracks = discovery.artistTopTracks,
+            )
+            if (generation != topTracksGeneration || artistLoad != artistGeneration || !providerSource.isCurrent(provider)) return@launch
+            mediaRegistry.updateArtistPopularTracks(popular.tracks)
+            stateStore.updateShell { shell ->
+                val current = shell.artistDetail.detail
+                if (current?.artist?.id != artist.id.value || !current.popularTracksVisible) shell
+                else shell.copy(artistDetail = shell.artistDetail.copy(detail = current.copy(
+                    popularTracks = popular.tracks.map { it.toSharedTrackRowUi(coverArtUrl = { id -> id?.let(provider::coverArtUrl) }).copy(hasArtist = false) },
+                    popularTracksStatus = popular.status,
+                )))
+            }
+        }
+    }
+
     fun resetForSourceChange() {
         cancelArtistPlaylists()
+        cancelArtistTopTracks()
         albumGeneration++
         artistGeneration++
         mediaRegistry.updateAlbum(null)
@@ -218,6 +264,11 @@ class NaviampCoreMediaDetailController(
     internal fun interfaceSettingsChanged(settings: app.naviamp.domain.settings.InterfaceSettings) {
         val previousVisibility = stateStore.state.value.shell.artistDetail.detail?.playlistsVisible
         if (!settings.showArtistPlaylists) cancelArtistPlaylists()
+        val normalized = settings.normalized()
+        val nextTopTracksPreferences = normalized.showArtistTopTracks to normalized.artistTopTracksLimit
+        val reloadTopTracks = nextTopTracksPreferences != topTracksPreferences
+        topTracksPreferences = nextTopTracksPreferences
+        if (reloadTopTracks) cancelArtistTopTracks()
         val provider = providerSource.current() ?: return
         stateStore.updateShell { shell ->
             val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
@@ -255,6 +306,8 @@ class NaviampCoreMediaDetailController(
                         appearanceAlbums = mediaRegistry.artistAppearanceAlbums,
                         appearanceTracks = mediaRegistry.artistAppearanceTracks,
                         popularTracks = mediaRegistry.artistPopularTracks,
+                        showArtistTopTracks = normalized.showArtistTopTracks,
+                        artistTopTracksLimit = normalized.artistTopTracksLimit,
                         popularTracksStatus = current?.popularTracksStatus,
                         similarArtists = mediaRegistry.artistSimilarArtists,
                         similarArtistsStatus = current?.similarArtistsStatus,
@@ -273,6 +326,7 @@ class NaviampCoreMediaDetailController(
         if (settings.showArtistPlaylists && previousVisibility == false) {
             stateStore.state.value.shell.artistDetail.detail?.artist?.id?.let(::refreshArtistPlaylists)
         }
+        if (reloadTopTracks) refreshArtistTopTracks()
     }
 
     internal suspend fun toggleSimilarArtists(item: SharedMediaItemUi) {
@@ -446,6 +500,7 @@ class NaviampCoreMediaDetailController(
         loadSimilar: Boolean = false,
     ) {
         cancelArtistPlaylists()
+        cancelArtistTopTracks()
         val generation = ++artistGeneration
         mediaRegistry.updateArtist(null)
         val artist = Artist(ArtistId(item.id), item.title)
@@ -490,11 +545,7 @@ class NaviampCoreMediaDetailController(
                 val detail = discography.primary
                 if (generation != artistGeneration || !providerSource.isCurrent(provider)) return@onSuccess
                 navigationController.updateActiveArtist(detail.artist)
-                val popular = loadArtistPopularTracksUpdate(
-                    sourceId = discovery.sourceId(),
-                    artist = detail.artist,
-                    loadPopularTracks = discovery.popularTracks,
-                )
+                val popular = app.naviamp.domain.media.ArtistPopularTracksUpdate(emptyList(), null)
                 val similar = if (loadSimilar) {
                     loadSimilarArtistsUpdate(detail.artist, loadSimilarArtists = discovery.similarArtists)
                 } else {
@@ -522,6 +573,8 @@ class NaviampCoreMediaDetailController(
                                 appearanceLoadFailed = discography.appearanceLoadFailed,
                                 appearancesTruncated = discography.appearancesTruncated,
                                 popularTracks = popular.tracks,
+                                showArtistTopTracks = shell.general.interfaceSettings.showArtistTopTracks,
+                                artistTopTracksLimit = shell.general.interfaceSettings.artistTopTracksLimit,
                                 popularTracksStatus = popular.status,
                                 similarArtists = similar.artists,
                                 similarArtistsStatus = similar.status,
@@ -539,6 +592,7 @@ class NaviampCoreMediaDetailController(
                     )
                 }
                 refreshArtistPlaylists(detail.artist.id.value)
+                refreshArtistTopTracks()
             }
             .onFailure { cause ->
                 if (generation == artistGeneration && providerSource.isCurrent(provider)) {

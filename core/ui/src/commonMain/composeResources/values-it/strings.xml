@@ -290,4 +290,9 @@
     <string name="artist_playlists_empty">Nessuna delle tue playlist contiene questo artista.</string>
     <string name="settings_show_artist_playlists">Mostra playlist nelle pagine degli artisti</string>
     <string name="settings_show_artist_playlists_subtitle">Mostra le playlist che hai creato con brani di questo artista.</string>
+    <string name="settings_show_artist_top_tracks">Mostra i brani più ascoltati nelle pagine degli artisti</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Mostra i brani più popolari dell’artista.</string>
+    <string name="settings_artist_top_tracks_limit">Numero massimo di brani più ascoltati</string>
+    <string name="settings_artist_top_tracks_count">%1$d brani</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Mostra al massimo questo numero di brani corrispondenti della tua libreria.</string>
 </resources>

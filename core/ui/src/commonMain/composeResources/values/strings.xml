@@ -1145,4 +1145,9 @@
     <string name="artist_playlists_empty">None of your playlists contain this artist.</string>
     <string name="settings_show_artist_playlists">Show playlists on artist pages</string>
     <string name="settings_show_artist_playlists_subtitle">Show playlists you created that contain tracks by the artist.</string>
+    <string name="settings_show_artist_top_tracks">Show Top Tracks on artist pages</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Show the artist’s most popular tracks.</string>
+    <string name="settings_artist_top_tracks_limit">Maximum Top Tracks</string>
+    <string name="settings_artist_top_tracks_count">%1$d tracks</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Show up to this many matching tracks from your library.</string>
 </resources>

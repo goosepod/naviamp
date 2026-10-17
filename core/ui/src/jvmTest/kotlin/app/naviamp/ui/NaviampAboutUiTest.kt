@@ -64,6 +64,8 @@ class NaviampAboutUiTest {
             } else false
         }
         writeAboutReleaseImage(requireNotNull(rendered))
+        onNodeWithText("Show or hide Top Tracks on artist pages and choose a maximum of 5–50 tracks in steps of five. The default remains 10 tracks.")
+            .performScrollTo().assertIsDisplayed()
         onNodeWithText("Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.")
             .performScrollTo().assertIsDisplayed()
         onNodeWithText("Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list.")

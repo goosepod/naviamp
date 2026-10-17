@@ -443,6 +443,7 @@ data class SharedArtistDetailUi(
     val localLibraryLabel: String = "",
     val biography: String? = null,
     val popularTracks: List<SharedTrackRowUi> = emptyList(),
+    val popularTracksVisible: Boolean = true,
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
