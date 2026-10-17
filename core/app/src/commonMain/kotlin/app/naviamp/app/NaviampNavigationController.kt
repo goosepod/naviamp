@@ -96,6 +96,27 @@ class NaviampNavigationController(
         detailState = detailState.copy(activeArtist = artist)
     }
 
+    fun recordPlaylistDetailOpened() {
+        detailState = detailState.copy(playlistBackArtist = when (state.value.route) {
+            NaviampRoute.ArtistDetail -> detailState.activeArtist?.let { artist ->
+                NaviampPlaylistArtistOrigin(artist, detailState.artistBackStack,
+                    detailState.artistBackRoute, detailState.artistBackOpensNowPlaying)
+            }
+            NaviampRoute.PlaylistDetail -> detailState.playlistBackArtist
+            else -> null
+        })
+    }
+
+    /** Returning from a playlist must not pop the artist's own nested back history. */
+    fun closePlaylistDetail(fallbackRoute: NaviampRoute): NaviampDetailBackCommand {
+        val origin = detailState.playlistBackArtist
+        detailState = detailState.copy(playlistBackArtist = null)
+        if (origin == null) return NaviampDetailBackCommand.Navigate(fallbackRoute)
+        detailState = detailState.copy(activeArtist = origin.artist, artistBackStack = origin.backStack,
+            artistBackRoute = origin.backRoute, artistBackOpensNowPlaying = origin.reopenNowPlaying)
+        return NaviampDetailBackCommand.OpenArtist(origin.artist)
+    }
+
     fun closeActiveDetail(kind: NaviampDetailKind): NaviampDetailBackCommand =
         when (kind) {
             NaviampDetailKind.Album -> NaviampDetailBackCommand.Navigate(
@@ -140,9 +161,17 @@ sealed interface NaviampDetailBackCommand {
 
 private data class NaviampDetailNavigationState(
     val activeArtist: Artist? = null,
+    val playlistBackArtist: NaviampPlaylistArtistOrigin? = null,
     val artistBackStack: List<Artist> = emptyList(),
     val albumBackRoute: NaviampRoute = NaviampRoute.Home,
     val artistBackRoute: NaviampRoute = NaviampRoute.Search,
     val albumBackOpensNowPlaying: Boolean = false,
     val artistBackOpensNowPlaying: Boolean = false,
+)
+
+private data class NaviampPlaylistArtistOrigin(
+    val artist: Artist,
+    val backStack: List<Artist>,
+    val backRoute: NaviampRoute,
+    val reopenNowPlaying: Boolean,
 )

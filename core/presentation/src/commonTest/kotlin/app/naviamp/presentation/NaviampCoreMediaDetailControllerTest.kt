@@ -38,6 +38,30 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreMediaDetailControllerTest {
+    @Test fun openingAnArtistPlaylistAndGoingBackReloadsThatArtistAndRetainsNestedHistory() = runTest {
+        val provider = MediaDetailTestProvider()
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-b", "Artist B")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        runCurrent()
+        val match = store.state.value.shell.artistDetail.detail!!.playlists.items.single()
+        val playlists = NaviampCorePlaylistBrowseController(store, NaviampCoreMediaProviderSource { provider }, controller.navigation)
+        playlists.execute(NaviampCoreCommand.Media.ItemAction(
+            app.naviamp.ui.NaviampMediaItemActionRequest(match,
+                app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Select))))
+        assertEquals("mine", store.state.value.shell.playlistDetail.detail?.playlist?.id)
+        assertNull(store.state.value.shell.artistDetail.detail)
+        controller.navigation.dispatch(NaviampCoreCommand.Navigation.BackFromPlaylist)
+        runCurrent()
+        assertNull(store.state.value.shell.playlistDetail.selectedPlaylist)
+        assertEquals("artist-a", store.state.value.shell.artistDetail.detail?.artist?.id)
+        assertEquals(listOf("mine"), store.state.value.shell.artistDetail.detail!!.playlists.items.map { it.id })
+        controller.navigation.dispatch(NaviampCoreCommand.Navigation.BackFromArtist)
+        runCurrent()
+        assertEquals("artist-b", store.state.value.shell.artistDetail.detail?.artist?.id)
+    }
     @Test
     fun artistPlaylistsLoadAfterDetailsAndSettingStopsAndRestartsTheLookup() = runTest {
         val gate = CompletableDeferred<Unit>()
