@@ -1,5 +1,34 @@
 package app.naviamp.domain.smartplaylist
 
+/** A false missing/present operand reverses the predicate; it is not a displayed value. */
+fun SmartPlaylistCondition.summaryOperator(): SmartPlaylistOperator = when {
+    value != SmartPlaylistValue.Flag(false) -> operator
+    operator == SmartPlaylistOperator.IsMissing -> SmartPlaylistOperator.IsPresent
+    operator == SmartPlaylistOperator.IsPresent -> SmartPlaylistOperator.IsMissing
+    else -> operator
+}
+
+data class SmartPlaylistSummaryReference(
+    val name: String,
+    val owner: String? = null,
+    val isSmart: Boolean = false,
+    val distinguishingId: String? = null,
+)
+
+/** Names are presentation only. Stable IDs remain in the definition, including unresolved IDs. */
+fun smartPlaylistSummaryReference(id: String, references: List<SmartPlaylistReference>): SmartPlaylistSummaryReference? {
+    val reference = references.firstOrNull { it.id == id } ?: return null
+    if (reference.name.isBlank()) return null
+    val duplicates = references.filter { it.name.equals(reference.name, ignoreCase = true) }
+    val ambiguous = duplicates.count { it.owner == reference.owner && it.isSmart == reference.isSmart } > 1
+    return SmartPlaylistSummaryReference(
+        reference.name,
+        reference.owner?.takeIf { duplicates.size > 1 && it.isNotBlank() },
+        isSmart = duplicates.size > 1 && reference.isSmart,
+        distinguishingId = reference.id.takeIf { ambiguous },
+    )
+}
+
 /** Owner-specific server semantics also apply when a playlist is public. */
 fun SmartPlaylistDefinition.ownerDependentFields(): Set<String> =
     rules.flatMapTo(linkedSetOf()) { it.ownerDependentFields() } +
