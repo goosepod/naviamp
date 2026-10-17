@@ -86,6 +86,7 @@ android {
                 "app.naviamp.ui.AndroidRasterPlacementTest",
                 "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
                 "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
+                "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
             ).joinToString(",")
         }
     }
