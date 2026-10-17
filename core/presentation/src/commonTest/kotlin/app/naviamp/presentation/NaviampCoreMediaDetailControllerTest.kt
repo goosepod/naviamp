@@ -39,6 +39,58 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreMediaDetailControllerTest {
     @Test
+    fun artistPlaylistsLoadAfterDetailsAndSettingStopsAndRestartsTheLookup() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val provider = MediaDetailTestProvider(playlistGate = gate)
+        val (store, controller) = controller(provider)
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        assertNotNull(store.state.value.shell.artistDetail.detail)
+        runCurrent()
+        assertTrue(store.state.value.shell.artistDetail.detail!!.playlists.loading)
+        assertEquals(1, provider.playlistReads)
+        controller.media.interfaceSettingsChanged(InterfaceSettings(showArtistPlaylists = false))
+        runCurrent()
+        assertTrue(!store.state.value.shell.artistDetail.detail!!.playlistsVisible)
+        assertTrue(!store.state.value.shell.artistDetail.detail!!.playlists.loading)
+        assertEquals(1, provider.cancelledPlaylistReads)
+        gate.complete(Unit)
+        controller.media.interfaceSettingsChanged(InterfaceSettings(showArtistPlaylists = true))
+        runCurrent()
+        assertEquals(listOf("mine"), store.state.value.shell.artistDetail.detail!!.playlists.items.map { it.id })
+        assertEquals(2, provider.playlistReads)
+        controller.media.interfaceSettingsChanged(InterfaceSettings(showArtistInformation = false))
+        assertEquals(listOf("mine"), store.state.value.shell.artistDetail.detail!!.playlists.items.map { it.id })
+    }
+
+    @Test
+    fun disabledSettingSkipsRequestsAndNewArtistAndSourceInvalidateOldReads() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val provider = MediaDetailTestProvider(playlistGate = gate)
+        val (store, controller) = controller(provider)
+        store.updateShell { it.copy(general = it.general.copy(interfaceSettings = InterfaceSettings(showArtistPlaylists = false))) }
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        runCurrent()
+        assertEquals(0, provider.playlistReads)
+        controller.media.interfaceSettingsChanged(InterfaceSettings(showArtistPlaylists = true))
+        runCurrent()
+        assertEquals(1, provider.playlistReads)
+        store.updateShell { it.copy(general = it.general.copy(interfaceSettings = InterfaceSettings())) }
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-b", "Artist B")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        runCurrent()
+        assertEquals(1, provider.cancelledPlaylistReads)
+        assertEquals("artist-b", store.state.value.shell.artistDetail.detail!!.artist.id)
+        controller.media.resetForSourceChange()
+        runCurrent()
+        gate.complete(Unit)
+        runCurrent()
+        assertNull(store.state.value.shell.artistDetail.detail)
+        assertEquals(2, provider.cancelledPlaylistReads)
+    }
+
+    @Test
     fun nativeReverseCreditResultsUseSharedAppearanceReconciliationWithoutStorageFallback() = runTest {
         var fallbackCalled = false
         val provider = MediaDetailTestProvider(nativeDiscography = true)
@@ -371,7 +423,20 @@ private class MediaDetailTestProvider(
     private val firstArtistGate: CompletableDeferred<Unit>? = null,
     private val albumInfoGate: CompletableDeferred<Unit>? = null,
     private val nativeDiscography: Boolean = false,
+    private val playlistGate: CompletableDeferred<Unit>? = null,
 ) : MediaProvider {
+    var playlistReads = 0
+    var cancelledPlaylistReads = 0
+    override suspend fun playlists(limit: Int) = listOf(app.naviamp.domain.Playlist("mine", "My playlist", 1))
+    override suspend fun playlistOwnedByCurrentUser(playlist: app.naviamp.domain.Playlist) = true
+    override suspend fun playlistTracks(playlistId: String): List<Track> {
+        playlistReads++
+        try { playlistGate?.await() } catch (cause: kotlinx.coroutines.CancellationException) {
+            cancelledPlaylistReads++
+            throw cause
+        }
+        return listOf(track("member", "Member").copy(artistId = ArtistId("artist-a"), artistName = "Artist A"))
+    }
     override val id = ProviderId("media-detail")
     override val displayName = "Media detail"
     override val capabilities = ProviderCapabilities(

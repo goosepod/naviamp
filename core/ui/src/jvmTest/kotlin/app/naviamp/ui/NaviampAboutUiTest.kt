@@ -52,6 +52,7 @@ class NaviampAboutUiTest {
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
         onNodeWithText("Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.").assertIsDisplayed()
+        onNodeWithText("Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.").assertIsDisplayed()
         onNodeWithText("Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
         val roots = onAllNodes(isRoot())
         var rendered: androidx.compose.ui.graphics.ImageBitmap? = null

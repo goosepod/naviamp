@@ -281,4 +281,13 @@
     <string name="smart_playlist_summary_op_not_playlist">pas dans la playlist</string>
     <string name="smart_playlist_summary_op_missing">est absent</string>
     <string name="smart_playlist_summary_op_present">est présent</string>
+    <string name="artist_playlists">Listes de lecture</string>
+    <string name="artist_playlists_refresh">Actualiser</string>
+    <string name="artist_playlists_retry">Réessayer</string>
+    <string name="artist_playlists_loading">Recherche dans vos listes…</string>
+    <string name="artist_playlists_failed">Certaines listes ne peuvent pas être vérifiées. Réessayez.</string>
+    <string name="artist_playlists_truncated">Seules les 500 premières listes ont été vérifiées. D&apos;autres peuvent contenir cet artiste.</string>
+    <string name="artist_playlists_empty">Aucune de vos listes ne contient cet artiste.</string>
+    <string name="settings_show_artist_playlists">Afficher les listes sur les pages des artistes</string>
+    <string name="settings_show_artist_playlists_subtitle">Affiche vos propres listes contenant des titres de cet artiste.</string>
 </resources>

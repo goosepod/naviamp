@@ -1107,4 +1107,13 @@
     <string name="smart_playlist_summary_op_not_playlist">nicht in Playlist</string>
     <string name="smart_playlist_summary_op_missing">fehlt</string>
     <string name="smart_playlist_summary_op_present">ist vorhanden</string>
+    <string name="artist_playlists">Wiedergabelisten</string>
+    <string name="artist_playlists_refresh">Aktualisieren</string>
+    <string name="artist_playlists_retry">Erneut versuchen</string>
+    <string name="artist_playlists_loading">Deine Wiedergabelisten werden durchsucht…</string>
+    <string name="artist_playlists_failed">Einige Listen konnten nicht geprüft werden. Versuche es erneut.</string>
+    <string name="artist_playlists_truncated">Nur die ersten 500 Listen wurden geprüft. Weitere können diesen Künstler enthalten.</string>
+    <string name="artist_playlists_empty">Keine deiner Listen enthält diesen Künstler.</string>
+    <string name="settings_show_artist_playlists">Wiedergabelisten auf Künstlerseiten anzeigen</string>
+    <string name="settings_show_artist_playlists_subtitle">Zeige selbst erstellte Listen mit Titeln des Künstlers.</string>
 </resources>

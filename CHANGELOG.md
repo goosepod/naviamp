@@ -8,11 +8,12 @@ No changes yet.
 
 ## v2.10.0
 
-Naviamp 2.10.0 completes certificate-protected server connections across Android, iOS, Windows, macOS and Linux. It also makes smart playlists safer and easier to build, gives Radio clearer controls, and fixes Android playback recovery crashes.
+Naviamp 2.10.0 completes certificate-protected server connections across Android, iOS, Windows, macOS and Linux. It also brings your playlists to artist pages, makes smart playlists safer and easier to build, gives Radio clearer controls, and fixes Android playback recovery crashes.
 
 ### Features
 
 - Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.
+- Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.
 
 ### Improvements
 

@@ -172,6 +172,7 @@ data class InterfaceSettings(
     val keepScreenAwake: Boolean = false,
     val showDesktopTooltips: Boolean = true,
     val showArtistInformation: Boolean = true,
+    val showArtistPlaylists: Boolean = true,
     val showAlbumInformation: Boolean = true,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,

@@ -281,4 +281,13 @@
     <string name="smart_playlist_summary_op_not_playlist">इस प्लेलिस्ट में नहीं</string>
     <string name="smart_playlist_summary_op_missing">अनुपस्थित है</string>
     <string name="smart_playlist_summary_op_present">उपस्थित है</string>
+    <string name="artist_playlists">प्लेलिस्ट</string>
+    <string name="artist_playlists_refresh">रीफ़्रेश करें</string>
+    <string name="artist_playlists_retry">फिर कोशिश करें</string>
+    <string name="artist_playlists_loading">आपकी प्लेलिस्ट खोजी जा रही हैं…</string>
+    <string name="artist_playlists_failed">कुछ प्लेलिस्ट जाँची नहीं जा सकीं। फिर कोशिश करें।</string>
+    <string name="artist_playlists_truncated">केवल पहली 500 प्लेलिस्ट जाँची गईं। अन्य में भी यह कलाकार हो सकता है।</string>
+    <string name="artist_playlists_empty">आपकी किसी प्लेलिस्ट में यह कलाकार नहीं है।</string>
+    <string name="settings_show_artist_playlists">कलाकार पृष्ठों पर प्लेलिस्ट दिखाएँ</string>
+    <string name="settings_show_artist_playlists_subtitle">आपकी बनाई प्लेलिस्ट दिखाएँ जिनमें कलाकार के गाने हैं।</string>
 </resources>

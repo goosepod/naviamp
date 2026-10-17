@@ -281,4 +281,13 @@
     <string name="smart_playlist_summary_op_not_playlist">ليس في قائمة التشغيل</string>
     <string name="smart_playlist_summary_op_missing">غير موجود</string>
     <string name="smart_playlist_summary_op_present">موجود</string>
+    <string name="artist_playlists">قوائم التشغيل</string>
+    <string name="artist_playlists_refresh">تحديث</string>
+    <string name="artist_playlists_retry">إعادة المحاولة</string>
+    <string name="artist_playlists_loading">جارٍ البحث في قوائمك…</string>
+    <string name="artist_playlists_failed">تعذر فحص بعض القوائم. أعد المحاولة لفحصها مجددًا.</string>
+    <string name="artist_playlists_truncated">تم فحص أول 500 قائمة فقط. قد تحتوي قوائم أخرى على هذا الفنان.</string>
+    <string name="artist_playlists_empty">لا تحتوي أي من قوائمك على هذا الفنان.</string>
+    <string name="settings_show_artist_playlists">عرض القوائم في صفحات الفنانين</string>
+    <string name="settings_show_artist_playlists_subtitle">عرض القوائم التي أنشأتها وتحتوي على مقاطع للفنان.</string>
 </resources>

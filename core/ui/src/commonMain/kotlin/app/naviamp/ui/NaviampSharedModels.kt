@@ -447,6 +447,15 @@ data class SharedArtistDetailUi(
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
     val similarArtistsExpanded: Boolean = false,
+    val playlistsVisible: Boolean = true,
+    val playlists: SharedArtistPlaylistsUi = SharedArtistPlaylistsUi(),
+)
+
+data class SharedArtistPlaylistsUi(
+    val items: List<SharedMediaItemUi> = emptyList(),
+    val loading: Boolean = false,
+    val failed: Boolean = false,
+    val truncated: Boolean = false,
 )
 
 data class NaviampArtistDetailScreenUi(
@@ -499,6 +508,8 @@ data class NaviampArtistDetailActions(
     val onAlbumAction: (NaviampArtistAlbumActionRequest) -> Unit,
     val onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
     val onKeepDownloaded: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistsRefresh: (String) -> Unit = {},
 )
 
 data class SharedAlbumSectionUi(

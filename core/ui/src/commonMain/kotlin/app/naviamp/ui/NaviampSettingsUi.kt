@@ -869,6 +869,15 @@ fun NaviampExperienceSettingsSection(
         }
         SettingsCheckboxRow(
             colors = colors,
+            checked = interfaceSettings.showArtistPlaylists,
+            label = stringResource(Res.string.settings_show_artist_playlists),
+            subtitle = stringResource(Res.string.settings_show_artist_playlists_subtitle),
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistPlaylists = enabled).normalized())
+            },
+        )
+        SettingsCheckboxRow(
+            colors = colors,
             checked = interfaceSettings.showArtistInformation,
             label = stringResource(Res.string.settings_show_artist_information),
             subtitle = stringResource(Res.string.settings_show_artist_information_subtitle),
@@ -2799,6 +2808,7 @@ private val DefaultNaviampChangelog = listOf(
         title = "Features",
         entries = listOf(
             "Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.",
+            "Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.",
         ),
     ),
     NaviampChangelogSectionUi(

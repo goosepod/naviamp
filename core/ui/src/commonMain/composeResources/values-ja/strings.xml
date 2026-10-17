@@ -281,4 +281,13 @@
     <string name="smart_playlist_summary_op_not_playlist">次のプレイリスト外</string>
     <string name="smart_playlist_summary_op_missing">が未設定</string>
     <string name="smart_playlist_summary_op_present">が設定済み</string>
+    <string name="artist_playlists">プレイリスト</string>
+    <string name="artist_playlists_refresh">更新</string>
+    <string name="artist_playlists_retry">再試行</string>
+    <string name="artist_playlists_loading">作成したプレイリストを検索中…</string>
+    <string name="artist_playlists_failed">一部のプレイリストを確認できませんでした。再試行してください。</string>
+    <string name="artist_playlists_truncated">最初の500件のみ確認しました。他のプレイリストにもこのアーティストが含まれる可能性があります。</string>
+    <string name="artist_playlists_empty">作成したプレイリストにこのアーティストは含まれていません。</string>
+    <string name="settings_show_artist_playlists">アーティストページにプレイリストを表示</string>
+    <string name="settings_show_artist_playlists_subtitle">このアーティストの曲を含む自作のプレイリストを表示します。</string>
 </resources>

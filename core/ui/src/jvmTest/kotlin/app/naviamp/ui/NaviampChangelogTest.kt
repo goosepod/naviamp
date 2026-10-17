@@ -13,11 +13,14 @@ class NaviampChangelogTest {
             changelog.map { it.title },
         )
         assertEquals("v2.10.0", NaviampAboutUi().version)
-        val feature = changelog[0].entries.single()
+        assertEquals(2, changelog[0].entries.size)
+        val feature = changelog[0].entries.first()
         assertTrue(feature.contains("every platform"))
         assertTrue(feature.contains("PKCS12"))
         assertTrue(feature.contains("private server authorities"))
         assertTrue(feature.contains("uncached playback"))
+        assertTrue(changelog[0].entries[1].contains("playlists you created"))
+        assertTrue(changelog[0].entries[1].contains("Experience settings"))
         val improvements = changelog[1].entries
         assertEquals(5, improvements.size)
         assertTrue(improvements[0].contains("named playlist references"))

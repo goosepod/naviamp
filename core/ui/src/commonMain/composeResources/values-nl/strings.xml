@@ -281,4 +281,13 @@
     <string name="smart_playlist_summary_op_not_playlist">niet in afspeellijst</string>
     <string name="smart_playlist_summary_op_missing">ontbreekt</string>
     <string name="smart_playlist_summary_op_present">is aanwezig</string>
+    <string name="artist_playlists">Afspeellijsten</string>
+    <string name="artist_playlists_refresh">Vernieuwen</string>
+    <string name="artist_playlists_retry">Opnieuw proberen</string>
+    <string name="artist_playlists_loading">Je afspeellijsten worden doorzocht…</string>
+    <string name="artist_playlists_failed">Sommige lijsten konden niet worden gecontroleerd. Probeer opnieuw.</string>
+    <string name="artist_playlists_truncated">Alleen de eerste 500 lijsten zijn gecontroleerd. Andere kunnen deze artiest bevatten.</string>
+    <string name="artist_playlists_empty">Geen van je lijsten bevat deze artiest.</string>
+    <string name="settings_show_artist_playlists">Afspeellijsten op artiestpagina&apos;s tonen</string>
+    <string name="settings_show_artist_playlists_subtitle">Toon zelfgemaakte lijsten met nummers van deze artiest.</string>
 </resources>

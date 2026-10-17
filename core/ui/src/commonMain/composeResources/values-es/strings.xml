@@ -1111,4 +1111,13 @@
     <string name="smart_playlist_summary_op_not_playlist">no en la playlist</string>
     <string name="smart_playlist_summary_op_missing">no está presente</string>
     <string name="smart_playlist_summary_op_present">está presente</string>
+    <string name="artist_playlists">Listas de reproducción</string>
+    <string name="artist_playlists_refresh">Actualizar</string>
+    <string name="artist_playlists_retry">Reintentar</string>
+    <string name="artist_playlists_loading">Buscando en tus listas…</string>
+    <string name="artist_playlists_failed">No se pudieron comprobar algunas listas. Vuelve a intentarlo.</string>
+    <string name="artist_playlists_truncated">Solo se comprobaron las primeras 500 listas. Otras pueden incluir a este artista.</string>
+    <string name="artist_playlists_empty">Ninguna de tus listas contiene a este artista.</string>
+    <string name="settings_show_artist_playlists">Mostrar listas en páginas de artistas</string>
+    <string name="settings_show_artist_playlists_subtitle">Muestra las listas que creaste con canciones del artista.</string>
 </resources>
