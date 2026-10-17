@@ -808,6 +808,8 @@ data class NaviampLibraryCatalogUi(
     val items: List<SharedMediaItemUi> = emptyList(),
     val tracks: List<SharedTrackRowUi> = emptyList(),
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
+    /** A query lookup is separate from refreshing the browsable library. */
+    val searching: Boolean = false,
     val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     /** Changes only after an explicit refresh; automatic loads preserve the viewport. */
     val refreshGeneration: Long = 0L,

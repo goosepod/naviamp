@@ -1498,7 +1498,6 @@ fun NaviampLibraryContent(
                 },
             )
         }
-        NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -1599,6 +1598,8 @@ fun NaviampLibraryContent(
                     },
             )
         }
+        // Loading and refresh feedback must never displace the search controls.
+        NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
         Row(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1609,7 +1610,7 @@ fun NaviampLibraryContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             if (filteredItems.isEmpty() && filteredTracks.isEmpty() &&
-                !syncStatus.isSyncing && catalog.pendingJump == null) {
+                !syncStatus.isSyncing && !catalog.searching && catalog.pendingJump == null) {
                 item {
                 val emptyMessage = when (screen.selectedView) {
                     NaviampLibraryView.Artists -> if (query.isBlank()) {
@@ -1738,8 +1739,8 @@ fun NaviampLibraryContent(
             }
             if (filteredItems.isNotEmpty() || filteredTracks.isNotEmpty()) {
                 item(key = "library-load-more-${screen.selectedView.name}") {
-                    androidx.compose.runtime.LaunchedEffect(screen.selectedView, items.size, tracks.size, query) {
-                        if (!syncStatus.isSyncing) actions.onLoadMore()
+                    androidx.compose.runtime.LaunchedEffect(screen.selectedView, items.size, tracks.size, query, catalog.searching) {
+                        if (!syncStatus.isSyncing && !catalog.searching) actions.onLoadMore()
                     }
                 }
             }

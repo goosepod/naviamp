@@ -27,6 +27,7 @@ Naviamp 2.10.0 completes certificate-protected server connections across Android
 
 - Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.
 - Keep incomplete smart-playlist rules from disappearing on save, preserve sort, limit and decimal semantics, and protect unsupported definitions from destructive editing.
+- Keep Library search controls stationary, preserve complete search results without refreshing the library, and restore the previous browse list when clearing a search.
 - Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see.
 
 ### Upgrade notes

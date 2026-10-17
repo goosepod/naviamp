@@ -46,12 +46,20 @@ class NaviampCoreCatalogController(
 
     private val fullIndexRefreshMutex = Mutex()
     private var searchGeneration = 0L
+    private data class LibraryBrowseSnapshot(
+        val catalog: NaviampLibraryCatalogUi,
+        val nextRequest: MediaPageRequest?,
+        val sourceKey: Pair<String, String>?,
+        val loadedSource: Pair<String, String>?,
+        val media: MediaSearchResults,
+    )
     private data class LibraryLoadState(
         var generation: Long = 0L,
         var nextRequest: MediaPageRequest? = null,
         var loadingGeneration: Long? = null,
         var loadedSource: Pair<String, String>? = null,
         var completeAlbumCatalog: Boolean = false,
+        var browseSnapshot: LibraryBrowseSnapshot? = null,
     )
 
     private val libraryLoads = NaviampLibraryView.entries.associateWith {
@@ -100,7 +108,7 @@ class NaviampCoreCatalogController(
                 }
             }
             is NaviampCoreCommand.Library.ChangeQuery -> {
-                if (stateStore.state.value.shell.library.selectedView != NaviampLibraryView.Albums || albumIndex == null) refreshLibrary()
+                searchLibrary(command.query)
             }
             NaviampCoreCommand.Library.Refresh -> refreshLibraryExplicitly()
             NaviampCoreCommand.Library.LoadMore -> loadMoreLibrary()
@@ -136,9 +144,22 @@ class NaviampCoreCatalogController(
         val view = stateStore.state.value.shell.library.selectedView
         val provider = providerSource.current()
         val sourceId = activeLibrarySourceId()
+        val query = stateStore.state.value.shell.library.catalog(view).query
+        val expectedLoadGeneration = libraryLoads.getValue(view).generation + 1
         val generation = ++refreshGeneration
         explicitRefreshes[view] = generation
-        refreshLibrary(view, forceAlbums = true)
+        refreshLibrary(view, forceRefresh = true)
+        val refreshed = stateStore.state.value.shell.library.catalog(view)
+        if (query.isNotBlank() && refreshed.query == query && !refreshed.searching &&
+            stateStore.state.value.shell.library.selectedView == view &&
+            libraryLoads.getValue(view).generation == expectedLoadGeneration &&
+            !refreshed.syncStatus.isSyncing && refreshed.syncStatus.message == null &&
+            !refreshed.syncStatus.albumIndexFailed && activeLibrarySourceId() == sourceId &&
+            providerSource.current() === provider && !(view == NaviampLibraryView.Albums && albumIndex != null)) {
+            // Explicit refresh replaces the browse snapshot too; clearing must not revive old data.
+            libraryLoads.getValue(view).browseSnapshot = captureBrowseSnapshot(view)
+            searchLibrary(query)
+        }
         // Publish after the replacement data so keyed lists cannot anchor to an old first item.
         if (explicitRefreshes[view] == generation && activeLibrarySourceId() == sourceId &&
             providerSource.current() === provider
@@ -149,17 +170,17 @@ class NaviampCoreCatalogController(
 
     private suspend fun refreshLibrary(
         view: NaviampLibraryView = stateStore.state.value.shell.library.selectedView,
-        forceAlbums: Boolean = false,
+        forceRefresh: Boolean = false,
     ) {
         if (view == NaviampLibraryView.Artists && libraryIndex != null &&
-            stateStore.state.value.shell.library.artists.query.isBlank() &&
+            (forceRefresh || stateStore.state.value.shell.library.artists.query.isBlank()) &&
             activeLibrarySourceId() != null && providerSource.current() != null
         ) {
             refreshArtistIndex()
             return
         }
         if (view == NaviampLibraryView.Albums && albumIndex != null) {
-            refreshAlbumIndex(forceAlbums)
+            refreshAlbumIndex(forceRefresh)
             return
         }
         val load = libraryLoads.getValue(view)
@@ -168,7 +189,8 @@ class NaviampCoreCatalogController(
         updateLibraryCatalog(view) { it.copy(pendingJump = null) }
         val request = MediaPageRequest(limit = libraryPageSize)
         load.nextRequest = request
-        loadLibraryPage(view, request, replace = true, generation = generation)
+        loadLibraryPage(view, request, replace = true, generation = generation,
+            queryOverride = if (forceRefresh) "" else null)
     }
 
     private suspend fun refreshAlbumIndex(force: Boolean) {
@@ -238,6 +260,7 @@ class NaviampCoreCatalogController(
             it.loadedSource = null
             it.loadingGeneration = null
             it.completeAlbumCatalog = false
+            it.browseSnapshot = null
             it.nextRequest = MediaPageRequest(limit = libraryPageSize)
         }
         stateStore.updateShell {
@@ -384,11 +407,24 @@ class NaviampCoreCatalogController(
         loadLibraryPage(view, request, replace = request.offset == 0, generation = generation)
     }
 
+    /** Query lookups never refresh the index, genres or the unfiltered browse catalog. */
+    private suspend fun searchLibrary(query: String) {
+        val library = stateStore.state.value.shell.library
+        val view = library.selectedView
+        if (query.isBlank() || library.catalog(view).query != query ||
+            (view == NaviampLibraryView.Albums && albumIndex != null)) return
+        val load = libraryLoads.getValue(view)
+        if (load.loadingGeneration == load.generation) return
+        loadLibraryPage(view, MediaPageRequest(limit = libraryPageSize), replace = true,
+            generation = load.generation)
+    }
+
     private suspend fun loadLibraryPage(
         view: NaviampLibraryView,
         request: MediaPageRequest,
         replace: Boolean,
         generation: Long,
+        queryOverride: String? = null,
     ): Boolean {
         val provider = providerSource.current()
         if (provider == null) {
@@ -397,9 +433,13 @@ class NaviampCoreCatalogController(
         }
         val load = libraryLoads.getValue(view)
         val sourceKey = provider.id.value to provider.cacheNamespace
+        val query = queryOverride ?: stateStore.state.value.shell.library.catalog(view).query
         load.loadingGeneration = generation
-        publishLibraryStatus(view, "Loading library...", loading = true)
-        val query = stateStore.state.value.shell.library.catalog(view).query
+        if (query.isBlank()) {
+            publishLibraryStatus(view, "Loading library...", loading = true)
+        } else {
+            updateLibraryCatalog(view) { it.copy(searching = true, syncStatus = NaviampLibrarySyncStatusUi()) }
+        }
         val result = runCatching {
             when (view) {
                 NaviampLibraryView.Artists -> {
@@ -417,7 +457,7 @@ class NaviampCoreCatalogController(
                         )
                     }
                     updateLibraryCatalog(view) { current ->
-                        current.copy(items = mergeItems(current.items, mapped, replace), syncStatus = NaviampLibrarySyncStatusUi())
+                        current.copy(items = mergeItems(current.items, mapped, replace), searching = false, syncStatus = NaviampLibrarySyncStatusUi())
                     }
                     true to page.nextRequest
                 }
@@ -436,7 +476,7 @@ class NaviampCoreCatalogController(
                         )
                     }
                     updateLibraryCatalog(view) { current ->
-                        current.copy(items = mergeItems(current.items, mapped, replace), syncStatus = NaviampLibrarySyncStatusUi())
+                        current.copy(items = mergeItems(current.items, mapped, replace), searching = false, syncStatus = NaviampLibrarySyncStatusUi())
                     }
                     true to page.nextRequest
                 }
@@ -468,7 +508,7 @@ class NaviampCoreCatalogController(
                         track.toSharedTrackRowUi(coverArtUrl = { id -> id?.let { provider.coverArtUrl(it) } })
                     }
                     updateLibraryCatalog(view) { current ->
-                        current.copy(tracks = mapped, syncStatus = NaviampLibrarySyncStatusUi())
+                        current.copy(tracks = mapped, searching = false, syncStatus = NaviampLibrarySyncStatusUi())
                     }
                     true to page.nextRequest
                 }
@@ -537,22 +577,65 @@ class NaviampCoreCatalogController(
 
     private fun updateLibraryQuery(query: String) {
         val view = stateStore.state.value.shell.library.selectedView
+        val catalog = stateStore.state.value.shell.library.catalog(view)
+        if (catalog.query == query) return
+        if (catalog.query.isBlank() && query.isBlank()) {
+            updateLibraryCatalog(view) { it.copy(query = query) }
+            return
+        }
         if (view == NaviampLibraryView.Albums && albumIndex != null) {
             updateLibraryCatalog(view) { it.copy(query = query, pendingJump = null, jumpFailed = false) }
             return
         }
         val load = libraryLoads.getValue(view)
+        val sourceKey = providerSource.current()?.let { it.id.value to it.cacheNamespace }
+        if (catalog.query.isBlank() && query.isNotBlank()) {
+            load.browseSnapshot = captureBrowseSnapshot(view)
+        }
         load.generation += 1
-        load.loadedSource = null
+        load.loadingGeneration = null
+        if (query.isBlank()) {
+            val snapshot = load.browseSnapshot
+            load.browseSnapshot = null
+            if (snapshot != null && snapshot.sourceKey == sourceKey) {
+                load.nextRequest = snapshot.nextRequest
+                load.loadedSource = snapshot.loadedSource
+                when (view) {
+                    NaviampLibraryView.Artists -> mediaRegistry.updateLibraryArtists(snapshot.media.artists, true)
+                    NaviampLibraryView.Albums -> mediaRegistry.updateLibraryAlbums(snapshot.media.albums, true)
+                    NaviampLibraryView.Songs -> mediaRegistry.updateLibraryTracks(snapshot.media.tracks, true)
+                }
+                updateLibraryCatalog(view) { snapshot.catalog.copy(query = query,
+                    refreshGeneration = it.refreshGeneration) }
+                return
+            }
+        }
         load.nextRequest = MediaPageRequest(limit = libraryPageSize)
-        updateLibraryCatalog(view) { it.copy(query = query, pendingJump = null, jumpFailed = false) }
+        load.loadedSource = null
+        updateLibraryCatalog(view) { it.copy(query = query, pendingJump = null, jumpFailed = false,
+            searching = query.isNotBlank(), syncStatus = NaviampLibrarySyncStatusUi()) }
+    }
+
+    private fun captureBrowseSnapshot(view: NaviampLibraryView): LibraryBrowseSnapshot {
+        val load = libraryLoads.getValue(view)
+        return LibraryBrowseSnapshot(
+            catalog = stateStore.state.value.shell.library.catalog(view).copy(query = "", pendingJump = null,
+                searching = false, syncStatus = NaviampLibrarySyncStatusUi()),
+            nextRequest = load.nextRequest,
+            sourceKey = providerSource.current()?.let { it.id.value to it.cacheNamespace },
+            loadedSource = load.loadedSource,
+            media = MediaSearchResults(artists = mediaRegistry.libraryArtists,
+                albums = mediaRegistry.libraryAlbums, tracks = mediaRegistry.libraryTracks),
+        )
     }
 
     private fun selectLibraryView(view: NaviampLibraryView) {
         val previous = stateStore.state.value.shell.library.selectedView
         if (previous == view) return
-        libraryLoads.getValue(previous).generation += 1
-        updateLibraryCatalog(previous) { it.copy(pendingJump = null) }
+        val load = libraryLoads.getValue(previous)
+        if (stateStore.state.value.shell.library.catalog(previous).searching) load.loadedSource = null
+        load.generation += 1
+        updateLibraryCatalog(previous) { it.copy(pendingJump = null, searching = false) }
         stateStore.updateShell { shell -> shell.copy(library = shell.library.copy(selectedView = view)) }
     }
 
@@ -592,7 +675,7 @@ class NaviampCoreCatalogController(
 
     private fun publishLibraryStatus(view: NaviampLibraryView, message: String?, loading: Boolean) {
         updateLibraryCatalog(view) { catalog ->
-            catalog.copy(syncStatus = NaviampLibrarySyncStatusUi(message = message, isSyncing = loading))
+            catalog.copy(searching = false, syncStatus = NaviampLibrarySyncStatusUi(message = message, isSyncing = loading))
         }
     }
 
