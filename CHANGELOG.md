@@ -8,11 +8,15 @@ No changes yet.
 
 ## v2.10.0
 
-Naviamp 2.10.0 makes smart playlists safer and easier to build, gives Radio and Sonic Autoplay clearer controls, and fixes Android playback recovery crashes.
+Naviamp 2.10.0 completes certificate-protected server connections across Android, iOS, Windows, macOS and Linux. It also makes smart playlists safer and easier to build, gives Radio clearer controls, and fixes Android playback recovery crashes.
+
+### Features
+
+- Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.
 
 ### Improvements
 
-- Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.
+- Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.
 - Preview example matches from your synced library, sync directly from the builder, and select calendar dates with clear format guidance.
 - Choose Radio and Sonic similarity explicitly, configure their initial batch sizes independently, and keep regular Radio supplied with new tracks.
 - Find playlist actions first in track menus, with controls that respect smart-playlist membership.
@@ -27,9 +31,11 @@ Naviamp 2.10.0 makes smart playlists safer and easier to build, gives Radio and 
 ### Upgrade notes
 
 - No special upgrade steps are required. Radio method selection is explicit; choose another method if Sonic fails.
+- Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.
 
 ### Known issues
 
+- Authenticated streams from servers without finite byte-range support or provider time offsets retain buffered-seeking limitations.
 - Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.
 - Further Linux popup performance and accessibility checks remain open, including the full-app CPU budget.
 - Android TV and Naviamp Connect remain beta. Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.

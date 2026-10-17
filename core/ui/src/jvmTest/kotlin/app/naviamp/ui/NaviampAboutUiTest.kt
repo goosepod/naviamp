@@ -51,8 +51,8 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
-        onNodeWithText("Known issues").assertIsDisplayed()
+        onNodeWithText("Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.").assertIsDisplayed()
+        onNodeWithText("Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
         val roots = onAllNodes(isRoot())
         var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
         waitUntil(timeoutMillis = 5_000) {
@@ -65,6 +65,11 @@ class NaviampAboutUiTest {
         writeAboutReleaseImage(requireNotNull(rendered))
         onNodeWithText("Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.")
             .performScrollTo().assertIsDisplayed()
+        onNodeWithText("Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.")
+            .performScrollTo().assertIsDisplayed()
+        onNodeWithText("Authenticated streams from servers without finite byte-range support or provider time offsets retain buffered-seeking limitations.")
+            .performScrollTo().assertIsDisplayed()
+        onNodeWithText("Known issues").assertIsDisplayed()
     }
 }
 
