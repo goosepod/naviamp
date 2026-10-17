@@ -17,6 +17,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
+    @Test fun artistTopTracksPersistAndOlderValuesUseDefaults() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(10, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+        catalog.storedSettings.saveInterface(InterfaceSettings(showArtistTopTracks = false, artistTopTracksLimit = 50))
+        val restored = naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface()
+        assertFalse(restored.showArtistTopTracks)
+        assertEquals(50, restored.artistTopTracksLimit)
+        values.entries[KeyInterface] = """{"artistTopTracksLimit":18}"""
+        assertEquals(20, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+        values.entries[KeyInterface] = "{}"
+        assertEquals(true, catalog.storedSettings.loadInterface().showArtistTopTracks)
+        assertEquals(10, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+    }
     @Test
     fun independentRadioAndAutoplaySizesPersistWithDefaultsAndNormalization() {
         val values = MemorySettingsValues()

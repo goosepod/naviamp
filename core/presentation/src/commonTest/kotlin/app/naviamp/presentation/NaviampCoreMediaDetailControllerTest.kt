@@ -38,6 +38,90 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreMediaDetailControllerTest {
+    @Test fun artistTopTracksToggleAndLimitsApplyLiveWithoutReloadingDiscography() = runTest {
+        val limits = mutableListOf<Int>()
+        val (store, controllers) = controller(MediaDetailTestProvider(), popularOverride = { artist, limit ->
+            limits += limit
+            topMatches(artist, 80)
+        })
+        controllers.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        assertEquals(10, store.state.value.shell.artistDetail.detail?.popularTracks?.size)
+        val albums = store.state.value.shell.artistDetail.detail?.albums
+        fun settings(visible: Boolean, limit: Int) {
+            val value = InterfaceSettings(showArtistTopTracks = visible, artistTopTracksLimit = limit)
+            store.updateShell { it.copy(general = it.general.copy(interfaceSettings = value)) }
+            controllers.media.interfaceSettingsChanged(value)
+        }
+        settings(true, 50)
+        assertEquals(50, store.state.value.shell.artistDetail.detail?.popularTracks?.size)
+        settings(false, 50)
+        assertEquals(false, store.state.value.shell.artistDetail.detail?.popularTracksVisible)
+        assertEquals(0, store.state.value.shell.artistDetail.detail?.popularTracks?.size)
+        assertEquals(listOf(25, 50), limits)
+        settings(true, 5)
+        assertEquals(5, store.state.value.shell.artistDetail.detail?.popularTracks?.size)
+        assertEquals(albums, store.state.value.shell.artistDetail.detail?.albums)
+        assertEquals(listOf(25, 50, 25), limits)
+    }
+
+    @Test fun disabledArtistTopTracksSkipDiscoveryAndIgnoreLateResultsAfterHideOrSourceReset() = runTest {
+        var calls = 0
+        val gate = CompletableDeferred<Unit>()
+        val (store, controllers) = controller(MediaDetailTestProvider(),
+            settings = InterfaceSettings(showArtistTopTracks = false), popularOverride = { artist, _ ->
+                calls++
+                gate.await()
+                topMatches(artist, 50)
+            })
+        controllers.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        assertEquals(0, calls)
+        assertNotNull(store.state.value.shell.artistDetail.detail)
+        fun settings(visible: Boolean) {
+            val value = InterfaceSettings(showArtistTopTracks = visible, artistTopTracksLimit = 50)
+            store.updateShell { it.copy(general = it.general.copy(interfaceSettings = value)) }
+            controllers.media.interfaceSettingsChanged(value)
+        }
+        settings(true)
+        assertEquals(1, calls)
+        settings(false)
+        gate.complete(Unit)
+        runCurrent()
+        assertEquals(0, store.state.value.shell.artistDetail.detail?.popularTracks?.size)
+        assertNull(store.state.value.shell.artistDetail.detail?.popularTracksStatus)
+        controllers.media.resetForSourceChange()
+        runCurrent()
+        assertNull(store.state.value.shell.artistDetail.detail)
+    }
+
+    @Test fun lateTopTracksCannotReplaceAnotherArtistOrReappearAfterSourceReset() = runTest {
+        val gates = mutableMapOf<String, CompletableDeferred<Unit>>()
+        val (store, controllers) = controller(MediaDetailTestProvider(), popularOverride = { artist, _ ->
+            val gate = gates.getOrPut(artist.id.value) { CompletableDeferred() }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { gate.await() }
+            topMatches(artist, 20)
+        })
+        suspend fun open(id: String) = controllers.execute(NaviampCoreCommand.Media.ItemAction(
+            mediaItem(id, id).artistActionRequest(NaviampArtistMediaCommand.Select)))
+        open("artist-a")
+        open("artist-b")
+        gates.getValue("artist-a").complete(Unit)
+        runCurrent()
+        assertEquals("artist-b", store.state.value.shell.artistDetail.detail?.artist?.id)
+        assertTrue(store.state.value.shell.artistDetail.detail!!.popularTracks.isEmpty())
+        controllers.media.resetForSourceChange()
+        gates.getValue("artist-b").complete(Unit)
+        runCurrent()
+        assertNull(store.state.value.shell.artistDetail.detail)
+    }
+
+    private fun topMatches(artist: Artist, count: Int) = (1..count).map { index ->
+        app.naviamp.domain.popular.ArtistPopularTrackMatch(
+            app.naviamp.domain.popular.ArtistPopularTrackCandidate("test", "$index", index, "Popular $index"),
+            track("${artist.id.value}-$index", "Popular $index"), 0L)
+    }
+
     @Test
     fun nativeReverseCreditResultsUseSharedAppearanceReconciliationWithoutStorageFallback() = runTest {
         var fallbackCalled = false
@@ -309,8 +393,11 @@ class NaviampCoreMediaDetailControllerTest {
         popularTracksGate: CompletableDeferred<Unit>? = null,
         discographyAppearances: (String, ArtistId, Set<AlbumId>) -> ArtistDiscographyAppearances =
             { _, _, _ -> ArtistDiscographyAppearances() },
+        settings: InterfaceSettings = InterfaceSettings(),
+        popularOverride: (suspend (Artist, Int) -> List<app.naviamp.domain.popular.ArtistPopularTrackMatch>)? = null,
     ): Pair<NaviampCoreStateStore, MediaDetailControllers> {
         val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(general = it.general.copy(interfaceSettings = settings)) }
         lateinit var media: NaviampCoreMediaDetailController
         val navigation = NaviampCoreNavigationController(
             navigation = NaviampNavigationController(),
@@ -352,6 +439,10 @@ class NaviampCoreMediaDetailControllerTest {
                     )
                 },
                 discographyAppearances = discographyAppearances,
+                artistTopTracks = { _, artist, limit -> popularOverride?.invoke(artist, limit) ?: run {
+                    popularTracksGate?.await()
+                    topMatches(artist, 1).map { it.copy(matchedTrack = track("popular-${artist.id.value}", "Popular ${artist.name}")) }
+                } },
             ),
         )
         return store to MediaDetailControllers(media, navigation)

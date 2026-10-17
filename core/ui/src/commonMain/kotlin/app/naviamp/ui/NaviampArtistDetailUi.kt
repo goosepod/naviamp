@@ -415,7 +415,7 @@ private fun ArtistDetailContent(
                     }
                 }
             }
-            if (detail.popularTracks.isNotEmpty() || detail.popularTracksStatus != null) {
+            if (detail.popularTracksVisible && (detail.popularTracks.isNotEmpty() || detail.popularTracksStatus != null)) {
                 Text(
                     stringResource(Res.string.artist_top_tracks).uppercase(),
                     color = colors.primaryText,

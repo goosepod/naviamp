@@ -172,6 +172,8 @@ data class InterfaceSettings(
     val keepScreenAwake: Boolean = false,
     val showDesktopTooltips: Boolean = true,
     val showArtistInformation: Boolean = true,
+    val showArtistTopTracks: Boolean = true,
+    val artistTopTracksLimit: Int = DefaultArtistTopTracksLimit,
     val showAlbumInformation: Boolean = true,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,
@@ -193,6 +195,7 @@ data class InterfaceSettings(
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
     fun normalized(): InterfaceSettings = copy(
+        artistTopTracksLimit = normalizedArtistTopTracksLimit(artistTopTracksLimit),
         auroraColorSteps = auroraColorSteps.coerceIn(2, 5),
         auroraAngleDegrees = auroraAngleDegrees.coerceIn(0, 180),
         albumBlurRadiusDp = albumBlurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp),
@@ -208,6 +211,10 @@ data class InterfaceSettings(
         globalKeyboardShortcuts = globalKeyboardShortcuts.normalized(),
     )
 }
+
+const val DefaultArtistTopTracksLimit = 10
+val ArtistTopTracksLimits = (5..50 step 5).toList()
+fun normalizedArtistTopTracksLimit(value: Int): Int = ((value.coerceIn(5, 50) + 2) / 5) * 5
 
 @Serializable
 enum class HomeSectionLayout(val label: String) {

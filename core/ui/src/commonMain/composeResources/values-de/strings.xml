@@ -1076,4 +1076,9 @@
     <string name="smart_playlist_reference_empty">Keine passenden Playlists.</string>
     <string name="smart_playlist_reference_owner_access">Referenzierte Playlists müssen für den Besitzer der Playlist zugänglich sein.</string>
     <string name="connection_certificate_import_failed">Das Zertifikat konnte nicht importiert werden.</string>
+    <string name="settings_show_artist_top_tracks">Top-Titel auf Künstlerseiten anzeigen</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Die beliebtesten Titel des Künstlers anzeigen.</string>
+    <string name="settings_artist_top_tracks_limit">Maximale Anzahl an Top-Titeln</string>
+    <string name="settings_artist_top_tracks_count">%1$d Titel</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Höchstens so viele passende Titel aus deiner Mediathek anzeigen.</string>
 </resources>

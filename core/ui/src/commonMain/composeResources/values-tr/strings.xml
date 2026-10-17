@@ -250,4 +250,9 @@
     <string name="smart_playlist_reference_empty">Eşleşen çalma listesi yok.</string>
     <string name="smart_playlist_reference_owner_access">Başvurulan çalma listeleri, listenin sahibi tarafından erişilebilir olmalıdır.</string>
     <string name="connection_certificate_import_failed">Sertifika içe aktarılamadı.</string>
+    <string name="settings_show_artist_top_tracks">Sanatçı sayfalarında popüler parçaları göster</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Sanatçının en popüler parçalarını göster.</string>
+    <string name="settings_artist_top_tracks_limit">En fazla popüler parça sayısı</string>
+    <string name="settings_artist_top_tracks_count">%1$d parça</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Kitaplığınızdaki eşleşen parçalardan en fazla bu kadarını göster.</string>
 </resources>

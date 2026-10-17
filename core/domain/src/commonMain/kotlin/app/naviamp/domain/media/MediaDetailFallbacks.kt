@@ -223,6 +223,7 @@ suspend fun loadArtistPopularTracksUpdate(
             displayLimit = displayLimit,
         )
     }.getOrElse { error ->
+        if (error is kotlinx.coroutines.CancellationException) throw error
         ArtistPopularTracksUpdate(
             tracks = emptyList(),
             status = popularTracksUnavailableStatus(error),
