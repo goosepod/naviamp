@@ -64,6 +64,47 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun certificateBackedPlaybackAndSeekUseTheSharedRelayWithoutCachingAudio() = runTest {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val fixture = FakeCoreMediaProvider()
+            val provider = object : MediaProvider by fixture {
+                override val requiresAuthenticatedPlaybackTransport = true
+                override suspend fun streamTrackBytes(request: app.naviamp.domain.StreamRequest, rangeHeader: String?, headOnly: Boolean,
+                    onResponse: suspend (app.naviamp.domain.provider.ProviderMediaByteResponse) -> Unit,
+                    writeChunk: suspend (ByteArray, Int) -> Unit): Boolean = false
+            }
+            val engine = RecordingPlaybackEngine()
+            val requests = kotlinx.coroutines.channels.Channel<PlaybackRequest>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+            val adapter = NaviampCorePlaybackEngineAdapter(
+                scope = this,
+                engine = engine,
+                providerSource = NaviampCoreMediaProviderSource { provider },
+                settings = { PlaybackSettings() },
+                cacheSettings = { CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0) },
+                cacheAudio = { _, _, _, _ -> error("Authenticated playback must not wait for a full download") },
+            )
+            adapter.attach(object : NaviampCorePlaybackObserver {
+                override fun onStateChanged(state: PlaybackState) {
+                    if (state == PlaybackState.Playing) engine.request?.let { requests.trySend(it) }
+                }
+                override fun onProgressChanged(progress: PlaybackProgress) = Unit
+                override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            })
+            try {
+                adapter.playQueueSelection(PlaybackQueue(listOf(fixture.track), 0), 0)
+                val initial = kotlinx.coroutines.withTimeout(5_000) { requests.receive() }
+                assertTrue(initial.url.startsWith("http://127.0.0.1:"))
+                assertTrue(fixture.streamRequests.isEmpty())
+                adapter.seek(12.0)
+                val resumed = kotlinx.coroutines.withTimeout(5_000) { requests.receive() }
+                assertTrue(resumed.url.startsWith("http://127.0.0.1:"))
+                assertTrue(initial.url != resumed.url, "A restarted seek must revoke the previous native reader")
+                assertEquals(PlaybackSource.ProviderStreamCacheDisabled, adapter.playbackSource)
+            } finally { adapter.stop(); requests.close() }
+        }
+    }
+
+    @Test
     fun wifiUpgradePreservesCurrentTrackAndUsesCachedFallbackAfterFailure() = runTest {
         val provider = FakeCoreMediaProvider(supportsStreamingTranscode = true)
         val engine = RecordingPlaybackEngine()

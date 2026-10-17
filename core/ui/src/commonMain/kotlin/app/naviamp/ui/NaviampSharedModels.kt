@@ -443,10 +443,20 @@ data class SharedArtistDetailUi(
     val localLibraryLabel: String = "",
     val biography: String? = null,
     val popularTracks: List<SharedTrackRowUi> = emptyList(),
+    val popularTracksVisible: Boolean = true,
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
     val similarArtistsExpanded: Boolean = false,
+    val playlistsVisible: Boolean = true,
+    val playlists: SharedArtistPlaylistsUi = SharedArtistPlaylistsUi(),
+)
+
+data class SharedArtistPlaylistsUi(
+    val items: List<SharedMediaItemUi> = emptyList(),
+    val loading: Boolean = false,
+    val failed: Boolean = false,
+    val truncated: Boolean = false,
 )
 
 data class NaviampArtistDetailScreenUi(
@@ -499,6 +509,8 @@ data class NaviampArtistDetailActions(
     val onAlbumAction: (NaviampArtistAlbumActionRequest) -> Unit,
     val onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
     val onKeepDownloaded: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistsRefresh: (String) -> Unit = {},
 )
 
 data class SharedAlbumSectionUi(
@@ -797,6 +809,10 @@ data class NaviampLibraryCatalogUi(
     val items: List<SharedMediaItemUi> = emptyList(),
     val tracks: List<SharedTrackRowUi> = emptyList(),
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
+    /** A query lookup is separate from refreshing the browsable library. */
+    val searching: Boolean = false,
+    /** Provider-selected matches are authoritative only for this exact query. */
+    val resultsQuery: String? = null,
     val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     /** Changes only after an explicit refresh; automatic loads preserve the viewport. */
     val refreshGeneration: Long = 0L,
@@ -1349,6 +1365,8 @@ data class NaviampConnectionSettingsActions(
     val onCloseAccounts: () -> Unit = {},
     val onSwitchAccount: (NaviampSavedConnectionUi) -> Unit = {},
     val onAddAccount: () -> Unit = {},
+    val onChooseServerCertificate: (() -> Unit)? = null,
+    val onChooseClientCertificate: (() -> Unit)? = null,
 ) {
     fun updateForm(
         current: ConnectionFormState,

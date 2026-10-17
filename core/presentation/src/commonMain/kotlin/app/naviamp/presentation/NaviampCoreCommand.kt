@@ -53,6 +53,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Connection : NaviampCoreCommand {
+        data class ChooseCertificate(val kind: NaviampConnectionCertificateKind) : Connection
         data class ChangeForm(val form: ConnectionFormState) : Connection
         data object Connect : Connection
         data object EditCurrent : Connection
@@ -164,6 +165,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Detail : NaviampCoreCommand {
+        data class RefreshArtistPlaylists(val artistId: String) : Detail
         data class Album(val request: NaviampAlbumDetailActionRequest) : Detail
         data class Artist(val request: NaviampArtistDetailActionRequest) : Detail
         data class ArtistAlbum(val request: NaviampArtistAlbumActionRequest) : Detail

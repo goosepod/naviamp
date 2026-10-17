@@ -4,5 +4,10 @@
     native <methods>;
 }
 
+# BASS FILEPROCS invokes these shared cursor methods by JNI name/signature.
+-keep class app.naviamp.domain.playback.BassFileCallbacks {
+    public *;
+}
+
 # Keep source and line information so the archived mapping file can retrace release crashes.
 -keepattributes SourceFile,LineNumberTable

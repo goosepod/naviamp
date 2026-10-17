@@ -107,6 +107,8 @@ class NavidromeProvider(
     private val profile = subsonicProviderProfile(connection.providerId)
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
+    override val requiresAuthenticatedPlaybackTransport: Boolean
+        get() = connection.tlsSettings != NavidromeTlsSettings() || customHeaders.isNotEmpty()
     override val source: String = NavidromeAgentMetadataSource
     override val selectedMusicFolderIds: List<String> =
         normalizedMusicFolderIds(connection.selectedMusicFolderIds)
@@ -937,6 +939,9 @@ class NavidromeProvider(
     override suspend fun playlists(limit: Int): List<Playlist> {
         return playlistsForMusicFolder(limit, musicFolderId = null)
     }
+
+    override suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? =
+        playlist.owner?.takeIf { it.isNotBlank() }?.let { it == authenticatedUsername }
 
     private suspend fun playlistsForMusicFolder(limit: Int, musicFolderId: String?): List<Playlist> {
         val response = get(

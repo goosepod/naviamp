@@ -37,7 +37,15 @@ data class PlatformCapabilities(
     private val statuses: Map<PlatformCapability, PlatformCapabilityStatus> = emptyMap(),
 ) {
     fun status(capability: PlatformCapability): PlatformCapabilityStatus =
-        statuses[capability] ?: PlatformCapabilityStatus.Unavailable
+        statuses[capability] ?: when (capability) {
+            // TLS configuration is part of the shared provider contract on every host,
+            // rather than an optional feature independently enabled by each shell.
+            PlatformCapability.InsecureServerVerification,
+            PlatformCapability.CustomServerCertificates,
+            PlatformCapability.ClientCertificates,
+            -> PlatformCapabilityStatus.Available
+            else -> PlatformCapabilityStatus.Unavailable
+        }
 
     fun supports(capability: PlatformCapability): Boolean =
         status(capability) != PlatformCapabilityStatus.Unavailable

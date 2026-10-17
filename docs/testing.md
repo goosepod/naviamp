@@ -30,6 +30,91 @@ Kover measures JVM and Android unit-test execution. Kotlin/Native, XCTest, Andro
 and native C/JNI execution are intentionally represented by explicit CI gates rather than being
 misreported as JVM line coverage.
 
+## Mobile mutual TLS
+
+`AndroidMutualTlsPlaybackInstrumentedTest` and `IosMutualTlsPlaybackIntegrationTest` run the same
+`verifyNaviampMobileMutualTls` contract through the real provider TLS engine, shared playback adapter
+and native BASS backend. The required API 30/API 35 emulator and iOS simulator CI jobs run these tests
+unconditionally. Certificate files pass through each platform's production private-copy adapter; the
+original selected files are deleted before connecting. No server account, TV or real device is needed.
+
+The contract rejects missing/untrusted identities, wrong PKCS12 passwords, untrusted server CAs and a
+certificate whose hostname does not match. A valid connection then browses and loads artwork, starts
+uncached audio before a full download, pauses, seeks beyond buffered bytes to 90 seconds, resumes and
+stops promptly. A private-CA-only control separates server trust from client authentication.
+
+Mobile tests use a standalone companion JVM with disposable keys and loopback ports 59974–59977.
+CI starts it with `bash scripts/start-mobile-mtls-fixture.sh`; Android CI forwards those ports to its
+isolated emulator with `adb reverse`. The helper first prepares its classpath with Gradle and then
+runs Java independently, allowing the test build to acquire Gradle's execution locks.
+
+On macOS, boot an isolated iOS simulator with `xcrun simctl boot <device-id>` and wait with
+`xcrun simctl bootstatus <device-id> -b`. Start the helper, run
+`./gradlew :platforms:ios:iosSimulatorArm64Test -Pnaviamp.ios.testDevice=<device-id>`, then stop the helper
+with `curl --fail http://127.0.0.1:59974/stop` and shut down that simulator. The native TLS test disables
+Kotlin's standalone simulator mode so Apple Security can contact the simulator's trust service;
+see [Kotlin's documented HTTPS testing requirement](https://kotlinlang.org/docs/whatsnew19.html#ability-to-configure-standalone-mode-for-ios-simulator-tests-in-kotlin-native).
+CI compiles both native targets and runs common standalone tests first, then clones a dedicated
+simulator and executes the already-linked native TLS/BASS test binary in a separate required step.
+Android reproduction commands are in the emulator job in
+[the Verify workflow](../.github/workflows/verify.yml). Use an isolated emulator for that job.
+
+## Desktop mutual TLS
+
+Mutual TLS checks run in ordinary provider `jvmTest` and Desktop `desktopTest`, including
+`make test`, `make desktop-test`, and the Windows CI gate. No server account or opt-in flag is
+needed. The fixture uses the active JDK's `keytool` to generate a temporary private CA, a server
+identity, a valid PKCS12 client identity, and an unrelated client identity. Its HTTPS server binds
+only to loopback on an ephemeral port and requires a client certificate. Certificates, databases,
+and audio are deleted after the tests; OS trust stores and user credentials are untouched.
+`DesktopSharedMutualTlsContractTest` additionally runs the mobile contract on Windows, macOS and
+Linux, reserving the same four loopback ports for the duration of that test.
+
+To run just these tests on Windows with the normal native-build prerequisites installed:
+
+```powershell
+./gradlew.bat :providers:navidrome:jvmTest :platforms:desktop:desktopTest --tests '*MutualTls*' '-Pkotlin.native.enableKlibsCrossCompilation=false' '-Pnaviamp.bass.platform=windows-x64' '-Pnaviamp.bass.test.outputDevice=0'
+```
+
+`NavidromeMutualTlsTest` verifies real production HTTP handshakes, browsing, artwork, streamed and
+downloaded audio bytes, missing/untrusted client certificates, an untrusted private server CA, an
+incorrect PKCS12 password, recovery with valid credentials, and independence from subsequent JVM
+default-client initialization. Every successful request must present the expected client identity.
+Each rejected handshake is followed by a successful connection to the same server.
+
+`DesktopMutualTlsIntegrationTest` closes and reopens a real SQLDelight database with production
+credential encryption and a disposable encryption key, restores TLS settings, and exercises downloaded
+audio plus normal uncached playback through the shared application adapter and native BASS. Its
+long-track fixture withholds the tail of a full response: playback must start without a complete
+download, remain paused after a seek beyond buffered audio, fetch the seek target through authenticated
+ranges, resume, and stop promptly. Persistent audio caching is disabled. Separate cases isolate private
+server CA trust and rejection of a missing client identity. A no-sound output device keeps CI silent.
+
+`NaviampPlaybackStreamRelayTest` and `NaviampProviderRandomAccessSourceTest` cover shared authorization,
+streaming backpressure, range validation, current/prepared lease revocation, source changes, bounded
+range caching and native cursor cancellation. Original media uses native random-access callbacks when
+the provider supports finite ranges with a known total length. Sequential/unknown-length streams use
+the loopback relay; transcoded seeking uses the provider's advertised time-offset capability. A server
+that supports neither ranges nor time offsets retains the native decoder's buffered-seeking limit.
+Android instrumentation and iOS native tests also exercise the shared file-callback ABI.
+
+For a visible Windows app check, first stage the app, then run this optional fixture in a separate
+terminal with a new absolute directory:
+
+```powershell
+./gradlew.bat :platforms:desktop:runDesktopMutualTlsAppFixture '-Pnaviamp.mtls.fixtureDirectory=C:/path/to/new/disposable-profile' '-Pnaviamp.bass.platform=windows-x64'
+```
+
+The fixture writes `ready.txt`, seeds both normal/development profiles under `<directory>/Roaming`,
+and serves a three-minute track for ten minutes. Launch the staged app with its process `APPDATA`
+set to that `Roaming` directory and `LOCALAPPDATA` to `<directory>/Local`. The disposable profile pins
+no-sound output, mutes playback, disables audio caching/prefetch and restores the fixture track.
+Check play, pause, seeking beyond buffered audio, resume, and complete app restart. `requests.txt`
+records paths, ranges and authenticated identities without credential-bearing queries. Create a
+`stop` file in the fixture directory to finish early. Certificates are deleted when it stops; the
+explicitly chosen disposable profile and acceptance records remain for inspection. This optional
+visible-app check supplements the automatic database-reopen and native playback regressions.
+
 ## Opt-in Connect cross-device instrumentation
 
 `AndroidNaviampConnectCrossDeviceInstrumentedTest` (discovery) and

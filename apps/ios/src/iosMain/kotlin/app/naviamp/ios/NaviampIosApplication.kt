@@ -249,6 +249,9 @@ class NaviampIosApplication(
         downloads = downloads,
         playbackEngine = playbackEngine,
         settingsSyncPort = settingsSyncPort,
+            certificateFiles = app.naviamp.ios.settings.IosCoreCertificateFilePort(
+                settingsSyncPort, "${databaseLocation.directoryPath}/certificates",
+            ),
         settings = settings.storedSettings.withStorageBackedSettings(
             radioDjPresetRepository = repositories.radioDjPresets,
             onCacheSettingsSaved = { effective -> cacheSettings = effective },

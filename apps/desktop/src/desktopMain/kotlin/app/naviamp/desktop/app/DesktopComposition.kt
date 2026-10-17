@@ -259,6 +259,7 @@ internal class DesktopComposition private constructor(
                 downloads = downloads,
                 playbackEngine = engine,
                 settingsSyncPort = settingsSyncPort,
+                certificateFiles = app.naviamp.desktop.settings.DesktopCoreCertificateFilePort(dataDirectory.resolve("certificates")),
                 settings = settingsCatalog.storedSettings.withStorageBackedSettings(
                     radioDjPresetRepository = storage.radioDjPresets,
                     onCacheSettingsSaved = { effective -> cacheSettings = effective },

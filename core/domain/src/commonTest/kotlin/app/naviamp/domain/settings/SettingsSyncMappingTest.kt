@@ -25,6 +25,28 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test fun artistPlaylistVisibilityIsAppliedFromPortableExportsAndOlderDefaults() {
+        for (enabled in listOf(false, true)) {
+            val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(showArtistPlaylists = enabled)), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(exported)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(enabled, applied.interfaceSettings.showArtistPlaylists)
+        }
+        val older = applySettingsSyncDocument(SettingsSyncJson.decode("{}"), FakePlaybackEngine(false),
+            RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+        assertTrue(older.interfaceSettings.showArtistPlaylists)
+    }
+
+    @Test fun artistTopTracksApplyThroughExportImportAndSync() {
+        for (visible in listOf(true, false)) for (limit in ArtistTopTracksLimits) {
+            val settings = InterfaceSettings(showArtistTopTracks = visible, artistTopTracksLimit = limit)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+    }
     @Test fun explicitRadioMethodsAndAutoplaySurvivePortableExportImportAndSync() {
         for (method in app.naviamp.domain.radio.RadioSimilarityMethod.entries) {
             val settings = PlaybackSettings().withRadioSimilarityMethod(method)
