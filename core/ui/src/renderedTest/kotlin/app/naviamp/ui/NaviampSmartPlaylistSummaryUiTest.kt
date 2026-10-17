@@ -22,8 +22,8 @@ class NaviampSmartPlaylistSummaryUiTest {
     @Test fun summaryReadsValuesWithoutJsonAndUpdatesNamesWithoutRewritingIds() = runComposeUiTest {
         val references = mutableStateOf(emptyList<SmartPlaylistReference>())
         val definition = SmartPlaylistDefinition("Readable", rules = listOf(
-            SmartPlaylistCondition(SmartPlaylistOperator.InPlaylist, SmartPlaylistFields.Title, SmartPlaylistValue.Text("saved-id")),
-            SmartPlaylistCondition(SmartPlaylistOperator.NotInPlaylist, SmartPlaylistFields.Title, SmartPlaylistValue.Text("missing-id")),
+            SmartPlaylistCondition(SmartPlaylistOperator.InPlaylist, "id", SmartPlaylistValue.Text("saved-id")),
+            SmartPlaylistCondition(SmartPlaylistOperator.NotInPlaylist, "id", SmartPlaylistValue.Text("missing-id")),
             SmartPlaylistCondition(SmartPlaylistOperator.Contains, SmartPlaylistFields.Title, SmartPlaylistValue.Text("A \"quoted\" song")),
             SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.Loved, SmartPlaylistValue.Flag(true)),
             SmartPlaylistCondition(SmartPlaylistOperator.InTheRange, SmartPlaylistFields.Rating,
@@ -43,8 +43,8 @@ class NaviampSmartPlaylistSummaryUiTest {
             SmartPlaylistReference("saved-id", "Folk Music", "Alice"),
             SmartPlaylistReference("another-id", "Folk Music", "Bob"),
         ) }
-        onNodeWithText("in playlist Folk Music (Alice)", substring = true).assertExists()
-        onNodeWithText("not in playlist Unavailable playlist (missing-id)", substring = true).assertExists()
+        onNodeWithText("Track in playlist Folk Music (Alice)", substring = true).assertExists()
+        onNodeWithText("Track not in playlist Unavailable playlist (missing-id)", substring = true).assertExists()
         onNodeWithText("contains A \"quoted\" song", substring = true).assertExists()
         onNodeWithText("is yes", substring = true).assertExists()
         onNodeWithText("between 2.5 – 5", substring = true).assertExists()
