@@ -18,6 +18,16 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCoreActionGraphTest {
+    @Test fun artistPlaylistActionsUseSharedPlaylistNavigationAndRefreshCommands() {
+        val handler = RecordingCoreCommandHandler()
+        val actions = createNaviampCoreActions(handler).shell.artistDetailActions
+        actions.onPlaylistSelected(SharedMediaItemUi("mine", "My playlist", ""))
+        actions.onPlaylistsRefresh("artist")
+        val selected = assertIs<NaviampCoreCommand.Media.ItemAction>(handler.dispatched[0])
+        assertEquals("mine", selected.request.item.id)
+        assertEquals(app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Select), selected.request.command)
+        assertEquals(NaviampCoreCommand.Detail.RefreshArtistPlaylists("artist"), handler.dispatched[1])
+    }
     @Test
     fun routesProductActionsFromEveryMajorAreaIntoCore() {
         val handler = RecordingCoreCommandHandler()

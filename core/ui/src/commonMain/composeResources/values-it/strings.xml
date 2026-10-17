@@ -250,4 +250,13 @@
     <string name="smart_playlist_reference_empty">Nessuna playlist corrispondente.</string>
     <string name="smart_playlist_reference_owner_access">Le playlist di riferimento devono essere accessibili al proprietario della playlist.</string>
     <string name="connection_certificate_import_failed">Impossibile importare il certificato.</string>
+    <string name="artist_playlists">Playlist</string>
+    <string name="artist_playlists_refresh">Aggiorna</string>
+    <string name="artist_playlists_retry">Riprova</string>
+    <string name="artist_playlists_loading">Ricerca nelle tue playlist…</string>
+    <string name="artist_playlists_failed">Impossibile controllare alcune playlist. Riprova.</string>
+    <string name="artist_playlists_truncated">Sono state controllate solo le prime 500 playlist. Altre potrebbero contenere questo artista.</string>
+    <string name="artist_playlists_empty">Nessuna delle tue playlist contiene questo artista.</string>
+    <string name="settings_show_artist_playlists">Mostra playlist nelle pagine degli artisti</string>
+    <string name="settings_show_artist_playlists_subtitle">Mostra le playlist che hai creato con brani di questo artista.</string>
 </resources>

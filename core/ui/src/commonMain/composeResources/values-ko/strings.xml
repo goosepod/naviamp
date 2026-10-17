@@ -250,4 +250,13 @@
     <string name="smart_playlist_reference_empty">일치하는 재생목록이 없습니다.</string>
     <string name="smart_playlist_reference_owner_access">재생목록 소유자가 참조된 재생목록에 접근할 수 있어야 합니다.</string>
     <string name="connection_certificate_import_failed">인증서를 가져올 수 없습니다.</string>
+    <string name="artist_playlists">재생목록</string>
+    <string name="artist_playlists_refresh">새로고침</string>
+    <string name="artist_playlists_retry">다시 시도</string>
+    <string name="artist_playlists_loading">만든 재생목록을 찾는 중…</string>
+    <string name="artist_playlists_failed">일부 재생목록을 확인하지 못했습니다. 다시 시도하세요.</string>
+    <string name="artist_playlists_truncated">처음 500개만 확인했습니다. 다른 목록에도 이 아티스트가 있을 수 있습니다.</string>
+    <string name="artist_playlists_empty">만든 재생목록에 이 아티스트가 없습니다.</string>
+    <string name="settings_show_artist_playlists">아티스트 페이지에 재생목록 표시</string>
+    <string name="settings_show_artist_playlists_subtitle">이 아티스트의 곡이 있는 직접 만든 재생목록을 표시합니다.</string>
 </resources>

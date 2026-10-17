@@ -869,6 +869,15 @@ fun NaviampExperienceSettingsSection(
         }
         SettingsCheckboxRow(
             colors = colors,
+            checked = interfaceSettings.showArtistPlaylists,
+            label = stringResource(Res.string.settings_show_artist_playlists),
+            subtitle = stringResource(Res.string.settings_show_artist_playlists_subtitle),
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistPlaylists = enabled).normalized())
+            },
+        )
+        SettingsCheckboxRow(
+            colors = colors,
             checked = interfaceSettings.showArtistInformation,
             label = stringResource(Res.string.settings_show_artist_information),
             subtitle = stringResource(Res.string.settings_show_artist_information_subtitle),
@@ -2795,6 +2804,12 @@ private val DefaultNaviampLibraries = listOf(
 
 // Release notes stay in English and out of localized string resources.
 private val DefaultNaviampChangelog = listOf(
+    NaviampChangelogSectionUi(
+        title = "Features",
+        entries = listOf(
+            "Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.",
+        ),
+    ),
     NaviampChangelogSectionUi(
         title = "Improvements",
         entries = listOf(

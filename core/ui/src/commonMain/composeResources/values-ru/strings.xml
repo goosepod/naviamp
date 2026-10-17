@@ -250,4 +250,13 @@
     <string name="smart_playlist_reference_empty">Подходящих плейлистов нет.</string>
     <string name="smart_playlist_reference_owner_access">Владельцу плейлиста должны быть доступны плейлисты, на которые он ссылается.</string>
     <string name="connection_certificate_import_failed">Не удалось импортировать сертификат.</string>
+    <string name="artist_playlists">Плейлисты</string>
+    <string name="artist_playlists_refresh">Обновить</string>
+    <string name="artist_playlists_retry">Повторить</string>
+    <string name="artist_playlists_loading">Поиск в ваших плейлистах…</string>
+    <string name="artist_playlists_failed">Не удалось проверить некоторые плейлисты. Повторите попытку.</string>
+    <string name="artist_playlists_truncated">Проверены только первые 500 плейлистов. В других тоже может быть этот исполнитель.</string>
+    <string name="artist_playlists_empty">В ваших плейлистах нет этого исполнителя.</string>
+    <string name="settings_show_artist_playlists">Показывать плейлисты на страницах исполнителей</string>
+    <string name="settings_show_artist_playlists_subtitle">Показывать созданные вами плейлисты с треками исполнителя.</string>
 </resources>

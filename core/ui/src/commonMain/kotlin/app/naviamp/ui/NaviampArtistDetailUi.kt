@@ -215,6 +215,8 @@ fun NaviampArtistDetailContent(
             )
         },
         onAlbumAction = actions.onAlbumAction,
+        onPlaylistSelected = actions.onPlaylistSelected,
+        onPlaylistsRefresh = { actions.onPlaylistsRefresh(detail.artist.id) },
         playlistChoices = playlistChoices,
         playlistActionStatus = playlistActionStatus,
         scrollState = scrollState,
@@ -250,6 +252,8 @@ private fun ArtistDetailContent(
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     onAlbumAction: (NaviampArtistAlbumActionRequest) -> Unit,
+    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistsRefresh: () -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
     scrollState: androidx.compose.foundation.ScrollState,
@@ -504,6 +508,9 @@ private fun ArtistDetailContent(
                         }
                     }
                 }
+            }
+            if (detail.playlistsVisible) {
+                ArtistPlaylistsSection(detail.playlists, colors, onPlaylistSelected, onPlaylistsRefresh)
             }
             if (detail.appearanceLoadFailed) {
                 Text(stringResource(Res.string.artist_appearances_failed), color = colors.secondaryText)

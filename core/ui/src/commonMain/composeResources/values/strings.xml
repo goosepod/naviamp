@@ -1105,4 +1105,13 @@
     <string name="smart_playlist_reference_empty">No matching playlists.</string>
     <string name="smart_playlist_reference_owner_access">Referenced playlists must be accessible to the playlist owner.</string>
     <string name="connection_certificate_import_failed">Could not import the certificate.</string>
+    <string name="artist_playlists">Playlists</string>
+    <string name="artist_playlists_refresh">Refresh</string>
+    <string name="artist_playlists_retry">Retry</string>
+    <string name="artist_playlists_loading">Finding your playlists…</string>
+    <string name="artist_playlists_failed">Some playlists could not be checked. Retry to check them again.</string>
+    <string name="artist_playlists_truncated">Only the first 500 playlists were checked. More playlists may contain this artist.</string>
+    <string name="artist_playlists_empty">None of your playlists contain this artist.</string>
+    <string name="settings_show_artist_playlists">Show playlists on artist pages</string>
+    <string name="settings_show_artist_playlists_subtitle">Show playlists you created that contain tracks by the artist.</string>
 </resources>

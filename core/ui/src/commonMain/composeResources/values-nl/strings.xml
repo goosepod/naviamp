@@ -250,4 +250,13 @@
     <string name="smart_playlist_reference_empty">Geen overeenkomende afspeellijsten.</string>
     <string name="smart_playlist_reference_owner_access">De eigenaar van de afspeellijst moet toegang hebben tot de verwijzingen.</string>
     <string name="connection_certificate_import_failed">Het certificaat kon niet worden geïmporteerd.</string>
+    <string name="artist_playlists">Afspeellijsten</string>
+    <string name="artist_playlists_refresh">Vernieuwen</string>
+    <string name="artist_playlists_retry">Opnieuw proberen</string>
+    <string name="artist_playlists_loading">Je afspeellijsten worden doorzocht…</string>
+    <string name="artist_playlists_failed">Sommige lijsten konden niet worden gecontroleerd. Probeer opnieuw.</string>
+    <string name="artist_playlists_truncated">Alleen de eerste 500 lijsten zijn gecontroleerd. Andere kunnen deze artiest bevatten.</string>
+    <string name="artist_playlists_empty">Geen van je lijsten bevat deze artiest.</string>
+    <string name="settings_show_artist_playlists">Afspeellijsten op artiestpagina&apos;s tonen</string>
+    <string name="settings_show_artist_playlists_subtitle">Toon zelfgemaakte lijsten met nummers van deze artiest.</string>
 </resources>
