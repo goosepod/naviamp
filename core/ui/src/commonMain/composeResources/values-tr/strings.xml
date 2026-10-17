@@ -250,4 +250,13 @@
     <string name="smart_playlist_reference_empty">Eşleşen çalma listesi yok.</string>
     <string name="smart_playlist_reference_owner_access">Başvurulan çalma listeleri, listenin sahibi tarafından erişilebilir olmalıdır.</string>
     <string name="connection_certificate_import_failed">Sertifika içe aktarılamadı.</string>
+    <string name="artist_playlists">Çalma listeleri</string>
+    <string name="artist_playlists_refresh">Yenile</string>
+    <string name="artist_playlists_retry">Yeniden dene</string>
+    <string name="artist_playlists_loading">Oluşturduğunuz listeler aranıyor…</string>
+    <string name="artist_playlists_failed">Bazı listeler kontrol edilemedi. Yeniden deneyin.</string>
+    <string name="artist_playlists_truncated">Yalnızca ilk 500 liste kontrol edildi. Diğerlerinde de bu sanatçı olabilir.</string>
+    <string name="artist_playlists_empty">Oluşturduğunuz listelerde bu sanatçı yok.</string>
+    <string name="settings_show_artist_playlists">Sanatçı sayfalarında çalma listelerini göster</string>
+    <string name="settings_show_artist_playlists_subtitle">Bu sanatçının parçalarını içeren kendi oluşturduğunuz listeleri gösterir.</string>
 </resources>

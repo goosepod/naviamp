@@ -17,6 +17,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
+    @Test fun artistPlaylistVisibilityPersistsAndOlderSettingsDefaultOn() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(true, catalog.storedSettings.loadInterface().showArtistPlaylists)
+        catalog.storedSettings.saveInterface(InterfaceSettings(showArtistPlaylists = false))
+        assertEquals(false, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().showArtistPlaylists)
+    }
     @Test
     fun independentRadioAndAutoplaySizesPersistWithDefaultsAndNormalization() {
         val values = MemorySettingsValues()

@@ -250,4 +250,13 @@
     <string name="smart_playlist_reference_empty">没有匹配的播放列表。</string>
     <string name="smart_playlist_reference_owner_access">播放列表所有者必须能够访问所引用的播放列表。</string>
     <string name="connection_certificate_import_failed">无法导入证书。</string>
+    <string name="artist_playlists">播放列表</string>
+    <string name="artist_playlists_refresh">刷新</string>
+    <string name="artist_playlists_retry">重试</string>
+    <string name="artist_playlists_loading">正在查找你创建的播放列表…</string>
+    <string name="artist_playlists_failed">部分播放列表无法检查。请重试。</string>
+    <string name="artist_playlists_truncated">仅检查了前500个播放列表。其他列表可能也包含此艺人。</string>
+    <string name="artist_playlists_empty">你创建的播放列表中没有此艺人。</string>
+    <string name="settings_show_artist_playlists">在艺人页面显示播放列表</string>
+    <string name="settings_show_artist_playlists_subtitle">显示你创建且包含该艺人歌曲的播放列表。</string>
 </resources>

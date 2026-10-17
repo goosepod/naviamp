@@ -4,7 +4,9 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 ## Unreleased
 
-No changes yet.
+### Features
+
+- Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.
 
 ## v2.10.1
 

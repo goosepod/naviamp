@@ -7,7 +7,11 @@ import kotlin.test.assertTrue
 class NaviampChangelogTest {
     @Test
     fun release2101ContainsTheImportantPublicChangesInSignificanceOrder() {
-        val changelog = NaviampAboutUi().changelog
+        val allSections = NaviampAboutUi().changelog
+        assertEquals("Features", allSections.first().title)
+        assertTrue(allSections.first().entries.single().contains("playlists you created"))
+        assertTrue(allSections.first().entries.single().contains("Experience settings"))
+        val changelog = allSections.drop(1)
         assertEquals(
             listOf("Improvements", "Bug fixes", "Upgrade notes", "Known issues"),
             changelog.map { it.title },

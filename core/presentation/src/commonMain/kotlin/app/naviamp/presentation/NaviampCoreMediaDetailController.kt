@@ -31,6 +31,9 @@ import app.naviamp.ui.toSharedSimilarArtistUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import app.naviamp.domain.media.loadArtistPlaylists
+import app.naviamp.ui.SharedArtistPlaylistsUi
 
 data class NaviampCoreArtistDiscoveryServices(
     val sourceId: () -> String? = { null },
@@ -100,8 +103,45 @@ class NaviampCoreMediaDetailController(
 ) : NaviampCoreCommandController, NaviampCoreArtistNavigator {
     private var albumGeneration = 0L
     private var artistGeneration = 0L
+    private var artistPlaylistsJob: Job? = null
+    private var artistPlaylistsGeneration = 0L
+
+    private fun cancelArtistPlaylists() {
+        artistPlaylistsGeneration++
+        artistPlaylistsJob?.cancel()
+        artistPlaylistsJob = null
+    }
+
+    private fun refreshArtistPlaylists(artistId: String) {
+        val detail = stateStore.state.value.shell.artistDetail.detail ?: return
+        if (detail.artist.id != artistId || !detail.playlistsVisible) return
+        val provider = providerSource.current() ?: return
+        cancelArtistPlaylists()
+        val generation = artistPlaylistsGeneration
+        val artist = mediaRegistry.artistDetails?.artist ?: return
+        artistPlaylistsJob = scope.launch {
+            loadArtistPlaylists(provider, artist, publish = { result ->
+                if (generation == artistPlaylistsGeneration && providerSource.isCurrent(provider)) {
+                    stateStore.updateShell { shell ->
+                        val current = shell.artistDetail.detail
+                        if (current?.artist?.id != artistId || !current.playlistsVisible) shell
+                        else shell.copy(artistDetail = shell.artistDetail.copy(detail = current.copy(
+                            playlists = SharedArtistPlaylistsUi(
+                                items = result.playlists.map { it.toSharedMediaItemUi(coverArtUrl = { id -> id?.let(provider::coverArtUrl) }) },
+                                loading = result.loading, failed = result.failed, truncated = result.truncated,
+                            ),
+                        )))
+                    }
+                }
+            }, isCurrent = {
+                generation == artistPlaylistsGeneration && providerSource.isCurrent(provider) &&
+                    stateStore.state.value.shell.artistDetail.detail?.let { it.artist.id == artistId && it.playlistsVisible } == true
+            })
+        }
+    }
 
     fun resetForSourceChange() {
+        cancelArtistPlaylists()
         albumGeneration++
         artistGeneration++
         mediaRegistry.updateAlbum(null)
@@ -113,6 +153,7 @@ class NaviampCoreMediaDetailController(
     }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
+        is NaviampCoreCommand.Detail.RefreshArtistPlaylists -> NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Media.ItemAction -> when (val itemCommand = command.request.command) {
             is NaviampMediaItemCommand.Album -> if (itemCommand.command == NaviampArtistAlbumCommand.Select) {
                 NaviampCoreImmediateCommandResult.Deferred
@@ -138,6 +179,7 @@ class NaviampCoreMediaDetailController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
+            is NaviampCoreCommand.Detail.RefreshArtistPlaylists -> refreshArtistPlaylists(command.artistId)
             is NaviampCoreCommand.Media.ItemAction -> when (val itemCommand = command.request.command) {
                 is NaviampMediaItemCommand.Album -> {
                     if (itemCommand.command != NaviampArtistAlbumCommand.Select) return null
@@ -174,6 +216,8 @@ class NaviampCoreMediaDetailController(
     }
 
     internal fun interfaceSettingsChanged(settings: app.naviamp.domain.settings.InterfaceSettings) {
+        val previousVisibility = stateStore.state.value.shell.artistDetail.detail?.playlistsVisible
+        if (!settings.showArtistPlaylists) cancelArtistPlaylists()
         val provider = providerSource.current() ?: return
         stateStore.updateShell { shell ->
             val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
@@ -218,10 +262,16 @@ class NaviampCoreMediaDetailController(
                         canFavoriteArtist = provider.capabilities.supportsArtistFavorites && !nameOnlyCredit,
                         canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
                         showArtistInformation = settings.showArtistInformation,
+                    ).copy(
+                        playlistsVisible = settings.showArtistPlaylists,
+                        playlists = if (settings.showArtistPlaylists) current?.playlists ?: SharedArtistPlaylistsUi() else SharedArtistPlaylistsUi(),
                     ),
                 )
             } ?: shell.artistDetail
             shell.copy(albumDetail = albumDetail, artistDetail = artistDetail)
+        }
+        if (settings.showArtistPlaylists && previousVisibility == false) {
+            stateStore.state.value.shell.artistDetail.detail?.artist?.id?.let(::refreshArtistPlaylists)
         }
     }
 
@@ -395,6 +445,7 @@ class NaviampCoreMediaDetailController(
         pushCurrentArtist: Boolean = true,
         loadSimilar: Boolean = false,
     ) {
+        cancelArtistPlaylists()
         val generation = ++artistGeneration
         mediaRegistry.updateArtist(null)
         val artist = Artist(ArtistId(item.id), item.title)
@@ -478,7 +529,7 @@ class NaviampCoreMediaDetailController(
                                 canFavoriteArtist = provider.capabilities.supportsArtistFavorites && !nameOnlyCredit,
                                 canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
                                 showArtistInformation = shell.general.interfaceSettings.showArtistInformation,
-                            ),
+                            ).copy(playlistsVisible = shell.general.interfaceSettings.showArtistPlaylists),
                             status = if (detail.albums.isEmpty()) {
                                 "No albums found for ${detail.artist.name}."
                             } else {
@@ -487,6 +538,7 @@ class NaviampCoreMediaDetailController(
                         ),
                     )
                 }
+                refreshArtistPlaylists(detail.artist.id.value)
             }
             .onFailure { cause ->
                 if (generation == artistGeneration && providerSource.isCurrent(provider)) {

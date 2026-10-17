@@ -51,6 +51,7 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
+        onNodeWithText("Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.").assertIsDisplayed()
         onNodeWithText("Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
         onNodeWithText("Known issues").assertIsDisplayed()
         val roots = onAllNodes(isRoot())

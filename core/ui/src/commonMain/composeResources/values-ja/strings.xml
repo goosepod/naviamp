@@ -250,4 +250,13 @@
     <string name="smart_playlist_reference_empty">一致するプレイリストはありません。</string>
     <string name="smart_playlist_reference_owner_access">参照先のプレイリストは、プレイリストの所有者がアクセスできる必要があります。</string>
     <string name="connection_certificate_import_failed">証明書をインポートできませんでした。</string>
+    <string name="artist_playlists">プレイリスト</string>
+    <string name="artist_playlists_refresh">更新</string>
+    <string name="artist_playlists_retry">再試行</string>
+    <string name="artist_playlists_loading">作成したプレイリストを検索中…</string>
+    <string name="artist_playlists_failed">一部のプレイリストを確認できませんでした。再試行してください。</string>
+    <string name="artist_playlists_truncated">最初の500件のみ確認しました。他のプレイリストにもこのアーティストが含まれる可能性があります。</string>
+    <string name="artist_playlists_empty">作成したプレイリストにこのアーティストは含まれていません。</string>
+    <string name="settings_show_artist_playlists">アーティストページにプレイリストを表示</string>
+    <string name="settings_show_artist_playlists_subtitle">このアーティストの曲を含む自作のプレイリストを表示します。</string>
 </resources>
