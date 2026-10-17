@@ -250,4 +250,9 @@
     <string name="smart_playlist_reference_empty">Aucune playlist correspondante.</string>
     <string name="smart_playlist_reference_owner_access">Les playlists référencées doivent être accessibles au propriétaire de la playlist.</string>
     <string name="connection_certificate_import_failed">Impossible d’importer le certificat.</string>
+    <string name="settings_show_artist_top_tracks">Afficher les titres populaires sur les pages des artistes</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Afficher les titres les plus populaires de l’artiste.</string>
+    <string name="settings_artist_top_tracks_limit">Nombre maximal de titres populaires</string>
+    <string name="settings_artist_top_tracks_count">%1$d titres</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Afficher au maximum ce nombre de titres correspondants de votre bibliothèque.</string>
 </resources>

@@ -1080,4 +1080,9 @@
     <string name="smart_playlist_reference_empty">No hay listas coincidentes.</string>
     <string name="smart_playlist_reference_owner_access">El propietario de la lista debe tener acceso a las listas referenciadas.</string>
     <string name="connection_certificate_import_failed">No se pudo importar el certificado.</string>
+    <string name="settings_show_artist_top_tracks">Mostrar canciones destacadas en las páginas de artistas</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Mostrar las canciones más populares del artista.</string>
+    <string name="settings_artist_top_tracks_limit">Máximo de canciones destacadas</string>
+    <string name="settings_artist_top_tracks_count">%1$d canciones</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Mostrar como máximo esta cantidad de canciones coincidentes de tu biblioteca.</string>
 </resources>

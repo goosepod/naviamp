@@ -369,4 +369,9 @@
     <string name="smart_playlist_reference_empty">Brak pasujących playlist.</string>
     <string name="smart_playlist_reference_owner_access">Właściciel playlisty musi mieć dostęp do wskazanych playlist.</string>
     <string name="connection_certificate_import_failed">Nie udało się zaimportować certyfikatu.</string>
+    <string name="settings_show_artist_top_tracks">Pokazuj najpopularniejsze utwory na stronach wykonawców</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Pokazuj najpopularniejsze utwory wykonawcy.</string>
+    <string name="settings_artist_top_tracks_limit">Maksymalna liczba popularnych utworów</string>
+    <string name="settings_artist_top_tracks_count">%1$d utworów</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Pokazuj najwyżej tyle pasujących utworów z biblioteki.</string>
 </resources>

@@ -250,4 +250,9 @@
     <string name="smart_playlist_reference_empty">Geen overeenkomende afspeellijsten.</string>
     <string name="smart_playlist_reference_owner_access">De eigenaar van de afspeellijst moet toegang hebben tot de verwijzingen.</string>
     <string name="connection_certificate_import_failed">Het certificaat kon niet worden geïmporteerd.</string>
+    <string name="settings_show_artist_top_tracks">Populaire nummers op artiestpagina’s tonen</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Toon de populairste nummers van de artiest.</string>
+    <string name="settings_artist_top_tracks_limit">Maximumaantal populaire nummers</string>
+    <string name="settings_artist_top_tracks_count">%1$d nummers</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Toon maximaal dit aantal overeenkomende nummers uit je bibliotheek.</string>
 </resources>

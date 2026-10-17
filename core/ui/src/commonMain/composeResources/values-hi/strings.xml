@@ -250,4 +250,9 @@
     <string name="smart_playlist_reference_empty">कोई मिलती-जुलती प्लेलिस्ट नहीं।</string>
     <string name="smart_playlist_reference_owner_access">प्लेलिस्ट के मालिक के पास संदर्भित प्लेलिस्ट का ऐक्सेस होना चाहिए।</string>
     <string name="connection_certificate_import_failed">प्रमाणपत्र आयात नहीं किया जा सका।</string>
+    <string name="settings_show_artist_top_tracks">कलाकार पेज पर लोकप्रिय ट्रैक दिखाएँ</string>
+    <string name="settings_show_artist_top_tracks_subtitle">कलाकार के सबसे लोकप्रिय ट्रैक दिखाएँ।</string>
+    <string name="settings_artist_top_tracks_limit">लोकप्रिय ट्रैक की अधिकतम संख्या</string>
+    <string name="settings_artist_top_tracks_count">%1$d ट्रैक</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">अपनी लाइब्रेरी से अधिकतम इतने मेल खाने वाले ट्रैक दिखाएँ।</string>
 </resources>

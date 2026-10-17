@@ -250,4 +250,9 @@
     <string name="smart_playlist_reference_empty">Подходящих плейлистов нет.</string>
     <string name="smart_playlist_reference_owner_access">Владельцу плейлиста должны быть доступны плейлисты, на которые он ссылается.</string>
     <string name="connection_certificate_import_failed">Не удалось импортировать сертификат.</string>
+    <string name="settings_show_artist_top_tracks">Показывать популярные треки на страницах исполнителей</string>
+    <string name="settings_show_artist_top_tracks_subtitle">Показывать самые популярные треки исполнителя.</string>
+    <string name="settings_artist_top_tracks_limit">Максимум популярных треков</string>
+    <string name="settings_artist_top_tracks_count">%1$d треков</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">Показывать не более указанного числа подходящих треков из медиатеки.</string>
 </resources>

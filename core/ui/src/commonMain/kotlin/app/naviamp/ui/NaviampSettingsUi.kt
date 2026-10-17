@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -876,6 +877,27 @@ fun NaviampExperienceSettingsSection(
                 onInterfaceSettingsChanged(interfaceSettings.copy(showArtistInformation = enabled).normalized())
             },
         )
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = interfaceSettings.showArtistTopTracks,
+            label = stringResource(Res.string.settings_show_artist_top_tracks),
+            subtitle = stringResource(Res.string.settings_show_artist_top_tracks_subtitle),
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistTopTracks = enabled).normalized())
+            },
+        )
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = stringResource(Res.string.settings_artist_top_tracks_limit),
+            value = interfaceSettings.normalized().artistTopTracksLimit,
+            detents = app.naviamp.domain.settings.ArtistTopTracksLimits,
+            enabled = interfaceSettings.showArtistTopTracks,
+            valueLabel = { stringResource(Res.string.settings_artist_top_tracks_count, it) },
+            onValueChanged = { limit ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(artistTopTracksLimit = limit).normalized())
+            },
+        )
+        Text(stringResource(Res.string.settings_artist_top_tracks_limit_subtitle), color = colors.secondaryText, fontSize = 12.sp)
         SettingsCheckboxRow(
             colors = colors,
             checked = interfaceSettings.showAlbumInformation,
@@ -3017,6 +3039,7 @@ private fun DetentIntSettingsSlider(
             Text(valueLabel(normalizedDetents.getOrElse(selectedIndex) { value }), color = colors.primaryText, fontSize = 12.sp)
         }
         Slider(
+            modifier = Modifier.semantics { contentDescription = title },
             enabled = enabled && normalizedDetents.size > 1,
             value = selectedIndex.toFloat(),
             onValueChange = { raw ->

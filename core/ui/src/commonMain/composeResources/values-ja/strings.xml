@@ -250,4 +250,9 @@
     <string name="smart_playlist_reference_empty">一致するプレイリストはありません。</string>
     <string name="smart_playlist_reference_owner_access">参照先のプレイリストは、プレイリストの所有者がアクセスできる必要があります。</string>
     <string name="connection_certificate_import_failed">証明書をインポートできませんでした。</string>
+    <string name="settings_show_artist_top_tracks">アーティストページに人気曲を表示</string>
+    <string name="settings_show_artist_top_tracks_subtitle">アーティストの人気曲を表示します。</string>
+    <string name="settings_artist_top_tracks_limit">人気曲の最大表示数</string>
+    <string name="settings_artist_top_tracks_count">%1$d 曲</string>
+    <string name="settings_artist_top_tracks_limit_subtitle">ライブラリ内で一致した曲をこの曲数まで表示します。</string>
 </resources>
