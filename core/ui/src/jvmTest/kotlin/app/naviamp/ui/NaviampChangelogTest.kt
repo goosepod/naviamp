@@ -34,6 +34,8 @@ class NaviampChangelogTest {
         assertTrue(changelog[2].entries[1].contains("unsupported definitions"))
         assertTrue(changelog[2].entries[2].contains("Library search controls stationary"))
         assertTrue(changelog[2].entries[2].contains("without refreshing the library"))
+        assertTrue(changelog[2].entries[2].contains("accented names, aliases and metadata"))
+        assertTrue(changelog[2].entries[2].contains("Artists, Albums and Songs"))
         assertTrue(changelog[2].entries[3].contains("popups"))
         assertTrue(changelog[3].entries.any { it.contains("No special upgrade steps") })
         assertTrue(changelog[3].entries.any { it.contains("Radio method selection is explicit") })

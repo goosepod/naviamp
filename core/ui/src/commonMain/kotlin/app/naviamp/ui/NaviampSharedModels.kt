@@ -810,6 +810,8 @@ data class NaviampLibraryCatalogUi(
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
     /** A query lookup is separate from refreshing the browsable library. */
     val searching: Boolean = false,
+    /** Provider-selected matches are authoritative only for this exact query. */
+    val resultsQuery: String? = null,
     val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     /** Changes only after an explicit refresh; automatic loads preserve the viewport. */
     val refreshGeneration: Long = 0L,

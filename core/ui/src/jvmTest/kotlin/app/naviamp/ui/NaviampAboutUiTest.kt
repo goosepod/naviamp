@@ -66,7 +66,7 @@ class NaviampAboutUiTest {
         writeAboutReleaseImage(requireNotNull(rendered))
         onNodeWithText("Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.")
             .performScrollTo().assertIsDisplayed()
-        onNodeWithText("Keep Library search controls stationary, preserve complete search results without refreshing the library, and restore the previous browse list when clearing a search.")
+        onNodeWithText("Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list.")
             .performScrollTo().assertIsDisplayed()
         onNodeWithText("Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.")
             .performScrollTo().assertIsDisplayed()

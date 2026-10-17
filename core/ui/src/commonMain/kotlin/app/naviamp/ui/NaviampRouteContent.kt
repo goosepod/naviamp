@@ -1373,9 +1373,12 @@ fun NaviampLibraryContent(
     }
     val restoredTarget = viewportState.focusedTarget(screen.selectedView)
     val restoredItemFocusRequester = remember(screen.selectedView, restoredTarget) { FocusRequester() }
-    val filteredItems = remember(items, query) {
+    // Provider matching may include accents, aliases, tokenization or hidden metadata.
+    // Only locally preview an unqueried/old catalog; never re-filter current server matches.
+    val serverMatches = query.isNotBlank() && catalog.resultsQuery == query
+    val filteredItems = remember(items, query, serverMatches) {
         val normalizedQuery = query.trim().lowercase()
-        if (normalizedQuery.isBlank()) {
+        if (normalizedQuery.isBlank() || serverMatches) {
             items
         } else {
             items.filter { item ->
@@ -1385,9 +1388,9 @@ fun NaviampLibraryContent(
             }
         }
     }
-    val filteredTracks = remember(tracks, query) {
+    val filteredTracks = remember(tracks, query, serverMatches) {
         val normalizedQuery = query.trim().lowercase()
-        if (normalizedQuery.isBlank()) tracks else tracks.filter { track ->
+        if (normalizedQuery.isBlank() || serverMatches) tracks else tracks.filter { track ->
             track.title.lowercase().contains(normalizedQuery) || track.subtitle.lowercase().contains(normalizedQuery)
         }
     }
