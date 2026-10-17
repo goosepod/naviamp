@@ -1079,4 +1079,5 @@
     <string name="smart_playlist_reference_retry">Intentar de nuevo</string>
     <string name="smart_playlist_reference_empty">No hay listas coincidentes.</string>
     <string name="smart_playlist_reference_owner_access">El propietario de la lista debe tener acceso a las listas referenciadas.</string>
+    <string name="connection_certificate_import_failed">No se pudo importar el certificado.</string>
 </resources>

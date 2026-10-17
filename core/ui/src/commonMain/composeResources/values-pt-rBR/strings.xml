@@ -249,4 +249,5 @@
     <string name="smart_playlist_reference_retry">Tentar novamente</string>
     <string name="smart_playlist_reference_empty">Nenhuma playlist correspondente.</string>
     <string name="smart_playlist_reference_owner_access">O proprietário da playlist precisa ter acesso às playlists referenciadas.</string>
+    <string name="connection_certificate_import_failed">Não foi possível importar o certificado.</string>
 </resources>

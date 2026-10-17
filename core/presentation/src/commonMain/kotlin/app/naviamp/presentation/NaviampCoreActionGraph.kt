@@ -36,6 +36,7 @@ data class NaviampCoreActionAvailability(
     val chooseSyncFolder: Boolean = false,
     val importFolder: Boolean = false,
     val exportFolder: Boolean = false,
+    val chooseCertificate: Boolean = false,
 )
 
 /** Builds the one action graph consumed unchanged by Android, Desktop, and iOS hosts. */
@@ -103,6 +104,8 @@ fun createNaviampCoreActions(
         ),
         connectionActions = NaviampConnectionSettingsActions(
             onFormChanged = { send(NaviampCoreCommand.Connection.ChangeForm(it)) },
+            onChooseServerCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ServerAuthority)) }) else null,
+            onChooseClientCertificate = if (availability.chooseCertificate) ({ send(NaviampCoreCommand.Connection.ChooseCertificate(NaviampConnectionCertificateKind.ClientIdentity)) }) else null,
             onConnect = { send(NaviampCoreCommand.Connection.Connect) },
             onEditCurrentConnection = { send(NaviampCoreCommand.Connection.EditCurrent) },
             onNewConnection = { send(NaviampCoreCommand.Connection.New) },

@@ -162,6 +162,7 @@ class AndroidNaviampCoreCatalog private constructor(
                 downloads = downloads,
                 playbackEngine = playbackEngine,
                 settingsSyncPort = syncPort,
+                certificateFiles = AndroidCoreCertificateFilePort(appContext, documentPicker),
                 settings = settingsCatalog.storedSettings.withStorageBackedSettings(
                     radioDjPresetRepository = storage,
                     onCacheSettingsSaved = { effective ->

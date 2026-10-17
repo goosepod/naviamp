@@ -38,6 +38,7 @@ kotlin {
         }
 
         commonMain.dependencies {
+            implementation(libs.ktor.network)
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)

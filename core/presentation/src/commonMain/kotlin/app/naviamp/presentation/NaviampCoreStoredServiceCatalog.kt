@@ -108,6 +108,7 @@ fun naviampCoreStoredServiceCatalog(
     clockEpochMillis: () -> Long,
     favoritedAtIso8601: () -> String,
     diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
+    certificateFiles: NaviampCoreCertificateFilePort? = null,
 ): NaviampCoreStoredServiceCatalog {
     val initialInterfaceSettings = settings.loadInterface()
     val initialPlaybackSettings = settings.loadPlayback()
@@ -165,6 +166,7 @@ fun naviampCoreStoredServiceCatalog(
         favoritedAtIso8601 = favoritedAtIso8601,
     )
     val services = defaults.copy(
+        certificateFiles = certificateFiles,
         content = defaults.content.copy(
             libraryGenreRefresh = NaviampCoreLibraryGenreRefreshPort {
                 val activeSourceId = sourceId() ?: return@NaviampCoreLibraryGenreRefreshPort

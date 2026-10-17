@@ -1,24 +1,28 @@
 package app.naviamp.provider.navidrome
 
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class NavidromeIosPlatformTest {
     @Test
-    fun insecureTlsIsAvailableWhileCertificateFilesRemainUnavailable() {
+    fun allTlsModesAreAvailableAndMissingCertificateFilesFailClosed() {
         val capabilities = navidromeTlsCapabilities()
 
         assertTrue(capabilities.insecureSkipVerification)
-        assertFalse(capabilities.customServerCertificates)
-        assertFalse(capabilities.clientCertificates)
+        assertTrue(capabilities.customServerCertificates)
+        assertTrue(capabilities.clientCertificates)
         createDefaultNavidromeKtorClient(
             NavidromeTlsSettings(insecureSkipTlsVerification = true),
         ).close()
-        assertFailsWith<NavidromeException> {
+        assertFailsWith<IllegalStateException> {
             createDefaultNavidromeKtorClient(
                 NavidromeTlsSettings(customCertificatePath = "/server.pem"),
+            )
+        }
+        assertFailsWith<IllegalStateException> {
+            createDefaultNavidromeKtorClient(
+                NavidromeTlsSettings(clientCertificateKeyStorePath = "/missing-client.p12"),
             )
         }
     }

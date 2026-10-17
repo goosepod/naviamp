@@ -42,6 +42,20 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
+    @Test fun certificateAndCustomHeaderConnectionsRequireProviderAuthenticatedPlayback() {
+        val plain = connection("https://music.example.test")
+        val http = RecordingResponseHttpClient("unused")
+        assertFalse(NavidromeProvider(plain, http).requiresAuthenticatedPlaybackTransport)
+        for (tls in listOf(
+            NavidromeTlsSettings(customCertificatePath = "private-ca.pem"),
+            NavidromeTlsSettings(clientCertificateKeyStorePath = "identity.p12"),
+            NavidromeTlsSettings(insecureSkipTlsVerification = true),
+        )) assertTrue(NavidromeProvider(plain.copy(tlsSettings = tls), http).requiresAuthenticatedPlaybackTransport)
+        assertTrue(NavidromeProvider(plain.copy(customHeaders = listOf(
+            app.naviamp.domain.source.ConnectionHeaderDefinition("X-Client", "fixture"),
+        )), http).requiresAuthenticatedPlaybackTransport)
+    }
+
     @Test fun selectedInstantMixUsesOnlyTheSimilarSongsEndpointEvenWhenEmpty() = runTest {
         val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"ok","similarSongs":{"song":[]}}}""")
         val provider = NavidromeProvider(connection("https://music.example.test"), http)

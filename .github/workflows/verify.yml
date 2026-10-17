@@ -232,6 +232,13 @@ jobs:
           fi
           adb shell input keyevent 82
 
+      - name: Start disposable mobile mTLS fixture
+        run: |
+          bash scripts/start-mobile-mtls-fixture.sh
+          for port in 59974 59975 59976 59977; do
+            adb reverse "tcp:$port" "tcp:$port"
+          done
+
       - name: Exercise native boundaries and raster animation
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
@@ -248,6 +255,10 @@ jobs:
               | tee "/tmp/naviamp-dnssd-repeat-$attempt.txt"
             grep -q '^OK (5 tests)' "/tmp/naviamp-dnssd-repeat-$attempt.txt"
           done
+
+      - name: Stop disposable mobile mTLS fixture
+        if: always()
+        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
 
       - name: Capture Android discovery diagnostics
         if: failure()
@@ -270,6 +281,7 @@ jobs:
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
+            build/mobile-mtls-fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
 
@@ -292,7 +304,7 @@ jobs:
 
       - name: Run Desktop tests with Windows native libraries
         shell: powershell
-        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest
+        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest :providers:navidrome:jvmTest
 
       - name: Verify packaged Windows idle CPU
         shell: powershell
@@ -313,6 +325,7 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/desktopTest/**
+            providers/navidrome/build/reports/tests/jvmTest/**
             build/windows-animation-probe.txt
 
   desktop-linux:
@@ -402,7 +415,10 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Compile device target and run all simulator tests
+      - name: Start disposable mobile mTLS fixture
+        run: bash scripts/start-mobile-mtls-fixture.sh
+
+      - name: Compile both targets and run common simulator tests
         run: |
           mkdir -p build/ci-timings
           started_at="$(date +%s)"
@@ -412,6 +428,8 @@ jobs:
             --profile \
             verifyCoreFirstArchitecture \
             iosSimulatorArm64Test \
+            -x :platforms:ios:iosSimulatorArm64Test \
+            :platforms:ios:linkDebugTestIosSimulatorArm64 \
             :apps:ios:compileKotlinIosArm64
           elapsed_seconds="$(($(date +%s) - started_at))"
           printf 'stage\tseconds\nGradle simulator tests and device compile\t%s\n' \
@@ -422,6 +440,40 @@ jobs:
             echo '| --- | ---: |'
             echo "| Gradle simulator tests and device compile | ${elapsed_seconds}s |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Boot a dedicated simulator for native TLS services
+        run: |
+          template_id="$(xcrun simctl list devices available --json | python3 -c 'import json,sys; print(next(d["udid"] for devices in json.load(sys.stdin)["devices"].values() for d in devices if d["name"].startswith("iPhone")))')"
+          device_id="$(xcrun simctl clone "$template_id" 'Naviamp TLS Verification')"
+          echo "NAVIAMP_IOS_TLS_TEST_DEVICE=$device_id" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device_id"
+          xcrun simctl bootstatus "$device_id" -b
+
+      - name: Exercise native TLS and BASS on the booted simulator
+        timeout-minutes: 5
+        run: |
+          # The preceding step compiles this binary; this required step executes it
+          # with real Apple trust services after the common standalone tests finish.
+          started_at="$(date +%s)"
+          ./gradlew --max-workers=2 --console=plain \
+            -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
+            :platforms:ios:iosSimulatorArm64Test
+          elapsed_seconds="$(($(date +%s) - started_at))"
+          printf 'Native TLS and BASS tests\t%s\n' "$elapsed_seconds" >> build/ci-timings/ios.tsv
+          echo "| Native TLS and BASS tests | ${elapsed_seconds}s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect native TLS diagnostics and stop its simulator
+        if: always() && env.NAVIAMP_IOS_TLS_TEST_DEVICE != ''
+        run: |
+          xcrun simctl spawn "$NAVIAMP_IOS_TLS_TEST_DEVICE" log show --style compact --last 5m \
+            --predicate 'process == "trustd" OR subsystem == "com.apple.CFNetwork"' \
+            > build/ios-tls-services.log 2>&1 || true
+          xcrun simctl shutdown "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
+          xcrun simctl delete "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
+
+      - name: Stop disposable mobile mTLS fixture
+        if: always()
+        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
 
       - name: Build the production iOS app
         run: |
@@ -467,7 +519,9 @@ jobs:
             **/build/reports/tests/iosSimulatorArm64Test/**
             build/reports/profile/**
             build/ci-timings/ios.tsv
+            build/mobile-mtls-fixture.log
             build/ios-keychain-tests.xcresult
+            build/ios-tls-services.log
 
   evidence:
     name: Record verified source tree

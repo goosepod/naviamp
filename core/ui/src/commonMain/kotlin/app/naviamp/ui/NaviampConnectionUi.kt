@@ -94,6 +94,7 @@ private fun localizedConnectionStatus(status: String): String =
         "connection_api_key_unsupported" -> stringResource(Res.string.connection_api_key_unsupported)
         "connection_api_key_invalid" -> stringResource(Res.string.connection_api_key_invalid)
         "connection_server_url_required" -> stringResource(Res.string.connection_server_url_required)
+        "connection_certificate_import_failed" -> stringResource(Res.string.connection_certificate_import_failed)
         else -> status
     }
 
@@ -133,6 +134,8 @@ fun NaviampConnectionForm(
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onImportSettingsSyncFile: (() -> Unit)? = null,
+    onChooseServerCertificate: (() -> Unit)? = null,
+    onChooseClientCertificate: (() -> Unit)? = null,
     onCancel: (() -> Unit)?,
 ) {
     var advancedVisible by remember { mutableStateOf(false) }
@@ -315,6 +318,11 @@ fun NaviampConnectionForm(
                     enabled = !form.skipTlsVerification,
                     inputKind = NaviampTextInputKind.Technical,
                 )
+                onChooseServerCertificate?.let { choose ->
+                    TextButton(onClick = choose, enabled = !isConnecting && !form.skipTlsVerification) {
+                        Text(stringResource(Res.string.common_choose))
+                    }
+                }
             }
             if (clientCertificatesVisible) {
                 SettingsSectionTitle("mTLS", colors)
@@ -325,6 +333,11 @@ fun NaviampConnectionForm(
                     colors = colors,
                     inputKind = NaviampTextInputKind.Technical,
                 )
+                onChooseClientCertificate?.let { choose ->
+                    TextButton(onClick = choose, enabled = !isConnecting) {
+                        Text(stringResource(Res.string.common_choose))
+                    }
+                }
                 NaviampTextField(
                     value = form.clientCertificatePassword,
                     onValueChange = { onFormChanged(form.copy(clientCertificatePassword = it)) },
