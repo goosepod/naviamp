@@ -9,6 +9,28 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ArtistPopularTracksTest {
+    @Test fun artistPageCanExpandAnExistingCacheAndReuseShortCompleteResponses() = runTest {
+        val repository = SessionArtistPopularTracksRepository()
+        val artist = Artist(ArtistId("artist"), "Artist")
+        val requests = mutableListOf<Int>()
+        val client = object : ArtistPopularTracksClient {
+            override val source = "test"
+            override suspend fun popularTracks(artist: Artist, limit: Int): ArtistPopularTracksResult {
+                requests += limit
+                val count = if (limit == 50) 35 else limit
+                val candidates = (1..count).map { ArtistPopularTrackCandidate(source, "$it", it, "Track $it") }
+                return ArtistPopularTracksResult(source, candidates, candidates.associate { candidate ->
+                    candidate.sourceTrackId to track(candidate.sourceTrackId, candidate.title, "Album", 180)
+                })
+            }
+        }
+        val service = ArtistPopularTracksService(repository, { _, _ -> emptyList() }, client)
+        assertEquals(10, service.popularTracks("source", artist, 10).size)
+        assertEquals(35, service.popularTracks("source", artist, 50, ensureRequestedLimit = true).size)
+        assertEquals(35, service.popularTracks("source", artist, 50, ensureRequestedLimit = true).size)
+        assertEquals(5, service.popularTracks("source", artist, 5, ensureRequestedLimit = true).size)
+        assertEquals(listOf(10, 50), requests)
+    }
     @Test
     fun similarArtistFallsBackToProviderSearchWhenLocalIndexHasNoExactMatch() = runTest {
         val gorgonCity = Artist(ArtistId("gorgon-city"), "Gorgon City")
