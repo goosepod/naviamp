@@ -59,7 +59,9 @@ private fun ruleSummary(rule: SmartPlaylistRule, references: List<SmartPlaylistR
     is SmartPlaylistGroup -> "(${matchSummary(rule.match, rule.rules.map { ruleSummary(it, references) }.joinToString("; "))})"
     is SmartPlaylistCondition -> {
         val field = SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == rule.field }
-        val label = field?.let { smartPlaylistFieldLabel(it) } ?: rule.field
+        val label = if (rule.operator == SmartPlaylistOperator.InPlaylist || rule.operator == SmartPlaylistOperator.NotInPlaylist) {
+            stringResource(Res.string.tv_track)
+        } else field?.let { smartPlaylistFieldLabel(it) } ?: rule.field
         val operator = rule.summaryOperator()
         val operation = summaryOperatorLabel(operator)
         if (operator == SmartPlaylistOperator.IsMissing || operator == SmartPlaylistOperator.IsPresent) {
@@ -86,7 +88,7 @@ private fun summaryValue(value: SmartPlaylistValue, field: String, operator: Sma
                 else stringResource(Res.string.smart_playlist_summary_reference_context, reference.name, context)
             }
         }
-        field == SmartPlaylistFields.ExplicitStatus -> stringResource(when (value.value) {
+        field == SmartPlaylistFields.ExplicitStatus && value.value in setOf("", "c", "e") -> stringResource(when (value.value) {
             "c" -> Res.string.smart_playlist_summary_clean
             "e" -> Res.string.smart_playlist_summary_explicit
             else -> Res.string.smart_playlist_summary_unspecified
