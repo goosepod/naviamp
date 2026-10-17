@@ -42,6 +42,84 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreCatalogControllerTest {
     @Test
+    fun explicitAlbumRefreshDuringQueryUpdatesTheBrowseCacheWithoutCachingSearchResults() = runTest {
+        val snapshots = mutableMapOf<app.naviamp.domain.library.AlbumCatalogScope, app.naviamp.domain.library.AlbumCatalogSnapshot>()
+        val repository = object : app.naviamp.domain.library.AlbumCatalogRepository {
+            override fun readAlbumCatalog(scope: app.naviamp.domain.library.AlbumCatalogScope) = snapshots[scope]
+            override fun replaceAlbumCatalog(scope: app.naviamp.domain.library.AlbumCatalogScope, snapshot: app.naviamp.domain.library.AlbumCatalogSnapshot) {
+                snapshots[scope] = snapshot
+            }
+        }
+        var version = 1
+        var browseRequests = 0
+        var searchRequests = 0
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> {
+                browseRequests++
+                return MediaPage(listOf(Album(AlbumId("browse-$version"), "Browse $version", "Artist", null, null)),
+                    0, request.limit, false)
+            }
+            override suspend fun searchAlbumsPage(query: String, request: MediaPageRequest): MediaPage<Album> {
+                searchRequests++
+                return MediaPage(listOf(Album(AlbumId("match"), "Rüfüs EP", "RÜFÜS DU SOL", null, null)),
+                    0, request.limit, false)
+            }
+        }
+        val index = app.naviamp.domain.library.AlbumLibraryIndex(repository, { "source" }, { 1000L })
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(store, { provider }, albumIndex = index)
+        controller.dispatch(NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Albums))
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        val query = NaviampCoreCommand.Library.ChangeQuery("Rufus")
+        controller.dispatch(query)
+        controller.execute(query)
+        assertEquals(listOf("Browse 1"), index.snapshot(index.scope(provider))?.albums?.map { it.title })
+        assertEquals("Rufus", store.state.value.shell.library.albums.resultsQuery)
+        version = 2
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        assertEquals(2, browseRequests)
+        assertEquals(2, searchRequests)
+        assertEquals(listOf("Browse 2"), index.snapshot(index.scope(provider))?.albums?.map { it.title })
+        assertEquals("Rufus", store.state.value.shell.library.albums.resultsQuery)
+        val clear = NaviampCoreCommand.Library.ChangeQuery("")
+        controller.dispatch(clear)
+        controller.execute(clear)
+        assertEquals(listOf("Browse 2"), store.state.value.shell.library.albums.items.map { it.title })
+        assertNull(store.state.value.shell.library.albums.resultsQuery)
+    }
+
+    @Test
+    fun serverMatchesAreTaggedWithTheirExactQueryAndPagingKeepsThatProvenance() = runTest {
+        val requests = mutableListOf<Pair<String, Int>>()
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun searchArtistsPage(query: String, request: MediaPageRequest): MediaPage<Artist> {
+                requests += query to request.offset
+                val artist = if (request.offset == 0) Artist(ArtistId("accented"), "RÜFÜS DU SOL")
+                    else Artist(ArtistId("alias"), "An alias known only to the server")
+                return MediaPage(listOf(artist), request.offset, request.limit, request.offset == 0)
+            }
+        }
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(store, { provider }, libraryPageSize = 1)
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+        val original = store.state.value.shell.library.artists.items
+        val query = NaviampCoreCommand.Library.ChangeQuery("Rufus")
+        controller.dispatch(query)
+        controller.execute(query)
+        assertEquals("Rufus", store.state.value.shell.library.artists.resultsQuery)
+        controller.execute(NaviampCoreCommand.Library.LoadMore)
+        assertEquals(listOf("RÜFÜS DU SOL", "An alias known only to the server"),
+            store.state.value.shell.library.artists.items.map { it.title })
+        assertEquals("Rufus", store.state.value.shell.library.artists.resultsQuery)
+        assertEquals(listOf("Rufus" to 0, "Rufus" to 1), requests)
+        val clear = NaviampCoreCommand.Library.ChangeQuery("")
+        controller.dispatch(clear)
+        controller.execute(clear)
+        assertEquals(original, store.state.value.shell.library.artists.items)
+        assertNull(store.state.value.shell.library.artists.resultsQuery)
+    }
+
+    @Test
     fun explicitRefreshDuringSearchUpdatesTheBrowseDataRestoredOnClear() = runTest {
         var version = 1
         var browseRequests = 0
@@ -610,7 +688,7 @@ class NaviampCoreCatalogControllerTest {
     }
 
     @Test
-    fun indexedAlbumsBrowseSearchAndJumpWithoutRefetchingAndRememberAPendingJump() = runTest {
+    fun indexedAlbumsBrowseAndJumpFromCacheButSearchUsesServerMatches() = runTest {
         val snapshots = mutableMapOf<app.naviamp.domain.library.AlbumCatalogScope, app.naviamp.domain.library.AlbumCatalogSnapshot>()
         val repository = object : app.naviamp.domain.library.AlbumCatalogRepository {
             override fun readAlbumCatalog(scope: app.naviamp.domain.library.AlbumCatalogScope) = snapshots[scope]
@@ -618,6 +696,7 @@ class NaviampCoreCatalogControllerTest {
         }
         val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
         var requests = 0
+        val searchQueries = mutableListOf<String>()
         val provider = object : MediaProvider by CatalogTestProvider() {
             override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> {
                 requests++
@@ -625,6 +704,11 @@ class NaviampCoreCatalogControllerTest {
                 return MediaPage(listOf("The Aquabats!", "G I R L", "25").map {
                     Album(AlbumId(it), it, "Artist", null, null)
                 }, 0, request.limit, false)
+            }
+            override suspend fun searchAlbumsPage(query: String, request: MediaPageRequest): MediaPage<Album> {
+                searchQueries += query
+                return MediaPage(listOf(Album(AlbumId("G I R L"), "G I R L", "Artist", null, null)),
+                    request.offset, request.limit, false)
             }
         }
         val store = NaviampCoreStateStore()
@@ -643,9 +727,23 @@ class NaviampCoreCatalogControllerTest {
         val query = NaviampCoreCommand.Library.ChangeQuery("girl")
         controller.dispatch(query)
         controller.execute(query)
+        assertEquals(listOf("girl"), searchQueries)
+        assertEquals("girl", store.state.value.shell.library.albums.resultsQuery)
+        assertEquals(listOf("G I R L"), store.state.value.shell.library.albums.items.map { it.title })
+        val artists = NaviampCoreCommand.Library.ChangeView(NaviampLibraryView.Artists)
+        controller.dispatch(artists)
+        controller.execute(artists)
+        controller.dispatch(albums)
+        controller.execute(albums)
+        assertEquals(listOf("G I R L"), store.state.value.shell.library.albums.items.map { it.title })
+        assertEquals(listOf("girl"), searchQueries)
         controller.execute(NaviampCoreCommand.Library.LoadMore)
         controller.execute(NaviampCoreCommand.Library.JumpToLetter('T'))
         assertEquals(1, requests)
+        val clear = NaviampCoreCommand.Library.ChangeQuery("")
+        controller.dispatch(clear)
+        controller.execute(clear)
+        assertEquals(listOf("25", "G I R L", "The Aquabats!"), store.state.value.shell.library.albums.items.map { it.title })
         val restartedStore = NaviampCoreStateStore()
         val restarted = NaviampCoreCatalogController(restartedStore, NaviampCoreMediaProviderSource { provider }, albumIndex = index)
         restarted.dispatch(albums)
@@ -820,6 +918,9 @@ class NaviampCoreCatalogControllerTest {
         assertEquals("One", store.state.value.shell.library.artists.query)
         assertEquals("Second", store.state.value.shell.library.albums.query)
         assertEquals("First", store.state.value.shell.library.songs.query)
+        assertEquals("One", store.state.value.shell.library.artists.resultsQuery)
+        assertEquals("Second", store.state.value.shell.library.albums.resultsQuery)
+        assertEquals("First", store.state.value.shell.library.songs.resultsQuery)
     }
 
     @Test

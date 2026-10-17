@@ -7,6 +7,7 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 ### Bug fixes
 
 - Keep Library search controls stationary, preserve complete search results without refreshing the library, and restore the previous browse list when clearing a search.
+- Preserve the server's Library search matches, including accented names, aliases and metadata, across Artists, Albums and Songs.
 
 ## v2.10.1
 
