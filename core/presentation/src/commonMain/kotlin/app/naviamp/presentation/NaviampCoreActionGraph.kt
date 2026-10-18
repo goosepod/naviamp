@@ -259,6 +259,11 @@ fun createNaviampCoreActions(
             onAlbumAction = { send(NaviampCoreCommand.Detail.ArtistAlbum(it)) },
             onPopularTrackAction = { send(NaviampCoreCommand.Detail.ArtistPopularTrack(it)) },
             onKeepDownloaded = { send(NaviampCoreCommand.Downloads.PrepareArtist(it.id, it.title)) },
+            onPlaylistSelected = { playlist -> send(NaviampCoreCommand.Media.ItemAction(
+                app.naviamp.ui.NaviampMediaItemActionRequest(playlist,
+                    app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Select)),
+            )) },
+            onPlaylistsRefresh = { send(NaviampCoreCommand.Detail.RefreshArtistPlaylists(it)) },
         ),
         playlistDetailActions = NaviampPlaylistDetailActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromPlaylist) },

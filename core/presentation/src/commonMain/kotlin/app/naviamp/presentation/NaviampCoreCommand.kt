@@ -165,6 +165,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Detail : NaviampCoreCommand {
+        data class RefreshArtistPlaylists(val artistId: String) : Detail
         data class Album(val request: NaviampAlbumDetailActionRequest) : Detail
         data class Artist(val request: NaviampArtistDetailActionRequest) : Detail
         data class ArtistAlbum(val request: NaviampArtistAlbumActionRequest) : Detail

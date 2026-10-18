@@ -437,12 +437,12 @@ class JellyfinProvider(
         trackPage(request, searchTerm = query.trim())
 
     override suspend fun playlists(limit: Int): List<Playlist> =
-        itemPage(
-            request = MediaPageRequest(limit = limit.coerceIn(1, 200)),
-            includeItemTypes = "Playlist",
-            parentId = null,
-            mapper = { it.toPlaylist() },
-        ).items
+        collectBoundedMediaPages(limit) { request ->
+            itemPage(request, includeItemTypes = "Playlist", parentId = null, mapper = { it.toPlaylist() })
+        }
+
+    override suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean =
+        service.ownsPlaylist(readyConnection(), playlist.id)
 
     override suspend fun playlistTracks(playlistId: String): List<Track> =
         playlistItems(playlistId).map { it.toTrack() }
