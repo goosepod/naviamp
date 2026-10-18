@@ -414,4 +414,6 @@
     <string name="settings_artist_top_tracks_limit">Maksymalna liczba popularnych utworów</string>
     <string name="settings_artist_top_tracks_count">%1$d utworów</string>
     <string name="settings_artist_top_tracks_limit_subtitle">Pokazuj najwyżej tyle pasujących utworów z biblioteki.</string>
+    <string name="settings_experience_artist_details_title">Szczegóły wykonawcy</string>
+    <string name="settings_experience_artist_details_subtitle">Wybierz, co pojawia się na stronach wykonawców.</string>
 </resources>

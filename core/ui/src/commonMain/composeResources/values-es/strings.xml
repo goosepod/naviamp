@@ -1125,4 +1125,6 @@
     <string name="settings_artist_top_tracks_limit">Máximo de canciones destacadas</string>
     <string name="settings_artist_top_tracks_count">%1$d canciones</string>
     <string name="settings_artist_top_tracks_limit_subtitle">Mostrar como máximo esta cantidad de canciones coincidentes de tu biblioteca.</string>
+    <string name="settings_experience_artist_details_title">Detalles del artista</string>
+    <string name="settings_experience_artist_details_subtitle">Elige qué se muestra en las páginas de artistas.</string>
 </resources>

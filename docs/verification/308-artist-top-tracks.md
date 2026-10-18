@@ -1,6 +1,6 @@
 # Artist Top Tracks controls (#308)
 
-Settings → Experience includes “Show Top Tracks on artist pages” and “Maximum Top Tracks”.
+Settings → Experience → Artist details includes “Show Top Tracks on artist pages” and “Maximum Top Tracks”.
 Visibility defaults to on and the maximum defaults to 10. Choices are 5, 10, 15, 20, 25,
 30, 35, 40, 45, and 50. The maximum control is disabled while the section is hidden and
 retains its saved value. Fewer tracks can appear when fewer popular tracks match the library.
@@ -33,7 +33,7 @@ requires a macOS runner; shared compilation is not a native integration test.
 
 ## Manual acceptance
 
-1. Open Settings → Experience. Confirm the default is on with a maximum of 10.
+1. Open Settings → Experience → Artist details. Confirm the default is on with a maximum of 10.
 2. Visit an artist with many matched Top Tracks. Try every maximum, including 50.
    The displayed count must never exceed the chosen maximum. A smaller count is valid
    when the library or discovery service has fewer matches.

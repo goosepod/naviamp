@@ -26,6 +26,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -761,6 +762,11 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
+            ExperienceSettingsPage.ArtistDetails -> ArtistExperienceSettings(
+                colors = colors,
+                interfaceSettings = interfaceSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            )
             ExperienceSettingsPage.HomeScreen -> HomeScreenExperienceSettings(
                 colors = colors,
                 scrollState = scrollState,
@@ -858,6 +864,13 @@ fun NaviampExperienceSettingsSection(
         ) {
             selectedSection = ExperienceSettingsPage.HomeScreen
         }
+        SettingsRow(
+            title = ExperienceSettingsPage.ArtistDetails.title(),
+            subtitle = ExperienceSettingsPage.ArtistDetails.subtitle(),
+            colors = colors,
+        ) {
+            selectedSection = ExperienceSettingsPage.ArtistDetails
+        }
         if (desktopShortcutPlatform != null) {
             SettingsRow(
                 title = ExperienceSettingsPage.KeyboardShortcuts.title(),
@@ -868,45 +881,6 @@ fun NaviampExperienceSettingsSection(
                 selectedSection = ExperienceSettingsPage.KeyboardShortcuts
             }
         }
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = interfaceSettings.showArtistPlaylists,
-            label = stringResource(Res.string.settings_show_artist_playlists),
-            subtitle = stringResource(Res.string.settings_show_artist_playlists_subtitle),
-            onCheckedChange = { enabled ->
-                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistPlaylists = enabled).normalized())
-            },
-        )
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = interfaceSettings.showArtistInformation,
-            label = stringResource(Res.string.settings_show_artist_information),
-            subtitle = stringResource(Res.string.settings_show_artist_information_subtitle),
-            onCheckedChange = { enabled ->
-                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistInformation = enabled).normalized())
-            },
-        )
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = interfaceSettings.showArtistTopTracks,
-            label = stringResource(Res.string.settings_show_artist_top_tracks),
-            subtitle = stringResource(Res.string.settings_show_artist_top_tracks_subtitle),
-            onCheckedChange = { enabled ->
-                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistTopTracks = enabled).normalized())
-            },
-        )
-        DetentIntSettingsSlider(
-            colors = colors,
-            title = stringResource(Res.string.settings_artist_top_tracks_limit),
-            value = interfaceSettings.normalized().artistTopTracksLimit,
-            detents = app.naviamp.domain.settings.ArtistTopTracksLimits,
-            enabled = interfaceSettings.showArtistTopTracks,
-            valueLabel = { stringResource(Res.string.settings_artist_top_tracks_count, it) },
-            onValueChanged = { limit ->
-                onInterfaceSettingsChanged(interfaceSettings.copy(artistTopTracksLimit = limit).normalized())
-            },
-        )
-        Text(stringResource(Res.string.settings_artist_top_tracks_limit_subtitle), color = colors.secondaryText, fontSize = 12.sp)
         SettingsCheckboxRow(
             colors = colors,
             checked = interfaceSettings.showAlbumInformation,
@@ -967,6 +941,55 @@ fun NaviampExperienceSettingsSection(
     }
 }
 
+@Composable
+private fun ArtistExperienceSettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = interfaceSettings.showArtistInformation,
+        label = stringResource(Res.string.settings_show_artist_information),
+        subtitle = stringResource(Res.string.settings_show_artist_information_subtitle),
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(interfaceSettings.copy(showArtistInformation = enabled).normalized())
+        },
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = interfaceSettings.showArtistTopTracks,
+        label = stringResource(Res.string.settings_show_artist_top_tracks),
+        subtitle = stringResource(Res.string.settings_show_artist_top_tracks_subtitle),
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(interfaceSettings.copy(showArtistTopTracks = enabled).normalized())
+        },
+    )
+    Column(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding).testTag("artist_top_tracks_limit")) {
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = stringResource(Res.string.settings_artist_top_tracks_limit),
+            value = interfaceSettings.normalized().artistTopTracksLimit,
+            detents = app.naviamp.domain.settings.ArtistTopTracksLimits,
+            enabled = interfaceSettings.showArtistTopTracks,
+            valueLabel = { stringResource(Res.string.settings_artist_top_tracks_count, it) },
+            onValueChanged = { limit ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(artistTopTracksLimit = limit).normalized())
+            },
+        )
+        Text(stringResource(Res.string.settings_artist_top_tracks_limit_subtitle), color = colors.secondaryText, fontSize = 12.sp)
+    }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = interfaceSettings.showArtistPlaylists,
+        label = stringResource(Res.string.settings_show_artist_playlists),
+        subtitle = stringResource(Res.string.settings_show_artist_playlists_subtitle),
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(interfaceSettings.copy(showArtistPlaylists = enabled).normalized())
+        },
+    )
+}
+
 private enum class ExperienceSettingsPage {
     Player,
     Radio,
@@ -974,6 +997,7 @@ private enum class ExperienceSettingsPage {
     TextSize,
     AppBackground,
     Albums,
+    ArtistDetails,
     HomeScreen,
     KeyboardShortcuts,
     SwipeActions,
@@ -989,6 +1013,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_title)
         ExperienceSettingsPage.AppBackground -> "App Background"
         ExperienceSettingsPage.Albums -> "Albums"
+        ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_title)
         ExperienceSettingsPage.HomeScreen -> "Home Screen"
         ExperienceSettingsPage.KeyboardShortcuts -> "Keyboard Shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Swipe Actions"
@@ -1004,6 +1029,7 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_subtitle)
         ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
         ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
+        ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_subtitle)
         ExperienceSettingsPage.HomeScreen -> "Choose List, Grid, or Carousel for each Home section"
         ExperienceSettingsPage.KeyboardShortcuts -> "Customize global Desktop shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Choose gesture shortcuts; actions stay available in each track's More actions menu"

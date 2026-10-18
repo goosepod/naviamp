@@ -295,4 +295,6 @@
     <string name="settings_artist_top_tracks_limit">人気曲の最大表示数</string>
     <string name="settings_artist_top_tracks_count">%1$d 曲</string>
     <string name="settings_artist_top_tracks_limit_subtitle">ライブラリ内で一致した曲をこの曲数まで表示します。</string>
+    <string name="settings_experience_artist_details_title">アーティストの詳細</string>
+    <string name="settings_experience_artist_details_subtitle">アーティストページに表示する内容を選択します。</string>
 </resources>

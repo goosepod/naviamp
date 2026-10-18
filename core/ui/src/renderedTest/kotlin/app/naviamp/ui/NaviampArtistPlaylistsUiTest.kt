@@ -71,6 +71,7 @@ class NaviampArtistPlaylistsUiTest {
                     onPlaybackSettingsChanged = {}, onCacheSettingsChanged = {})
             }
         }
+        onNodeWithText("Artist details").performScrollTo().performClick()
         onNodeWithText("Show playlists on artist pages").performScrollTo().performClick()
         runOnIdle { assertFalse(settings.value.showArtistPlaylists); assertFalse(settings.value.showArtistInformation) }
         onNodeWithText("Show playlists on artist pages").performClick()

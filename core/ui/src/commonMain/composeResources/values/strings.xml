@@ -1150,4 +1150,6 @@
     <string name="settings_artist_top_tracks_limit">Maximum Top Tracks</string>
     <string name="settings_artist_top_tracks_count">%1$d tracks</string>
     <string name="settings_artist_top_tracks_limit_subtitle">Show up to this many matching tracks from your library.</string>
+    <string name="settings_experience_artist_details_title">Artist details</string>
+    <string name="settings_experience_artist_details_subtitle">Choose what appears on artist pages.</string>
 </resources>

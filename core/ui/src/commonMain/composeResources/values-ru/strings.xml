@@ -295,4 +295,6 @@
     <string name="settings_artist_top_tracks_limit">Максимум популярных треков</string>
     <string name="settings_artist_top_tracks_count">%1$d треков</string>
     <string name="settings_artist_top_tracks_limit_subtitle">Показывать не более указанного числа подходящих треков из медиатеки.</string>
+    <string name="settings_experience_artist_details_title">Сведения об исполнителе</string>
+    <string name="settings_experience_artist_details_subtitle">Выберите, что показывать на страницах исполнителей.</string>
 </resources>

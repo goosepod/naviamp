@@ -295,4 +295,6 @@
     <string name="settings_artist_top_tracks_limit">Nombre maximal de titres populaires</string>
     <string name="settings_artist_top_tracks_count">%1$d titres</string>
     <string name="settings_artist_top_tracks_limit_subtitle">Afficher au maximum ce nombre de titres correspondants de votre bibliothèque.</string>
+    <string name="settings_experience_artist_details_title">Détails de l’artiste</string>
+    <string name="settings_experience_artist_details_subtitle">Choisissez le contenu affiché sur les pages des artistes.</string>
 </resources>

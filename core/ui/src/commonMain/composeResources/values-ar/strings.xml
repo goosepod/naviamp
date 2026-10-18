@@ -295,4 +295,6 @@
     <string name="settings_artist_top_tracks_limit">الحد الأقصى لأشهر المقاطع</string>
     <string name="settings_artist_top_tracks_count">%1$d مقطعًا</string>
     <string name="settings_artist_top_tracks_limit_subtitle">إظهار هذا العدد كحد أقصى من المقاطع المطابقة في مكتبتك.</string>
+    <string name="settings_experience_artist_details_title">تفاصيل الفنان</string>
+    <string name="settings_experience_artist_details_subtitle">اختر ما يظهر في صفحات الفنانين.</string>
 </resources>

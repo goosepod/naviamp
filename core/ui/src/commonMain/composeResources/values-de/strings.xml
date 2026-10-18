@@ -1121,4 +1121,6 @@
     <string name="settings_artist_top_tracks_limit">Maximale Anzahl an Top-Titeln</string>
     <string name="settings_artist_top_tracks_count">%1$d Titel</string>
     <string name="settings_artist_top_tracks_limit_subtitle">Höchstens so viele passende Titel aus deiner Mediathek anzeigen.</string>
+    <string name="settings_experience_artist_details_title">Künstlerdetails</string>
+    <string name="settings_experience_artist_details_subtitle">Wähle aus, was auf Künstlerseiten angezeigt wird.</string>
 </resources>

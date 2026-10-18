@@ -295,4 +295,6 @@
     <string name="settings_artist_top_tracks_limit">热门曲目数量上限</string>
     <string name="settings_artist_top_tracks_count">%1$d 首曲目</string>
     <string name="settings_artist_top_tracks_limit_subtitle">最多显示音乐库中匹配的此数量曲目。</string>
+    <string name="settings_experience_artist_details_title">艺人详情</string>
+    <string name="settings_experience_artist_details_subtitle">选择艺人页面显示的内容。</string>
 </resources>
