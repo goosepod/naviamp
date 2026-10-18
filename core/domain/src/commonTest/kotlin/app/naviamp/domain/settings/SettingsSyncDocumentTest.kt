@@ -10,6 +10,20 @@ import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
     @Test
+    fun artistPlaylistVisibilityRoundTripsThroughSyncAndDefaultsOnForOlderExports() {
+        for (enabled in listOf(false, true)) {
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(showArtistPlaylists = enabled)), 1L, "test")
+            val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(enabled, restored.showArtistPlaylists)
+        }
+        assertTrue(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{}}}""")
+            .preferences.interfaceSettings.normalized().showArtistPlaylists)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"showArtistPlaylists":"invalid"}}}""")
+        }
+    }
+    @Test
     fun independentRadioBatchSizesRoundTripWithOlderDefaultsAndImportedNormalization() {
         val document = SettingsSyncDocument(preferences = SettingsSyncPreferences(
             playback = PlaybackSettings(radioMinimumTracks = 40, sonicAutoplayMinimumTracks = 90)))

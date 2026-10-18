@@ -108,6 +108,8 @@ interface MediaProvider {
             request.toMediaPage(emptyList())
         }
     suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
+    /** Creator ownership, distinct from shared edit/manage permission; null when not knowable. */
+    suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? = null
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
     suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         throw UnsupportedOperationException("Playlist creation is not supported by $displayName.")

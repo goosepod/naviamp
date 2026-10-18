@@ -940,6 +940,9 @@ class NavidromeProvider(
         return playlistsForMusicFolder(limit, musicFolderId = null)
     }
 
+    override suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? =
+        playlist.owner?.takeIf { it.isNotBlank() }?.let { it == authenticatedUsername }
+
     private suspend fun playlistsForMusicFolder(limit: Int, musicFolderId: String?): List<Playlist> {
         val response = get(
             endpoint = "getPlaylists.view",

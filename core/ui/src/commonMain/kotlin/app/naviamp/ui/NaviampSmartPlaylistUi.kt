@@ -255,7 +255,7 @@ fun SmartPlaylistBuilderDialog(
                     Text(stringResource(Res.string.smart_playlist_options))
                 }
                 if (optionsOpen) SmartPlaylistOptionsControls(colors, draft, availableLibraries, selectedConnectionLibraryIds) { draft = it }
-                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors) }
+                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors, references) }
                 validationIssues.filter {
                     it.location.conditionId == null && it.location.groupId == null &&
                         (it.code != SmartPlaylistIssueCode.InvalidRefreshDelay || !optionsOpen)

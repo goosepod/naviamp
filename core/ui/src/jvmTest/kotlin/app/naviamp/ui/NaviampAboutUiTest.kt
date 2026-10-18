@@ -51,8 +51,9 @@ class NaviampAboutUiTest {
 
         onNodeWithText("Changelog").assertIsDisplayed().performClick()
         onNodeWithText("Latest Changes").assertIsDisplayed()
-        onNodeWithText("Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
-        onNodeWithText("Known issues").assertIsDisplayed()
+        onNodeWithText("Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.").assertIsDisplayed()
+        onNodeWithText("Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.").assertIsDisplayed()
+        onNodeWithText("Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.").assertIsDisplayed()
         val roots = onAllNodes(isRoot())
         var rendered: androidx.compose.ui.graphics.ImageBitmap? = null
         waitUntil(timeoutMillis = 5_000) {
@@ -63,8 +64,17 @@ class NaviampAboutUiTest {
             } else false
         }
         writeAboutReleaseImage(requireNotNull(rendered))
+        onNodeWithText("Show or hide Top Tracks on artist pages and choose a maximum of 5–50 tracks in steps of five. The default remains 10 tracks.")
+            .performScrollTo().assertIsDisplayed()
         onNodeWithText("Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.")
             .performScrollTo().assertIsDisplayed()
+        onNodeWithText("Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list.")
+            .performScrollTo().assertIsDisplayed()
+        onNodeWithText("Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.")
+            .performScrollTo().assertIsDisplayed()
+        onNodeWithText("Authenticated streams from servers without finite byte-range support or provider time offsets retain buffered-seeking limitations.")
+            .performScrollTo().assertIsDisplayed()
+        onNodeWithText("Known issues").assertIsDisplayed()
     }
 }
 
