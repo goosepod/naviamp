@@ -988,6 +988,42 @@ private fun ArtistExperienceSettings(
             onInterfaceSettingsChanged(interfaceSettings.copy(showArtistPlaylists = enabled).normalized())
         },
     )
+    ArtistSectionLayoutChoices(
+        colors = colors,
+        title = stringResource(Res.string.settings_artist_playlist_layout),
+        layout = interfaceSettings.artistPlaylistLayout,
+        enabled = interfaceSettings.showArtistPlaylists,
+        modifier = Modifier.testTag("artist_playlist_layout"),
+        onChanged = { onInterfaceSettingsChanged(interfaceSettings.copy(artistPlaylistLayout = it).normalized()) },
+    )
+    ArtistSectionLayoutChoices(
+        colors = colors,
+        title = stringResource(Res.string.settings_artist_appearance_album_layout),
+        layout = interfaceSettings.artistAppearanceAlbumLayout,
+        modifier = Modifier.testTag("artist_appearance_album_layout"),
+        onChanged = { onInterfaceSettingsChanged(interfaceSettings.copy(artistAppearanceAlbumLayout = it).normalized()) },
+    )
+}
+
+@Composable
+private fun ArtistSectionLayoutChoices(
+    colors: NaviampColors,
+    title: String,
+    layout: AlbumCollectionLayout,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    onChanged: (AlbumCollectionLayout) -> Unit,
+) {
+    Column(modifier.fillMaxWidth()) {
+        Text(title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = SettingsRowHorizontalPadding, vertical = 8.dp))
+        AlbumCollectionLayout.entries.forEach { option ->
+            SelectableSettingsRow(colors = colors,
+                title = stringResource(if (option == AlbumCollectionLayout.List) Res.string.settings_media_layout_list else Res.string.settings_media_layout_grid),
+                selected = option == layout, enabled = enabled,
+                onClick = { onChanged(option) })
+        }
+    }
 }
 
 private enum class ExperienceSettingsPage {
@@ -2867,7 +2903,7 @@ private val DefaultNaviampChangelog = listOf(
             "Choose Radio and Sonic similarity explicitly, configure their initial batch sizes independently, and keep regular Radio supplied with new tracks.",
             "Find playlist actions first in track menus, with controls that respect smart-playlist membership.",
             "Recognize connected services by their official icons and see clearer connection labels and updated German wording.",
-            "Show or hide Top Tracks on artist pages and choose a maximum of 5–50 tracks in steps of five. The default remains 10 tracks.",
+            "Show or hide Top Tracks on artist pages and choose a maximum of 5–50 tracks in steps of five. The default remains 10 tracks. Choose separate List/Grid layouts for playlists and Appears on albums; appearance tracks stay in a list.",
         ),
     ),
     NaviampChangelogSectionUi(

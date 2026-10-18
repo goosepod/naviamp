@@ -26,6 +26,8 @@ class NaviampChangelogTest {
         assertTrue(improvements[5].contains("Top Tracks"))
         assertTrue(improvements[5].contains("5–50 tracks"))
         assertTrue(improvements[5].contains("default remains 10"))
+        assertTrue(improvements[5].contains("List/Grid layouts for playlists and Appears on albums"))
+        assertTrue(improvements[5].contains("appearance tracks stay in a list"))
         assertTrue(improvements[0].contains("named playlist references"))
         assertTrue(improvements[0].contains("without JSON syntax"))
         assertTrue(improvements[0].contains("owner-aware"))

@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">Kitaplığınızdaki eşleşen parçalardan en fazla bu kadarını göster.</string>
     <string name="settings_experience_artist_details_title">Sanatçı ayrıntıları</string>
     <string name="settings_experience_artist_details_subtitle">Sanatçı sayfalarında nelerin gösterileceğini seçin.</string>
+    <string name="settings_artist_playlist_layout">Çalma listesi düzeni</string>
+    <string name="settings_artist_appearance_album_layout">Katkıda bulunduğu albümlerin düzeni</string>
+    <string name="settings_media_layout_list">Liste</string>
+    <string name="settings_media_layout_grid">Izgara</string>
 </resources>

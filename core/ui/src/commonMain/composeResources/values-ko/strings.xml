@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">라이브러리에서 일치하는 트랙을 이 개수까지 표시합니다.</string>
     <string name="settings_experience_artist_details_title">아티스트 상세 정보</string>
     <string name="settings_experience_artist_details_subtitle">아티스트 페이지에 표시할 항목을 선택합니다.</string>
+    <string name="settings_artist_playlist_layout">재생목록 표시 방식</string>
+    <string name="settings_artist_appearance_album_layout">참여 앨범 표시 방식</string>
+    <string name="settings_media_layout_list">목록</string>
+    <string name="settings_media_layout_grid">그리드</string>
 </resources>

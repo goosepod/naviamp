@@ -92,6 +92,8 @@ fun NaviampArtistDetailContent(
     playlistActionStatus: String? = null,
     scrollState: androidx.compose.foundation.ScrollState = rememberScrollState(),
     appearanceState: NaviampArtistAppearanceState = rememberNaviampArtistAppearanceState(screen.detail?.artist?.id),
+    artistPlaylistLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
+    artistAppearanceAlbumLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
 ) {
     val detail = screen.detail
     if (detail == null) {
@@ -113,6 +115,8 @@ fun NaviampArtistDetailContent(
         colors = colors,
         detail = detail,
         albumCollectionLayout = albumCollectionLayout,
+        artistPlaylistLayout = artistPlaylistLayout,
+        artistAppearanceAlbumLayout = artistAppearanceAlbumLayout,
         albumSortOrder = albumSortOrder,
         groupAlbumsByReleaseType = groupAlbumsByReleaseType,
         onBack = actions.onBack,
@@ -230,6 +234,8 @@ private fun ArtistDetailContent(
     colors: NaviampColors,
     detail: SharedArtistDetailUi,
     albumCollectionLayout: AlbumCollectionLayout,
+    artistPlaylistLayout: AlbumCollectionLayout,
+    artistAppearanceAlbumLayout: AlbumCollectionLayout,
     albumSortOrder: AlbumSortOrder,
     groupAlbumsByReleaseType: Boolean,
     onBack: () -> Unit,
@@ -510,7 +516,7 @@ private fun ArtistDetailContent(
                 }
             }
             if (detail.playlistsVisible) {
-                ArtistPlaylistsSection(detail.playlists, colors, onPlaylistSelected, onPlaylistsRefresh)
+                ArtistPlaylistsSection(detail.playlists, colors, onPlaylistSelected, onPlaylistsRefresh, artistPlaylistLayout)
             }
             if (detail.appearanceLoadFailed) {
                 Text(stringResource(Res.string.artist_appearances_failed), color = colors.secondaryText)
@@ -535,15 +541,16 @@ private fun ArtistDetailContent(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.testTag("artist_appearance_albums_heading"),
                         )
-                        detail.appearanceAlbums.take(visibleAppearances).forEach { album ->
-                            SharedMediaRow(
-                                item = album,
-                                colors = colors,
-                                onClick = { onAlbumSelected(album) },
-                                menuItems = albumMenuItems(album),
-                                onFavoriteToggled = onAlbumFavoriteToggled,
-                            )
-                        }
+                        ArtistSectionMediaCollection(
+                            items = detail.appearanceAlbums.take(visibleAppearances),
+                            layout = artistAppearanceAlbumLayout,
+                            mediaKind = SharedMediaItemKind.Album,
+                            colors = colors,
+                            onSelected = onAlbumSelected,
+                            menuItems = albumMenuItems,
+                            onFavoriteToggled = onAlbumFavoriteToggled,
+                            modifier = Modifier.testTag("artist_appearance_albums"),
+                        )
                     }
                     if (detail.appearanceTracks.isNotEmpty()) {
                         Text(
@@ -630,6 +637,48 @@ private fun ArtistDetailContent(
             colors = colors,
             onDismissRequest = { artistImageOpen = false },
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun ArtistSectionMediaCollection(
+    items: List<SharedMediaItemUi>,
+    layout: AlbumCollectionLayout,
+    mediaKind: SharedMediaItemKind,
+    colors: NaviampColors,
+    onSelected: (SharedMediaItemUi) -> Unit,
+    menuItems: (SharedMediaItemUi) -> List<NaviampRowMenuItem> = { emptyList() },
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.fillMaxWidth()) {
+        if (layout == AlbumCollectionLayout.Grid) {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val tileSize = artistAlbumGridTileSize(maxWidth)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().testTag("artist_section_grid"),
+                    horizontalArrangement = Arrangement.spacedBy(ArtistAlbumGridSpacing),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items.forEach { item ->
+                        SharedMediaGridTile(item = item, mediaKind = mediaKind, colors = colors,
+                            onClick = { onSelected(item) }, menuItems = menuItems(item),
+                            onFavoriteToggled = onFavoriteToggled, tileSize = tileSize,
+                            modifier = Modifier.testTag("artist_section_item:${item.id}"))
+                    }
+                }
+            }
+        } else {
+            Column(Modifier.fillMaxWidth().testTag("artist_section_list"), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                items.forEach { item ->
+                    SharedMediaRow(item = item, mediaKind = mediaKind, colors = colors,
+                        onClick = { onSelected(item) }, menuItems = menuItems(item),
+                        onFavoriteToggled = onFavoriteToggled,
+                        modifier = Modifier.testTag("artist_section_item:${item.id}"))
+                }
+            }
+        }
     }
 }
 

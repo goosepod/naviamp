@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">إظهار هذا العدد كحد أقصى من المقاطع المطابقة في مكتبتك.</string>
     <string name="settings_experience_artist_details_title">تفاصيل الفنان</string>
     <string name="settings_experience_artist_details_subtitle">اختر ما يظهر في صفحات الفنانين.</string>
+    <string name="settings_artist_playlist_layout">تخطيط قوائم التشغيل</string>
+    <string name="settings_artist_appearance_album_layout">تخطيط ألبومات المشاركات</string>
+    <string name="settings_media_layout_list">قائمة</string>
+    <string name="settings_media_layout_grid">شبكة</string>
 </resources>

@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">Afficher au maximum ce nombre de titres correspondants de votre bibliothèque.</string>
     <string name="settings_experience_artist_details_title">Détails de l’artiste</string>
     <string name="settings_experience_artist_details_subtitle">Choisissez le contenu affiché sur les pages des artistes.</string>
+    <string name="settings_artist_playlist_layout">Présentation des playlists</string>
+    <string name="settings_artist_appearance_album_layout">Présentation des albums avec participation</string>
+    <string name="settings_media_layout_list">Liste</string>
+    <string name="settings_media_layout_grid">Grille</string>
 </resources>

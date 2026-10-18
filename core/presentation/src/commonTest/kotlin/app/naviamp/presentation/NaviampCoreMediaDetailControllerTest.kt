@@ -38,6 +38,32 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreMediaDetailControllerTest {
+    @Test fun sectionLayoutChangesKeepPartialAppearanceAndPlaylistStateWithoutNewLookups() = runTest {
+        val provider = MediaDetailTestProvider()
+        var popularReads = 0
+        val (store, controllers) = controller(provider, popularOverride = { artist, _ ->
+            popularReads++
+            topMatches(artist, 10)
+        })
+        controllers.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A")
+            .artistActionRequest(NaviampArtistMediaCommand.Select)))
+        runCurrent()
+        val playlists = store.state.value.shell.artistDetail.detail!!.playlists
+        val reads = provider.playlistReads
+        val settings = InterfaceSettings(artistPlaylistLayout = app.naviamp.domain.settings.AlbumCollectionLayout.Grid,
+            artistAppearanceAlbumLayout = app.naviamp.domain.settings.AlbumCollectionLayout.Grid)
+        store.updateShell { it.copy(general = it.general.copy(interfaceSettings = settings),
+            artistDetail = it.artistDetail.copy(detail = it.artistDetail.detail!!.copy(
+                appearanceLoadFailed = true, appearancesTruncated = true))) }
+        controllers.media.interfaceSettingsChanged(settings)
+        runCurrent()
+        val detail = store.state.value.shell.artistDetail.detail!!
+        assertTrue(detail.appearanceLoadFailed)
+        assertTrue(detail.appearancesTruncated)
+        assertEquals(playlists, detail.playlists)
+        assertEquals(reads, provider.playlistReads)
+        assertEquals(1, popularReads)
+    }
     @Test fun openingAnArtistPlaylistAndGoingBackReloadsThatArtistAndRetainsNestedHistory() = runTest {
         val provider = MediaDetailTestProvider()
         val (store, controller) = controller(provider)

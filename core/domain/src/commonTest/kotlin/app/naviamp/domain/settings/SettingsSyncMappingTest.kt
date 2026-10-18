@@ -25,6 +25,15 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test fun independentArtistSectionLayoutsApplyThroughSettingsSync() {
+        for (playlists in AlbumCollectionLayout.entries) for (appearances in AlbumCollectionLayout.entries) {
+            val settings = InterfaceSettings(artistPlaylistLayout = playlists, artistAppearanceAlbumLayout = appearances)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+    }
     @Test fun artistPlaylistVisibilityIsAppliedFromPortableExportsAndOlderDefaults() {
         for (enabled in listOf(false, true)) {
             val exported = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(

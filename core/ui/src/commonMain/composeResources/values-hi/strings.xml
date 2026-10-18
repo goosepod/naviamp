@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">अपनी लाइब्रेरी से अधिकतम इतने मेल खाने वाले ट्रैक दिखाएँ।</string>
     <string name="settings_experience_artist_details_title">कलाकार का विवरण</string>
     <string name="settings_experience_artist_details_subtitle">चुनें कि कलाकार के पृष्ठों पर क्या दिखे।</string>
+    <string name="settings_artist_playlist_layout">प्लेलिस्ट का लेआउट</string>
+    <string name="settings_artist_appearance_album_layout">सहभागिता वाले एल्बमों का लेआउट</string>
+    <string name="settings_media_layout_list">सूची</string>
+    <string name="settings_media_layout_grid">ग्रिड</string>
 </resources>

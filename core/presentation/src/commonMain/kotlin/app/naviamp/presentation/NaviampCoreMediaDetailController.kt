@@ -305,6 +305,8 @@ class NaviampCoreMediaDetailController(
                         coverArtUrl = artistCoverArtUrl,
                         appearanceAlbums = mediaRegistry.artistAppearanceAlbums,
                         appearanceTracks = mediaRegistry.artistAppearanceTracks,
+                        appearanceLoadFailed = current?.appearanceLoadFailed == true,
+                        appearancesTruncated = current?.appearancesTruncated == true,
                         popularTracks = mediaRegistry.artistPopularTracks,
                         showArtistTopTracks = normalized.showArtistTopTracks,
                         artistTopTracksLimit = normalized.artistTopTracksLimit,

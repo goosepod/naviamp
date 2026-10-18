@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">Показывать не более указанного числа подходящих треков из медиатеки.</string>
     <string name="settings_experience_artist_details_title">Сведения об исполнителе</string>
     <string name="settings_experience_artist_details_subtitle">Выберите, что показывать на страницах исполнителей.</string>
+    <string name="settings_artist_playlist_layout">Вид плейлистов</string>
+    <string name="settings_artist_appearance_album_layout">Вид альбомов с участием исполнителя</string>
+    <string name="settings_media_layout_list">Список</string>
+    <string name="settings_media_layout_grid">Сетка</string>
 </resources>

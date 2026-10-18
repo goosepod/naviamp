@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">Tampilkan paling banyak sejumlah ini lagu yang cocok dari pustaka Anda.</string>
     <string name="settings_experience_artist_details_title">Detail artis</string>
     <string name="settings_experience_artist_details_subtitle">Pilih yang ditampilkan di halaman artis.</string>
+    <string name="settings_artist_playlist_layout">Tata letak playlist</string>
+    <string name="settings_artist_appearance_album_layout">Tata letak album partisipasi</string>
+    <string name="settings_media_layout_list">Daftar</string>
+    <string name="settings_media_layout_grid">Kisi</string>
 </resources>

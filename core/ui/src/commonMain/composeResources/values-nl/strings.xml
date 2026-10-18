@@ -297,4 +297,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">Toon maximaal dit aantal overeenkomende nummers uit je bibliotheek.</string>
     <string name="settings_experience_artist_details_title">Artiestdetails</string>
     <string name="settings_experience_artist_details_subtitle">Kies wat er op artiestpagina’s wordt weergegeven.</string>
+    <string name="settings_artist_playlist_layout">Lay-out van afspeellijsten</string>
+    <string name="settings_artist_appearance_album_layout">Lay-out van albums met gastbijdragen</string>
+    <string name="settings_media_layout_list">Lijst</string>
+    <string name="settings_media_layout_grid">Raster</string>
 </resources>

@@ -17,6 +17,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
+    @Test fun artistSectionLayoutsPersistIndependentlyAndOlderSettingsUseLists() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        for (playlists in app.naviamp.domain.settings.AlbumCollectionLayout.entries) {
+            for (appearances in app.naviamp.domain.settings.AlbumCollectionLayout.entries) {
+                val settings = InterfaceSettings(artistPlaylistLayout = playlists, artistAppearanceAlbumLayout = appearances)
+                catalog.storedSettings.saveInterface(settings)
+                assertEquals(settings, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface())
+            }
+        }
+        values.entries[KeyInterface] = "{}"
+        val older = catalog.storedSettings.loadInterface()
+        assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistPlaylistLayout)
+        assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistAppearanceAlbumLayout)
+    }
     @Test fun artistPlaylistVisibilityPersistsAndOlderSettingsDefaultOn() {
         val values = MemorySettingsValues()
         val catalog = naviampCoreSettingsValueCatalog(values)

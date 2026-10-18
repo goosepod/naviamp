@@ -1152,4 +1152,8 @@
     <string name="settings_artist_top_tracks_limit_subtitle">Show up to this many matching tracks from your library.</string>
     <string name="settings_experience_artist_details_title">Artist details</string>
     <string name="settings_experience_artist_details_subtitle">Choose what appears on artist pages.</string>
+    <string name="settings_artist_playlist_layout">Playlist layout</string>
+    <string name="settings_artist_appearance_album_layout">Appears on album layout</string>
+    <string name="settings_media_layout_list">List</string>
+    <string name="settings_media_layout_grid">Grid</string>
 </resources>

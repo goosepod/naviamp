@@ -173,6 +173,8 @@ data class InterfaceSettings(
     val showDesktopTooltips: Boolean = true,
     val showArtistInformation: Boolean = true,
     val showArtistPlaylists: Boolean = true,
+    val artistPlaylistLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
+    val artistAppearanceAlbumLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
     val showArtistTopTracks: Boolean = true,
     val artistTopTracksLimit: Int = DefaultArtistTopTracksLimit,
     val showAlbumInformation: Boolean = true,

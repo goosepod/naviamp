@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import app.naviamp.domain.settings.AlbumCollectionLayout
 
 @Composable
 internal fun ArtistPlaylistsSection(
@@ -22,6 +23,7 @@ internal fun ArtistPlaylistsSection(
     colors: NaviampColors,
     onSelected: (SharedMediaItemUi) -> Unit,
     onRefresh: () -> Unit,
+    layout: AlbumCollectionLayout = AlbumCollectionLayout.List,
 ) {
     Column(Modifier.fillMaxWidth().testTag("artist_playlists"), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -37,9 +39,7 @@ internal fun ArtistPlaylistsSection(
         if (!state.loading && !state.failed && !state.truncated && state.items.isEmpty()) {
             Text(stringResource(Res.string.artist_playlists_empty), color = colors.secondaryText)
         }
-        state.items.forEach { playlist ->
-            SharedMediaRow(item = playlist, colors = colors, mediaKind = SharedMediaItemKind.Playlist,
-                onClick = { onSelected(playlist) })
-        }
+        ArtistSectionMediaCollection(state.items, layout, SharedMediaItemKind.Playlist, colors, onSelected,
+            modifier = Modifier.testTag("artist_playlist_collection"))
     }
 }
