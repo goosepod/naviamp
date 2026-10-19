@@ -8,7 +8,7 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampSmartPlaylistSummaryUiTest {
-    @Test fun summaryShowsNestedLogicExclusionsSortLimitAndOwnerSemantics() = runComposeUiTest {
+    @Test fun summaryShowsNestedLogicExclusionsSortAndLimitWithoutOwnerNotice() = runComposeUiTest {
         val definition = definition()
         setContent { SmartPlaylistSummarySection(definition, NaviampColors()) }
         onNodeWithText("Match all of these:", substring = true).assertExists()
@@ -16,7 +16,7 @@ class NaviampSmartPlaylistSummaryUiTest {
         onNodeWithText("Favorite tracks", substring = true).assertExists()
         onNodeWithText("Sort by: Year (highest first)").assertExists()
         onNodeWithText("20% of matching tracks.").assertExists()
-        onNodeWithTag("smart-playlist-owner-notice").assertExists()
+        onNodeWithTag("smart-playlist-owner-notice").assertDoesNotExist()
     }
 
     @Test fun summaryReadsValuesWithoutJsonAndUpdatesNamesWithoutRewritingIds() = runComposeUiTest {

@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">排序优先级：%1$s</string>
     <string name="smart_playlist_summary_tracks">最多 %1$d 首曲目。</string>
     <string name="smart_playlist_summary_percent">匹配曲目的 %1$d%。</string>
-    <string name="smart_playlist_owner_notice">即使是公开播放列表，也使用所有者的收藏、评分和收听记录。本地预览使用当前登录账户的索引数据。</string>
     <string name="smart_playlist_preview_coverage">本地快照：%1$d 首已索引曲目。可能不完整或已过时。</string>
     <string name="smart_playlist_preview_no_index">没有已索引曲目。请在预览前同步音乐库；服务器上仍可能有匹配项。</string>
     <string name="smart_playlist_options">选项</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">正在查找专辑：%1$d</string>
     <string name="smart_playlist_sync_stop">停止同步</string>
     <string name="smart_playlist_sync_stopped">同步已停止。播放列表未更改。</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

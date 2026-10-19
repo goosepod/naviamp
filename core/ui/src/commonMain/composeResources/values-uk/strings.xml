@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">Пріоритет сортування: %1$s</string>
     <string name="smart_playlist_summary_tracks">Не більше %1$d треків.</string>
     <string name="smart_playlist_summary_percent">%1$d% відповідних треків.</string>
-    <string name="smart_playlist_owner_notice">Улюблене, оцінки й історія стосуються власника плейлиста, навіть публічного. Локальний перегляд використовує індекс поточного облікового запису.</string>
     <string name="smart_playlist_preview_coverage">Локальна копія: %1$d треків в індексі. Вона може бути неповною або застарілою.</string>
     <string name="smart_playlist_preview_no_index">В індексі немає треків. Синхронізуйте бібліотеку перед переглядом; на сервері все ще можуть бути збіги.</string>
     <string name="smart_playlist_options">Параметри</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">Пошук альбомів: %1$d</string>
     <string name="smart_playlist_sync_stop">Зупинити синхронізацію</string>
     <string name="smart_playlist_sync_stopped">Синхронізацію зупинено. Плейлист не змінено.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

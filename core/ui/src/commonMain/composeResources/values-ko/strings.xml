@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">정렬 우선순위: %1$s</string>
     <string name="smart_playlist_summary_tracks">최대 %1$d곡.</string>
     <string name="smart_playlist_summary_percent">일치하는 곡의 %1$d%.</string>
-    <string name="smart_playlist_owner_notice">공개 재생목록도 소유자의 즐겨찾기, 평점 및 청취 기록을 사용합니다. 로컬 미리보기는 로그인한 계정의 색인 데이터를 사용합니다.</string>
     <string name="smart_playlist_preview_coverage">로컬 색인: %1$d곡. 불완전하거나 오래된 데이터일 수 있습니다.</string>
     <string name="smart_playlist_preview_no_index">색인된 곡이 없습니다. 미리보기 전에 라이브러리를 동기화하세요. 서버에는 일치하는 곡이 있을 수 있습니다.</string>
     <string name="smart_playlist_options">옵션</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">앨범 찾는 중: %1$d</string>
     <string name="smart_playlist_sync_stop">동기화 중지</string>
     <string name="smart_playlist_sync_stopped">동기화를 중지했습니다. 재생목록은 변경되지 않았습니다.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

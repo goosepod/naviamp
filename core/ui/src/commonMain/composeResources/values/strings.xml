@@ -1088,7 +1088,6 @@
     <string name="smart_playlist_summary_sort">Sort by: %1$s</string>
     <string name="smart_playlist_summary_tracks">At most %1$d tracks.</string>
     <string name="smart_playlist_summary_percent">%1$d% of matching tracks.</string>
-    <string name="smart_playlist_owner_notice">Favorites, ratings and listening history use the playlist owner, even for public playlists. Local preview uses the signed-in account’s indexed data.</string>
     <string name="smart_playlist_preview_coverage">Local snapshot: %1$d indexed tracks. It may be incomplete or outdated.</string>
     <string name="smart_playlist_preview_no_index">No indexed tracks are available. Sync your library before previewing; the server may still have matches.</string>
     <string name="smart_playlist_options">Options</string>
@@ -1182,4 +1181,5 @@
     <string name="smart_playlist_sync_albums">Finding albums: %1$d</string>
     <string name="smart_playlist_sync_stop">Stop sync</string>
     <string name="smart_playlist_sync_stopped">Sync stopped. Your playlist has not changed.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

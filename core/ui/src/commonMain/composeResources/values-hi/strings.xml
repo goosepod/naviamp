@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">क्रम की प्राथमिकता: %1$s</string>
     <string name="smart_playlist_summary_tracks">अधिकतम %1$d ट्रैक।</string>
     <string name="smart_playlist_summary_percent">मिलने वाले ट्रैक का %1$d%।</string>
-    <string name="smart_playlist_owner_notice">पसंदीदा, रेटिंग और सुनने का इतिहास सार्वजनिक प्लेलिस्ट में भी उसके मालिक का होता है। स्थानीय पूर्वावलोकन वर्तमान खाते के अनुक्रमित डेटा का उपयोग करता है।</string>
     <string name="smart_playlist_preview_coverage">स्थानीय प्रति: %1$d अनुक्रमित ट्रैक। यह अधूरी या पुरानी हो सकती है।</string>
     <string name="smart_playlist_preview_no_index">कोई अनुक्रमित ट्रैक उपलब्ध नहीं है। पूर्वावलोकन से पहले लाइब्रेरी सिंक करें; सर्वर पर अभी भी मिलते ट्रैक हो सकते हैं।</string>
     <string name="smart_playlist_options">विकल्प</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">एल्बम खोजे जा रहे हैं: %1$d</string>
     <string name="smart_playlist_sync_stop">सिंक रोकें</string>
     <string name="smart_playlist_sync_stopped">सिंक रोक दिया गया। आपकी प्लेलिस्ट नहीं बदली है।</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

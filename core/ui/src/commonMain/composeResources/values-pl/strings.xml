@@ -352,7 +352,6 @@
     <string name="smart_playlist_summary_sort">Priorytet sortowania: %1$s</string>
     <string name="smart_playlist_summary_tracks">Najwyżej %1$d utworów.</string>
     <string name="smart_playlist_summary_percent">%1$d% pasujących utworów.</string>
-    <string name="smart_playlist_owner_notice">Ulubione, oceny i historia dotyczą właściciela playlisty, także publicznej. Lokalny podgląd używa indeksu zalogowanego konta.</string>
     <string name="smart_playlist_preview_coverage">Lokalna kopia: %1$d zindeksowanych utworów. Może być niepełna lub nieaktualna.</string>
     <string name="smart_playlist_preview_no_index">Brak zindeksowanych utworów. Zsynchronizuj bibliotekę przed podglądem; serwer może nadal mieć pasujące utwory.</string>
     <string name="smart_playlist_options">Opcje</string>
@@ -446,4 +445,5 @@
     <string name="smart_playlist_sync_albums">Wyszukiwanie albumów: %1$d</string>
     <string name="smart_playlist_sync_stop">Zatrzymaj synchronizację</string>
     <string name="smart_playlist_sync_stopped">Synchronizacja zatrzymana. Playlista nie została zmieniona.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

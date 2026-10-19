@@ -35,6 +35,7 @@ interface MediaProvider {
 
     suspend fun validateConnection(): ConnectionValidation
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
+    suspend fun libraries(): List<MediaLibrary> = emptyList()
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
     /** Complete paged album membership for downloads; null when the source cannot guarantee it. */

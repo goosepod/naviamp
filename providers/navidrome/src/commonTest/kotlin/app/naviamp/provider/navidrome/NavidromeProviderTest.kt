@@ -42,6 +42,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
+    @Test fun libraryNamesUseTheAccountReadableMusicFoldersEndpoint() = runTest {
+        val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"ok","musicFolders":{"musicFolder":[{"id":1,"name":"Music"},{"id":2,"name":"Archive"}]}}}""")
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+        val libraries = provider.libraries()
+        assertEquals(listOf("1", "2"), libraries.map { it.id })
+        assertEquals(listOf("Music", "Archive"), libraries.map { it.name })
+        assertTrue(http.urls.single().contains("/getMusicFolders.view?"))
+    }
+
     @Test fun certificateAndCustomHeaderConnectionsRequireProviderAuthenticatedPlayback() {
         val plain = connection("https://music.example.test")
         val http = RecordingResponseHttpClient("unused")

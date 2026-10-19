@@ -260,6 +260,9 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun libraries(): List<app.naviamp.domain.provider.MediaLibrary> =
+        musicFolders().map { app.naviamp.domain.provider.MediaLibrary(it.id, it.name) }
+
     suspend fun musicFolders(): List<NavidromeMusicFolder> {
         val response = get("getMusicFolders.view")
         val folders = response.subsonicResponse()["musicFolders"]?.jsonObject

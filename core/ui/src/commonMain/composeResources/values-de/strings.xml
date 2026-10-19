@@ -1059,7 +1059,6 @@
     <string name="smart_playlist_summary_sort">Sortierpriorität: %1$s</string>
     <string name="smart_playlist_summary_tracks">Höchstens %1$d Titel.</string>
     <string name="smart_playlist_summary_percent">%1$d% der passenden Titel.</string>
-    <string name="smart_playlist_owner_notice">Favoriten, Bewertungen und Hörverlauf beziehen sich auch bei öffentlichen Playlists auf den Besitzer. Die lokale Vorschau nutzt die indizierten Daten des angemeldeten Kontos.</string>
     <string name="smart_playlist_preview_coverage">Lokaler Stand: %1$d indizierte Titel. Er kann unvollständig oder veraltet sein.</string>
     <string name="smart_playlist_preview_no_index">Keine indizierten Titel verfügbar. Synchronisiere die Mediathek vor der Vorschau; auf dem Server kann es dennoch Treffer geben.</string>
     <string name="smart_playlist_options">Optionen</string>
@@ -1153,4 +1152,5 @@
     <string name="smart_playlist_sync_albums">Alben suchen: %1$d</string>
     <string name="smart_playlist_sync_stop">Synchronisierung stoppen</string>
     <string name="smart_playlist_sync_stopped">Synchronisierung gestoppt. Deine Wiedergabeliste wurde nicht geändert.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

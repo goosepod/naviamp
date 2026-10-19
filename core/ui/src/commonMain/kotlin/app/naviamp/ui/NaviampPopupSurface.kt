@@ -77,7 +77,11 @@ private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: Popup
     Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
         properties = properties) {
         NaviampOwnedWindowFocusScope {
-            Box(Modifier.fillMaxSize().clipToBounds().background(scrim), content = content)
+            Box(Modifier.fillMaxSize().clipToBounds().drawBehind {
+                // Keep the native surface's recorded extent fixed from its first frame,
+                // including before the dialog entrance and floating labels have settled.
+                drawRect(Color.Transparent, blendMode = BlendMode.Src)
+            }.background(scrim), content = content)
         }
     }
 }
@@ -159,15 +163,16 @@ internal fun NaviampDialog(onDismissRequest: () -> Unit, properties: DialogPrope
         Dialog(onDismissRequest, properties, content)
         return
     }
-    val entered = remember { MutableTransitionState(false).apply { targetState = true } }
-    val transition = updateTransition(entered, label = "Naviamp dialog")
-    val alpha by transition.animateFloat(transitionSpec = { tween(200) }, label = "opacity") { if (it) 1f else .2f }
-    val scale by transition.animateFloat(transitionSpec = { tween(200) }, label = "scale") { if (it) 1f else .95f }
-    var dialogBounds by remember { mutableStateOf(Rect.Zero) }
     NaviampViewportPopup(onDismissRequest, PopupProperties(focusable = true,
-        dismissOnBackPress = properties.dismissOnBackPress, dismissOnClickOutside = false),
-        scrim = Color.Black.copy(alpha = .6f * alpha)) {
-        Box(Modifier.fillMaxSize().pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
+        dismissOnBackPress = properties.dismissOnBackPress, dismissOnClickOutside = false)) {
+        // Animate on the popup's frame clock, rather than the cached owner window's clock.
+        val entered = remember { MutableTransitionState(false).apply { targetState = true } }
+        val transition = updateTransition(entered, label = "Naviamp dialog")
+        val alpha by transition.animateFloat(transitionSpec = { tween(200) }, label = "opacity") { if (it) 1f else .2f }
+        val scale by transition.animateFloat(transitionSpec = { tween(200) }, label = "scale") { if (it) 1f else .95f }
+        var dialogBounds by remember { mutableStateOf(Rect.Zero) }
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f * alpha))
+            .pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
             if (properties.dismissOnClickOutside) awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                 // Content clicks belong to child controls, including editable menu anchors.

@@ -17,7 +17,7 @@ data class SmartPlaylistPreview(
 fun previewSmartPlaylist(
     definition: SmartPlaylistDefinition,
     tracks: List<Track>,
-    exampleLimit: Int = 5,
+    exampleLimit: Int = 50,
     nowEpochMillis: Long,
 ): SmartPlaylistPreview {
     val unsupported = definition.rules

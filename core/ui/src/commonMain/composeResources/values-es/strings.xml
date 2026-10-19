@@ -1063,7 +1063,6 @@
     <string name="smart_playlist_summary_sort">Prioridad de ordenación: %1$s</string>
     <string name="smart_playlist_summary_tracks">Como máximo %1$d pistas.</string>
     <string name="smart_playlist_summary_percent">%1$d% de las pistas coincidentes.</string>
-    <string name="smart_playlist_owner_notice">Los favoritos, valoraciones e historial corresponden al propietario de la lista, incluso si es pública. La vista previa local usa los datos indexados de la cuenta conectada.</string>
     <string name="smart_playlist_preview_coverage">Copia local: %1$d pistas indexadas. Puede estar incompleta o desactualizada.</string>
     <string name="smart_playlist_preview_no_index">No hay pistas indexadas. Sincroniza la biblioteca antes de obtener una vista previa; el servidor aún puede tener coincidencias.</string>
     <string name="smart_playlist_options">Opciones</string>
@@ -1157,4 +1156,5 @@
     <string name="smart_playlist_sync_albums">Buscando álbumes: %1$d</string>
     <string name="smart_playlist_sync_stop">Detener sincronización</string>
     <string name="smart_playlist_sync_stopped">Sincronización detenida. La lista no ha cambiado.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

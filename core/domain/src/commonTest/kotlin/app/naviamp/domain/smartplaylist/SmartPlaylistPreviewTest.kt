@@ -41,10 +41,10 @@ class SmartPlaylistPreviewTest {
         )
         val tracks = listOf(track("excluded-genre", "Match excluded", listOf("Rock")),
             track("excluded-title", "Other", listOf("Jazz"))) +
-            (1..10).map { track("$it", "Match $it", listOf("Jazz")) }
+            (1..75).map { track("$it", "Match $it", listOf("Jazz")) }
         val preview = previewSmartPlaylist(definition, tracks, nowEpochMillis = 0)
-        assertEquals(10, preview.matchingTrackCount)
-        assertEquals(5, preview.exampleTracks.size)
+        assertEquals(75, preview.matchingTrackCount)
+        assertEquals(50, preview.exampleTracks.size)
         assertTrue(preview.exampleTracks.all { it.genres == listOf("Jazz") && it.title.startsWith("Match") })
         assertEquals(2, previewSmartPlaylist(definition.copy(limit = 2), tracks, nowEpochMillis = 0).exampleTracks.size)
     }

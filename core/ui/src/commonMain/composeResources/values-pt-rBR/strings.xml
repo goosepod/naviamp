@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">Prioridade de ordenação: %1$s</string>
     <string name="smart_playlist_summary_tracks">No máximo %1$d faixas.</string>
     <string name="smart_playlist_summary_percent">%1$d% das faixas correspondentes.</string>
-    <string name="smart_playlist_owner_notice">Favoritos, avaliações e histórico usam o proprietário da playlist, mesmo quando pública. A prévia local usa os dados indexados da conta conectada.</string>
     <string name="smart_playlist_preview_coverage">Cópia local: %1$d faixas indexadas. Pode estar incompleta ou desatualizada.</string>
     <string name="smart_playlist_preview_no_index">Nenhuma faixa indexada disponível. Sincronize a biblioteca antes da prévia; o servidor ainda pode ter resultados.</string>
     <string name="smart_playlist_options">Opções</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">Buscando álbuns: %1$d</string>
     <string name="smart_playlist_sync_stop">Parar sincronização</string>
     <string name="smart_playlist_sync_stopped">Sincronização interrompida. Sua playlist não foi alterada.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

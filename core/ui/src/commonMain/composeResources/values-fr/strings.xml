@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">Priorité de tri : %1$s</string>
     <string name="smart_playlist_summary_tracks">Au plus %1$d titres.</string>
     <string name="smart_playlist_summary_percent">%1$d% des titres correspondants.</string>
-    <string name="smart_playlist_owner_notice">Les favoris, notes et écoutes concernent le propriétaire de la playlist, même publique. L’aperçu local utilise les données indexées du compte connecté.</string>
     <string name="smart_playlist_preview_coverage">Copie locale : %1$d titres indexés. Elle peut être incomplète ou ancienne.</string>
     <string name="smart_playlist_preview_no_index">Aucun titre indexé. Synchronisez la bibliothèque avant l’aperçu ; le serveur peut toutefois avoir des résultats.</string>
     <string name="smart_playlist_options">Options</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">Recherche des albums : %1$d</string>
     <string name="smart_playlist_sync_stop">Arrêter la synchronisation</string>
     <string name="smart_playlist_sync_stopped">Synchronisation arrêtée. La playlist reste inchangée.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

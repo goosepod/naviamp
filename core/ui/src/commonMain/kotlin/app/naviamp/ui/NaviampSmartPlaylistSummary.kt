@@ -56,10 +56,6 @@ internal fun SmartPlaylistSummarySection(
                 ids.joinToString { id -> libraries.firstOrNull { it.id == id }?.name ?: id }),
                 color = colors.secondaryText)
         }
-        if (definition.ownerDependentFields().isNotEmpty()) {
-            Text(stringResource(Res.string.smart_playlist_owner_notice), color = colors.secondaryText,
-                modifier = Modifier.testTag("smart-playlist-owner-notice"))
-        }
     }
 }
 

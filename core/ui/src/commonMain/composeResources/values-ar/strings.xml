@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">أولوية الترتيب: %1$s</string>
     <string name="smart_playlist_summary_tracks">بحد أقصى %1$d مقطعًا.</string>
     <string name="smart_playlist_summary_percent">%1$d% من المقاطع المطابقة.</string>
-    <string name="smart_playlist_owner_notice">تُستخدم مفضلة مالك القائمة وتقييماته وسجل استماعه حتى للقوائم العامة. تستخدم المعاينة المحلية البيانات المفهرسة للحساب الحالي.</string>
     <string name="smart_playlist_preview_coverage">نسخة محلية: %1$d مقطعًا مفهرسًا. قد تكون ناقصة أو قديمة.</string>
     <string name="smart_playlist_preview_no_index">لا توجد مقاطع مفهرسة. زامن المكتبة قبل المعاينة؛ قد يظل الخادم يحتوي على نتائج مطابقة.</string>
     <string name="smart_playlist_options">خيارات</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">جارٍ البحث عن الألبومات: %1$d</string>
     <string name="smart_playlist_sync_stop">إيقاف المزامنة</string>
     <string name="smart_playlist_sync_stopped">توقفت المزامنة. لم تتغير قائمة التشغيل.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>

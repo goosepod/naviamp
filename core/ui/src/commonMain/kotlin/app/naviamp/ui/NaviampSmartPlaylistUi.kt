@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -201,7 +204,8 @@ fun SmartPlaylistBuilderDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 560.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .testTag("smart-playlist-editor-scroll"),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SmartPlaylistSection(
@@ -1064,10 +1068,17 @@ private fun SmartPlaylistPreviewSection(
                     if (preview.exampleTracks.isEmpty()) {
                         Text(stringResource(Res.string.smart_playlist_preview_empty), color = colors.secondaryText, fontSize = 12.sp)
                     }
-                    preview.exampleTracks.forEach { track ->
-                        Column(modifier = Modifier.fillMaxWidth().testTag("smart-playlist-example-${track.id.value}")) {
-                            Text(track.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            Text(track.artistName, color = colors.secondaryText, fontSize = 12.sp)
+                    if (preview.exampleTracks.isNotEmpty()) {
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                            .testTag("smart-playlist-examples"),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(preview.exampleTracks) { track ->
+                                Text(stringResource(Res.string.smart_playlist_preview_track,
+                                    track.title, track.artistName, track.albumTitle.orEmpty()),
+                                    modifier = Modifier.fillMaxWidth().testTag("smart-playlist-example-${track.id.value}"),
+                                    color = colors.primaryText, fontSize = 13.sp,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                         }
                     }
                 }

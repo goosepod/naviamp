@@ -233,7 +233,6 @@
     <string name="smart_playlist_summary_sort">Sıralama önceliği: %1$s</string>
     <string name="smart_playlist_summary_tracks">En fazla %1$d parça.</string>
     <string name="smart_playlist_summary_percent">Eşleşen parçaların %1$d% oranı.</string>
-    <string name="smart_playlist_owner_notice">Favoriler, puanlar ve dinleme geçmişi herkese açık listelerde de liste sahibine aittir. Yerel önizleme oturum açmış hesabın dizinlenmiş verilerini kullanır.</string>
     <string name="smart_playlist_preview_coverage">Yerel kopya: %1$d dizinlenmiş parça. Eksik veya güncel olmayabilir.</string>
     <string name="smart_playlist_preview_no_index">Dizinlenmiş parça yok. Önizlemeden önce kitaplığı eşitleyin; sunucuda yine de eşleşmeler olabilir.</string>
     <string name="smart_playlist_options">Seçenekler</string>
@@ -327,4 +326,5 @@
     <string name="smart_playlist_sync_albums">Albümler bulunuyor: %1$d</string>
     <string name="smart_playlist_sync_stop">Eşitlemeyi durdur</string>
     <string name="smart_playlist_sync_stopped">Eşitleme durduruldu. Çalma listeniz değişmedi.</string>
+    <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
 </resources>
