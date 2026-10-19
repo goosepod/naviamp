@@ -85,7 +85,7 @@ master branch on 2026-10-19. Server-version differences remain possible.
    reachable in a narrow/short window and keyboard navigation still works.
 4. Reproduce the recording: open the editor, immediately scroll through templates and filters,
    return to Name/Comment, expand Options and Advanced, then dismiss and reopen another playlist.
-   Watch for window jumps, duplicated outlines, cut-off floating labels or background movement.
+   Watch for window jumps, duplicated outlines, overlapping or cut-off labels or background movement.
    Repeat after resizing, minimizing/restoring and changing display scale where available.
 5. Check preview failure/retry, Sync library progress/Stop and changed rules. Opening saved playlist
    tracks must continue to work independently of local preview sync. Repeat relevant Android and
@@ -123,3 +123,28 @@ scales remain manual checks. No continuous-animation performance acceptance is c
 Windows packaging reuses unchanged, hash-verified CI native DLLs because this workstation lacks
 the C++ toolchain. Only native configure/build steps are excluded; tests remain enabled. Exact
 candidate/package hashes and logs are recorded in #280 and #318. No release or merge is authorized.
+
+
+## Fixed field labels after owner retest
+
+The owner confirmed that candidate `3fa1e02b` resolves the screen jumping, but provided new
+screenshots showing outlines crossing the floating labels. The editor now uses a shared field
+component with a fixed 12 sp caption above the outlined input, separated by 4 dp. Empty, filled
+and focused inputs use the same caption placement. This applies to ordinary text, dropdowns,
+genres, date operands, reference search, JSON import and password prompts. Existing translated
+labels are reused; no copy, setting or schema is added. Input accessibility names remain attached
+to editable controls. No platform production file or native window behavior changes in this follow-up.
+
+Regression checks compare caption and input bounds before and after typing/clearing, at normal
+and 150% text size, and render the shared field fixture. Existing editor/picker/popup tests and the
+native geometry probe protect input and scrolling behavior. The owner should reopen the editor,
+check Name and empty Comment, scroll through Match/Field/Operator/Value, open dropdowns and a date
+picker, and check larger text. Packaged Windows visual acceptance remains required.
+
+
+This follow-up passed all 51 focused smart-playlist/popup UI tests with zero failures, errors or
+skips, shared Android/JVM/iOS ARM64/Simulator compilation, Core architecture verification and the
+native geometry/lifecycle probe. Both rendered field fixtures (100% and 150% text size) were
+inspected and show captions above unobstructed outlines. Native displayed-pixel acceptance remains
+manual; the probe did not request pixel assertions. The preceding 39 presentation results above
+are historical evidence and were not rerun for this UI-only change.

@@ -8,7 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -82,10 +81,10 @@ internal fun SmartPlaylistReferencePicker(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     val matches = smartPlaylistReferenceMatches(references, query, currentPlaylistId)
                     fun focusFirstResult(): Boolean = !loading && !failed && matches.isNotEmpty() && firstResultFocus.requestFocus()
-                    OutlinedTextField(
+                    SmartPlaylistOutlinedTextField(
                         value = query, onValueChange = { query = it }, singleLine = true,
-                        label = { Text(stringResource(Res.string.smart_playlist_reference_search)) },
-                        colors = naviampOutlinedTextFieldColors(colors),
+                        label = stringResource(Res.string.smart_playlist_reference_search),
+                        colors = colors,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         keyboardActions = KeyboardActions(onNext = { focusFirstResult() }),
                         modifier = Modifier.fillMaxWidth().testTag("smart-playlist-reference-search").naviampTextInputFocus()

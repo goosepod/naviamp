@@ -24,7 +24,6 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.LinearProgressIndicator
 import app.naviamp.domain.library.LibrarySyncProgress
@@ -394,14 +393,14 @@ fun SmartPlaylistBuilderDialog(
                             }
                         }
                         if (importOpen) {
-                            OutlinedTextField(
-                                colors = naviampOutlinedTextFieldColors(colors),
+                            SmartPlaylistOutlinedTextField(
+                                colors = colors,
                                 value = importJson,
                                 onValueChange = {
                                     importJson = it
                                     importMessage = null
                                 },
-                                label = { Text("Paste .nsp or Navidrome smart playlist JSON", color = colors.secondaryText) },
+                                label = "Paste .nsp or Navidrome smart playlist JSON",
                                 minLines = 4,
                                 maxLines = 8,
                                 textStyle = TextStyle(fontSize = 12.sp),
@@ -433,8 +432,8 @@ fun SmartPlaylistBuilderDialog(
                         title = "Generated JSON",
                         colors = colors,
                     ) {
-                        OutlinedTextField(
-                            colors = naviampOutlinedTextFieldColors(colors),
+                        SmartPlaylistOutlinedTextField(
+                            colors = colors,
                             value = jsonPreview,
                             onValueChange = {},
                             readOnly = true,
@@ -513,15 +512,15 @@ fun SmartPlaylistBuilderDialog(
                         color = colors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    OutlinedTextField(
-                        colors = naviampOutlinedTextFieldColors(colors),
+                    SmartPlaylistOutlinedTextField(
+                        colors = colors,
                         modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPasswordFieldTestTag).naviampTextInputFocus(),
                         value = password,
                         onValueChange = {
                             password = it
                             passwordError = null
                         },
-                        label = { Text("Password", color = colors.secondaryText) },
+                        label = "Password",
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         textStyle = TextStyle(fontSize = 13.sp),
@@ -616,15 +615,15 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )
-                OutlinedTextField(
-                    colors = naviampOutlinedTextFieldColors(colors),
+                SmartPlaylistOutlinedTextField(
+                    colors = colors,
                     modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistLoadPasswordFieldTestTag).naviampTextInputFocus(),
                     value = password,
                     onValueChange = {
                         password = it
                         errorMessage = null
                     },
-                    label = { Text("Password", color = colors.secondaryText) },
+                    label = "Password",
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     textStyle = TextStyle(fontSize = 13.sp),
@@ -1275,14 +1274,14 @@ private fun SmartPlaylistGenreTypeahead(
     var expanded by remember { mutableStateOf(false) }
     val suggestions = smartPlaylistGenreSuggestions(value, genres)
     Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            colors = naviampOutlinedTextFieldColors(colors),
+        SmartPlaylistOutlinedTextField(
+            colors = colors,
             value = value,
             onValueChange = {
                 onValueChange(it)
                 expanded = it.isNotBlank()
             },
-            label = { Text(label, color = colors.secondaryText) },
+            label = label,
             singleLine = true,
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier
@@ -1339,11 +1338,11 @@ private fun SmartPlaylistTextField(
     label: String,
     colors: NaviampColors,
 ) {
-    OutlinedTextField(
-        colors = naviampOutlinedTextFieldColors(colors),
+    SmartPlaylistOutlinedTextField(
+        colors = colors,
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, color = colors.secondaryText) },
+        label = label,
         singleLine = true,
         textStyle = TextStyle(fontSize = 13.sp),
         modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
@@ -1377,14 +1376,14 @@ internal fun <T> SmartPlaylistDropdown(
         onExpandedChange = changeExpanded,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        OutlinedTextField(
-            colors = naviampOutlinedTextFieldColors(colors),
+        SmartPlaylistOutlinedTextField(
+            colors = colors,
             value = if (expanded) query else value,
             onValueChange = {
                 query = it
                 expanded = true
             },
-            label = { Text(label, color = colors.secondaryText) },
+            label = label,
             singleLine = true,
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier
