@@ -148,3 +148,27 @@ native geometry/lifecycle probe. Both rendered field fixtures (100% and 150% tex
 inspected and show captions above unobstructed outlines. Native displayed-pixel acceptance remains
 manual; the probe did not request pixel assertions. The preceding 39 presentation results above
 are historical evidence and were not rerun for this UI-only change.
+
+
+## Section outlines during partial scrolling
+
+The next owner retest showed outer and nested section outlines disappearing when their top edge
+scrolls outside the viewport, even while inputs remain visible. Both sections used the same
+rounded-rectangle border primitive. They now share a cached, explicitly constructed rounded path
+with a one-dp stroke. The existing radii, colors, opacity and padding remain unchanged. The path
+is rebuilt only for draw-cache invalidation, not continuously; no animation policy changes.
+
+Rendered checks exercise the actual outer and nested section components inside a clipped scroll
+viewport at scale 1.0 and 1.5, inspecting both side edges at scroll positions 0, 64 and 180 dp and
+after returning to 0. The Windows native geometry probe still checks window stability. These
+checks do not establish acceptance of the driver's displayed pixels: the owner's original
+screenshots are the evidence for that failure, and the new packaged app must be retested on the
+same display. Scroll Sort and Limit and its Sort 1 panel partly above and below the viewport;
+visible border segments should remain present. Repeat for Details, filter groups and Preview.
+The label fix is retained. No platform production code, copy, settings or schema change is needed.
+
+
+The outline follow-up passed all 53 focused UI tests with zero failures, errors or skips, shared
+Android/JVM/iOS ARM64/Simulator compilation, architecture verification and native geometry/lifecycle
+checks. The rendered original/partly clipped fixtures were inspected: both outline sides remain
+visible at both scales. Native displayed-window visual acceptance remains pending.

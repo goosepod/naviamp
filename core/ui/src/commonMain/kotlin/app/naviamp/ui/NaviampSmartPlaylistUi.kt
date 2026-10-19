@@ -1,6 +1,5 @@
 package app.naviamp.ui
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,7 +44,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.platform.testTag
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistReference
@@ -1129,7 +1127,7 @@ private fun SmartPlaylistPreviewSection(
 }
 
 @Composable
-private fun SmartPlaylistSection(
+internal fun SmartPlaylistSection(
     title: String,
     colors: NaviampColors,
     content: @Composable ColumnScope.() -> Unit,
@@ -1137,7 +1135,7 @@ private fun SmartPlaylistSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, colors.border.copy(alpha = 0.75f), RoundedCornerShape(8.dp))
+            .smartPlaylistSectionOutline(colors.border.copy(alpha = 0.75f), 8.dp)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -1147,7 +1145,7 @@ private fun SmartPlaylistSection(
 }
 
 @Composable
-private fun SmartPlaylistNestedSection(
+internal fun SmartPlaylistNestedSection(
     title: String,
     colors: NaviampColors,
     trailing: (@Composable () -> Unit)? = null,
@@ -1156,7 +1154,7 @@ private fun SmartPlaylistNestedSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, colors.border.copy(alpha = 0.42f), RoundedCornerShape(6.dp))
+            .smartPlaylistSectionOutline(colors.border.copy(alpha = 0.42f), 6.dp)
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
