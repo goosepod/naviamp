@@ -23,6 +23,26 @@ import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 
 class JellyfinProviderTest {
+    @Test fun creatorOwnershipUsesOwnerOnlyEndpointAndDoesNotTreatFailuresAsOwnership() = runTest {
+        val playlist = app.naviamp.domain.Playlist("playlist", "Playlist", 0)
+        val owner = fixture(responses = mapOf("/Playlists/playlist/Users" to "[]"))
+        assertTrue(owner.provider.playlistOwnedByCurrentUser(playlist))
+        val shared = fixture(responses = mapOf("/Playlists/playlist/Users" to "Forbidden"), responseStatus = 403)
+        assertFalse(shared.provider.playlistOwnedByCurrentUser(playlist))
+        for (status in listOf(401, 404, 500)) {
+            val failed = fixture(responses = mapOf("/Playlists/playlist/Users" to "Unavailable"), responseStatus = status)
+            assertFailsWith<JellyfinException> { failed.provider.playlistOwnedByCurrentUser(playlist) }
+        }
+    }
+
+    @Test fun playlistLookupEnumeratesBeyondFirstPageWithoutMusicFolderRestrictions() = runTest {
+        fun page(start: Int, count: Int) = """{"Items":[${(start until start + count).joinToString(",") { """{"Id":"p-$it","Name":"List $it"}""" }}],"TotalRecordCount":501}"""
+        val fixture = fixture(responses = mapOf("startIndex=0" to page(0, 200),
+            "startIndex=200" to page(200, 200), "startIndex=400" to page(400, 101)), selectedMusicFolderIds = listOf("folder"))
+        assertEquals(501, fixture.provider.playlists(501).size)
+        assertEquals(3, fixture.http.requestedUrls.size)
+        assertTrue(fixture.http.requestedUrls.none { "parentId=" in it })
+    }
     @Test
     fun favoriteDownloadPagesRequestFilteredAlbumsAndArtists() = runTest {
         val fixture = fixture(responses = mapOf(

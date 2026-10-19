@@ -72,6 +72,44 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun bulkTrackIndexUsesNativeLibraryMembershipAndPersonalMetadata() = runTest {
+        val http = RecordingNativeHttpClient(
+            response = """[
+                {"id":"favorite","title":"Favorite","libraryId":2,"rating":4,"starred":true,"starredAt":"2026-10-19T12:00:00Z"},
+                {"id":"other-library","title":"Other","libraryId":3,"starred":true,"starredAt":"2026-10-19T12:00:00Z"}
+            ]""",
+            responseHeaders = mapOf("X-Total-Count" to "12"),
+        )
+        val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "native-token"), http)
+        val page = provider.libraryTracksPage(MediaPageRequest(offset = 5, limit = 2))!!
+        assertEquals("https://music.example.test/api/song?_start=5&_end=7&_order=ASC&_sort=title", http.getUrls.single())
+        assertEquals(listOf("2", "3"), page.items.map { it.musicFolderId })
+        assertEquals(4, page.items.first().userRating)
+        assertEquals("2026-10-19T12:00:00Z", page.items.first().favoritedAtIso8601)
+        assertEquals(12, page.totalItemCount)
+        assertTrue(page.hasMore)
+    }
+
+    @Test
+    fun bulkTrackIndexFallsBackWhenNativeMetadataCannotBeRead() = runTest {
+        val urls = mutableListOf<String>()
+        val http = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String {
+                urls += url
+                if ("/api/" in url) error("Native API unavailable")
+                return """{"subsonic-response":{"status":"ok","searchResult3":{"song":[{"id":"track","title":"Fallback"}]}}}"""
+            }
+        }
+        val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "expired")
+            .copy(selectedMusicFolderIds = listOf("2")), http)
+        val page = provider.libraryTracksPage(MediaPageRequest(limit = 10))!!
+        assertTrue(urls.any { "/api/song?" in it })
+        assertTrue(urls.any { "/rest/search3.view?" in it && "musicFolderId=2" in it })
+        assertEquals(listOf("Fallback"), page.items.map { it.title })
+        assertEquals(listOf("2"), page.items.map { it.musicFolderId })
+    }
+
+    @Test
     fun bulkTrackIndexRetainsKnownFolderScopeWithoutInventingUnscopedIds() = runTest {
         val http = object : NavidromeHttpClient {
             override suspend fun get(url: String): String = """

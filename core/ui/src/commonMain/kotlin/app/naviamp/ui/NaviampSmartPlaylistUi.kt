@@ -255,7 +255,7 @@ fun SmartPlaylistBuilderDialog(
                     Text(stringResource(Res.string.smart_playlist_options))
                 }
                 if (optionsOpen) SmartPlaylistOptionsControls(colors, draft, availableLibraries, selectedConnectionLibraryIds) { draft = it }
-                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors) }
+                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors, references, availableLibraries) }
                 validationIssues.filter {
                     it.location.conditionId == null && it.location.groupId == null &&
                         (it.code != SmartPlaylistIssueCode.InvalidRefreshDelay || !optionsOpen)
@@ -1034,11 +1034,21 @@ private fun SmartPlaylistPreviewSection(
                 preview.message != null -> preview.message?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
-                else -> Text(
-                    stringResource(Res.string.smart_playlist_preview_unsupported, preview.unsupportedFields.joinToString()),
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
+                else -> {
+                    if (SmartPlaylistFields.LibraryId in preview.unsupportedFields) {
+                        Text(stringResource(Res.string.smart_playlist_preview_library_metadata),
+                            color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                    val otherFields = preview.unsupportedFields.filter { it != SmartPlaylistFields.LibraryId }
+                    if (otherFields.isNotEmpty()) {
+                        val labels = otherFields.map { field ->
+                            SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == field }
+                                ?.let { smartPlaylistFieldLabel(it) } ?: field
+                        }
+                        Text(stringResource(Res.string.smart_playlist_preview_unsupported, labels.joinToString()),
+                            color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                }
             }
         }
     }

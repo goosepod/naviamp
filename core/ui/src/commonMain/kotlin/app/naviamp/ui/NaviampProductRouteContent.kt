@@ -82,6 +82,8 @@ fun ColumnScope.NaviampProductRouteContent(
                     keptDownloaded = shellState.artistDetail.detail?.artist?.id in shellState.downloads.keptArtistIds,
                     appearanceState = artistAppearanceState,
                     albumCollectionLayout = shellState.general.interfaceSettings.albumCollectionLayout,
+                    artistPlaylistLayout = shellState.general.interfaceSettings.artistPlaylistLayout,
+                    artistAppearanceAlbumLayout = shellState.general.interfaceSettings.artistAppearanceAlbumLayout,
                     albumSortOrder = shellState.general.interfaceSettings.albumSortOrder,
                     groupAlbumsByReleaseType = shellState.general.interfaceSettings.groupAlbumsByReleaseType,
                     actions = shellActions.artistDetailActions,

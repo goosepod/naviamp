@@ -22,7 +22,9 @@ fun previewSmartPlaylist(
 ): SmartPlaylistPreview {
     val unsupported = definition.rules
         .flatMapTo(linkedSetOf(), SmartPlaylistRule::unsupportedPreviewFields)
-    if (definition.libraryIds != null && tracks.any { it.musicFolderId == null }) {
+    if ((definition.libraryIds != null || definition.rules.any { it.usesLibraryMembership() }) &&
+        tracks.any { it.musicFolderId.isNullOrBlank() }
+    ) {
         unsupported += SmartPlaylistFields.LibraryId
     }
     if (unsupported.isNotEmpty()) {
@@ -56,6 +58,11 @@ fun previewSmartPlaylist(
         exampleTracks = matches.take(minOf(exampleLimit.coerceAtLeast(0), resultCount)),
         indexedTrackCount = tracks.size,
     )
+}
+
+private fun SmartPlaylistRule.usesLibraryMembership(): Boolean = when (this) {
+    is SmartPlaylistCondition -> field == SmartPlaylistFields.LibraryId
+    is SmartPlaylistGroup -> rules.any { it.usesLibraryMembership() }
 }
 
 private fun SmartPlaylistRule.unsupportedPreviewFields(): Set<String> =
@@ -182,7 +189,7 @@ private fun Track.previewValues(field: String): List<Any?> = when (field) {
     SmartPlaylistFields.HasCoverArt -> listOf(coverArtId != null)
     SmartPlaylistFields.LastPlayed -> listOf(lastPlayedAtIso8601)
     SmartPlaylistFields.DateLoved -> listOf(favoritedAtIso8601)
-    SmartPlaylistFields.LibraryId -> listOf(musicFolderId)
+    SmartPlaylistFields.LibraryId -> listOf(musicFolderId?.toLongOrNull())
     else -> emptyList()
 }
 

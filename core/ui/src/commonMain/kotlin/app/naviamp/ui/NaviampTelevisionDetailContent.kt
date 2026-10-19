@@ -149,7 +149,7 @@ internal fun TelevisionArtistDetail(
     val listState = rememberLazyListState()
     val firstPopularTrackFocusRequester = remember(detail.artist.id) { FocusRequester() }
     val firstAlbumFocusRequester = remember(detail.artist.id) { FocusRequester() }
-    val popularTracksAvailable = detail.popularTracks.isNotEmpty()
+    val popularTracksAvailable = detail.popularTracksVisible && detail.popularTracks.isNotEmpty()
     val albumSections = detail.albumSectionsForDisplay(
         groupByReleaseType = groupAlbumsByReleaseType,
         sortOrder = albumSortOrder,
@@ -197,7 +197,7 @@ internal fun TelevisionArtistDetail(
                 ),
             )
         }
-        if (detail.popularTracks.isNotEmpty()) {
+        if (popularTracksAvailable) {
             item(key = "popular-tracks-heading") {
                 TelevisionDetailSectionHeading(stringResource(Res.string.tv_popular_tracks), colors)
             }
