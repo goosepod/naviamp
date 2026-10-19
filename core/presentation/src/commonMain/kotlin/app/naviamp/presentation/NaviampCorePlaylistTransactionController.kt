@@ -85,6 +85,7 @@ class NaviampCorePlaylistTransactionController(
         NaviampCorePlaybackProfileController(stateStore),
     private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
     private val selfReferenceMessage: suspend () -> String = ::smartPlaylistSelfReferenceMessage,
+    private val syncLibrary: app.naviamp.ui.NaviampSmartPlaylistSync = { error("Library sync is unavailable") },
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -126,6 +127,10 @@ class NaviampCorePlaylistTransactionController(
         }
         is NaviampCoreCommand.SmartPlaylist.Save -> {
             saveSmartPlaylist(command.definition, command.password)
+            NaviampCoreCommandResult.Completed
+        }
+        is NaviampCoreCommand.SmartPlaylist.SyncLibrary -> {
+            syncLibrary(command.onProgress)
             NaviampCoreCommandResult.Completed
         }
         is NaviampCoreCommand.SmartPlaylist.Preview ->

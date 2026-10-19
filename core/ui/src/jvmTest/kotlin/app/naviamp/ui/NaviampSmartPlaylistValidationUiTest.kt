@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.graphics.asSkiaBitmap
@@ -25,6 +26,69 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampSmartPlaylistValidationUiTest {
+    @Test fun syncShowsRealCountsCanBeStoppedAndCanRetryWithoutChangingDraft() = runComposeUiTest {
+        var started = 0
+        var stopped = false
+        val draft = SmartPlaylistDraft(name = "Keep this draft", conditions = listOf(SmartPlaylistConditionDraft(value = "Artist")))
+        setContent {
+            SmartPlaylistBuilderDialog(NaviampColors(), draft, onSyncLibrary = { progress ->
+                started++
+                if (started == 1) {
+                    try {
+                        progress(app.naviamp.domain.library.LibrarySyncProgress(
+                            app.naviamp.domain.library.LibrarySyncProgressPhase.LoadingTracks, trackCount = 500, total = 2000))
+                        kotlinx.coroutines.awaitCancellation()
+                    } finally { stopped = true }
+                }
+            }, onDismissRequest = {}, onSave = {})
+        }
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) { started == 1 }
+        onNodeWithText("500 of 2000 tracks synced").performScrollTo().assertExists()
+        onNodeWithTag("smart-playlist-sync-library").assertIsNotEnabled()
+        onNodeWithTag("smart-playlist-stop-sync").performScrollTo()
+        mainClock.advanceTimeBy(500)
+        waitForIdle()
+        val output = File("build/reports/smart-playlist-sync-progress.png")
+        output.parentFile.mkdirs()
+        org.jetbrains.skia.Image.makeFromBitmap(onNodeWithTag("smart-playlist-sync-progress").captureToImage().asSkiaBitmap()).use {
+            output.writeBytes(requireNotNull(it.encodeToData()).bytes)
+        }
+        onNodeWithTag("smart-playlist-stop-sync").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) { stopped }
+        onNodeWithText("Sync stopped. Your playlist has not changed.").performScrollTo().assertExists()
+        onNodeWithText("Keep this draft").performScrollTo().assertExists()
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().assertIsEnabled().performClick()
+        waitUntil(timeoutMillis = 5_000) { started == 2 }
+        onNodeWithTag("smart-playlist-sync-progress").assertDoesNotExist()
+    }
+
+    @Test fun syncFailureIsVisibleAndRetryRestoresPreview() = runComposeUiTest {
+        var attempts = 0
+        var synced = false
+        setContent {
+            SmartPlaylistBuilderDialog(NaviampColors(), SmartPlaylistDraft(name = "Retry", conditions = listOf(SmartPlaylistConditionDraft(value = "Artist"))),
+                onSyncLibrary = { progress ->
+                    attempts++
+                    progress(app.naviamp.domain.library.LibrarySyncProgress(app.naviamp.domain.library.LibrarySyncProgressPhase.LoadingTracks))
+                    if (attempts == 1) error("Offline")
+                    synced = true
+                }, onPreview = {
+                    if (synced) SmartPlaylistPreview(matchingTrackCount = 1, resultTrackCount = 1, exampleTracks = listOf(track("retried")))
+                    else SmartPlaylistPreview(indexedTrackCount = 0)
+                }, onDismissRequest = {}, onSave = {})
+        }
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) { attempts == 1 }
+        onNodeWithText("Library sync failed. Try syncing again.").performScrollTo().assertExists()
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) {
+            onAllNodes(androidx.compose.ui.test.hasTestTag("smart-playlist-example-retried")).fetchSemanticsNodes().isNotEmpty()
+        }
+        onNodeWithTag("smart-playlist-example-retried").performScrollTo().assertExists()
+        onNodeWithText("Library sync failed. Try syncing again.").assertDoesNotExist()
+    }
+
     private fun invalidRating() = SmartPlaylistConditionDraft(
         field = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Rating },
         operator = SmartPlaylistOperator.Is,
@@ -90,8 +154,41 @@ class NaviampSmartPlaylistValidationUiTest {
         onNodeWithText("No example matches in the synced library.").assertExists()
         runOnIdle { draft.value = draft.value.copy(conditions = listOf(SmartPlaylistConditionDraft(value = "Unsupported"))) }
         waitUntil(timeoutMillis = 5_000) { requests == 2 }
-        onNodeWithText("Preview unavailable for these locally unindexed fields: lyrics.").assertExists()
+        onNodeWithText("This preview needs information that is not in the local cache: Lyrics. The saved playlist still runs on the server.").assertExists()
         onNodeWithText("No example matches in the synced library.").assertDoesNotExist()
+    }
+
+    @Test fun missingLibraryMetadataExplainsSyncAndSyncRestoresExamples() = runComposeUiTest {
+        var synced = false
+        val initial = SmartPlaylistDefinition("Favorites", rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.Loved, SmartPlaylistValue.Flag(true)),
+        ), limit = 500, libraryIds = listOf("2"))
+        setContent {
+            SmartPlaylistBuilderDialog(NaviampColors(), SmartPlaylistDraft.fromDefinition(initial),
+                availableLibraries = listOf(app.naviamp.domain.settings.ConnectionFormMusicFolder("2", "Music")),
+                onPreview = {
+                    if (synced) SmartPlaylistPreview(matchingTrackCount = 1, resultTrackCount = 1,
+                        exampleTracks = listOf(track("favorite")), indexedTrackCount = 24943)
+                    else SmartPlaylistPreview(unsupportedFields = listOf(SmartPlaylistFields.LibraryId), indexedTrackCount = 24943)
+                }, onSyncLibrary = { synced = true }, onDismissRequest = {}, onSave = {})
+        }
+        val explanation = "The local cache is missing library membership for some tracks"
+        waitUntil(timeoutMillis = 5_000) {
+            onAllNodes(androidx.compose.ui.test.hasText(explanation, substring = true)).fetchSemanticsNodes().isNotEmpty()
+        }
+        onNodeWithText(explanation, substring = true).performScrollTo().assertExists()
+        onNodeWithText("library_id", substring = true).assertDoesNotExist()
+        val output = File("build/reports/smart-playlist-library-preview.png")
+        output.parentFile.mkdirs()
+        org.jetbrains.skia.Image.makeFromBitmap(onAllNodes(isRoot()).onLast().captureToImage().asSkiaBitmap()).use {
+            output.writeBytes(requireNotNull(it.encodeToData()).bytes)
+        }
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) {
+            onAllNodes(androidx.compose.ui.test.hasTestTag("smart-playlist-example-favorite")).fetchSemanticsNodes().isNotEmpty()
+        }
+        onNodeWithTag("smart-playlist-example-favorite").performScrollTo().assertExists()
+        onNodeWithText(explanation, substring = true).assertDoesNotExist()
     }
 
     @Test
