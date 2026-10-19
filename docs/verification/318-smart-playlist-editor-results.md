@@ -172,3 +172,36 @@ The outline follow-up passed all 53 focused UI tests with zero failures, errors 
 Android/JVM/iOS ARM64/Simulator compilation, architecture verification and native geometry/lifecycle
 checks. The rendered original/partly clipped fixtures were inspected: both outline sides remain
 visible at both scales. Native displayed-window visual acceptance remains pending.
+
+
+## Native OpenGL reproduction supersedes the earlier outline evidence
+
+The owner rejected `d1e76121`: its section outline still lost straight edges while scrolling.
+The isolated section pixel tests above were insufficient. An opt-in test-only readback now captures
+the synthetic editor's actual Windows OpenGL render target, after drawing and before buffer swap.
+It does not use SkiaLayer's recording-only screenshot or an occlusion-prone desktop screenshot.
+The probe uses reflection into the pinned Skiko renderer only in JVM test code; no native host or
+platform production file changes. Enable `NAVIAMP_SMART_PROBE_RENDER_TARGET=true` and set
+`NAVIAMP_SMART_PROBE_OUTPUT` to retain the PNGs. This option requires Windows OpenGL. Normal probe
+runs on other hosts continue to check geometry without invoking the GL readback.
+
+The new native assertion reproduced the rejected production code: the clipped Templates side
+contained **0 of 61** expected outline pixels. A compound filled outline also failed that same
+assertion and was discarded. Drawing the four straight sides as independent filled rectangles
+and the four corners as independent arcs restores **61 of 61** sampled pixels. The section keeps
+its original one-dp thickness, radii, colors, opacity and padding. Geometry is cached; animation
+policy and update rates are unchanged. Fixed field labels and the accepted window-jump fix remain.
+
+The native check covers both outer sides at opening, 150 and 600 dp scroll and after returning;
+at 850 dp it checks both outer and both nested sides while their tops are clipped. Captures use
+synthetic data only. The renderer on this workstation is OpenGL / AMD Radeon(TM) Graphics.
+These are actual GPU-target pixels, not proof of the OS compositor's final displayed window;
+owner visual acceptance on the packaged app and other-platform checks remain pending.
+
+
+Final segment-rendering verification passed 53 focused UI tests with no failures, errors or skips;
+Android, JVM, iOS ARM64 and Simulator compilation; Core architecture verification; and native
+geometry/lifecycle checks. All 12 GL-side samples passed at 61/61 pixels, including the four outer
+and nested sides at 850 dp and both sides after returning to the top. Before and after GL images
+were inspected. The packaged candidate retains the baseline failing log/image and corrected target
+images alongside the final logs. No production platform file changes in this correction.

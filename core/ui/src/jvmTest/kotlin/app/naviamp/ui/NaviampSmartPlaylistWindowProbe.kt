@@ -22,6 +22,7 @@ import org.jetbrains.skia.Image
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 fun main() {
     configureNaviampDesktopRasterLayers()
+    val verifyRenderTarget = System.getenv("NAVIAMP_SMART_PROBE_RENDER_TARGET") == "true"
     val verifyPixels = System.getenv("NAVIAMP_SMART_PROBE_VERIFY_PIXELS") == "true"
     application {
         val nativeState = rememberWindowState(width = 1184.dp, height = 794.dp)
@@ -67,9 +68,32 @@ fun main() {
                         }
                     }
                     java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(listener, java.awt.AWTEvent.COMPONENT_EVENT_MASK)
-                    for ((index, offset) in listOf(0, 150, 600, Int.MAX_VALUE, 0).withIndex()) {
+                    val offsets = listOf(0, 150, 600, 850, Int.MAX_VALUE, 0)
+                    for ((index, offset) in offsets.withIndex()) {
                         scroll.scrollTo(offset.coerceAtMost(scroll.maxValue))
                         delay(400)
+                        window.ownedWindows.filter { it.isShowing }.forEachIndexed { layerIndex, native ->
+                            if (verifyRenderTarget) findSkiaLayer(native)?.let { layer ->
+                                val bytes = readNativeRenderTarget(layer)
+                                File(output, "$index-$layerIndex-render-target.png").writeBytes(bytes)
+                                val pixels = javax.imageio.ImageIO.read(java.io.ByteArrayInputStream(bytes))
+                                val nested = index == 3
+                                if (index != 4) {
+                                    val ys = if (nested) 150..210 else 390..450
+                                    val edges = if (nested) listOf(-256f, -246f, 245f, 255f) else listOf(-256f, 255f)
+                                    for (edge in edges) {
+                                        val x = ((layer.width / 2f + edge) * layer.contentScale).toInt()
+                                        val visible = ys.count { y ->
+                                            val pixelY = (y * layer.contentScale).toInt()
+                                            (x..x + 1).any { sample -> (pixels.getRGB(sample, pixelY) shr 16 and 255) > 45 }
+                                        }
+                                        check(visible >= 55) { "Clipped outline lost side $edge: $visible/61 pixels at scroll ${scroll.value}" }
+                                        println("SMART_NATIVE GL outline=$visible/61 phase=$index edge=$edge")
+                                    }
+                                    if (index == 0) println("SMART_NATIVE GL renderer=${layer.renderInfo}")
+                                }
+                            }
+                        }
                         check(window.bounds == initial) { "Owner moved: ${window.bounds} != $initial" }
                         nativeBounds.forEach { (native, bounds) -> check(native.bounds == bounds) {
                             "Popup moved during scroll: ${native.bounds} != $bounds"
@@ -111,7 +135,7 @@ fun main() {
                         }
                         check(readable > 500) { "Dialog text disappeared at phase $index: $readable bright pixels" }
                         if (index == 0) initialPixels = pixels
-                        if (index == 2 || index == 4) {
+                        if (index == 2 || index == offsets.lastIndex) {
                             val first = checkNotNull(initialPixels)
                             var changed = 0
                             for (y in 100 until 680) for (x in pixels.width / 2 - 250 until pixels.width / 2 + 250) {
@@ -163,5 +187,22 @@ fun main() {
                 }
             }
         }
+    }
+}
+
+/** Test-only readback of this synthetic window's GL target, after rendering and before buffer swap. */
+private fun readNativeRenderTarget(layer: org.jetbrains.skiko.SkiaLayer): ByteArray {
+    val redrawer = layer.javaClass.getMethod("getRedrawer\$skiko").invoke(layer)
+    check(redrawer.javaClass.simpleName == "WindowsOpenGLRedrawer") { "Expected Windows OpenGL renderer" }
+    for (name in listOf("makeCurrent", "draw")) {
+        redrawer.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(redrawer)
+    }
+    val handler = redrawer.javaClass.getDeclaredField("contextHandler").apply { isAccessible = true }.get(redrawer)
+    val surface = Class.forName("org.jetbrains.skiko.context.ContextHandler").getDeclaredField("surface")
+        .apply { isAccessible = true }.get(handler) as org.jetbrains.skia.Surface
+    return org.jetbrains.skia.Bitmap().use { bitmap ->
+        check(bitmap.allocPixels(org.jetbrains.skia.ImageInfo.makeN32Premul(surface.width, surface.height)))
+        check(surface.canvas.readPixels(bitmap, 0, 0)) { "GL pixel readback failed" }
+        Image.makeFromBitmap(bitmap).use { checkNotNull(it.encodeToData()).use { data -> data.bytes } }
     }
 }

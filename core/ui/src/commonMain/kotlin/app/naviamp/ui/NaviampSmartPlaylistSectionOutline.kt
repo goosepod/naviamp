@@ -2,34 +2,28 @@ package app.naviamp.ui
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Keep clipped section outlines on the ordinary path renderer, including their visible sides. */
+/** Independent edges remain drawable when the viewport clips part of a section's contour. */
 internal fun Modifier.smartPlaylistSectionOutline(color: Color, radius: Dp): Modifier = drawWithCache {
-    val width = 1.dp.toPx()
-    val inset = width / 2f
-    val right = size.width - inset
-    val bottom = size.height - inset
-    val r = (radius.toPx() - inset).coerceIn(0f, (minOf(size.width, size.height) / 2f - inset).coerceAtLeast(0f))
-    val c = r * 0.55228475f
-    // Build the contour explicitly instead of using the GPU's stroked rounded-rectangle primitive.
-    // Its geometry stays unchanged as the scroll viewport clips off the top and bottom edges.
-    val outline = Path().apply {
-        moveTo(inset + r, inset)
-        lineTo(right - r, inset)
-        cubicTo(right - r + c, inset, right, inset + r - c, right, inset + r)
-        lineTo(right, bottom - r)
-        cubicTo(right, bottom - r + c, right - r + c, bottom, right - r, bottom)
-        lineTo(inset + r, bottom)
-        cubicTo(inset + r - c, bottom, inset, bottom - r + c, inset, bottom - r)
-        lineTo(inset, inset + r)
-        cubicTo(inset, inset + r - c, inset + r - c, inset, inset + r, inset)
-        close()
-    }
+    val width = 1.dp.toPx().coerceAtMost(minOf(size.width, size.height))
+    val r = radius.toPx().coerceIn(width / 2f, minOf(size.width, size.height) / 2f)
+    val half = width / 2f
+    val arcSize = Size((r * 2f - width).coerceAtLeast(0f), (r * 2f - width).coerceAtLeast(0f))
     val stroke = Stroke(width)
-    onDrawBehind { drawPath(outline, color, style = stroke) }
+    onDrawBehind {
+        drawRect(color, Offset(r, 0f), Size((size.width - 2f * r).coerceAtLeast(0f), width))
+        drawRect(color, Offset(r, size.height - width), Size((size.width - 2f * r).coerceAtLeast(0f), width))
+        drawRect(color, Offset(0f, r), Size(width, (size.height - 2f * r).coerceAtLeast(0f)))
+        drawRect(color, Offset(size.width - width, r), Size(width, (size.height - 2f * r).coerceAtLeast(0f)))
+        drawArc(color, 180f, 90f, false, Offset(half, half), arcSize, style = stroke)
+        drawArc(color, 270f, 90f, false, Offset(size.width - 2f * r + half, half), arcSize, style = stroke)
+        drawArc(color, 0f, 90f, false, Offset(size.width - 2f * r + half, size.height - 2f * r + half), arcSize, style = stroke)
+        drawArc(color, 90f, 90f, false, Offset(half, size.height - 2f * r + half), arcSize, style = stroke)
+    }
 }
