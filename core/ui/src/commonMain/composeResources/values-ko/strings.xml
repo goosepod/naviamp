@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (오래된 순)</string>
     <string name="smart_playlist_summary_libraries">라이브러리: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">일부 곡의 라이브러리 정보가 로컬 캐시에 없어 이 필터를 정확하게 미리 볼 수 없습니다. 라이브러리 동기화를 선택하세요. 계속 사용할 수 없다면 서버가 필요한 정보를 제공하지 않은 것입니다. 저장된 재생목록은 서버에서 계속 작동합니다.</string>
+    <string name="smart_playlist_sync_tracks">동기화한 곡 메타데이터: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%2$d곡 중 %1$d곡 동기화됨</string>
+    <string name="smart_playlist_sync_albums">앨범 찾는 중: %1$d</string>
+    <string name="smart_playlist_sync_stop">동기화 중지</string>
+    <string name="smart_playlist_sync_stopped">동기화를 중지했습니다. 재생목록은 변경되지 않았습니다.</string>
 </resources>

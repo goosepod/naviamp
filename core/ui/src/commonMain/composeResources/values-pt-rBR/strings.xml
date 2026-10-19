@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (mais antigos primeiro)</string>
     <string name="smart_playlist_summary_libraries">Bibliotecas: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">O cache local não informa a biblioteca de algumas faixas, impedindo uma prévia confiável deste filtro. Selecione Sincronizar biblioteca. Se continuar indisponível, o servidor não forneceu esses dados; a playlist salva continua funcionando no servidor.</string>
+    <string name="smart_playlist_sync_tracks">Metadados de faixas sincronizados: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d de %2$d faixas sincronizadas</string>
+    <string name="smart_playlist_sync_albums">Buscando álbuns: %1$d</string>
+    <string name="smart_playlist_sync_stop">Parar sincronização</string>
+    <string name="smart_playlist_sync_stopped">Sincronização interrompida. Sua playlist não foi alterada.</string>
 </resources>

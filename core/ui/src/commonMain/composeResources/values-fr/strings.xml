@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (plus anciens en premier)</string>
     <string name="smart_playlist_summary_libraries">Bibliothèques : %1$s</string>
     <string name="smart_playlist_preview_library_metadata">Le cache local ne contient pas la bibliothèque de certains titres. Impossible de prévisualiser ce filtre de manière fiable. Choisissez Synchroniser la bibliothèque. Si le problème persiste, le serveur ne fournit pas ces données ; la playlist enregistrée fonctionne toujours sur le serveur.</string>
+    <string name="smart_playlist_sync_tracks">Métadonnées des titres synchronisées : %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d titres synchronisés sur %2$d</string>
+    <string name="smart_playlist_sync_albums">Recherche des albums : %1$d</string>
+    <string name="smart_playlist_sync_stop">Arrêter la synchronisation</string>
+    <string name="smart_playlist_sync_stopped">Synchronisation arrêtée. La playlist reste inchangée.</string>
 </resources>

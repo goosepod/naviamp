@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (сначала старые)</string>
     <string name="smart_playlist_summary_libraries">Библиотеки: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">В локальном кэше нет данных о библиотеке некоторых треков, поэтому надёжный предпросмотр фильтра невозможен. Выберите Синхронизировать библиотеку. Если проблема останется, сервер не предоставил эти данные; сохранённый плейлист продолжает работать на сервере.</string>
+    <string name="smart_playlist_sync_tracks">Синхронизировано метаданных треков: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">Синхронизировано %1$d из %2$d треков</string>
+    <string name="smart_playlist_sync_albums">Поиск альбомов: %1$d</string>
+    <string name="smart_playlist_sync_stop">Остановить синхронизацию</string>
+    <string name="smart_playlist_sync_stopped">Синхронизация остановлена. Плейлист не изменён.</string>
 </resources>

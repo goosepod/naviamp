@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (terlama dahulu)</string>
     <string name="smart_playlist_summary_libraries">Pustaka: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">Cache lokal tidak memiliki informasi pustaka untuk beberapa lagu, sehingga filter ini tidak dapat dipratinjau dengan andal. Pilih Sinkronkan pustaka. Jika tetap tidak tersedia, server belum memberikan data tersebut; daftar putar tersimpan tetap berjalan di server.</string>
+    <string name="smart_playlist_sync_tracks">Metadata lagu disinkronkan: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d dari %2$d lagu disinkronkan</string>
+    <string name="smart_playlist_sync_albums">Mencari album: %1$d</string>
+    <string name="smart_playlist_sync_stop">Hentikan sinkronisasi</string>
+    <string name="smart_playlist_sync_stopped">Sinkronisasi dihentikan. Daftar putar tidak berubah.</string>
 </resources>

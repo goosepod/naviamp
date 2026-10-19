@@ -281,6 +281,26 @@ class NaviampCoreCatalogController(
         mediaRegistry.updateLibraryTracks(emptyList(), true)
     }
 
+    /** Keep metadata/database work off the render thread; the editor owns cancellation. */
+    suspend fun syncSmartPlaylistPreview(onProgress: suspend (app.naviamp.domain.library.LibrarySyncProgress) -> Unit) =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            fullIndexRefreshMutex.withLock {
+                val provider = providerSource.current() ?: throw IllegalStateException(SearchDisconnectedStatus)
+                val sourceId = activeLibrarySourceId() ?: throw IllegalStateException(SearchDisconnectedStatus)
+                val repository = checkNotNull(libraryIndex)
+                app.naviamp.domain.library.syncSmartPlaylistPreviewTracks(sourceId, provider, repository) { progress ->
+                    if (!providerSource.isCurrent(provider) || activeLibrarySourceId() != sourceId) {
+                        throw CancellationException("Library source changed during preview sync")
+                    }
+                    onProgress(progress)
+                    if (!providerSource.isCurrent(provider) || activeLibrarySourceId() != sourceId) {
+                        throw CancellationException("Library source changed during preview sync")
+                    }
+                }
+                Unit
+            }
+        }
+
     /** Explicit local-data refresh, including the tracks consumed by smart-playlist previews. */
     suspend fun refreshLocalLibraryIndex() = fullIndexRefreshMutex.withLock {
         val repository = libraryIndex
@@ -369,7 +389,7 @@ class NaviampCoreCatalogController(
         val sourceKey = provider.id.value to provider.cacheNamespace
         fun current() = isCurrentLibraryLoad(load, generation, sourceKey) && sourceId == activeLibrarySourceId()
         load.loadingGeneration = generation
-        publishLibraryStatus(view, "Refreshing library…", loading = true)
+        publishLibraryStatus(view, "Refreshing libraryâ€¦", loading = true)
         try {
             val artists = provider.loadCompleteArtistLibrary()
             if (!current()) return

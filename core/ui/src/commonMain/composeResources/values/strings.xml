@@ -1177,4 +1177,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (oldest first)</string>
     <string name="smart_playlist_summary_libraries">Libraries: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">The local cache is missing library membership for some tracks, so this playlist’s library filter cannot be previewed safely. Choose Sync library to update the metadata. If it remains unavailable, the server has not supplied the required information; the saved playlist still runs on the server.</string>
+    <string name="smart_playlist_sync_tracks">Track metadata synced: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d of %2$d tracks synced</string>
+    <string name="smart_playlist_sync_albums">Finding albums: %1$d</string>
+    <string name="smart_playlist_sync_stop">Stop sync</string>
+    <string name="smart_playlist_sync_stopped">Sync stopped. Your playlist has not changed.</string>
 </resources>

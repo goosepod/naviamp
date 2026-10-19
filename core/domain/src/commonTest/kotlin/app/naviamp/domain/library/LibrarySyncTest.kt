@@ -26,6 +26,70 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LibrarySyncTest {
+    private fun previewTrack(id: String) = Track(TrackId(id), "Song", artistName = "Artist", albumTitle = null, durationSeconds = 60,
+        coverArtId = null, audioInfo = null, replayGain = null,
+        musicFolderId = "1")
+
+    @Test fun previewSyncOnlyLoadsTracksReportsTotalsAndPrunesAfterSuccess() = kotlinx.coroutines.test.runTest {
+        val repository = FakeLibraryIndexRepository()
+        repository.tracks += previewTrack("stale").copy(musicFolderId = null)
+        val events = mutableListOf<LibrarySyncProgress>()
+        var requests = 0
+        val provider = object : MediaProvider by FakeLibraryProvider() {
+            override suspend fun artists(limit: Int): List<Artist> = error("Preview must not load artists")
+            override suspend fun albumsPage(request: app.naviamp.domain.provider.MediaPageRequest): app.naviamp.domain.provider.MediaPage<Album> = error("Preview must not load albums when tracks are available")
+            override suspend fun genres(limit: Int): List<Genre> = error("Preview must not load genres")
+            override suspend fun libraryTracksPage(request: app.naviamp.domain.provider.MediaPageRequest): app.naviamp.domain.provider.MediaPage<Track> {
+                requests++
+                return app.naviamp.domain.provider.MediaPage(listOf(previewTrack("$requests")), request.offset, request.limit,
+                    hasMore = requests == 1, nextContinuationToken = if (requests == 1) "next" else null, totalItemCount = 2)
+            }
+        }
+        assertEquals(2, syncSmartPlaylistPreviewTracks("source", provider, repository, events::add))
+        assertEquals(0, events.first().trackCount)
+        assertEquals(listOf(1, 2), events.filter { it.total == 2 }.map { it.trackCount })
+        assertEquals(setOf(TrackId("1"), TrackId("2")), repository.pruned)
+        assertEquals(listOf("1", "2"), repository.tracks.map { it.id.value })
+        assertTrue(!repository.syncStarted && !repository.syncCompleted)
+        assertEquals(null, repository.checkedScanSignature)
+    }
+
+    @Test fun failedCancelledAndTruncatedPreviewSyncNeverPrune() = kotlinx.coroutines.test.runTest {
+        for (mode in listOf("error", "cancel", "truncated")) {
+            val repository = FakeLibraryIndexRepository()
+            repository.tracks += previewTrack("previous")
+            var requests = 0
+            val provider = object : MediaProvider by FakeLibraryProvider() {
+                override suspend fun libraryTracksPage(request: app.naviamp.domain.provider.MediaPageRequest): app.naviamp.domain.provider.MediaPage<Track> {
+                    requests++
+                    if (requests == 2) {
+                        if (mode == "cancel") throw kotlinx.coroutines.CancellationException("Stopped")
+                        error("Connection failed")
+                    }
+                    return app.naviamp.domain.provider.MediaPage(listOf(previewTrack("new")), 0, request.limit,
+                        hasMore = mode != "truncated", totalItemCount = 2)
+                }
+            }
+            kotlin.test.assertFails { syncSmartPlaylistPreviewTracks("source", provider, repository) }
+            assertEquals(null, repository.pruned)
+            assertTrue(repository.tracks.any { it.id.value == "previous" })
+        }
+    }
+
+    @Test fun previewFallbackLoadsAlbumTracksWithoutArtistOrGenreRefresh() = kotlinx.coroutines.test.runTest {
+        val repository = FakeLibraryIndexRepository()
+        val provider = object : MediaProvider by FakeLibraryProvider(albums = listOf(album("fallback")),
+            tracksByAlbum = mapOf(AlbumId("fallback") to listOf(previewTrack("fallback")))) {
+            override suspend fun artists(limit: Int): List<Artist> = error("Unnecessary artist lookup")
+            override suspend fun genres(limit: Int): List<Genre> = error("Unnecessary genre lookup")
+        }
+        val events = mutableListOf<LibrarySyncProgress>()
+        syncSmartPlaylistPreviewTracks("source", provider, repository, events::add)
+        assertTrue(events.any { it.phase == LibrarySyncProgressPhase.LoadingAlbums })
+        assertTrue(repository.tracks.isNotEmpty())
+        assertEquals(repository.tracks.map { it.id }.toSet(), repository.pruned)
+    }
+
     @Test fun bulkTrackSyncUsesPagesWithoutAlbumDetailRequests() = kotlinx.coroutines.test.runTest {
         val repository = FakeLibraryIndexRepository()
         var pages = 0
@@ -218,6 +282,12 @@ class LibrarySyncTest {
         override fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) {
             if (albums.size == 1) trackDetailAlbumWrites += 1
             this.albums += albums
+        }
+
+        var pruned: Set<TrackId>? = null
+        override fun pruneLibraryTracks(sourceId: String, retainedIds: Set<TrackId>) {
+            pruned = retainedIds.toSet()
+            tracks.removeAll { it.id !in retainedIds }
         }
 
         override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {

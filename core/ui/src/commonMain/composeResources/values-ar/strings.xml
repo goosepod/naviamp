@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (الأقدم أولاً)</string>
     <string name="smart_playlist_summary_libraries">المكتبات: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">تفتقر الذاكرة المحلية إلى معلومات مكتبة بعض المقاطع، لذا لا يمكن معاينة هذا المرشح بدقة. اختر مزامنة المكتبة لتحديث البيانات. إذا استمرت المشكلة، فالسيرفر لم يوفر المعلومات المطلوبة؛ وتستمر قائمة التشغيل المحفوظة بالعمل على السيرفر.</string>
+    <string name="smart_playlist_sync_tracks">بيانات المقاطع التي تمت مزامنتها: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">تمت مزامنة %1$d من %2$d مقطع</string>
+    <string name="smart_playlist_sync_albums">جارٍ البحث عن الألبومات: %1$d</string>
+    <string name="smart_playlist_sync_stop">إيقاف المزامنة</string>
+    <string name="smart_playlist_sync_stopped">توقفت المزامنة. لم تتغير قائمة التشغيل.</string>
 </resources>

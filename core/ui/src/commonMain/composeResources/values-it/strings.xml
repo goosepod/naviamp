@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (più vecchi prima)</string>
     <string name="smart_playlist_summary_libraries">Librerie: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">Nella cache locale manca la libreria di alcuni brani, quindi il filtro non può essere verificato in modo affidabile. Scegli Sincronizza libreria. Se il problema persiste, il server non ha fornito questi dati; la playlist salvata continua a funzionare sul server.</string>
+    <string name="smart_playlist_sync_tracks">Metadati dei brani sincronizzati: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d di %2$d brani sincronizzati</string>
+    <string name="smart_playlist_sync_albums">Ricerca album: %1$d</string>
+    <string name="smart_playlist_sync_stop">Interrompi sincronizzazione</string>
+    <string name="smart_playlist_sync_stopped">Sincronizzazione interrotta. La playlist non è cambiata.</string>
 </resources>

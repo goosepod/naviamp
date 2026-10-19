@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s（从旧到新）</string>
     <string name="smart_playlist_summary_libraries">音乐库：%1$s</string>
     <string name="smart_playlist_preview_library_metadata">本地缓存缺少部分歌曲所属的音乐库信息，因此无法可靠地预览此筛选条件。请选择“同步音乐库”来更新。如果仍不可用，说明服务器未提供所需信息；已保存的播放列表仍会在服务器上运行。</string>
+    <string name="smart_playlist_sync_tracks">已同步歌曲元数据：%1$d</string>
+    <string name="smart_playlist_sync_tracks_total">已同步 %1$d 首，共 %2$d 首</string>
+    <string name="smart_playlist_sync_albums">正在查找专辑：%1$d</string>
+    <string name="smart_playlist_sync_stop">停止同步</string>
+    <string name="smart_playlist_sync_stopped">同步已停止。播放列表未更改。</string>
 </resources>

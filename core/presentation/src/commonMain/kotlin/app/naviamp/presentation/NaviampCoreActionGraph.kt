@@ -75,7 +75,7 @@ fun createNaviampCoreActions(
         onReferences = {
             (handler.execute(NaviampCoreCommand.SmartPlaylist.References) as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded).references
         },
-        onSyncLibrary = { handler.execute(NaviampCoreCommand.Settings.RefreshLibrary) },
+        onSyncLibrary = { progress -> handler.execute(NaviampCoreCommand.SmartPlaylist.SyncLibrary(progress)) },
         onPreview = ::previewSmartPlaylist,
         onSave = { definition -> handler.execute(NaviampCoreCommand.SmartPlaylist.Save(definition)) },
         onUpdate = { playlist, definition ->

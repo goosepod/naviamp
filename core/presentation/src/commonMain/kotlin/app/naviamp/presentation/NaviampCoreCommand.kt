@@ -146,6 +146,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface SmartPlaylist : NaviampCoreCommand {
+        data class SyncLibrary(val onProgress: suspend (app.naviamp.domain.library.LibrarySyncProgress) -> Unit) : SmartPlaylist
         data object References : SmartPlaylist
         data class Preview(val definition: SmartPlaylistDefinition) : SmartPlaylist
         data class Save(val definition: SmartPlaylistDefinition, val password: String? = null) : SmartPlaylist

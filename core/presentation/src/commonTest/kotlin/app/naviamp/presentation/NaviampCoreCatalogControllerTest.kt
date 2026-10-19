@@ -28,6 +28,7 @@ import app.naviamp.domain.provider.ProviderCapabilities
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import app.naviamp.ui.NaviampLibraryView
@@ -41,6 +42,30 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreCatalogControllerTest {
+    @Test fun previewSyncRejectsSourceChangesBeforePruningAndRunsOffTheRenderDispatcher() = runTest {
+        val started = CompletableDeferred<Unit>()
+        val proceed = CompletableDeferred<Unit>()
+        val repository = CatalogIndexRepository()
+        val provider = object : MediaProvider by CatalogTestProvider() {
+            override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track> {
+                assertEquals(kotlinx.coroutines.Dispatchers.Default,
+                    kotlinx.coroutines.currentCoroutineContext()[kotlin.coroutines.ContinuationInterceptor])
+                started.complete(Unit)
+                proceed.await()
+                return MediaPage(emptyList(), request.offset, request.limit, false)
+            }
+        }
+        val store = NaviampCoreStateStore()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "source")) }
+        val controller = NaviampCoreCatalogController(store, { provider }, libraryIndex = repository)
+        val job = async { controller.syncSmartPlaylistPreview {} }
+        started.await()
+        store.updateShell { it.copy(connectionSettings = it.connectionSettings.copy(currentSourceId = "other")) }
+        proceed.complete(Unit)
+        assertFailsWith<kotlinx.coroutines.CancellationException> { job.await() }
+        assertFalse(repository.pruned)
+    }
+
     @Test
     fun explicitAlbumRefreshDuringQueryUpdatesTheBrowseCacheWithoutCachingSearchResults() = runTest {
         val snapshots = mutableMapOf<app.naviamp.domain.library.AlbumCatalogScope, app.naviamp.domain.library.AlbumCatalogSnapshot>()
@@ -61,7 +86,7 @@ class NaviampCoreCatalogControllerTest {
             }
             override suspend fun searchAlbumsPage(query: String, request: MediaPageRequest): MediaPage<Album> {
                 searchRequests++
-                return MediaPage(listOf(Album(AlbumId("match"), "Rüfüs EP", "RÜFÜS DU SOL", null, null)),
+                return MediaPage(listOf(Album(AlbumId("match"), "RÃ¼fÃ¼s EP", "RÃœFÃœS DU SOL", null, null)),
                     0, request.limit, false)
             }
         }
@@ -94,7 +119,7 @@ class NaviampCoreCatalogControllerTest {
         val provider = object : MediaProvider by CatalogTestProvider() {
             override suspend fun searchArtistsPage(query: String, request: MediaPageRequest): MediaPage<Artist> {
                 requests += query to request.offset
-                val artist = if (request.offset == 0) Artist(ArtistId("accented"), "RÜFÜS DU SOL")
+                val artist = if (request.offset == 0) Artist(ArtistId("accented"), "RÃœFÃœS DU SOL")
                     else Artist(ArtistId("alias"), "An alias known only to the server")
                 return MediaPage(listOf(artist), request.offset, request.limit, request.offset == 0)
             }
@@ -108,7 +133,7 @@ class NaviampCoreCatalogControllerTest {
         controller.execute(query)
         assertEquals("Rufus", store.state.value.shell.library.artists.resultsQuery)
         controller.execute(NaviampCoreCommand.Library.LoadMore)
-        assertEquals(listOf("RÜFÜS DU SOL", "An alias known only to the server"),
+        assertEquals(listOf("RÃœFÃœS DU SOL", "An alias known only to the server"),
             store.state.value.shell.library.artists.items.map { it.title })
         assertEquals("Rufus", store.state.value.shell.library.artists.resultsQuery)
         assertEquals(listOf("Rufus" to 0, "Rufus" to 1), requests)
@@ -637,7 +662,7 @@ class NaviampCoreCatalogControllerTest {
 
     @Test
     fun albumFallbackJumpContinuesPastUnicodeSymbolsAndNumbers() = runTest {
-        val titles = listOf("’90s Rock Essentials", "25", "G I R L")
+        val titles = listOf("â€™90s Rock Essentials", "25", "G I R L")
         val offsets = mutableListOf<Int>()
         val provider = object : MediaProvider by CatalogTestProvider() {
             override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> {
@@ -663,7 +688,7 @@ class NaviampCoreCatalogControllerTest {
 
     @Test
     fun albumFallbackDoesNotMistakeArticleSortedTitlesForTheRequestedRange() = runTest {
-        val titles = listOf("25", "Les Années 80", "The Aquabats!", "Another Album", "G I R L", "Generationwhy")
+        val titles = listOf("25", "Les AnnÃ©es 80", "The Aquabats!", "Another Album", "G I R L", "Generationwhy")
         val offsets = mutableListOf<Int>()
         val provider = object : MediaProvider by CatalogTestProvider() {
             override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> {
@@ -1138,6 +1163,8 @@ private class CatalogTestProvider(
             this.albums += albums
         }
 
+        var pruned = false
+        override fun pruneLibraryTracks(sourceId: String, retainedIds: Set<TrackId>) { pruned = true }
         override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {
             this.tracks += tracks
         }

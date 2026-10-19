@@ -543,9 +543,11 @@ data class NaviampPlaylistsScreenUi(
     val genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
 )
 
+typealias NaviampSmartPlaylistSync = suspend (suspend (app.naviamp.domain.library.LibrarySyncProgress) -> Unit) -> Unit
+
 data class NaviampSmartPlaylistActions(
     val onReferences: suspend () -> List<app.naviamp.domain.smartplaylist.SmartPlaylistReference> = { emptyList() },
-    val onSyncLibrary: (suspend () -> Unit)? = null,
+    val onSyncLibrary: NaviampSmartPlaylistSync? = null,
     val onPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview = {
         app.naviamp.domain.smartplaylist.SmartPlaylistPreview(message = "Preview is unavailable.")
     },

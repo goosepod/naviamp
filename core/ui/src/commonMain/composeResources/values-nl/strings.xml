@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (oudste eerst)</string>
     <string name="smart_playlist_summary_libraries">Bibliotheken: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">Bij sommige nummers ontbreekt de bibliotheek in de lokale cache. Daardoor kan dit filter niet betrouwbaar worden bekeken. Kies Bibliotheek synchroniseren. Blijft het probleem bestaan, dan levert de server deze gegevens niet; de opgeslagen afspeellijst blijft op de server werken.</string>
+    <string name="smart_playlist_sync_tracks">Nummermetadata gesynchroniseerd: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d van %2$d nummers gesynchroniseerd</string>
+    <string name="smart_playlist_sync_albums">Albums zoeken: %1$d</string>
+    <string name="smart_playlist_sync_stop">Synchronisatie stoppen</string>
+    <string name="smart_playlist_sync_stopped">Synchronisatie gestopt. Je afspeellijst is niet gewijzigd.</string>
 </resources>

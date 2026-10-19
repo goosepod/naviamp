@@ -26,6 +26,69 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampSmartPlaylistValidationUiTest {
+    @Test fun syncShowsRealCountsCanBeStoppedAndCanRetryWithoutChangingDraft() = runComposeUiTest {
+        var started = 0
+        var stopped = false
+        val draft = SmartPlaylistDraft(name = "Keep this draft", conditions = listOf(SmartPlaylistConditionDraft(value = "Artist")))
+        setContent {
+            SmartPlaylistBuilderDialog(NaviampColors(), draft, onSyncLibrary = { progress ->
+                started++
+                if (started == 1) {
+                    try {
+                        progress(app.naviamp.domain.library.LibrarySyncProgress(
+                            app.naviamp.domain.library.LibrarySyncProgressPhase.LoadingTracks, trackCount = 500, total = 2000))
+                        kotlinx.coroutines.awaitCancellation()
+                    } finally { stopped = true }
+                }
+            }, onDismissRequest = {}, onSave = {})
+        }
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) { started == 1 }
+        onNodeWithText("500 of 2000 tracks synced").performScrollTo().assertExists()
+        onNodeWithTag("smart-playlist-sync-library").assertIsNotEnabled()
+        onNodeWithTag("smart-playlist-stop-sync").performScrollTo()
+        mainClock.advanceTimeBy(500)
+        waitForIdle()
+        val output = File("build/reports/smart-playlist-sync-progress.png")
+        output.parentFile.mkdirs()
+        org.jetbrains.skia.Image.makeFromBitmap(onNodeWithTag("smart-playlist-sync-progress").captureToImage().asSkiaBitmap()).use {
+            output.writeBytes(requireNotNull(it.encodeToData()).bytes)
+        }
+        onNodeWithTag("smart-playlist-stop-sync").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) { stopped }
+        onNodeWithText("Sync stopped. Your playlist has not changed.").performScrollTo().assertExists()
+        onNodeWithText("Keep this draft").performScrollTo().assertExists()
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().assertIsEnabled().performClick()
+        waitUntil(timeoutMillis = 5_000) { started == 2 }
+        onNodeWithTag("smart-playlist-sync-progress").assertDoesNotExist()
+    }
+
+    @Test fun syncFailureIsVisibleAndRetryRestoresPreview() = runComposeUiTest {
+        var attempts = 0
+        var synced = false
+        setContent {
+            SmartPlaylistBuilderDialog(NaviampColors(), SmartPlaylistDraft(name = "Retry", conditions = listOf(SmartPlaylistConditionDraft(value = "Artist"))),
+                onSyncLibrary = { progress ->
+                    attempts++
+                    progress(app.naviamp.domain.library.LibrarySyncProgress(app.naviamp.domain.library.LibrarySyncProgressPhase.LoadingTracks))
+                    if (attempts == 1) error("Offline")
+                    synced = true
+                }, onPreview = {
+                    if (synced) SmartPlaylistPreview(matchingTrackCount = 1, resultTrackCount = 1, exampleTracks = listOf(track("retried")))
+                    else SmartPlaylistPreview(indexedTrackCount = 0)
+                }, onDismissRequest = {}, onSave = {})
+        }
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) { attempts == 1 }
+        onNodeWithText("Library sync failed. Try syncing again.").performScrollTo().assertExists()
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) {
+            onAllNodes(androidx.compose.ui.test.hasTestTag("smart-playlist-example-retried")).fetchSemanticsNodes().isNotEmpty()
+        }
+        onNodeWithTag("smart-playlist-example-retried").performScrollTo().assertExists()
+        onNodeWithText("Library sync failed. Try syncing again.").assertDoesNotExist()
+    }
+
     private fun invalidRating() = SmartPlaylistConditionDraft(
         field = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Rating },
         operator = SmartPlaylistOperator.Is,

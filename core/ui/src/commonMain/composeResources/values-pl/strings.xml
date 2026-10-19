@@ -441,4 +441,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (najstarsze najpierw)</string>
     <string name="smart_playlist_summary_libraries">Biblioteki: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">W lokalnej pamięci podręcznej brakuje przypisania niektórych utworów do bibliotek. Nie można wiarygodnie wyświetlić podglądu tego filtra. Wybierz Synchronizuj bibliotekę. Jeśli problem pozostanie, serwer nie udostępnia tych danych; zapisana playlista nadal działa na serwerze.</string>
+    <string name="smart_playlist_sync_tracks">Zsynchronizowane metadane utworów: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">Zsynchronizowano %1$d z %2$d utworów</string>
+    <string name="smart_playlist_sync_albums">Wyszukiwanie albumów: %1$d</string>
+    <string name="smart_playlist_sync_stop">Zatrzymaj synchronizację</string>
+    <string name="smart_playlist_sync_stopped">Synchronizacja zatrzymana. Playlista nie została zmieniona.</string>
 </resources>

@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (en eski önce)</string>
     <string name="smart_playlist_summary_libraries">Kitaplıklar: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">Yerel önbellekte bazı parçaların kitaplık bilgisi eksik olduğundan bu filtre güvenilir biçimde önizlenemiyor. Kitaplığı eşitle seçeneğini kullanın. Sorun sürerse sunucu gerekli bilgiyi sağlamamıştır; kayıtlı çalma listesi sunucuda çalışmaya devam eder.</string>
+    <string name="smart_playlist_sync_tracks">Eşitlenen parça bilgileri: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%2$d parçanın %1$d tanesi eşitlendi</string>
+    <string name="smart_playlist_sync_albums">Albümler bulunuyor: %1$d</string>
+    <string name="smart_playlist_sync_stop">Eşitlemeyi durdur</string>
+    <string name="smart_playlist_sync_stopped">Eşitleme durduruldu. Çalma listeniz değişmedi.</string>
 </resources>

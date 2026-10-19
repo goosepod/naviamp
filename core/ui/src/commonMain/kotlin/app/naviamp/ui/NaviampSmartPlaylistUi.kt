@@ -23,6 +23,11 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.LinearProgressIndicator
+import app.naviamp.domain.library.LibrarySyncProgress
+import app.naviamp.domain.library.LibrarySyncProgressPhase
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -101,7 +106,7 @@ fun SmartPlaylistBuilderDialog(
     onPreview: suspend (SmartPlaylistDefinition) -> SmartPlaylistPreview = {
         SmartPlaylistPreview(message = "Preview is not available for this connection.")
     },
-    onSyncLibrary: (suspend () -> Unit)? = null,
+    onSyncLibrary: NaviampSmartPlaylistSync? = null,
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
@@ -132,6 +137,9 @@ fun SmartPlaylistBuilderDialog(
     var livePreview by remember { mutableStateOf<SmartPlaylistPreview?>(null) }
     var previewLoading by remember { mutableStateOf(false) }
     var librarySyncing by remember { mutableStateOf(false) }
+    var librarySyncProgress by remember { mutableStateOf<LibrarySyncProgress?>(null) }
+    var librarySyncJob by remember { mutableStateOf<Job?>(null) }
+    var librarySyncStopped by remember { mutableStateOf(false) }
     var librarySyncFailed by remember { mutableStateOf(false) }
     var previewRevision by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
@@ -186,7 +194,7 @@ fun SmartPlaylistBuilderDialog(
     NaviampPopupPresence()
 
     NaviampAlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { librarySyncJob?.cancel(); onDismissRequest() },
         title = { Text(title) },
         text = {
             Column(
@@ -278,9 +286,14 @@ fun SmartPlaylistBuilderDialog(
                             if (!librarySyncing) {
                                 librarySyncing = true
                                 librarySyncFailed = false
-                                coroutineScope.launch {
+                                librarySyncStopped = false
+                                librarySyncProgress = null
+                                librarySyncJob = coroutineScope.launch {
                                     try {
-                                        onSyncLibrary()
+                                        val editorContext = currentCoroutineContext()
+                                        onSyncLibrary { progress ->
+                                            withContext(editorContext) { librarySyncProgress = progress }
+                                        }
                                         currentCoroutineContext().ensureActive()
                                         previewRevision++
                                     } catch (error: CancellationException) {
@@ -295,6 +308,35 @@ fun SmartPlaylistBuilderDialog(
                         },
                     ) {
                         Text(stringResource(if (librarySyncing) Res.string.smart_playlist_sync_running else Res.string.smart_playlist_sync_library))
+                    }
+                    if (librarySyncing) {
+                        val progress = librarySyncProgress
+                        val count = progress?.trackCount ?: 0
+                        val total = progress?.total?.takeIf { it > 0 }
+                        val label = when {
+                            progress?.phase == LibrarySyncProgressPhase.LoadingAlbums ->
+                                stringResource(Res.string.smart_playlist_sync_albums, progress.albumCount)
+                            total != null -> stringResource(Res.string.smart_playlist_sync_tracks_total, count, total)
+                            else -> stringResource(Res.string.smart_playlist_sync_tracks, count)
+                        }
+                        Column(Modifier.fillMaxWidth().testTag("smart-playlist-sync-progress")
+                            .semantics { liveRegion = LiveRegionMode.Polite }) {
+                            Text(label, color = colors.secondaryText, fontSize = 12.sp)
+                            if (total != null) {
+                                LinearProgressIndicator(progress = { (count.toFloat() / total).coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth(), color = colors.accent,
+                                    trackColor = colors.mutedText.copy(alpha = 0.25f))
+                            }
+                            TextButton(onClick = {
+                                librarySyncStopped = true
+                                librarySyncJob?.cancel()
+                            }, modifier = Modifier.testTag("smart-playlist-stop-sync")) {
+                                Text(stringResource(Res.string.smart_playlist_sync_stop))
+                            }
+                        }
+                    }
+                    if (librarySyncStopped && !librarySyncing) {
+                        Text(stringResource(Res.string.smart_playlist_sync_stopped), color = colors.secondaryText, fontSize = 12.sp)
                     }
                     if (librarySyncFailed) {
                         Text(

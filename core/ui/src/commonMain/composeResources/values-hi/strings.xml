@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (सबसे पुराने पहले)</string>
     <string name="smart_playlist_summary_libraries">लाइब्रेरी: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">स्थानीय कैश में कुछ गानों की लाइब्रेरी की जानकारी नहीं है, इसलिए इस फ़िल्टर का भरोसेमंद पूर्वावलोकन संभव नहीं है। लाइब्रेरी सिंक करें चुनें। समस्या बनी रहने पर सर्वर ने ज़रूरी जानकारी नहीं दी है; सहेजी गई प्लेलिस्ट सर्वर पर चलती रहेगी।</string>
+    <string name="smart_playlist_sync_tracks">सिंक किए गए गानों का मेटाडेटा: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%2$d में से %1$d गाने सिंक हुए</string>
+    <string name="smart_playlist_sync_albums">एल्बम खोजे जा रहे हैं: %1$d</string>
+    <string name="smart_playlist_sync_stop">सिंक रोकें</string>
+    <string name="smart_playlist_sync_stopped">सिंक रोक दिया गया। आपकी प्लेलिस्ट नहीं बदली है।</string>
 </resources>

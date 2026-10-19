@@ -322,4 +322,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (спочатку старі)</string>
     <string name="smart_playlist_summary_libraries">Бібліотеки: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">У локальному кеші бракує даних про бібліотеку деяких треків, тому надійний попередній перегляд фільтра неможливий. Виберіть Синхронізувати бібліотеку. Якщо проблема залишиться, сервер не надав цих даних; збережений плейлист і далі працює на сервері.</string>
+    <string name="smart_playlist_sync_tracks">Синхронізовано метаданих треків: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">Синхронізовано %1$d із %2$d треків</string>
+    <string name="smart_playlist_sync_albums">Пошук альбомів: %1$d</string>
+    <string name="smart_playlist_sync_stop">Зупинити синхронізацію</string>
+    <string name="smart_playlist_sync_stopped">Синхронізацію зупинено. Плейлист не змінено.</string>
 </resources>

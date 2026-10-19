@@ -1148,4 +1148,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (älteste zuerst)</string>
     <string name="smart_playlist_summary_libraries">Bibliotheken: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">Im lokalen Cache fehlen Bibliothekszuordnungen einiger Titel. Daher kann der Bibliotheksfilter nicht zuverlässig geprüft werden. Wähle Bibliothek synchronisieren. Fehlen die Daten danach weiterhin, liefert der Server sie nicht; die gespeicherte Wiedergabeliste funktioniert weiterhin auf dem Server.</string>
+    <string name="smart_playlist_sync_tracks">Titelmetadaten synchronisiert: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d von %2$d Titeln synchronisiert</string>
+    <string name="smart_playlist_sync_albums">Alben suchen: %1$d</string>
+    <string name="smart_playlist_sync_stop">Synchronisierung stoppen</string>
+    <string name="smart_playlist_sync_stopped">Synchronisierung gestoppt. Deine Wiedergabeliste wurde nicht geändert.</string>
 </resources>

@@ -1152,4 +1152,9 @@
     <string name="smart_playlist_summary_oldest">%1$s (más antiguo primero)</string>
     <string name="smart_playlist_summary_libraries">Bibliotecas: %1$s</string>
     <string name="smart_playlist_preview_library_metadata">La caché local no indica la biblioteca de algunas pistas, por lo que no se puede previsualizar este filtro con seguridad. Pulsa Sincronizar biblioteca. Si sigue sin estar disponible, el servidor no ha proporcionado esos datos; la lista guardada sigue funcionando en el servidor.</string>
+    <string name="smart_playlist_sync_tracks">Metadatos de pistas sincronizados: %1$d</string>
+    <string name="smart_playlist_sync_tracks_total">%1$d de %2$d pistas sincronizadas</string>
+    <string name="smart_playlist_sync_albums">Buscando álbumes: %1$d</string>
+    <string name="smart_playlist_sync_stop">Detener sincronización</string>
+    <string name="smart_playlist_sync_stopped">Sincronización detenida. La lista no ha cambiado.</string>
 </resources>
