@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">Вид альбомов с участием исполнителя</string>
     <string name="settings_media_layout_list">Список</string>
     <string name="settings_media_layout_grid">Сетка</string>
+    <string name="smart_playlist_summary_favorites">Избранные треки</string>
+    <string name="smart_playlist_summary_non_favorites">Треки, не отмеченные как избранные</string>
+    <string name="smart_playlist_summary_favorite_albums">Треки из избранных альбомов</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Треки из неизбранных альбомов</string>
+    <string name="smart_playlist_summary_favorite_artists">Треки избранных исполнителей</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Треки неизбранных исполнителей</string>
+    <string name="smart_playlist_summary_artwork">Треки с обложкой</string>
+    <string name="smart_playlist_summary_no_artwork">Треки без обложки</string>
+    <string name="smart_playlist_summary_compilations">Треки из сборников</string>
+    <string name="smart_playlist_summary_non_compilations">Треки не из сборников</string>
+    <string name="smart_playlist_summary_missing_files">Треки с отсутствующими файлами</string>
+    <string name="smart_playlist_summary_available_files">Треки с доступными файлами</string>
+    <string name="smart_playlist_summary_first">Сначала %1$s</string>
+    <string name="smart_playlist_summary_az">%1$s (А–Я)</string>
+    <string name="smart_playlist_summary_za">%1$s (Я–А)</string>
+    <string name="smart_playlist_summary_highest">%1$s (сначала большие значения)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (сначала меньшие значения)</string>
+    <string name="smart_playlist_summary_newest">%1$s (сначала новые)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (сначала старые)</string>
+    <string name="smart_playlist_summary_libraries">Библиотеки: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">В локальном кэше нет данных о библиотеке некоторых треков, поэтому надёжный предпросмотр фильтра невозможен. Выберите Синхронизировать библиотеку. Если проблема останется, сервер не предоставил эти данные; сохранённый плейлист продолжает работать на сервере.</string>
 </resources>

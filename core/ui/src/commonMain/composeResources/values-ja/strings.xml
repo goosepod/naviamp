@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">参加アルバムの表示形式</string>
     <string name="settings_media_layout_list">リスト</string>
     <string name="settings_media_layout_grid">グリッド</string>
+    <string name="smart_playlist_summary_favorites">お気に入りの曲</string>
+    <string name="smart_playlist_summary_non_favorites">お気に入りではない曲</string>
+    <string name="smart_playlist_summary_favorite_albums">お気に入りのアルバムの曲</string>
+    <string name="smart_playlist_summary_non_favorite_albums">お気に入りではないアルバムの曲</string>
+    <string name="smart_playlist_summary_favorite_artists">お気に入りのアーティストの曲</string>
+    <string name="smart_playlist_summary_non_favorite_artists">お気に入りではないアーティストの曲</string>
+    <string name="smart_playlist_summary_artwork">アートワークがある曲</string>
+    <string name="smart_playlist_summary_no_artwork">アートワークがない曲</string>
+    <string name="smart_playlist_summary_compilations">コンピレーションの曲</string>
+    <string name="smart_playlist_summary_non_compilations">コンピレーション以外の曲</string>
+    <string name="smart_playlist_summary_missing_files">ファイルが見つからない曲</string>
+    <string name="smart_playlist_summary_available_files">ファイルが利用可能な曲</string>
+    <string name="smart_playlist_summary_first">%1$sを優先</string>
+    <string name="smart_playlist_summary_az">%1$s（A–Z）</string>
+    <string name="smart_playlist_summary_za">%1$s（Z–A）</string>
+    <string name="smart_playlist_summary_highest">%1$s（大きい順）</string>
+    <string name="smart_playlist_summary_lowest">%1$s（小さい順）</string>
+    <string name="smart_playlist_summary_newest">%1$s（新しい順）</string>
+    <string name="smart_playlist_summary_oldest">%1$s（古い順）</string>
+    <string name="smart_playlist_summary_libraries">ライブラリ：%1$s</string>
+    <string name="smart_playlist_preview_library_metadata">一部の曲の所属ライブラリがローカルキャッシュにないため、このフィルターを正確にプレビューできません。「ライブラリを同期」で更新してください。解決しない場合、サーバーが必要な情報を提供していません。保存済みプレイリストは引き続きサーバーで実行されます。</string>
 </resources>

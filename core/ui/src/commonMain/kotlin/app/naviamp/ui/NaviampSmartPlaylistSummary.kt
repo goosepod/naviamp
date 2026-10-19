@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import app.naviamp.domain.smartplaylist.*
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -17,21 +18,30 @@ internal fun SmartPlaylistSummarySection(
     definition: SmartPlaylistDefinition,
     colors: NaviampColors,
     references: List<SmartPlaylistReference> = emptyList(),
+    libraries: List<ConnectionFormMusicFolder> = emptyList(),
 ) {
     Column(Modifier.testTag("smart-playlist-summary"), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(stringResource(Res.string.smart_playlist_summary), color = colors.primaryText)
-        Text(matchSummary(definition.match, definition.rules.map { ruleSummary(it, references) }.joinToString("; ")),
+        val rules = definition.rules.map { ruleSummary(it, references) }
+        Text(if (rules.size == 1) rules.single() else matchSummary(definition.match, rules.joinToString("; ")),
             color = colors.secondaryText)
         if (definition.sort.isNotEmpty()) {
             Text(stringResource(Res.string.smart_playlist_summary_sort,
                 definition.sort.mapIndexed { index, sort ->
                     val field = SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == sort.field }
                     val label = field?.let { smartPlaylistFieldLabel(it) } ?: sort.field
-                    val direction = if (sort.field == SmartPlaylistFields.Random) label else stringResource(
-                        if (sort.descending) Res.string.smart_playlist_summary_descending else Res.string.smart_playlist_summary_ascending,
-                        label,
-                    )
-                    "${index + 1}. $direction"
+                    val predicate = booleanSummary(sort.field, sort.descending)
+                    val direction = when {
+                        sort.field == SmartPlaylistFields.Random -> label
+                        predicate != null -> stringResource(Res.string.smart_playlist_summary_first, predicate)
+                        field?.valueType == SmartPlaylistValueType.Text -> stringResource(
+                            if (sort.descending) Res.string.smart_playlist_summary_za else Res.string.smart_playlist_summary_az, label)
+                        field?.valueType == SmartPlaylistValueType.Date -> stringResource(
+                            if (sort.descending) Res.string.smart_playlist_summary_newest else Res.string.smart_playlist_summary_oldest, label)
+                        else -> stringResource(
+                            if (sort.descending) Res.string.smart_playlist_summary_highest else Res.string.smart_playlist_summary_lowest, label)
+                    }
+                    if (definition.sort.size == 1) direction else "${index + 1}. $direction"
                 }.joinToString(", ")), color = colors.secondaryText)
         }
         val limit = definition.limit
@@ -41,6 +51,11 @@ internal fun SmartPlaylistSummarySection(
             percent != null -> stringResource(Res.string.smart_playlist_summary_percent, percent)
             else -> stringResource(Res.string.smart_playlist_summary_unlimited)
         }, color = colors.secondaryText)
+        definition.libraryIds?.let { ids ->
+            Text(stringResource(Res.string.smart_playlist_summary_libraries,
+                ids.joinToString { id -> libraries.firstOrNull { it.id == id }?.name ?: id }),
+                color = colors.secondaryText)
+        }
         if (definition.ownerDependentFields().isNotEmpty()) {
             Text(stringResource(Res.string.smart_playlist_owner_notice), color = colors.secondaryText,
                 modifier = Modifier.testTag("smart-playlist-owner-notice"))
@@ -56,7 +71,10 @@ private fun matchSummary(match: SmartPlaylistMatch, rules: String): String = str
 
 @Composable
 private fun ruleSummary(rule: SmartPlaylistRule, references: List<SmartPlaylistReference>): String = when (rule) {
-    is SmartPlaylistGroup -> "(${matchSummary(rule.match, rule.rules.map { ruleSummary(it, references) }.joinToString("; "))})"
+    is SmartPlaylistGroup -> {
+        val children = rule.rules.map { ruleSummary(it, references) }
+        if (children.size == 1) children.single() else "(${matchSummary(rule.match, children.joinToString("; "))})"
+    }
     is SmartPlaylistCondition -> {
         val field = SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == rule.field }
         val label = if (rule.operator == SmartPlaylistOperator.InPlaylist || rule.operator == SmartPlaylistOperator.NotInPlaylist) {
@@ -64,13 +82,29 @@ private fun ruleSummary(rule: SmartPlaylistRule, references: List<SmartPlaylistR
         } else field?.let { smartPlaylistFieldLabel(it) } ?: rule.field
         val operator = rule.summaryOperator()
         val operation = summaryOperatorLabel(operator)
-        if (operator == SmartPlaylistOperator.IsMissing || operator == SmartPlaylistOperator.IsPresent) {
+        val predicate = rule.summaryBooleanValue()?.let { booleanSummary(rule.field, it) }
+        if (predicate != null) predicate
+        else if (operator == SmartPlaylistOperator.IsMissing || operator == SmartPlaylistOperator.IsPresent) {
             stringResource(Res.string.smart_playlist_summary_predicate, label, operation)
         } else {
             stringResource(Res.string.smart_playlist_summary_condition,
                 label, operation, summaryValue(rule.value, rule.field, operator, references))
         }
     }
+}
+
+@Composable
+private fun booleanSummary(field: String, positive: Boolean): String? {
+    val resource = when (field) {
+        SmartPlaylistFields.Loved -> if (positive) Res.string.smart_playlist_summary_favorites else Res.string.smart_playlist_summary_non_favorites
+        SmartPlaylistFields.AlbumLoved -> if (positive) Res.string.smart_playlist_summary_favorite_albums else Res.string.smart_playlist_summary_non_favorite_albums
+        SmartPlaylistFields.ArtistLoved -> if (positive) Res.string.smart_playlist_summary_favorite_artists else Res.string.smart_playlist_summary_non_favorite_artists
+        SmartPlaylistFields.HasCoverArt -> if (positive) Res.string.smart_playlist_summary_artwork else Res.string.smart_playlist_summary_no_artwork
+        SmartPlaylistFields.Compilation -> if (positive) Res.string.smart_playlist_summary_compilations else Res.string.smart_playlist_summary_non_compilations
+        SmartPlaylistFields.Missing -> if (positive) Res.string.smart_playlist_summary_missing_files else Res.string.smart_playlist_summary_available_files
+        else -> return null
+    }
+    return stringResource(resource)
 }
 
 @Composable

@@ -420,4 +420,25 @@
     <string name="settings_artist_appearance_album_layout">Układ albumów z udziałem wykonawcy</string>
     <string name="settings_media_layout_list">Lista</string>
     <string name="settings_media_layout_grid">Siatka</string>
+    <string name="smart_playlist_summary_favorites">Ulubione utwory</string>
+    <string name="smart_playlist_summary_non_favorites">Utwory nieoznaczone jako ulubione</string>
+    <string name="smart_playlist_summary_favorite_albums">Utwory z ulubionych albumów</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Utwory z albumów nieoznaczonych jako ulubione</string>
+    <string name="smart_playlist_summary_favorite_artists">Utwory ulubionych wykonawców</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Utwory wykonawców nieoznaczonych jako ulubieni</string>
+    <string name="smart_playlist_summary_artwork">Utwory z okładką</string>
+    <string name="smart_playlist_summary_no_artwork">Utwory bez okładki</string>
+    <string name="smart_playlist_summary_compilations">Utwory z kompilacji</string>
+    <string name="smart_playlist_summary_non_compilations">Utwory spoza kompilacji</string>
+    <string name="smart_playlist_summary_missing_files">Utwory z brakującymi plikami</string>
+    <string name="smart_playlist_summary_available_files">Utwory z dostępnymi plikami</string>
+    <string name="smart_playlist_summary_first">Najpierw %1$s</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (najwyższe najpierw)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (najniższe najpierw)</string>
+    <string name="smart_playlist_summary_newest">%1$s (najnowsze najpierw)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (najstarsze najpierw)</string>
+    <string name="smart_playlist_summary_libraries">Biblioteki: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">W lokalnej pamięci podręcznej brakuje przypisania niektórych utworów do bibliotek. Nie można wiarygodnie wyświetlić podglądu tego filtra. Wybierz Synchronizuj bibliotekę. Jeśli problem pozostanie, serwer nie udostępnia tych danych; zapisana playlista nadal działa na serwerze.</string>
 </resources>

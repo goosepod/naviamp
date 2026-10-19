@@ -1069,7 +1069,7 @@
     <string name="smart_playlist_preview_count">Synced library matches: %1$d (%2$d after limit).</string>
     <string name="smart_playlist_preview_samples">Example matches from your synced library; these samples do not show the final server order.</string>
     <string name="smart_playlist_preview_empty">No example matches in the synced library.</string>
-    <string name="smart_playlist_preview_unsupported">Preview unavailable for these locally unindexed fields: %1$s.</string>
+    <string name="smart_playlist_preview_unsupported">This preview needs information that is not in the local cache: %1$s. The saved playlist still runs on the server.</string>
     <string name="smart_playlist_sync_library">Sync library</string>
     <string name="smart_playlist_sync_running">Syncing library…</string>
     <string name="smart_playlist_sync_description">Sync library metadata to see matching examples. Audio is not downloaded.</string>
@@ -1083,9 +1083,9 @@
     <string name="radio_instant_mix">Instant Mix</string>
     <string name="radio_status">%1$s: %2$s</string>
     <string name="smart_playlist_summary">Summary</string>
-    <string name="smart_playlist_summary_all">All of: %1$s</string>
-    <string name="smart_playlist_summary_any">Any of: %1$s</string>
-    <string name="smart_playlist_summary_sort">Sort priority: %1$s</string>
+    <string name="smart_playlist_summary_all">Match all of these: %1$s</string>
+    <string name="smart_playlist_summary_any">Match any of these: %1$s</string>
+    <string name="smart_playlist_summary_sort">Sort by: %1$s</string>
     <string name="smart_playlist_summary_tracks">At most %1$d tracks.</string>
     <string name="smart_playlist_summary_percent">%1$d% of matching tracks.</string>
     <string name="smart_playlist_owner_notice">Favorites, ratings and listening history use the playlist owner, even for public playlists. Local preview uses the signed-in account’s indexed data.</string>
@@ -1156,4 +1156,25 @@
     <string name="settings_artist_appearance_album_layout">Appears on album layout</string>
     <string name="settings_media_layout_list">List</string>
     <string name="settings_media_layout_grid">Grid</string>
+    <string name="smart_playlist_summary_favorites">Favorite tracks</string>
+    <string name="smart_playlist_summary_non_favorites">Tracks not marked as favorites</string>
+    <string name="smart_playlist_summary_favorite_albums">Tracks from favorite albums</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Tracks from albums not marked as favorites</string>
+    <string name="smart_playlist_summary_favorite_artists">Tracks by favorite artists</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Tracks by artists not marked as favorites</string>
+    <string name="smart_playlist_summary_artwork">Tracks with artwork</string>
+    <string name="smart_playlist_summary_no_artwork">Tracks without artwork</string>
+    <string name="smart_playlist_summary_compilations">Tracks from compilations</string>
+    <string name="smart_playlist_summary_non_compilations">Tracks not from compilations</string>
+    <string name="smart_playlist_summary_missing_files">Tracks with missing files</string>
+    <string name="smart_playlist_summary_available_files">Tracks with available files</string>
+    <string name="smart_playlist_summary_first">%1$s first</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (highest first)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (lowest first)</string>
+    <string name="smart_playlist_summary_newest">%1$s (newest first)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (oldest first)</string>
+    <string name="smart_playlist_summary_libraries">Libraries: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">The local cache is missing library membership for some tracks, so this playlist’s library filter cannot be previewed safely. Choose Sync library to update the metadata. If it remains unavailable, the server has not supplied the required information; the saved playlist still runs on the server.</string>
 </resources>

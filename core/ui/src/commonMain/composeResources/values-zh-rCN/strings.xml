@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">参与专辑布局</string>
     <string name="settings_media_layout_list">列表</string>
     <string name="settings_media_layout_grid">网格</string>
+    <string name="smart_playlist_summary_favorites">收藏的歌曲</string>
+    <string name="smart_playlist_summary_non_favorites">未收藏的歌曲</string>
+    <string name="smart_playlist_summary_favorite_albums">收藏专辑中的歌曲</string>
+    <string name="smart_playlist_summary_non_favorite_albums">未收藏专辑中的歌曲</string>
+    <string name="smart_playlist_summary_favorite_artists">收藏歌手的歌曲</string>
+    <string name="smart_playlist_summary_non_favorite_artists">未收藏歌手的歌曲</string>
+    <string name="smart_playlist_summary_artwork">有封面的歌曲</string>
+    <string name="smart_playlist_summary_no_artwork">无封面的歌曲</string>
+    <string name="smart_playlist_summary_compilations">合辑中的歌曲</string>
+    <string name="smart_playlist_summary_non_compilations">非合辑中的歌曲</string>
+    <string name="smart_playlist_summary_missing_files">文件缺失的歌曲</string>
+    <string name="smart_playlist_summary_available_files">文件可用的歌曲</string>
+    <string name="smart_playlist_summary_first">%1$s优先</string>
+    <string name="smart_playlist_summary_az">%1$s（A–Z）</string>
+    <string name="smart_playlist_summary_za">%1$s（Z–A）</string>
+    <string name="smart_playlist_summary_highest">%1$s（从高到低）</string>
+    <string name="smart_playlist_summary_lowest">%1$s（从低到高）</string>
+    <string name="smart_playlist_summary_newest">%1$s（从新到旧）</string>
+    <string name="smart_playlist_summary_oldest">%1$s（从旧到新）</string>
+    <string name="smart_playlist_summary_libraries">音乐库：%1$s</string>
+    <string name="smart_playlist_preview_library_metadata">本地缓存缺少部分歌曲所属的音乐库信息，因此无法可靠地预览此筛选条件。请选择“同步音乐库”来更新。如果仍不可用，说明服务器未提供所需信息；已保存的播放列表仍会在服务器上运行。</string>
 </resources>

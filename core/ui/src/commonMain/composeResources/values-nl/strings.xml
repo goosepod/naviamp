@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">Lay-out van albums met gastbijdragen</string>
     <string name="settings_media_layout_list">Lijst</string>
     <string name="settings_media_layout_grid">Raster</string>
+    <string name="smart_playlist_summary_favorites">Favoriete nummers</string>
+    <string name="smart_playlist_summary_non_favorites">Niet als favoriet gemarkeerde nummers</string>
+    <string name="smart_playlist_summary_favorite_albums">Nummers van favoriete albums</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Nummers van niet-favoriete albums</string>
+    <string name="smart_playlist_summary_favorite_artists">Nummers van favoriete artiesten</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Nummers van niet-favoriete artiesten</string>
+    <string name="smart_playlist_summary_artwork">Nummers met hoes</string>
+    <string name="smart_playlist_summary_no_artwork">Nummers zonder hoes</string>
+    <string name="smart_playlist_summary_compilations">Nummers van compilaties</string>
+    <string name="smart_playlist_summary_non_compilations">Nummers buiten compilaties</string>
+    <string name="smart_playlist_summary_missing_files">Nummers met ontbrekende bestanden</string>
+    <string name="smart_playlist_summary_available_files">Nummers met beschikbare bestanden</string>
+    <string name="smart_playlist_summary_first">%1$s eerst</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (hoogste eerst)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (laagste eerst)</string>
+    <string name="smart_playlist_summary_newest">%1$s (nieuwste eerst)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (oudste eerst)</string>
+    <string name="smart_playlist_summary_libraries">Bibliotheken: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">Bij sommige nummers ontbreekt de bibliotheek in de lokale cache. Daardoor kan dit filter niet betrouwbaar worden bekeken. Kies Bibliotheek synchroniseren. Blijft het probleem bestaan, dan levert de server deze gegevens niet; de opgeslagen afspeellijst blijft op de server werken.</string>
 </resources>

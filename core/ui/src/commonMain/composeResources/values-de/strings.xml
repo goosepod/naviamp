@@ -1127,4 +1127,25 @@
     <string name="settings_artist_appearance_album_layout">Layout für Alben mit Beteiligung</string>
     <string name="settings_media_layout_list">Liste</string>
     <string name="settings_media_layout_grid">Raster</string>
+    <string name="smart_playlist_summary_favorites">Lieblingstitel</string>
+    <string name="smart_playlist_summary_non_favorites">Nicht als Favoriten markierte Titel</string>
+    <string name="smart_playlist_summary_favorite_albums">Titel aus Lieblingsalben</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Titel aus nicht favorisierten Alben</string>
+    <string name="smart_playlist_summary_favorite_artists">Titel von Lieblingsinterpreten</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Titel von nicht favorisierten Interpreten</string>
+    <string name="smart_playlist_summary_artwork">Titel mit Cover</string>
+    <string name="smart_playlist_summary_no_artwork">Titel ohne Cover</string>
+    <string name="smart_playlist_summary_compilations">Titel aus Kompilationen</string>
+    <string name="smart_playlist_summary_non_compilations">Titel außerhalb von Kompilationen</string>
+    <string name="smart_playlist_summary_missing_files">Titel mit fehlenden Dateien</string>
+    <string name="smart_playlist_summary_available_files">Titel mit verfügbaren Dateien</string>
+    <string name="smart_playlist_summary_first">%1$s zuerst</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (höchste zuerst)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (niedrigste zuerst)</string>
+    <string name="smart_playlist_summary_newest">%1$s (neueste zuerst)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (älteste zuerst)</string>
+    <string name="smart_playlist_summary_libraries">Bibliotheken: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">Im lokalen Cache fehlen Bibliothekszuordnungen einiger Titel. Daher kann der Bibliotheksfilter nicht zuverlässig geprüft werden. Wähle Bibliothek synchronisieren. Fehlen die Daten danach weiterhin, liefert der Server sie nicht; die gespeicherte Wiedergabeliste funktioniert weiterhin auf dem Server.</string>
 </resources>

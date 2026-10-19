@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">सहभागिता वाले एल्बमों का लेआउट</string>
     <string name="settings_media_layout_list">सूची</string>
     <string name="settings_media_layout_grid">ग्रिड</string>
+    <string name="smart_playlist_summary_favorites">पसंदीदा गाने</string>
+    <string name="smart_playlist_summary_non_favorites">पसंदीदा के रूप में चिह्नित नहीं किए गए गाने</string>
+    <string name="smart_playlist_summary_favorite_albums">पसंदीदा एल्बम के गाने</string>
+    <string name="smart_playlist_summary_non_favorite_albums">गैर-पसंदीदा एल्बम के गाने</string>
+    <string name="smart_playlist_summary_favorite_artists">पसंदीदा कलाकारों के गाने</string>
+    <string name="smart_playlist_summary_non_favorite_artists">गैर-पसंदीदा कलाकारों के गाने</string>
+    <string name="smart_playlist_summary_artwork">कवर वाले गाने</string>
+    <string name="smart_playlist_summary_no_artwork">बिना कवर वाले गाने</string>
+    <string name="smart_playlist_summary_compilations">संकलन के गाने</string>
+    <string name="smart_playlist_summary_non_compilations">संकलन से बाहर के गाने</string>
+    <string name="smart_playlist_summary_missing_files">अनुपलब्ध फ़ाइलों वाले गाने</string>
+    <string name="smart_playlist_summary_available_files">उपलब्ध फ़ाइलों वाले गाने</string>
+    <string name="smart_playlist_summary_first">पहले %1$s</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (सबसे अधिक पहले)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (सबसे कम पहले)</string>
+    <string name="smart_playlist_summary_newest">%1$s (सबसे नए पहले)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (सबसे पुराने पहले)</string>
+    <string name="smart_playlist_summary_libraries">लाइब्रेरी: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">स्थानीय कैश में कुछ गानों की लाइब्रेरी की जानकारी नहीं है, इसलिए इस फ़िल्टर का भरोसेमंद पूर्वावलोकन संभव नहीं है। लाइब्रेरी सिंक करें चुनें। समस्या बनी रहने पर सर्वर ने ज़रूरी जानकारी नहीं दी है; सहेजी गई प्लेलिस्ट सर्वर पर चलती रहेगी।</string>
 </resources>

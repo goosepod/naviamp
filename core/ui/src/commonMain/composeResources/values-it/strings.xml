@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">Layout degli album con partecipazioni</string>
     <string name="settings_media_layout_list">Elenco</string>
     <string name="settings_media_layout_grid">Griglia</string>
+    <string name="smart_playlist_summary_favorites">Brani preferiti</string>
+    <string name="smart_playlist_summary_non_favorites">Brani non contrassegnati come preferiti</string>
+    <string name="smart_playlist_summary_favorite_albums">Brani degli album preferiti</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Brani degli album non preferiti</string>
+    <string name="smart_playlist_summary_favorite_artists">Brani degli artisti preferiti</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Brani degli artisti non preferiti</string>
+    <string name="smart_playlist_summary_artwork">Brani con copertina</string>
+    <string name="smart_playlist_summary_no_artwork">Brani senza copertina</string>
+    <string name="smart_playlist_summary_compilations">Brani di compilation</string>
+    <string name="smart_playlist_summary_non_compilations">Brani non di compilation</string>
+    <string name="smart_playlist_summary_missing_files">Brani con file mancanti</string>
+    <string name="smart_playlist_summary_available_files">Brani con file disponibili</string>
+    <string name="smart_playlist_summary_first">Prima %1$s</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (valori più alti prima)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (valori più bassi prima)</string>
+    <string name="smart_playlist_summary_newest">%1$s (più recenti prima)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (più vecchi prima)</string>
+    <string name="smart_playlist_summary_libraries">Librerie: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">Nella cache locale manca la libreria di alcuni brani, quindi il filtro non può essere verificato in modo affidabile. Scegli Sincronizza libreria. Se il problema persiste, il server non ha fornito questi dati; la playlist salvata continua a funzionare sul server.</string>
 </resources>

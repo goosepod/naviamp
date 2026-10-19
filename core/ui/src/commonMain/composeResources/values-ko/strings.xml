@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">참여 앨범 표시 방식</string>
     <string name="settings_media_layout_list">목록</string>
     <string name="settings_media_layout_grid">그리드</string>
+    <string name="smart_playlist_summary_favorites">즐겨찾는 곡</string>
+    <string name="smart_playlist_summary_non_favorites">즐겨찾기에 없는 곡</string>
+    <string name="smart_playlist_summary_favorite_albums">즐겨찾는 앨범의 곡</string>
+    <string name="smart_playlist_summary_non_favorite_albums">즐겨찾기에 없는 앨범의 곡</string>
+    <string name="smart_playlist_summary_favorite_artists">즐겨찾는 아티스트의 곡</string>
+    <string name="smart_playlist_summary_non_favorite_artists">즐겨찾기에 없는 아티스트의 곡</string>
+    <string name="smart_playlist_summary_artwork">커버가 있는 곡</string>
+    <string name="smart_playlist_summary_no_artwork">커버가 없는 곡</string>
+    <string name="smart_playlist_summary_compilations">컴필레이션의 곡</string>
+    <string name="smart_playlist_summary_non_compilations">컴필레이션이 아닌 곡</string>
+    <string name="smart_playlist_summary_missing_files">파일이 없는 곡</string>
+    <string name="smart_playlist_summary_available_files">파일을 사용할 수 있는 곡</string>
+    <string name="smart_playlist_summary_first">%1$s 먼저</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (높은 순)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (낮은 순)</string>
+    <string name="smart_playlist_summary_newest">%1$s (최신순)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (오래된 순)</string>
+    <string name="smart_playlist_summary_libraries">라이브러리: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">일부 곡의 라이브러리 정보가 로컬 캐시에 없어 이 필터를 정확하게 미리 볼 수 없습니다. 라이브러리 동기화를 선택하세요. 계속 사용할 수 없다면 서버가 필요한 정보를 제공하지 않은 것입니다. 저장된 재생목록은 서버에서 계속 작동합니다.</string>
 </resources>

@@ -3,6 +3,15 @@ package app.naviamp.domain.smartplaylist
 import kotlin.test.*
 
 class SmartPlaylistSummaryTest {
+    @Test fun booleanEqualityAndNegationHaveTheSameReadableMeaning() {
+        for (value in listOf(true, false)) {
+            val rule = SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.Loved, SmartPlaylistValue.Flag(value))
+            assertEquals(value, rule.summaryBooleanValue())
+            assertEquals(!value, rule.copy(operator = SmartPlaylistOperator.IsNot).summaryBooleanValue())
+            assertNull(rule.copy(operator = SmartPlaylistOperator.IsMissing).summaryBooleanValue())
+            assertNull(rule.copy(value = SmartPlaylistValue.Text("true")).summaryBooleanValue())
+        }
+    }
     @Test fun missingAndPresentFlagsDescribeTheEffectivePredicateWithoutChangingTheRule() {
         for (operator in listOf(SmartPlaylistOperator.IsMissing, SmartPlaylistOperator.IsPresent)) {
             val rule = SmartPlaylistCondition(operator, SmartPlaylistFields.Title, SmartPlaylistValue.Flag(true))

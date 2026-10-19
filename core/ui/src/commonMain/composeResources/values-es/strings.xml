@@ -1131,4 +1131,25 @@
     <string name="settings_artist_appearance_album_layout">Diseño de álbumes en los que aparece</string>
     <string name="settings_media_layout_list">Lista</string>
     <string name="settings_media_layout_grid">Cuadrícula</string>
+    <string name="smart_playlist_summary_favorites">Pistas favoritas</string>
+    <string name="smart_playlist_summary_non_favorites">Pistas no marcadas como favoritas</string>
+    <string name="smart_playlist_summary_favorite_albums">Pistas de álbumes favoritos</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Pistas de álbumes no favoritos</string>
+    <string name="smart_playlist_summary_favorite_artists">Pistas de artistas favoritos</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Pistas de artistas no favoritos</string>
+    <string name="smart_playlist_summary_artwork">Pistas con carátula</string>
+    <string name="smart_playlist_summary_no_artwork">Pistas sin carátula</string>
+    <string name="smart_playlist_summary_compilations">Pistas de recopilaciones</string>
+    <string name="smart_playlist_summary_non_compilations">Pistas que no son de recopilaciones</string>
+    <string name="smart_playlist_summary_missing_files">Pistas con archivos ausentes</string>
+    <string name="smart_playlist_summary_available_files">Pistas con archivos disponibles</string>
+    <string name="smart_playlist_summary_first">%1$s primero</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (mayor primero)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (menor primero)</string>
+    <string name="smart_playlist_summary_newest">%1$s (más reciente primero)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (más antiguo primero)</string>
+    <string name="smart_playlist_summary_libraries">Bibliotecas: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">La caché local no indica la biblioteca de algunas pistas, por lo que no se puede previsualizar este filtro con seguridad. Pulsa Sincronizar biblioteca. Si sigue sin estar disponible, el servidor no ha proporcionado esos datos; la lista guardada sigue funcionando en el servidor.</string>
 </resources>

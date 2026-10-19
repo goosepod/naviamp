@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">Layout de álbuns com participação</string>
     <string name="settings_media_layout_list">Lista</string>
     <string name="settings_media_layout_grid">Grade</string>
+    <string name="smart_playlist_summary_favorites">Faixas favoritas</string>
+    <string name="smart_playlist_summary_non_favorites">Faixas não marcadas como favoritas</string>
+    <string name="smart_playlist_summary_favorite_albums">Faixas de álbuns favoritos</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Faixas de álbuns não favoritos</string>
+    <string name="smart_playlist_summary_favorite_artists">Faixas de artistas favoritos</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Faixas de artistas não favoritos</string>
+    <string name="smart_playlist_summary_artwork">Faixas com capa</string>
+    <string name="smart_playlist_summary_no_artwork">Faixas sem capa</string>
+    <string name="smart_playlist_summary_compilations">Faixas de coletâneas</string>
+    <string name="smart_playlist_summary_non_compilations">Faixas que não são de coletâneas</string>
+    <string name="smart_playlist_summary_missing_files">Faixas com arquivos ausentes</string>
+    <string name="smart_playlist_summary_available_files">Faixas com arquivos disponíveis</string>
+    <string name="smart_playlist_summary_first">%1$s primeiro</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (maiores primeiro)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (menores primeiro)</string>
+    <string name="smart_playlist_summary_newest">%1$s (mais recentes primeiro)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (mais antigos primeiro)</string>
+    <string name="smart_playlist_summary_libraries">Bibliotecas: %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">O cache local não informa a biblioteca de algumas faixas, impedindo uma prévia confiável deste filtro. Selecione Sincronizar biblioteca. Se continuar indisponível, o servidor não forneceu esses dados; a playlist salva continua funcionando no servidor.</string>
 </resources>

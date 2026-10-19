@@ -1,5 +1,15 @@
 package app.naviamp.domain.smartplaylist
 
+/** Normalize equality and negation for readable boolean predicates without changing the rule. */
+fun SmartPlaylistCondition.summaryBooleanValue(): Boolean? {
+    val operand = (value as? SmartPlaylistValue.Flag)?.value ?: return null
+    return when (operator) {
+        SmartPlaylistOperator.Is -> operand
+        SmartPlaylistOperator.IsNot -> !operand
+        else -> null
+    }
+}
+
 /** A false missing/present operand reverses the predicate; it is not a displayed value. */
 fun SmartPlaylistCondition.summaryOperator(): SmartPlaylistOperator = when {
     value != SmartPlaylistValue.Flag(false) -> operator

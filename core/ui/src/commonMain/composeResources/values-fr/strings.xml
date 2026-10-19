@@ -301,4 +301,25 @@
     <string name="settings_artist_appearance_album_layout">Présentation des albums avec participation</string>
     <string name="settings_media_layout_list">Liste</string>
     <string name="settings_media_layout_grid">Grille</string>
+    <string name="smart_playlist_summary_favorites">Titres favoris</string>
+    <string name="smart_playlist_summary_non_favorites">Titres non marqués comme favoris</string>
+    <string name="smart_playlist_summary_favorite_albums">Titres des albums favoris</string>
+    <string name="smart_playlist_summary_non_favorite_albums">Titres des albums non favoris</string>
+    <string name="smart_playlist_summary_favorite_artists">Titres des artistes favoris</string>
+    <string name="smart_playlist_summary_non_favorite_artists">Titres des artistes non favoris</string>
+    <string name="smart_playlist_summary_artwork">Titres avec pochette</string>
+    <string name="smart_playlist_summary_no_artwork">Titres sans pochette</string>
+    <string name="smart_playlist_summary_compilations">Titres de compilations</string>
+    <string name="smart_playlist_summary_non_compilations">Titres hors compilations</string>
+    <string name="smart_playlist_summary_missing_files">Titres dont les fichiers sont manquants</string>
+    <string name="smart_playlist_summary_available_files">Titres dont les fichiers sont disponibles</string>
+    <string name="smart_playlist_summary_first">%1$s en premier</string>
+    <string name="smart_playlist_summary_az">%1$s (A–Z)</string>
+    <string name="smart_playlist_summary_za">%1$s (Z–A)</string>
+    <string name="smart_playlist_summary_highest">%1$s (valeurs les plus élevées en premier)</string>
+    <string name="smart_playlist_summary_lowest">%1$s (valeurs les plus basses en premier)</string>
+    <string name="smart_playlist_summary_newest">%1$s (plus récents en premier)</string>
+    <string name="smart_playlist_summary_oldest">%1$s (plus anciens en premier)</string>
+    <string name="smart_playlist_summary_libraries">Bibliothèques : %1$s</string>
+    <string name="smart_playlist_preview_library_metadata">Le cache local ne contient pas la bibliothèque de certains titres. Impossible de prévisualiser ce filtre de manière fiable. Choisissez Synchroniser la bibliothèque. Si le problème persiste, le serveur ne fournit pas ces données ; la playlist enregistrée fonctionne toujours sur le serveur.</string>
 </resources>
