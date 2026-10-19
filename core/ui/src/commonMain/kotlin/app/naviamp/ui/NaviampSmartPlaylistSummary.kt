@@ -22,7 +22,7 @@ internal fun SmartPlaylistSummarySection(
 ) {
     Column(Modifier.testTag("smart-playlist-summary"), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(stringResource(Res.string.smart_playlist_summary), color = colors.primaryText)
-        val rules = definition.rules.map { ruleSummary(it, references) }
+        val rules = definition.rules.map { ruleSummary(it, references, libraries) }
         Text(if (rules.size == 1) rules.single() else matchSummary(definition.match, rules.joinToString("; ")),
             color = colors.secondaryText)
         if (definition.sort.isNotEmpty()) {
@@ -53,11 +53,15 @@ internal fun SmartPlaylistSummarySection(
         }, color = colors.secondaryText)
         definition.libraryIds?.let { ids ->
             Text(stringResource(Res.string.smart_playlist_summary_libraries,
-                ids.joinToString { id -> libraries.firstOrNull { it.id == id }?.name ?: id }),
+                ids.map { id -> smartPlaylistLibraryName(id, libraries) }.joinToString()),
                 color = colors.secondaryText)
         }
     }
 }
+
+@Composable
+internal fun smartPlaylistLibraryName(id: String, libraries: List<ConnectionFormMusicFolder>): String =
+    libraries.firstOrNull { it.id == id }?.name ?: stringResource(Res.string.connection_library_id, id)
 
 @Composable
 private fun matchSummary(match: SmartPlaylistMatch, rules: String): String = stringResource(
@@ -66,9 +70,9 @@ private fun matchSummary(match: SmartPlaylistMatch, rules: String): String = str
 )
 
 @Composable
-private fun ruleSummary(rule: SmartPlaylistRule, references: List<SmartPlaylistReference>): String = when (rule) {
+private fun ruleSummary(rule: SmartPlaylistRule, references: List<SmartPlaylistReference>, libraries: List<ConnectionFormMusicFolder>): String = when (rule) {
     is SmartPlaylistGroup -> {
-        val children = rule.rules.map { ruleSummary(it, references) }
+        val children = rule.rules.map { ruleSummary(it, references, libraries) }
         if (children.size == 1) children.single() else "(${matchSummary(rule.match, children.joinToString("; "))})"
     }
     is SmartPlaylistCondition -> {
@@ -84,7 +88,7 @@ private fun ruleSummary(rule: SmartPlaylistRule, references: List<SmartPlaylistR
             stringResource(Res.string.smart_playlist_summary_predicate, label, operation)
         } else {
             stringResource(Res.string.smart_playlist_summary_condition,
-                label, operation, summaryValue(rule.value, rule.field, operator, references))
+                label, operation, summaryValue(rule.value, rule.field, operator, references, libraries))
         }
     }
 }
@@ -105,8 +109,9 @@ private fun booleanSummary(field: String, positive: Boolean): String? {
 
 @Composable
 private fun summaryValue(value: SmartPlaylistValue, field: String, operator: SmartPlaylistOperator,
-    references: List<SmartPlaylistReference>): String = when (value) {
+    references: List<SmartPlaylistReference>, libraries: List<ConnectionFormMusicFolder>): String = when (value) {
     is SmartPlaylistValue.Text -> when {
+        field == SmartPlaylistFields.LibraryId -> smartPlaylistLibraryName(value.value, libraries)
         operator == SmartPlaylistOperator.InPlaylist || operator == SmartPlaylistOperator.NotInPlaylist -> {
             val reference = smartPlaylistSummaryReference(value.value, references)
             if (reference == null) stringResource(Res.string.smart_playlist_summary_unavailable_playlist, value.value)
@@ -126,13 +131,15 @@ private fun summaryValue(value: SmartPlaylistValue, field: String, operator: Sma
         value.value.isEmpty() -> stringResource(Res.string.smart_playlist_summary_empty)
         else -> value.value
     }
-    is SmartPlaylistValue.Number -> if (operator == SmartPlaylistOperator.InTheLast || operator == SmartPlaylistOperator.NotInTheLast) {
+    is SmartPlaylistValue.Number -> if (field == SmartPlaylistFields.LibraryId) {
+        smartPlaylistLibraryName(value.value.toString(), libraries)
+    } else if (operator == SmartPlaylistOperator.InTheLast || operator == SmartPlaylistOperator.NotInTheLast) {
         stringResource(if (value.value == 1L) Res.string.smart_playlist_summary_day else Res.string.smart_playlist_summary_days, value.value)
     } else value.value.toString()
     is SmartPlaylistValue.Decimal -> value.value.toString()
     is SmartPlaylistValue.Flag -> stringResource(if (value.value) Res.string.smart_playlist_summary_yes else Res.string.smart_playlist_summary_no)
     is SmartPlaylistValue.Range -> stringResource(Res.string.smart_playlist_summary_range,
-        summaryValue(value.start, field, operator, references), summaryValue(value.end, field, operator, references))
+        summaryValue(value.start, field, operator, references, libraries), summaryValue(value.end, field, operator, references, libraries))
 }
 
 @Composable

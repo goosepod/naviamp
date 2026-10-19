@@ -333,7 +333,7 @@ class NaviampCorePlaylistBrowseController(
             }
     }
 
-    private suspend fun loadLibraries(provider: app.naviamp.domain.provider.MediaProvider) {
+    internal suspend fun loadLibraries(provider: app.naviamp.domain.provider.MediaProvider) {
         val generation = sourceGeneration
         val libraries = try {
             provider.libraries().map { app.naviamp.domain.settings.ConnectionFormMusicFolder(it.id, it.name) }

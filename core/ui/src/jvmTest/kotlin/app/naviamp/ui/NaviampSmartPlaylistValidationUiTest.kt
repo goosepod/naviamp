@@ -26,6 +26,28 @@ import kotlin.test.assertEquals
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampSmartPlaylistValidationUiTest {
+    @Test fun syncHintDisappearsAfterSuccessAndStaysAbsentWhenReopenedWithIndexedData() = runComposeUiTest {
+        var synced = false
+        val open = mutableStateOf(true)
+        setContent {
+            if (open.value) SmartPlaylistBuilderDialog(NaviampColors(), SmartPlaylistDraft(name = "Hint",
+                conditions = listOf(SmartPlaylistConditionDraft(value = "Artist"))),
+                onPreview = { SmartPlaylistPreview(indexedTrackCount = if (synced) 50 else 0) },
+                onSyncLibrary = { synced = true }, onDismissRequest = {}, onSave = {})
+        }
+        waitUntil(timeoutMillis = 5_000) { onAllNodes(androidx.compose.ui.test.hasTestTag("smart-playlist-sync-hint")).fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().performClick()
+        waitUntil(timeoutMillis = 5_000) { synced }
+        onNodeWithTag("smart-playlist-sync-hint").assertDoesNotExist()
+        runOnIdle { open.value = false }
+        waitForIdle()
+        runOnIdle { open.value = true }
+        mainClock.advanceTimeBy(600)
+        waitForIdle()
+        onNodeWithTag("smart-playlist-sync-hint").assertDoesNotExist()
+        onNodeWithTag("smart-playlist-sync-library").performScrollTo().assertIsEnabled()
+    }
+
     @Test fun syncShowsRealCountsCanBeStoppedAndCanRetryWithoutChangingDraft() = runComposeUiTest {
         var started = 0
         var stopped = false

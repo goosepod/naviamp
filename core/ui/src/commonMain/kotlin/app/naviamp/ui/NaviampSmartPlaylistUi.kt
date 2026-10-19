@@ -95,6 +95,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import org.jetbrains.compose.resources.stringResource
 
+private val LocalSmartPlaylistLibraries = androidx.compose.runtime.staticCompositionLocalOf<List<ConnectionFormMusicFolder>> { emptyList() }
+
 @Composable
 fun SmartPlaylistBuilderDialog(
     colors: NaviampColors,
@@ -113,8 +115,9 @@ fun SmartPlaylistBuilderDialog(
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
+    scrollState: androidx.compose.foundation.ScrollState = rememberScrollState(),
 ) {
-    var draft by remember(initialDraft, selectedConnectionLibraryIds) {
+    var draft by remember(initialDraft) {
         mutableStateOf(
             if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
                 initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
@@ -122,6 +125,11 @@ fun SmartPlaylistBuilderDialog(
                 initialDraft
             },
         )
+    }
+    LaunchedEffect(selectedConnectionLibraryIds) {
+        if (draft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
+            draft = draft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+        }
     }
     var inspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
     val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
@@ -144,6 +152,7 @@ fun SmartPlaylistBuilderDialog(
     var librarySyncJob by remember { mutableStateOf<Job?>(null) }
     var librarySyncStopped by remember { mutableStateOf(false) }
     var librarySyncFailed by remember { mutableStateOf(false) }
+    var librarySyncCompleted by remember { mutableStateOf(false) }
     var previewRevision by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
     var references by remember { mutableStateOf<List<SmartPlaylistReference>>(emptyList()) }
@@ -200,11 +209,12 @@ fun SmartPlaylistBuilderDialog(
         onDismissRequest = { librarySyncJob?.cancel(); onDismissRequest() },
         title = { Text(title) },
         text = {
+            androidx.compose.runtime.CompositionLocalProvider(LocalSmartPlaylistLibraries provides availableLibraries) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 560.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .testTag("smart-playlist-editor-scroll"),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -267,6 +277,13 @@ fun SmartPlaylistBuilderDialog(
                     Text(stringResource(Res.string.smart_playlist_options))
                 }
                 if (optionsOpen) SmartPlaylistOptionsControls(colors, draft, availableLibraries, selectedConnectionLibraryIds) { draft = it }
+                if (availableLibraries.isEmpty() && definition.getOrNull()?.libraryIds?.isNotEmpty() == true) {
+                    Text(stringResource(if (referencesLoading) Res.string.library_sources_loading else Res.string.library_sources_load_failed),
+                        color = colors.secondaryText, fontSize = 12.sp)
+                    if (!referencesLoading) TextButton(onClick = { referencesRevision++ }) {
+                        Text(stringResource(Res.string.library_sources_retry))
+                    }
+                }
                 definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors, references, availableLibraries) }
                 validationIssues.filter {
                     it.location.conditionId == null && it.location.groupId == null &&
@@ -282,7 +299,10 @@ fun SmartPlaylistBuilderDialog(
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
                 if (onSyncLibrary != null) {
-                    Text(stringResource(Res.string.smart_playlist_sync_description), color = colors.secondaryText, fontSize = 12.sp)
+                    if (!librarySyncCompleted && !librarySyncing && livePreview?.indexedTrackCount == 0) {
+                        Text(stringResource(Res.string.smart_playlist_sync_description), color = colors.secondaryText,
+                            fontSize = 12.sp, modifier = Modifier.testTag("smart-playlist-sync-hint"))
+                    }
                     TextButton(
                         modifier = Modifier.testTag("smart-playlist-sync-library"),
                         enabled = !librarySyncing,
@@ -299,6 +319,7 @@ fun SmartPlaylistBuilderDialog(
                                             withContext(editorContext) { librarySyncProgress = progress }
                                         }
                                         currentCoroutineContext().ensureActive()
+                                        librarySyncCompleted = true
                                         previewRevision++
                                     } catch (error: CancellationException) {
                                         throw error
@@ -424,6 +445,7 @@ fun SmartPlaylistBuilderDialog(
                         )
                     }
                 }
+            }
             }
         },
         confirmButton = {
@@ -870,7 +892,7 @@ private fun SmartPlaylistOptionsControls(
         val selectedIds = draft.selectedLibraryIds.orEmpty().toSet()
         val libraries = selectedConnectionLibraryIds.map { id ->
             availableLibraries.firstOrNull { library -> library.id == id }
-                ?: ConnectionFormMusicFolder(id = id, name = id)
+                ?: ConnectionFormMusicFolder(id = id, name = smartPlaylistLibraryName(id, availableLibraries))
         }
         SmartPlaylistSection(title = "Libraries", colors = colors) {
             Text(
@@ -1183,6 +1205,15 @@ private fun SmartPlaylistConditionValueControls(
             options = listOf("True" to "true", "False" to "false"),
             onSelected = { value -> onConditionChange(condition.copy(value = value)) },
         )
+        return
+    }
+
+    val libraries = LocalSmartPlaylistLibraries.current
+    if (condition.field.field == SmartPlaylistFields.LibraryId && libraries.isNotEmpty()) {
+        SmartPlaylistDropdown(label = condition.valueLabel(),
+            value = smartPlaylistLibraryName(condition.value, libraries), colors = colors,
+            options = libraries.map { it.name to it.id },
+            onSelected = { id -> onConditionChange(condition.copy(value = id)) })
         return
     }
 

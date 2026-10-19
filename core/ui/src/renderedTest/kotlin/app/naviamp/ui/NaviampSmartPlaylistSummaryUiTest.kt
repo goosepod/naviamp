@@ -8,6 +8,23 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampSmartPlaylistSummaryUiTest {
+    @Test fun libraryNamesResolveInNestedConditionsAndRestrictionsWithoutChangingIds() = runComposeUiTest {
+        val libraries = mutableStateOf(emptyList<ConnectionFormMusicFolder>())
+        val definition = SmartPlaylistDefinition("Libraries", libraryIds = listOf("1", "2"), rules = listOf(
+            SmartPlaylistGroup(SmartPlaylistMatch.Any, listOf(
+                SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.LibraryId, SmartPlaylistValue.Number(1)),
+                SmartPlaylistCondition(SmartPlaylistOperator.IsNot, SmartPlaylistFields.LibraryId, SmartPlaylistValue.Text("2")),
+            )),
+        ))
+        val original = definition.toNspJson()
+        setContent { SmartPlaylistSummarySection(definition, NaviampColors(), libraries = libraries.value) }
+        runOnIdle { libraries.value = listOf(ConnectionFormMusicFolder("1", "Music Library"), ConnectionFormMusicFolder("2", "Classical")) }
+        onNodeWithText("Libraries: Music Library, Classical").assertExists()
+        onNodeWithText("is Music Library", substring = true).assertExists()
+        onNodeWithText("is not Classical", substring = true).assertExists()
+        assertEquals(original, definition.toNspJson())
+    }
+
     @Test fun summaryShowsNestedLogicExclusionsSortAndLimitWithoutOwnerNotice() = runComposeUiTest {
         val definition = definition()
         setContent { SmartPlaylistSummarySection(definition, NaviampColors()) }

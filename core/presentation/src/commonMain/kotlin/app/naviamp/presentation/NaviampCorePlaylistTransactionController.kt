@@ -107,6 +107,7 @@ class NaviampCorePlaylistTransactionController(
         NaviampCoreCommand.SmartPlaylist.References -> {
             val provider = smartProvider(null, "load")
             val generation = browseController.sourceGeneration
+            browseController.loadLibraries(provider)
             val references = try {
                 provider.playlists(Int.MAX_VALUE).map { it.toSmartPlaylistReference() }
             } finally {
@@ -300,6 +301,7 @@ class NaviampCorePlaylistTransactionController(
 
     private suspend fun inspectSmartPlaylist(item: SharedMediaItemUi, password: String?): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult {
         val provider = smartProvider(password, "load")
+        browseController.loadLibraries(provider)
         val playlist = browseController.resolvePlaylist(item)
         return try {
             provider.inspectSmartPlaylist(playlist.id)
@@ -314,6 +316,7 @@ class NaviampCorePlaylistTransactionController(
         password: String?,
     ): SmartPlaylistDefinition {
         val provider = smartProvider(password, "load")
+        browseController.loadLibraries(provider)
         val playlist = browseController.resolvePlaylist(item)
         publishListStatus("Loading ${playlist.name} rules...")
         return try {

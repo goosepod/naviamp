@@ -15,13 +15,43 @@ appear in a bounded, independently scrollable list. Each row reads `Track - Arti
 ellipsis for long rows and the complete text retained in accessibility semantics. The examples
 remain explicitly described as local samples, not a guarantee of the server's final order.
 
-The recording showed the popup moving and previously painted field outlines appearing at the wrong
-positions. Owned dialogs now record the entire fixed viewport from their first frame, as owned
-menus already do. Their existing 200 ms entrance animation runs on the popup's frame clock rather
-than the cached owner window's clock. Animation duration and continuous playback animations are
-unchanged. Initial floating labels keep their Material behavior. Native Windows visual confirmation
-remains required; a semantic geometry test alone cannot establish that native cached drawing is
-correct.
+## Native window correction after owner retest
+
+The owner reported that candidate `aa483795` still jumped. A real AWT window probe reproduced
+an owned scene-layer window growing from 1168 × 755 at `(56, 79)` to 1168 × 1257 at `(56, -134)`
+while the main window stayed at 1184 × 794 at `(48, 48)`. Scrolled-out field drawing was expanding
+the native scene-layer window. A layout-only Compose test could not detect this. Standard Compose
+Dialog and offscreen viewport clipping alone also reproduced the native growth; neither experiment
+is the final implementation.
+
+Core now supplies the viewport dimensions and all existing content, entrance animation, pointer
+handling, keyboard dismissal and focus behavior through a shared owned-surface contract. Desktop
+executes that contract with an explicitly sized AWT ComposeDialog, anchored to its owner's client
+area. Its size is independent of descendant drawing extents. The existing 200 ms entrance remains;
+no continuous playback animation or update frequency changes.
+
+Changed Desktop production files and their native boundaries:
+
+- `core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopOwnedDialogSurface.kt`: creates, anchors and
+  disposes an AWT owned window; translates shared dimensions and observes native owner movement.
+- `core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopRasterPresenter.kt`: supplies the current AWT
+  window to the surface adapter. Product behavior remains in common UI.
+
+The common contract and behavior compiled for Android, JVM and both iOS targets before native
+wiring. The native probe checks both windows' bounds and transient move/resize events through
+scrolling. It also checks displayed content changes and restores, and rejects screen captures whose
+fixture marker is absent. Its temporary topmost fixture is test-only; application windows retain
+the shared normal stacking policy. No user profile or server data is loaded by the probe.
+
+Library names are also loaded at editor inspection/reference entry, independently of a prior
+playlist refresh. Summary restrictions and Library ID conditions resolve names, and the condition
+picker shows names while retaining IDs. Missing catalogs expose existing translated loading/retry
+feedback instead of silently presenting bare IDs. Late metadata must not reset an edited draft.
+
+The generic sync hint is shown only when an empty local index needs metadata. It is hidden during
+sync, after a successful sync in the open editor, and when reopening with indexed tracks. The Sync
+library button remains available for an explicit refresh. The old favorites/ratings/history notice
+remains deleted from all 17 string files.
 
 ## Sync and server results
 
@@ -61,17 +91,35 @@ master branch on 2026-10-19. Server-version differences remain possible.
    tracks must continue to work independently of local preview sync. Repeat relevant Android and
    macOS checks; previous candidate acceptance does not establish acceptance of these changes.
 
-No host production code, setting, persistence schema or migration is changed. No release is
+No new setting, persistence schema or migration is introduced. The two Desktop native-boundary files are listed above. No release is
 authorized. Automated results and the exact packaged candidate are recorded in issue #318 and the
 linked pull request; owner visual acceptance remains open.
 
-The focused JVM run passed 192 tests with zero failures, errors or skips: four domain-preview
-tests, 123 Navidrome provider tests, 20 playlist-browsing/source-race tests and 45 smart-playlist/popup
-UI tests. XML validation confirmed the removed notice is absent and the compact-row resource is
-present exactly once in every one of the 17 catalogs. The native Windows recording must still be
-retested; the passing UI geometry checks are not a substitute for that visual check.
+The final focused run passed 88 tests with zero failures, errors or skips: 39 playlist-browsing,
+transaction and source-race tests, plus 49 smart-playlist/popup UI tests. Coverage includes metadata
+arriving after edits, named numeric/text library conditions, preserved rule IDs, hiding the hint
+after sync and after reopening with indexed tracks, nested dropdown Escape behavior, and the shared
+surface contract. Existing translations are reused; the removed owner notice remains absent from
+all 17 catalogs.
 
-The changed shared code also compiled for Android, iOS ARM64 and iOS Simulator ARM64, and
-`verifyCoreFirstArchitecture` passed. No platform production file changed. Windows packaging
-continues to reuse the unchanged CI-built native DLLs with their hashes checked, as documented
-for the preceding candidate; the local workstation does not have the C++ toolchain.
+The changed shared code compiled for Android, JVM, iOS ARM64 and iOS Simulator ARM64, and
+`verifyCoreFirstArchitecture` passed. Shared contract verification preceded native adapter wiring.
+
+The native geometry probe passed at 1184 × 794 and scale 1.0 with the normal application stacking
+policy. Both owner and owned surface stayed fixed through five scroll positions, including the
+return to the top, with no transient move/resize events. The surface also matched its owner client
+after resize to 1000 × 740, moving the owner, and minimize/restore. These measurements reproduce
+and detect the exact failure that the earlier semantic-layout test missed.
+
+Composited pixel acceptance is **not established** by these results. Strict screen-capture attempts
+could not validate the fixture marker on this workstation, so those attempts were rejected and
+were not used as passing evidence. Skia picture dumps are not a substitute for displayed pixels.
+The native probe defaults to geometry/lifecycle checks; set
+`NAVIAMP_SMART_PROBE_VERIFY_PIXELS=true` to request its separate strict visible-pixel assertions on
+an unobscured interactive desktop. The owner must still retest displayed drawing, initial labels,
+mouse/keyboard input and other dialog interactions in the packaged app. macOS and other display
+scales remain manual checks. No continuous-animation performance acceptance is claimed.
+
+Windows packaging reuses unchanged, hash-verified CI native DLLs because this workstation lacks
+the C++ toolchain. Only native configure/build steps are excluded; tests remain enabled. Exact
+candidate/package hashes and logs are recorded in #280 and #318. No release or merge is authorized.

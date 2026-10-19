@@ -20,6 +20,38 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampPopupSurfaceTest {
+    @Test fun nativeSurfaceReceivesViewportWhileCoreOwnsContentAndEscapeDismissal() = runComposeUiTest {
+        var rendered = false
+        var dismissed = false
+        val surface = object : NaviampOwnedDialogSurface {
+            @Composable override fun Render(size: androidx.compose.ui.unit.DpSize,
+                properties: androidx.compose.ui.window.PopupProperties, onCloseRequest: () -> Unit,
+                content: @Composable () -> Unit) {
+                assertTrue(size.width.value > 0 && size.height.value > 0)
+                assertTrue(properties.focusable)
+                rendered = true
+                content()
+            }
+        }
+        setContent {
+            CompositionLocalProvider(LocalNaviampOwnedPopupWindows provides true,
+                LocalNaviampOwnedDialogSurface provides surface) {
+                NaviampAlertDialog(onDismissRequest = { dismissed = true }, confirmButton = { Text("Confirm") },
+                    text = { SmartPlaylistDropdown("Library", "Music", NaviampColors(),
+                        listOf("Music" to "1", "Classical" to "2"), {}) })
+            }
+        }
+        assertTrue(rendered)
+        onNode(hasSetTextAction()).performClick()
+        onNodeWithText("Classical").assertExists()
+        onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.RequestFocus)
+            .performKeyInput { pressKey(Key.Escape) }
+        runOnIdle { assertFalse(dismissed) }
+        onNodeWithText("Classical").assertDoesNotExist()
+        onNode(hasSetTextAction()).performKeyInput { pressKey(Key.Escape) }
+        runOnIdle { assertTrue(dismissed) }
+    }
+
     @Test fun ownedMenuSupportsArrowFocusAndEscape() = runComposeUiTest {
         var open by mutableStateOf(true)
         setContent {

@@ -74,15 +74,30 @@ internal fun naviampMenuPosition(anchor: IntRect, window: IntSize, content: IntS
 @Composable
 private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: PopupProperties,
     scrim: Color = Color.Transparent, content: @Composable BoxScope.() -> Unit) {
-    Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
-        properties = properties) {
+    val nativeSurface = LocalNaviampOwnedDialogSurface.current
+    val viewport = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    val size = with(density) { DpSize(viewport.width.toDp(), viewport.height.toDp()) }
+    val body: @Composable () -> Unit = {
         NaviampOwnedWindowFocusScope {
-            Box(Modifier.fillMaxSize().clipToBounds().drawBehind {
+            Box(Modifier.fillMaxSize().clipToBounds().onKeyEvent { event ->
+                if (properties.dismissOnBackPress && event.type == KeyEventType.KeyDown &&
+                    (event.key == Key.Escape || event.key == Key.Back)) {
+                    onDismissRequest()
+                    true
+                } else false
+            }.drawBehind {
                 // Keep the native surface's recorded extent fixed from its first frame,
                 // including before the dialog entrance and floating labels have settled.
                 drawRect(Color.Transparent, blendMode = BlendMode.Src)
             }.background(scrim), content = content)
         }
+    }
+    if (nativeSurface == null) {
+        Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
+            properties = properties, content = body)
+    } else {
+        nativeSurface.Render(size, properties, { if (properties.dismissOnBackPress) onDismissRequest() }, body)
     }
 }
 

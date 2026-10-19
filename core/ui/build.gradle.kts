@@ -123,6 +123,15 @@ val buildAnimationCompositorProbe by tasks.registering(Exec::class) {
     }
 }
 
+tasks.register<JavaExec>("smartPlaylistWindowProbe") {
+    group = "verification"
+    description = "Checks smart-playlist scrolling in a visible native owned window."
+    dependsOn("jvmTestClasses")
+    classpath = tasks.named<Test>("jvmTest").get().classpath
+    mainClass.set("app.naviamp.ui.NaviampSmartPlaylistWindowProbeKt")
+    if (System.getProperty("os.name").startsWith("Windows")) systemProperty("skiko.renderApi", "OPENGL")
+}
+
 tasks.register<JavaExec>("playerAnimationProbe") {
     group = "verification"
     description = "Measures CPU for static, marquee, smooth waveform, and combined player rendering."
