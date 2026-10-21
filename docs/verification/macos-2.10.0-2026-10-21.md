@@ -1,7 +1,7 @@
 # macOS v2.10.0 acceptance checkpoint — October 21, 2026
 
-Release acceptance remains open. This record distinguishes owner feedback, observed application
-behavior, automated scenarios, and checks that could not be completed.
+The owner accepts the Mac scenarios available to them, with all reported passing. This record
+distinguishes that acceptance, agent observations, automated scenarios, and unavailable checks.
 
 ## Candidate and environment
 
@@ -31,9 +31,10 @@ The same source passed the complete required matrices for [the repair PR](https:
 ## Owner feedback
 
 The owner reported: “Smart playlists and autoplay seem to be working fine on the mac.”
-This is positive Mac feedback for those features on the running candidate. It is not a record that
-every advanced smart-playlist, Radio, certificate, or cross-platform checklist item was exercised,
-and it does not authorize release publication.
+The owner subsequently reported that everything they could test was passing. This records owner
+acceptance of the available Mac scenarios on this candidate. The follow-up does not enumerate
+individual cases; unavailable and cross-device scenarios retain their unverified status. Release
+publication remains a separate task.
 
 ## Observed in the packaged Mac application
 
@@ -119,7 +120,7 @@ Local evidence is under `build/manual-acceptance-macos-a0e8f7b36/`: `validation.
 `validation.json`. Native file selection is injected in the contract tests, so they do not establish
 acceptance of the visible macOS file chooser.
 
-## Remaining manual checks and concrete blocker
+## Agent-unverified checks and tooling blocker
 
 Computer use stopped working with `Sky Computer Use native pipe startup failed`. App discovery
 failed as well, including after resetting the automation session. This is a tooling blocker, not
@@ -127,7 +128,9 @@ evidence that Naviamp crashed. Earlier select-all, AX value replacement, minimiz
 attempts did not provide reliable verification; they are not marked passed or diagnosed as product
 defects.
 
-Still required where applicable:
+The following cases were not verified interactively by the agent. The later owner acceptance above
+covers the scenarios available to them; it does not identify which individual cases below were
+exercised. Do not infer failures or require repetition of accepted checks:
 
 - Native window minimize/restore and interactive resize; narrow-window and translated-label checks.
 - Physical keyboard selection/focus, accessibility and other owned-dialog lifecycle checks.
@@ -140,5 +143,5 @@ Still required where applicable:
   platform/device checks in the shared checklist.
 
 No release, draft, tag, announcement, milestone closure, merge into main, or mirror was performed.
-Performance and the existing native accessibility follow-ups remain deferred. Overall release
-acceptance belongs to the owner after the remaining evidence is complete.
+Performance and the existing native accessibility follow-ups remain deferred. Owner acceptance of
+available Mac scenarios is recorded above; unavailable checks and release publication remain separate.
