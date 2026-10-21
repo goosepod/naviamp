@@ -35,6 +35,7 @@ interface MediaProvider {
 
     suspend fun validateConnection(): ConnectionValidation
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
+    suspend fun libraries(): List<MediaLibrary> = emptyList()
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
     /** Complete paged album membership for downloads; null when the source cannot guarantee it. */
@@ -108,6 +109,8 @@ interface MediaProvider {
             request.toMediaPage(emptyList())
         }
     suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
+    /** Creator ownership, distinct from shared edit/manage permission; null when not knowable. */
+    suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? = null
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
     suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         throw UnsupportedOperationException("Playlist creation is not supported by $displayName.")

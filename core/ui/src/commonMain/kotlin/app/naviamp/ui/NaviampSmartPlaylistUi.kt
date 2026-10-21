@@ -1,6 +1,5 @@
 package app.naviamp.ui
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +7,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -21,8 +23,12 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.LinearProgressIndicator
+import app.naviamp.domain.library.LibrarySyncProgress
+import app.naviamp.domain.library.LibrarySyncProgressPhase
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +44,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.platform.testTag
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistReference
@@ -87,6 +92,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import org.jetbrains.compose.resources.stringResource
 
+private val LocalSmartPlaylistLibraries = androidx.compose.runtime.staticCompositionLocalOf<List<ConnectionFormMusicFolder>> { emptyList() }
+
 @Composable
 fun SmartPlaylistBuilderDialog(
     colors: NaviampColors,
@@ -101,12 +108,13 @@ fun SmartPlaylistBuilderDialog(
     onPreview: suspend (SmartPlaylistDefinition) -> SmartPlaylistPreview = {
         SmartPlaylistPreview(message = "Preview is not available for this connection.")
     },
-    onSyncLibrary: (suspend () -> Unit)? = null,
+    onSyncLibrary: NaviampSmartPlaylistSync? = null,
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
+    scrollState: androidx.compose.foundation.ScrollState = rememberScrollState(),
 ) {
-    var draft by remember(initialDraft, selectedConnectionLibraryIds) {
+    var draft by remember(initialDraft) {
         mutableStateOf(
             if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
                 initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
@@ -114,6 +122,11 @@ fun SmartPlaylistBuilderDialog(
                 initialDraft
             },
         )
+    }
+    LaunchedEffect(selectedConnectionLibraryIds) {
+        if (draft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
+            draft = draft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+        }
     }
     var inspection by remember { mutableStateOf<SmartPlaylistEditingResult?>(null) }
     val unsupportedImportMessage = stringResource(Res.string.smart_playlist_unsupported_import)
@@ -132,7 +145,11 @@ fun SmartPlaylistBuilderDialog(
     var livePreview by remember { mutableStateOf<SmartPlaylistPreview?>(null) }
     var previewLoading by remember { mutableStateOf(false) }
     var librarySyncing by remember { mutableStateOf(false) }
+    var librarySyncProgress by remember { mutableStateOf<LibrarySyncProgress?>(null) }
+    var librarySyncJob by remember { mutableStateOf<Job?>(null) }
+    var librarySyncStopped by remember { mutableStateOf(false) }
     var librarySyncFailed by remember { mutableStateOf(false) }
+    var librarySyncCompleted by remember { mutableStateOf(false) }
     var previewRevision by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
     var references by remember { mutableStateOf<List<SmartPlaylistReference>>(emptyList()) }
@@ -186,14 +203,16 @@ fun SmartPlaylistBuilderDialog(
     NaviampPopupPresence()
 
     NaviampAlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { librarySyncJob?.cancel(); onDismissRequest() },
         title = { Text(title) },
         text = {
+            androidx.compose.runtime.CompositionLocalProvider(LocalSmartPlaylistLibraries provides availableLibraries) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 560.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(scrollState)
+                    .testTag("smart-playlist-editor-scroll"),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SmartPlaylistSection(
@@ -255,7 +274,14 @@ fun SmartPlaylistBuilderDialog(
                     Text(stringResource(Res.string.smart_playlist_options))
                 }
                 if (optionsOpen) SmartPlaylistOptionsControls(colors, draft, availableLibraries, selectedConnectionLibraryIds) { draft = it }
-                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors) }
+                if (availableLibraries.isEmpty() && definition.getOrNull()?.libraryIds?.isNotEmpty() == true) {
+                    Text(stringResource(if (referencesLoading) Res.string.library_sources_loading else Res.string.library_sources_load_failed),
+                        color = colors.secondaryText, fontSize = 12.sp)
+                    if (!referencesLoading) TextButton(onClick = { referencesRevision++ }) {
+                        Text(stringResource(Res.string.library_sources_retry))
+                    }
+                }
+                definition.getOrNull()?.let { SmartPlaylistSummarySection(it, colors, references, availableLibraries) }
                 validationIssues.filter {
                     it.location.conditionId == null && it.location.groupId == null &&
                         (it.code != SmartPlaylistIssueCode.InvalidRefreshDelay || !optionsOpen)
@@ -270,7 +296,10 @@ fun SmartPlaylistBuilderDialog(
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
                 if (onSyncLibrary != null) {
-                    Text(stringResource(Res.string.smart_playlist_sync_description), color = colors.secondaryText, fontSize = 12.sp)
+                    if (!librarySyncCompleted && !librarySyncing && livePreview?.indexedTrackCount == 0) {
+                        Text(stringResource(Res.string.smart_playlist_sync_description), color = colors.secondaryText,
+                            fontSize = 12.sp, modifier = Modifier.testTag("smart-playlist-sync-hint"))
+                    }
                     TextButton(
                         modifier = Modifier.testTag("smart-playlist-sync-library"),
                         enabled = !librarySyncing,
@@ -278,10 +307,16 @@ fun SmartPlaylistBuilderDialog(
                             if (!librarySyncing) {
                                 librarySyncing = true
                                 librarySyncFailed = false
-                                coroutineScope.launch {
+                                librarySyncStopped = false
+                                librarySyncProgress = null
+                                librarySyncJob = coroutineScope.launch {
                                     try {
-                                        onSyncLibrary()
+                                        val editorContext = currentCoroutineContext()
+                                        onSyncLibrary { progress ->
+                                            withContext(editorContext) { librarySyncProgress = progress }
+                                        }
                                         currentCoroutineContext().ensureActive()
+                                        librarySyncCompleted = true
                                         previewRevision++
                                     } catch (error: CancellationException) {
                                         throw error
@@ -295,6 +330,35 @@ fun SmartPlaylistBuilderDialog(
                         },
                     ) {
                         Text(stringResource(if (librarySyncing) Res.string.smart_playlist_sync_running else Res.string.smart_playlist_sync_library))
+                    }
+                    if (librarySyncing) {
+                        val progress = librarySyncProgress
+                        val count = progress?.trackCount ?: 0
+                        val total = progress?.total?.takeIf { it > 0 }
+                        val label = when {
+                            progress?.phase == LibrarySyncProgressPhase.LoadingAlbums ->
+                                stringResource(Res.string.smart_playlist_sync_albums, progress.albumCount)
+                            total != null -> stringResource(Res.string.smart_playlist_sync_tracks_total, count, total)
+                            else -> stringResource(Res.string.smart_playlist_sync_tracks, count)
+                        }
+                        Column(Modifier.fillMaxWidth().testTag("smart-playlist-sync-progress")
+                            .semantics { liveRegion = LiveRegionMode.Polite }) {
+                            Text(label, color = colors.secondaryText, fontSize = 12.sp)
+                            if (total != null) {
+                                LinearProgressIndicator(progress = { (count.toFloat() / total).coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth(), color = colors.accent,
+                                    trackColor = colors.mutedText.copy(alpha = 0.25f))
+                            }
+                            TextButton(onClick = {
+                                librarySyncStopped = true
+                                librarySyncJob?.cancel()
+                            }, modifier = Modifier.testTag("smart-playlist-stop-sync")) {
+                                Text(stringResource(Res.string.smart_playlist_sync_stop))
+                            }
+                        }
+                    }
+                    if (librarySyncStopped && !librarySyncing) {
+                        Text(stringResource(Res.string.smart_playlist_sync_stopped), color = colors.secondaryText, fontSize = 12.sp)
                     }
                     if (librarySyncFailed) {
                         Text(
@@ -327,14 +391,14 @@ fun SmartPlaylistBuilderDialog(
                             }
                         }
                         if (importOpen) {
-                            OutlinedTextField(
-                                colors = naviampOutlinedTextFieldColors(colors),
+                            SmartPlaylistOutlinedTextField(
+                                colors = colors,
                                 value = importJson,
                                 onValueChange = {
                                     importJson = it
                                     importMessage = null
                                 },
-                                label = { Text("Paste .nsp or Navidrome smart playlist JSON", color = colors.secondaryText) },
+                                label = "Paste .nsp or Navidrome smart playlist JSON",
                                 minLines = 4,
                                 maxLines = 8,
                                 textStyle = TextStyle(fontSize = 12.sp),
@@ -366,8 +430,8 @@ fun SmartPlaylistBuilderDialog(
                         title = "Generated JSON",
                         colors = colors,
                     ) {
-                        OutlinedTextField(
-                            colors = naviampOutlinedTextFieldColors(colors),
+                        SmartPlaylistOutlinedTextField(
+                            colors = colors,
                             value = jsonPreview,
                             onValueChange = {},
                             readOnly = true,
@@ -378,6 +442,7 @@ fun SmartPlaylistBuilderDialog(
                         )
                     }
                 }
+            }
             }
         },
         confirmButton = {
@@ -445,15 +510,15 @@ fun SmartPlaylistBuilderDialog(
                         color = colors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    OutlinedTextField(
-                        colors = naviampOutlinedTextFieldColors(colors),
+                    SmartPlaylistOutlinedTextField(
+                        colors = colors,
                         modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPasswordFieldTestTag).naviampTextInputFocus(),
                         value = password,
                         onValueChange = {
                             password = it
                             passwordError = null
                         },
-                        label = { Text("Password", color = colors.secondaryText) },
+                        label = "Password",
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         textStyle = TextStyle(fontSize = 13.sp),
@@ -548,15 +613,15 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )
-                OutlinedTextField(
-                    colors = naviampOutlinedTextFieldColors(colors),
+                SmartPlaylistOutlinedTextField(
+                    colors = colors,
                     modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistLoadPasswordFieldTestTag).naviampTextInputFocus(),
                     value = password,
                     onValueChange = {
                         password = it
                         errorMessage = null
                     },
-                    label = { Text("Password", color = colors.secondaryText) },
+                    label = "Password",
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     textStyle = TextStyle(fontSize = 13.sp),
@@ -824,7 +889,7 @@ private fun SmartPlaylistOptionsControls(
         val selectedIds = draft.selectedLibraryIds.orEmpty().toSet()
         val libraries = selectedConnectionLibraryIds.map { id ->
             availableLibraries.firstOrNull { library -> library.id == id }
-                ?: ConnectionFormMusicFolder(id = id, name = id)
+                ?: ConnectionFormMusicFolder(id = id, name = smartPlaylistLibraryName(id, availableLibraries))
         }
         SmartPlaylistSection(title = "Libraries", colors = colors) {
             Text(
@@ -1022,10 +1087,17 @@ private fun SmartPlaylistPreviewSection(
                     if (preview.exampleTracks.isEmpty()) {
                         Text(stringResource(Res.string.smart_playlist_preview_empty), color = colors.secondaryText, fontSize = 12.sp)
                     }
-                    preview.exampleTracks.forEach { track ->
-                        Column(modifier = Modifier.fillMaxWidth().testTag("smart-playlist-example-${track.id.value}")) {
-                            Text(track.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            Text(track.artistName, color = colors.secondaryText, fontSize = 12.sp)
+                    if (preview.exampleTracks.isNotEmpty()) {
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                            .testTag("smart-playlist-examples"),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(preview.exampleTracks) { track ->
+                                Text(stringResource(Res.string.smart_playlist_preview_track,
+                                    track.title, track.artistName, track.albumTitle.orEmpty()),
+                                    modifier = Modifier.fillMaxWidth().testTag("smart-playlist-example-${track.id.value}"),
+                                    color = colors.primaryText, fontSize = 13.sp,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                         }
                     }
                 }
@@ -1034,18 +1106,28 @@ private fun SmartPlaylistPreviewSection(
                 preview.message != null -> preview.message?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
-                else -> Text(
-                    stringResource(Res.string.smart_playlist_preview_unsupported, preview.unsupportedFields.joinToString()),
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
+                else -> {
+                    if (SmartPlaylistFields.LibraryId in preview.unsupportedFields) {
+                        Text(stringResource(Res.string.smart_playlist_preview_library_metadata),
+                            color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                    val otherFields = preview.unsupportedFields.filter { it != SmartPlaylistFields.LibraryId }
+                    if (otherFields.isNotEmpty()) {
+                        val labels = otherFields.map { field ->
+                            SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == field }
+                                ?.let { smartPlaylistFieldLabel(it) } ?: field
+                        }
+                        Text(stringResource(Res.string.smart_playlist_preview_unsupported, labels.joinToString()),
+                            color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SmartPlaylistSection(
+internal fun SmartPlaylistSection(
     title: String,
     colors: NaviampColors,
     content: @Composable ColumnScope.() -> Unit,
@@ -1053,7 +1135,7 @@ private fun SmartPlaylistSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, colors.border.copy(alpha = 0.75f), RoundedCornerShape(8.dp))
+            .smartPlaylistSectionOutline(colors.border.copy(alpha = 0.75f), 8.dp)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -1063,7 +1145,7 @@ private fun SmartPlaylistSection(
 }
 
 @Composable
-private fun SmartPlaylistNestedSection(
+internal fun SmartPlaylistNestedSection(
     title: String,
     colors: NaviampColors,
     trailing: (@Composable () -> Unit)? = null,
@@ -1072,7 +1154,7 @@ private fun SmartPlaylistNestedSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, colors.border.copy(alpha = 0.42f), RoundedCornerShape(6.dp))
+            .smartPlaylistSectionOutline(colors.border.copy(alpha = 0.42f), 6.dp)
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -1120,6 +1202,15 @@ private fun SmartPlaylistConditionValueControls(
             options = listOf("True" to "true", "False" to "false"),
             onSelected = { value -> onConditionChange(condition.copy(value = value)) },
         )
+        return
+    }
+
+    val libraries = LocalSmartPlaylistLibraries.current
+    if (condition.field.field == SmartPlaylistFields.LibraryId && libraries.isNotEmpty()) {
+        SmartPlaylistDropdown(label = condition.valueLabel(),
+            value = smartPlaylistLibraryName(condition.value, libraries), colors = colors,
+            options = libraries.map { it.name to it.id },
+            onSelected = { id -> onConditionChange(condition.copy(value = id)) })
         return
     }
 
@@ -1181,14 +1272,14 @@ private fun SmartPlaylistGenreTypeahead(
     var expanded by remember { mutableStateOf(false) }
     val suggestions = smartPlaylistGenreSuggestions(value, genres)
     Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            colors = naviampOutlinedTextFieldColors(colors),
+        SmartPlaylistOutlinedTextField(
+            colors = colors,
             value = value,
             onValueChange = {
                 onValueChange(it)
                 expanded = it.isNotBlank()
             },
-            label = { Text(label, color = colors.secondaryText) },
+            label = label,
             singleLine = true,
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier
@@ -1245,11 +1336,11 @@ private fun SmartPlaylistTextField(
     label: String,
     colors: NaviampColors,
 ) {
-    OutlinedTextField(
-        colors = naviampOutlinedTextFieldColors(colors),
+    SmartPlaylistOutlinedTextField(
+        colors = colors,
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, color = colors.secondaryText) },
+        label = label,
         singleLine = true,
         textStyle = TextStyle(fontSize = 13.sp),
         modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
@@ -1283,14 +1374,14 @@ internal fun <T> SmartPlaylistDropdown(
         onExpandedChange = changeExpanded,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        OutlinedTextField(
-            colors = naviampOutlinedTextFieldColors(colors),
+        SmartPlaylistOutlinedTextField(
+            colors = colors,
             value = if (expanded) query else value,
             onValueChange = {
                 query = it
                 expanded = true
             },
-            label = { Text(label, color = colors.secondaryText) },
+            label = label,
             singleLine = true,
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier

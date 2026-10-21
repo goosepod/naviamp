@@ -86,6 +86,11 @@ android {
                 "app.naviamp.ui.AndroidRasterPlacementTest",
                 "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
                 "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
+                "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
+                "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
+                "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
+                "app.naviamp.ui.NaviampArtistTopTracksUiTest",
+                "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
             ).joinToString(",")
         }
     }
@@ -116,6 +121,15 @@ val buildAnimationCompositorProbe by tasks.registering(Exec::class) {
             "-L$javaHome/lib", "-ljawt", "-framework", "AppKit", "-framework", "QuartzCore", "-framework", "CoreFoundation",
             "-o", output.absolutePath)
     }
+}
+
+tasks.register<JavaExec>("smartPlaylistWindowProbe") {
+    group = "verification"
+    description = "Checks smart-playlist scrolling in a visible native owned window."
+    dependsOn("jvmTestClasses")
+    classpath = tasks.named<Test>("jvmTest").get().classpath
+    mainClass.set("app.naviamp.ui.NaviampSmartPlaylistWindowProbeKt")
+    if (System.getProperty("os.name").startsWith("Windows")) systemProperty("skiko.renderApi", "OPENGL")
 }
 
 tasks.register<JavaExec>("playerAnimationProbe") {
