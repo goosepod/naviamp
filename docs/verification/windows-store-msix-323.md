@@ -153,8 +153,9 @@ The same retest reported two rendering failures over Moonlight/Sunshine:
   beyond the visible label in each direction.
 
 Do not treat this as a passed rendering result or dismiss it as a streaming artifact.
-The distinction between host rendering, graphics-driver/compositor behavior and
-stream capture is unconfirmed pending a physical Windows-display comparison.
+The owner subsequently reproduced both defects on the physical Windows display
+with Moonlight disconnected, and in the unchanged standalone v2.9.0 application.
+Neither streaming nor MSIX packaging is required to reproduce these failures.
 The installed launcher explicitly selects Skiko `OPENGL`; the host reports AMD
 Radeon Graphics driver `32.0.21042.62` and NVIDIA GeForce RTX 5060 Ti driver
 `32.0.16.1742`, with the NVIDIA display mode reported as 3840 x 2160. This records
@@ -175,6 +176,45 @@ Partner Center listing, screenshots, privacy/support links, age rating, reviewer
 access and restricted-capability explanation remain part of submission preparation.
 Nothing has been uploaded to Partner Center or submitted for certification by this
 packaging work. Keep issue 323 and its PR open until acceptance is complete.
+
+### Controlled comparisons — 2026-10-23
+
+The owner reproduced both defects directly on the physical Windows display, with
+Moonlight disconnected. The unchanged standalone v2.9.0 application also reproduced both
+defects using its normal OpenGL renderer. Streaming and MSIX packaging are therefore not
+required to reproduce this problem.
+
+A child-process-only Direct3D diagnostic crashed before visual acceptance. Its JVM
+fatal-error report identifies EXCEPTION_ACCESS_VIOLATION in skiko-
+windows-x64.dll+0x6a8cb on AWT-EventQueue-0, with
+PictureRecorderKt._nFinishRecordingAsPicture in the Java stack. Direct3D is not an
+accepted workaround.
+
+The same released standalone application launched with child-process-only options
+`-Dskiko.renderApi=OPENGL -Dcompose.layers.type=COMPONENT` passed the owner's visual
+comparison: “The currently open app works as expected, no black boxes.” Independently
+verified both Naviamp process paths, stderr recording the selected flags, and all 268
+payload files against the released archive byte-for-byte. No application JAR, launcher
+configuration, or native library was patched.
+
+This isolates a useful difference between owned transparent popup windows and popups
+composed within the parent window. It does not establish the exact driver/framework root
+cause or prove COMPONENT is an acceptable production fix. Shared raster behavior
+currently falls back from native presentation when popups are not in owned windows;
+continuous animation cost, stacking, input, accessibility and lifecycle behavior must be
+checked before adopting a change. Rendering acceptance remains open; no Store submission
+has been made.
+
+
+Initial read-only counter sample in COMPONENT mode, after the owner confirmed the
+window was visible, playback paused and popups closed: 16.326 seconds, 15 GPU samples,
+application CPU 0.861% of one core, DWM CPU 3.385% of one core, application GPU engine
+sum mean 0 and DWM GPU engine sum mean 5.983. Power plan reported Balanced. The
+existing `scripts/animation-probe/measure-windows.ps1` sampled both launcher PIDs.
+Raw evidence: `naviamp-msix-323/component-paused-no-popup-counters.json` on the host.
+These counters are preliminary: no parent-frame observer was attached, motion and
+window geometry were not independently verified, GPU engine sums are not total GPU
+percentages, and this is not continuous-animation performance acceptance.
 
 ## Architecture review
 
