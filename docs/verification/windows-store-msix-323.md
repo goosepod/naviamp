@@ -224,6 +224,13 @@ shows no measured sustained application CPU cost in this paused popup state; it
 does not demonstrate animation motion, parent-surface frame counts, or performance
 with playback/marquee animation running.
 
+Playback resumed, popup closed, owner reported ready: 15.804 seconds, 15 GPU samples,
+application CPU 2.175% of one core, DWM CPU 3.180% of one core, application GPU engine
+sum mean 0.027 and DWM GPU engine sum mean 2.543. Raw evidence:
+`naviamp-msix-323/component-playing-no-popup-counters.json` on the host. Whether a
+marquee was active was not confirmed, so this is not an isolated progress-only or
+combined-animation acceptance sample. Parent-surface frame counts remain unmeasured.
+
 ## Architecture review
 
 No Android/Desktop/iOS production source file changed. The changes are build
