@@ -94,6 +94,31 @@ enable Developer Mode, install root certificates, or alter production user data.
 Keep test signing separate from the unsigned upload artifact. Remove temporary
 test certificates and private keys after the local test lifecycle is complete.
 
+After the operator authorizes temporary machine trust, the test lifecycle script
+signs a separate copy using a one-day, non-exportable key. Run it in an elevated
+**interactive Windows desktop session**, such as Sunshine's Desktop through Moonlight:
+
+```powershell
+./scripts/test-windows-store-install.ps1 -Action Install `
+  -StateDirectory C:\Builds\naviamp-store-test `
+  -UnsignedPackage C:\Builds\Naviamp-v2.9.0-windows-x64-store.msix `
+  -ExpectedUnsignedSha256 '<exact candidate SHA-256 from SHA256SUMS>' `
+  -SignToolPath 'C:\SDK\bin\10.0.26100.0\x64\signtool.exe' `
+  -AllowTemporaryCertificateTrust
+
+# After testing, removes the recorded test package, signed copy, trust and private key:
+./scripts/test-windows-store-install.ps1 -Action Cleanup `
+  -StateDirectory C:\Builds\naviamp-store-test
+```
+
+The script refuses to replace an existing Store installation and verifies that
+the unsigned candidate is unchanged. On installation failure it automatically
+cleans up. On success, run `Cleanup` after testing. It never imports a root CA or
+exports the private key. Use a fresh state directory for each installation attempt.
+An SSH logon can validate the signature but fail AppX deployment when Windows
+cannot initialize its process-lifecycle manager; use the logged-in desktop for
+the installation and app acceptance checks.
+
 ## Acceptance and submission gates
 
 Record results against the exact package SHA-256, Windows build, hardware and test

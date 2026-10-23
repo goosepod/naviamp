@@ -47,15 +47,44 @@ build user's profile. CI retains corresponding artifacts on subsequent builds.
 ## Outstanding gates
 
 **No installed-app, playback, WACK or Store certification result is claimed.**
-Developer Mode was not enabled on the available Windows host. No test certificate
-was created/trusted and no package was installed during these packaging checks.
+Developer Mode was not enabled on the available Windows host during packaging.
+
+### Authorized local signing and deployment attempt
+
+After the project owner explicitly approved temporary test-certificate trust,
+tested the final CI candidate from
+[Windows Store package run 39975612140](https://github.com/goosepod/naviamp/actions/runs/39975612140).
+Its unsigned SHA-256 is
+`c71b45f8cd3fa8445bbcb38bd95ca27c287a1eed664bf53b7685c0216f5d4fd8`.
+All 268 payload files also passed independent verification after download to macOS.
+
+- Preflight: no existing `Goosepod.Naviamp` Store registration or Naviamp process.
+- Created a one-day non-exportable code-signing key and public certificate.
+- Signed a separate `LOCAL-TEST.msix`; the unsigned CI candidate remained unchanged.
+- Trusted only that public certificate in machine `TrustedPeople`, with user approval.
+- SignTool signature verification passed. Windows AppX also validated its signature.
+- `Add-AppxPackage` through SSH failed with `0x80070005`; deployment log event 718
+  reported "Failed to initialize PLM" and event 605 identified the
+  `PackagesInUseClosed` state handler. Installation acceptance therefore did not pass.
+- Failure cleanup completed: no Store registration remained; the signed test copy,
+  machine trust entry, personal certificate and private signing key were removed.
+  Independent queries confirmed both certificate-store entries were absent.
+
+The owner requested retrying through Moonlight's Desktop connection to Sunshine.
+The computer-control service failed before reaching any native app with
+`Sky Computer Use native pipe startup failed`, including after resetting the tool
+and directly selecting Moonlight. Interactive testing is blocked on restoration
+of desktop-control access; no GUI, audio or animation result is inferred from the
+successful package/signature checks. `test-windows-store-install.ps1` records the
+explicit install/cleanup lifecycle for the interactive retry.
 
 Follow the installed-app matrix in
 [`windows-store-distribution.md`](../windows-store-distribution.md): native audio,
 credentials/relaunch, server connections/offline behavior, downloads, media keys,
 background playback, accessibility, update, coexistence/data paths and uninstall.
-Local installation needs an explicit decision about a trusted test-signing
-certificate on the Windows test machine, or a developer-enabled test environment.
+Temporary test signing/trust is already authorized for this test. Resume in the
+interactive desktop without asking for that authorization again, and clean up
+the test installation and certificate afterward.
 
 Partner Center listing, screenshots, privacy/support links, age rating, reviewer
 access and restricted-capability explanation remain part of submission preparation.
