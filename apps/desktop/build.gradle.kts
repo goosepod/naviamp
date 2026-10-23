@@ -19,6 +19,9 @@ val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersio
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName, naviampVersionCode)
 val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
 val desktopExecutableDescription = "Naviamp"
+// Skiko backend initialization is native to the Windows JVM host, including transparent HWNDs.
+val windowsSkikoRenderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
+    .orElse("SOFTWARE_FAST").map(String::trim)
 val macOsFullscreenJvmArgs = listOf(
     "--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED",
     "--add-exports=java.desktop/sun.awt=ALL-UNNAMED",
@@ -103,13 +106,10 @@ compose.desktop {
         )
         when {
             desktopNativePlatform.get().startsWith("windows-") -> {
-                val renderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
-                    // Skiko's Direct3D backend can spin a render thread at one full logical core
-                    // while an otherwise static window is visible. OpenGL preserves GPU rendering
-                    // and lets the Windows event loop sleep between actual frame invalidations.
-                    .orElse("OPENGL")
-                    .get()
-                    .trim()
+                // Select before AWT/Skiko creates any surface. OpenGL transparent popup
+                // HWNDs can render opaque black on Windows; late renderer switches retain it.
+                // Cached motion still uses DirectComposition and visualizers use native OpenGL.
+                val renderApi = windowsSkikoRenderApi.get()
                 if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {
                     jvmArgs += "-Dskiko.renderApi=$renderApi"
                 }
@@ -346,6 +346,18 @@ tasks.register("verifyDesktopDistributable") {
         val missing = requiredLibraries.filterNot { bassResourcesDirectory.resolve(it).isFile }
         check(missing.isEmpty()) {
             "Desktop package is missing native playback resources in ${bassResourcesDirectory.absolutePath}: ${missing.joinToString()}"
+        }
+        if (platform.startsWith("windows-")) {
+            val launcherConfig = appDirectory.resolve("app/Naviamp.cfg").readText()
+            val expectedRenderer = windowsSkikoRenderApi.get()
+            if (expectedRenderer.isNotBlank() && !expectedRenderer.equals("DEFAULT", ignoreCase = true)) {
+                check(launcherConfig.lineSequence().any { it == "java-options=-Dskiko.renderApi=$expectedRenderer" }) {
+                    "Windows launcher does not select the configured Skiko renderer before surface creation."
+                }
+            }
+            check(launcherConfig.contains("java-options=-Dnaviamp.visualizer.windowsOpenGl=true")) {
+                "Windows launcher does not enable the native visualizer backend."
+            }
         }
         if (platform.startsWith("macos-")) {
             val applicationIcon = desktopPackagedResourcesDir(platform, appDirectory)

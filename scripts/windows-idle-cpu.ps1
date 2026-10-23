@@ -13,6 +13,31 @@ $profileRoot = Join-Path $repositoryRoot "build/performance/windows-idle-$([guid
 $roamingProfile = Join-Path $profileRoot 'roaming'
 $localProfile = Join-Path $profileRoot 'local'
 $applicationProcess = $null
+$measuredProcesses = @()
+
+function Get-ApplicationProcessFamily([int]$RootProcessId) {
+    $nativeProcesses = @(Get-CimInstance Win32_Process)
+    $ids = New-Object 'System.Collections.Generic.HashSet[int]'
+    [void]$ids.Add($RootProcessId)
+    do {
+        $added = $false
+        foreach ($process in $nativeProcesses) {
+            if ($ids.Contains([int]$process.ParentProcessId) -and $ids.Add([int]$process.ProcessId)) {
+                $added = $true
+            }
+        }
+    } while ($added)
+    @(Get-Process -Id @($ids) -ErrorAction Stop)
+}
+
+function Get-ApplicationCpuSeconds($Processes) {
+    $values = @($Processes | ForEach-Object {
+        $_.Refresh()
+        if ($_.HasExited -or $null -eq $_.CPU) { throw "Application CPU unavailable for PID $($_.Id)." }
+        $_.CPU
+    })
+    ($values | Measure-Object -Sum).Sum
+}
 
 try {
     Set-Location $repositoryRoot
@@ -21,7 +46,7 @@ try {
         & .\gradlew.bat `
             '-Pkotlin.native.enableKlibsCrossCompilation=false' `
             '-Pnaviamp.bass.platform=windows-x64' `
-            :apps:desktop:createDistributable
+            :apps:desktop:verifyDesktopDistributable
         if ($LASTEXITCODE -ne 0) {
             throw "Windows distributable build failed with exit code $LASTEXITCODE."
         }
@@ -47,13 +72,21 @@ try {
     }
 
     Start-Sleep -Seconds $SettleSeconds
-    $applicationProcess.Refresh()
-    $cpuStartSeconds = $applicationProcess.CPU
+    # jpackage's launcher can be idle while its child JVM spins; include the complete family.
+    $measuredProcesses = @(Get-ApplicationProcessFamily $applicationProcess.Id)
+    $cpuStartSeconds = Get-ApplicationCpuSeconds $measuredProcesses
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     Start-Sleep -Seconds $SampleSeconds
-    $applicationProcess.Refresh()
-    $cpuPercent = (($applicationProcess.CPU - $cpuStartSeconds) / $SampleSeconds) * 100.0
+    $cpuEndSeconds = Get-ApplicationCpuSeconds $measuredProcesses
+    $elapsedSeconds = $timer.Elapsed.TotalSeconds
+    $afterIds = @(Get-ApplicationProcessFamily $applicationProcess.Id | ForEach-Object Id)
+    if (@(Compare-Object @($measuredProcesses.Id) $afterIds).Count) {
+        throw 'Application process family changed during idle measurement.'
+    }
+    $cpuPercent = (($cpuEndSeconds - $cpuStartSeconds) / $elapsedSeconds) * 100.0
     $roundedCpuPercent = [math]::Round($cpuPercent, 1)
 
+    Write-Host "Windows idle PIDs: $($measuredProcesses.Id -join ',')"
     Write-Host "Windows idle CPU: $roundedCpuPercent% of one logical core (limit: $MaximumCpuPercent%)."
     if ($cpuPercent -gt $MaximumCpuPercent) {
         throw "Windows idle CPU exceeded the $MaximumCpuPercent% regression limit."
@@ -63,6 +96,13 @@ try {
         $applicationProcess.CloseMainWindow() | Out-Null
         if (-not $applicationProcess.WaitForExit(5000)) {
             Stop-Process -Id $applicationProcess.Id -Force
+        }
+    }
+    foreach ($process in $measuredProcesses) {
+        # Retained Process objects refer to this test's children, even if the launcher already exited.
+        if (-not $process.HasExited) {
+            $process.CloseMainWindow() | Out-Null
+            if (-not $process.WaitForExit(5000)) { Stop-Process -Id $process.Id -Force }
         }
     }
     if (Test-Path -LiteralPath $profileRoot) {

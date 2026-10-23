@@ -212,7 +212,13 @@ fun main() {
             if (nativeAlphaReference) verifyNativeDecodeFailure(window)
             val baselineSize = probeWindowState.size
             val baselinePosition = probeWindowState.position
-            val counters = probeLayers(window).map { layer ->
+            val mainLayers = probeLayers(window)
+            System.getenv("NAVIAMP_PROBE_EXPECT_RENDER_API")?.let { expected ->
+                check(mainLayers.isNotEmpty() && mainLayers.all { it.renderApi.name == expected }) {
+                    "Probe renderer mismatch: expected=$expected actual=${mainLayers.map { it.renderApi }}"
+                }
+            }
+            val counters = mainLayers.map { layer ->
                 val count = AtomicLong()
                 val delegate = requireNotNull(layer.renderDelegate)
                 layer.renderDelegate = object : SkikoRenderDelegate {
