@@ -276,7 +276,7 @@ that timeout as unrelated or passed without the rerun result.
 No Android/Desktop/iOS production source files changed. Production differences are
 Windows packaging JVM options and distributable validation, justified by native
 Skiko/AWT surface initialization. Shared product/animation behavior is unchanged.
-Full actual-app playing-overlay CPU/frame comparison, remaining input/reader
+Actual-app long-title/combined coverage, remaining reader
 checks, native visualizer coverage and the final selected 2.10.0 package/runtime
 remain unverified; keep #325 and PR #326 open/draft until these gates are resolved.
 
@@ -290,3 +290,39 @@ a steady-state acceptance result. The next interval reported zero observer CPU a
 parent frames, but the following Computer Use image showed playback paused at 0:25;
 reject it as proof of moving playback. Retain these logs as diagnostics. The owner
 has been asked to leave playback and the menu open for a valid comparison.
+
+
+### Owner-prepared real playback/menu comparison
+
+After the owner replied ready, Computer Use showed the actual full-player
+Short fixture playing with Track actions open. Same 2560 x 1369 client, scale,
+refresh and power conditions as its paused checkpoint; no resize or playback
+change between menu and restored samples. The visible position advanced from
+0:53 to 1:15 behind the menu and from 1:16 to 1:45 after Escape dismissed it.
+The title fits and does not scroll; this tests real progress playback, not the
+long-title plus progress case.
+
+| State | Observer CPU (10 s, one core) | Parent frames | External CPU (~6.3 s) | App GPU engine sum | DWM engine sum |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| playing, menu open | 0.156% | 0 | 0.494% | 0.01171 | 1.19352 |
+| playing, menu dismissed | 0.625% | 0 | 0.987% | 0.01127 | 1.19560 |
+
+Both observers remained attached; owned surface frames were also zero. The
+restored sample includes a 99 x 50 hover window (Track actions tooltip), confirmed
+visually afterward with normal rounded padding/shadow. This is a menu-versus-tooltip
+comparison rather than a perfectly overlay-free baseline. No menu CPU increase
+was observed, and the unchanged parent remained visible with moving progress.
+DWM process CPU was 5.242%/6.156%; this is whole-desktop work while streaming,
+not application attribution. Retain it alongside the engine counters rather
+than omit that compositor cost.
+
+Return reopened Track actions, Tab traversed its items, and selecting Change
+visualizer opened the nested preset menu without obscuring the parent. Selecting
+a preset dismissed it correctly. The artwork region did not visibly demonstrate
+a moving native visualizer, so this is only nested menu/input coverage, not a
+visualizer-rendering pass. Screen-reader coverage remains unverified.
+
+Raw logs: real-app/observer/playing-short-menu and playing-short-restored, plus
+their GPU JSON files. Automated pixel gates remained disabled. This extends the
+unchanged 2.9.0 payload/configuration checkpoint; the selected release payload
+and trimmed runtime must still be tested before shipping the fix.
