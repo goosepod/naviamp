@@ -1,0 +1,13 @@
+{
+  "tag": "v2.9.0",
+  "commit": "826e14bf1c46dba8d604515f1bf77bf6afcd541d",
+  "version_code": 57,
+  "asset": "Naviamp-v2.9.0-windows-x64-release.zip",
+  "url": "https://github.com/goosepod/naviamp/releases/download/v2.9.0/Naviamp-v2.9.0-windows-x64-release.zip",
+  "sha256": "86907877c7bb6b34438bb43737aeea083dbc871dee7a6358c2b0dee13f4f4381",
+  "msix_version": "2.9.57.0",
+  "identity": "Goosepod.Naviamp",
+  "publisher": "CN=71F0ADF4-9FDC-421A-AD04-F920729B2A5A",
+  "publisher_display_name": "Goosepod",
+  "store_id": "9PCFJ644LXLL"
+}
