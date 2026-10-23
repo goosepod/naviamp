@@ -231,6 +231,29 @@ sum mean 0.027 and DWM GPU engine sum mean 2.543. Raw evidence:
 marquee was active was not confirmed, so this is not an isolated progress-only or
 combined-animation acceptance sample. Parent-surface frame counts remain unmeasured.
 
+Playback with the same popup open, owner explicitly confirming background progress
+and title animation remained visible and moving: 15.805 seconds, 15 GPU samples,
+application CPU 18.487% of one core, DWM CPU 1.847% of one core, application GPU engine
+sum mean 3.897 and DWM GPU engine sum mean 0.914. Raw evidence:
+`naviamp-msix-323/component-playing-popup-open-counters.json` on the host. Relative to
+the preceding closed-popup playback sample, application CPU increased by 16.312
+percentage points (about 8.5 times); GPU engine sum also increased. This fails the
+real-application overlay budget of no more than one additional CPU percentage point
+in `docs/performance/desktop-popup-animation-136.md`. Window geometry was requested
+unchanged but not independently measured, and parent frames remain unmeasured.
+The COMPONENT diagnostic fixes the reported visual defects but is rejected as a
+production workaround on this evidence. The closed-popup repeat below checks whether the elevated cost reverses. No product or packaging renderer default changed.
+
+After closing the popup, keeping playback and window size unchanged as requested,
+the owner reported ready. The repeat measured 15.799 seconds, 15 GPU samples,
+application CPU 1.483% of one core, DWM CPU 4.516% of one core, application GPU engine
+sum mean 0.087 and DWM GPU engine sum mean 9.513. Raw evidence:
+`naviamp-msix-323/component-playing-restored-counters.json` on the host. Application
+CPU returned near the earlier closed-popup baseline. DWM counters vary across the
+samples and are whole-desktop observations; no isolated compositor attribution or
+complete GPU acceptance is claimed. The reversible application CPU increase is
+sufficient to reject this candidate without claiming measured parent-frame rates.
+
 ## Architecture review
 
 No Android/Desktop/iOS production source file changed. The changes are build
