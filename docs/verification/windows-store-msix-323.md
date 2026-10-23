@@ -37,6 +37,10 @@ Repackaging can change the outer MSIX checksum; always record the exact tested o
 | JVM, Skiko, BASS and visualizer modules load from installed package | Passed, process module audit |
 | Uninstall and remove temporary certificate/private key/test copy | Passed |
 | Preserve existing standalone data during uninstall | 7/7 files retained with matching SHA-256 |
+| Retest: saved server login after close/reopen | Passed, owner manual report |
+| Retest: pause/resume, seeking and keyboard media keys | Passed, owner manual report |
+| Retest: playback while minimized | Passed, owner manual report |
+| Retest: downloaded track playback offline | Passed, owner manual report |
 
 Windows build environment: x64, OS build `10.0.26300.0`. Used Microsoft NuGet
 `Microsoft.Windows.SDK.BuildTools` **10.0.26100.7463**, x64 MakeAppx from its
@@ -127,10 +131,43 @@ Follow the installed-app matrix in
 [`windows-store-distribution.md`](../windows-store-distribution.md): native audio,
 credentials/relaunch, server connections/offline behavior, downloads, media keys,
 background playback, accessibility, update, coexistence/data paths and uninstall.
-Connection, basic playback, native loading and uninstall now have evidence above.
-Credential persistence after relaunch, offline/download behavior, detailed playback
-controls/media keys/background playback, accessibility, upgrade and coexistence
-still need explicit acceptance results. No blanket pass is inferred from streaming.
+### Follow-up manual retest and rendering blocker
+
+Rendering investigation: [#325](https://github.com/goosepod/naviamp/issues/325).
+
+Reinstalled the same verified CI candidate using the approved test-signing lifecycle
+in the logged-in Windows session. Registration again reported `Ok`, and the one-time
+installation task was removed. Its active test state is
+`naviamp-msix-323/install-retest-20261023/test-install-state.json`; cleanup remains
+required when rendering diagnosis is finished.
+
+The owner reported that all four requested additional tests passed: saved login
+after close/reopen, pause/resume/seeking/media keys, playback while minimized, and
+offline playback of a downloaded track. These are user-reported functional results,
+not separate agent-observed UI or credential-encryption assertions.
+
+The same retest reported two rendering failures over Moonlight/Sunshine:
+
+- Opening a popup leaves the popup visible while the rest of Naviamp turns black.
+- Hover labels have a solid black rectangle extending approximately ten pixels
+  beyond the visible label in each direction.
+
+Do not treat this as a passed rendering result or dismiss it as a streaming artifact.
+The distinction between host rendering, graphics-driver/compositor behavior and
+stream capture is unconfirmed pending a physical Windows-display comparison.
+The installed launcher explicitly selects Skiko `OPENGL`; the host reports AMD
+Radeon Graphics driver `32.0.21042.62` and NVIDIA GeForce RTX 5060 Ti driver
+`32.0.16.1742`, with the NVIDIA display mode reported as 3840 x 2160. This records
+the environment; it does not identify which GPU owns each surface or a root cause.
+
+Core popup policy lives in `NaviampPopupSurface.kt`; desktop popup presentation
+uses owned windows through `compose.layers.type=WINDOW`. The black regions are
+consistent with lost alpha compositing, but that remains a hypothesis. No released
+application JARs, renderer settings or native binaries were changed during diagnosis.
+
+Connection, playback controls, relaunch login, offline playback, native loading and
+uninstall now have the evidence above. Popup/tooltip rendering, accessibility,
+upgrade/coexistence, WACK and Store submission preparation remain open gates.
 Temporary test signing/trust remains authorized for follow-up acceptance, with
 cleanup required after each test lifecycle.
 
