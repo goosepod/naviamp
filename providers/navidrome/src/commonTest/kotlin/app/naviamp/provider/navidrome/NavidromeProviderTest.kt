@@ -42,6 +42,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
+    @Test fun libraryNamesUseTheAccountReadableMusicFoldersEndpoint() = runTest {
+        val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"ok","musicFolders":{"musicFolder":[{"id":1,"name":"Music"},{"id":2,"name":"Archive"}]}}}""")
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+        val libraries = provider.libraries()
+        assertEquals(listOf("1", "2"), libraries.map { it.id })
+        assertEquals(listOf("Music", "Archive"), libraries.map { it.name })
+        assertTrue(http.urls.single().contains("/getMusicFolders.view?"))
+    }
+
     @Test fun certificateAndCustomHeaderConnectionsRequireProviderAuthenticatedPlayback() {
         val plain = connection("https://music.example.test")
         val http = RecordingResponseHttpClient("unused")
@@ -69,6 +78,44 @@ class NavidromeProviderTest {
         val provider = NavidromeProvider(connection("https://music.example.test"), http)
         assertFailsWith<UnsupportedOperationException> { provider.sonicSimilarTrackMatches(TrackId("seed"), 30) }
         assertEquals(1, http.urls.size)
+    }
+
+    @Test
+    fun bulkTrackIndexUsesNativeLibraryMembershipAndPersonalMetadata() = runTest {
+        val http = RecordingNativeHttpClient(
+            response = """[
+                {"id":"favorite","title":"Favorite","libraryId":2,"rating":4,"starred":true,"starredAt":"2026-10-19T12:00:00Z"},
+                {"id":"other-library","title":"Other","libraryId":3,"starred":true,"starredAt":"2026-10-19T12:00:00Z"}
+            ]""",
+            responseHeaders = mapOf("X-Total-Count" to "12"),
+        )
+        val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "native-token"), http)
+        val page = provider.libraryTracksPage(MediaPageRequest(offset = 5, limit = 2))!!
+        assertEquals("https://music.example.test/api/song?_start=5&_end=7&_order=ASC&_sort=title", http.getUrls.single())
+        assertEquals(listOf("2", "3"), page.items.map { it.musicFolderId })
+        assertEquals(4, page.items.first().userRating)
+        assertEquals("2026-10-19T12:00:00Z", page.items.first().favoritedAtIso8601)
+        assertEquals(12, page.totalItemCount)
+        assertTrue(page.hasMore)
+    }
+
+    @Test
+    fun bulkTrackIndexFallsBackWhenNativeMetadataCannotBeRead() = runTest {
+        val urls = mutableListOf<String>()
+        val http = object : NavidromeHttpClient {
+            override suspend fun get(url: String): String {
+                urls += url
+                if ("/api/" in url) error("Native API unavailable")
+                return """{"subsonic-response":{"status":"ok","searchResult3":{"song":[{"id":"track","title":"Fallback"}]}}}"""
+            }
+        }
+        val provider = NavidromeProvider(connection("https://music.example.test", nativeToken = "expired")
+            .copy(selectedMusicFolderIds = listOf("2")), http)
+        val page = provider.libraryTracksPage(MediaPageRequest(limit = 10))!!
+        assertTrue(urls.any { "/api/song?" in it })
+        assertTrue(urls.any { "/rest/search3.view?" in it && "musicFolderId=2" in it })
+        assertEquals(listOf("Fallback"), page.items.map { it.title })
+        assertEquals(listOf("2"), page.items.map { it.musicFolderId })
     }
 
     @Test

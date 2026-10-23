@@ -72,8 +72,23 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     // AWT does not always emit a deiconify event for programmatic Frame state changes.
     // Compose Desktop's native WindowState reports those transitions as well as WM input.
-    NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
-        System.getProperty("compose.layers.type") == "WINDOW", content)
+    val dialogSurface = remember(window) { DesktopOwnedDialogSurface(window) }
+    androidx.compose.runtime.CompositionLocalProvider(LocalNaviampOwnedDialogSurface provides dialogSurface) {
+        NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
+            System.getProperty("compose.layers.type") == "WINDOW", content)
+    }
+}
+
+/** Native Skiko/AWT boundary: the primary layer already captured its hardware renderer.
+ * Select the default for future transparent window constructors; never switch a live surface. */
+internal fun configureNaviampDesktopPopupRenderer(window: Window,
+    requestedApi: String? = System.getProperty("naviamp.desktop.popupRenderApi")) {
+    val requested = requestedApi?.trim()
+        ?.takeUnless { it.isEmpty() || it.equals("DEFAULT", ignoreCase = true) } ?: return
+    require(EventQueue.isDispatchThread()) { "Popup renderer initialization requires the AWT event thread" }
+    require(window.owner == null && window.isOpaque) { "Popup renderer initialization requires the primary AWT window" }
+    checkNotNull(findSkiaLayer(window)) { "Primary Skiko layer is unavailable" }
+    System.setProperty("skiko.renderApi", GraphicsApi.valueOf(requested).name)
 }
 
 /** Native Skiko/AWT boundary: the primary layer already captured its hardware renderer.

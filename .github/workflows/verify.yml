@@ -310,6 +310,18 @@ jobs:
         shell: powershell
         run: .\scripts\windows-idle-cpu.ps1
 
+      - name: Build Windows release app for native acceptance
+        shell: powershell
+        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable
+
+      - name: Upload Windows release app
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-windows-release-app
+          retention-days: 7
+          if-no-files-found: error
+          path: apps/desktop/build/compose/distributions/*-windows-x64-release.zip
+
       - name: Measure isolated Windows animation surfaces
         shell: powershell
         run: |

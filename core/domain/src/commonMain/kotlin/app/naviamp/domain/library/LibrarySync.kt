@@ -1,5 +1,6 @@
 package app.naviamp.domain.library
 
+import kotlinx.coroutines.ensureActive
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
@@ -178,4 +179,65 @@ suspend fun syncLibraryIndexAndMarkScanChecked(
         libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
     }
     return result
+}
+
+/** Preview needs track metadata, not a refresh of artists, genres or scan state. */
+suspend fun syncSmartPlaylistPreviewTracks(
+    sourceId: String,
+    provider: MediaProvider,
+    repository: LocalLibraryIndexRepository,
+    onProgress: suspend (LibrarySyncProgress) -> Unit = {},
+): Int {
+    val seen = mutableSetOf<app.naviamp.domain.TrackId>()
+    suspend fun report(phase: LibrarySyncProgressPhase = LibrarySyncProgressPhase.LoadingTracks,
+                       albums: Int = 0, total: Int? = null) {
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        onProgress(LibrarySyncProgress(phase, albumCount = albums, trackCount = seen.size,
+            completed = seen.size, total = total))
+    }
+    suspend fun store(tracks: List<app.naviamp.domain.Track>) {
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        repository.upsertLibraryTracks(sourceId, tracks.filter { seen.add(it.id) })
+    }
+    report()
+    var page = provider.libraryTracksPage(MediaPageRequest(limit = MaximumMediaPageSize))
+    if (page != null) {
+        while (page != null) {
+            val current = page
+            store(current.items)
+            report(total = current.totalItemCount)
+            val next = current.nextRequest
+            if (current.items.isEmpty() || next == null) {
+                check(current.totalItemCount == null || seen.size >= current.totalItemCount) { "Incomplete track enumeration" }
+                check(!current.hasMore) { "Incomplete track enumeration" }
+                break
+            }
+            page = checkNotNull(provider.libraryTracksPage(next))
+        }
+    } else {
+        val albums = linkedMapOf<app.naviamp.domain.AlbumId, Album>()
+        var request: MediaPageRequest? = MediaPageRequest(limit = MaximumMediaPageSize)
+        report(LibrarySyncProgressPhase.LoadingAlbums)
+        while (request != null) {
+            val current = provider.albumsPage(request)
+            current.items.forEach { albums[it.id] = it }
+            report(LibrarySyncProgressPhase.LoadingAlbums, albums.size)
+            if (current.items.isEmpty() || current.nextRequest == null) {
+                check(current.totalItemCount == null || albums.size >= current.totalItemCount) { "Incomplete album enumeration" }
+                check(!current.hasMore) { "Incomplete album enumeration" }
+                break
+            }
+            request = current.nextRequest
+        }
+        for (album in albums.values) {
+            report(albums = albums.size)
+            store(provider.album(album.id).tracks)
+            report(albums = albums.size)
+        }
+    }
+    // The callback also checks source identity before modifying the completed snapshot.
+    report()
+    repository.pruneLibraryTracks(sourceId, seen)
+    report(LibrarySyncProgressPhase.IndexedLibrary)
+    return seen.size
 }

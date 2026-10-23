@@ -612,6 +612,8 @@ internal fun ConnectedContent(
             colors = colors,
             screen = artistDetail,
             albumCollectionLayout = interfaceSettings.albumCollectionLayout,
+            artistPlaylistLayout = interfaceSettings.artistPlaylistLayout,
+            artistAppearanceAlbumLayout = interfaceSettings.artistAppearanceAlbumLayout,
             albumSortOrder = interfaceSettings.albumSortOrder,
             groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
             actions = artistDetailActions,

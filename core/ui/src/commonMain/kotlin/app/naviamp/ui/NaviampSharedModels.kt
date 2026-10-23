@@ -443,10 +443,20 @@ data class SharedArtistDetailUi(
     val localLibraryLabel: String = "",
     val biography: String? = null,
     val popularTracks: List<SharedTrackRowUi> = emptyList(),
+    val popularTracksVisible: Boolean = true,
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
     val similarArtistsExpanded: Boolean = false,
+    val playlistsVisible: Boolean = true,
+    val playlists: SharedArtistPlaylistsUi = SharedArtistPlaylistsUi(),
+)
+
+data class SharedArtistPlaylistsUi(
+    val items: List<SharedMediaItemUi> = emptyList(),
+    val loading: Boolean = false,
+    val failed: Boolean = false,
+    val truncated: Boolean = false,
 )
 
 data class NaviampArtistDetailScreenUi(
@@ -499,6 +509,8 @@ data class NaviampArtistDetailActions(
     val onAlbumAction: (NaviampArtistAlbumActionRequest) -> Unit,
     val onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
     val onKeepDownloaded: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistsRefresh: (String) -> Unit = {},
 )
 
 data class SharedAlbumSectionUi(
@@ -531,9 +543,11 @@ data class NaviampPlaylistsScreenUi(
     val genreCatalog: List<app.naviamp.domain.smartplaylist.SmartPlaylistGenreOption> = emptyList(),
 )
 
+typealias NaviampSmartPlaylistSync = suspend (suspend (app.naviamp.domain.library.LibrarySyncProgress) -> Unit) -> Unit
+
 data class NaviampSmartPlaylistActions(
     val onReferences: suspend () -> List<app.naviamp.domain.smartplaylist.SmartPlaylistReference> = { emptyList() },
-    val onSyncLibrary: (suspend () -> Unit)? = null,
+    val onSyncLibrary: NaviampSmartPlaylistSync? = null,
     val onPreview: suspend (SmartPlaylistDefinition) -> app.naviamp.domain.smartplaylist.SmartPlaylistPreview = {
         app.naviamp.domain.smartplaylist.SmartPlaylistPreview(message = "Preview is unavailable.")
     },
@@ -797,6 +811,10 @@ data class NaviampLibraryCatalogUi(
     val items: List<SharedMediaItemUi> = emptyList(),
     val tracks: List<SharedTrackRowUi> = emptyList(),
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
+    /** A query lookup is separate from refreshing the browsable library. */
+    val searching: Boolean = false,
+    /** Provider-selected matches are authoritative only for this exact query. */
+    val resultsQuery: String? = null,
     val albumSortOrder: LibraryAlbumSortOrder = LibraryAlbumSortOrder.Title,
     /** Changes only after an explicit refresh; automatic loads preserve the viewport. */
     val refreshGeneration: Long = 0L,

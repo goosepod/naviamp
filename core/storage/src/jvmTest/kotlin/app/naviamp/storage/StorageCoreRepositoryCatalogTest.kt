@@ -10,6 +10,36 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class StorageCoreRepositoryCatalogTest {
+    @Test fun completedTrackSyncPrunesOnlyItsSourceIndexAndPreservesDownloadedAudio() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        NaviampStorageDatabase.Schema.create(driver)
+        try {
+            val database = NaviampStorageDatabase(driver)
+            val catalog = StorageCoreRepositoryCatalog(database, PassthroughStorageCredentialProtector, { 42L }, "test.db",
+                deleteKnownAudioCacheFile = { error("Must not delete audio") }, deleteKnownDownloadFile = { error("Must not delete downloads") })
+            val connection = ProviderMediaSourceConnection(displayName = "Server", baseUrl = "https://music.example.test",
+                username = "listener", token = "token", salt = "salt")
+            val source = catalog.mediaSources.upsertProviderMediaSource(connection, "first", "navidrome")
+            val other = catalog.mediaSources.upsertProviderMediaSource(connection.copy(username = "other"), "second", "navidrome")
+            fun track(id: String, folder: String?) = Track(TrackId(id), "Song", artistName = "Artist", albumTitle = null, durationSeconds = 60,
+        coverArtId = null, audioInfo = null, replayGain = null,
+                musicFolderId = folder, favoritedAtIso8601 = "2026-10-19T12:00:00Z")
+            catalog.libraryIndex.upsertLibraryTracks(source.id, listOf(track("current", "1"), track("stale", null)))
+            catalog.libraryIndex.upsertLibraryTracks(other.id, listOf(track("other", null)))
+            database.naviampStorageQueries.insertTestDownload(source.id, "/known/download.opus")
+            catalog.libraryIndex.pruneLibraryTracks(source.id, setOf(TrackId("current")))
+            assertEquals(listOf("current"), catalog.libraryIndex.libraryTracksForSmartPlaylistPreview(source.id).map { it.id.value })
+            assertEquals(listOf("other"), catalog.libraryIndex.libraryTracksForSmartPlaylistPreview(other.id).map { it.id.value })
+            assertEquals(1, database.naviampStorageQueries.selectAllDownloadedAudio().executeAsList().size)
+            val preview = app.naviamp.domain.smartplaylist.previewSmartPlaylist(
+                app.naviamp.domain.smartplaylist.SmartPlaylistDefinition("Favorites", libraryIds = listOf("1"), rules = listOf(
+                    app.naviamp.domain.smartplaylist.SmartPlaylistCondition(app.naviamp.domain.smartplaylist.SmartPlaylistOperator.Is,
+                        app.naviamp.domain.smartplaylist.SmartPlaylistFields.Loved, app.naviamp.domain.smartplaylist.SmartPlaylistValue.Flag(true)))),
+                catalog.libraryIndex.libraryTracksForSmartPlaylistPreview(source.id), nowEpochMillis = 0)
+            assertEquals(1, preview.matchingTrackCount)
+        } finally { driver.close() }
+    }
+
     @Test
     fun assemblesPortableRepositoriesAndDelegatesOnlyNativeFileCleanup() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
