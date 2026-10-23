@@ -26,6 +26,33 @@ no claim is made that different build environments produce byte-identical archiv
 The original v2.9.0 Store submission remains unchanged and is in certification as of
 October 23, 2026. This record does not publish or approve a release tag.
 
+### Final stock-launcher native renderer trace
+
+With the owner-prepared Analog Signal Failure preset playing at approximately 3%
+volume, repeated read-only JVM thread dumps reached
+`NativeOpenGlVisualizerHost.renderImage` at line 68 in seven of 120 samples. This
+is `Image.makeRaster` after `nativeRenderImage` returned pixels successfully;
+failed native creation/rendering exits before this point. Computer Use confirmed
+changing shader imagery and playback position advancing from 0:30 to 1:35.
+This demonstrates repeated successful native rendering rather than capability
+availability alone. No production launcher, runtime, or JAR changes were needed.
+
+A narrower 24-sample attempt captured no JNI entry frames and is not a passing
+trace. The first attempt also ran after the ten-minute track had ended. The
+successful trace includes post-JNI returns because short native calls need not
+coincide with a synchronous thread dump. Thread inspection perturbs timing: these
+samples are functional evidence, not CPU measurements. Raw trace directory:
+`popup-probe-325/mixed-2100/native-stack-20261023-222218` on Sunshine. The disposable
+application and local fixture were stopped after the check.
+
+Both production-source Verify runs linked above passed the full matrix on their
+second attempts, including iOS and verified-source recording. The first-attempt
+release failure hit the shared 25-second negative TLS rejection deadline; the
+main failure exhausted the five-minute native job step mostly during Gradle
+startup. Unchanged isolated reruns passed; this does not resolve the distinct
+flakiness tracked in [#301](https://github.com/goosepod/naviamp/issues/301).
+No source assertions, retries, or timeouts were weakened.
+
 ## Revised candidate — October 23, later checkpoint
 
 The earlier **global SOFTWARE_FAST main-window configuration is rejected** as the
