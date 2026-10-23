@@ -16,6 +16,13 @@ Pending statements in older checkpoints are historical, not the current manual-t
 status. Existing visualizer performance remains tracked separately in
 [#241](https://github.com/goosepod/naviamp/issues/241).
 
+The successful Windows CI job also retained the selected candidate’s release ZIP.
+Its SHA-256 is `cabbecc0f837a9d687dbe0667e9245895631652dade64d6f2635b04aa6ab136c`;
+archive integrity passed, the original launcher selects OPENGL primary and SOFTWARE_FAST
+popup constructors, and its Temurin 21.0.12.1 runtime includes jdk.accessibility.
+This is the CI-built artifact, distinct from the Sunshine-built ZIP measured below;
+no claim is made that different build environments produce byte-identical archives.
+
 The original v2.9.0 Store submission remains unchanged and is in certification as of
 October 23, 2026. This record does not publish or approve a release tag.
 
