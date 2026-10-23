@@ -7,7 +7,6 @@ import java.awt.image.BufferedImage;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
-import java.lang.management.ManagementFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
@@ -20,10 +19,24 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.imageio.ImageIO;
 
-/** Opt-in test agent: observes the actual packaged app; never creates UI or changes playback. */
+/** Opt-in test observer: never creates UI or changes playback. */
 public final class ApplicationRenderProbe {
     private static final Map<Component, AtomicLong> frames = new IdentityHashMap<>();
     private static final Map<Component, Object> observers = new IdentityHashMap<>();
+
+    // A disposable launcher configuration can use this entry point with the unchanged trimmed
+    // runtime, which need not include java.instrument or java.management. Production jars stay intact.
+    public static void main(String[] arguments) throws Throwable {
+        String directory = System.getProperty("naviamp.probe.directory");
+        if (directory == null || directory.isBlank()) throw new IllegalArgumentException("Missing naviamp.probe.directory");
+        premain(directory);
+        try {
+            Class.forName("app.naviamp.desktop.MainKt").getMethod("main", String[].class)
+                .invoke(null, (Object) arguments);
+        } catch (InvocationTargetException failure) {
+            throw failure.getCause();
+        }
+    }
 
     public static void premain(String directory) {
         Thread worker = new Thread(() -> run(Path.of(directory)), "Naviamp application rendering probe");
@@ -34,7 +47,6 @@ public final class ApplicationRenderProbe {
     private static void run(Path directory) {
         try {
             Files.createDirectories(directory);
-            var cpu = (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
             String previous = "";
             while (true) {
                 Path command = directory.resolve("phase");
@@ -45,6 +57,8 @@ public final class ApplicationRenderProbe {
                 }
                 if (!phase.matches("[a-zA-Z0-9_-]+")) throw new IllegalArgumentException("Invalid probe phase");
                 previous = phase;
+                // A restart must not overwrite a completed sample left in the control file.
+                if (Files.exists(directory.resolve(phase + ".txt"))) continue;
                 EventQueue.invokeAndWait(() -> {
                     for (Window window : Window.getWindows()) {
                         if (window.isShowing()) attach(window);
@@ -52,15 +66,17 @@ public final class ApplicationRenderProbe {
                     frames.values().forEach(counter -> counter.set(0));
                 });
                 boolean beforeVisible = capture(directory, phase + "-before");
-                long cpuBefore = cpu.getProcessCpuTime();
+                long cpuBefore = cpuNanos();
                 long started = System.nanoTime();
-                long compilation = ManagementFactory.getCompilationMXBean().getTotalCompilationTime();
+                Long compilation = compilationMillis();
                 Thread.sleep(10_000);
-                double percent = (cpu.getProcessCpuTime() - cpuBefore) * 100.0 / (System.nanoTime() - started);
-                long compilationMillis = ManagementFactory.getCompilationMXBean().getTotalCompilationTime() - compilation;
+                double percent = (cpuNanos() - cpuBefore) * 100.0 / (System.nanoTime() - started);
+                Long compilationAfter = compilationMillis();
+                String compilationDelta = compilation == null || compilationAfter == null
+                    ? "unavailable" : Long.toString(compilationAfter - compilation);
                 var result = new StringBuilder("APPLICATION_PROBE phase=").append(phase)
                     .append(" pid=").append(ProcessHandle.current().pid()).append(" cpu=").append(percent)
-                    .append(" compilation_ms=").append(compilationMillis);
+                    .append(" compilation_ms=").append(compilationDelta);
                 EventQueue.invokeAndWait(() -> frames.forEach((component, counter) -> {
                     Window window = javax.swing.SwingUtilities.getWindowAncestor(component);
                     result.append(" surface=").append(window instanceof Frame ? "parent" : "owned")
@@ -68,6 +84,8 @@ public final class ApplicationRenderProbe {
                         .append(" visible=").append(component.isShowing())
                         .append(" iconified=").append(window instanceof Frame && (((Frame) window).getExtendedState() & Frame.ICONIFIED) != 0)
                         .append(" frames=").append(counter.get())
+                        .append(" renderer=").append(renderer(component))
+                        .append(" render_info=").append(renderInfo(component))
                         .append(" observer_attached=").append(observerAttached(component));
                 }));
                 boolean afterVisible = capture(directory, phase + "-after");
@@ -80,7 +98,43 @@ public final class ApplicationRenderProbe {
         }
     }
 
+    private static long cpuNanos() {
+        return ProcessHandle.current().info().totalCpuDuration()
+            .orElseThrow(() -> new IllegalStateException("Process CPU duration unavailable")).toNanos();
+    }
+
+    private static Object renderer(Component component) {
+        try {
+            return component.getClass().getMethod("getRenderApi").invoke(component);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Cannot identify the observed renderer", failure);
+        }
+    }
+
+    private static String renderInfo(Component component) {
+        try {
+            return component.getClass().getMethod("getRenderInfo").invoke(component)
+                .toString().replaceAll("\\s+", " ");
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Cannot identify the native renderer", failure);
+        }
+    }
+
+    private static Long compilationMillis() throws ReflectiveOperationException {
+        try {
+            Object bean = Class.forName("java.lang.management.ManagementFactory")
+                .getMethod("getCompilationMXBean").invoke(null);
+            if (bean == null) return null;
+            return (Long) Class.forName("java.lang.management.CompilationMXBean")
+                .getMethod("getTotalCompilationTime").invoke(bean);
+        } catch (ClassNotFoundException unavailableInTrimmedRuntime) {
+            return null;
+        }
+    }
+
     private static boolean capture(Path output, String name) throws Exception {
+        // Computer Use sessions supply their own physical observations; never capture behind them.
+        if (!Boolean.parseBoolean(System.getProperty("naviamp.probe.capture", "true"))) return false;
         String guard = System.getProperty("naviamp.probe.macWindowGuard");
         if (guard == null) return captureAwt(output, name);
         // Native AppKit placement can differ from AWT cached bounds after Space/window changes.

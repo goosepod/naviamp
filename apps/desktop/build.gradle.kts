@@ -19,6 +19,13 @@ val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersio
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName, naviampVersionCode)
 val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
 val desktopExecutableDescription = "Naviamp"
+// Skiko backend initialization is native to the Windows JVM host, including transparent HWNDs.
+val windowsSkikoRenderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
+    .orElse("OPENGL").map(String::trim)
+val windowsPopupRenderApi = providers.gradleProperty("naviamp.windows.popupRenderApi")
+    .orElse(providers.provider {
+        if (providers.gradleProperty("naviamp.windows.skiko.renderApi").isPresent) "" else "SOFTWARE_FAST"
+    }).map(String::trim)
 val macOsFullscreenJvmArgs = listOf(
     "--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED",
     "--add-exports=java.desktop/sun.awt=ALL-UNNAMED",
@@ -103,15 +110,16 @@ compose.desktop {
         )
         when {
             desktopNativePlatform.get().startsWith("windows-") -> {
-                val renderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
-                    // Skiko's Direct3D backend can spin a render thread at one full logical core
-                    // while an otherwise static window is visible. OpenGL preserves GPU rendering
-                    // and lets the Windows event loop sleep between actual frame invalidations.
-                    .orElse("OPENGL")
-                    .get()
-                    .trim()
+                // Keep the primary surface hardware-initialized. The native adapter selects the
+                // popup default after primary construction and before any popup constructor.
+                // Late per-layer renderer switches do not repair native initialization.
+                val renderApi = windowsSkikoRenderApi.get()
                 if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {
                     jvmArgs += "-Dskiko.renderApi=$renderApi"
+                }
+                val popupRenderApi = windowsPopupRenderApi.get()
+                if (popupRenderApi.isNotBlank() && !popupRenderApi.equals("DEFAULT", ignoreCase = true)) {
+                    jvmArgs += "-Dnaviamp.desktop.popupRenderApi=$popupRenderApi"
                 }
                 jvmArgs += "-Dnaviamp.visualizer.windowsOpenGl=true"
             }
@@ -346,6 +354,24 @@ tasks.register("verifyDesktopDistributable") {
         val missing = requiredLibraries.filterNot { bassResourcesDirectory.resolve(it).isFile }
         check(missing.isEmpty()) {
             "Desktop package is missing native playback resources in ${bassResourcesDirectory.absolutePath}: ${missing.joinToString()}"
+        }
+        if (platform.startsWith("windows-")) {
+            val launcherConfig = appDirectory.resolve("app/Naviamp.cfg").readText()
+            val expectedRenderer = windowsSkikoRenderApi.get()
+            if (expectedRenderer.isNotBlank() && !expectedRenderer.equals("DEFAULT", ignoreCase = true)) {
+                check(launcherConfig.lineSequence().any { it == "java-options=-Dskiko.renderApi=$expectedRenderer" }) {
+                    "Windows launcher does not select the configured Skiko renderer before surface creation."
+                }
+            }
+            val expectedPopup = windowsPopupRenderApi.get()
+            if (expectedPopup.isNotBlank() && !expectedPopup.equals("DEFAULT", ignoreCase = true)) {
+                check(launcherConfig.lineSequence().any { it == "java-options=-Dnaviamp.desktop.popupRenderApi=$expectedPopup" }) {
+                    "Windows launcher does not configure the future popup renderer."
+                }
+            }
+            check(launcherConfig.contains("java-options=-Dnaviamp.visualizer.windowsOpenGl=true")) {
+                "Windows launcher does not enable the native visualizer backend."
+            }
         }
         if (platform.startsWith("macos-")) {
             val applicationIcon = desktopPackagedResourcesDir(platform, appDirectory)
