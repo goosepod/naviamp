@@ -107,6 +107,8 @@ class NavidromeProvider(
     private val profile = subsonicProviderProfile(connection.providerId)
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
+    override val requiresAuthenticatedPlaybackTransport: Boolean
+        get() = connection.tlsSettings != NavidromeTlsSettings() || customHeaders.isNotEmpty()
     override val source: String = NavidromeAgentMetadataSource
     override val selectedMusicFolderIds: List<String> =
         normalizedMusicFolderIds(connection.selectedMusicFolderIds)
@@ -257,6 +259,9 @@ class NavidromeProvider(
             folderCount = scanStatus.intValue("folderCount"),
         )
     }
+
+    override suspend fun libraries(): List<app.naviamp.domain.provider.MediaLibrary> =
+        musicFolders().map { app.naviamp.domain.provider.MediaLibrary(it.id, it.name) }
 
     suspend fun musicFolders(): List<NavidromeMusicFolder> {
         val response = get("getMusicFolders.view")
@@ -553,7 +558,11 @@ class NavidromeProvider(
     override suspend fun track(trackId: TrackId): Track? = song(trackId)
 
     override suspend fun libraryTracksPage(request: MediaPageRequest): MediaPage<Track>? =
-        if (!bulkMetadataEnumeration) null else pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
+        if (!bulkMetadataEnumeration) null else nativeAlphabeticalPage(
+            kind = AlphabeticalLibraryKind.Tracks,
+            request = request,
+            mapper = { it.toNativeTrack() },
+        ) ?: pageAcrossSelectedMusicFolders(request, { it: Track -> it.id.value }) { folder, limit, offset ->
             searchForMusicFolder(query = "", songCount = limit, songOffset = offset, musicFolderId = folder).tracks
                 .map { track ->
                     if (track.musicFolderId == null && folder != null) track.copy(musicFolderId = folder)
@@ -937,6 +946,9 @@ class NavidromeProvider(
     override suspend fun playlists(limit: Int): List<Playlist> {
         return playlistsForMusicFolder(limit, musicFolderId = null)
     }
+
+    override suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? =
+        playlist.owner?.takeIf { it.isNotBlank() }?.let { it == authenticatedUsername }
 
     private suspend fun playlistsForMusicFolder(limit: Int, musicFolderId: String?): List<Playlist> {
         val response = get(

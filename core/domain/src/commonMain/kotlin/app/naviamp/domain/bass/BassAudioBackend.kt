@@ -228,6 +228,9 @@ interface BassAudioBackend {
     fun createUrlStream(url: String): Result<BassStreamHandle> =
         unsupportedBassOperation("BASS URL stream creation")
 
+    fun createRandomAccessStream(source: app.naviamp.domain.playback.PlaybackRandomAccessSource, decode: Boolean): Result<BassStreamHandle> =
+        unsupportedBassOperation("BASS random-access stream creation")
+
     fun createFileDecodeStream(path: String): Result<BassStreamHandle>
 
     fun createFilePlaybackDecodeStream(path: String): Result<BassStreamHandle> =
@@ -445,8 +448,11 @@ fun BassAudioBackend.createPlaybackStream(
     url: String,
     decode: Boolean,
     playbackDecode: Boolean = false,
+    randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null,
 ): Result<BassStreamHandle> =
-    if (localPath != null) {
+    if (randomAccess != null) {
+        createRandomAccessStream(randomAccess, decode)
+    } else if (localPath != null) {
         when {
             decode && playbackDecode -> createFilePlaybackDecodeStream(localPath)
             decode -> createFileDecodeStream(localPath)
@@ -460,23 +466,27 @@ fun BassAudioBackend.createQueuedBassSource(
     localPath: String?,
     url: String,
     playbackDecode: Boolean = false,
+    randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null,
 ): Result<Int> =
     createPlaybackStream(
         localPath = localPath,
         url = url,
         decode = true,
         playbackDecode = playbackDecode,
+        randomAccess = randomAccess,
     ).map { it.value }
 
 fun BassAudioBackend.createDirectBassPlayback(
     localPath: String?,
     url: String,
     replayGainFactor: Float,
+    randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null,
 ): Result<BassCreatedPlayback> =
     createPlaybackStream(
         localPath = localPath,
         url = url,
         decode = false,
+        randomAccess = randomAccess,
     ).map { handle ->
         BassCreatedPlayback(
             playbackHandle = handle.value,
@@ -492,6 +502,7 @@ fun BassAudioBackend.createMixerBassPlayback(
     replayGainFactor: Float,
     stereoDownmixEnabled: Boolean = false,
     playbackDecode: Boolean = false,
+    randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null,
 ): Result<BassCreatedPlayback> {
     var source: BassStreamHandle? = null
     var mixer: BassStreamHandle? = null
@@ -501,6 +512,7 @@ fun BassAudioBackend.createMixerBassPlayback(
             url = url,
             decode = true,
             playbackDecode = playbackDecode,
+            randomAccess = randomAccess,
         ).getOrThrow().also { source = it }
         val sourceInfo = channelInfo(createdSource).getOrThrow()
         val mixerPlan = planBassMixerCreation(
@@ -539,6 +551,7 @@ fun BassAudioBackend.createBassPlayback(
     replayGainFactor: Float,
     stereoDownmixEnabled: Boolean = false,
     playbackDecode: Boolean = false,
+    randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null,
 ): Result<BassCreatedPlayback> =
     if (useMixer) {
         createMixerBassPlayback(
@@ -548,12 +561,14 @@ fun BassAudioBackend.createBassPlayback(
             replayGainFactor = replayGainFactor,
             stereoDownmixEnabled = stereoDownmixEnabled,
             playbackDecode = playbackDecode,
+            randomAccess = randomAccess,
         )
     } else {
         createDirectBassPlayback(
             localPath = localPath,
             url = url,
             replayGainFactor = replayGainFactor,
+            randomAccess = randomAccess,
         )
     }
 
@@ -567,6 +582,7 @@ fun BassAudioBackend.prepareNextBassMixerSource(
     replayGainFactor: Float,
     stereoDownmixEnabled: Boolean = false,
     playbackDecode: Boolean = false,
+    randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null,
 ): Result<BassPreparedSource> {
     var source: Int = 0
     return runCatching {
@@ -574,6 +590,7 @@ fun BassAudioBackend.prepareNextBassMixerSource(
             localPath = localPath,
             url = url,
             playbackDecode = playbackDecode,
+            randomAccess = randomAccess,
         ).getOrThrow().also { source = it }
         val sourceChannels = channelInfo(createdSource).getOrThrow().channels
         val transition = planPreparedMixerTransition(crossfadeDurationSeconds, replayGainFactor)

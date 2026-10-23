@@ -21,6 +21,34 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AndroidNativeBoundaryInstrumentedTest {
     @Test
+    fun packagedBassDecodesAndSeeksThroughTheSharedFileCallbacks() {
+        val bytes = testWav()
+        val source = object : app.naviamp.domain.playback.PlaybackRandomAccessSource {
+            override val lengthBytes = bytes.size.toLong()
+            override suspend fun read(offset: Long, count: Int) =
+                bytes.copyOfRange(offset.toInt(), minOf(bytes.size.toLong(), offset + count).toInt())
+        }
+        val bass = AndroidBassJni.load().getOrThrow()
+        assertTrue(bass.init())
+        try {
+            val invalid = app.naviamp.domain.playback.BassFileCallbacks(object : app.naviamp.domain.playback.PlaybackRandomAccessSource {
+                override val lengthBytes = 64L
+                override suspend fun read(offset: Long, count: Int) = ByteArray(minOf(count.toLong(), lengthBytes - offset).toInt())
+            })
+            assertEquals(0, bass.createRandomAccessStream(invalid, true))
+            assertFalse(invalid.seek(0), "Failed native creation must close the callback cursor")
+            val stream = bass.createRandomAccessStream(app.naviamp.domain.playback.BassFileCallbacks(source), true)
+            assertTrue(stream != 0, "Native callbacks failed: ${bass.lastErrorCode}")
+            try {
+                assertTrue(bass.seek(stream, 0.5))
+                val samples = FloatArray(256)
+                assertTrue(bass.readFloatData(stream, samples) > 0)
+                assertTrue(samples.any { it != 0f })
+            } finally { assertTrue(bass.freeStream(stream)) }
+        } finally { bass.free() }
+    }
+
+    @Test
     fun androidKeystoreProtectsAndRevealsCredentials() {
         val protector = AndroidKeystoreCredentialProtector()
         val secret = "naviamp-device-test-${UUID.randomUUID()}"

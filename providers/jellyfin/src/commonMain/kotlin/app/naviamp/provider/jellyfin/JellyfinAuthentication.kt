@@ -177,6 +177,17 @@ class JellyfinSessionService(
         return response.jsonObject("Jellyfin returned an invalid response")
     }
 
+    /** The playlist Users endpoint permits only its creator, unlike ordinary edit permission. */
+    internal suspend fun ownsPlaylist(connection: JellyfinConnection, playlistId: String): Boolean {
+        val response = httpClient.get(
+            url = connection.apiUrl("Playlists/${playlistId.urlEncodedParameter()}/Users", emptyList()),
+            headers = requestHeaders(connection.accessToken, connection.customHeaders),
+        )
+        if (response.statusCode == 403) return false
+        response.requireSuccess("Could not determine playlist ownership")
+        return true
+    }
+
     internal suspend fun getBytes(connection: JellyfinConnection, url: String): ByteArray? {
         if (!connection.ownsUrl(url)) return null
         val response = httpClient.getBytes(

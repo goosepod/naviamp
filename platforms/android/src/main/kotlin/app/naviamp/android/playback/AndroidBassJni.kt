@@ -59,6 +59,9 @@ object AndroidBassJni {
 
     fun createUrlStream(url: String): Int = nativeCreateUrlStream(url)
 
+    fun createRandomAccessStream(callbacks: app.naviamp.domain.playback.BassFileCallbacks, decode: Boolean): Int =
+        nativeCreateRandomAccessStream(callbacks, decode)
+
     fun createFileStream(path: String): Int = nativeCreateFileStream(path)
 
     fun createUrlDecodeStream(url: String, bounded: Boolean = false): Int =
@@ -159,6 +162,7 @@ object AndroidBassJni {
     private external fun nativeConfigureInternetStreams(): Boolean
     private external fun nativeSetNetworkProxy(proxy: String): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
+    private external fun nativeCreateRandomAccessStream(callbacks: app.naviamp.domain.playback.BassFileCallbacks, decode: Boolean): Int
     private external fun nativeCreateFileStream(path: String): Int
     private external fun nativeCreateUrlDecodeStream(url: String, bounded: Boolean): Int
     private external fun nativeCreateFileDecodeStream(path: String): Int

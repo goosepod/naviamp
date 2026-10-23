@@ -92,7 +92,18 @@ class IosCoreSettingsSyncPort(
         contentTypes: List<String>,
         currentPath: String?,
         title: String,
-    ): String? = suspendCancellableCoroutine { continuation ->
+    ): String? = chooseDocumentUrl(contentTypes, currentPath, title)?.let { url ->
+        val scoped = url.startAccessingSecurityScopedResource()
+        try { url.toPersistentReference() } finally { if (scoped) url.stopAccessingSecurityScopedResource() }
+    }
+
+    internal suspend fun chooseCertificateUrl(): NSURL? = chooseDocumentUrl(listOf("public.data"), null, "")
+
+    private suspend fun chooseDocumentUrl(
+        contentTypes: List<String>,
+        currentPath: String?,
+        title: String,
+    ): NSURL? = suspendCancellableCoroutine { continuation ->
         check(activePickerDelegate == null) { "A settings document picker is already open." }
         val host = presenter() ?: error("The iOS window is not ready to present a document picker.")
         val picker = UIDocumentPickerViewController(
@@ -102,11 +113,11 @@ class IosCoreSettingsSyncPort(
             allowsMultipleSelection = false
             shouldShowFileExtensions = true
             currentPath?.takeIf(String::isNotBlank)?.let(::resolveReference)?.let { directoryURL = it }
-            this.title = title
+            title.takeIf(String::isNotBlank)?.let { this.title = it }
         }
         val delegate = IosDocumentPickerDelegate { url ->
             activePickerDelegate = null
-            continuation.takeIf { it.isActive }?.resume(url?.toPersistentReference())
+            continuation.takeIf { it.isActive }?.resume(url)
         }
         activePickerDelegate = delegate
         picker.delegate = delegate

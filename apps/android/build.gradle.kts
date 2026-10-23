@@ -140,6 +140,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(project(":core:testkit"))
     androidTestImplementation(libs.sqldelight.android.driver)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)

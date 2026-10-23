@@ -49,11 +49,13 @@ class NaviampCoreConnectionController(
     private val onConnected: (String) -> Unit = {},
     private val onUserConnected: (String) -> Unit = {},
     private val onOfflineRestored: (String) -> Unit = {},
+    private val certificateFiles: NaviampCoreCertificateFilePort? = null,
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
     private var librarySourceConnection: NaviampCoreEditableConnection? = null
     private var accountAttempt: Job? = null
+    private var certificateSelectionGeneration = 0L
 
     init {
         publishConnection()
@@ -66,6 +68,7 @@ class NaviampCoreConnectionController(
     }
 
     suspend fun resetAfterDatabaseClear() {
+        certificateSelectionGeneration++
         accountAttempt?.cancel()
         accountAttempt?.join()
         accountAttempt = null
@@ -131,6 +134,9 @@ class NaviampCoreConnectionController(
     }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
+        if (command is NaviampCoreCommand.Connection && command !is NaviampCoreCommand.Connection.ChooseCertificate) {
+            certificateSelectionGeneration++
+        }
         when (command) {
             is NaviampCoreCommand.Connection.ChangeForm -> updateForm(command.form)
             NaviampCoreCommand.Connection.New -> openNewForm()
@@ -154,6 +160,7 @@ class NaviampCoreConnectionController(
                 }
             }
             NaviampCoreCommand.Connection.Connect,
+            is NaviampCoreCommand.Connection.ChooseCertificate,
             NaviampCoreCommand.Connection.EditCurrent,
             is NaviampCoreCommand.Connection.Edit,
             is NaviampCoreCommand.Connection.Delete,
@@ -172,7 +179,11 @@ class NaviampCoreConnectionController(
     }
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
+        if (command is NaviampCoreCommand.Connection && command !is NaviampCoreCommand.Connection.ChooseCertificate) {
+            certificateSelectionGeneration++
+        }
         when (command) {
+            is NaviampCoreCommand.Connection.ChooseCertificate -> chooseCertificate(command.kind)
             NaviampCoreCommand.Connection.Connect -> {
                 val request = NaviampCoreConnectionRequest.Form(
                     stateStore.state.value.shell.connectionSettings.connection.form, editingConnectionId)
@@ -207,6 +218,30 @@ class NaviampCoreConnectionController(
             else -> return null
         }
         return NaviampCoreCommandResult.Completed
+    }
+
+    private suspend fun chooseCertificate(kind: NaviampConnectionCertificateKind) {
+        val port = certificateFiles ?: return
+        val before = stateStore.state.value.shell.connectionSettings.connection
+        if (before.isConnecting) return
+        val generation = ++certificateSelectionGeneration
+        val editing = editingConnectionId
+        val path = try { port.chooseAndCopy(kind) } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            if (generation != certificateSelectionGeneration) return
+            stateStore.updateShell { shell -> shell.copy(connectionSettings = shell.connectionSettings.copy(
+                connection = shell.connectionSettings.connection.copy(status = "connection_certificate_import_failed", statusIsError = true),
+            )) }
+            return
+        }?.takeIf { it.isNotBlank() } ?: return
+        // Do not apply a late picker result to another form or overwrite edits made while it was open.
+        val current = stateStore.state.value.shell.connectionSettings.connection
+        if (generation != certificateSelectionGeneration || editing != editingConnectionId || current.form != before.form || current.isConnecting) return
+        updateForm(when (kind) {
+            NaviampConnectionCertificateKind.ServerAuthority -> before.form.copy(customCertificatePath = path)
+            NaviampConnectionCertificateKind.ClientIdentity -> before.form.copy(clientCertificatePath = path)
+        })
     }
 
     private suspend fun connect(
