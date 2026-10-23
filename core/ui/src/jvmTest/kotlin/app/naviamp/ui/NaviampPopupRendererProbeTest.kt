@@ -1,6 +1,8 @@
 package app.naviamp.ui
 
 import java.awt.EventQueue
+import java.awt.GraphicsEnvironment
+import org.junit.Assume.assumeFalse
 import javax.swing.JDialog
 import javax.swing.JFrame
 import kotlin.test.Test
@@ -48,6 +50,7 @@ class NaviampPopupRendererProbeTest {
     }
 
     @Test fun rendererComparisonOnlyTargetsOwnedPopupsIncludingNestedOnes() {
+        assumeFalse("AWT ownership requires a native window server", GraphicsEnvironment.isHeadless())
         EventQueue.invokeAndWait {
             val owner = JFrame()
             val other = JFrame()

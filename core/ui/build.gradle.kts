@@ -138,8 +138,14 @@ tasks.register<JavaExec>("playerAnimationProbe") {
     dependsOn("jvmTestClasses")
     classpath = tasks.named<Test>("jvmTest").get().classpath
     mainClass.set("app.naviamp.ui.NaviampPlayerAnimationProbeKt")
-    // Match the Windows application backend; Direct3D is not used by the packaged app.
-    if (System.getProperty("os.name").startsWith("Windows")) systemProperty("skiko.renderApi", "OPENGL")
+    // Match the packaged Windows surface backend; native cached animation remains accelerated.
+    if (System.getProperty("os.name").startsWith("Windows")) {
+        val renderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
+            .orElse("SOFTWARE_FAST").get().trim()
+        if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {
+            systemProperty("skiko.renderApi", renderApi)
+        }
+    }
     providers.environmentVariable("NAVIAMP_PROBE_JFR").orNull?.let { recording ->
         jvmArgs("-XX:StartFlightRecording=filename=$recording,settings=profile,dumponexit=true")
     }

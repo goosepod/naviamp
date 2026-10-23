@@ -22,6 +22,11 @@ profile. Add these JVM options to the copied app's launcher configuration, using
 -Dnaviamp.probe.macWindowGuard=/absolute/path/mac-window-guard
 ```
 
+When Computer Use supplies the physical observations, add `-Dnaviamp.probe.capture=false`.
+The agent then records CPU/frames without using its own screen-capture API. Its result correctly
+reports `physical_captures=false/false`; record the independent visible motion observations
+separately and do not count that flag as automated pixel acceptance.
+
 The guard uses macOS CGWindow ownership and native placement rather than cached AWT placement.
 It rejects any foreign window overlapping the client rectangle, including the automation pointer
 annotation. Actual AWT decoration insets exclude the title bar. Screenshots are restricted to owned,

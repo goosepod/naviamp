@@ -81,6 +81,8 @@ public final class ApplicationRenderProbe {
     }
 
     private static boolean capture(Path output, String name) throws Exception {
+        // Computer Use sessions supply their own physical observations; never capture behind them.
+        if (!Boolean.parseBoolean(System.getProperty("naviamp.probe.capture", "true"))) return false;
         String guard = System.getProperty("naviamp.probe.macWindowGuard");
         if (guard == null) return captureAwt(output, name);
         // Native AppKit placement can differ from AWT cached bounds after Space/window changes.
