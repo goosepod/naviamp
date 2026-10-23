@@ -254,6 +254,17 @@ samples and are whole-desktop observations; no isolated compositor attribution o
 complete GPU acceptance is claimed. The reversible application CPU increase is
 sufficient to reject this candidate without claiming measured parent-frame rates.
 
+### Owner shipping decision — 2026-10-23
+
+The owner explicitly authorized shipping unchanged v2.9.0 with the observed rendering
+defects as a known issue, targeting #325 to v2.10.0. This supersedes the rendering
+submission hold above; the recorded failed visual results and rejected performance
+workaround remain evidence. Do not include COMPONENT or Direct3D overrides in the
+Store package. All released application bytes and original launcher defaults remain
+unchanged. Other unperformed acceptance checks remain unverified; no certification
+or publication is claimed. A future v2.10.0 Store update will retain the identity and
+use a higher package version after release and verification.
+
 ## Architecture review
 
 No Android/Desktop/iOS production source file changed. The changes are build
