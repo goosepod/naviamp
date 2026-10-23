@@ -185,8 +185,8 @@ defects using its normal OpenGL renderer. Streaming and MSIX packaging are there
 required to reproduce this problem.
 
 A child-process-only Direct3D diagnostic crashed before visual acceptance. Its JVM
-fatal-error report identifies EXCEPTION_ACCESS_VIOLATION in skiko-
-windows-x64.dll+0x6a8cb on AWT-EventQueue-0, with
+fatal-error report identifies EXCEPTION_ACCESS_VIOLATION in
+`skiko-windows-x64.dll+0x6a8cb` on AWT-EventQueue-0, with
 PictureRecorderKt._nFinishRecordingAsPicture in the Java stack. Direct3D is not an
 accepted workaround.
 
@@ -205,7 +205,6 @@ continuous animation cost, stacking, input, accessibility and lifecycle behavior
 checked before adopting a change. Rendering acceptance remains open; no Store submission
 has been made.
 
-
 Initial read-only counter sample in COMPONENT mode, after the owner confirmed the
 window was visible, playback paused and popups closed: 16.326 seconds, 15 GPU samples,
 application CPU 0.861% of one core, DWM CPU 3.385% of one core, application GPU engine
@@ -215,6 +214,15 @@ Raw evidence: `naviamp-msix-323/component-paused-no-popup-counters.json` on the 
 These counters are preliminary: no parent-frame observer was attached, motion and
 window geometry were not independently verified, GPU engine sums are not total GPU
 percentages, and this is not continuous-animation performance acceptance.
+
+Matched follow-up with playback still paused and a previously affected popup held
+open by the owner: 15.847 seconds, 15 GPU samples, application CPU 0% of one core at
+counter resolution, DWM CPU 0.307% of one core, application GPU engine sum mean 0 and
+DWM GPU engine sum mean 1.091. Raw evidence:
+`naviamp-msix-323/component-paused-popup-open-counters.json` on the host. This sample
+shows no measured sustained application CPU cost in this paused popup state; it
+does not demonstrate animation motion, parent-surface frame counts, or performance
+with playback/marquee animation running.
 
 ## Architecture review
 
