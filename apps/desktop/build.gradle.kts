@@ -21,7 +21,11 @@ val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionN
 val desktopExecutableDescription = "Naviamp"
 // Skiko backend initialization is native to the Windows JVM host, including transparent HWNDs.
 val windowsSkikoRenderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
-    .orElse("SOFTWARE_FAST").map(String::trim)
+    .orElse("OPENGL").map(String::trim)
+val windowsPopupRenderApi = providers.gradleProperty("naviamp.windows.popupRenderApi")
+    .orElse(providers.provider {
+        if (providers.gradleProperty("naviamp.windows.skiko.renderApi").isPresent) "" else "SOFTWARE_FAST"
+    }).map(String::trim)
 val macOsFullscreenJvmArgs = listOf(
     "--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED",
     "--add-exports=java.desktop/sun.awt=ALL-UNNAMED",
@@ -106,12 +110,16 @@ compose.desktop {
         )
         when {
             desktopNativePlatform.get().startsWith("windows-") -> {
-                // Select before AWT/Skiko creates any surface. OpenGL transparent popup
-                // HWNDs can render opaque black on Windows; late renderer switches retain it.
-                // Cached motion still uses DirectComposition and visualizers use native OpenGL.
+                // Keep the primary surface hardware-initialized. The native adapter selects the
+                // popup default after primary construction and before any popup constructor.
+                // Late per-layer renderer switches do not repair native initialization.
                 val renderApi = windowsSkikoRenderApi.get()
                 if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {
                     jvmArgs += "-Dskiko.renderApi=$renderApi"
+                }
+                val popupRenderApi = windowsPopupRenderApi.get()
+                if (popupRenderApi.isNotBlank() && !popupRenderApi.equals("DEFAULT", ignoreCase = true)) {
+                    jvmArgs += "-Dnaviamp.desktop.popupRenderApi=$popupRenderApi"
                 }
                 jvmArgs += "-Dnaviamp.visualizer.windowsOpenGl=true"
             }
@@ -353,6 +361,12 @@ tasks.register("verifyDesktopDistributable") {
             if (expectedRenderer.isNotBlank() && !expectedRenderer.equals("DEFAULT", ignoreCase = true)) {
                 check(launcherConfig.lineSequence().any { it == "java-options=-Dskiko.renderApi=$expectedRenderer" }) {
                     "Windows launcher does not select the configured Skiko renderer before surface creation."
+                }
+            }
+            val expectedPopup = windowsPopupRenderApi.get()
+            if (expectedPopup.isNotBlank() && !expectedPopup.equals("DEFAULT", ignoreCase = true)) {
+                check(launcherConfig.lineSequence().any { it == "java-options=-Dnaviamp.desktop.popupRenderApi=$expectedPopup" }) {
+                    "Windows launcher does not configure the future popup renderer."
                 }
             }
             check(launcherConfig.contains("java-options=-Dnaviamp.visualizer.windowsOpenGl=true")) {
