@@ -36,7 +36,13 @@ packaging revisions. The initial package is x64 only, Windows Desktop 10.0.19041
 an initial packaging target; real hardware acceptance is still required.
 
 [Partner Center product](https://partner.microsoft.com/en-US/dashboard/products/9PCFJ644LXLL/overview)
-has Submission 1 in draft. Name reservation is not publication.
+has Submission 1 **In certification** as of 2026-10-23, with automatic publication
+selected after certification passes. The owner approved submitting unchanged v2.9.0
+with the observed popup/tooltip defects as a known issue, targeting the fix to
+[v2.10.0 / #325](https://github.com/goosepod/naviamp/issues/325). See the
+[submission evidence](verification/windows-store-msix-323.md) for the exact uploaded
+CI checksum, acceptance limitations, listing, age ratings and cleanup record.
+Submission is not certification approval or Store publication.
 
 ## Build and verify
 

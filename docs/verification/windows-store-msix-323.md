@@ -2,13 +2,18 @@
 
 Date: 2026-10-23. Tracking: [#323](https://github.com/goosepod/naviamp/issues/323).
 
+Current status: **Submission 1 is In certification**, with pre-processing underway.
+Partner Center is set to publish automatically after certification passes. Uploaded
+CI candidate SHA-256: `c71b45f8cd3fa8445bbcb38bd95ca27c287a1eed664bf53b7685c0216f5d4fd8`.
+This is not a certification pass or a live Store listing.
+
 ## Input and package
 
 - Published input: `Naviamp-v2.9.0-windows-x64-release.zip` from GitHub release `v2.9.0`.
 - Release commit: `826e14bf1c46dba8d604515f1bf77bf6afcd541d`.
 - Input SHA-256: `86907877c7bb6b34438bb43737aeea083dbc871dee7a6358c2b0dee13f4f4381`.
 - Output: `Naviamp-v2.9.0-windows-x64-store.msix` (unsigned Store upload candidate).
-- Output SHA-256: `ebb956cdeab37a63a662f510236383e5011db665e34b6dcdfc50088ab4874064`.
+- Initial local-build output SHA-256: `ebb956cdeab37a63a662f510236383e5011db665e34b6dcdfc50088ab4874064`.
 - Identity: `Goosepod.Naviamp`, version `2.9.57.0`, x64, publisher matching Partner Center.
 
 The package contains all **268** released application files without changes, plus
@@ -137,9 +142,9 @@ Rendering investigation: [#325](https://github.com/goosepod/naviamp/issues/325).
 
 Reinstalled the same verified CI candidate using the approved test-signing lifecycle
 in the logged-in Windows session. Registration again reported `Ok`, and the one-time
-installation task was removed. Its active test state is
-`naviamp-msix-323/install-retest-20261023/test-install-state.json`; cleanup remains
-required when rendering diagnosis is finished.
+installation task was removed. Its test state was recorded at
+`naviamp-msix-323/install-retest-20261023/test-install-state.json`. Cleanup was
+completed after submission; see the final local test cleanup record below.
 
 The owner reported that all four requested additional tests passed: saved login
 after close/reopen, pause/resume/seeking/media keys, playback while minimized, and
@@ -168,14 +173,15 @@ application JARs, renderer settings or native binaries were changed during diagn
 
 Connection, playback controls, relaunch login, offline playback, native loading and
 uninstall now have the evidence above. Popup/tooltip rendering, accessibility,
-upgrade/coexistence, WACK and Store submission preparation remain open gates.
+upgrade/coexistence and WACK remained open gates at this checkpoint. Store
+submission preparation was subsequently completed as recorded below.
 Temporary test signing/trust remains authorized for follow-up acceptance, with
 cleanup required after each test lifecycle.
 
 Partner Center listing, screenshots, privacy/support links, age rating, reviewer
 access and restricted-capability explanation remain part of submission preparation.
-Nothing has been uploaded to Partner Center or submitted for certification by this
-packaging work. Keep issue 323 and its PR open until acceptance is complete.
+At this checkpoint, nothing had been uploaded to Partner Center or submitted for
+certification. See the later submission record below for the current status. Keep issue 323 and its PR open until acceptance is complete.
 
 ### Controlled comparisons — 2026-10-23
 
@@ -202,8 +208,9 @@ composed within the parent window. It does not establish the exact driver/framew
 cause or prove COMPONENT is an acceptable production fix. Shared raster behavior
 currently falls back from native presentation when popups are not in owned windows;
 continuous animation cost, stacking, input, accessibility and lifecycle behavior must be
-checked before adopting a change. Rendering acceptance remains open; no Store submission
-has been made.
+checked before adopting a change. Rendering acceptance remained open at this
+diagnostic checkpoint; the owner subsequently authorized shipping the unchanged
+release with the known defect, as recorded below.
 
 Initial read-only counter sample in COMPONENT mode, after the owner confirmed the
 window was visible, playback paused and popups closed: 16.326 seconds, 15 GPU samples,
@@ -264,6 +271,86 @@ Store package. All released application bytes and original launcher defaults rem
 unchanged. Other unperformed acceptance checks remain unverified; no certification
 or publication is claimed. A future v2.10.0 Store update will retain the identity and
 use a higher package version after release and verification.
+
+### Partner Center preparation and submission — 2026-10-23
+
+Restarting the ChatGPT desktop app restored native Computer Use. Using the existing
+Firefox Partner Center session, uploaded the exact unsigned CI candidate with SHA-256
+`c71b45f8cd3fa8445bbcb38bd95ca27c287a1eed664bf53b7685c0216f5d4fd8`.
+Partner Center recognized X64 version 2.9.57.0 / Windows.Desktop minimum 10.0.19041.0,
+reported the package Validated and the Packages section Complete after saving.
+Its restricted-capability warning requests approval for runFullTrust; this is not
+certification approval.
+
+Pricing and availability is saved Complete: USD base retail price 0, worldwide
+markets, public/discoverable, release as soon as possible. Properties is Complete:
+Music category, existing privacy policy `https://goosepod.com/naviamp/privacy/`,
+website `https://goosepod.com/naviamp/`, and support via the GitHub issues page.
+The policy source was verified in `goosepod/goosepod.github.io/naviamp/privacy/index.html`.
+Submission Options is Complete with the JVM/native audio/filesystem/credential API
+justification for runFullTrust and the default publish-after-certification option.
+
+Additional Testing Information saved the released-version instructions, explicit
+known rendering defect, official public Navidrome demonstration server and its
+public demo account in the dedicated Credentials section. No private account
+credentials were copied. The English listing description, short description,
+feature summary and developer name were saved, including the known rendering issue.
+Captured the running, byte-verified released v2.9.0 standalone app using Windows
+Snipping Tool operated through Moonlight with Computer Use. Uploaded the unedited
+2560 x 1440 PNG and added a caption describing Home, favorite artists, mixes and
+playback. Source: `apps/desktop/packaging/windows-store/listing/windows-home-2.9.0.png`,
+SHA-256 `58ee0dab580c7a5143902cfb28c0bf3f2483c25015fab7b439d72ae3ced5f2b6`.
+The process still had the temporary COMPONENT diagnostic option during capture;
+the image shows the shared Home UI with no popup. No diagnostic option is in the
+submitted package. README images show an older app and were not used. After saving,
+Partner Center reported the English Store listing Complete.
+
+Google Play reported an IARC questionnaire completed June 18 but displayed no
+certificate ID; the owner reported no certificate available. Completed Microsoft's
+questionnaire for a non-game music application, no ratings-relevant bundled content,
+no native social exchange, online content, and no age-restricted sales, location
+sharing, digital purchases, rewards, browser or news/education functionality. The
+owner confirmed unrestricted music content and clarified ordinary album art, nudity
+and explicit lyrics, excluding gory and pornographic images. The draft marks
+potential online-content themes as possible, not the app's primary purpose.
+
+Preview: Microsoft 12+, ESRB Teen (Diverse Content: Discretion Advised), IARC 12+
+(Parental Guidance Recommended), PEGI Parental Guidance Recommended, Brazil 16,
+Germany 16+, Russia 18+, Chile 14. The owner explicitly authorized acceptance of
+IARC's Terms of Use and confirmed legal adulthood. Accepted the final checkbox and
+saved; Partner Center reported Age ratings Complete. Current Rating ID was Pending.
+
+All six required sections showed Complete and Submit for certification became
+enabled. Submitted under the owner's explicit instruction to ship unchanged 2.9.0.
+Partner Center then showed **In certification**, Submission complete, Pre-processing
+in progress, Certification and Publishing not started, and “Your product will start
+publishing as soon as it passes certification.” No additional release tag or GitHub
+release was created. Microsoft certification and eventual Store publication remain
+external outcomes, not passed checks.
+
+### Final local test cleanup
+
+After submission, the approved Cleanup action removed the retest package, signed
+copy, LocalMachine TrustedPeople certificate and CurrentUser private signing key.
+Independently verified all four absent and removed the one-time cleanup task.
+Reports: `naviamp-msix-323/cleanup-store-retest-result.json` and
+`cleanup-store-retest.log` on the Windows host.
+
+The wrapper's additional standalone-data byte-preservation assertion failed while
+the standalone app remained open. The before-file hashes were not retained by that
+older local harness, so the differing/deleted file cannot be established and this
+run does **not** pass byte-preservation acceptance. Do not attribute the mismatch
+to uninstall or dismiss it as normal app writes without evidence. Follow-up read-only
+checks found the standalone directory, valid settings JSON, DPAPI key, window
+properties and 13 MP3 files still present. SQLite `PRAGMA quick_check` returned `ok`.
+No credential values or connection data were printed. The earlier clean, stopped-app
+seven-file preservation test remains a separate result. No application data was
+repaired or deleted in response to this mismatch.
+
+Closed the screenshot tool and the COMPONENT diagnostic app through native Windows
+UI before relaunching the unchanged executable from Windows Start, without diagnostic
+JVM overrides. A visible-window check and native process-path inspection confirmed
+the released standalone copy reopened. The MSIX uploaded to Microsoft remains the original unsigned artifact.
 
 ## Architecture review
 
