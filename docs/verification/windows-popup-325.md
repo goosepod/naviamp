@@ -1,9 +1,57 @@
 # Windows popup transparency investigation (#325)
 
 Release target: **v2.10.0**, [issue #325](https://github.com/goosepod/naviamp/issues/325).
-A candidate packaging fix selects SOFTWARE_FAST before Windows surface creation.
-It remains under verification; this record does not claim completed acceptance. The original v2.9.0 Store submission
-remains unchanged and is in certification as of October 23, 2026.
+The revised candidate preserves the OPENGL primary constructor and selects SOFTWARE_FAST for future popup constructors.
+Manual acceptance of the revised actual v2.10.0/build 60 package is complete.
+Exact-source cross-platform CI and merge status are tracked on
+[main fix #326](https://github.com/goosepod/naviamp/pull/326) and
+[release integration #327](https://github.com/goosepod/naviamp/pull/327).
+Production heads: `69043432094e8b9e00ea5b01a445ef822077e9f6` and
+`727542258ecba425d2fc9694c65a584e330d4499`; corresponding Verify runs
+[40021038596](https://github.com/goosepod/naviamp/actions/runs/40021038596) and
+[40021020247](https://github.com/goosepod/naviamp/actions/runs/40021020247).
+The detailed follow-up below records the completed measurements and stock-launcher
+smoke test, including unverified spoken screen-reader output and rejected attempts.
+Pending statements in older checkpoints are historical, not the current manual-test
+status. Existing visualizer performance remains tracked separately in
+[#241](https://github.com/goosepod/naviamp/issues/241).
+
+The successful Windows CI job also retained the selected candidate’s release ZIP.
+Its SHA-256 is `cabbecc0f837a9d687dbe0667e9245895631652dade64d6f2635b04aa6ab136c`;
+archive integrity passed, the original launcher selects OPENGL primary and SOFTWARE_FAST
+popup constructors, and its Temurin 21.0.12.1 runtime includes jdk.accessibility.
+This is the CI-built artifact, distinct from the Sunshine-built ZIP measured below;
+no claim is made that different build environments produce byte-identical archives.
+
+The original v2.9.0 Store submission remains unchanged and is in certification as of
+October 23, 2026. This record does not publish or approve a release tag.
+
+### Final stock-launcher native renderer trace
+
+With the owner-prepared Analog Signal Failure preset playing at approximately 3%
+volume, repeated read-only JVM thread dumps reached
+`NativeOpenGlVisualizerHost.renderImage` at line 68 in seven of 120 samples. This
+is `Image.makeRaster` after `nativeRenderImage` returned pixels successfully;
+failed native creation/rendering exits before this point. Computer Use confirmed
+changing shader imagery and playback position advancing from 0:30 to 1:35.
+This demonstrates repeated successful native rendering rather than capability
+availability alone. No production launcher, runtime, or JAR changes were needed.
+
+A narrower 24-sample attempt captured no JNI entry frames and is not a passing
+trace. The first attempt also ran after the ten-minute track had ended. The
+successful trace includes post-JNI returns because short native calls need not
+coincide with a synchronous thread dump. Thread inspection perturbs timing: these
+samples are functional evidence, not CPU measurements. Raw trace directory:
+`popup-probe-325/mixed-2100/native-stack-20261023-222218` on Sunshine. The disposable
+application and local fixture were stopped after the check.
+
+Both production-source Verify runs linked above passed the full matrix on their
+second attempts, including iOS and verified-source recording. The first-attempt
+release failure hit the shared 25-second negative TLS rejection deadline; the
+main failure exhausted the five-minute native job step mostly during Gradle
+startup. Unchanged isolated reruns passed; this does not resolve the distinct
+flakiness tracked in [#301](https://github.com/goosepod/naviamp/issues/301).
+No source assertions, retries, or timeouts were weakened.
 
 ## Revised candidate — October 23, later checkpoint
 
@@ -72,6 +120,93 @@ superseded global-software configuration. The revised source still requires its 
 CI, remaining visualizer/lifecycle measurements and original-launcher smoke check.
 Keep both PRs draft until those gates pass. Historical sections below retain their
 original scope; they are not acceptance of the revised configuration.
+
+
+### Revised-package follow-up measurements
+
+The held Track actions menu remained painted through Computer Use observations at
+0:05, 0:15 and 0:25; title position and progress changed beneath it. Its ten-second
+process CPU was 0.625%, parent frames zero; external CPU 0.480%, app GPU engine sum
+0.01212, DWM engine sum 1.11546. Native constructor defaults identified the parent
+as NVIDIA/OpenGL and menu as SOFTWARE_FAST.
+
+Audio Sphere (Skia fallback) measured 25.778% CPU with 598 parent frames/10 s;
+external CPU 28.060%, app GPU engine sum 1.35989. This is comparable to the unchanged
+OpenGL startup’s 29.217% / 599 frames, avoiding the rejected software regression.
+Analog Signal Failure explicitly logged `available=true`, `libraryAvailable=true`,
+`shaderDefinition=true`, `shaderTranslates=true` and visibly moved. Closed/open-menu
+CPU was 57.028/47.493%, parent frames 585/601; external CPU 54.836/47.463%, app GPU
+engine sums 3.10274/2.64016, DWM sums 1.43214/1.77680. The menu remained painted while
+its image animated. These visualizer samples are functional/regression evidence,
+not claims that visualizer rendering meets the cheap text/progress budget.
+
+Paused: 0.000% CPU and parent frames zero (external CPU/app GPU zero). Minimized
+while playing: 0.625%, parent frames zero, external CPU 0.481%, app GPU zero;
+Computer Use confirmed the candidate window was absent. Restoring showed progress
+at 3:14, then 3:45, with moving/clipped metadata and intact content: 1.094%, zero
+parent frames; external CPU 1.197%, app GPU sum 0.01684. Maximize/restore preserved
+rendering and clipping. Maximized 2560 x 1369 sample: 2.656% CPU, zero parent frames;
+external CPU 1.202%, app GPU sum 0.01183. Window size differs, so it is not a matched
+small-window CPU comparison. The larger surface is retained as lifecycle evidence.
+Nested Track actions/artist submenu rendered correctly. A later keyboard action
+started fixture radio and returned no additional tracks; this is not modal/input
+acceptance. The fixture profile is disposable and the original application is untouched.
+
+The first attempt to run the revised synthetic matrix reused the SSH session’s
+Gradle daemon. The window was invisible and DirectComposition returned access denied,
+with excessive CPU/redraws. Reject the entire run (`matrix-current-325.log`). Rerun
+uses `--no-daemon` in the interactive scheduled task, with Computer Use visibility
+checks and automated Robot pixel/input actions disabled. The corrected interactive matrix passed: static/marquee/waveform/combined/menu/
+restored/paused/hidden/restored/resized CPU was respectively
+0.000/0.156/0.312/0.312/0.780/0.625/0.000/0.000/0.000/0.780% of one core,
+with zero parent frames in every ten-second sample. Main layer was OPENGL;
+menu constructor was SOFTWARE_FAST. Baseline bounds 1000 x 740 (client 984 x 701),
+scale 1, 60 Hz, Balanced power/AC; resize 1040 x 760. Computer Use observed marquee,
+waveform, combined motion, the painted menu, restored animation and resize/clipping.
+Not every individual measured phase has its own physical before/after image pair;
+automated pixel/input actions stayed disabled. The real-app held-menu observation
+supplies an independent paired overlay-motion check.
+
+External per-phase CPU was 0.000/0.206/0.244/0.000/0.000/0.773/0.000/0.000/0.000/0.815%
+over 6.0–7.7 seconds. App GPU engine sums were zero; DWM engine sums for moving
+states were 1.03784/1.11775/1.12444/1.12145/1.11679/1.12173/1.13739; static/paused
+were zero, minimized 0.03738. This attribution does not mean cached animation has
+no compositor cost. Read-only external observations include whole-desktop streaming.
+The hidden phase verified ICONIFIED, no visible owned raster windows and no parent
+redraws. Logs: `matrix-interactive-325.log` and indexed GPU JSON on Sunshine;
+local collected record `/private/tmp/naviamp-325-collect-interactive.log`.
+
+Matching modal closed/open/restored CPU: 0.000/0.156/0.156%, zero parent frames;
+external CPU 0.000/0.245/0.000%, app GPU zero, DWM engine sums
+1.09558/1.09168/1.10396. Computer Use image pairs show the modal and scrim remaining
+painted while text and waveform move beneath them. Log `modal-interactive-325.log`,
+local `/private/tmp/naviamp-325-collect-modal.log`. Both Gradle probe runs succeeded.
+Reproduce on an interactive Windows desktop using the current source:
+`gradlew.bat --no-daemon :core:ui:playerAnimationProbe` with
+`NAVIAMP_PROBE_INTEGRATED=true`, `NAVIAMP_PROBE_EXPECT_RENDER_API=OPENGL`,
+`NAVIAMP_PROBE_VERIFY=false`, `NAVIAMP_PROBE_POPUPS=true`,
+`NAVIAMP_PROBE_MENUS=true`, `NAVIAMP_PROBE_LIFECYCLE=true`.
+For the modal comparison set MENUS=false, DIALOGS=true, LIFECYCLE=false and
+PHASES=combined,popup-combined,restored-combined. Use Computer Use to observe actual
+motion and capture GPU/compositor intervals as above; CPU alone is insufficient.
+
+Finally restored the package’s original launcher configuration, removing the observer
+main-class wrapper and extra probe classpath. The original trimmed runtime and jars
+started successfully and resumed playback with the same approximately 3% volume.
+Computer Use showed the actual Cast modal with a translucent scrim and moving
+metadata/progress beneath it, then successful Escape dismissal and restored content.
+An incidental firewall prompt was canceled without granting additional access; no
+cast session was started. Keyboard focus/activation of existing controls was observed,
+but tab order differs with enabled controls and is not a fixed-count assertion.
+The disposable app and loopback fixture were then stopped; fixture port 18080 was
+confirmed closed. Original user app/profile remain untouched.
+
+Shared popup semantics/keyboard tests passed in the focused native-window suite.
+The trimmed package includes jdk.accessibility. Spoken Narrator output was not
+verified through Moonlight, and no claim of comprehensive screen-reader acceptance
+is made. This native-constructor fix changes no shared semantics, labels or input
+policy; full accessibility investigation remains separate from the rendering defect.
+Revised-source CI was pending when these manual measurements finished; use the exact-source run links above for its final outcome.
 
 ## Established evidence
 
