@@ -212,8 +212,10 @@ paused surface. These checks do not certify the playing-overlay delta.
 The agent supports `-Dnaviamp.probe.capture=false`, used here so all physical
 observations/input use Computer Use. `physical_captures=false/false` correctly records
 that automated pixel gates were not run. Moonlight keyboard works; pointer actions
-return `noWindowsAvailable`. The owner has been asked to confirm actual menu/hover
-behavior. Do not claim that pending owner report or an automated tooltip pixel pass.
+return `noWindowsAvailable`. On October 23 the owner opened an actual menu and
+hovered an icon in this isolated application and replied “Looks good,” confirming
+the visible parent and absence of the black tooltip border. This is manual owner
+acceptance of those two visual defects, not an automated tooltip pixel pass.
 
 ### Corrected native matrix
 
@@ -253,8 +255,8 @@ Computer Use showed the modal's intended translucent scrim with the patterned pa
 and moving titles/progress beneath it; Escape dismissed it and restored the parent.
 Held visual runs containing keyboard input are diagnostics, not replacement steady
 CPU samples. The tooltip fixture showed text, rounded surface and normal shadow
-without a black rectangle. This is a direct surface fixture; actual hover triggering
-in the application still awaits the owner's report.
+without a black rectangle. This is a direct surface fixture; the separate actual
+application menu/hover check was subsequently confirmed by the owner above.
 
 Raw files are under `naviamp-msix-323/popup-probe-325` and local ignored
 `build/verification-325/candidate`. Corrected files use `candidate-menu`,
@@ -266,11 +268,25 @@ Initial PR CI failed the new AWT ownership test on the headless shared runner
 a native window server for that single test. Headless retest: three diagnostic tests
 passed, one native-window test skipped, zero failures/errors. The earlier local
 window-server run passed all four. The initial Windows, macOS, Linux and both Android emulator jobs passed; iOS was
-still running at that checkpoint. New-head CI remains a separate gate.
+still running at that checkpoint. At d8c9caacd, shared/Android, Windows, macOS, Linux
+and both Android emulator jobs passed. The iOS mutual-TLS playback test timed out
+(14 of 15 native tests passed); one failed-job rerun was requested. Do not classify
+that timeout as unrelated or passed without the rerun result.
 
 No Android/Desktop/iOS production source files changed. Production differences are
 Windows packaging JVM options and distributable validation, justified by native
 Skiko/AWT surface initialization. Shared product/animation behavior is unchanged.
-Full actual-app playing-overlay CPU/frame comparison, actual hover/input/reader
+Full actual-app playing-overlay CPU/frame comparison, remaining input/reader
 checks, native visualizer coverage and the final selected 2.10.0 package/runtime
 remain unverified; keep #325 and PR #326 open/draft until these gates are resolved.
+
+
+### Actual playback measurement follow-up
+
+Owner manual menu/hover confirmation is recorded above. A playback-start sample
+reported 3.281% CPU, 92 ms compilation and two parent frames; its separate six-second
+counter interval reported 1.725% CPU. This includes startup activity, so it is not
+a steady-state acceptance result. The next interval reported zero observer CPU and
+parent frames, but the following Computer Use image showed playback paused at 0:25;
+reject it as proof of moving playback. Retain these logs as diagnostics. The owner
+has been asked to leave playback and the menu open for a valid comparison.
