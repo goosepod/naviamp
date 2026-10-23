@@ -127,9 +127,16 @@ tasks.register<JavaExec>("playerAnimationProbe") {
     // Match the packaged Windows surface backend; native cached animation remains accelerated.
     if (System.getProperty("os.name").startsWith("Windows")) {
         val renderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
-            .orElse("SOFTWARE_FAST").get().trim()
+            .orElse("OPENGL").get().trim()
         if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {
             systemProperty("skiko.renderApi", renderApi)
+        }
+        val popupRenderApi = providers.gradleProperty("naviamp.windows.popupRenderApi")
+            .orElse(providers.provider {
+                if (providers.gradleProperty("naviamp.windows.skiko.renderApi").isPresent) "" else "SOFTWARE_FAST"
+            }).get().trim()
+        if (popupRenderApi.isNotBlank() && !popupRenderApi.equals("DEFAULT", ignoreCase = true)) {
+            systemProperty("naviamp.desktop.popupRenderApi", popupRenderApi)
         }
     }
     providers.environmentVariable("NAVIAMP_PROBE_JFR").orNull?.let { recording ->

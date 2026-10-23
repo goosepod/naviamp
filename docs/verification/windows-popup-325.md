@@ -5,6 +5,74 @@ A candidate packaging fix selects SOFTWARE_FAST before Windows surface creation.
 It remains under verification; this record does not claim completed acceptance. The original v2.9.0 Store submission
 remains unchanged and is in certification as of October 23, 2026.
 
+## Revised candidate — October 23, later checkpoint
+
+The earlier **global SOFTWARE_FAST main-window configuration is rejected** as the
+shipping fix. On the selected v2.10.0/build 60 payload, Audio Sphere used 95.620%
+of one core and 694 parent frames/10 s. It is a Skia shader fallback, not a native
+GLSL preset (`shaderDefinition=false`). Merely changing the already-created main
+layer to OPENGL still used 95.150%; an OPENGL enum alone does not establish hardware
+initialization. Original all-OpenGL startup identified NVIDIA RTX 5060 Ti and used
+29.217% with 599 frames for this visualizer. That existing visualizer cost is not
+small-animation acceptance, and the software regression must not ship.
+
+The replacement keeps the original **OPENGL primary-window construction**, then
+selects **SOFTWARE_FAST for future popup constructors** in the existing native
+raster host, before shared content can create a popup. Pinned Skiko 0.144.6 reads
+the default for each layer constructor. There is no live renderer switch, change
+to animation cadence, or platform-specific menu/tooltip behavior. Explicit global
+Gradle renderer overrides retain their diagnostic behavior; an independent
+`naviamp.windows.popupRenderApi` override is available.
+
+Native production file: `core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopRasterPresenter.kt`.
+Its exact boundary is AWT event-thread window construction and Skiko renderer
+initialization; this cannot compile in common Kotlin. It verifies an opaque primary
+AWT window and existing Skiko layer, then sets only the future-layer default.
+Android/iOS production files are unchanged. Four native constructor/guard tests
+verify that existing layers retain their backend, new layers capture the new one,
+owned popups cannot initialize it, missing primary layers fail, and absent/default
+configuration has no effect. All 46 focused native-window/shared popup, keyboard,
+semantics and raster tests passed locally; architecture and packaging input checks
+passed. The first test attempt correctly exposed SOFTWARE_FAST as unsupported on
+macOS; non-Windows constructor tests now use SOFTWARE_COMPAT and Windows retains
+its exact SOFTWARE_FAST assertion.
+
+An actual release ZIP was built with the installed Sunshine MSVC/Windows SDK/CMake
+and Temurin 21 toolchain, from the selected candidate plus this change:
+`Naviamp-v2.10.0-windows-x64-release.zip`, SHA-256
+`634c9474b241093fb850d9d200faaa8a5d72c7eaabd84b59bcf53ec9c94862a3`.
+Its unchanged trimmed runtime includes jdk.accessibility. A disposable launcher
+wrapper adds the test observer without substituting the runtime or production
+JARs; captures remain disabled and Computer Use supplies visual observations.
+ProcessHandle supplies CPU from java.base; compilation time is explicitly unavailable
+in this trimmed runtime. The original launcher configuration is preserved separately.
+The observer records actual backend/vendor and will not overwrite a completed
+sample after restart.
+
+At 934 x 601 client pixels, the real window reports OPENGL/NVIDIA and the owned
+menu reports SOFTWARE_FAST. Combined scrolling title/progress: 1.562% CPU, zero
+parent frames; menu sample: 0.781%, zero parent/owned frames; restored sample:
+1.094%, zero parent frames. External intervals reported 2.151/0.955/1.201% CPU,
+app GPU engine sums 0.01269/0.01086/0.00991, DWM engine sums
+1.12482/1.11403/1.13462. These are individual observations; confirm a held menu
+for the entire matched interval before accepting the final overlay comparison.
+DWM process CPU (0.306/5.829/6.465%) is whole-desktop streaming activity, not app
+attribution. Native screenshots show scrolling text and advancing progress; a
+constant-tone fixture produces a uniformly tall waveform, not an alpha defect.
+
+The owner checked this revised package and reported: **“Tooltips and popup menus
+look good.”** This supersedes the earlier owner check of the 2.9.0 diagnostic copy.
+Test playback is kept around 3% volume. The fixture now supplies its complete WAV
+immediately (`--burst-seconds 600`) because the recovery fixture's default throttling
+made late cached seeks wait for buffering. Copied-profile/stalled startup attempts
+are diagnostics, not motion/performance passes.
+
+The preceding release-candidate CI matrix passed all platforms, but it covered the
+superseded global-software configuration. The revised source still requires its own
+CI, remaining visualizer/lifecycle measurements and original-launcher smoke check.
+Keep both PRs draft until those gates pass. Historical sections below retain their
+original scope; they are not acceptance of the revised configuration.
+
 ## Established evidence
 
 The owner reproduced black app backgrounds behind popups and black tooltip padding

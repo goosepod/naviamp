@@ -2,7 +2,7 @@
 
 `ApplicationRenderProbe.java` is an opt-in test agent for the real packaged JVM application.
 It wraps existing Skiko render delegates to count frames without changing their behavior, records
-one-core process CPU and JVM compilation time over ten seconds, and captures before/after images
+one-core process CPU and available JVM compilation time over ten seconds, and captures before/after images
 outside the CPU interval. It does not choose tracks, change playback cadence, or create UI.
 
 Compile with a JDK, creating a manifest containing `Premain-Class: ApplicationRenderProbe`:
@@ -21,6 +21,20 @@ profile. Add these JVM options to the copied app's launcher configuration, using
 -javaagent:/absolute/path/probe.jar=/absolute/path/output
 -Dnaviamp.probe.macWindowGuard=/absolute/path/mac-window-guard
 ```
+
+For a trimmed runtime without `java.instrument`/`java.management`, compile the same class
+into a test JAR and use its launcher entry point in a **disposable copy** of the app:
+
+- Preserve the original launcher configuration and hashes of the production JARs/native runtime.
+- Add the observer JAR to the copied configuration's `app.classpath` entries.
+- Replace only `app.mainclass` with `ApplicationRenderProbe`.
+- Add `-Dnaviamp.probe.directory=/absolute/path/output`; omit `-javaagent`.
+
+The wrapper starts the observer and invokes the unchanged application's original main method.
+CPU uses `ProcessHandle` from `java.base`; compilation time is explicitly `unavailable` when
+the runtime has no management module. Missing process CPU is an error, never a zero reading.
+Do not ship this configuration. Also launch the original release configuration separately to
+verify normal startup; distinguish that run from the instrumented configuration in the record.
 
 When Computer Use supplies the physical observations, add `-Dnaviamp.probe.capture=false`.
 The agent then records CPU/frames without using its own screen-capture API. Its result correctly
