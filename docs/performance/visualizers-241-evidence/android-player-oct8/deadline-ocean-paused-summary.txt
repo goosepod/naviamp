@@ -1,0 +1,16 @@
+"thread","cpu_seconds"
+"droid.benchmark",0.532056
+"DefaultDispatch",0.144847
+"DefaultExecutor",0.141004
+"binder:4431_4",0.022813
+"DefaultDispatch",0.011268
+"binder:4431_3",0.006621
+"DefaultDispatch",0.001865
+"DefaultDispatch",0.000335
+
+"interval_bucket_ms","frames"
+
+"thread","operation","calls","mean_ms","max_ms"
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",452,426.743989

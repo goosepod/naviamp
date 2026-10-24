@@ -1,0 +1,32 @@
+"thread","cpu_seconds"
+"DefaultDispatch",0.003538
+
+"compositor_thread","cpu_seconds"
+"app",0.204734
+"TimerDispatch",0.109787
+"binder:637_1",0.069345
+"surfaceflinger",0.009009
+"RenderEngine",0.004808
+"mali-mem-purge",0.000906
+"surfaceflinger",0.000838
+"RE Completion",0.000701
+"TracingMuxer",0.000544
+"mali-event-hand",0.000541
+"IdleTimer",0.000478
+"BckgrndExec HP",0.000352
+"RegSampIdle",0.000194
+"RegionSampling",0.000154
+"BckgrndExec LP",0.000065
+
+"draws","draw_span_seconds","draw_fps"
+0,"[NULL]","[NULL]"
+
+"interval_bucket_ms","frames"
+
+"layer_name","buffers","submitted_fps"
+
+"thread","buffer","dequeues","dequeue_fps"
+
+"thread","operation","calls","mean_ms","max_ms"
+
+"thread","operation","calls","total_wall_ms"

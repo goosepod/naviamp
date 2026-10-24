@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=warm-native-ocean-ink-1 pid=27288 cpu=22.363961235732027 compilation_ms=132 surface=parent:1000x712 visible=true iconified=false frames=761 observer_attached=true physical_captures=true/true

@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=retained-skia-analog-combined-1 pid=31289 cpu=19.981150291049698 compilation_ms=14 surface=parent:1000x712 visible=true iconified=false frames=766 observer_attached=true physical_captures=true/true

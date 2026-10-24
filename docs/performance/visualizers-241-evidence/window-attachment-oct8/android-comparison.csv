@@ -1,0 +1,14 @@
+phase,app_cpu_percent_one_core,surfaceflinger_cpu_percent_one_core
+window-raster-before-paused-long-warm,4.282699999999999,29.662885788220784
+window-raster-after-paused-long-warmup,11.683300000000001,23.855893845880203
+window-raster-after-paused-long-warm,3.7321,22.045828730013696
+window-raster-hidden-paused,0.5323,1.5626674152925795
+window-raster-short-active,9.1766,3.153856551163623
+window-raster-long-active,10.837299999999999,21.908835212456033
+window-raster-long-active-settled,8.4558,22.36842807329598
+window-raster-before-paused-long-crossover-warmup2,11.071499999999999,22.390041381481844
+window-raster-before-paused-long-crossover2,3.6008999999999998,21.831655638663616
+canvas-paused-long-total-cost-oct8,10.140699999999999,17.145994055943376
+retained-short-active-verified-oct8,5.1572,3.4228323589347616
+surface-upload-short-warm,4.8805000000000005,2.980399116576975
+retained-final-short-paused-oct8,0.0726,1.4885172222417216

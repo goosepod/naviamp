@@ -1,0 +1,80 @@
+"thread","cpu_seconds"
+"RenderThread",3.247450
+"droid.benchmark",1.539108
+"binder:16533_3",0.457721
+"mali-event-hand",0.417119
+"binder:16533_4",0.368274
+"AudioTrack",0.327388
+"DefaultExecutor",0.298847
+"GPU completion",0.269116
+"DefaultDispatch",0.187918
+"DefaultDispatch",0.140627
+"binder:16533_5",0.121619
+"DefaultDispatch",0.121267
+"DefaultDispatch",0.098951
+"Jit thread pool",0.087515
+"DefaultDispatch",0.085572
+"DefaultDispatch",0.082608
+"binder:16533_1",0.078142
+"GrallocUploadTh",0.065780
+"DefaultDispatch",0.059357
+"binder:16533_1",0.056837
+"HeapTaskDaemon",0.050514
+"DefaultDispatch",0.038316
+"DefaultDispatch",0.024296
+"Profile Saver",0.019658
+"android.bg",0.013292
+"DefaultDispatch",0.012605
+"FinalizerDaemon",0.005945
+"mali-mem-purge",0.004921
+"DefaultDispatch",0.004772
+"DefaultDispatch",0.004741
+"ReferenceQueueD",0.004080
+"DefaultDispatch",0.003893
+"DefaultDispatch",0.002816
+"DefaultDispatch",0.001963
+"DefaultDispatch",0.000939
+"FinalizerWatchd",0.000881
+"DefaultDispatch",0.000725
+"DefaultDispatch",0.000279
+
+"compositor_thread","cpu_seconds"
+"surfaceflinger",8.847699
+"TimerDispatch",0.483676
+"binder:637_3",0.435584
+"BckgrndExec HP",0.371695
+"app",0.311630
+"RenderEngine",0.279471
+"binder:637_2",0.145339
+"binder:637_4",0.134833
+"RegSampIdle",0.046442
+"mali-event-hand",0.042283
+"RE Completion",0.034905
+"surfaceflinger",0.028754
+"TracingMuxer",0.024623
+"IdleTimer",0.020643
+"BckgrndExec WL",0.019797
+"RegionSampling",0.017136
+"mali-mem-purge",0.000574
+"binder:637_1",0.000507
+"BckgrndExec LP",0.000062
+"binder:637_5",0.000029
+
+"draws","draw_span_seconds","draw_fps"
+0,"[NULL]","[NULL]"
+
+"interval_bucket_ms","frames"
+
+"layer_name","buffers","submitted_fps"
+
+"thread","buffer","dequeues","dequeue_fps"
+"RenderThread","dequeueBuffer - 8ccb078 SurfaceView[app.naviamp.android.benchmark/app.naviamp.android.MainActivity]#12(BLAST Consumer)12",1350,44.982216
+
+"thread","operation","calls","mean_ms","max_ms"
+"RenderThread","queueBuffer",2700,0.769274,5.554688
+"droid.benchmark","NaviampHardwareShaderSubmit",1347,0.716082,11.844564
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",35,47.253543
+"droid.benchmark","allocateHardwareBitmap",29,217.603472
+"droid.benchmark","uploadHardwareBitmap",29,170.049841

@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=cap60-skia-analog-2 pid=79503 cpu=18.12083839875138 compilation_ms=318 surface=parent:1000x712 visible=true iconified=false frames=758 observer_attached=true physical_captures=true/true

@@ -1,0 +1,28 @@
+BEGIN static frames=0 parent_gpu_ns=0
+RESULT static cpu_percent=0.16994346135689206 root_draws=0 submissions=0 sibling_draws=0 seconds=10.003326909 p50_interval_ms=null p95_interval_ms=null frames=0 parent_gpu_ns=0
+BEGIN inline-sphere frames=0 parent_gpu_ns=0
+RESULT inline-sphere cpu_percent=58.380114845577815 root_draws=601 submissions=0 sibling_draws=601 seconds=10.005119064 p50_interval_ms=null p95_interval_ms=null frames=600 parent_gpu_ns=1221620036
+BEGIN direct-sphere frames=0 parent_gpu_ns=0
+RESULT direct-sphere cpu_percent=47.235781122038354 root_draws=0 submissions=600 sibling_draws=0 seconds=10.000893153 p50_interval_ms=16.521769 p95_interval_ms=17.914713 frames=0 parent_gpu_ns=0
+BEGIN direct45-sphere frames=0 parent_gpu_ns=0
+RESULT direct45-sphere cpu_percent=34.55684464561657 root_draws=0 submissions=450 sibling_draws=0 seconds=10.000913091 p50_interval_ms=22.05542 p95_interval_ms=23.447713 frames=0 parent_gpu_ns=0
+BEGIN inline-analog frames=0 parent_gpu_ns=0
+RESULT inline-analog cpu_percent=16.618858932526834 root_draws=0 submissions=0 sibling_draws=0 seconds=10.00068661 p50_interval_ms=null p95_interval_ms=null frames=0 parent_gpu_ns=0
+BEGIN direct-analog frames=0 parent_gpu_ns=0
+RESULT direct-analog cpu_percent=41.436456909453625 root_draws=0 submissions=600 sibling_draws=0 seconds=10.000855066 p50_interval_ms=16.634318 p95_interval_ms=17.789591 frames=0 parent_gpu_ns=0
+BEGIN direct45-analog frames=0 parent_gpu_ns=0
+RESULT direct45-analog cpu_percent=30.987737055427278 root_draws=0 submissions=450 sibling_draws=0 seconds=10.000730271 p50_interval_ms=22.384847 p95_interval_ms=23.119873 frames=0 parent_gpu_ns=0
+BEGIN direct-large-analog frames=0 parent_gpu_ns=0
+RESULT direct-large-analog cpu_percent=36.49637217666398 root_draws=0 submissions=600 sibling_draws=0 seconds=10.000994023 p50_interval_ms=16.583334 p95_interval_ms=17.692342 frames=0 parent_gpu_ns=0
+BEGIN inline-ocean frames=0 parent_gpu_ns=0
+RESULT inline-ocean cpu_percent=13.729103322058009 root_draws=0 submissions=0 sibling_draws=0 seconds=10.000653122 p50_interval_ms=null p95_interval_ms=null frames=0 parent_gpu_ns=0
+BEGIN direct-ocean frames=0 parent_gpu_ns=0
+RESULT direct-ocean cpu_percent=36.42437833429664 root_draws=0 submissions=600 sibling_draws=0 seconds=10.00154338 p50_interval_ms=16.519653 p95_interval_ms=17.661621 frames=0 parent_gpu_ns=0
+BEGIN direct45-ocean frames=0 parent_gpu_ns=0
+RESULT direct45-ocean cpu_percent=29.428487131504998 root_draws=0 submissions=450 sibling_draws=0 seconds=10.000514083 p50_interval_ms=22.413086 p95_interval_ms=23.17749 frames=0 parent_gpu_ns=0
+BEGIN direct-large-ocean frames=0 parent_gpu_ns=0
+RESULT direct-large-ocean cpu_percent=33.64758334308058 root_draws=0 submissions=600 sibling_draws=0 seconds=10.000718226 p50_interval_ms=16.452148 p95_interval_ms=17.716756 frames=0 parent_gpu_ns=0
+BEGIN paused-direct-analog frames=0 parent_gpu_ns=0
+RESULT paused-direct-analog cpu_percent=0.06997702138657232 root_draws=0 submissions=0 sibling_draws=0 seconds=10.003283737 p50_interval_ms=null p95_interval_ms=null frames=0 parent_gpu_ns=0
+BEGIN static frames=0 parent_gpu_ns=0
+RESULT static cpu_percent=0.05997847278445564 root_draws=0 submissions=0 sibling_draws=0 seconds=10.003589157 p50_interval_ms=null p95_interval_ms=null frames=0 parent_gpu_ns=0

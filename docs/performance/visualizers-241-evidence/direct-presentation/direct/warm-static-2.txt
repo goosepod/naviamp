@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=warm-static-2 pid=27288 cpu=1.1940456507176804 compilation_ms=88 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

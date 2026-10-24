@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=analog-1 pid=88337 cpu=24.70164671555351 compilation_ms=228 surface=parent:1000x712 visible=true iconified=false frames=760 observer_attached=true physical_captures=true/true

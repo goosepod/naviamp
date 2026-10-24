@@ -4,12 +4,16 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.SemanticsModifierNode
 import androidx.compose.ui.node.invalidateSemantics
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 
 /** Publish live semantics without queuing the host's snapshot-observer drawing pass. */
 internal fun <T> Modifier.naviampLiveSemantics(
@@ -29,7 +33,7 @@ private data class LiveSemanticsElement<T>(
 private class LiveSemanticsNode<T>(
     private var read: () -> T,
     private var apply: SemanticsPropertyReceiver.(T) -> Unit,
-) : Modifier.Node(), SemanticsModifierNode {
+) : Modifier.Node(), SemanticsModifierNode, CompositionLocalConsumerModifierNode {
     private var latest: T = Snapshot.withoutReadObservation { read() }
     private var observation: Job? = null
     override val shouldAutoInvalidate = false
@@ -42,12 +46,22 @@ private class LiveSemanticsNode<T>(
     }
     private fun observe() {
         observation?.cancel()
+        val visibility = currentValueOf(LocalNaviampWindowVisibility)
         observation = coroutineScope.launch {
-            snapshotFlow { read() }.collect {
+            naviampObserveVisibleSemantics(visibility, { read() }) {
                 latest = it
                 invalidateSemantics()
             }
         }
     }
     override fun SemanticsPropertyReceiver.applySemantics() { apply(latest) }
+}
+
+/** Hidden windows retain their last semantics and catch up before becoming interactive again. */
+internal suspend fun <T> naviampObserveVisibleSemantics(
+    visibility: StateFlow<Boolean>, read: () -> T, publish: (T) -> Unit,
+) {
+    visibility.collectLatest { visible ->
+        if (visible) snapshotFlow(read).collect(publish)
+    }
 }

@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=warm-skia-analog-1 pid=27288 cpu=13.119315308376763 compilation_ms=170 surface=parent:1000x712 visible=true iconified=false frames=765 observer_attached=true physical_captures=true/true

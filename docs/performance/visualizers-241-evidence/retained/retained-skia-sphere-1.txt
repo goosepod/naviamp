@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=retained-skia-sphere-1 pid=31289 cpu=20.31778926442075 compilation_ms=404 surface=parent:1000x712 visible=true iconified=false frames=737 observer_attached=true physical_captures=true/true

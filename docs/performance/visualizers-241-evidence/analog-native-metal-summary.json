@@ -1,0 +1,32 @@
+[
+  {
+    "process": "Naviamp (88337)",
+    "channel": "Compute",
+    "intervals": 493,
+    "channel_ms": 19.531911
+  },
+  {
+    "process": "Naviamp (88337)",
+    "channel": "Fragment",
+    "intervals": 1241,
+    "channel_ms": 74.089778
+  },
+  {
+    "process": "Naviamp (88337)",
+    "channel": "Vertex",
+    "intervals": 1271,
+    "channel_ms": 8.715955
+  },
+  {
+    "process": "WindowServer (415)",
+    "channel": "Fragment",
+    "intervals": 4654,
+    "channel_ms": 293.798086
+  },
+  {
+    "process": "WindowServer (415)",
+    "channel": "Vertex",
+    "intervals": 4630,
+    "channel_ms": 37.363482
+  }
+]

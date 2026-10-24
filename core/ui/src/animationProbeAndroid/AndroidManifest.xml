@@ -3,5 +3,6 @@
         <activity android:name="androidx.activity.ComponentActivity" android:exported="true" />
         <activity android:name="app.naviamp.ui.AnimationProbeActivity" android:exported="true" />
         <activity android:name="app.naviamp.ui.RasterPlacementActivity" android:exported="true" />
+        <activity android:name="app.naviamp.ui.VisualizerProbeActivity" android:exported="true" />
     </application>
 </manifest>

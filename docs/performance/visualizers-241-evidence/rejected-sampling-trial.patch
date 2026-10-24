@@ -1,0 +1,256 @@
+diff --git a/core/ui/src/commonMain/kotlin/app/naviamp/ui/NativeSkiaShaderTranslator.kt b/core/ui/src/commonMain/kotlin/app/naviamp/ui/NativeSkiaShaderTranslator.kt
+index 504e1467..a1280947 100644
+--- a/core/ui/src/commonMain/kotlin/app/naviamp/ui/NativeSkiaShaderTranslator.kt
++++ b/core/ui/src/commonMain/kotlin/app/naviamp/ui/NativeSkiaShaderTranslator.kt
+@@ -62,7 +62,7 @@ internal object NativeSkiaShaderTranslator {
+             }
+             val args = substring(openParen + 1, closeParen).splitTopLevelComma()
+             if (args.size == 2 && args[0].trim() == "u_frequencyTexture") {
+-                output.append("float4(bandAt((")
++                output.append("float4(frequencyAt((")
+                     .append(args[1].trim())
+                     .append(").x))")
+             } else {
+diff --git a/core/ui/src/commonMain/kotlin/app/naviamp/ui/VisualizerShaders.kt b/core/ui/src/commonMain/kotlin/app/naviamp/ui/VisualizerShaders.kt
+index 694ef650..38ad5f4d 100644
+--- a/core/ui/src/commonMain/kotlin/app/naviamp/ui/VisualizerShaders.kt
++++ b/core/ui/src/commonMain/kotlin/app/naviamp/ui/VisualizerShaders.kt
+@@ -66,39 +66,69 @@ float hash21(float2 p) {
+     return fract(p.x * p.y);
+ }
+ 
++// Constant uniform indices keep this compatible with AGSL; each lookup has five decisions.
+ float bandAtIndex(int bandSlot) {
+-    if (bandSlot <= 0) return clamp(iBands[0], 0.0, 1.0);
+-    if (bandSlot == 1) return clamp(iBands[1], 0.0, 1.0);
+-    if (bandSlot == 2) return clamp(iBands[2], 0.0, 1.0);
+-    if (bandSlot == 3) return clamp(iBands[3], 0.0, 1.0);
+-    if (bandSlot == 4) return clamp(iBands[4], 0.0, 1.0);
+-    if (bandSlot == 5) return clamp(iBands[5], 0.0, 1.0);
+-    if (bandSlot == 6) return clamp(iBands[6], 0.0, 1.0);
+-    if (bandSlot == 7) return clamp(iBands[7], 0.0, 1.0);
+-    if (bandSlot == 8) return clamp(iBands[8], 0.0, 1.0);
+-    if (bandSlot == 9) return clamp(iBands[9], 0.0, 1.0);
+-    if (bandSlot == 10) return clamp(iBands[10], 0.0, 1.0);
+-    if (bandSlot == 11) return clamp(iBands[11], 0.0, 1.0);
+-    if (bandSlot == 12) return clamp(iBands[12], 0.0, 1.0);
+-    if (bandSlot == 13) return clamp(iBands[13], 0.0, 1.0);
+-    if (bandSlot == 14) return clamp(iBands[14], 0.0, 1.0);
+-    if (bandSlot == 15) return clamp(iBands[15], 0.0, 1.0);
+-    if (bandSlot == 16) return clamp(iBands[16], 0.0, 1.0);
+-    if (bandSlot == 17) return clamp(iBands[17], 0.0, 1.0);
+-    if (bandSlot == 18) return clamp(iBands[18], 0.0, 1.0);
+-    if (bandSlot == 19) return clamp(iBands[19], 0.0, 1.0);
+-    if (bandSlot == 20) return clamp(iBands[20], 0.0, 1.0);
+-    if (bandSlot == 21) return clamp(iBands[21], 0.0, 1.0);
+-    if (bandSlot == 22) return clamp(iBands[22], 0.0, 1.0);
+-    if (bandSlot == 23) return clamp(iBands[23], 0.0, 1.0);
+-    if (bandSlot == 24) return clamp(iBands[24], 0.0, 1.0);
+-    if (bandSlot == 25) return clamp(iBands[25], 0.0, 1.0);
+-    if (bandSlot == 26) return clamp(iBands[26], 0.0, 1.0);
+-    if (bandSlot == 27) return clamp(iBands[27], 0.0, 1.0);
+-    if (bandSlot == 28) return clamp(iBands[28], 0.0, 1.0);
+-    if (bandSlot == 29) return clamp(iBands[29], 0.0, 1.0);
+-    if (bandSlot == 30) return clamp(iBands[30], 0.0, 1.0);
+-    return clamp(iBands[31], 0.0, 1.0);
++    if (bandSlot < 16) {
++        if (bandSlot < 8) {
++            if (bandSlot < 4) {
++                if (bandSlot < 2) {
++                    return clamp(bandSlot < 1 ? iBands[0] : iBands[1], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 3 ? iBands[2] : iBands[3], 0.0, 1.0);
++                }
++            } else {
++                if (bandSlot < 6) {
++                    return clamp(bandSlot < 5 ? iBands[4] : iBands[5], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 7 ? iBands[6] : iBands[7], 0.0, 1.0);
++                }
++            }
++        } else {
++            if (bandSlot < 12) {
++                if (bandSlot < 10) {
++                    return clamp(bandSlot < 9 ? iBands[8] : iBands[9], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 11 ? iBands[10] : iBands[11], 0.0, 1.0);
++                }
++            } else {
++                if (bandSlot < 14) {
++                    return clamp(bandSlot < 13 ? iBands[12] : iBands[13], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 15 ? iBands[14] : iBands[15], 0.0, 1.0);
++                }
++            }
++        }
++    } else {
++        if (bandSlot < 24) {
++            if (bandSlot < 20) {
++                if (bandSlot < 18) {
++                    return clamp(bandSlot < 17 ? iBands[16] : iBands[17], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 19 ? iBands[18] : iBands[19], 0.0, 1.0);
++                }
++            } else {
++                if (bandSlot < 22) {
++                    return clamp(bandSlot < 21 ? iBands[20] : iBands[21], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 23 ? iBands[22] : iBands[23], 0.0, 1.0);
++                }
++            }
++        } else {
++            if (bandSlot < 28) {
++                if (bandSlot < 26) {
++                    return clamp(bandSlot < 25 ? iBands[24] : iBands[25], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 27 ? iBands[26] : iBands[27], 0.0, 1.0);
++                }
++            } else {
++                if (bandSlot < 30) {
++                    return clamp(bandSlot < 29 ? iBands[28] : iBands[29], 0.0, 1.0);
++                } else {
++                    return clamp(bandSlot < 31 ? iBands[30] : iBands[31], 0.0, 1.0);
++                }
++            }
++        }
++    }
+ }
+ 
+ float bandAt(float x) {
+@@ -106,6 +136,21 @@ float bandAt(float x) {
+     return bandAtIndex(bandSlot);
+ }
+ 
++// Match a normalized, linearly filtered 32x1 frequency texture, including clamped texel centers.
++float frequencyAt(float x) {
++    float column = clamp(x * 32.0 - 0.5, 0.0, 31.0);
++    float lower = floor(column);
++    return mix(bandAtIndex(int(lower)), bandAtIndex(int(min(lower + 1.0, 31.0))), column - lower);
++}
++
++// Angular contours are periodic: interpolate the final band back into the first at the seam.
++float angularFrequencyAt(float turns) {
++    float column = fract(turns) * 32.0;
++    int lower = int(floor(column));
++    int upper = lower == 31 ? 0 : lower + 1;
++    return mix(bandAtIndex(lower), bandAtIndex(upper), fract(column));
++}
++
+ float3 palette(float t) {
+     float3 ab = mix(iColorA.rgb, iColorB.rgb, smoothstep(0.0, 0.62, t));
+     float3 base = mix(ab, iColorC.rgb, smoothstep(0.30, 1.0, t));
+@@ -207,7 +252,7 @@ half4 main(float2 coord) {
+         return premul(iIdle.rgb, iIdle.a * ring);
+     }
+ 
+-    float band = bandAt(fract((angle + 3.14159265) / 6.2831853));
++    float band = angularFrequencyAt((angle + 3.14159265) / 6.2831853);
+     float bass = iEnergy.x;
+     float mids = iEnergy.y;
+     float highs = iEnergy.z;
+@@ -215,8 +260,8 @@ half4 main(float2 coord) {
+     float shimmer = (hash21(float2(floor(angle * 42.0), floor(radius * 42.0)) + iTime) - 0.5) * highs * 0.026;
+     float sphereRadius = 0.36 + bass * 0.16 + band * 0.11 + wave + shimmer;
+     float shell = 1.0 - smoothstep(0.0, 0.045, abs(radius - sphereRadius));
+-    float surface = smoothstep(sphereRadius, sphereRadius - 0.22, radius);
+-    float body = surface * smoothstep(sphereRadius + 0.018, sphereRadius - 0.018, radius);
++    float surface = 1.0 - smoothstep(sphereRadius - 0.22, sphereRadius, radius);
++    float body = surface * (1.0 - smoothstep(sphereRadius - 0.018, sphereRadius + 0.018, radius));
+     float glow = (1.0 - smoothstep(0.0, 0.10 + bass * 0.10, abs(radius - sphereRadius))) * (0.16 + bass * 0.22);
+     float3 normalColor = palette(fract((angle / 6.2831853) + 0.5 + highs * 0.18 + band * 0.12));
+     float highlight = pow(max(0.0, 1.0 - length(uv - float2(-0.12, -0.16)) * 2.2), 3.0);
+diff --git a/core/ui/src/jvmTest/kotlin/app/naviamp/ui/VisualizerShaderTest.kt b/core/ui/src/jvmTest/kotlin/app/naviamp/ui/VisualizerShaderTest.kt
+index 8d302072..a942bd0e 100644
+--- a/core/ui/src/jvmTest/kotlin/app/naviamp/ui/VisualizerShaderTest.kt
++++ b/core/ui/src/jvmTest/kotlin/app/naviamp/ui/VisualizerShaderTest.kt
+@@ -3,9 +3,90 @@ package app.naviamp.ui
+ import kotlin.test.Test
+ import kotlin.test.assertEquals
+ import kotlin.test.assertFalse
++import kotlin.test.assertTrue
++import kotlin.math.abs
++import org.jetbrains.skia.Bitmap
++import org.jetbrains.skia.Canvas
++import org.jetbrains.skia.Paint
++import org.jetbrains.skia.Rect
+ import org.jetbrains.skia.RuntimeEffect
++import org.jetbrains.skia.RuntimeShaderBuilder
+ 
+ class VisualizerShaderTest {
++    @Test
++    fun sphereFrequencyContourInterpolatesAcrossTheAngularSeam() {
++        val bands = FloatArray(32)
++        bands[0] = .2f; bands[1] = .6f; bands[30] = .4f; bands[31] = .8f
++        val source = CommonShaderHeader + """
++            half4 main(float2 coord) {
++                float band = angularFrequencyAt((coord.x - 3.5) / 64.0);
++                return half4(band, band, band, 1.0);
++            }
++        """
++        val pixels = renderBands(source, bands, 6)
++        val expected = floatArrayOf(.6f, .8f, .5f, .2f, .4f, .6f)
++        expected.forEachIndexed { x, value ->
++            assertTrue(abs((pixels[x] and 255) - value * 255) <= 1, "angular seam at $x")
++        }
++    }
++
++    @Test
++    fun translatedFrequencySamplingMatchesLinearTextureCentersAndClampedEdges() {
++        val bands = FloatArray(32) { ((it * 13) % 32) / 31f }
++        val source = CommonShaderHeader + """
++            half4 main(float2 coord) {
++                float band = frequencyAt((coord.x - 2.5) / 64.0);
++                return half4(band, band, band, 1.0);
++            }
++        """
++        val pixels = renderBands(source, bands, 68)
++        repeat(pixels.size) { x ->
++            val column = ((x - 3) / 2f).coerceIn(0f, 31f)
++            val lower = column.toInt()
++            val upper = (lower + 1).coerceAtMost(31)
++            val expected = (bands[lower] + (bands[upper] - bands[lower]) * (column - lower)) * 255
++            assertTrue(abs((pixels[x] and 255) - expected) <= 1, "frequency sample at $x")
++        }
++    }
++
++    @Test
++    fun bandLookupRendersEveryBandAndClampsBothIndicesAndAmplitudes() {
++        val source = CommonShaderHeader + """
++            half4 main(float2 coord) {
++                float band = bandAtIndex(int(floor(coord.x)) - 2);
++                return half4(band, band, band, 1.0);
++            }
++        """
++        val bands = FloatArray(32) { ((it * 13) % 32) / 31f }
++        bands[0] = -.5f
++        bands[31] = 1.5f
++        val pixels = renderBands(source, bands, 36)
++        repeat(pixels.size) { x ->
++            val expected = (bands[(x - 2).coerceIn(0, 31)].coerceIn(0f, 1f) * 255).toInt()
++            val actual = pixels[x]
++            assertEquals(255, actual ushr 24, "alpha at $x")
++            assertTrue(abs((actual and 255) - expected) <= 1, "band at $x")
++        }
++    }
++
++    private fun renderBands(source: String, bands: FloatArray, width: Int): IntArray {
++        return RuntimeEffect.makeForShader(source).use { effect ->
++            RuntimeShaderBuilder(effect).use { builder ->
++                builder.uniform("iBands", bands)
++                builder.makeShader().use { shader ->
++                    Bitmap().use { bitmap ->
++                        assertTrue(bitmap.allocN32Pixels(width, 1))
++                        Paint().use { paint ->
++                            paint.shader = shader
++                            Canvas(bitmap).use { canvas -> canvas.drawRect(Rect.makeWH(width.toFloat(), 1f), paint) }
++                        }
++                        IntArray(width) { bitmap.getColor(it, 0) }
++                    }
++                }
++            }
++        }
++    }
++
+     @Test
+     fun compilesEveryJvmVisualizerShader() {
+         NaviampVisualizer.entries.forEach { visualizer ->

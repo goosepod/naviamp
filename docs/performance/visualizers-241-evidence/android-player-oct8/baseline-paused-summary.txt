@@ -1,0 +1,15 @@
+"thread","cpu_seconds"
+"droid.benchmark",0.544191
+"DefaultExecutor",0.110456
+"DefaultDispatch",0.106662
+"binder:29470_2",0.020450
+"binder:29470_6",0.013794
+"DefaultDispatch",0.012700
+"DefaultDispatch",0.001852
+"FinalizerWatchd",0.000387
+"HeapTaskDaemon",0.000142
+"binder:29470_1",0.000052
+
+"interval_bucket_ms","frames"
+
+"thread","operation","calls","mean_ms","max_ms"

@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=warm-direct45-ocean-ink-1 pid=27288 cpu=7.465864270600954 compilation_ms=1 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=false/false

@@ -1,0 +1,60 @@
+"thread","cpu_seconds"
+"RenderThread",2.322653
+"droid.benchmark",1.002265
+"binder:22035_2",0.681589
+"mali-event-hand",0.242656
+"GPU completion",0.140253
+"binder:22035_4",0.052691
+"Profile Saver",0.017535
+"mali-mem-purge",0.005512
+"DefaultDispatch",0.002833
+"DefaultDispatch",0.001892
+"DefaultDispatch",0.001460
+"DefaultDispatch",0.001417
+"DefaultDispatch",0.001002
+"DefaultDispatch",0.000949
+"DefaultDispatch",0.000897
+"DefaultDispatch",0.000683
+"DefaultDispatch",0.000527
+"FinalizerWatchd",0.000461
+"DefaultDispatch",0.000412
+"DefaultDispatch",0.000362
+"DefaultDispatch",0.000342
+"DefaultDispatch",0.000308
+"DefaultDispatch",0.000280
+"DefaultDispatch",0.000240
+"HeapTaskDaemon",0.000160
+
+"compositor_thread","cpu_seconds"
+"surfaceflinger",5.688242
+"app",0.758463
+"binder:637_1",0.513176
+"TimerDispatch",0.465953
+"BckgrndExec HP",0.249565
+"binder:637_5",0.124511
+"RegSampIdle",0.043440
+"surfaceflinger",0.035713
+"IdleTimer",0.020436
+"RegionSampling",0.017482
+"TracingMuxer",0.010507
+"RenderEngine",0.003634
+"mali-event-hand",0.000532
+"RE Completion",0.000464
+"BckgrndExec LP",0.000092
+"mali-event-hand",0.000081
+
+"draws","draw_span_seconds","draw_fps"
+0,"[NULL]","[NULL]"
+
+"interval_bucket_ms","frames"
+
+"layer_name","buffers","submitted_fps"
+
+"thread","buffer","dequeues","dequeue_fps"
+"RenderThread","dequeueBuffer - bfbedf SurfaceView[app.naviamp.android.benchmark/app.naviamp.android.MainActivity]#3(BLAST Consumer)3",910,30.553164
+
+"thread","operation","calls","mean_ms","max_ms"
+"RenderThread","queueBuffer",1822,0.764872,1.660970
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",910,682.255503

@@ -1,0 +1,27 @@
+{
+  "native-ocean-ink": {
+    "median_cpu_percent": 25.73629021895726,
+    "median_parent_frames_10s": 764.0,
+    "all_captures_valid": true
+  },
+  "paused-ocean-ink": {
+    "median_cpu_percent": 0.5672205257126692,
+    "median_parent_frames_10s": 0.0,
+    "all_captures_valid": true
+  },
+  "skia-ocean-ink": {
+    "median_cpu_percent": 20.770130991017176,
+    "median_parent_frames_10s": 757.5,
+    "all_captures_valid": true
+  },
+  "skia-ocean-ink-combined": {
+    "median_cpu_percent": 21.543252257057084,
+    "median_parent_frames_10s": 748.5,
+    "all_captures_valid": true
+  },
+  "static": {
+    "median_cpu_percent": 0.9298548541673085,
+    "median_parent_frames_10s": 0.0,
+    "all_captures_valid": true
+  }
+}

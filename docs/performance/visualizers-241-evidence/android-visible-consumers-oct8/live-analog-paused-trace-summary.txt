@@ -1,0 +1,17 @@
+"thread","cpu_seconds"
+"HeapTaskDaemon",0.033420
+"DefaultDispatch",0.021566
+"DefaultExecutor",0.012137
+"DefaultDispatch",0.008757
+"FinalizerDaemon",0.004277
+"ReferenceQueueD",0.002583
+"DefaultDispatch",0.002002
+"FinalizerWatchd",0.000574
+"GrallocUploadTh",0.000177
+"binder:12776_6",0.000039
+
+"interval_bucket_ms","frames"
+
+"thread","operation","calls","mean_ms","max_ms"
+
+"thread","operation","calls","total_wall_ms"

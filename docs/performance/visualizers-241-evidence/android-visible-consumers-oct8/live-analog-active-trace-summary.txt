@@ -1,0 +1,48 @@
+"thread","cpu_seconds"
+"GLThread 119",2.275280
+"droid.benchmark",0.610953
+"mali-event-hand",0.281406
+"AudioTrack",0.238505
+"binder:12776_3",0.235000
+"binder:12776_6",0.206231
+"DefaultDispatch",0.175897
+"DefaultDispatch",0.161288
+"mali-cpu-comman",0.151644
+"GPU completion",0.140952
+"DefaultExecutor",0.128323
+"binder:12776_2",0.099546
+"binder:12776_2",0.045076
+"Jit thread pool",0.036974
+"GrallocUploadTh",0.035446
+"DefaultDispatch",0.027014
+"binder:12776_4",0.020918
+"DefaultDispatch",0.009308
+"android.bg",0.005440
+"mali-event-hand",0.003522
+"mali-mem-purge",0.003457
+"mali-mem-purge",0.001849
+"DefaultDispatch",0.001258
+"HeapTaskDaemon",0.000919
+"FinalizerWatchd",0.000595
+"DefaultDispatch",0.000395
+"Profile Saver",0.000075
+
+"interval_bucket_ms","frames"
+5.000000,3
+10.000000,4
+15.000000,764
+20.000000,100
+25.000000,5
+30.000000,1
+35.000000,5
+40.000000,2
+
+"thread","operation","calls","mean_ms","max_ms"
+"GLThread 119","queueBuffer",1770,0.686732,8.022786
+"GLThread 119","eglSwapBuffers",885,1.301421,8.654825
+"GLThread 119","onDrawFrame",885,3.128017,15.735311
+
+"thread","operation","calls","total_wall_ms"
+"droid.benchmark","animation",18,23.436971
+"droid.benchmark","allocateHardwareBitmap",15,94.741821
+"droid.benchmark","uploadHardwareBitmap",15,67.808756

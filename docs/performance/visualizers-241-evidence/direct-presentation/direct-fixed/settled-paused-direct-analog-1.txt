@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=settled-paused-direct-analog-1 pid=39634 cpu=1.5430603945529329 compilation_ms=319 surface=parent:1280x932 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true

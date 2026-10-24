@@ -261,10 +261,10 @@ void main() {
     float waveR = 0.5 + (signalR - 0.5) * 0.82 + sin(uv.x * 42.0 + u_time * 7.0) * signalLift * 0.10;
     float waveG = 0.5 + (signalG - 0.5) * 0.76 + sin(uv.x * 36.0 - u_time * 5.0) * signalLift * 0.08;
     float waveB = 0.5 + (signalB - 0.5) * 0.70 + sin(uv.x * 50.0 + u_time * 3.0) * signalLift * 0.07;
-    float lineR = smoothstep(traceWidth, 0.0, abs(uv.y - waveR));
-    float lineG = smoothstep(traceWidth, 0.0, abs(uv.y - waveG));
-    float lineB = smoothstep(traceWidth, 0.0, abs(uv.y - waveB));
-    float baseline = smoothstep(0.035, 0.0, abs(uv.y - 0.5)) * (0.10 + u_energyLevel * 0.16);
+    float lineR = (1.0 - smoothstep(0.0, traceWidth, abs(uv.y - waveR)));
+    float lineG = (1.0 - smoothstep(0.0, traceWidth, abs(uv.y - waveG)));
+    float lineB = (1.0 - smoothstep(0.0, traceWidth, abs(uv.y - waveB)));
+    float baseline = (1.0 - smoothstep(0.0, 0.035, abs(uv.y - 0.5))) * (0.10 + u_energyLevel * 0.16);
 
     vec3 channelR = mix(u_accent.rgb, u_readable.rgb, 0.18);
     vec3 channelG = mix(u_colorB.rgb, u_accent.rgb, 0.38);
@@ -277,7 +277,7 @@ void main() {
     color += snow * mix(u_readable.rgb, u_accent.rgb, 0.25);
 
     float ghostSignal = texture(u_frequencyTexture, vec2(originalUv.x, 0.5)).r;
-    float ghostLine = smoothstep(0.12, 0.0, abs(originalUv.y - 0.5 - (ghostSignal - 0.5) * 0.8));
+    float ghostLine = (1.0 - smoothstep(0.0, 0.12, abs(originalUv.y - 0.5 - (ghostSignal - 0.5) * 0.8)));
     color += ghostLine * mix(u_colorA.rgb, u_colorB.rgb, 0.55) * (0.16 + u_energyLevel * 0.22);
 
     float signalColumn = max(max(signalR, signalG), signalB);

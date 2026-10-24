@@ -1,0 +1,45 @@
+{
+  "sample_events": 646,
+  "threads": {
+    "skiko-dispatcher-to-block-on": 643,
+    "AWT-EventQueue-0": 3
+  },
+  "top_leaf_methods": [
+    [
+      "org/jetbrains/skiko/redrawer/DisplayLinkThrottler.waitVSync",
+      377
+    ],
+    [
+      "org/jetbrains/skiko/context/MetalContextHandler.makeMetalRenderTarget",
+      244
+    ],
+    [
+      "org/jetbrains/skia/DirectContextKt.DirectContext_nFlushDefault",
+      14
+    ],
+    [
+      "org/jetbrains/skia/CanvasKt._nDrawPicture",
+      5
+    ],
+    [
+      "java/util/HashMap.getNode",
+      2
+    ],
+    [
+      "org/jetbrains/skia/PictureRecorderKt._nFinishRecordingAsPicture",
+      1
+    ],
+    [
+      "org/jetbrains/skiko/context/MetalContextHandler.finishFrame",
+      1
+    ],
+    [
+      "java/lang/Class.isAssignableFrom",
+      1
+    ],
+    [
+      "java/util/ArrayList.clear",
+      1
+    ]
+  ]
+}

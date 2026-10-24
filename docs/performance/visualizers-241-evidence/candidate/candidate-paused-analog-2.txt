@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=candidate-paused-analog-2 pid=14168 cpu=0.4733707779317929 compilation_ms=0 surface=parent:1000x712 visible=true iconified=false frames=0 observer_attached=true physical_captures=true/true
