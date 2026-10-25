@@ -54,8 +54,31 @@ These adapter tests do not reproduce MSIX filesystem virtualization and are not 
 ## Store resubmission gate
 
 No Store package, published release, submission, or existing user profile was changed by this fix.
-The original v2.9.0 bytes cannot remain unchanged and also contain this code fix. A replacement
-release/build must be selected and produced through the normal review/release process.
+The original v2.9.0 bytes cannot remain unchanged and also contain this code fix. The owner explicitly
+confirmed that the replacement must remain based on v2.9.0. A separate minimal backport branch starts
+at `v2.9.0` (`826e14bf1c46dba8d604515f1bf77bf6afcd541d`) and changes only the native adapter and its
+tests. Version metadata is unchanged; the private test rebuild is not the published original ZIP.
+
+Backport source: `fix/337-store-credential-persistence-v2.9.0`, commit
+`621fa44f11e6ecf79520008e8f62f5d719d0838d`. Its complete diff from v2.9.0 is the adapter and test
+file listed above. All 5 native credential tests passed (zero failures/errors/skips), and
+`packageReleaseDistributable` plus `verifyCoreFirstArchitecture` passed. The broader
+`stageReleaseArtifacts` attempt produced the ZIP but failed on the unrelated EXE installer because
+WiX was absent from PATH; no MSI/EXE success is claimed.
+
+A private unsigned test MSIX was built using the #324 manifest/assets and the local rebuilt ZIP,
+with the same `Goosepod.Naviamp` identity and `2.9.57.0` package version. MakeAppx schema/semantic
+validation passed, and all 268 packaged application files match the private input ZIP byte-for-byte.
+The local tooling metadata explicitly labels this a local test, not the published v2.9.0 asset.
+
+- Private ZIP SHA-256: `c776276e22bbdeba4b20cc3b1c57c0f5933b6f6094daf138c5b12e88128b0db6`.
+- Private MSIX SHA-256: `5b448229f8cdbf669833f42cf0fbda4e9e464b03265e76b90d3fa1014c779550`.
+- Artifacts/logs/provenance: workspace `build/store-crash-investigation/private-v2.9.0-backport/`.
+
+This candidate has not been signed, installed, or launched as an MSIX. No certificate trust or
+Windows account changes have been made. Windows Sandbox is unavailable on this host. The install
+helper in #324 requires explicit authorization for temporary machine certificate trust; a clean
+Windows test account or another clean Windows environment is also needed for the acceptance below.
 
 Before resubmission, test the exact replacement MSIX on a genuinely fresh Windows user profile
 with no standalone Naviamp AppData, package state, or credential file. Launch through package
