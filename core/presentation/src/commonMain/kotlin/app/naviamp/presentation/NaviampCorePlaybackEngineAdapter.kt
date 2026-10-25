@@ -1,6 +1,8 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.playback.withAudioStreamOffsetSupport
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.DownloadFallbackAwarePlaybackEngine
@@ -343,6 +345,7 @@ class NaviampCorePlaybackEngineAdapter(
     override fun diagnostics(): List<Pair<String, String>> =
         (engine as? PlaybackEngineDiagnostics)?.statsRows().orEmpty()
 
+    @OptIn(ExperimentalAtomicApi::class)
     private fun startCurrent(
         startPositionSeconds: Double?,
         pauseWhenStarted: Boolean = false,
@@ -470,11 +473,16 @@ class NaviampCorePlaybackEngineAdapter(
                 },
             )
             var pendingPause = pauseWhenStarted
+            val executionFinished = AtomicBoolean(false)
             engine.play(
                 scope = scope,
                 request = request,
                 onStateChanged = { state ->
-                    if (requestGeneration == generation) {
+                    if (requestGeneration == generation && !executionFinished.load()) {
+                        // End-sync and native polling share one execution. Once completion has
+                        // been delivered, a late Playing/Loading callback must not cancel Core's
+                        // pending Autoplay or cause the same queue item to finish twice.
+                        if (state == PlaybackState.Finished && !executionFinished.compareAndSet(false, true)) return@play
                         if (state is PlaybackState.Error) authenticatedStreams?.clearCurrent()
                         if (
                             state is PlaybackState.Error &&
@@ -541,7 +549,7 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
                 onProgressChanged = { progress ->
-                    if (requestGeneration == generation && playbackState !is PlaybackState.Error) {
+                    if (requestGeneration == generation && !executionFinished.load() && playbackState !is PlaybackState.Error) {
                         val timelineProgress = progress.withProviderStartOffset(
                             providerStartPositionSeconds = audioSource
                                 ?.target
@@ -574,7 +582,7 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
                 onMetadataChanged = { metadata ->
-                    if (requestGeneration == generation) observer?.onMetadataChanged(metadata)
+                    if (requestGeneration == generation && !executionFinished.load()) observer?.onMetadataChanged(metadata)
                 },
             )
         }

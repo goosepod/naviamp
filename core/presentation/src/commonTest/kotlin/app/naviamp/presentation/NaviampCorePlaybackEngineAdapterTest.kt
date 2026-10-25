@@ -64,6 +64,39 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun finishedExecutionRejectsLateNativeStateAndProgressUntilANewPlayOrExplicitStop() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() })
+        val states = mutableListOf<PlaybackState>()
+        val progress = mutableListOf<PlaybackProgress>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onProgressChanged(value: PlaybackProgress) { progress += value }
+        })
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        engine.emitProgress(PlaybackProgress(180.0, 180.0))
+        engine.emitState(PlaybackState.Finished)
+        val completedStates = states.toList()
+        val completedProgress = progress.toList()
+        // Native end-sync and polling can deliver overlapping callbacks for one execution.
+        engine.emitState(PlaybackState.Playing)
+        engine.emitState(PlaybackState.Loading)
+        engine.emitState(PlaybackState.Finished)
+        engine.emitProgress(PlaybackProgress.Unknown)
+        assertEquals(completedStates, states)
+        assertEquals(completedProgress, progress)
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Playing, states.last())
+        adapter.stop()
+        assertEquals(PlaybackState.Stopped, states.last())
+    }
+    @Test
     fun certificateBackedPlaybackAndSeekUseTheSharedRelayWithoutCachingAudio() = runTest {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             val fixture = FakeCoreMediaProvider()
