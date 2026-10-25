@@ -19,6 +19,10 @@ Verification: 126 `NavidromeProviderTest` tests passed with zero failures/errors
 native-session cases. Shared Android debug, iOS ARM64 and iOS Simulator ARM64 compilation and
 `verifyCoreFirstArchitecture` passed. JVM was compiled by the test run.
 
+After rebasing the focused fix onto main, the final verification passed 123 provider tests (main
+contains three fewer unrelated library-name cases) and repeated all three platform compiles and
+architecture verification successfully. No test failures, errors or skips occurred.
+
 Commands: `:providers:navidrome:jvmTest --tests '*NavidromeProviderTest'` with
 `-Pkotlin.native.enableKlibsCrossCompilation=false`, followed by
 `:providers:navidrome:compileDebugKotlinAndroid :providers:navidrome:compileKotlinIosArm64
