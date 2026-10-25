@@ -120,9 +120,11 @@ replacement passed Partner Center package validation and was saved. Reopening Pa
 only the replacement remains, and the overview reports Packages Complete. The existing runFullTrust
 approval warning remains; there are no blocking package errors. Reviewer testing instructions were
 updated with the launch fix, exact wrapper version and fresh-data/relaunch acceptance results,
-preserving the public-demo instructions and known v2.9.0 rendering issue. Nothing has been
-resubmitted or published. The existing submission setting publishes automatically after approval;
-the owner must authorize resubmission with that consequence before the final action.
+preserving the public-demo instructions and known v2.9.0 rendering issue. The owner then explicitly
+authorized resubmission with automatic publication after approval. Resubmission succeeded on
+October 25: Partner Center displays **In certification**, with Submission complete and Pre-processing
+underway. Automatic publication after certification is visibly enabled. Microsoft approval and
+actual publication remain pending.
 
 The current-user test package is removed and the standalone profile is restored and hash-verified.
 Elevated cleanup completed with no errors: the disposable account and profile, TrustedPeople
