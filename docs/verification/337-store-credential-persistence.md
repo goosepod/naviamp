@@ -88,3 +88,48 @@ Windows build, package identity/version, logs and observations. Repeat certifica
 update #323/#324 with this evidence. Do not treat an unpackaged test or an existing-profile install
 as satisfying this gate.
 
+
+## Packaged acceptance in progress (October 25)
+
+The owner authorized temporary account/certificate setup and cleanup, and upload of the corrected
+v2.9.0-based build to Microsoft Partner Center. Edge access works; Firefox automation is unsupported
+by the Windows tool's URL policy checks. The dashboard confirms failed submission
+`1152921505702215205`, original package version `2.9.57.0`.
+
+A one-day signing certificate was used only for separate local test copies. The unsigned upload
+candidate remains SHA-256 `5b448229f8cdbf669833f42cf0fbda4e9e464b03265e76b90d3fa1014c779550`.
+A disposable normal-user account installed the test package successfully with no existing Naviamp
+profile. Activation in that secondary account failed with Windows HRESULT `0x80070520` because it
+had no interactive sign-in session; this is not an app launch result. Its test package was removed.
+
+For normal activation in the active desktop session, the idle standalone Naviamp data directory was
+preserved by a guarded same-directory rename, giving the package an absent real Naviamp directory.
+The original rejected MSIX was downloaded from CI run `39975612140`, verified against SHA-256
+`c71b45f8cd3fa8445bbcb38bd95ca27c287a1eed664bf53b7685c0216f5d4fd8`, signed as a test copy, and
+activated with its real Store identity. It created no credential key and entered Compose's startup
+error dialog (confirmed by JVM thread dump). The exact dialog message was not captured locally;
+the certification screenshot supplies the DirectoryNotFoundException evidence.
+
+The fixed package, with the same identity/version and fresh package data, visibly opens its
+Connection Details screen. The owner also confirmed the app is open. A read-only probe inside its
+package filesystem view finds the new key, and Windows CurrentUser DPAPI decrypts it to 32 bytes.
+The key hash before relaunch is
+`b35b8dc318d04358a0c9a4af0e70b5d09e0dc1ae354d92914a4683fc6de61faa` (no key bytes were recorded).
+Do not infer absence from the ordinary outside-package physical path: the package-context probe is
+the relevant filesystem view.
+
+During an earlier desktop-permission wait the standalone profile was restored and all eight recorded
+file hashes matched. It is preserved again for the final login/relaunch check. Authentication is a
+manual handoff under the computer-use skill; the public Navidrome demo login is pending. The owner
+approved desktop access to the Store app. The current test window is the fixed Store installation.
+
+Remaining before completion: public-demo login/relaunch verification, upload/validation in the draft
+submission, removal of the current-user test package, final restoration/hash verification of the
+standalone profile, and elevated cleanup of the temporary account/profile/certificate/staging files.
+No replacement has been uploaded, resubmitted, or published. The local checkpoint records every
+cleanup target and the DPAPI-protected temporary account credential location; never upload those
+private lifecycle files. No living-room TV control was performed.
+
+The existing #324 wrapper remains pinned to the original public ZIP. That artifact still contains
+the certification failure and must not be reused for resubmission; this replacement is a minimal
+backport rebuild from the separately recorded v2.9.0 source commit.
