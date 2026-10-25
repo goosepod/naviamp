@@ -71,6 +71,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -81,6 +83,7 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -3004,7 +3007,9 @@ private fun DetentIntSettingsSlider(
     enabled: Boolean = true,
     valueLabel: @Composable (Int) -> String,
     onValueChanged: (Int) -> Unit,
+    verticalFocusNavigation: Boolean = false,
 ) {
+    val focusManager = LocalFocusManager.current
     val normalizedDetents = detents.distinct().sorted()
     val selectedIndex = normalizedDetents.indexOf(value).takeIf { it >= 0 } ?: 0
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -3017,6 +3022,16 @@ private fun DetentIntSettingsSlider(
             Text(valueLabel(normalizedDetents.getOrElse(selectedIndex) { value }), color = colors.primaryText, fontSize = 12.sp)
         }
         Slider(
+            modifier = Modifier.semantics { contentDescription = title }.onPreviewKeyEvent { event ->
+                if (!verticalFocusNavigation) return@onPreviewKeyEvent false
+                val direction = when (event.key) {
+                    Key.DirectionUp -> FocusDirection.Up
+                    Key.DirectionDown -> FocusDirection.Down
+                    else -> return@onPreviewKeyEvent false
+                }
+                if (event.type == KeyEventType.KeyDown) focusManager.moveFocus(direction)
+                true
+            },
             enabled = enabled && normalizedDetents.size > 1,
             value = selectedIndex.toFloat(),
             onValueChange = { raw ->
@@ -5048,12 +5063,14 @@ internal fun RadioSettingsSection(
     radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics?,
     onTestSimilarity: (() -> Unit)?,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    verticalFocusNavigation: Boolean = false,
 ) {
     RadioSimilarityChoices(colors, playbackSettings, supportsSonicSimilarity, onPlaybackSettingsChanged)
     Column(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)) {
         DetentIntSettingsSlider(
             colors = colors,
             title = stringResource(Res.string.settings_related_radio_minimum),
+            verticalFocusNavigation = verticalFocusNavigation,
             value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.radioMinimumTracks),
             detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
             valueLabel = { stringResource(Res.string.settings_tracks_count, it) },
@@ -5077,6 +5094,7 @@ internal fun RadioSettingsSection(
             DetentIntSettingsSlider(
                 colors = colors,
                 title = stringResource(Res.string.settings_related_autoplay_minimum),
+                verticalFocusNavigation = verticalFocusNavigation,
                 value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.sonicAutoplayMinimumTracks),
                 detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
                 enabled = playbackSettings.sonicAutoplayEnabled,
