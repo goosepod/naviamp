@@ -21,7 +21,16 @@ Verification on the acceptance baseline: eight focused UI/policy tests passed wi
 errors or skips. Android debug, iOS ARM64 and iOS Simulator ARM64 compilation and Core architecture
 verification passed. The input tests exercise the actual Material Slider and shared TV list in a
 synthetic Compose window, using no account data. The focused branch is also verified on main for PR
-review; results are recorded in the PR.
+review. Final main-based verification passed 15 tests with zero failures/errors/skips: two acceptance
+input/scroll tests, six settings policy cases, six existing TV workflow cases and one background
+settings case. Android debug, iOS ARM64 and iOS Simulator ARM64 compilation and architecture
+verification passed on that same final code.
+
+Command: `:core:ui:jvmTest` with filters `*NaviampTelevisionAcceptanceSettingsTest`,
+`*NaviampTelevisionSettingsPolicyTest`, `*NaviampTelevisionWorkflowTest`, and
+`*NaviampTelevisionBackgroundSettingsTest`, together with `:core:ui:compileDebugKotlinAndroid`,
+`:core:ui:compileKotlinIosArm64`, `:core:ui:compileKotlinIosSimulatorArm64` and
+`verifyCoreFirstArchitecture`. Native KLIB cross-compilation was enabled.
 
 Physical TV retest, other display
 scales and final packaged acceptance remain pending. No release is authorized.
