@@ -1908,6 +1908,9 @@ class NavidromeProviderTest {
                 assertEquals("secret", password)
                 saved.copy(nativeToken = "password-token")
             },
+            createProvider = { refreshed -> NavidromeProvider(refreshed, FakeHttpClient(
+                """{"subsonic-response":{"status":"ok","version":"1.16.1","openSubsonic":true,"openSubsonicExtensions":[{"name":"sonicSimilarity","versions":[1]},{"name":"transcodeOffset","versions":[1]},{"name":"playbackReport","versions":[1]}]}}""",
+            )) },
         )
 
         assertTrue(controller.refresh())
@@ -1915,6 +1918,61 @@ class NavidromeProviderTest {
         controller.provider("secret")
         assertEquals("password-token", active.connectionWithCurrentNativeToken().nativeToken)
         assertEquals("password-token", persisted?.nativeToken)
+        assertTrue(active.capabilities.supportsSonicSimilarity)
+        assertTrue(active.capabilities.supportsAudioStreamOffset)
+        assertTrue(active.capabilities.supportsPlaybackTimeline)
+    }
+
+    @Test
+    fun nativeLoginValidationFailureOrCancellationKeepsTheWorkingProvider() = runTest {
+        for (failure in listOf(IllegalStateException("validation failed"), kotlinx.coroutines.CancellationException("cancelled"))) {
+            val original = NavidromeProvider(connection("https://music.example.test", nativeToken = "original"))
+            var active = original
+            val controller = NavidromeNativeSessionController(
+                currentProvider = { active },
+                savedConnection = { original.connectionWithCurrentNativeToken() },
+                replaceProvider = { active = it },
+                repository = null,
+                authenticate = { saved, _ -> saved.copy(nativeToken = "new") },
+                createProvider = { NavidromeProvider(it, object : NavidromeHttpClient {
+                    override suspend fun get(url: String): String = throw failure
+                }) },
+            )
+            val thrown = try { controller.provider("password"); null } catch (error: Exception) { error }
+            assertTrue(thrown === failure)
+            assertTrue(active === original)
+            assertEquals("original", active.connectionWithCurrentNativeToken().nativeToken)
+        }
+    }
+
+    @Test
+    fun nativeLoginCannotReplaceAnotherSourceAfterValidationSuspends() = runTest {
+        val original = NavidromeProvider(connection("https://music.example.test"))
+        val other = NavidromeProvider(connection("https://other.example.test"))
+        var active = original
+        val controller = NavidromeNativeSessionController(
+            currentProvider = { active },
+            savedConnection = { original.connectionWithCurrentNativeToken() },
+            replaceProvider = { active = it },
+            repository = null,
+            authenticate = { saved, _ -> active = other; saved.copy(nativeToken = "new") },
+            createProvider = { NavidromeProvider(it, FakeHttpClient("""{"subsonic-response":{"status":"ok"}}""")) },
+        )
+        assertNull(controller.provider("password"))
+        assertTrue(active === other)
+    }
+
+    @Test
+    fun nativeLoginLeavesUnadvertisedSonicUnavailable() = runTest {
+        var active = NavidromeProvider(connection("https://music.example.test"))
+        val controller = NavidromeNativeSessionController(
+            currentProvider = { active }, savedConnection = { active.connectionWithCurrentNativeToken() },
+            replaceProvider = { active = it }, repository = null,
+            authenticate = { saved, _ -> saved.copy(nativeToken = "new") },
+            createProvider = { NavidromeProvider(it, FakeHttpClient("""{"subsonic-response":{"status":"ok"}}""")) },
+        )
+        controller.provider("password")
+        assertFalse(active.capabilities.supportsSonicSimilarity)
     }
 
     @Test
