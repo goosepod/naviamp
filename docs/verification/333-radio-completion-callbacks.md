@@ -20,6 +20,14 @@ on pending Autoplay remain unchanged, as do candidate ranking, exclusions, timeo
 The adapter/controller suite passes after the correction. Verification commands/results are recorded
 with the pull request. No production platform files, settings, strings or migrations changed.
 
+Final main-based verification of the atomic boolean passed all 72 adapter/controller cases with
+zero failures/errors/skips, plus Android debug, iOS ARM64, iOS Simulator ARM64 compilation and
+`verifyCoreFirstArchitecture`. The command ran `:core:presentation:jvmTest` with filters
+`*NaviampCorePlaybackEngineAdapterTest` and `*NaviampCorePlaybackControllerTest`, together with
+`:core:presentation:compileDebugKotlinAndroid`, `:core:presentation:compileKotlinIosArm64`,
+`:core:presentation:compileKotlinIosSimulatorArm64` and architecture verification. Native KLIB
+cross-compilation was enabled; no device was controlled.
+
 This corrects the reproduced callback defect; it does not establish the original TV failure's root
 cause. Physical TV retest remains pending because the owner paused device use. No TV commands,
 installation or server playlist mutations are part of this fix. Proactive Radio top-up is not
