@@ -1,135 +1,134 @@
 # Windows Store first-launch credential persistence (#337)
 
-## Certification evidence
+## Problem and native boundary
 
-The owner supplied the Microsoft Partner Center report for product `9PCFJ644LXLL`,
-review completed October 23, 2026. Policy 10.1.2.10 rejected the submission for a launch crash on
-Windows build 26300.9711 (Dell Latitude 5410). The error is `DirectoryNotFoundException` from
-PowerShell `WriteAllBytes` targeting `AppData/Roaming/Naviamp/credential-key.dpapi`.
-This supersedes the earlier in-certification status recorded for #323 / #324.
-
-The submitted package contains unchanged v2.9.0 application bytes. Its Windows credential adapter
-creates directories in the JVM but reads/writes their files in a PowerShell child process. A
-packaged filesystem-view mismatch is the working diagnosis; it has not yet been independently
-reproduced under the certification account. Microsoft documents redirected AppData writes for
-virtualized packaged apps:
-https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes#appdata-operations-on-windows-10-version-1903-and-later
-
-## Change and ownership
+The Microsoft Partner Center report for `9PCFJ644LXLL`, completed October 23, 2026, rejected
+submission `1152921505702215205` under 10.1.2.10 for a launch crash on Windows `26300.9711`
+(Dell Latitude 5410). PowerShell `WriteAllBytes` raised `DirectoryNotFoundException` for
+`AppData/Roaming/Naviamp/credential-key.dpapi`.
 
 The shared owner is `StorageCredentialProtector`, consumed by `StorageMediaSourceStore` for
-credential persistence/migration. Its behavior and common tests need no change for this native IO
-failure. All platform credential adapters were inspected before editing.
+credential persistence and migration. Its policy and common behavior are unchanged. The concrete
+native boundary in the only changed platform production file,
+`platforms/desktop/src/desktopMain/kotlin/app/naviamp/desktop/security/DesktopCredentialProtector.kt`,
+is Windows CurrentUser DPAPI via PowerShell/.NET, JVM ProcessBuilder and JVM filesystem IO.
+All credential adapters were inspected before editing.
 
-Only `platforms/desktop/src/desktopMain/kotlin/app/naviamp/desktop/security/DesktopCredentialProtector.kt`
-is changed in platform production code. Its concrete native boundary is Windows CurrentUser DPAPI
-via PowerShell/.NET, JVM ProcessBuilder, and JVM filesystem operations within the app's MSIX view.
-PowerShell now receives/returns only base64 bytes over pipes. Directory creation and both file
-reads/writes stay in the JVM process. No credential path is sent to the helper. Helpers stop on
-errors before any persisted file is touched. The raw binary DPAPI file format, CurrentUser scope,
-key location, and credential encryption format remain unchanged; no migration is needed.
+The released adapter creates directories in the JVM but reads/writes files in a PowerShell child.
+The fix keeps all key file IO in the application process and uses the helper only to transform
+base64 bytes over stdin/stdout. Helpers stop on errors before any persisted file is touched.
+Raw binary DPAPI format, CurrentUser scope, key location, and credential encryption format remain
+unchanged. No migration or new setting is introduced.
 
-## Verification
+Microsoft documents redirected AppData writes and package-specific filesystem views:
+https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes#appdata-operations-on-windows-10-version-1903-and-later
 
-Native adapter tests exercise real Windows DPAPI, not a fake encryption implementation:
+## Exact v2.9.0 source and artifacts
 
-- First write into two absent nested directories, including spaces; missing file returns null.
-- Read back and reopen the same persisted key in a new store instance.
-- Confirm persisted bytes differ from the unprotected key.
-- Invalid encryption input fails without changing a previously persisted file.
-- Read a binary key produced independently by the released file-based helper without rewriting it.
-- Existing protect/reveal, stability, and wrong-key rejection tests.
+The owner explicitly requires the Store build to remain based on v2.9.0. The replacement is built
+from `fix/337-store-credential-persistence-v2.9.0`, commit
+`621fa44f11e6ecf79520008e8f62f5d719d0838d`, based on tag `v2.9.0`
+(`826e14bf1c46dba8d604515f1bf77bf6afcd541d`). Its complete diff from that tag is the Windows
+credential adapter and `DesktopCredentialProtectorTest.kt`. `VERSION` remains `v2.9.0` and
+`VERSION_CODE` remains `57`. No main/v2.10.0 application code is substituted.
 
-Command (Windows, installed CMake configured through CMAKE_EXE):
+- Rebuilt input ZIP SHA-256: `c776276e22bbdeba4b20cc3b1c57c0f5933b6f6094daf138c5b12e88128b0db6`.
+- Tested unsigned MSIX SHA-256: `5b448229f8cdbf669833f42cf0fbda4e9e464b03265e76b90d3fa1014c779550`.
+- Final upload MSIX SHA-256: `0eae4fafefbadebcefbd22d9e15a4e99dec1a03a0c0d2bbef79167f8c0e824b4`.
+- Upload filename: `Naviamp-v2.9.0-windows-x64-store-fix337-2.9.58.0.msix`.
+- Identity: `Goosepod.Naviamp`, x64, wrapper version `2.9.58.0` (app remains v2.9.0/code 57).
+- Publisher: `CN=71F0ADF4-9FDC-421A-AD04-F920729B2A5A`.
+
+The #324 manifest/assets were used for the wrapper. MakeAppx schema and semantic validation passed.
+Independent verification matched all 268 packaged application files to the rebuilt ZIP. These are
+rebuilt backport bytes, not the unchanged original public ZIP. Local test metadata is explicitly
+labeled as such; it must not be mistaken for published-release provenance. Separate signed local
+copies were used for installation. Partner Center rejected replacement bytes with the original
+`2.9.57.0` full package name, and would not save removal without a replacement. Only the wrapper
+version was incremented to `2.9.58.0`. MakeAppx validation passed again and all 268 application files
+were independently reverified against the same tested ZIP. No application code changed after testing.
+
+The original rejected MSIX was downloaded from CI run `39975612140` and verified against SHA-256
+`c71b45f8cd3fa8445bbcb38bd95ca27c287a1eed664bf53b7685c0216f5d4fd8` before testing.
+The original public ZIP and release tag remain untouched. #324's existing workflow still pins that
+original public ZIP and must not be reused for resubmission without incorporating this fix.
+
+## Automated verification
+
+On main: 5 native credential tests and 8 shared `StorageMediaSourceStoreTest` tests passed with zero
+failures/errors/skips. `verifyCoreFirstArchitecture` passed. On the exact v2.9.0 backport: all 5
+native tests passed with zero failures/errors/skips; `packageReleaseDistributable` and the
+architecture guard passed.
+
+The native tests use real Windows DPAPI and cover missing nested directories and spaces, missing
+key reads, write/read/reopen, protected bytes differing from plaintext, encryption failure preserving
+an existing file, and reading a file produced independently by the released file-based helper.
+Existing credential encrypt/decrypt, stability, and wrong-key rejection tests also pass.
 
 ```powershell
 ./gradlew.bat :platforms:desktop:desktopTest --tests '*DesktopCredentialProtectorTest' `
   '-Pkotlin.native.enableKlibsCrossCompilation=false' '-Pnaviamp.bass.platform=windows-x64' `
   '-Pnaviamp.bass.test.outputDevice=0' --console=plain
+./gradlew.bat :apps:desktop:packageReleaseDistributable verifyCoreFirstArchitecture `
+  '-Pkotlin.native.enableKlibsCrossCompilation=false' '-Pnaviamp.bass.platform=windows-x64'
 ```
 
-Main branch results: 5 native credential tests and 8 shared StorageMediaSourceStore tests passed, zero failures/errors/skips. `verifyCoreFirstArchitecture` passed. Local logs are ignored under `build/verification-337`.
-These adapter tests do not reproduce MSIX filesystem virtualization and are not a packaged launch pass.
+The broader `stageReleaseArtifacts` attempt produced the ZIP but failed on the unrelated EXE
+installer because WiX was absent from PATH. MSI/EXE success is not claimed; neither is needed for
+this MSIX wrapper. Full hosted CI, WACK, Windows restart, and renewed Store certification are not
+claimed by these focused checks.
 
-## Store resubmission gate
+## Packaged Windows acceptance (October 25)
 
-No Store package, published release, submission, or existing user profile was changed by this fix.
-The original v2.9.0 bytes cannot remain unchanged and also contain this code fix. The owner explicitly
-confirmed that the replacement must remain based on v2.9.0. A separate minimal backport branch starts
-at `v2.9.0` (`826e14bf1c46dba8d604515f1bf77bf6afcd541d`) and changes only the native adapter and its
-tests. Version metadata is unchanged; the private test rebuild is not the published original ZIP.
+The test host is Windows `26300.9711`, the same OS build reported by certification.
 
-Backport source: `fix/337-store-credential-persistence-v2.9.0`, commit
-`621fa44f11e6ecf79520008e8f62f5d719d0838d`. Its complete diff from v2.9.0 is the adapter and test
-file listed above. All 5 native credential tests passed (zero failures/errors/skips), and
-`packageReleaseDistributable` plus `verifyCoreFirstArchitecture` passed. The broader
-`stageReleaseArtifacts` attempt produced the ZIP but failed on the unrelated EXE installer because
-WiX was absent from PATH; no MSI/EXE success is claimed.
+A disposable normal-user account installed the signed test copy successfully with no existing
+Naviamp data. Windows activation in that account was blocked by `0x80070520` because it lacked an
+interactive sign-in session. This is a test setup limitation, not an application launch result.
+Its package was removed. Windows Sandbox is not installed on this host.
 
-A private unsigned test MSIX was built using the #324 manifest/assets and the local rebuilt ZIP,
-with the same `Goosepod.Naviamp` identity and `2.9.57.0` package version. MakeAppx schema/semantic
-validation passed, and all 268 packaged application files match the private input ZIP byte-for-byte.
-The local tooling metadata explicitly labels this a local test, not the published v2.9.0 asset.
+Normal activation was then tested in the active desktop session with the idle standalone Naviamp
+data directory preserved by a guarded same-directory rename. The real Naviamp data directory was
+absent before package activation. Both JVM processes were verified to hold the expected Store
+package identity. The original rejected package created no key and entered Compose's startup error
+dialog, confirmed by its JVM thread dump. Its exact dialog message was not captured locally; the
+certification screenshot supplies the DirectoryNotFoundException evidence.
 
-- Private ZIP SHA-256: `c776276e22bbdeba4b20cc3b1c57c0f5933b6f6094daf138c5b12e88128b0db6`.
-- Private MSIX SHA-256: `5b448229f8cdbf669833f42cf0fbda4e9e464b03265e76b90d3fa1014c779550`.
-- Artifacts/logs/provenance: workspace `build/store-crash-investigation/private-v2.9.0-backport/`.
+The fixed package passed:
 
-This candidate has not been signed, installed, or launched as an MSIX. No certificate trust or
-Windows account changes have been made. Windows Sandbox is unavailable on this host. The install
-helper in #324 requires explicit authorization for temporary machine certificate trust; a clean
-Windows test account or another clean Windows environment is also needed for the acceptance below.
+- Visible first launch to the fresh Connection Details screen; owner also confirmed it opened.
+- Package-context probe found the new key and CurrentUser DPAPI decrypted it to exactly 32 bytes.
+- Owner entered the public Navidrome demo login directly, following the authentication handoff rule.
+- After closing and relaunching the app, Home reopened with saved login and no authentication prompt.
+- A fresh artist page loaded after relaunch, demonstrating use of the retained connection.
+- Key hash remained `b35b8dc318d04358a0c9a4af0e70b5d09e0dc1ae354d92914a4683fc6de61faa` and still
+  decrypted to 32 bytes. No raw key bytes were recorded.
+- Binaerpilot / Tokyomatrix 3000 streamed as MP3. Position visibly advanced from 0:09 to 0:17 and
+  playback was paused at 0:27 before cleanup.
+- Test installation was removed; standalone data directory restored; all eight recorded file hashes
+  matched (settings, DPAPI key, databases/WAL/SHM and window geometry).
 
-Before resubmission, test the exact replacement MSIX on a genuinely fresh Windows user profile
-with no standalone Naviamp AppData, package state, or credential file. Launch through package
-activation, connect using reviewer instructions, close/relaunch, confirm the same key persists
-and login remains usable, then test existing-profile/standalone coexistence. Record package hash,
-Windows build, package identity/version, logs and observations. Repeat certification checks and
-update #323/#324 with this evidence. Do not treat an unpackaged test or an existing-profile install
-as satisfying this gate.
+The key probe runs inside the package's filesystem view; ordinary outside-package physical paths
+do not reliably expose the same virtualized key. The accepted first-launch test used fresh Naviamp
+application data in an existing signed-in Windows account, not a newly signed-in Windows account.
+No living-room TV control was performed.
 
+## Upload and cleanup status
 
-## Packaged acceptance in progress (October 25)
+The owner authorized upload to the existing Microsoft Store draft in Edge. The `2.9.58.0`
+replacement passed Partner Center package validation and was saved. Reopening Packages confirmed
+only the replacement remains, and the overview reports Packages Complete. The existing runFullTrust
+approval warning remains; there are no blocking package errors. Reviewer testing instructions were
+updated with the launch fix, exact wrapper version and fresh-data/relaunch acceptance results,
+preserving the public-demo instructions and known v2.9.0 rendering issue. Nothing has been
+resubmitted or published. The existing submission setting publishes automatically after approval;
+the owner must authorize resubmission with that consequence before the final action.
 
-The owner authorized temporary account/certificate setup and cleanup, and upload of the corrected
-v2.9.0-based build to Microsoft Partner Center. Edge access works; Firefox automation is unsupported
-by the Windows tool's URL policy checks. The dashboard confirms failed submission
-`1152921505702215205`, original package version `2.9.57.0`.
+The current-user test package is removed and the standalone profile is restored and hash-verified.
+Elevated cleanup completed with no errors: the disposable account and profile, TrustedPeople
+certificate, private signing key, public staging directory and disposable encrypted credential were
+removed. The private local checkpoint records the exact cleanup targets and successful result.
+Never upload/commit temporary account credentials, private lifecycle files or personal profiles.
 
-A one-day signing certificate was used only for separate local test copies. The unsigned upload
-candidate remains SHA-256 `5b448229f8cdbf669833f42cf0fbda4e9e464b03265e76b90d3fa1014c779550`.
-A disposable normal-user account installed the test package successfully with no existing Naviamp
-profile. Activation in that secondary account failed with Windows HRESULT `0x80070520` because it
-had no interactive sign-in session; this is not an app launch result. Its test package was removed.
-
-For normal activation in the active desktop session, the idle standalone Naviamp data directory was
-preserved by a guarded same-directory rename, giving the package an absent real Naviamp directory.
-The original rejected MSIX was downloaded from CI run `39975612140`, verified against SHA-256
-`c71b45f8cd3fa8445bbcb38bd95ca27c287a1eed664bf53b7685c0216f5d4fd8`, signed as a test copy, and
-activated with its real Store identity. It created no credential key and entered Compose's startup
-error dialog (confirmed by JVM thread dump). The exact dialog message was not captured locally;
-the certification screenshot supplies the DirectoryNotFoundException evidence.
-
-The fixed package, with the same identity/version and fresh package data, visibly opens its
-Connection Details screen. The owner also confirmed the app is open. A read-only probe inside its
-package filesystem view finds the new key, and Windows CurrentUser DPAPI decrypts it to 32 bytes.
-The key hash before relaunch is
-`b35b8dc318d04358a0c9a4af0e70b5d09e0dc1ae354d92914a4683fc6de61faa` (no key bytes were recorded).
-Do not infer absence from the ordinary outside-package physical path: the package-context probe is
-the relevant filesystem view.
-
-During an earlier desktop-permission wait the standalone profile was restored and all eight recorded
-file hashes matched. It is preserved again for the final login/relaunch check. Authentication is a
-manual handoff under the computer-use skill; the public Navidrome demo login is pending. The owner
-approved desktop access to the Store app. The current test window is the fixed Store installation.
-
-Remaining before completion: public-demo login/relaunch verification, upload/validation in the draft
-submission, removal of the current-user test package, final restoration/hash verification of the
-standalone profile, and elevated cleanup of the temporary account/profile/certificate/staging files.
-No replacement has been uploaded, resubmitted, or published. The local checkpoint records every
-cleanup target and the DPAPI-protected temporary account credential location; never upload those
-private lifecycle files. No living-room TV control was performed.
-
-The existing #324 wrapper remains pinned to the original public ZIP. That artifact still contains
-the certification failure and must not be reused for resubmission; this replacement is a minimal
-backport rebuild from the separately recorded v2.9.0 source commit.
+Artifacts and local evidence are under workspace `build/store-crash-investigation/`; build logs
+are under each worktree's `build/verification-337/`.
