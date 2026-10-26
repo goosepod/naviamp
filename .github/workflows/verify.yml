@@ -198,6 +198,7 @@ jobs:
           packages: platform-tools
 
       - name: Create test emulator
+        shell: bash
         run: |
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
