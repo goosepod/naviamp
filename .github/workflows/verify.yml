@@ -202,12 +202,13 @@ jobs:
 
       - name: Create test emulator
         if: needs.changes.outputs.run_full == 'true'
+        shell: bash
         run: |
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
-          echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
+          echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-avdmanager.log
 
       - name: Enable KVM access
         if: needs.changes.outputs.run_full == 'true'
@@ -273,12 +274,8 @@ jobs:
 
       - name: Capture Android discovery diagnostics
         if: failure() && needs.changes.outputs.run_full == 'true'
-        run: |
-          mkdir -p build/android-emulator-diagnostics
-          adb shell getprop > build/android-emulator-diagnostics/properties.txt || true
-          adb shell dumpsys connectivity > build/android-emulator-diagnostics/connectivity.txt || true
-          adb shell dumpsys mdns > build/android-emulator-diagnostics/mdns.txt || true
-          adb logcat -d -t 8000 -v threadtime > build/android-emulator-diagnostics/logcat.txt || true
+        timeout-minutes: 2
+        run: python3 scripts/capture-android-diagnostics.py
 
       - name: Upload device reports
         if: always() && needs.changes.outputs.run_full == 'true'
@@ -295,6 +292,8 @@ jobs:
             build/mobile-mtls-fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
+            /tmp/naviamp-sdkmanager.log
+            /tmp/naviamp-avdmanager.log
 
   desktop-windows:
     name: Desktop native tests (Windows)
