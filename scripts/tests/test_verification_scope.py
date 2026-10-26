@@ -8,6 +8,16 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'classify-verification-scope.sh'
 
 
 class VerificationScopeTest(unittest.TestCase):
+    def test_workflow_steps_do_not_duplicate_conditions(self):
+        workflow = SCRIPT.parents[1] / '.github/workflows/verify.yml'
+        conditions = 0
+        for line in workflow.read_text().splitlines():
+            if line.startswith('      - '):
+                conditions = 0
+            if line.startswith('        if:'):
+                conditions += 1
+                self.assertLessEqual(conditions, 1, line)
+
     def test_classifies_real_history_and_rejects_missing_history(self):
         with tempfile.TemporaryDirectory() as directory:
             def git(*args):

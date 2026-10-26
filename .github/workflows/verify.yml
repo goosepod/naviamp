@@ -254,8 +254,7 @@ jobs:
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
       - name: Repeat API 35 DNS-SD discovery tests
-        if: needs.changes.outputs.run_full == 'true'
-        if: matrix.api-level == 35
+        if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35
         run: |
           adb install -r apps/android/build/outputs/apk/debug/android-debug.apk
           adb install -r apps/android/build/outputs/apk/androidTest/debug/android-debug-androidTest.apk
@@ -269,7 +268,6 @@ jobs:
           done
 
       - name: Stop disposable mobile mTLS fixture
-        if: needs.changes.outputs.run_full == 'true'
         if: always() && needs.changes.outputs.run_full == 'true'
         run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
 
