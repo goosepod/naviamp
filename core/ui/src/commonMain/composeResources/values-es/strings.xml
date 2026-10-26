@@ -1157,4 +1157,7 @@
     <string name="smart_playlist_sync_stop">Detener sincronización</string>
     <string name="smart_playlist_sync_stopped">Sincronización detenida. La lista no ha cambiado.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">Mover hacia arriba</string>
+    <string name="smart_playlist_move_down">Mover hacia abajo</string>
+    <string name="smart_playlist_row_position">Posición %1$d de %2$d</string>
 </resources>

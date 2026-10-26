@@ -446,4 +446,7 @@
     <string name="smart_playlist_sync_stop">Zatrzymaj synchronizację</string>
     <string name="smart_playlist_sync_stopped">Synchronizacja zatrzymana. Playlista nie została zmieniona.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">Przenieś w górę</string>
+    <string name="smart_playlist_move_down">Przenieś w dół</string>
+    <string name="smart_playlist_row_position">Pozycja %1$d z %2$d</string>
 </resources>

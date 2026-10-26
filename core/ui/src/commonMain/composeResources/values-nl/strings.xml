@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">Synchronisatie stoppen</string>
     <string name="smart_playlist_sync_stopped">Synchronisatie gestopt. Je afspeellijst is niet gewijzigd.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">Omhoog verplaatsen</string>
+    <string name="smart_playlist_move_down">Omlaag verplaatsen</string>
+    <string name="smart_playlist_row_position">Positie %1$d van %2$d</string>
 </resources>

@@ -30,6 +30,10 @@ import app.naviamp.domain.library.LibrarySyncProgressPhase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.key
+import app.naviamp.domain.smartplaylist.moveCondition
+import app.naviamp.domain.smartplaylist.moveGroup
+import app.naviamp.domain.smartplaylist.moveSort
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -669,7 +673,7 @@ internal fun SmartPlaylistLoadPasswordDialog(
 }
 
 @Composable
-private fun SmartPlaylistCustomControls(
+internal fun SmartPlaylistCustomControls(
     colors: NaviampColors,
     draft: SmartPlaylistDraft,
     genreCatalog: List<SmartPlaylistGenreOption>,
@@ -694,26 +698,33 @@ private fun SmartPlaylistCustomControls(
             onSelected = { onDraftChange(draft.copy(match = it)) },
         )
         draft.conditions.forEachIndexed { index, condition ->
-            SmartPlaylistRuleControls(
-                title = "Filter ${index + 1}",
-                colors = colors,
-                condition = condition,
-                genreCatalog = genreCatalog,
-                references = references,
-                referencesLoading = referencesLoading,
-                referencesFailed = referencesFailed,
-                currentPlaylistId = currentPlaylistId,
-                onReferencesRetry = onReferencesRetry,
-                issues = validationIssues.filter { it.location.conditionId == condition.id },
-                onConditionChange = { updatedCondition ->
-                    onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition.copy(isStarter = false))))
-                },
-                onRemove = if (draft.conditions.size > 1 || draft.groups.isNotEmpty()) {
-                    { onDraftChange(draft.copy(conditions = draft.conditions.filterIndexed { i, _ -> i != index })) }
-                } else {
-                    null
-                },
-            )
+            key(condition.id) {
+                SmartPlaylistRuleControls(
+                    title = "Filter ${index + 1}",
+                    movement = {
+                        SmartPlaylistMovementControls("smart-playlist-rule-${condition.id}", index, draft.conditions.size, colors) {
+                            onDraftChange(draft.moveCondition(condition.id, it))
+                        }
+                    },
+                    colors = colors,
+                    condition = condition,
+                    genreCatalog = genreCatalog,
+                    references = references,
+                    referencesLoading = referencesLoading,
+                    referencesFailed = referencesFailed,
+                    currentPlaylistId = currentPlaylistId,
+                    onReferencesRetry = onReferencesRetry,
+                    issues = validationIssues.filter { it.location.conditionId == condition.id },
+                    onConditionChange = { updatedCondition ->
+                        onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition.copy(isStarter = false))))
+                    },
+                    onRemove = if (draft.conditions.size > 1 || draft.groups.isNotEmpty()) {
+                        { onDraftChange(draft.copy(conditions = draft.conditions.filterIndexed { i, _ -> i != index })) }
+                    } else {
+                        null
+                    },
+                )
+            }
         }
         TextButton(
             onClick = { onDraftChange(draft.copy(conditions = draft.conditions + SmartPlaylistConditionDraft())) },
@@ -724,83 +735,97 @@ private fun SmartPlaylistCustomControls(
 
     SmartPlaylistSection(title = "Groups", colors = colors) {
         draft.groups.forEachIndexed { groupIndex, group ->
-            SmartPlaylistNestedSection(
-                title = "Group ${groupIndex + 1}",
-                colors = colors,
-                trailing = {
-                    TextButton(
-                        onClick = { onDraftChange(draft.copy(groups = draft.groups.filterIndexed { i, _ -> i != groupIndex })) },
-                    ) {
-                        Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
-                    }
-                },
-            ) {
-                validationIssues.filter { it.location.groupId == group.id && it.location.conditionId == null }.forEach {
-                    Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
-                }
-                SmartPlaylistDropdown(
-                    label = "Match",
-                    value = when (group.match) {
-                        SmartPlaylistMatch.All -> "All group rules"
-                        SmartPlaylistMatch.Any -> "Any group rule"
-                    },
+            key(group.id) {
+                SmartPlaylistNestedSection(
+                    title = "Group ${groupIndex + 1}",
                     colors = colors,
-                    options = listOf("All group rules" to SmartPlaylistMatch.All, "Any group rule" to SmartPlaylistMatch.Any),
-                    onSelected = { match ->
-                        onDraftChange(draft.copy(groups = draft.groups.updated(groupIndex, group.copy(match = match))))
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SmartPlaylistMovementControls("smart-playlist-group-${group.id}", groupIndex, draft.groups.size, colors) {
+                                onDraftChange(draft.moveGroup(group.id, it))
+                            }
+                            TextButton(
+                                onClick = { onDraftChange(draft.copy(groups = draft.groups.filterIndexed { i, _ -> i != groupIndex })) },
+                            ) {
+                                Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+                            }
+                        }
                     },
-                )
-                group.conditions.forEachIndexed { conditionIndex, condition ->
-                    SmartPlaylistRuleControls(
-                        title = "Filter ${conditionIndex + 1}",
+                ) {
+                    validationIssues.filter { it.location.groupId == group.id && it.location.conditionId == null }.forEach {
+                        Text(smartPlaylistIssueMessage(it), color = colors.favorite, fontSize = 12.sp)
+                    }
+                    SmartPlaylistDropdown(
+                        label = "Match",
+                        value = when (group.match) {
+                            SmartPlaylistMatch.All -> "All group rules"
+                            SmartPlaylistMatch.Any -> "Any group rule"
+                        },
                         colors = colors,
-                        condition = condition,
-                        genreCatalog = genreCatalog,
-                references = references,
-                referencesLoading = referencesLoading,
-                referencesFailed = referencesFailed,
-                currentPlaylistId = currentPlaylistId,
-                onReferencesRetry = onReferencesRetry,
-                        issues = validationIssues.filter { it.location.conditionId == condition.id },
-                        onConditionChange = { updatedCondition ->
+                        options = listOf("All group rules" to SmartPlaylistMatch.All, "Any group rule" to SmartPlaylistMatch.Any),
+                        onSelected = { match ->
+                            onDraftChange(draft.copy(groups = draft.groups.updated(groupIndex, group.copy(match = match))))
+                        },
+                    )
+                    group.conditions.forEachIndexed { conditionIndex, condition ->
+                        key(condition.id) {
+                            SmartPlaylistRuleControls(
+                                title = "Filter ${conditionIndex + 1}",
+                                movement = {
+                                    SmartPlaylistMovementControls("smart-playlist-rule-${condition.id}", conditionIndex, group.conditions.size, colors) {
+                                        onDraftChange(draft.moveCondition(condition.id, it, group.id))
+                                    }
+                                },
+                                colors = colors,
+                                condition = condition,
+                                genreCatalog = genreCatalog,
+                        references = references,
+                        referencesLoading = referencesLoading,
+                        referencesFailed = referencesFailed,
+                        currentPlaylistId = currentPlaylistId,
+                        onReferencesRetry = onReferencesRetry,
+                                issues = validationIssues.filter { it.location.conditionId == condition.id },
+                                onConditionChange = { updatedCondition ->
+                                    onDraftChange(
+                                        draft.copy(
+                                            groups = draft.groups.updated(
+                                                groupIndex,
+                                                group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition.copy(isStarter = false))),
+                                            ),
+                                        ),
+                                    )
+                                },
+                                onRemove = if (group.conditions.size > 1) {
+                                    {
+                                        onDraftChange(
+                                            draft.copy(
+                                                groups = draft.groups.updated(
+                                                    groupIndex,
+                                                    group.copy(conditions = group.conditions.filterIndexed { i, _ -> i != conditionIndex }),
+                                                ),
+                                            ),
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = {
                             onDraftChange(
                                 draft.copy(
                                     groups = draft.groups.updated(
                                         groupIndex,
-                                        group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition.copy(isStarter = false))),
+                                        group.copy(conditions = group.conditions + SmartPlaylistConditionDraft()),
                                     ),
                                 ),
                             )
                         },
-                        onRemove = if (group.conditions.size > 1) {
-                            {
-                                onDraftChange(
-                                    draft.copy(
-                                        groups = draft.groups.updated(
-                                            groupIndex,
-                                            group.copy(conditions = group.conditions.filterIndexed { i, _ -> i != conditionIndex }),
-                                        ),
-                                    ),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                    )
-                }
-                TextButton(
-                    onClick = {
-                        onDraftChange(
-                            draft.copy(
-                                groups = draft.groups.updated(
-                                    groupIndex,
-                                    group.copy(conditions = group.conditions + SmartPlaylistConditionDraft()),
-                                ),
-                            ),
-                        )
-                    },
-                ) {
-                    Text("Add group filter", color = colors.accent)
+                    ) {
+                        Text("Add group filter", color = colors.accent)
+                    }
                 }
             }
         }
@@ -813,36 +838,43 @@ private fun SmartPlaylistCustomControls(
 
     SmartPlaylistSection(title = "Sort and Limit", colors = colors) {
         draft.sort.forEachIndexed { index, sort ->
-            SmartPlaylistNestedSection(
-                title = "Sort ${index + 1}",
-                colors = colors,
-                trailing = {
-                    TextButton(
-                        onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
-                    ) {
-                        Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
-                    }
-                },
-            ) {
-                SmartPlaylistDropdown(
-                    label = "Field",
-                    value = smartPlaylistFieldLabel(sort.field),
+            key(sort.id) {
+                SmartPlaylistNestedSection(
+                    title = "Sort ${index + 1}",
                     colors = colors,
-                    options = SmartPlaylistFieldCatalog.sortableFields
-                        .smartPlaylistMenuOrder(CommonSmartPlaylistSortFields)
-                        .map { smartPlaylistFieldLabel(it) to it },
-                    onSelected = { field ->
-                        onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SmartPlaylistMovementControls("smart-playlist-sort-${sort.id}", index, draft.sort.size, colors) {
+                                onDraftChange(draft.moveSort(sort.id, it))
+                            }
+                            TextButton(
+                                onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
+                            ) {
+                                Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+                            }
+                        }
                     },
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = sort.descending,
-                        onCheckedChange = { checked ->
-                            onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(descending = checked))))
+                ) {
+                    SmartPlaylistDropdown(
+                        label = "Field",
+                        value = smartPlaylistFieldLabel(sort.field),
+                        colors = colors,
+                        options = SmartPlaylistFieldCatalog.sortableFields
+                            .smartPlaylistMenuOrder(CommonSmartPlaylistSortFields)
+                            .map { smartPlaylistFieldLabel(it) to it },
+                        onSelected = { field ->
+                            onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
                         },
                     )
-                    Text("Descending", color = colors.secondaryText, fontSize = 12.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = sort.descending,
+                            onCheckedChange = { checked ->
+                                onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(descending = checked))))
+                            },
+                        )
+                        Text("Descending", color = colors.secondaryText, fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -966,14 +998,16 @@ private fun SmartPlaylistRuleControls(
 
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
     onRemove: (() -> Unit)?,
+    movement: @Composable () -> Unit,
 ) {
     SmartPlaylistNestedSection(
         title = title,
         colors = colors,
-        trailing = onRemove?.let { remove ->
-            {
-                TextButton(onClick = remove) {
-                    Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                movement()
+                onRemove?.let { remove ->
+                    TextButton(onClick = remove) { Text("Remove", color = colors.secondaryText, fontSize = 12.sp) }
                 }
             }
         },
@@ -1163,7 +1197,7 @@ internal fun SmartPlaylistNestedSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.weight(1f))
             trailing?.invoke()
         }
         content()

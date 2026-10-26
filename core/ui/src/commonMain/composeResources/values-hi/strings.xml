@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">सिंक रोकें</string>
     <string name="smart_playlist_sync_stopped">सिंक रोक दिया गया। आपकी प्लेलिस्ट नहीं बदली है।</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">ऊपर ले जाएँ</string>
+    <string name="smart_playlist_move_down">नीचे ले जाएँ</string>
+    <string name="smart_playlist_row_position">स्थिति %1$d / %2$d</string>
 </resources>

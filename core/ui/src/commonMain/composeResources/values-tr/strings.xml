@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">Eşitlemeyi durdur</string>
     <string name="smart_playlist_sync_stopped">Eşitleme durduruldu. Çalma listeniz değişmedi.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">Yukarı taşı</string>
+    <string name="smart_playlist_move_down">Aşağı taşı</string>
+    <string name="smart_playlist_row_position">%2$d öğeden %1$d. konum</string>
 </resources>

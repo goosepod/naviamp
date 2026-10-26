@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">Interrompi sincronizzazione</string>
     <string name="smart_playlist_sync_stopped">Sincronizzazione interrotta. La playlist non è cambiata.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">Sposta su</string>
+    <string name="smart_playlist_move_down">Sposta giù</string>
+    <string name="smart_playlist_row_position">Posizione %1$d di %2$d</string>
 </resources>

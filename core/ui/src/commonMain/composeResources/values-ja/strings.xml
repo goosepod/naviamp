@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">同期を停止</string>
     <string name="smart_playlist_sync_stopped">同期を停止しました。プレイリストは変更されていません。</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">上に移動</string>
+    <string name="smart_playlist_move_down">下に移動</string>
+    <string name="smart_playlist_row_position">%2$d 件中 %1$d 番目</string>
 </resources>
