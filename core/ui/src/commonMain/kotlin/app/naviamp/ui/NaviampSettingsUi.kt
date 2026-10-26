@@ -2917,6 +2917,7 @@ private val DefaultNaviampChangelog = listOf(
         entries = listOf(
             "Keep Sonic and other server capabilities available immediately after refreshing a Navidrome native login.",
             "Ignore late callbacks from a completed playback request so they cannot cancel pending Autoplay or process completion twice.",
+            "Keep playback paused when seeking, even if a late native state callback arrives.",
             "Keep the main Windows window visible when opening menus and remove black tooltip padding while preserving hardware rendering for the main surface.",
             "Preserve secure credentials on first launch of the Windows Store package, including existing saved connections.",
             "Navigate out of TV Radio sliders with Up/Down, adjust values with Left/Right, and read the complete shared release changelog in TV About.",

@@ -91,6 +91,7 @@ import kotlin.coroutines.CoroutineContext
  * Hosts create a native [PlaybackEngine]. Core owns provider URL resolution, queue navigation,
  * prepared-next behavior, callbacks, and settings application through this class.
  */
+@OptIn(ExperimentalAtomicApi::class)
 class NaviampCorePlaybackEngineAdapter(
     private val scope: CoroutineScope,
     private val engine: PlaybackEngine,
@@ -119,6 +120,10 @@ class NaviampCorePlaybackEngineAdapter(
     private val visualizerFrameIntervalMillis: Long = DefaultVisualizerFrameIntervalMillis,
     private val visualizerWorkContext: CoroutineContext = Dispatchers.Default,
 ) : NaviampCorePlaybackEffectPort, NaviampCoreInternetRadioPlaybackPort {
+    // Native polling can deliver Playing after an explicit pause. Preserve the user's intent
+    // independently of reported state, including when seeking restarts the native execution.
+    private val pauseRequested = AtomicBoolean(false)
+
     override val capabilities = NaviampCorePlaybackCapabilities(
         engineName = engine.name,
         supportsPause = engine.supportsPause,
@@ -182,9 +187,11 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun pause() {
+        pauseRequested.store(true)
         engine.pause()
     }
     override fun resume() {
+        pauseRequested.store(false)
         engine.resume()
     }
 
@@ -197,7 +204,7 @@ class NaviampCorePlaybackEngineAdapter(
 
     override fun seek(positionSeconds: Double) {
         if (engine is RestartOnSeekPlaybackEngine) {
-            val preservePausedState = playbackState == PlaybackState.Paused
+            val preservePausedState = pauseRequested.load() || playbackState == PlaybackState.Paused
             clearPreparedTransition()
             authenticatedStreams?.clearCurrent()
             startCurrent(positionSeconds, pauseWhenStarted = preservePausedState)
@@ -215,6 +222,7 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun stop() {
+        pauseRequested.store(false)
         resumePositionSeconds = null
         generation += 1
         resolutionJob?.cancel()
@@ -345,7 +353,6 @@ class NaviampCorePlaybackEngineAdapter(
     override fun diagnostics(): List<Pair<String, String>> =
         (engine as? PlaybackEngineDiagnostics)?.statsRows().orEmpty()
 
-    @OptIn(ExperimentalAtomicApi::class)
     private fun startCurrent(
         startPositionSeconds: Double?,
         pauseWhenStarted: Boolean = false,
@@ -353,6 +360,7 @@ class NaviampCorePlaybackEngineAdapter(
         recoveryQuality: StreamQuality? = null,
     ) {
         val track = queue.current ?: return
+        pauseRequested.store(pauseWhenStarted)
         if (recoveryLocalAudio == null) {
             unstreamableRecoveryJob?.cancel()
             unstreamableRecoveryJob = null
@@ -472,7 +480,6 @@ class NaviampCorePlaybackEngineAdapter(
                     }
                 },
             )
-            var pendingPause = pauseWhenStarted
             val executionFinished = AtomicBoolean(false)
             engine.play(
                 scope = scope,
@@ -495,7 +502,7 @@ class NaviampCorePlaybackEngineAdapter(
                             observer?.onStateChanged(playbackState)
                             startCurrent(
                                 startPositionSeconds = startPositionSeconds,
-                                pauseWhenStarted = pauseWhenStarted,
+                                pauseWhenStarted = pauseRequested.load(),
                                 recoveryQuality = StreamQuality.Transcoded(AudioCodec.Mp3, 320),
                             )
                             return@play
@@ -527,7 +534,7 @@ class NaviampCorePlaybackEngineAdapter(
                                     if (cachedAudio != null) {
                                         startCurrent(
                                             startPositionSeconds = startPositionSeconds,
-                                            pauseWhenStarted = pauseWhenStarted,
+                                            pauseWhenStarted = pauseRequested.load(),
                                             recoveryLocalAudio = cachedAudio,
                                         )
                                     } else {
@@ -538,8 +545,7 @@ class NaviampCorePlaybackEngineAdapter(
                                 return@play
                             }
                         }
-                        if (pendingPause && state == PlaybackState.Playing) {
-                            pendingPause = false
+                        if (pauseRequested.load() && state == PlaybackState.Playing) {
                             engine.pause()
                             return@play
                         }

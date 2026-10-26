@@ -64,6 +64,38 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun explicitPauseSurvivesLatePlayingCallbacksAndRestartedSeekUntilResume() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() })
+        val states = mutableListOf<PlaybackState>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+        })
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        adapter.pause()
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Paused, states.last(), "A stale native poll must not undo explicit pause")
+        adapter.seek(30.0)
+        advanceUntilIdle()
+        assertEquals(30.0, engine.request?.startPositionSeconds)
+        assertEquals(PlaybackState.Paused, states.last())
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Paused, states.last(), "Pause survives duplicate startup/poll callbacks")
+        adapter.resume()
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Playing, states.last())
+        adapter.pause()
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        assertEquals(PlaybackState.Playing, states.last(), "A new explicit play clears the previous pause intent")
+    }
+
+    @Test
     fun finishedExecutionRejectsLateNativeStateAndProgressUntilANewPlayOrExplicitStop() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine()
