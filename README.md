@@ -175,10 +175,13 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 Naviamp is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA is
 also available for users who can provide their own signing.
 
-Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
-Windows and macOS desktop packages are not publisher-signed and may show an operating-system
-warning. Windows installers install only for the current user and do not require administrator
-permission. See the [latest Naviamp release notes](https://github.com/goosepod/naviamp/releases/latest)
+Get Naviamp for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9pcfj644lxll?hl=en-US&gl=US).
+
+Direct downloads for all available platforms are on [GitHub Releases](https://github.com/goosepod/naviamp/releases).
+Windows and macOS desktop packages downloaded from GitHub are not publisher-signed and may show
+an operating-system warning. The Windows installers on GitHub install only for the current user
+and do not require administrator permission. See the
+[latest Naviamp release notes](https://github.com/goosepod/naviamp/releases/latest)
 for current upgrade details and
 [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
 
