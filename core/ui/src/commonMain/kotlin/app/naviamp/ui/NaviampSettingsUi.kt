@@ -2895,6 +2895,7 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
+            "Install Naviamp for Windows through its official Microsoft Store listing, alongside existing direct downloads.",
             "Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.",
             "Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.",
         ),
@@ -2902,6 +2903,7 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Improvements",
         entries = listOf(
+            "Move smart-playlist filters, groups and sort priorities up or down while preserving values, logical groups and keyboard focus.",
             "Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.",
             "Preview example matches from your synced library, sync directly from the builder, and select calendar dates with clear format guidance.",
             "Choose Radio and Sonic similarity explicitly, configure their initial batch sizes independently, and keep regular Radio supplied with new tracks.",
@@ -2913,6 +2915,11 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
+            "Keep Sonic and other server capabilities available immediately after refreshing a Navidrome native login.",
+            "Ignore late callbacks from a completed playback request so they cannot cancel pending Autoplay or process completion twice.",
+            "Keep the main Windows window visible when opening menus and remove black tooltip padding while preserving hardware rendering for the main surface.",
+            "Preserve secure credentials on first launch of the Windows Store package, including existing saved connections.",
+            "Navigate out of TV Radio sliders with Up/Down, adjust values with Left/Right, and read the complete shared release changelog in TV About.",
             "Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.",
             "Keep incomplete smart-playlist rules from disappearing on save, preserve sort, limit and decimal semantics, and protect unsupported definitions from destructive editing.",
             "Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list.",
@@ -2929,10 +2936,11 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Known issues",
         entries = listOf(
+            "The reported Android TV queue-end Autoplay stop remains under investigation; its original cause is not confirmed resolved by the completed-request callback fix.",
             "Authenticated streams from servers without finite byte-range support or provider time offsets retain buffered-seeking limitations.",
             "Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.",
             "Further Linux popup performance and accessibility checks remain open, including the full-app CPU budget.",
-            "Android TV and Naviamp Connect remain beta. Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
+            "Android TV and Naviamp Connect remain beta. Direct GitHub Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
         ),
     ),
 )
