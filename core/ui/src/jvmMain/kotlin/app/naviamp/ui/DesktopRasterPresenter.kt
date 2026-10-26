@@ -91,18 +91,6 @@ internal fun configureNaviampDesktopPopupRenderer(window: Window,
     System.setProperty("skiko.renderApi", GraphicsApi.valueOf(requested).name)
 }
 
-/** Native Skiko/AWT boundary: the primary layer already captured its hardware renderer.
- * Select the default for future transparent window constructors; never switch a live surface. */
-internal fun configureNaviampDesktopPopupRenderer(window: Window,
-    requestedApi: String? = System.getProperty("naviamp.desktop.popupRenderApi")) {
-    val requested = requestedApi?.trim()
-        ?.takeUnless { it.isEmpty() || it.equals("DEFAULT", ignoreCase = true) } ?: return
-    require(EventQueue.isDispatchThread()) { "Popup renderer initialization requires the AWT event thread" }
-    require(window.owner == null && window.isOpaque) { "Popup renderer initialization requires the primary AWT window" }
-    checkNotNull(findSkiaLayer(window)) { "Primary Skiko layer is unavailable" }
-    System.setProperty("skiko.renderApi", GraphicsApi.valueOf(requested).name)
-}
-
 /** Windows and Linux isolate animation in small transparent Skia hardware surfaces. */
 private class DesktopSkiaRasterPresenter(private val window: Window) : NaviampRasterPresenter {
     override val contentBelowOwnedWindows = true
