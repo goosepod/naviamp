@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">Остановить синхронизацию</string>
     <string name="smart_playlist_sync_stopped">Синхронизация остановлена. Плейлист не изменён.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">Переместить вверх</string>
+    <string name="smart_playlist_move_down">Переместить вниз</string>
+    <string name="smart_playlist_row_position">Позиция %1$d из %2$d</string>
 </resources>

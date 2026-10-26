@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">Hentikan sinkronisasi</string>
     <string name="smart_playlist_sync_stopped">Sinkronisasi dihentikan. Daftar putar tidak berubah.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">Pindahkan ke atas</string>
+    <string name="smart_playlist_move_down">Pindahkan ke bawah</string>
+    <string name="smart_playlist_row_position">Posisi %1$d dari %2$d</string>
 </resources>

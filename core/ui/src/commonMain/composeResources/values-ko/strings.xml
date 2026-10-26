@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">동기화 중지</string>
     <string name="smart_playlist_sync_stopped">동기화를 중지했습니다. 재생목록은 변경되지 않았습니다.</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">위로 이동</string>
+    <string name="smart_playlist_move_down">아래로 이동</string>
+    <string name="smart_playlist_row_position">%2$d개 중 %1$d번째</string>
 </resources>

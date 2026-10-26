@@ -327,4 +327,7 @@
     <string name="smart_playlist_sync_stop">停止同步</string>
     <string name="smart_playlist_sync_stopped">同步已停止。播放列表未更改。</string>
     <string name="smart_playlist_preview_track">%1$s - %2$s - %3$s</string>
+    <string name="smart_playlist_move_up">上移</string>
+    <string name="smart_playlist_move_down">下移</string>
+    <string name="smart_playlist_row_position">第 %1$d 项，共 %2$d 项</string>
 </resources>
