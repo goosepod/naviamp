@@ -1,15 +1,7 @@
-Initial Mac beta: confirm the installed version/build and supported Mac/OS requirements in TestFlight. The current 2.9.0 (57) Store-packaging plan is Apple Silicon and macOS 12 or later; the actual selected upload determines eligibility.
+Initial Mac beta: Naviamp 2.9.0 (57).
 
-Please focus on:
-- Installing through TestFlight, opening Naviamp and typing/pasting into connection fields.
-- Connecting to your compatible music server, quitting and reopening with a usable saved connection.
-- Browsing/searching, albums/playlists, artwork and queue metadata.
-- Audible playback, pause/resume, seeking, previous/next and queue advancement.
-- Radio/Autoplay and visualizers, if exposed in this build.
-- Menus, keyboard interaction, window resize/minimize/restore and sleep/output changes.
-- File selection, settings import/export and downloads, if exposed, including denied/cancelled file access in the sandbox.
-- Network interruption/reconnect and clear error feedback.
+Please test TestFlight installation; typing and pasting into connection fields; connecting to your compatible music server; quitting and reopening with a usable saved connection; browsing/searching and artwork; audible playback, pause/resume, seeking, previous/next and queue advancement.
 
-Use a test library/account where possible. A self-hosted music server is required; music is not bundled. Development/ad-hoc builds and the TestFlight Store build have different packaging, so report which one you tested.
+Also test Radio/Autoplay, visualizers, downloads and file/import/export dialogs if those controls are available in this build, including cancelled or denied sandbox file access. Check menus, keyboard interaction, resize/minimize/restore, sleep/output changes and network interruption/reconnect.
 
-Send feedback through TestFlight with version/build, Mac model/architecture, OS and reproduction steps. Remove credentials, tokens and private server details from reports.
+Music is not bundled; use a test library/account where possible. Send feedback through TestFlight with app version/build, Mac model/architecture, OS and reproduction steps. Remove credentials, tokens and private server details from reports.

@@ -6,26 +6,30 @@ It does not select the unreleased v2.10.0 candidate for beta distribution.
 
 ## Current evidence
 
-| Platform | Retained evidence | Still needs live verification |
+Live browser verification resumed October 27 through native Firefox control. See the
+[current operations checkpoint](status-2026-10-27.md) for completed changes and remaining gates.
+
+| Platform | Live verified record | Remaining |
 | --- | --- | --- |
-| macOS | App Store Connect app 6821135881; bundle app.naviamp.desktop; 2.9.0 (57). Local October 20 resubmission record says Waiting for Review. Packaging PR #249 targets Apple Silicon/macOS 12+. | TestFlight processing/beta status, compliance, actual eligible build, expiry, internal install and external approval. Production review status is not beta status. |
-| iOS | Issue #248 records a successful independent 2.9.0 (57) upload. Repository bundle identifier is app.naviamp.ios. | App Store Connect app ID, uploaded bundle/version/build, device/OS requirements, beta status, compliance, expiry and real installation. |
+| macOS | App 6821135881, 2.9.0 (57), internal group exists; external group Naviamp Mac Public Beta created and beta review submitted. Now Waiting for Review; 73 days remaining at inspection. | Beta approval, explicit approval for the new public-link scope, actual TestFlight installation/acceptance. |
+| iOS | App 6821135545, bundle app.naviamp.ios, 2.9.0 (57), Approved for TestFlight; existing internal group and Naviamp Testers external group/public link (100 limit). Uploaded build minimum iOS 17.2, iPhone/iPad. | Actual installation/acceptance and feedback. Existing public landing page verified; URL retained in private operator record. |
 
-The earlier October 9 Mac upload-processing record is superseded by the October 20 local
-production-review record. Neither establishes current TestFlight availability. Verify the actual
-uploaded binary metadata; repository/Xcode default version fields and ad-hoc Mac ZIPs are not proof.
+Public App Store states were separately verified: Mac Waiting for Review; iOS Rejected. The iOS
+production rejection does not describe its approved TestFlight build. Neither pending production
+submission was changed. Historical October 9/20 upload/review notes are superseded by these live
+observations, not treated as beta evidence.
 
-Live access is currently blocked: computer control reports `Sky Computer Use native pipe startup
-failed`; browser inventory is empty and the in-app browser is unavailable. No Apple connector is
-exposed. No App Store Connect API-key environment variables or key files were found in the standard
-checked locations. Do not extract browser/Xcode session credentials to bypass this limitation.
+An updated Apple Developer Program License Agreement warning was displayed. The Account Holder was
+asked to review/accept it; no agreement was accepted by the agent. Apple nevertheless accepted the
+existing Mac build's beta-review submission. Do not infer all future upload/submission operations are
+unblocked. Chrome browser-channel creation still failed; native Firefox supplied the working path.
 
 ## Owner choices and private inputs
 
 - Distribution: public TestFlight link, with separate Mac/iOS cohorts for platform-specific feedback.
 - Feedback email: supplied by the owner; keep the actual value in the local private preparation file
   and enter it into Apple's Feedback Email field. This also becomes the invitation reply-to address.
-- Proposed group names: `Naviamp Internal`, `Naviamp iOS Public Beta`, `Naviamp Mac Public Beta`.
+- Initial proposed group names: `Naviamp Internal`, `Naviamp iOS Public Beta`, `Naviamp Mac Public Beta`.
   Reuse suitable existing groups; do not create duplicates. Confirm whether Apple app records are
   separate before applying groups or links.
 - Proposed starting public-link limit: 100 per cohort, adjustable after initial feedback. This is a
@@ -67,7 +71,7 @@ new Android Auto features or v2.10.0-only changes as available in these uploads.
    Keep automatic notifications off while preparing so approval does not immediately notify testers.
 6. After beta approval and internal acceptance, enable the public link, verify criteria/limit and
    confirm the actual landing page, app/platform/build eligibility and installation. Record the real
-   URL. No link has been created yet; never invent an Apple public URL.
+   URL. Check the operations checkpoint before creating a link; reuse existing links and never invent an Apple public URL.
 7. Share the verified link when the owner asks to announce/invite. No email, social announcement,
    GitHub release or pending production submission is sent/changed by this preparation.
 8. Track crashes/feedback by platform/build. Record build expiry and replacement plan; notify testers
@@ -75,7 +79,8 @@ new Android Auto features or v2.10.0-only changes as available in these uploads.
 
 ## Installation acceptance matrix
 
-All rows are pending; earlier development-signed or simulator checks are not TestFlight installs.
+Installation rows remain pending; successful metadata/group/link setup does not prove an install.
+Earlier development-signed or simulator checks are not TestFlight installs.
 
 | Check | iOS | macOS |
 | --- | --- | --- |

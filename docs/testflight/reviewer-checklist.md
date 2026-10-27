@@ -34,4 +34,6 @@ personal music library or a reviewer obtaining their own server subscription.
 - [ ] Public landing page verified; actual URL recorded with platform/app/build association.
 - [ ] No pending production submission replaced and no v2.10.0 feature advertised in the initial beta.
 
-No public link, beta review submission or tester notification has been performed by the preparation PR.
+The initial packet was documentation-only. See [the operations checkpoint](status-2026-10-27.md)
+for live follow-up: Mac beta review submitted, existing iOS public link verified, new Mac public-link
+confirmation awaiting explicit approval. No tester email or announcement was sent.
