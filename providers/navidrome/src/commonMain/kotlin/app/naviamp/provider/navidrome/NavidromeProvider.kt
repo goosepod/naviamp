@@ -105,7 +105,7 @@ class NavidromeProvider(
     ArtistPopularTracksClient,
     SimilarArtistsClient {
     private val profile = subsonicProviderProfile(connection.providerId)
-    override val discovery: app.naviamp.domain.provider.ProviderDiscovery? =
+    private val aurralDiscovery =
         if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) {
             app.naviamp.provider.aurral.AurralDiscoveryClient(connection, httpClient,
                 resolveLibraryArtist = { identityKey, mbid ->
@@ -114,6 +114,7 @@ class NavidromeProvider(
                     raw?.takeIf { it.stringValue("musicBrainzId").equals(mbid, ignoreCase = true) }?.toArtist()
                 })
         } else null
+    override val discovery: app.naviamp.domain.provider.ProviderDiscovery? get() = aurralDiscovery
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
     override val requiresAuthenticatedPlaybackTransport: Boolean
@@ -1716,7 +1717,9 @@ class NavidromeProvider(
         httpClient.getBytes(url, headers = customHeaders)
 
     override suspend fun bytesForOwnedUrl(url: String): ByteArray? =
-        if (ownsUrl(url)) bytes(url) else null
+        if (!ownsUrl(url)) null
+        else if (aurralDiscovery?.ownsArtistCoverUrl(url) == true) aurralDiscovery.artistCoverBytes(url)
+        else bytes(url)
 
     suspend fun download(url: String, writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit): Boolean =
         httpClient.download(url, headers = customHeaders, writeChunk = writeChunk)

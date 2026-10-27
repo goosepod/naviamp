@@ -352,4 +352,6 @@
     <string name="discovery_saving_feedback">Збереження вподобань…</string>
     <string name="discovery_feedback_failed">Не вдалося зберегти вподобання. Оновіть, щоб перевірити поточний стан.</string>
     <string name="discovery_releases">Релізи</string>
+    <string name="home_scroll_left">Прокрутити ліворуч</string>
+    <string name="home_scroll_right">Прокрутити праворуч</string>
 </resources>

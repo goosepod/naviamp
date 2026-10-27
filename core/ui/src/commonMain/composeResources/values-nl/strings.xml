@@ -352,4 +352,6 @@
     <string name="discovery_saving_feedback">Feedback opslaan…</string>
     <string name="discovery_feedback_failed">Feedback opslaan mislukt. Vernieuw om de huidige status te controleren.</string>
     <string name="discovery_releases">Uitgaven</string>
+    <string name="home_scroll_left">Naar links scrollen</string>
+    <string name="home_scroll_right">Naar rechts scrollen</string>
 </resources>

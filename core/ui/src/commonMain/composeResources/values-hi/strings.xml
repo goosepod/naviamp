@@ -352,4 +352,6 @@
     <string name="discovery_saving_feedback">प्रतिक्रिया सहेजी जा रही है…</string>
     <string name="discovery_feedback_failed">प्रतिक्रिया सहेजी नहीं जा सकी। वर्तमान स्थिति जाँचने के लिए रीफ़्रेश करें।</string>
     <string name="discovery_releases">रिलीज़</string>
+    <string name="home_scroll_left">बाईं ओर स्क्रॉल करें</string>
+    <string name="home_scroll_right">दाईं ओर स्क्रॉल करें</string>
 </resources>

@@ -161,13 +161,35 @@ internal class AurralDiscoveryClient(
             val validId = id != null && MusicBrainzId.matches(id)
             ProviderDiscoveryArtist(
                 id = id ?: "unresolved:$field:$index", name = name,
-                imageUrl = artist.text("image")?.let(::imageUrl),
+                imageUrl = (artist.text("image") ?: artist.text("imageUrl"))?.let(::imageUrl)
+                    ?: if (validId) "$base/api/artists/$id/cover?artistName=${name.urlEncode()}" else null,
                 genres = artist.array("tags").orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull },
                 matchPercent = (artist["matchPercent"] as? JsonPrimitive)?.intOrNull?.coerceIn(0, 100),
                 externalUrl = if (validId) "$base/artist/$id" else null,
                 detailsAvailable = validId,
             )
         }.distinctBy { it.id }.take(20)
+
+    /** A cover endpoint returns JSON; resolve it lazily through the provider artwork boundary. */
+    fun ownsArtistCoverUrl(url: String): Boolean {
+        val path = url.removePrefix("$base/api/artists/")
+        return url.startsWith("$base/api/artists/") &&
+            MusicBrainzId.matches(path.substringBefore('/')) &&
+            path.substringAfter('/', "").startsWith("cover?artistName=")
+    }
+
+    suspend fun artistCoverBytes(url: String): ByteArray? {
+        require(ownsArtistCoverUrl(url))
+        val resolved = nativeCall<String?>({ null }) {
+            val images = get(url.removePrefix(base)).array("images").orEmpty()
+                .mapNotNull { it as? JsonObject }
+            val preferred = images.firstOrNull { it["front"]?.jsonPrimitive?.booleanOrNull == true }
+            (listOfNotNull(preferred) + images).firstNotNullOfOrNull { it.text("image")?.let(::imageUrl) }
+        } ?: return null
+        // Never send a user session or custom proxy credentials to an external artwork service.
+        return http.getBytes(resolved, headers = if (resolved.startsWith("$base/"))
+            authorizedHeaders() else emptyMap())
+    }
 
     private fun imageUrl(value: String): String? = when {
         value.startsWith("https://") || value.startsWith("http://") -> value

@@ -352,4 +352,6 @@
     <string name="discovery_saving_feedback">Geri bildirim kaydediliyor…</string>
     <string name="discovery_feedback_failed">Geri bildirim kaydedilemedi. Güncel durumu kontrol etmek için yenileyin.</string>
     <string name="discovery_releases">Yayınlar</string>
+    <string name="home_scroll_left">Sola kaydır</string>
+    <string name="home_scroll_right">Sağa kaydır</string>
 </resources>

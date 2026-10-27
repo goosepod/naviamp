@@ -1207,4 +1207,6 @@
     <string name="discovery_saving_feedback">Saving feedback…</string>
     <string name="discovery_feedback_failed">Could not save feedback. Refresh to check its current state.</string>
     <string name="discovery_releases">Releases</string>
+    <string name="home_scroll_left">Scroll left</string>
+    <string name="home_scroll_right">Scroll right</string>
 </resources>

@@ -172,3 +172,32 @@ The Aurral diff changes no Android, Desktop/JVM or iOS production source. Native
 secure-secret storage, player and external-URI adapters are reused. New JVM source files are tests.
 The previously merged baseline's native adapter review remains in the
 [v2.10.0 readiness record](2.10.0-release-readiness-2026-10-26.md#platform-diff-review).
+
+
+## Discovery portraits and rail navigation
+
+The discovery feed may return `image: null`. The provider now publishes a lazy artwork reference
+for valid MusicBrainz artist IDs and resolves it through Aurral's authenticated artist-cover endpoint
+when the shared image cache requests its bytes. It prefers the front portrait, accepts the alternate
+feed `imageUrl` field, and retains circular placeholders when no cover exists. Native credentials
+and custom proxy headers are sent only to the connection's own server, never to remote artwork hosts.
+No per-card cover lookups are performed while loading the feed.
+
+Recommendations and trending use independent lazy rows with the shared Home arrow controls. Each
+arrow reflects that row's scroll boundary, and scrolling one row leaves the other unchanged. Arrow
+accessibility labels now come from all maintained shared translations. Artist portraits retain the
+shared circular shape policy. These changes add no platform production code, settings or migrations.
+
+Regression coverage includes missing/alternate artwork fields, authenticated lazy cover resolution,
+front-image selection, empty/unsafe cover responses, external credential isolation, rendered portrait
+pixels and circular clipping, independent rail navigation and both scroll boundaries. The opt-in live
+case resolves missing discovery portraits through the actual provider and decodes the returned bytes.
+
+Validation for the portrait/rail update: 20 focused provider/UI fixture tests passed, including the
+rendered pixel/clipping test and independent arrow navigation. Three opt-in read-only live cases
+passed against the configured Aurral account, including real discovery-cover byte decoding; the
+feedback mutation case was not enabled for this run. Android provider/UI and iOS provider/device plus
+UI/simulator compilation passed. Architecture verification and Mac test packaging passed. A separate
+updated test copy uses the previously verified isolated profile and local-network metadata, and its
+Apple Development deep/strict signature verification passed. Owner verification of this updated
+foreground app remains pending.

@@ -352,4 +352,6 @@
     <string name="discovery_saving_feedback">Сохранение предпочтений…</string>
     <string name="discovery_feedback_failed">Не удалось сохранить предпочтения. Обновите, чтобы проверить текущее состояние.</string>
     <string name="discovery_releases">Релизы</string>
+    <string name="home_scroll_left">Прокрутить влево</string>
+    <string name="home_scroll_right">Прокрутить вправо</string>
 </resources>

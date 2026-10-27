@@ -1178,4 +1178,6 @@
     <string name="discovery_saving_feedback">Feedback wird gespeichert…</string>
     <string name="discovery_feedback_failed">Feedback konnte nicht gespeichert werden. Aktualisiere, um den aktuellen Stand zu prüfen.</string>
     <string name="discovery_releases">Veröffentlichungen</string>
+    <string name="home_scroll_left">Nach links scrollen</string>
+    <string name="home_scroll_right">Nach rechts scrollen</string>
 </resources>

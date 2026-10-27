@@ -471,4 +471,6 @@
     <string name="discovery_saving_feedback">Zapisywanie opinii…</string>
     <string name="discovery_feedback_failed">Nie udało się zapisać opinii. Odśwież, aby sprawdzić aktualny stan.</string>
     <string name="discovery_releases">Wydania</string>
+    <string name="home_scroll_left">Przewiń w lewo</string>
+    <string name="home_scroll_right">Przewiń w prawo</string>
 </resources>

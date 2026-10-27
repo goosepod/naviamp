@@ -352,4 +352,6 @@
     <string name="discovery_saving_feedback">Salvataggio delle preferenze…</string>
     <string name="discovery_feedback_failed">Impossibile salvare le preferenze. Aggiorna per verificarne lo stato attuale.</string>
     <string name="discovery_releases">Pubblicazioni</string>
+    <string name="home_scroll_left">Scorri a sinistra</string>
+    <string name="home_scroll_right">Scorri a destra</string>
 </resources>

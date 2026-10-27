@@ -352,4 +352,6 @@
     <string name="discovery_saving_feedback">正在保存反馈…</string>
     <string name="discovery_feedback_failed">无法保存反馈。请刷新以检查当前状态。</string>
     <string name="discovery_releases">发行作品</string>
+    <string name="home_scroll_left">向左滚动</string>
+    <string name="home_scroll_right">向右滚动</string>
 </resources>

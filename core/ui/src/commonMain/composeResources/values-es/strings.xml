@@ -1182,4 +1182,6 @@
     <string name="discovery_saving_feedback">Guardando preferencias…</string>
     <string name="discovery_feedback_failed">No se pudieron guardar las preferencias. Actualiza para comprobar su estado actual.</string>
     <string name="discovery_releases">Lanzamientos</string>
+    <string name="home_scroll_left">Desplazar a la izquierda</string>
+    <string name="home_scroll_right">Desplazar a la derecha</string>
 </resources>

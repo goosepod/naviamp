@@ -348,7 +348,7 @@ private fun HomeCollectionSectionTitle(
 }
 
 @Composable
-private fun HomeRailArrow(
+internal fun HomeRailArrow(
     pointsRight: Boolean,
     enabled: Boolean,
     colors: NaviampColors,
@@ -361,7 +361,7 @@ private fun HomeRailArrow(
     ) {
         Icon(
             imageVector = NaviampIcons.ChevronRight,
-            contentDescription = if (pointsRight) "Scroll right" else "Scroll left",
+            contentDescription = stringResource(if (pointsRight) Res.string.home_scroll_right else Res.string.home_scroll_left),
             tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.45f),
             modifier = Modifier
                 .size(19.dp)

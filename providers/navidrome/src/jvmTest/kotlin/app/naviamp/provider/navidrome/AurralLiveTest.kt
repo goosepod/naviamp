@@ -9,6 +9,16 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun discoveryArtistCoverFallbackReturnsRealImageBytes() = runBlocking {
+        val provider = NavidromeProvider(liveConnection() ?: return@runBlocking)
+        val feed = provider.discovery!!.load()
+        val candidates = (feed.trending + feed.recommendations).filter { it.imageUrl?.contains("/cover?artistName=") == true }
+        assertTrue(candidates.isNotEmpty(), "The live fixture should include missing discovery artwork")
+        val images = candidates.take(3).mapNotNull { provider.bytesForOwnedUrl(it.imageUrl!!) }
+        assertTrue(images.any { it.size > 100 && javax.imageio.ImageIO.read(java.io.ByteArrayInputStream(it)) != null },
+            "At least one discovery portrait must resolve and decode as an image")
+    }
+
     @Test fun nativeArtistDetailsBridgeAnOwnedArtistThroughVerifiedSubsonicIdentity() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val provider = NavidromeProvider(connection)

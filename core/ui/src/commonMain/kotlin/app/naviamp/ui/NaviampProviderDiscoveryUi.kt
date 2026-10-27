@@ -1,8 +1,12 @@
 package app.naviamp.ui
 
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
@@ -52,12 +56,10 @@ internal fun NaviampProviderDiscoveryContent(
         }
         message?.let { Text(stringResource(it), color = colors.secondaryText, fontSize = 13.sp) }
         if (discovery.feed.recommendations.isNotEmpty()) {
-            Text(stringResource(Res.string.discovery_recommendations), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
-            DiscoveryArtistRail(discovery.feed.recommendations, providerName, colors, onArtistSelected, onArtistDetails)
+            DiscoveryArtistRail(stringResource(Res.string.discovery_recommendations), discovery.feed.recommendations, providerName, colors, onArtistSelected, onArtistDetails)
         }
         if (discovery.feed.trending.isNotEmpty()) {
-            Text(stringResource(Res.string.discovery_trending), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
-            DiscoveryArtistRail(discovery.feed.trending, providerName, colors, onArtistSelected, onArtistDetails)
+            DiscoveryArtistRail(stringResource(Res.string.discovery_trending), discovery.feed.trending, providerName, colors, onArtistSelected, onArtistDetails)
         }
     }
     discovery.artistDetail?.let { detail ->
@@ -71,15 +73,29 @@ internal fun NaviampProviderDiscoveryContent(
 
 @Composable
 private fun DiscoveryArtistRail(
+    title: String,
     artists: List<ProviderDiscoveryArtist>,
     providerName: String,
     colors: NaviampColors,
     onArtistSelected: (String) -> Unit,
     onArtistDetails: (String) -> Unit,
 ) {
-    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+    val state = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+        listOf(false, true).forEach { forward ->
+            HomeRailArrow(forward, if (forward) state.canScrollForward else state.canScrollBackward, colors) {
+                scope.launch {
+                    val viewport = state.layoutInfo.let { it.viewportEndOffset - it.viewportStartOffset }
+                    state.animateScrollBy(viewport.toFloat() * if (forward) 1f else -1f)
+                }
+            }
+        }
+    }
+    LazyRow(modifier = Modifier.fillMaxWidth(), state = state,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        artists.forEach { artist ->
+        items(artists, key = { it.id }) { artist ->
             Column(modifier = Modifier.width(142.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 NaviampCoverArt(artist.imageUrl, colors, 128.dp,
                     mediaArtworkCornerRadius(SharedMediaItemKind.Artist, 128.dp, 7.dp))

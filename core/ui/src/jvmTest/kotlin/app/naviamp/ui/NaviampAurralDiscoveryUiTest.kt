@@ -14,6 +14,61 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampAurralDiscoveryUiTest {
+    @Test fun discoveryArtworkLoadsAndPaintsACircularPortrait() {
+        val buffer = java.awt.image.BufferedImage(64, 64, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val graphics = buffer.createGraphics()
+        graphics.color = java.awt.Color.RED
+        graphics.fillRect(0, 0, 64, 64)
+        graphics.dispose()
+        val bytes = java.io.ByteArrayOutputStream().also { javax.imageio.ImageIO.write(buffer, "png", it) }.toByteArray()
+        resetNaviampCoverArtCache()
+        setJvmPlatformCoverArtByteLoader { bytes }
+        try {
+            runComposeUiTest {
+                setContent {
+                    Column(Modifier.width(400.dp).height(400.dp).background(NaviampColors.Dark.background)) {
+                        NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdAurral,
+                            ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, trending = listOf(
+                                ProviderDiscoveryArtist("portrait", "Portrait", imageUrl = "test://discovery-portrait")))),
+                            NaviampColors.Dark, {})
+                    }
+                }
+                waitUntil(timeoutMillis = 5_000) {
+                    onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 1
+                }
+                val image = onNodeWithContentDescription("Album art").captureToImage().toAwtImage()
+                assertEquals(java.awt.Color.RED.rgb, image.getRGB(image.width / 2, image.height / 2))
+                assertNotEquals(java.awt.Color.RED.rgb, image.getRGB(0, 0), "Portrait corners must be clipped")
+            }
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+        }
+    }
+
+    @Test fun discoveryRailsScrollIndependentlyInBothDirectionsAndKeepArtistImagesRound() = runComposeUiTest {
+        val artists = (0..9).map { ProviderDiscoveryArtist("artist-$it", "Artist $it") }
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                Column(Modifier.width(400.dp).height(700.dp)) {
+                    NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdAurral,
+                        ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, recommendations = artists, trending = artists)),
+                        NaviampColors.Dark, {})
+                }
+            }
+        }
+        onAllNodesWithContentDescription("Scroll left")[0].assertIsNotEnabled()
+        onAllNodesWithContentDescription("Scroll left")[1].assertIsNotEnabled()
+        onAllNodesWithContentDescription("Scroll right")[0].assertIsEnabled().performClick()
+        waitForIdle()
+        onAllNodesWithContentDescription("Scroll left")[0].assertIsEnabled()
+        onAllNodesWithContentDescription("Scroll left")[1].assertIsNotEnabled()
+        repeat(5) { onAllNodesWithContentDescription("Scroll right")[0].performClick(); waitForIdle() }
+        onAllNodesWithContentDescription("Scroll right")[0].assertIsNotEnabled()
+        repeat(6) { onAllNodesWithContentDescription("Scroll left")[0].performClick(); waitForIdle() }
+        onAllNodesWithContentDescription("Scroll left")[0].assertIsNotEnabled()
+        onAllNodesWithContentDescription("Scroll right")[0].assertIsEnabled()
+    }
+
     @Test fun nativeArtistDialogShowsLibraryLinkReleasesAndTruthfulFeedbackFailure() = runComposeUiTest {
         val artist = ProviderDiscoveryArtist("mbid", "Discovery artist", detailsAvailable = true,
             externalUrl = "https://music.test/artist/mbid")

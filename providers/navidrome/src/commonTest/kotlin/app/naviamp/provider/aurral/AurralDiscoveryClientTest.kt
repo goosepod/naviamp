@@ -17,6 +17,40 @@ class AurralDiscoveryClientTest {
         assertNull(feed.recommendations.single().imageUrl)
         assertTrue(feed.recommendations.single().id.startsWith("unresolved:"))
     }
+    @Test fun absentFeedImagesResolveLazilyThroughTheProviderWithoutLeakingCredentials() = runTest {
+        val http = FakeAurralHttp().also {
+            it.expiry = Long.MAX_VALUE
+            it.discovery = """{"recommendations":[{"id":"$ArtistMbid","name":"Discovery artist","image":null}],"globalTop":[]}"""
+        }
+        val provider = NavidromeProvider(connection(), http)
+        val artist = provider.discovery!!.load().recommendations.single()
+        val url = assertNotNull(artist.imageUrl)
+        assertTrue(url.endsWith("/api/artists/$ArtistMbid/cover?artistName=Discovery+artist"))
+        assertEquals(0, http.coverRequests)
+        assertContentEquals(byteArrayOf(1, 2, 3), provider.bytesForOwnedUrl(url))
+        assertEquals(1, http.coverRequests)
+        assertEquals("https://images.test/front.jpg", http.binaryUrl)
+        assertEquals(emptyMap(), http.binaryHeaders)
+        http.cover = """{"images":[]}"""
+        assertNull(provider.bytesForOwnedUrl(url))
+        http.cover = """{"images":[{"image":"javascript:bad","front":true}]}"""
+        assertNull(provider.bytesForOwnedUrl(url))
+        http.cover = """{"images":[{"image":"/api/image-proxy/local.jpg","front":true}]}"""
+        assertContentEquals(byteArrayOf(1, 2, 3), provider.bytesForOwnedUrl(url))
+        assertEquals("Bearer session", http.binaryHeaders["Authorization"])
+        assertEquals("value", http.binaryHeaders["X-Proxy"])
+        assertNull(provider.bytesForOwnedUrl("https://other.test/api/artists/$ArtistMbid/cover?artistName=Artist"))
+    }
+
+    @Test fun alternateFeedImageFieldIsAcceptedWithoutCoverLookup() = runTest {
+        val http = FakeAurralHttp().also {
+            it.discovery = """{"recommendations":[{"id":"$ArtistMbid","name":"Artist","imageUrl":"https://images.test/direct.jpg"}],"globalTop":[]}"""
+        }
+        assertEquals("https://images.test/direct.jpg", AurralDiscoveryClient(connection(), http, nowMillis = { 0L })
+            .load().recommendations.single().imageUrl)
+        assertEquals(0, http.coverRequests)
+    }
+
     private fun connection() = NavidromeConnection.fromPassword(
         providerId = ProviderIdAurral, baseUrl = "https://music.test/aurral/", username = "listener", password = "secret",
         customHeaders = listOf(ConnectionHeaderDefinition("X-Proxy", "value")),
@@ -104,7 +138,17 @@ private const val ArtistMbid = "6925db17-f35e-42f3-a4eb-84ee6bf5d4b0"
 private class FakeAurralHttp : NavidromeHttpClient {
     var bootstrap = """{"api":{"version":1,"features":["discover","future"]}}"""
     var logins = 0
+    var expiry: Long? = null
     var discovery = """{"recommendations":[{"id":"$ArtistMbid","name":"Discovery artist","image":"/api/image-proxy/portrait","tags":["rock"],"matchPercent":99}],"globalTop":[],"unknown":true}"""
+    var coverRequests = 0
+    var cover = """{"images":[{"image":"https://images.test/back.jpg"},{"image":"https://images.test/front.jpg","front":true}]}"""
+    var binaryUrl: String? = null
+    var binaryHeaders = emptyMap<String, String>()
+    override suspend fun getBytes(url: String, headers: Map<String, String>): ByteArray {
+        binaryUrl = url
+        binaryHeaders = headers
+        return byteArrayOf(1, 2, 3)
+    }
     var failure: Throwable? = null
     val authenticatedGets = mutableListOf<Map<String, String>>()
     override suspend fun get(url: String) = get(url, emptyMap())
@@ -113,6 +157,7 @@ private class FakeAurralHttp : NavidromeHttpClient {
         if (url.endsWith("/health/bootstrap")) return bootstrap
         authenticatedGets += headers
         failure?.let { throw it }
+        if (url.contains("/cover?artistName=")) { coverRequests++; return cover }
         return if (url.endsWith("/discover/status")) """{"isUpdating":true,"error":null,"lastUpdated":"yesterday"}"""
         else discovery
     }
@@ -123,6 +168,6 @@ private class FakeAurralHttp : NavidromeHttpClient {
         assertEquals("value", headers["X-Proxy"])
         assertFalse(headers.containsKey("X-Api-Key"))
         logins++
-        return """{"token":"session","expiresAt":${logins * 100_000},"user":{"permissions":{"accessFlow":false}}}"""
+        return """{"token":"session","expiresAt":${expiry ?: logins * 100_000},"user":{"permissions":{"accessFlow":false}}}"""
     }
 }
