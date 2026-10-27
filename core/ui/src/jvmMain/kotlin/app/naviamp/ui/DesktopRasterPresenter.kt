@@ -72,8 +72,11 @@ fun NaviampDesktopRasterHost(window: Window, windowState: WindowState, content: 
     }
     // AWT does not always emit a deiconify event for programmatic Frame state changes.
     // Compose Desktop's native WindowState reports those transitions as well as WM input.
-    NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
-        System.getProperty("compose.layers.type") == "WINDOW", content)
+    val dialogSurface = remember(window) { DesktopOwnedDialogSurface(window) }
+    androidx.compose.runtime.CompositionLocalProvider(LocalNaviampOwnedDialogSurface provides dialogSurface) {
+        NaviampRasterEnvironment(presenter, visible && !windowState.isMinimized, overlay,
+            System.getProperty("compose.layers.type") == "WINDOW", content)
+    }
 }
 
 /** Native Skiko/AWT boundary: the primary layer already captured its hardware renderer.

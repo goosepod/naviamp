@@ -405,6 +405,7 @@ class NaviampCore private constructor(
                 navigation::openNowPlaying,
                 downloads::playlistTracksChanged,
                 playbackProfiles,
+                syncLibrary = catalog::syncSmartPlaylistPreview,
             )
             val playback = NaviampCorePlaybackController(
                 scope,

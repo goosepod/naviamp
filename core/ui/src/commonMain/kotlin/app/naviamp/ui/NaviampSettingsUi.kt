@@ -25,6 +25,8 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -70,7 +72,10 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -81,6 +86,7 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -760,6 +766,11 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
+            ExperienceSettingsPage.ArtistDetails -> ArtistExperienceSettings(
+                colors = colors,
+                interfaceSettings = interfaceSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            )
             ExperienceSettingsPage.HomeScreen -> HomeScreenExperienceSettings(
                 colors = colors,
                 scrollState = scrollState,
@@ -857,6 +868,13 @@ fun NaviampExperienceSettingsSection(
         ) {
             selectedSection = ExperienceSettingsPage.HomeScreen
         }
+        SettingsRow(
+            title = ExperienceSettingsPage.ArtistDetails.title(),
+            subtitle = ExperienceSettingsPage.ArtistDetails.subtitle(),
+            colors = colors,
+        ) {
+            selectedSection = ExperienceSettingsPage.ArtistDetails
+        }
         if (desktopShortcutPlatform != null) {
             SettingsRow(
                 title = ExperienceSettingsPage.KeyboardShortcuts.title(),
@@ -867,15 +885,6 @@ fun NaviampExperienceSettingsSection(
                 selectedSection = ExperienceSettingsPage.KeyboardShortcuts
             }
         }
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = interfaceSettings.showArtistInformation,
-            label = stringResource(Res.string.settings_show_artist_information),
-            subtitle = stringResource(Res.string.settings_show_artist_information_subtitle),
-            onCheckedChange = { enabled ->
-                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistInformation = enabled).normalized())
-            },
-        )
         SettingsCheckboxRow(
             colors = colors,
             checked = interfaceSettings.showAlbumInformation,
@@ -936,6 +945,91 @@ fun NaviampExperienceSettingsSection(
     }
 }
 
+@Composable
+private fun ArtistExperienceSettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = interfaceSettings.showArtistInformation,
+        label = stringResource(Res.string.settings_show_artist_information),
+        subtitle = stringResource(Res.string.settings_show_artist_information_subtitle),
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(interfaceSettings.copy(showArtistInformation = enabled).normalized())
+        },
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = interfaceSettings.showArtistTopTracks,
+        label = stringResource(Res.string.settings_show_artist_top_tracks),
+        subtitle = stringResource(Res.string.settings_show_artist_top_tracks_subtitle),
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(interfaceSettings.copy(showArtistTopTracks = enabled).normalized())
+        },
+    )
+    Column(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding).testTag("artist_top_tracks_limit")) {
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = stringResource(Res.string.settings_artist_top_tracks_limit),
+            value = interfaceSettings.normalized().artistTopTracksLimit,
+            detents = app.naviamp.domain.settings.ArtistTopTracksLimits,
+            enabled = interfaceSettings.showArtistTopTracks,
+            valueLabel = { stringResource(Res.string.settings_artist_top_tracks_count, it) },
+            onValueChanged = { limit ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(artistTopTracksLimit = limit).normalized())
+            },
+        )
+        Text(stringResource(Res.string.settings_artist_top_tracks_limit_subtitle), color = colors.secondaryText, fontSize = 12.sp)
+    }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = interfaceSettings.showArtistPlaylists,
+        label = stringResource(Res.string.settings_show_artist_playlists),
+        subtitle = stringResource(Res.string.settings_show_artist_playlists_subtitle),
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(interfaceSettings.copy(showArtistPlaylists = enabled).normalized())
+        },
+    )
+    ArtistSectionLayoutChoices(
+        colors = colors,
+        title = stringResource(Res.string.settings_artist_playlist_layout),
+        layout = interfaceSettings.artistPlaylistLayout,
+        enabled = interfaceSettings.showArtistPlaylists,
+        modifier = Modifier.testTag("artist_playlist_layout"),
+        onChanged = { onInterfaceSettingsChanged(interfaceSettings.copy(artistPlaylistLayout = it).normalized()) },
+    )
+    ArtistSectionLayoutChoices(
+        colors = colors,
+        title = stringResource(Res.string.settings_artist_appearance_album_layout),
+        layout = interfaceSettings.artistAppearanceAlbumLayout,
+        modifier = Modifier.testTag("artist_appearance_album_layout"),
+        onChanged = { onInterfaceSettingsChanged(interfaceSettings.copy(artistAppearanceAlbumLayout = it).normalized()) },
+    )
+}
+
+@Composable
+private fun ArtistSectionLayoutChoices(
+    colors: NaviampColors,
+    title: String,
+    layout: AlbumCollectionLayout,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    onChanged: (AlbumCollectionLayout) -> Unit,
+) {
+    Column(modifier.fillMaxWidth()) {
+        Text(title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = SettingsRowHorizontalPadding, vertical = 8.dp))
+        AlbumCollectionLayout.entries.forEach { option ->
+            SelectableSettingsRow(colors = colors,
+                title = stringResource(if (option == AlbumCollectionLayout.List) Res.string.settings_media_layout_list else Res.string.settings_media_layout_grid),
+                selected = option == layout, enabled = enabled,
+                onClick = { onChanged(option) })
+        }
+    }
+}
+
 private enum class ExperienceSettingsPage {
     Player,
     Radio,
@@ -943,6 +1037,7 @@ private enum class ExperienceSettingsPage {
     TextSize,
     AppBackground,
     Albums,
+    ArtistDetails,
     HomeScreen,
     KeyboardShortcuts,
     SwipeActions,
@@ -958,6 +1053,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_title)
         ExperienceSettingsPage.AppBackground -> "App Background"
         ExperienceSettingsPage.Albums -> "Albums"
+        ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_title)
         ExperienceSettingsPage.HomeScreen -> "Home Screen"
         ExperienceSettingsPage.KeyboardShortcuts -> "Keyboard Shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Swipe Actions"
@@ -973,6 +1069,7 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.TextSize -> stringResource(Res.string.settings_font_size_subtitle)
         ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
         ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
+        ExperienceSettingsPage.ArtistDetails -> stringResource(Res.string.settings_experience_artist_details_subtitle)
         ExperienceSettingsPage.HomeScreen -> "Choose List, Grid, or Carousel for each Home section"
         ExperienceSettingsPage.KeyboardShortcuts -> "Customize global Desktop shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Choose gesture shortcuts; actions stay available in each track's More actions menu"
@@ -2796,20 +2893,37 @@ private val DefaultNaviampLibraries = listOf(
 // Release notes stay in English and out of localized string resources.
 private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
+        title = "Features",
+        entries = listOf(
+            "Install Naviamp for Windows through its official Microsoft Store listing, alongside existing direct downloads.",
+            "Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.",
+            "Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
         title = "Improvements",
         entries = listOf(
-            "Build smart playlists with named playlist references, rule summaries, owner-aware explanations, and simpler Options and Advanced sections.",
+            "Move smart-playlist filters, groups and sort priorities up or down while preserving values, logical groups and keyboard focus.",
+            "Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.",
             "Preview example matches from your synced library, sync directly from the builder, and select calendar dates with clear format guidance.",
             "Choose Radio and Sonic similarity explicitly, configure their initial batch sizes independently, and keep regular Radio supplied with new tracks.",
             "Find playlist actions first in track menus, with controls that respect smart-playlist membership.",
             "Recognize connected services by their official icons and see clearer connection labels and updated German wording.",
+            "Show or hide Top Tracks on artist pages and choose a maximum of 5–50 tracks in steps of five. The default remains 10 tracks. Choose separate List/Grid layouts for playlists and Appears on albums; appearance tracks stay in a list.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
+            "Keep Sonic and other server capabilities available immediately after refreshing a Navidrome native login.",
+            "Ignore late callbacks from a completed playback request so they cannot cancel pending Autoplay or process completion twice.",
+            "Keep playback paused when seeking, even if a late native state callback arrives.",
+            "Keep the main Windows window visible when opening menus and remove black tooltip padding while preserving hardware rendering for the main surface.",
+            "Preserve secure credentials on first launch of the Windows Store package, including existing saved connections.",
+            "Navigate out of TV Radio sliders with Up/Down, adjust values with Left/Right, and read the complete shared release changelog in TV About.",
             "Prevent Android playback recovery from crashing when foreground-service startup races with a stopped track or is rejected in the background.",
             "Keep incomplete smart-playlist rules from disappearing on save, preserve sort, limit and decimal semantics, and protect unsupported definitions from destructive editing.",
+            "Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list.",
             "Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see.",
         ),
     ),
@@ -2817,14 +2931,17 @@ private val DefaultNaviampChangelog = listOf(
         title = "Upgrade notes",
         entries = listOf(
             "No special upgrade steps are required. Radio method selection is explicit; choose another method if Sonic fails.",
+            "Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Known issues",
         entries = listOf(
+            "The reported Android TV queue-end Autoplay stop remains under investigation; its original cause is not confirmed resolved by the completed-request callback fix.",
+            "Authenticated streams from servers without finite byte-range support or provider time offsets retain buffered-seeking limitations.",
             "Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.",
             "Further Linux popup performance and accessibility checks remain open, including the full-app CPU budget.",
-            "Android TV and Naviamp Connect remain beta. Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
+            "Android TV and Naviamp Connect remain beta. Direct GitHub Windows and macOS downloads are not publisher-signed; the iOS IPA requires signing for sideloading.",
         ),
     ),
 )
@@ -3004,7 +3121,9 @@ private fun DetentIntSettingsSlider(
     enabled: Boolean = true,
     valueLabel: @Composable (Int) -> String,
     onValueChanged: (Int) -> Unit,
+    verticalFocusNavigation: Boolean = false,
 ) {
+    val focusManager = LocalFocusManager.current
     val normalizedDetents = detents.distinct().sorted()
     val selectedIndex = normalizedDetents.indexOf(value).takeIf { it >= 0 } ?: 0
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -3017,6 +3136,16 @@ private fun DetentIntSettingsSlider(
             Text(valueLabel(normalizedDetents.getOrElse(selectedIndex) { value }), color = colors.primaryText, fontSize = 12.sp)
         }
         Slider(
+            modifier = Modifier.semantics { contentDescription = title }.onPreviewKeyEvent { event ->
+                if (!verticalFocusNavigation) return@onPreviewKeyEvent false
+                val direction = when (event.key) {
+                    Key.DirectionUp -> FocusDirection.Up
+                    Key.DirectionDown -> FocusDirection.Down
+                    else -> return@onPreviewKeyEvent false
+                }
+                if (event.type == KeyEventType.KeyDown) focusManager.moveFocus(direction)
+                true
+            },
             enabled = enabled && normalizedDetents.size > 1,
             value = selectedIndex.toFloat(),
             onValueChange = { raw ->
@@ -5048,12 +5177,14 @@ internal fun RadioSettingsSection(
     radioDiagnostics: app.naviamp.domain.radio.RadioBuildDiagnostics?,
     onTestSimilarity: (() -> Unit)?,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    verticalFocusNavigation: Boolean = false,
 ) {
     RadioSimilarityChoices(colors, playbackSettings, supportsSonicSimilarity, onPlaybackSettingsChanged)
     Column(Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)) {
         DetentIntSettingsSlider(
             colors = colors,
             title = stringResource(Res.string.settings_related_radio_minimum),
+            verticalFocusNavigation = verticalFocusNavigation,
             value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.radioMinimumTracks),
             detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
             valueLabel = { stringResource(Res.string.settings_tracks_count, it) },
@@ -5077,6 +5208,7 @@ internal fun RadioSettingsSection(
             DetentIntSettingsSlider(
                 colors = colors,
                 title = stringResource(Res.string.settings_related_autoplay_minimum),
+                verticalFocusNavigation = verticalFocusNavigation,
                 value = app.naviamp.domain.radio.normalizedRadioMinimumTracks(playbackSettings.sonicAutoplayMinimumTracks),
                 detents = app.naviamp.domain.radio.RadioMinimumTrackOptions,
                 enabled = playbackSettings.sonicAutoplayEnabled,

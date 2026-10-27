@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertTextEquals
@@ -157,7 +158,7 @@ class NaviampPlaylistDetailSmartEditUiTest {
         }
         onNodeWithTag("smart-playlist-advanced-toggle").performScrollTo().performClick()
         onNodeWithText("Import JSON").performScrollTo().performClick()
-        onNodeWithText("Paste .nsp or Navidrome smart playlist JSON").performScrollTo().performTextInput(original)
+        onNodeWithContentDescription("Paste .nsp or Navidrome smart playlist JSON").performScrollTo().performTextInput(original)
         onNodeWithText("Validate and load").performScrollTo().performClick()
         onNodeWithTag("smart-playlist-original-definition").assertTextEquals(original)
         assertEquals(null, saved)

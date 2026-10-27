@@ -64,6 +64,71 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun explicitPauseSurvivesLatePlayingCallbacksAndRestartedSeekUntilResume() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() })
+        val states = mutableListOf<PlaybackState>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+        })
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        adapter.pause()
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Paused, states.last(), "A stale native poll must not undo explicit pause")
+        adapter.seek(30.0)
+        advanceUntilIdle()
+        assertEquals(30.0, engine.request?.startPositionSeconds)
+        assertEquals(PlaybackState.Paused, states.last())
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Paused, states.last(), "Pause survives duplicate startup/poll callbacks")
+        adapter.resume()
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Playing, states.last())
+        adapter.pause()
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        assertEquals(PlaybackState.Playing, states.last(), "A new explicit play clears the previous pause intent")
+    }
+
+    @Test
+    fun finishedExecutionRejectsLateNativeStateAndProgressUntilANewPlayOrExplicitStop() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() })
+        val states = mutableListOf<PlaybackState>()
+        val progress = mutableListOf<PlaybackProgress>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onProgressChanged(value: PlaybackProgress) { progress += value }
+        })
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        engine.emitProgress(PlaybackProgress(180.0, 180.0))
+        engine.emitState(PlaybackState.Finished)
+        val completedStates = states.toList()
+        val completedProgress = progress.toList()
+        // Native end-sync and polling can deliver overlapping callbacks for one execution.
+        engine.emitState(PlaybackState.Playing)
+        engine.emitState(PlaybackState.Loading)
+        engine.emitState(PlaybackState.Finished)
+        engine.emitProgress(PlaybackProgress.Unknown)
+        assertEquals(completedStates, states)
+        assertEquals(completedProgress, progress)
+        adapter.startOrRestore()
+        advanceUntilIdle()
+        engine.emitState(PlaybackState.Playing)
+        assertEquals(PlaybackState.Playing, states.last())
+        adapter.stop()
+        assertEquals(PlaybackState.Stopped, states.last())
+    }
+    @Test
     fun certificateBackedPlaybackAndSeekUseTheSharedRelayWithoutCachingAudio() = runTest {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             val fixture = FakeCoreMediaProvider()

@@ -2062,3 +2062,9 @@ DELETE FROM album_catalog_snapshot;
 
 clearAlbumCatalogSnapshotsForSource:
 DELETE FROM album_catalog_snapshot WHERE source_id = ?;
+
+selectLibraryTrackIdsForSync:
+SELECT remote_track_id FROM library_track WHERE source_id = ?;
+
+deleteLibraryTrackForSync:
+DELETE FROM library_track WHERE source_id = ? AND remote_track_id = ?;

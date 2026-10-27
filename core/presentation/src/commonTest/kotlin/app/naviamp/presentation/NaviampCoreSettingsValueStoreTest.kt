@@ -17,6 +17,43 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class NaviampCoreSettingsValueStoreTest {
+    @Test fun artistSectionLayoutsPersistIndependentlyAndOlderSettingsUseLists() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        for (playlists in app.naviamp.domain.settings.AlbumCollectionLayout.entries) {
+            for (appearances in app.naviamp.domain.settings.AlbumCollectionLayout.entries) {
+                val settings = InterfaceSettings(artistPlaylistLayout = playlists, artistAppearanceAlbumLayout = appearances)
+                catalog.storedSettings.saveInterface(settings)
+                assertEquals(settings, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface())
+            }
+        }
+        values.entries[KeyInterface] = "{}"
+        val older = catalog.storedSettings.loadInterface()
+        assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistPlaylistLayout)
+        assertEquals(app.naviamp.domain.settings.AlbumCollectionLayout.List, older.artistAppearanceAlbumLayout)
+    }
+    @Test fun artistPlaylistVisibilityPersistsAndOlderSettingsDefaultOn() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(true, catalog.storedSettings.loadInterface().showArtistPlaylists)
+        catalog.storedSettings.saveInterface(InterfaceSettings(showArtistPlaylists = false))
+        assertEquals(false, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().showArtistPlaylists)
+    }
+
+    @Test fun artistTopTracksPersistAndOlderValuesUseDefaults() {
+        val values = MemorySettingsValues()
+        val catalog = naviampCoreSettingsValueCatalog(values)
+        assertEquals(10, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+        catalog.storedSettings.saveInterface(InterfaceSettings(showArtistTopTracks = false, artistTopTracksLimit = 50))
+        val restored = naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface()
+        assertFalse(restored.showArtistTopTracks)
+        assertEquals(50, restored.artistTopTracksLimit)
+        values.entries[KeyInterface] = """{"artistTopTracksLimit":18}"""
+        assertEquals(20, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+        values.entries[KeyInterface] = "{}"
+        assertEquals(true, catalog.storedSettings.loadInterface().showArtistTopTracks)
+        assertEquals(10, catalog.storedSettings.loadInterface().artistTopTracksLimit)
+    }
     @Test
     fun independentRadioAndAutoplaySizesPersistWithDefaultsAndNormalization() {
         val values = MemorySettingsValues()
