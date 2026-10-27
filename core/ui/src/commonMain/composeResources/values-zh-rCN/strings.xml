@@ -330,4 +330,5 @@
     <string name="smart_playlist_move_up">上移</string>
     <string name="smart_playlist_move_down">下移</string>
     <string name="smart_playlist_row_position">第 %1$d 项，共 %2$d 项</string>
+    <string name="permission_local_network_usage">Naviamp 会连接到你的音乐服务器，并发现本地网络上的播放设备。</string>
 </resources>

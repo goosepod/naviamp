@@ -330,4 +330,5 @@
     <string name="smart_playlist_move_up">ऊपर ले जाएँ</string>
     <string name="smart_playlist_move_down">नीचे ले जाएँ</string>
     <string name="smart_playlist_row_position">स्थिति %1$d / %2$d</string>
+    <string name="permission_local_network_usage">Naviamp आपके संगीत सर्वर से कनेक्ट होता है और आपके स्थानीय नेटवर्क पर प्लेबैक डिवाइस खोजता है।</string>
 </resources>

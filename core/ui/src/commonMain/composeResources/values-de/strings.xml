@@ -1156,4 +1156,5 @@
     <string name="smart_playlist_move_up">Nach oben</string>
     <string name="smart_playlist_move_down">Nach unten</string>
     <string name="smart_playlist_row_position">Position %1$d von %2$d</string>
+    <string name="permission_local_network_usage">Naviamp verbindet sich mit deinen Musikservern und sucht Wiedergabegeräte in deinem lokalen Netzwerk.</string>
 </resources>

@@ -330,4 +330,5 @@
     <string name="smart_playlist_move_up">Pindahkan ke atas</string>
     <string name="smart_playlist_move_down">Pindahkan ke bawah</string>
     <string name="smart_playlist_row_position">Posisi %1$d dari %2$d</string>
+    <string name="permission_local_network_usage">Naviamp terhubung ke server musik Anda dan menemukan perangkat pemutaran di jaringan lokal Anda.</string>
 </resources>
