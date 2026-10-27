@@ -26,6 +26,12 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.SharedHomeCollectionPageUi
 import app.naviamp.ui.withRecentRadioStreams
+import app.naviamp.domain.provider.ProviderDiscoveryFeed
+import app.naviamp.domain.provider.ProviderDiscoveryStatus
+import app.naviamp.ui.SharedProviderDiscoveryUi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 fun interface NaviampCoreHomeDateSource {
     fun current(): HomeDate
@@ -129,6 +135,7 @@ class NaviampCoreHomeController(
     private val artistLimit: Int = 50,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
     private val observedAtIso8601: () -> String = { "" },
+    private val externalUri: NaviampCoreExternalUriPort = NaviampCoreExternalUriPort {},
 ) : NaviampCoreCommandController {
     private var refreshGeneration = 0L
 
@@ -137,6 +144,12 @@ class NaviampCoreHomeController(
             ?: return NaviampCoreImmediateCommandResult.Unhandled
         return when (home) {
             NaviampCoreCommand.Home.Refresh -> NaviampCoreImmediateCommandResult.Deferred
+            is NaviampCoreCommand.Home.OpenDiscoveryArtist -> {
+                val feed = stateStore.state.value.shell.home.providerDiscovery?.feed
+                (feed?.recommendations.orEmpty() + feed?.trending.orEmpty())
+                    .firstOrNull { it.id == home.id }?.externalUrl?.let(externalUri::open)
+                NaviampCoreImmediateCommandResult.Handled()
+            }
             is NaviampCoreCommand.Home.SelectMixBuilder -> {
                 selectMixBuilder(home.item.id)
                 NaviampCoreImmediateCommandResult.Handled()
@@ -164,15 +177,17 @@ class NaviampCoreHomeController(
         return NaviampCoreCommandResult.Completed
     }
 
-    private suspend fun refresh(forceRefreshRecentlyAdded: Boolean = false) {
+    private suspend fun refresh(forceRefreshRecentlyAdded: Boolean = false) = coroutineScope {
         val generation = ++refreshGeneration
         val provider = providerSource.current()
         if (provider == null) {
+            stateStore.updateShell { it.copy(home = it.home.copy(providerDiscovery = null)) }
             publish(refreshing = false, status = "Connect to Navidrome to load Home.")
-            return
+            return@coroutineScope
         }
         val supplement = supplementSource.current()
         publish(refreshing = true, status = "Loading home...")
+        launch { refreshProviderDiscovery(provider, generation) }
         runCatching {
             val content = loadHomeContent(
                 HomeContentLoadRequest(
@@ -197,7 +212,7 @@ class NaviampCoreHomeController(
             }
             content to sonicRows
         }.onSuccess { (content, sonicRows) ->
-            if (generation != refreshGeneration) return@onSuccess
+            if (generation != refreshGeneration || !providerSource.isCurrent(provider)) return@onSuccess
             mediaRegistry.updateHome(content, sonicRows)
             val sonicEnabled = stateStore.state.value.shell.playback.settings.effectiveSonicSimilarityEnabled() &&
                 provider.capabilities.supportsSonicSimilarity
@@ -229,10 +244,33 @@ class NaviampCoreHomeController(
                 )
             }
         }.onFailure { cause ->
-            if (generation == refreshGeneration) {
+            if (cause is CancellationException) throw cause
+            if (generation == refreshGeneration && providerSource.isCurrent(provider)) {
                 publish(refreshing = false, status = homeLoadFailureStatus(cause))
             }
         }
+    }
+
+    private suspend fun refreshProviderDiscovery(provider: MediaProvider, generation: Long) {
+        if (generation != refreshGeneration || !providerSource.isCurrent(provider)) return
+        val discovery = provider.discovery
+        if (discovery == null) {
+            stateStore.updateShell { it.copy(home = it.home.copy(providerDiscovery = null)) }
+            return
+        }
+        stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(
+            providerDiscovery = SharedProviderDiscoveryUi(provider.id.value, loading = true),
+        )) }
+        val feed = try {
+            discovery.load()
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            ProviderDiscoveryFeed(ProviderDiscoveryStatus.Unavailable)
+        }
+        if (generation != refreshGeneration || !providerSource.isCurrent(provider)) return
+        stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(
+            providerDiscovery = SharedProviderDiscoveryUi(provider.id.value, feed),
+        )) }
     }
 
 
@@ -316,6 +354,7 @@ class NaviampCoreHomeController(
                     content = app.naviamp.ui.SharedHomeUi(),
                     refreshing = false,
                     collectionPage = null,
+                    providerDiscovery = null,
                 ),
             )
         }

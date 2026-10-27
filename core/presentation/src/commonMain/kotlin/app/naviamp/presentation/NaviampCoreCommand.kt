@@ -182,6 +182,7 @@ sealed interface NaviampCoreCommand {
 
     sealed interface Home : NaviampCoreCommand {
         data object Refresh : Home
+        data class OpenDiscoveryArtist(val id: String) : Home
         data class SelectRecentRadio(val item: SharedMediaItemUi) : Home
         data class SelectInternetRadio(val item: SharedMediaItemUi) : Home
         data class SelectMixBuilder(val item: SharedMixBuilderUi) : Home

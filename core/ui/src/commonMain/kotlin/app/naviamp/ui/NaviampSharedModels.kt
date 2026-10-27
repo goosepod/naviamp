@@ -961,6 +961,13 @@ data class NaviampHomeScreenUi(
     val content: SharedHomeUi = SharedHomeUi(),
     val refreshing: Boolean = false,
     val collectionPage: SharedHomeCollectionPageUi? = null,
+    val providerDiscovery: SharedProviderDiscoveryUi? = null,
+)
+
+data class SharedProviderDiscoveryUi(
+    val providerId: String,
+    val feed: app.naviamp.domain.provider.ProviderDiscoveryFeed = app.naviamp.domain.provider.ProviderDiscoveryFeed(),
+    val loading: Boolean = false,
 )
 
 data class NaviampHomeActions(
@@ -975,6 +982,7 @@ data class NaviampHomeActions(
     val onCollectionBack: () -> Unit,
     val onCollectionPageLayoutChanged: (String, HomeSectionPageLayout) -> Unit,
     val onFavoriteArtistSortChanged: (app.naviamp.domain.settings.FavoriteArtistSort) -> Unit = {},
+    val onDiscoveryArtistSelected: (String) -> Unit = {},
 )
 
 data class NaviampMediaActions(

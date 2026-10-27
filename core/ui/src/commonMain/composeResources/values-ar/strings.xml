@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">نقل لأعلى</string>
     <string name="smart_playlist_move_down">نقل لأسفل</string>
     <string name="smart_playlist_row_position">الموضع %1$d من %2$d</string>
+    <string name="connection_aurral_guidance">اتصل بـ Aurral باستخدام كلمة مرور حسابك المحلي.</string>
+    <string name="discovery_provider_title">اكتشاف %1$s</string>
+    <string name="discovery_loading">جارٍ تحميل الاكتشاف…</string>
+    <string name="discovery_building">جارٍ إعداد توصياتك الشخصية.</string>
+    <string name="discovery_unsupported">الاكتشاف الأصلي غير متاح في هذا الإصدار من الخادم.</string>
+    <string name="discovery_password_required">أعد الاتصال بكلمة مرور حسابك لتحميل الاكتشاف.</string>
+    <string name="discovery_sign_in_required">انتهت صلاحية جلستك. حدّث الصفحة أو أعد الاتصال.</string>
+    <string name="discovery_forbidden">لا يمكن لحسابك الوصول إلى الاكتشاف.</string>
+    <string name="discovery_unavailable">تعذر تحميل الاكتشاف. حدّث الصفحة للمحاولة مجددًا.</string>
+    <string name="discovery_empty">ستظهر توصياتك الشخصية هنا.</string>
+    <string name="discovery_recommendations">التوصيات</string>
+    <string name="discovery_trending">الفنانون الرائجون</string>
+    <string name="discovery_open_provider">فتح في %1$s</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

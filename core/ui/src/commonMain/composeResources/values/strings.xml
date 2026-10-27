@@ -1185,4 +1185,18 @@
     <string name="smart_playlist_move_up">Move up</string>
     <string name="smart_playlist_move_down">Move down</string>
     <string name="smart_playlist_row_position">Position %1$d of %2$d</string>
+    <string name="connection_aurral_guidance">Connect to Aurral with your local account password.</string>
+    <string name="discovery_provider_title">%1$s discovery</string>
+    <string name="discovery_loading">Loading discovery…</string>
+    <string name="discovery_building">Your personal recommendations are being built.</string>
+    <string name="discovery_unsupported">Native discovery is unavailable on this server version.</string>
+    <string name="discovery_password_required">Reconnect with your account password to load discovery.</string>
+    <string name="discovery_sign_in_required">Your discovery session expired. Refresh or reconnect.</string>
+    <string name="discovery_forbidden">Your account cannot access discovery.</string>
+    <string name="discovery_unavailable">Could not load discovery. Refresh to try again.</string>
+    <string name="discovery_empty">Your personal recommendations will appear here.</string>
+    <string name="discovery_recommendations">Recommendations</string>
+    <string name="discovery_trending">Trending artists</string>
+    <string name="discovery_open_provider">Open in %1$s</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

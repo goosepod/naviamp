@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">Mover para cima</string>
     <string name="smart_playlist_move_down">Mover para baixo</string>
     <string name="smart_playlist_row_position">Posição %1$d de %2$d</string>
+    <string name="connection_aurral_guidance">Conecte-se ao Aurral com a senha da sua conta local.</string>
+    <string name="discovery_provider_title">Descobertas do %1$s</string>
+    <string name="discovery_loading">Carregando descobertas…</string>
+    <string name="discovery_building">Suas recomendações pessoais estão sendo criadas.</string>
+    <string name="discovery_unsupported">As descobertas nativas não estão disponíveis nesta versão do servidor.</string>
+    <string name="discovery_password_required">Reconecte-se com a senha da sua conta para carregar as descobertas.</string>
+    <string name="discovery_sign_in_required">Sua sessão expirou. Atualize ou reconecte-se.</string>
+    <string name="discovery_forbidden">Sua conta não pode acessar as descobertas.</string>
+    <string name="discovery_unavailable">Não foi possível carregar as descobertas. Atualize para tentar novamente.</string>
+    <string name="discovery_empty">Suas recomendações pessoais aparecerão aqui.</string>
+    <string name="discovery_recommendations">Recomendações</string>
+    <string name="discovery_trending">Artistas em alta</string>
+    <string name="discovery_open_provider">Abrir no %1$s</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

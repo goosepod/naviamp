@@ -120,6 +120,7 @@ internal fun TelevisionHome(
 ) {
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
+    val discoveryScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val contextInsetPx = with(density) { TelevisionHomeFocusedSectionTopInset.roundToPx() }
     val sectionItemKeys = sections.map { section ->
@@ -202,6 +203,17 @@ internal fun TelevisionHome(
                     onSelected = { item -> dispatchHomeCollectionItem(item, actions, mediaActions) },
                     onViewAll = { actions.onCollectionSelected(section.id) },
                 )
+            }
+            home.providerDiscovery?.let { discovery ->
+                item(key = "television-provider-discovery") {
+                    Box(Modifier.onFocusChanged { focus ->
+                        if (focus.hasFocus) discoveryScope.launch {
+                            listState.scrollToItem(sections.size.coerceAtLeast(1))
+                        }
+                    }) {
+                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected)
+                    }
+                }
             }
         }
     }

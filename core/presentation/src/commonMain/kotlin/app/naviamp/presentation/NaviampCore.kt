@@ -279,6 +279,7 @@ class NaviampCore private constructor(
                 services.content.sonicHomeDiscovery,
                 mediaRegistry = mediaRegistry,
                 observedAtIso8601 = services.favoritedAtIso8601,
+                externalUri = services.content.externalUri,
             )
             val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
                 livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }

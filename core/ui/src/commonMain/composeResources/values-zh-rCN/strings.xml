@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">上移</string>
     <string name="smart_playlist_move_down">下移</string>
     <string name="smart_playlist_row_position">第 %1$d 项，共 %2$d 项</string>
+    <string name="connection_aurral_guidance">使用本地账户密码连接 Aurral。</string>
+    <string name="discovery_provider_title">%1$s 音乐发现</string>
+    <string name="discovery_loading">正在加载音乐发现…</string>
+    <string name="discovery_building">正在生成你的个性化推荐。</string>
+    <string name="discovery_unsupported">此服务器版本不支持原生音乐发现。</string>
+    <string name="discovery_password_required">请使用账户密码重新连接以加载音乐发现。</string>
+    <string name="discovery_sign_in_required">会话已过期。请刷新或重新连接。</string>
+    <string name="discovery_forbidden">你的账户无权访问音乐发现。</string>
+    <string name="discovery_unavailable">无法加载音乐发现。请刷新重试。</string>
+    <string name="discovery_empty">你的个性化推荐将显示在这里。</string>
+    <string name="discovery_recommendations">推荐</string>
+    <string name="discovery_trending">热门艺人</string>
+    <string name="discovery_open_provider">在 %1$s 中打开</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

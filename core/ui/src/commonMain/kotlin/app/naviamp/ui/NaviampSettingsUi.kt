@@ -2772,7 +2772,7 @@ private fun NaviampSavedConnectionRow(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             NaviampServiceIcon(connection.providerId, colors.secondaryText)
             Text(
-                "${providerDescriptor(connection.providerId).displayName} · ${connection.username}",
+                "${localizedProviderName(connection.providerId)} · ${connection.username}",
                 color = colors.secondaryText,
                 fontSize = 12.sp,
                 maxLines = 1,

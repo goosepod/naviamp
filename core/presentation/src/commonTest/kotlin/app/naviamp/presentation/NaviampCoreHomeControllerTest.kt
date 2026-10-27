@@ -31,12 +31,57 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.ui.SharedHomeCollectionSectionIds
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun aurralDiscoveryFailureDoesNotHideHomeAndSourceChangesRejectStaleResults() = runTest {
+        val waiting = kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.provider.ProviderDiscoveryFeed>()
+        var active: MediaProvider = HomeTestProvider(discovery = app.naviamp.domain.provider.ProviderDiscovery { waiting.await() })
+        val store = NaviampCoreStateStore()
+        val opened = mutableListOf<String>()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { active },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator { error("unused") }),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) }, externalUri = NaviampCoreExternalUriPort { opened += it })
+        val refresh = backgroundScope.launch { controller.execute(NaviampCoreCommand.Home.Refresh) }
+        runCurrent()
+        assertTrue(store.state.value.shell.home.content.collectionSections.isNotEmpty())
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.loading)
+        active = HomeTestProvider()
+        controller.resetForSourceChange()
+        waiting.complete(app.naviamp.domain.provider.ProviderDiscoveryFeed(trending = listOf(
+            app.naviamp.domain.provider.ProviderDiscoveryArtist("discovery-id", "External", externalUrl = "https://music.test/artist/id"))))
+        refresh.join()
+        assertEquals(null, store.state.value.shell.home.providerDiscovery)
+        controller.dispatch(NaviampCoreCommand.Home.OpenDiscoveryArtist("discovery-id"))
+        assertTrue(opened.isEmpty())
+
+        active = HomeTestProvider(discovery = app.naviamp.domain.provider.ProviderDiscovery { error("offline") })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        assertEquals(app.naviamp.domain.provider.ProviderDiscoveryStatus.Unavailable,
+            store.state.value.shell.home.providerDiscovery?.feed?.status)
+        assertTrue(store.state.value.shell.home.content.collectionSections.isNotEmpty())
+    }
+
+    @Test fun discoveryOpensOnlyTheCurrentFeedsExternalIdentityWithoutLibraryNavigation() = runTest {
+        val feed = app.naviamp.domain.provider.ProviderDiscoveryFeed(trending = listOf(
+            app.naviamp.domain.provider.ProviderDiscoveryArtist("mbid", "External", externalUrl = "https://music.test/artist/mbid")))
+        val provider = HomeTestProvider(discovery = app.naviamp.domain.provider.ProviderDiscovery { feed })
+        val store = NaviampCoreStateStore()
+        val opened = mutableListOf<String>()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator { error("unused") }),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) }, externalUri = NaviampCoreExternalUriPort { opened += it })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        controller.dispatch(NaviampCoreCommand.Home.OpenDiscoveryArtist("unknown"))
+        controller.dispatch(NaviampCoreCommand.Home.OpenDiscoveryArtist("mbid"))
+        assertEquals(listOf("https://music.test/artist/mbid"), opened)
+        assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
+    }
     @Test
     fun collectionPageNavigationAndLayoutAreOwnedByCore() = runTest {
         val store = NaviampCoreStateStore()
@@ -244,6 +289,7 @@ class NaviampCoreHomeControllerTest {
 
 private class HomeTestProvider(
     supportsSonicSimilarity: Boolean = false,
+    override val discovery: app.naviamp.domain.provider.ProviderDiscovery? = null,
 ) : MediaProvider {
     override val id = ProviderId("home")
     override val displayName = "Home"

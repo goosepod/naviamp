@@ -13,9 +13,17 @@ import app.naviamp.domain.provider.*
 import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+internal fun localizedProviderName(providerId: String): String = when (providerDescriptor(providerId).id) {
+    ProviderIdAurral -> stringResource(Res.string.connection_provider_aurral)
+    else -> providerDescriptor(providerId).displayName
+}
 
 internal fun serviceIconResource(providerId: String): DrawableResource? = when (providerId.trim().lowercase()) {
     ProviderIdNavidrome -> Res.drawable.service_navidrome
+    ProviderIdAurral -> Res.drawable.service_aurral
     ProviderIdSubsonic -> Res.drawable.service_opensubsonic
     ProviderIdJellyfin -> Res.drawable.service_jellyfin
     ProviderIdBandcamp -> Res.drawable.service_bandcamp

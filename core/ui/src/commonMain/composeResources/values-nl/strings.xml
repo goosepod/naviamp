@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">Omhoog verplaatsen</string>
     <string name="smart_playlist_move_down">Omlaag verplaatsen</string>
     <string name="smart_playlist_row_position">Positie %1$d van %2$d</string>
+    <string name="connection_aurral_guidance">Maak verbinding met Aurral met het wachtwoord van je lokale account.</string>
+    <string name="discovery_provider_title">%1$s ontdekken</string>
+    <string name="discovery_loading">Ontdekkingen laden…</string>
+    <string name="discovery_building">Je persoonlijke aanbevelingen worden samengesteld.</string>
+    <string name="discovery_unsupported">Native ontdekkingen zijn niet beschikbaar in deze serverversie.</string>
+    <string name="discovery_password_required">Maak opnieuw verbinding met je accountwachtwoord om ontdekkingen te laden.</string>
+    <string name="discovery_sign_in_required">Je sessie is verlopen. Vernieuw of maak opnieuw verbinding.</string>
+    <string name="discovery_forbidden">Je account heeft geen toegang tot ontdekkingen.</string>
+    <string name="discovery_unavailable">Ontdekkingen laden mislukt. Vernieuw om het opnieuw te proberen.</string>
+    <string name="discovery_empty">Je persoonlijke aanbevelingen verschijnen hier.</string>
+    <string name="discovery_recommendations">Aanbevelingen</string>
+    <string name="discovery_trending">Populaire artiesten</string>
+    <string name="discovery_open_provider">Openen in %1$s</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

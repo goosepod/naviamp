@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">Pindahkan ke atas</string>
     <string name="smart_playlist_move_down">Pindahkan ke bawah</string>
     <string name="smart_playlist_row_position">Posisi %1$d dari %2$d</string>
+    <string name="connection_aurral_guidance">Hubungkan ke Aurral dengan kata sandi akun lokal Anda.</string>
+    <string name="discovery_provider_title">Penemuan %1$s</string>
+    <string name="discovery_loading">Memuat penemuan…</string>
+    <string name="discovery_building">Rekomendasi pribadi Anda sedang dibuat.</string>
+    <string name="discovery_unsupported">Penemuan bawaan tidak tersedia pada versi server ini.</string>
+    <string name="discovery_password_required">Hubungkan ulang dengan kata sandi akun Anda untuk memuat penemuan.</string>
+    <string name="discovery_sign_in_required">Sesi Anda kedaluwarsa. Muat ulang atau hubungkan kembali.</string>
+    <string name="discovery_forbidden">Akun Anda tidak dapat mengakses penemuan.</string>
+    <string name="discovery_unavailable">Tidak dapat memuat penemuan. Muat ulang untuk mencoba lagi.</string>
+    <string name="discovery_empty">Rekomendasi pribadi Anda akan muncul di sini.</string>
+    <string name="discovery_recommendations">Rekomendasi</string>
+    <string name="discovery_trending">Artis populer</string>
+    <string name="discovery_open_provider">Buka di %1$s</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

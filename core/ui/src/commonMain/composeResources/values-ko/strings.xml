@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">위로 이동</string>
     <string name="smart_playlist_move_down">아래로 이동</string>
     <string name="smart_playlist_row_position">%2$d개 중 %1$d번째</string>
+    <string name="connection_aurral_guidance">로컬 계정 비밀번호로 Aurral에 연결하세요.</string>
+    <string name="discovery_provider_title">%1$s 음악 탐색</string>
+    <string name="discovery_loading">음악 탐색을 불러오는 중…</string>
+    <string name="discovery_building">맞춤 추천을 생성하고 있습니다.</string>
+    <string name="discovery_unsupported">이 서버 버전에서는 기본 음악 탐색을 사용할 수 없습니다.</string>
+    <string name="discovery_password_required">음악 탐색을 불러오려면 계정 비밀번호로 다시 연결하세요.</string>
+    <string name="discovery_sign_in_required">세션이 만료되었습니다. 새로고침하거나 다시 연결하세요.</string>
+    <string name="discovery_forbidden">이 계정은 음악 탐색에 접근할 수 없습니다.</string>
+    <string name="discovery_unavailable">음악 탐색을 불러올 수 없습니다. 새로고침하여 다시 시도하세요.</string>
+    <string name="discovery_empty">맞춤 추천이 여기에 표시됩니다.</string>
+    <string name="discovery_recommendations">추천</string>
+    <string name="discovery_trending">인기 아티스트</string>
+    <string name="discovery_open_provider">%1$s에서 열기</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

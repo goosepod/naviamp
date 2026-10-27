@@ -274,6 +274,7 @@ fun createNaviampCoreActions(
             onTrackAction = { send(NaviampCoreCommand.Detail.PlaylistTrack(it)) },
         ),
         homeActions = NaviampHomeActions(
+            onDiscoveryArtistSelected = { send(NaviampCoreCommand.Home.OpenDiscoveryArtist(it)) },
             onFavoriteArtistSortChanged = { send(NaviampCoreCommand.Settings.ChangeFavoriteArtistSort(it)) },
             onRefresh = { send(NaviampCoreCommand.Home.Refresh) },
             onRecentRadioSelected = { send(NaviampCoreCommand.Home.SelectRecentRadio(it)) },

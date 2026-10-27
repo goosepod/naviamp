@@ -105,6 +105,10 @@ class NavidromeProvider(
     ArtistPopularTracksClient,
     SimilarArtistsClient {
     private val profile = subsonicProviderProfile(connection.providerId)
+    override val discovery: app.naviamp.domain.provider.ProviderDiscovery? =
+        if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) {
+            app.naviamp.provider.aurral.AurralDiscoveryClient(connection, httpClient)
+        } else null
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
     override val requiresAuthenticatedPlaybackTransport: Boolean

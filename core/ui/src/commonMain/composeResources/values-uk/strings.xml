@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">Перемістити вгору</string>
     <string name="smart_playlist_move_down">Перемістити вниз</string>
     <string name="smart_playlist_row_position">Позиція %1$d з %2$d</string>
+    <string name="connection_aurral_guidance">Підключіться до Aurral із паролем локального облікового запису.</string>
+    <string name="discovery_provider_title">Відкриття %1$s</string>
+    <string name="discovery_loading">Завантаження рекомендацій…</string>
+    <string name="discovery_building">Ваші персональні рекомендації формуються.</string>
+    <string name="discovery_unsupported">Вбудований пошук нової музики недоступний у цій версії сервера.</string>
+    <string name="discovery_password_required">Підключіться повторно з паролем облікового запису для завантаження рекомендацій.</string>
+    <string name="discovery_sign_in_required">Термін сеансу минув. Оновіть або підключіться повторно.</string>
+    <string name="discovery_forbidden">Ваш обліковий запис не має доступу до рекомендацій.</string>
+    <string name="discovery_unavailable">Не вдалося завантажити рекомендації. Оновіть, щоб спробувати ще раз.</string>
+    <string name="discovery_empty">Тут з’являться ваші персональні рекомендації.</string>
+    <string name="discovery_recommendations">Рекомендації</string>
+    <string name="discovery_trending">Популярні виконавці</string>
+    <string name="discovery_open_provider">Відкрити в %1$s</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>

@@ -1006,12 +1006,17 @@ fun SharedHomeRoute(
                     .fillMaxSize()
                     .verticalScroll(scrollState),
             ) {
-                SharedHome(
-                    colors = colors,
-                    home = home.content,
-                    actions = actions,
-                    mediaActions = mediaActions,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    home.providerDiscovery?.let { discovery ->
+                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected)
+                    }
+                    SharedHome(
+                        colors = colors,
+                        home = home.content,
+                        actions = actions,
+                        mediaActions = mediaActions,
+                    )
+                }
             }
         }
     }

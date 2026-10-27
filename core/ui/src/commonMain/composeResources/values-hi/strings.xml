@@ -330,4 +330,18 @@
     <string name="smart_playlist_move_up">ऊपर ले जाएँ</string>
     <string name="smart_playlist_move_down">नीचे ले जाएँ</string>
     <string name="smart_playlist_row_position">स्थिति %1$d / %2$d</string>
+    <string name="connection_aurral_guidance">अपने स्थानीय खाते के पासवर्ड से Aurral से कनेक्ट करें।</string>
+    <string name="discovery_provider_title">%1$s संगीत खोज</string>
+    <string name="discovery_loading">संगीत खोज लोड हो रही है…</string>
+    <string name="discovery_building">आपकी व्यक्तिगत सिफ़ारिशें तैयार हो रही हैं।</string>
+    <string name="discovery_unsupported">इस सर्वर संस्करण पर मूल संगीत खोज उपलब्ध नहीं है।</string>
+    <string name="discovery_password_required">संगीत खोज लोड करने के लिए खाते के पासवर्ड से दोबारा कनेक्ट करें।</string>
+    <string name="discovery_sign_in_required">आपके सत्र की समय सीमा समाप्त हो गई है। रीफ़्रेश करें या दोबारा कनेक्ट करें।</string>
+    <string name="discovery_forbidden">आपका खाता संगीत खोज तक पहुँच नहीं सकता।</string>
+    <string name="discovery_unavailable">संगीत खोज लोड नहीं हो सकी। दोबारा कोशिश करने के लिए रीफ़्रेश करें।</string>
+    <string name="discovery_empty">आपकी व्यक्तिगत सिफ़ारिशें यहाँ दिखाई देंगी।</string>
+    <string name="discovery_recommendations">सिफ़ारिशें</string>
+    <string name="discovery_trending">लोकप्रिय कलाकार</string>
+    <string name="discovery_open_provider">%1$s में खोलें</string>
+    <string name="connection_provider_aurral">Aurral</string>
 </resources>
