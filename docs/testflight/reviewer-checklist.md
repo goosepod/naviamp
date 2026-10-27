@@ -36,4 +36,5 @@ personal music library or a reviewer obtaining their own server subscription.
 
 The initial packet was documentation-only. See [the operations checkpoint](status-2026-10-27.md)
 for live follow-up: Mac beta review submitted, existing iOS public link verified, new Mac public-link
-confirmation awaiting explicit approval. No tester email or announcement was sent.
+scope subsequently explicitly approved and saved restrictions verified. Mac enrollment still
+awaits beta review. No tester email or announcement was sent.

@@ -11,7 +11,7 @@ Live browser verification resumed October 27 through native Firefox control. See
 
 | Platform | Live verified record | Remaining |
 | --- | --- | --- |
-| macOS | App 6821135881, 2.9.0 (57), internal group exists; external group Naviamp Mac Public Beta created and beta review submitted. Now Waiting for Review; 73 days remaining at inspection. | Beta approval, explicit approval for the new public-link scope, actual TestFlight installation/acceptance. |
+| macOS | App 6821135881, 2.9.0 (57), internal group exists; external group Naviamp Mac Public Beta created and beta review submitted. Now Waiting for Review; 73 days remaining at inspection. | Beta approval, opening enrollment after approval as needed, actual TestFlight installation/acceptance. |
 | iOS | App 6821135545, bundle app.naviamp.ios, 2.9.0 (57), Approved for TestFlight; existing internal group and Naviamp Testers external group/public link (100 limit). Uploaded build minimum iOS 17.2, iPhone/iPad. | Actual installation/acceptance and feedback. Existing public landing page verified; URL retained in private operator record. |
 
 Public App Store states were separately verified: Mac Waiting for Review; iOS Rejected. The iOS
@@ -19,8 +19,8 @@ production rejection does not describe its approved TestFlight build. Neither pe
 submission was changed. Historical October 9/20 upload/review notes are superseded by these live
 observations, not treated as beta evidence.
 
-An updated Apple Developer Program License Agreement warning was displayed. The Account Holder was
-asked to review/accept it; no agreement was accepted by the agent. Apple nevertheless accepted the
+An updated Apple Developer Program License Agreement warning was displayed. The Account Holder subsequently
+reported accepting it; no agreement was accepted by the agent. Apple nevertheless accepted the
 existing Mac build's beta-review submission. Do not infer all future upload/submission operations are
 unblocked. Chrome browser-channel creation still failed; native Firefox supplied the working path.
 
@@ -32,8 +32,9 @@ unblocked. Chrome browser-channel creation still failed; native Firefox supplied
 - Initial proposed group names: `Naviamp Internal`, `Naviamp iOS Public Beta`, `Naviamp Mac Public Beta`.
   Reuse suitable existing groups; do not create duplicates. Confirm whether Apple app records are
   separate before applying groups or links.
-- Proposed starting public-link limit: 100 per cohort, adjustable after initial feedback. This is a
-  proposal, not an already configured limit. Apply platform/device/OS criteria from the chosen build.
+- Public-link limit: 100 per cohort. The iOS group already had this limit; the owner explicitly
+  approved supported Macs and a 100-tester cap for the Mac group, and those saved settings were
+  verified. Apply platform/device/OS criteria from the chosen build when changing eligibility.
 - Private reviewer contact name/email/phone, sign-in requirements and dedicated review-server access
   must be verified in App Store Connect. Never commit credentials, tester emails, review contact
   details, tokens or provisioning profiles. Do not grant community testers App Store Connect roles.
