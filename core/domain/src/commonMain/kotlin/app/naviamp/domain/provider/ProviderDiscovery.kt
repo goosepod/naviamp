@@ -8,6 +8,7 @@ data class ProviderDiscoveryArtist(
     val genres: List<String> = emptyList(),
     val matchPercent: Int? = null,
     val externalUrl: String? = null,
+    val detailsAvailable: Boolean = false,
 )
 
 enum class ProviderDiscoveryStatus {
@@ -24,4 +25,36 @@ data class ProviderDiscoveryFeed(
 /** Optional native discovery; failure never disables the provider's standard playback contract. */
 fun interface ProviderDiscovery {
     suspend fun load(): ProviderDiscoveryFeed
+    suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult =
+        ProviderDiscoveryArtistResult(ProviderDiscoveryStatus.Unsupported)
+    suspend fun toggleFeedback(artist: ProviderDiscoveryArtist, action: ProviderDiscoveryFeedbackAction): ProviderDiscoveryFeedbackResult =
+        ProviderDiscoveryFeedbackResult(ProviderDiscoveryStatus.Unsupported)
 }
+
+enum class ProviderDiscoveryFeedbackAction { MoreLikeThis, LessLikeThis, BlockArtist }
+
+data class ProviderDiscoveryRelease(
+    val id: String,
+    val title: String,
+    val releaseDate: String? = null,
+    val type: String? = null,
+)
+
+data class ProviderDiscoveryArtistDetails(
+    val artist: ProviderDiscoveryArtist,
+    val biography: String? = null,
+    val releases: List<ProviderDiscoveryRelease> = emptyList(),
+    val libraryArtist: app.naviamp.domain.Artist? = null,
+    val feedbackAvailable: Boolean = false,
+    val feedback: Set<ProviderDiscoveryFeedbackAction> = emptySet(),
+)
+
+data class ProviderDiscoveryArtistResult(
+    val status: ProviderDiscoveryStatus,
+    val details: ProviderDiscoveryArtistDetails? = null,
+)
+
+data class ProviderDiscoveryFeedbackResult(
+    val status: ProviderDiscoveryStatus,
+    val selected: Set<ProviderDiscoveryFeedbackAction> = emptySet(),
+)

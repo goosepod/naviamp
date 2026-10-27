@@ -344,4 +344,12 @@
     <string name="discovery_trending">Artistes tendance</string>
     <string name="discovery_open_provider">Ouvrir dans %1$s</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">Voir l’artiste</string>
+    <string name="discovery_open_library">Ouvrir dans la bibliothèque</string>
+    <string name="discovery_more_like_this">Plus de ce genre</string>
+    <string name="discovery_less_like_this">Moins de ce genre</string>
+    <string name="discovery_block_artist">Bloquer l’artiste</string>
+    <string name="discovery_saving_feedback">Enregistrement des préférences…</string>
+    <string name="discovery_feedback_failed">Impossible d’enregistrer les préférences. Actualisez pour vérifier leur état actuel.</string>
+    <string name="discovery_releases">Sorties</string>
 </resources>

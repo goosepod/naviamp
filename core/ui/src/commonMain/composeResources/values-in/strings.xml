@@ -344,4 +344,12 @@
     <string name="discovery_trending">Artis populer</string>
     <string name="discovery_open_provider">Buka di %1$s</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">Lihat artis</string>
+    <string name="discovery_open_library">Buka di Koleksi</string>
+    <string name="discovery_more_like_this">Lebih banyak seperti ini</string>
+    <string name="discovery_less_like_this">Lebih sedikit seperti ini</string>
+    <string name="discovery_block_artist">Blokir artis</string>
+    <string name="discovery_saving_feedback">Menyimpan masukan…</string>
+    <string name="discovery_feedback_failed">Tidak dapat menyimpan masukan. Muat ulang untuk memeriksa status saat ini.</string>
+    <string name="discovery_releases">Rilisan</string>
 </resources>

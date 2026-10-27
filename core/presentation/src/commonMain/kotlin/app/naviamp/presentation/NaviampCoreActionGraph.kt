@@ -275,6 +275,10 @@ fun createNaviampCoreActions(
         ),
         homeActions = NaviampHomeActions(
             onDiscoveryArtistSelected = { send(NaviampCoreCommand.Home.OpenDiscoveryArtist(it)) },
+            onDiscoveryArtistDetails = { send(NaviampCoreCommand.Home.SelectDiscoveryArtist(it)) },
+            onDiscoveryArtistDismiss = { send(NaviampCoreCommand.Home.DismissDiscoveryArtist) },
+            onDiscoveryFeedback = { id, action -> send(NaviampCoreCommand.Home.DiscoveryFeedback(id, action)) },
+            onDiscoveryLibraryArtist = { send(NaviampCoreCommand.Home.OpenDiscoveryLibraryArtist(it)) },
             onFavoriteArtistSortChanged = { send(NaviampCoreCommand.Settings.ChangeFavoriteArtistSort(it)) },
             onRefresh = { send(NaviampCoreCommand.Home.Refresh) },
             onRecentRadioSelected = { send(NaviampCoreCommand.Home.SelectRecentRadio(it)) },

@@ -1008,7 +1008,9 @@ fun SharedHomeRoute(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     home.providerDiscovery?.let { discovery ->
-                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected)
+                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
+                            actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist)
                     }
                     SharedHome(
                         colors = colors,

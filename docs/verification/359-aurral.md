@@ -1,4 +1,4 @@
-# Aurral connections and discovery — first increment
+# Aurral connections and native discovery
 
 Tracking: [#359](https://github.com/goosepod/naviamp/issues/359).
 
@@ -14,7 +14,7 @@ The owner may include Aurral in v2.10.0 depending on app-store approval timing. 
 not bump the version, select final release scope, or add unfinished work to main. Update the shared
 About changelog and release notes when its release scope is accepted, before any release tag.
 
-## Implemented scope
+## Connection and discovery foundation
 
 - Aurral is a distinct shared connection identity, immediately after Navidrome, with the
   owner-supplied official icon. The SVG and raster provenance are retained under
@@ -43,7 +43,7 @@ About changelog and release notes when its release scope is accepted, before any
 
 ## Verification
 
-Final local verification on 2026-10-27 passed **63 focused tests**, with zero failures, errors or
+The first checkpoint on 2026-10-27 passed **63 focused tests**, with zero failures, errors or
 skips: 24 provider/session cases (including the explicitly configured live case), 20 domain/settings
 cases, eight Core Home cases, two rendered UI cases and nine shared storage cases. Shared Android
 compilation and both iOS ARM64/Simulator ARM64 targets passed for the provider and presentation
@@ -53,9 +53,9 @@ separate gates.
 
 The owner's LAN test server reports Aurral 2.12.0, app API v1, with `discover`, `flows`, `activity`,
 `review`, `trackDownloads`, `linkSearch` and `downloadCancel`. The supplied test user is an ordinary
-user with `accessFlow=false`. Personalized recommendations are queued/building and trending artists
-are available. No account permissions, recommendations, library files, favorites or playlists were
-modified by the live test.
+user with `accessFlow=false`. At the first checkpoint, personalized recommendations were queued/building and trending artists
+were available. No account permissions, recommendations, library files, favorites or playlists were
+modified by the read-only live test.
 
 The opt-in `AurralLiveTest` exercises the production client with the connection's explicit
 self-signed-certificate opt-out: Subsonic validation, artist/album browsing, album tracks, artwork,
@@ -90,7 +90,7 @@ Reproduce the focused portable checks:
 ./gradlew \
   :providers:navidrome:jvmTest --tests '*Aurral*' --tests '*NavidromeCoreProviderSessionPortTest*' \
   :core:domain:jvmTest --tests '*ProviderCatalogTest*' --tests '*SettingsSyncMappingTest*' \
-  :core:presentation:jvmTest --tests '*NaviampCoreHomeControllerTest*' \
+  :core:presentation:jvmTest --tests '*NaviampCoreHomeControllerTest*' --tests '*NaviampCoreNavigationControllerTest*' --tests '*NaviampCoreActionGraphTest*' \
   :core:ui:jvmTest --tests '*NaviampAurral*' \
   :core:storage:jvmTest --tests '*StorageMediaSourceStoreTest*' \
   :core:presentation:compileDebugKotlinAndroid :providers:navidrome:compileDebugKotlinAndroid \
@@ -102,11 +102,62 @@ Reproduce the focused portable checks:
 Set `NAVIAMP_AURRAL_CAPTURE` to a local directory to capture the rendered fixtures. These are
 component renders, not screenshots of a live application window.
 
+## Native artist details and feedback
+
+The next increment adds an in-app artist dialog with biography, release listings and
+More like this / Less like this / Block artist toggles. Feedback is read from and saved to the
+current Aurral user's session. Pressing a selected toggle removes it. Changing More/Less removes
+its opposite first, matching Aurral's web client. A partial mutation failure is not reported as
+success: the controls are disabled until Refresh reads the actual server state. Legacy name-only
+feedback is recognized, while a different artist's explicit ID is not treated as a name match.
+Blocked artists can be unblocked from the still-open dialog after the discovery feed removes them.
+
+Open in Library is enabled only after an exact MusicBrainz match in an available native canonical
+artist row and a second identity check against the actual Subsonic artist response. Neither native
+numeric IDs nor display-name matches are used as playable IDs. Metadata failures or unavailable
+feedback/Library routes retain independent, truthful states. Release rows are virtualized so an
+artist with hundreds of releases does not render them all at once.
+
+Core owns dialog requests, cancellation/source-change rejection, Library navigation and feed reloads
+after feedback. Dismissed dialogs cannot be reopened by late requests. Queued mutations retain the
+account/detail generation captured at dispatch, including equal-valued commands for different
+sessions. Older feed reads cannot replace a newer post-feedback feed. Selecting Home explicitly
+closes the dialog; returning from an owned Library artist retains the discovery context.
+
+Final local verification of this increment passed **44 focused tests**, with zero failures,
+errors or skips: 16 provider cases (including all three explicitly configured live cases), 25 Core
+Home/navigation/action cases and three rendered UI cases. Shared Android and both iOS target
+compilation, the architecture guard and desktop packaging validation also passed. The earlier
+connection/settings/storage checkpoint retains its separate 63-case evidence above.
+
+The configured live tests passed on the owner's server for an owned artist's exact native-to-Subsonic
+identity bridge and feedback changes. Each feedback run uses a unique UUID/name, changes only that
+temporary record, and removes its entries in a finally block, even after a lost POST response.
+No existing feedback is reset, no downloads are requested, and no Library files are modified.
+Set `NAVIAMP_AURRAL_TEST_FEEDBACK=true` in addition to the earlier live-test variables to enable this
+explicit temporary-mutation check. Without this flag it does not run a feedback mutation.
+
+Protocol behavior was checked against upstream source snapshot `084f0208e737a35e49a96f9de0538be190d8f6e4`
+([feedback handling](https://github.com/lklynet/aurral/blob/084f0208e737a35e49a96f9de0538be190d8f6e4/backend/services/discovery/feedback.ts),
+[Library lookup](https://github.com/lklynet/aurral/blob/084f0208e737a35e49a96f9de0538be190d8f6e4/backend/routes/library/handlers/misc.ts),
+[Subsonic identities](https://github.com/lklynet/aurral/blob/084f0208e737a35e49a96f9de0538be190d8f6e4/backend/services/subsonicLibraryService.ts))
+and validated against the owner's deployed 2.12.0 server, rather than assuming current main is shipped.
+
+Eight additional messages are translated in all 17 catalogs (22 new strings in total). No new
+portable setting, database schema or platform production code was introduced. The rendered artist
+dialog, including its failure state and circular placeholder, was captured and visually inspected.
+
+The desktop package was built and validated with `:apps:desktop:stageLocalTestApp`. A temporary copy
+under `/private/tmp/naviamp-aurral-ui/` was given its own empty `user.home`, distinct bundle ID and
+ad-hoc signature for visible verification. Computer-use `getApp` timed out with server error -10005
+while opening that copy. The copy did start, but no visible-app result is claimed; its exact process
+was then stopped. The normal running app/profile was not changed. Component renders and API tests
+are not substituted for the remaining live application/device checks.
+
 ## Remaining issue scope and release gates
 
-This increment does not close #359. Follow-on native work includes recommendation feedback/blocking,
-artist/release details, a verified native-to-Subsonic identity bridge and Library navigation,
-permission-aware acquisition/activity, and flow management. Do not expose these as available merely
+This work does not close #359. Follow-on native work includes release detail pages, broader native
+search, permission-aware acquisition/activity and flow management. Do not expose these as available merely
 because a server advertises another API feature. Each mutation needs request/response/permission
 fixtures and ordinary-user failure coverage before wiring its complete common behavior and UI.
 

@@ -344,4 +344,12 @@
     <string name="discovery_trending">注目のアーティスト</string>
     <string name="discovery_open_provider">%1$sで開く</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">アーティストを見る</string>
+    <string name="discovery_open_library">ライブラリで開く</string>
+    <string name="discovery_more_like_this">似た音楽を増やす</string>
+    <string name="discovery_less_like_this">似た音楽を減らす</string>
+    <string name="discovery_block_artist">アーティストをブロック</string>
+    <string name="discovery_saving_feedback">フィードバックを保存中…</string>
+    <string name="discovery_feedback_failed">フィードバックを保存できませんでした。更新して現在の状態を確認してください。</string>
+    <string name="discovery_releases">リリース</string>
 </resources>

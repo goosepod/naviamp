@@ -1199,4 +1199,12 @@
     <string name="discovery_trending">Trending artists</string>
     <string name="discovery_open_provider">Open in %1$s</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">View artist</string>
+    <string name="discovery_open_library">Open in Library</string>
+    <string name="discovery_more_like_this">More like this</string>
+    <string name="discovery_less_like_this">Less like this</string>
+    <string name="discovery_block_artist">Block artist</string>
+    <string name="discovery_saving_feedback">Saving feedback…</string>
+    <string name="discovery_feedback_failed">Could not save feedback. Refresh to check its current state.</string>
+    <string name="discovery_releases">Releases</string>
 </resources>

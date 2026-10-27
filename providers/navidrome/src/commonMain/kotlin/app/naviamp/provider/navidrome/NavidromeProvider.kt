@@ -107,7 +107,12 @@ class NavidromeProvider(
     private val profile = subsonicProviderProfile(connection.providerId)
     override val discovery: app.naviamp.domain.provider.ProviderDiscovery? =
         if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) {
-            app.naviamp.provider.aurral.AurralDiscoveryClient(connection, httpClient)
+            app.naviamp.provider.aurral.AurralDiscoveryClient(connection, httpClient,
+                resolveLibraryArtist = { identityKey, mbid ->
+                    val candidateId = "artist:${identityKey.urlEncode().replace("%3A", ":", ignoreCase = true)}"
+                    val raw = get("getArtist.view", mapOf("id" to candidateId)).subsonicResponse()["artist"] as? JsonObject
+                    raw?.takeIf { it.stringValue("musicBrainzId").equals(mbid, ignoreCase = true) }?.toArtist()
+                })
         } else null
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
@@ -2451,6 +2456,8 @@ class NavidromeProvider(
 
 
 interface NavidromeHttpClient {
+    suspend fun deleteJson(url: String, headers: Map<String, String> = emptyMap()): String =
+        throw UnsupportedOperationException()
     suspend fun postForm(url: String, body: String, headers: Map<String, String> = emptyMap()): String =
         throw UnsupportedOperationException()
     suspend fun get(url: String): String

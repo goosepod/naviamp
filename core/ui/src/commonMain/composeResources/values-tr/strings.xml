@@ -344,4 +344,12 @@
     <string name="discovery_trending">Popüler sanatçılar</string>
     <string name="discovery_open_provider">%1$s içinde aç</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">Sanatçıyı görüntüle</string>
+    <string name="discovery_open_library">Kitaplıkta aç</string>
+    <string name="discovery_more_like_this">Bunun gibi daha fazla</string>
+    <string name="discovery_less_like_this">Bunun gibi daha az</string>
+    <string name="discovery_block_artist">Sanatçıyı engelle</string>
+    <string name="discovery_saving_feedback">Geri bildirim kaydediliyor…</string>
+    <string name="discovery_feedback_failed">Geri bildirim kaydedilemedi. Güncel durumu kontrol etmek için yenileyin.</string>
+    <string name="discovery_releases">Yayınlar</string>
 </resources>

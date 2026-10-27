@@ -211,7 +211,9 @@ internal fun TelevisionHome(
                             listState.scrollToItem(sections.size.coerceAtLeast(1))
                         }
                     }) {
-                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected)
+                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
+                            actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist)
                     }
                 }
             }

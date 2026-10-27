@@ -29,6 +29,7 @@ import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -280,6 +281,7 @@ class NaviampCore private constructor(
                 mediaRegistry = mediaRegistry,
                 observedAtIso8601 = services.favoritedAtIso8601,
                 externalUri = services.content.externalUri,
+                openLibraryArtist = { mediaDetails.selectArtist(it.toSharedMediaItemUi()) },
             )
             val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
                 livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }

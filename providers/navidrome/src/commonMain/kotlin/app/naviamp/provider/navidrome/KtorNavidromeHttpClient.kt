@@ -24,6 +24,9 @@ class KtorNavidromeHttpClient(
 ) : NavidromeHttpClient {
     private val rateLimitBackoff = NavidromeRateLimitBackoff()
 
+    override suspend fun deleteJson(url: String, headers: Map<String, String>): String =
+        request(url, HttpMethod.Delete, headers = headers).body
+
     override suspend fun get(url: String): String =
         getResponse(url).body
 

@@ -344,4 +344,12 @@
     <string name="discovery_trending">热门艺人</string>
     <string name="discovery_open_provider">在 %1$s 中打开</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">查看艺人</string>
+    <string name="discovery_open_library">在音乐库中打开</string>
+    <string name="discovery_more_like_this">更多类似推荐</string>
+    <string name="discovery_less_like_this">减少类似推荐</string>
+    <string name="discovery_block_artist">屏蔽艺人</string>
+    <string name="discovery_saving_feedback">正在保存反馈…</string>
+    <string name="discovery_feedback_failed">无法保存反馈。请刷新以检查当前状态。</string>
+    <string name="discovery_releases">发行作品</string>
 </resources>

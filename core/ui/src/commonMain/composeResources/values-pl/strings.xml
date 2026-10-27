@@ -463,4 +463,12 @@
     <string name="discovery_trending">Popularni wykonawcy</string>
     <string name="discovery_open_provider">Otwórz w %1$s</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">Pokaż wykonawcę</string>
+    <string name="discovery_open_library">Otwórz w bibliotece</string>
+    <string name="discovery_more_like_this">Więcej podobnych</string>
+    <string name="discovery_less_like_this">Mniej podobnych</string>
+    <string name="discovery_block_artist">Zablokuj wykonawcę</string>
+    <string name="discovery_saving_feedback">Zapisywanie opinii…</string>
+    <string name="discovery_feedback_failed">Nie udało się zapisać opinii. Odśwież, aby sprawdzić aktualny stan.</string>
+    <string name="discovery_releases">Wydania</string>
 </resources>

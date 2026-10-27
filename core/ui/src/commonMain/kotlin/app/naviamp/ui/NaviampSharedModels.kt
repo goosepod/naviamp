@@ -968,6 +968,16 @@ data class SharedProviderDiscoveryUi(
     val providerId: String,
     val feed: app.naviamp.domain.provider.ProviderDiscoveryFeed = app.naviamp.domain.provider.ProviderDiscoveryFeed(),
     val loading: Boolean = false,
+    val artistDetail: SharedProviderDiscoveryArtistUi? = null,
+)
+
+data class SharedProviderDiscoveryArtistUi(
+    val artist: app.naviamp.domain.provider.ProviderDiscoveryArtist,
+    val loading: Boolean = true,
+    val status: app.naviamp.domain.provider.ProviderDiscoveryStatus = app.naviamp.domain.provider.ProviderDiscoveryStatus.Ready,
+    val details: app.naviamp.domain.provider.ProviderDiscoveryArtistDetails? = null,
+    val savingFeedback: Boolean = false,
+    val feedbackFailed: Boolean = false,
 )
 
 data class NaviampHomeActions(
@@ -983,6 +993,10 @@ data class NaviampHomeActions(
     val onCollectionPageLayoutChanged: (String, HomeSectionPageLayout) -> Unit,
     val onFavoriteArtistSortChanged: (app.naviamp.domain.settings.FavoriteArtistSort) -> Unit = {},
     val onDiscoveryArtistSelected: (String) -> Unit = {},
+    val onDiscoveryArtistDetails: (String) -> Unit = {},
+    val onDiscoveryArtistDismiss: () -> Unit = {},
+    val onDiscoveryFeedback: (String, app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction) -> Unit = { _, _ -> },
+    val onDiscoveryLibraryArtist: (String) -> Unit = {},
 )
 
 data class NaviampMediaActions(

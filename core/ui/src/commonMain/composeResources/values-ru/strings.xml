@@ -344,4 +344,12 @@
     <string name="discovery_trending">Популярные исполнители</string>
     <string name="discovery_open_provider">Открыть в %1$s</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">Посмотреть исполнителя</string>
+    <string name="discovery_open_library">Открыть в медиатеке</string>
+    <string name="discovery_more_like_this">Больше похожего</string>
+    <string name="discovery_less_like_this">Меньше похожего</string>
+    <string name="discovery_block_artist">Заблокировать исполнителя</string>
+    <string name="discovery_saving_feedback">Сохранение предпочтений…</string>
+    <string name="discovery_feedback_failed">Не удалось сохранить предпочтения. Обновите, чтобы проверить текущее состояние.</string>
+    <string name="discovery_releases">Релизы</string>
 </resources>

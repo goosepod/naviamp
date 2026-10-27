@@ -4,10 +4,62 @@ import app.naviamp.domain.provider.*
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.*
 import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun nativeArtistDetailsBridgeAnOwnedArtistThroughVerifiedSubsonicIdentity() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val provider = NavidromeProvider(connection)
+        provider.validateConnection()
+        val owned = provider.artists(20).first { it.id.value.startsWith("artist:mbid:") }
+        val mbid = owned.id.value.removePrefix("artist:mbid:")
+        val result = provider.discovery!!.artistDetails(ProviderDiscoveryArtist(mbid, owned.name, detailsAvailable = true))
+        assertEquals(ProviderDiscoveryStatus.Ready, result.status)
+        assertEquals(owned.id, result.details?.libraryArtist?.id)
+        assertTrue(result.details!!.feedbackAvailable)
+    }
+
+    @Test fun feedbackCanBeChangedAndRemovedWithoutTouchingExistingEntries() = runBlocking {
+        if (System.getenv("NAVIAMP_AURRAL_TEST_FEEDBACK") != "true") return@runBlocking
+        val connection = liveConnection() ?: return@runBlocking
+        val discovery = NavidromeProvider(connection).discovery!!
+        val probe = java.util.UUID.randomUUID().toString().let { ProviderDiscoveryArtist(it, "Naviamp temporary verification $it") }
+        try {
+            val more = discovery.toggleFeedback(probe, ProviderDiscoveryFeedbackAction.MoreLikeThis)
+            assertEquals(ProviderDiscoveryStatus.Ready, more.status)
+            assertEquals(setOf(ProviderDiscoveryFeedbackAction.MoreLikeThis), more.selected)
+            val less = discovery.toggleFeedback(probe, ProviderDiscoveryFeedbackAction.LessLikeThis)
+            assertEquals(ProviderDiscoveryStatus.Ready, less.status)
+            assertEquals(setOf(ProviderDiscoveryFeedbackAction.LessLikeThis), less.selected)
+        } finally {
+            // Even a lost POST response can have saved an entry. Remove only this random probe ID.
+            val http = createDefaultNavidromeHttpClient(connection.tlsSettings)
+            val login = http.postJson(connection.normalizedBaseUrl + "/api/auth/login", buildJsonObject {
+                put("username", connection.username); put("password", connection.password)
+            }.toString())
+            val token = Json.parseToJsonElement(login).jsonObject.getValue("token").jsonPrimitive.content
+            val headers = mapOf("Authorization" to "Bearer $token")
+            suspend fun entries() = Json.parseToJsonElement(http.get(connection.normalizedBaseUrl + "/api/discover/feedback", headers))
+                .jsonObject.getValue("feedback").jsonArray.filter { it.jsonObject["artistId"]?.jsonPrimitive?.content == probe.id }
+            entries().forEach {
+                val id = it.jsonObject.getValue("id").jsonPrimitive.content
+                http.deleteJson(connection.normalizedBaseUrl + "/api/discover/feedback/" + id.urlEncode(), headers)
+            }
+            assertTrue(entries().isEmpty())
+        }
+    }
+
+    private fun liveConnection(): NavidromeConnection? {
+        val url = System.getenv("NAVIAMP_AURRAL_TEST_URL") ?: return null
+        return NavidromeConnection.fromPassword(providerId = ProviderIdAurral, baseUrl = url,
+            username = checkNotNull(System.getenv("NAVIAMP_AURRAL_TEST_USER")),
+            password = checkNotNull(System.getenv("NAVIAMP_AURRAL_TEST_PASSWORD")),
+            tlsSettings = NavidromeTlsSettings(insecureSkipTlsVerification =
+                System.getenv("NAVIAMP_AURRAL_TEST_INSECURE") == "true"))
+    }
+
     @Test fun nativeDiscoveryAndOpenSubsonicUseTheSameConnectionAndTlsPolicy() = runBlocking {
         val url = System.getenv("NAVIAMP_AURRAL_TEST_URL") ?: return@runBlocking
         val connection = NavidromeConnection.fromPassword(providerId = ProviderIdAurral, baseUrl = url,

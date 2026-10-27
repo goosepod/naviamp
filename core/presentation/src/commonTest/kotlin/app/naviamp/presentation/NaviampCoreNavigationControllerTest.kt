@@ -17,6 +17,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampCoreNavigationControllerTest {
+    @Test fun explicitHomeNavigationDismissesTheNativeDiscoveryDialog() {
+        val store = NaviampCoreStateStore()
+        val navigation = controller(NaviampNavigationController(), store)
+        store.updateShell { shell -> shell.copy(home = shell.home.copy(providerDiscovery =
+            app.naviamp.ui.SharedProviderDiscoveryUi("aurral", artistDetail = app.naviamp.ui.SharedProviderDiscoveryArtistUi(
+                app.naviamp.domain.provider.ProviderDiscoveryArtist("mbid", "Artist"))))) }
+        navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Home))
+        assertNull(store.state.value.shell.home.providerDiscovery?.artistDetail)
+    }
     @Test
     fun dockedPlayerSurvivesBrowsingButExplicitCloseAndNarrowNavigationCloseIt() {
         val store = NaviampCoreStateStore()

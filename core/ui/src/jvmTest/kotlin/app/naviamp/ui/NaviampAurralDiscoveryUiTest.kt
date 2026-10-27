@@ -14,6 +14,43 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampAurralDiscoveryUiTest {
+    @Test fun nativeArtistDialogShowsLibraryLinkReleasesAndTruthfulFeedbackFailure() = runComposeUiTest {
+        val artist = ProviderDiscoveryArtist("mbid", "Discovery artist", detailsAvailable = true,
+            externalUrl = "https://music.test/artist/mbid")
+        val selected = mutableStateOf(SharedProviderDiscoveryArtistUi(artist))
+        var feedback: ProviderDiscoveryFeedbackAction? = null
+        var libraryOpened = false
+        var dismissed = false
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdAurral, artistDetail = selected.value),
+                    NaviampColors.Dark, {}, onArtistDismiss = { dismissed = true },
+                    onFeedback = { _, action -> feedback = action }, onLibraryArtist = { libraryOpened = true })
+            }
+        }
+        onAllNodesWithText("Loading discovery…").assertCountEquals(1)
+        runOnIdle { selected.value = selected.value.copy(loading = false, details = ProviderDiscoveryArtistDetails(artist,
+            biography = "An artist biography.", libraryArtist = app.naviamp.domain.Artist(app.naviamp.domain.ArtistId("owned-id"), "Owned"),
+            feedbackAvailable = true, releases = listOf(ProviderDiscoveryRelease("release", "Album release", "2020", "Album")))) }
+        onNodeWithText("Open in Library").performClick()
+        onNodeWithText("More like this").performClick()
+        onNodeWithText("Album release").assertExists()
+        runOnIdle { assertTrue(libraryOpened); assertEquals(ProviderDiscoveryFeedbackAction.MoreLikeThis, feedback)
+            selected.value = selected.value.copy(savingFeedback = true) }
+        onNodeWithText("Saving feedback…").assertExists()
+        onNodeWithText("Block artist").assertIsNotEnabled()
+        runOnIdle { selected.value = selected.value.copy(savingFeedback = false, feedbackFailed = true,
+            details = selected.value.details!!.copy(feedbackAvailable = false)) }
+        onNodeWithText("Could not save feedback. Refresh to check its current state.").assertExists()
+        onNodeWithText("More like this").assertDoesNotExist()
+        System.getenv("NAVIAMP_AURRAL_CAPTURE")?.let { directory ->
+            java.io.File(directory).mkdirs()
+            javax.imageio.ImageIO.write(onNode(isDialog()).captureToImage().toAwtImage(), "png", java.io.File(directory, "artist-details.png"))
+        }
+        onNodeWithText("Close").performClick()
+        runOnIdle { assertTrue(dismissed) }
+    }
+
     @Test fun connectionScreenShowsTheOfficialIconAfterNavidromeAndPreservesSubsonicAccountOnSelection() = runComposeUiTest {
         val form = mutableStateOf(ConnectionFormState(providerId = ProviderIdSubsonic,
             serverUrl = "https://music.test", username = "listener", password = "saved",

@@ -1170,4 +1170,12 @@
     <string name="discovery_trending">Beliebte Künstler</string>
     <string name="discovery_open_provider">In %1$s öffnen</string>
     <string name="connection_provider_aurral">Aurral</string>
+    <string name="discovery_view_artist">Künstler anzeigen</string>
+    <string name="discovery_open_library">In der Mediathek öffnen</string>
+    <string name="discovery_more_like_this">Mehr davon</string>
+    <string name="discovery_less_like_this">Weniger davon</string>
+    <string name="discovery_block_artist">Künstler blockieren</string>
+    <string name="discovery_saving_feedback">Feedback wird gespeichert…</string>
+    <string name="discovery_feedback_failed">Feedback konnte nicht gespeichert werden. Aktualisiere, um den aktuellen Stand zu prüfen.</string>
+    <string name="discovery_releases">Veröffentlichungen</string>
 </resources>
