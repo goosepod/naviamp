@@ -14,6 +14,42 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampAurralDiscoveryUiTest {
+    @Test fun portraitNameAndCardBackgroundOpenTheSameArtistWithoutASeparateViewButton() {
+        val bytes = checkNotNull(jvmGeneratedCoverArtBytes("naviamp-radio-tile://cover?label=A&from=CC2244&to=551122"))
+        resetNaviampCoverArtCache()
+        setJvmPlatformCoverArtByteLoader { bytes }
+        try {
+            runComposeUiTest {
+                val opened = mutableListOf<String>()
+                var external: String? = null
+                setContent {
+                    Column(Modifier.width(620.dp).height(400.dp)) {
+                        NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdAurral,
+                            ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, recommendations = listOf(
+                                ProviderDiscoveryArtist("native", "Native artist", imageUrl = "test://clickable-portrait",
+                                    detailsAvailable = true, externalUrl = "https://music.test/artist/native"),
+                                ProviderDiscoveryArtist("external", "External artist", externalUrl = "https://music.test/external"),
+                                ProviderDiscoveryArtist("unresolved", "Unresolved artist")))), NaviampColors.Dark,
+                            onArtistSelected = { external = it }, onArtistDetails = { opened += it })
+                    }
+                }
+                waitUntil(timeoutMillis = 5_000) {
+                    onAllNodesWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNodes().size == 1
+                }
+                onNodeWithContentDescription("Album art", useUnmergedTree = true).performTouchInput { click() }
+                onNodeWithText("Native artist", useUnmergedTree = true).performTouchInput { click() }
+                onNodeWithText("Native artist").performTouchInput { click(androidx.compose.ui.geometry.Offset(width - 2f, height - 2f)) }
+                runOnIdle { assertEquals(listOf("native", "native", "native"), opened); assertNull(external) }
+                onNodeWithText("View artist").assertDoesNotExist()
+                onNodeWithText("External artist").performClick()
+                runOnIdle { assertEquals("external", external) }
+                onNodeWithText("Unresolved artist").assertHasNoClickAction()
+            }
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+        }
+    }
+
     @Test fun discoveryArtworkLoadsAndPaintsACircularPortrait() {
         val buffer = java.awt.image.BufferedImage(64, 64, java.awt.image.BufferedImage.TYPE_INT_RGB)
         val graphics = buffer.createGraphics()
@@ -36,7 +72,7 @@ class NaviampAurralDiscoveryUiTest {
                 waitUntil(timeoutMillis = 5_000) {
                     onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 1
                 }
-                val image = onNodeWithContentDescription("Album art").captureToImage().toAwtImage()
+                val image = onNodeWithContentDescription("Album art", useUnmergedTree = true).captureToImage().toAwtImage()
                 assertEquals(java.awt.Color.RED.rgb, image.getRGB(image.width / 2, image.height / 2))
                 assertNotEquals(java.awt.Color.RED.rgb, image.getRGB(0, 0), "Portrait corners must be clipped")
             }

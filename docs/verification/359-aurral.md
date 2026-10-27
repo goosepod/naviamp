@@ -201,3 +201,34 @@ UI/simulator compilation passed. Architecture verification and Mac test packagin
 updated test copy uses the previously verified isolated profile and local-network metadata, and its
 Apple Development deep/strict signature verification passed. Owner verification of this updated
 foreground app remains pending.
+
+
+## Artist card activation and additional native actions
+
+The full actionable artist card now opens its native popup: portrait, name, genres and card background
+share one accessible button action. The separate View artist control is removed. External-only cards
+keep their existing external destination; unresolved cards do not invent a destination. The regression
+case taps portrait, name and card background separately, verifies the same native identity each time,
+and checks external and unresolved behavior. No new user-facing strings or platform code are added.
+
+Additional actions are possible without a browser, but are not implemented in this popup yet:
+
+- Artist sample metadata and Deezer preview URLs are exposed by the artist-preview API. Availability
+  depends on the returned tracks; a missing sample must not masquerade as full-library playback.
+- Native track and album requests can ask the server to acquire music. This is distinct from Naviamp
+  offline downloads of existing Library files. Requests need the appropriate user permission and
+  configured server sources; capability flags alone do not guarantee success.
+- The current popup offers More/Less/Block recommendation feedback, a verified owned Library link
+  when available, and Open in Aurral. Native sample playback, release details and acquisition/status
+  remain follow-on work; the website is the currently available route for these discovery actions.
+
+References: [endpoint reference](https://docs.aurral.org/api/endpoints/) and
+[app contract](https://docs.aurral.org/api/app-contract/). Server-side requests should preserve the
+normal user session, permissions, identity namespaces, configured-manager behavior and truthful queue
+status; they must not require the installation administrator API key.
+
+Artist-card activation verification: all six focused shared UI tests passed, including three physical
+tap locations, external/unresolved cases, circular portrait pixels and independent rail navigation.
+Android and iOS simulator UI compilation, architecture checks and Mac packaging passed. The new
+isolated test copy passed Apple Development deep/strict signature verification and retains the
+previous test profile and local-network metadata. Its foreground owner acceptance remains pending.

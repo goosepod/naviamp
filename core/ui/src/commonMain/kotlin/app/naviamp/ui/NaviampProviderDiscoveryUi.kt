@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -96,7 +98,16 @@ private fun DiscoveryArtistRail(
     LazyRow(modifier = Modifier.fillMaxWidth(), state = state,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(artists, key = { it.id }) { artist ->
-            Column(modifier = Modifier.width(142.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            val actionLabel = if (artist.detailsAvailable) stringResource(Res.string.discovery_view_artist)
+                else stringResource(Res.string.discovery_open_provider, providerName)
+            val openArtist = {
+                if (artist.detailsAvailable) onArtistDetails(artist.id)
+                else onArtistSelected(artist.id)
+            }
+            val interaction = if (artist.detailsAvailable || artist.externalUrl != null)
+                Modifier.clickable(role = Role.Button, onClickLabel = actionLabel, onClick = openArtist)
+                else Modifier
+            Column(modifier = Modifier.width(142.dp).then(interaction), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 NaviampCoverArt(artist.imageUrl, colors, 128.dp,
                     mediaArtworkCornerRadius(SharedMediaItemKind.Artist, 128.dp, 7.dp))
                 Text(artist.name, color = colors.primaryText, fontSize = 13.sp,
@@ -105,14 +116,8 @@ private fun DiscoveryArtistRail(
                     Text(artist.genres.joinToString(", "), color = colors.secondaryText, fontSize = 11.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (artist.detailsAvailable) {
-                    TextButton(onClick = { onArtistDetails(artist.id) }) {
-                        Text(stringResource(Res.string.discovery_view_artist), color = colors.secondaryText, fontSize = 11.sp)
-                    }
-                } else if (artist.externalUrl != null) {
-                    TextButton(onClick = { onArtistSelected(artist.id) }) {
-                        Text(stringResource(Res.string.discovery_open_provider, providerName), color = colors.secondaryText, fontSize = 11.sp)
-                    }
+                if (!artist.detailsAvailable && artist.externalUrl != null) {
+                    Text(actionLabel, color = colors.secondaryText, fontSize = 11.sp)
                 }
             }
         }
