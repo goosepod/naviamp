@@ -9,6 +9,25 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun nativeSamplesAndReleaseCoversUseTheProviderTransport() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val provider = NavidromeProvider(connection)
+        // A public artist with known preview coverage; arbitrary owned artists may legitimately have none.
+        val artist = ProviderDiscoveryArtist("a74b1b7f-71a5-4011-9441-d0b5e4122711", "Radiohead", detailsAvailable = true)
+        val details = provider.discovery!!.artistDetails(artist).details!!
+        assertTrue(details.releases.isNotEmpty())
+        val images = details.releases.take(3).mapNotNull { it.imageUrl?.let { url -> provider.bytesForOwnedUrl(url) } }
+        assertTrue(images.any { javax.imageio.ImageIO.read(java.io.ByteArrayInputStream(it)) != null })
+        val samples = provider.discovery!!.samples(artist)
+        assertEquals(ProviderDiscoveryStatus.Ready, samples.status)
+        val sample = samples.tracks.first()
+        val url = provider.streamUrl(StreamRequest(sample.playbackTrack(artist.name).id, StreamQuality.Original))
+        val audio = assertNotNull(provider.bytesForOwnedUrl(url))
+        assertTrue(audio.size > 1000)
+        assertTrue(audio.take(3) == listOf<Byte>(73, 68, 51) || (audio[0].toInt() and 0xff) == 0xff,
+            "Sample media must be MP3 audio rather than metadata")
+    }
+
     @Test fun discoveryArtistCoverFallbackReturnsRealImageBytes() = runBlocking {
         val provider = NavidromeProvider(liveConnection() ?: return@runBlocking)
         val feed = provider.discovery!!.load()

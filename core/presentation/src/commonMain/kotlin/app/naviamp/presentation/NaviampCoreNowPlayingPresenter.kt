@@ -1,5 +1,7 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.InternetRadioStation
@@ -52,6 +54,7 @@ class NaviampCoreNowPlayingPresenter(
         val isLive = sidecar.currentInternetRadioStationId != null || track?.isInternetRadioTrack() == true
         val capabilities = nowPlayingTrackCapabilities(
             isLiveStream = isLive,
+            isPreview = track?.id?.isDiscoveryPreview() == true,
             playbackState = live.playbackState,
             hasPlaybackTarget = track != null || live.currentStation != null,
             supportsPause = effects.capabilities.supportsPause,
@@ -123,7 +126,8 @@ class NaviampCoreNowPlayingPresenter(
             playlistActionStatus = display.playlistActionStatus,
         ).toNowPlayingUi().copy(
             visualizerFrame = sidecar.visualizerFrame,
-            canEditPlaylistMembership = provider != null,
+            canEditPlaylistMembership = provider != null && track?.id?.isDiscoveryPreview() != true,
+            queueManagementActionsOnly = track?.id?.isDiscoveryPreview() == true,
         )
         stateStore.updateShell { current -> current.copy(nowPlaying = nowPlaying) }
     }

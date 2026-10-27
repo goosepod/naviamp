@@ -354,4 +354,25 @@
     <string name="discovery_releases">रिलीज़</string>
     <string name="home_scroll_left">बाईं ओर स्क्रॉल करें</string>
     <string name="home_scroll_right">दाईं ओर स्क्रॉल करें</string>
+    <string name="discovery_all_releases">सभी रिलीज़</string>
+    <string name="discovery_action_busy">कार्य जारी है…</string>
+    <string name="discovery_samples">नमूने</string>
+    <string name="discovery_load_samples">नमूने लोड करें</string>
+    <string name="discovery_no_samples">कोई नमूना उपलब्ध नहीं है।</string>
+    <string name="discovery_samples_failed">नमूने लोड नहीं हो सके।</string>
+    <string name="discovery_play_sample">नमूना चलाएँ</string>
+    <string name="discovery_request_track">ट्रैक का अनुरोध करें</string>
+    <string name="discovery_request_album">एल्बम का अनुरोध करें</string>
+    <string name="discovery_monitor_artist">कलाकार की निगरानी करें</string>
+    <string name="discovery_stop_monitoring">निगरानी रोकें</string>
+    <string name="discovery_request_queued">अनुरोध कतार में है।</string>
+    <string name="discovery_request_already_queued">पहले से कतार में है।</string>
+    <string name="discovery_request_owned">आपकी लाइब्रेरी में पहले से है।</string>
+    <string name="discovery_request_saved">सहेजा गया।</string>
+    <string name="discovery_monitoring_enabled">कलाकार की निगरानी चालू है।</string>
+    <string name="discovery_monitoring_disabled">कलाकार की निगरानी बंद है।</string>
+    <string name="discovery_request_missing_source">सहेजा गया, लेकिन कोई डाउनलोड स्रोत कॉन्फ़िगर नहीं है।</string>
+    <string name="discovery_action_forbidden">आपका खाता यह कार्रवाई नहीं कर सकता।</string>
+    <string name="discovery_action_unsupported">यह सर्वर इस कार्रवाई का समर्थन नहीं करता।</string>
+    <string name="discovery_action_uncertain">परिणाम की पुष्टि नहीं हो सकी। फिर प्रयास करने से पहले Aurral में जाँचें।</string>
 </resources>

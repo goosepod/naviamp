@@ -14,6 +14,7 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.provider.*
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
@@ -39,6 +40,57 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun nativeRequestsRejectDuplicatesAndStaleCommandsAndSamplesUseTheSharedPlaybackCallback() = runTest {
+        val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
+        var requests = 0
+        val pending = kotlinx.coroutines.CompletableDeferred<ProviderDiscoveryOperation>()
+        val discovery = object : ProviderDiscovery {
+            override suspend fun load() = ProviderDiscoveryFeed(trending = listOf(artist))
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist) = ProviderDiscoveryArtistResult(
+                ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(artist,
+                    releases = listOf(ProviderDiscoveryRelease("release", "Album")), canRequestAlbums = true, canRequestTracks = true))
+            override suspend fun samples(artist: ProviderDiscoveryArtist) = ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready,
+                listOf(ProviderDiscoverySample("42", "Sample")))
+            override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation {
+                requests++; return pending.await()
+            }
+        }
+        val provider = HomeTestProvider(discovery = discovery)
+        val store = NaviampCoreStateStore()
+        var played: Track? = null
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) }, playDiscoverySample = { played = it })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val select = NaviampCoreCommand.Home.SelectDiscoveryArtist("artist")
+        controller.dispatch(select); controller.execute(select)
+        suspend fun act(action: ProviderDiscoveryAction) {
+            val command = NaviampCoreCommand.Home.DiscoveryAction("artist", action)
+            controller.dispatch(command); controller.execute(command)
+        }
+        act(ProviderDiscoveryAction.LoadSamples)
+        act(ProviderDiscoveryAction.PlaySample("42"))
+        assertEquals("discovery-preview:42", played?.id?.value)
+        val request = NaviampCoreCommand.Home.DiscoveryAction("artist", ProviderDiscoveryAction.RequestAlbum("release"))
+        controller.dispatch(request)
+        val running = launch { controller.execute(request) }
+        runCurrent()
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.actionBusy)
+        assertTrue(controller.dispatch(request) is NaviampCoreImmediateCommandResult.Handled)
+        controller.dispatch(NaviampCoreCommand.Home.DismissDiscoveryArtist)
+        pending.complete(ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued))
+        running.join()
+        assertEquals(1, requests)
+        assertEquals(null, store.state.value.shell.home.providerDiscovery?.artistDetail)
+        controller.dispatch(select); controller.execute(select)
+        controller.dispatch(request)
+        controller.resetForSourceChange()
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        controller.dispatch(select); controller.execute(select)
+        controller.execute(request)
+        assertEquals(1, requests)
+    }
+
     @Test fun discoveryDetailsAndFeedbackStayScopedToTheSelectedArtistAndAccount() = runTest {
         val artist = app.naviamp.domain.provider.ProviderDiscoveryArtist("mbid", "Discovery", detailsAvailable = true)
         val waiting = kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.provider.ProviderDiscoveryArtistResult>()

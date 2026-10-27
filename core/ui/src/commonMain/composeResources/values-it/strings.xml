@@ -354,4 +354,25 @@
     <string name="discovery_releases">Pubblicazioni</string>
     <string name="home_scroll_left">Scorri a sinistra</string>
     <string name="home_scroll_right">Scorri a destra</string>
+    <string name="discovery_all_releases">Tutte le uscite</string>
+    <string name="discovery_action_busy">Operazione in corso…</string>
+    <string name="discovery_samples">Anteprime</string>
+    <string name="discovery_load_samples">Carica anteprime</string>
+    <string name="discovery_no_samples">Nessuna anteprima disponibile.</string>
+    <string name="discovery_samples_failed">Impossibile caricare le anteprime.</string>
+    <string name="discovery_play_sample">Riproduci anteprima</string>
+    <string name="discovery_request_track">Richiedi brano</string>
+    <string name="discovery_request_album">Richiedi album</string>
+    <string name="discovery_monitor_artist">Monitora artista</string>
+    <string name="discovery_stop_monitoring">Interrompi monitoraggio</string>
+    <string name="discovery_request_queued">Richiesta in coda.</string>
+    <string name="discovery_request_already_queued">Già in coda.</string>
+    <string name="discovery_request_owned">Già nella tua libreria.</string>
+    <string name="discovery_request_saved">Salvato.</string>
+    <string name="discovery_monitoring_enabled">Monitoraggio artista attivato.</string>
+    <string name="discovery_monitoring_disabled">Monitoraggio artista disattivato.</string>
+    <string name="discovery_request_missing_source">Salvato, ma nessuna fonte di download è configurata.</string>
+    <string name="discovery_action_forbidden">Il tuo account non può eseguire questa azione.</string>
+    <string name="discovery_action_unsupported">Questo server non supporta questa azione.</string>
+    <string name="discovery_action_uncertain">Impossibile confermare il risultato. Controlla in Aurral prima di riprovare.</string>
 </resources>

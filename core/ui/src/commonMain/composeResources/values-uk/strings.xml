@@ -354,4 +354,25 @@
     <string name="discovery_releases">Релізи</string>
     <string name="home_scroll_left">Прокрутити ліворуч</string>
     <string name="home_scroll_right">Прокрутити праворуч</string>
+    <string name="discovery_all_releases">Усі релізи</string>
+    <string name="discovery_action_busy">Обробка…</string>
+    <string name="discovery_samples">Уривки</string>
+    <string name="discovery_load_samples">Завантажити уривки</string>
+    <string name="discovery_no_samples">Немає доступних уривків.</string>
+    <string name="discovery_samples_failed">Не вдалося завантажити уривки.</string>
+    <string name="discovery_play_sample">Відтворити уривок</string>
+    <string name="discovery_request_track">Запросити трек</string>
+    <string name="discovery_request_album">Запросити альбом</string>
+    <string name="discovery_monitor_artist">Відстежувати виконавця</string>
+    <string name="discovery_stop_monitoring">Зупинити відстеження</string>
+    <string name="discovery_request_queued">Запит у черзі.</string>
+    <string name="discovery_request_already_queued">Уже в черзі.</string>
+    <string name="discovery_request_owned">Уже у вашій медіатеці.</string>
+    <string name="discovery_request_saved">Збережено.</string>
+    <string name="discovery_monitoring_enabled">Відстеження виконавця ввімкнено.</string>
+    <string name="discovery_monitoring_disabled">Відстеження виконавця вимкнено.</string>
+    <string name="discovery_request_missing_source">Збережено, але джерело завантаження не налаштовано.</string>
+    <string name="discovery_action_forbidden">Ваш обліковий запис не може виконати цю дію.</string>
+    <string name="discovery_action_unsupported">Цей сервер не підтримує цю дію.</string>
+    <string name="discovery_action_uncertain">Не вдалося підтвердити результат. Перевірте Aurral перед повторною спробою.</string>
 </resources>

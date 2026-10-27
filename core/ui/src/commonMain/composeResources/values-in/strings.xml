@@ -354,4 +354,25 @@
     <string name="discovery_releases">Rilisan</string>
     <string name="home_scroll_left">Gulir ke kiri</string>
     <string name="home_scroll_right">Gulir ke kanan</string>
+    <string name="discovery_all_releases">Semua rilisan</string>
+    <string name="discovery_action_busy">Memproses…</string>
+    <string name="discovery_samples">Cuplikan</string>
+    <string name="discovery_load_samples">Muat cuplikan</string>
+    <string name="discovery_no_samples">Tidak ada cuplikan.</string>
+    <string name="discovery_samples_failed">Cuplikan tidak dapat dimuat.</string>
+    <string name="discovery_play_sample">Putar cuplikan</string>
+    <string name="discovery_request_track">Minta lagu</string>
+    <string name="discovery_request_album">Minta album</string>
+    <string name="discovery_monitor_artist">Pantau artis</string>
+    <string name="discovery_stop_monitoring">Hentikan pemantauan</string>
+    <string name="discovery_request_queued">Permintaan masuk antrean.</string>
+    <string name="discovery_request_already_queued">Sudah dalam antrean.</string>
+    <string name="discovery_request_owned">Sudah ada di pustaka Anda.</string>
+    <string name="discovery_request_saved">Disimpan.</string>
+    <string name="discovery_monitoring_enabled">Pemantauan artis diaktifkan.</string>
+    <string name="discovery_monitoring_disabled">Pemantauan artis dinonaktifkan.</string>
+    <string name="discovery_request_missing_source">Disimpan, tetapi sumber unduhan belum dikonfigurasi.</string>
+    <string name="discovery_action_forbidden">Akun Anda tidak dapat melakukan tindakan ini.</string>
+    <string name="discovery_action_unsupported">Server ini tidak mendukung tindakan ini.</string>
+    <string name="discovery_action_uncertain">Hasil tidak dapat dipastikan. Periksa di Aurral sebelum mencoba lagi.</string>
 </resources>

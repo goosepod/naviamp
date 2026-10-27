@@ -354,4 +354,25 @@
     <string name="discovery_releases">Uitgaven</string>
     <string name="home_scroll_left">Naar links scrollen</string>
     <string name="home_scroll_right">Naar rechts scrollen</string>
+    <string name="discovery_all_releases">Alle uitgaven</string>
+    <string name="discovery_action_busy">Bezig…</string>
+    <string name="discovery_samples">Fragmenten</string>
+    <string name="discovery_load_samples">Fragmenten laden</string>
+    <string name="discovery_no_samples">Geen fragmenten beschikbaar.</string>
+    <string name="discovery_samples_failed">Fragmenten konden niet worden geladen.</string>
+    <string name="discovery_play_sample">Fragment afspelen</string>
+    <string name="discovery_request_track">Nummer aanvragen</string>
+    <string name="discovery_request_album">Album aanvragen</string>
+    <string name="discovery_monitor_artist">Artiest volgen</string>
+    <string name="discovery_stop_monitoring">Volgen stoppen</string>
+    <string name="discovery_request_queued">Aanvraag in wachtrij.</string>
+    <string name="discovery_request_already_queued">Staat al in de wachtrij.</string>
+    <string name="discovery_request_owned">Staat al in je bibliotheek.</string>
+    <string name="discovery_request_saved">Opgeslagen.</string>
+    <string name="discovery_monitoring_enabled">Artiest volgen ingeschakeld.</string>
+    <string name="discovery_monitoring_disabled">Artiest volgen uitgeschakeld.</string>
+    <string name="discovery_request_missing_source">Opgeslagen, maar geen downloadbron ingesteld.</string>
+    <string name="discovery_action_forbidden">Je account mag deze actie niet uitvoeren.</string>
+    <string name="discovery_action_unsupported">Deze server ondersteunt deze actie niet.</string>
+    <string name="discovery_action_uncertain">Het resultaat kon niet worden bevestigd. Controleer Aurral voordat je het opnieuw probeert.</string>
 </resources>

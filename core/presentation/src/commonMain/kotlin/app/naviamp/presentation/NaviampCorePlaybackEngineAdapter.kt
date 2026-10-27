@@ -1,5 +1,7 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.playback.withAudioStreamOffsetSupport
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -511,6 +513,7 @@ class NaviampCorePlaybackEngineAdapter(
                             state is PlaybackState.Error &&
                             state.reason == PlaybackFailureReason.UnstreamableNetworkSource &&
                             recoveryLocalAudio == null &&
+                            !track.id.isDiscoveryPreview() &&
                             externalStreamUrl == null &&
                             audioSource?.source in setOf(
                                 PlaybackSource.ProviderStream,
@@ -931,6 +934,7 @@ class NaviampCoreProviderNowPlayingSidecars(
         val generation = ++loadGeneration
         val previousAlbum = delegate.snapshot().album?.takeIf { it.id == track.albumId }
         delegate.loadForTrack(track)
+        if (track.id.isDiscoveryPreview()) return
         val provider = providerSource.current() ?: return
         val activeSourceId = sourceId() ?: provider.cacheNamespace
         val settings = playbackSettings()
@@ -989,6 +993,7 @@ class NaviampCoreProviderNowPlayingSidecars(
         val generation = loadGeneration
         if (delegate.snapshot().trackId != track.id) return
         delegate.updateLyrics(null, null, null)
+        if (track.id.isDiscoveryPreview()) return
         val provider = providerSource.current()
         val service = lyricsSidecarService
         if (provider == null || service == null) {

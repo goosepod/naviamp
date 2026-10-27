@@ -1209,4 +1209,25 @@
     <string name="discovery_releases">Releases</string>
     <string name="home_scroll_left">Scroll left</string>
     <string name="home_scroll_right">Scroll right</string>
+    <string name="discovery_all_releases">All releases</string>
+    <string name="discovery_action_busy">Working…</string>
+    <string name="discovery_samples">Samples</string>
+    <string name="discovery_load_samples">Load samples</string>
+    <string name="discovery_no_samples">No samples available.</string>
+    <string name="discovery_samples_failed">Could not load samples.</string>
+    <string name="discovery_play_sample">Play sample</string>
+    <string name="discovery_request_track">Request track</string>
+    <string name="discovery_request_album">Request album</string>
+    <string name="discovery_monitor_artist">Monitor artist</string>
+    <string name="discovery_stop_monitoring">Stop monitoring</string>
+    <string name="discovery_request_queued">Request queued.</string>
+    <string name="discovery_request_already_queued">Already queued.</string>
+    <string name="discovery_request_owned">Already in your library.</string>
+    <string name="discovery_request_saved">Saved.</string>
+    <string name="discovery_monitoring_enabled">Artist monitoring enabled.</string>
+    <string name="discovery_monitoring_disabled">Artist monitoring disabled.</string>
+    <string name="discovery_request_missing_source">Saved, but no download source is configured.</string>
+    <string name="discovery_action_forbidden">Your account cannot perform this action.</string>
+    <string name="discovery_action_unsupported">This server does not support this action.</string>
+    <string name="discovery_action_uncertain">Could not confirm the result. Check in Aurral before trying again.</string>
 </resources>

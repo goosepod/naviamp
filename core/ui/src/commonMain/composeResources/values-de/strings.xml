@@ -1180,4 +1180,25 @@
     <string name="discovery_releases">Veröffentlichungen</string>
     <string name="home_scroll_left">Nach links scrollen</string>
     <string name="home_scroll_right">Nach rechts scrollen</string>
+    <string name="discovery_all_releases">Alle Veröffentlichungen</string>
+    <string name="discovery_action_busy">Wird bearbeitet…</string>
+    <string name="discovery_samples">Hörproben</string>
+    <string name="discovery_load_samples">Hörproben laden</string>
+    <string name="discovery_no_samples">Keine Hörproben verfügbar.</string>
+    <string name="discovery_samples_failed">Hörproben konnten nicht geladen werden.</string>
+    <string name="discovery_play_sample">Hörprobe abspielen</string>
+    <string name="discovery_request_track">Titel anfordern</string>
+    <string name="discovery_request_album">Album anfordern</string>
+    <string name="discovery_monitor_artist">Künstler überwachen</string>
+    <string name="discovery_stop_monitoring">Überwachung beenden</string>
+    <string name="discovery_request_queued">Anfrage eingereiht.</string>
+    <string name="discovery_request_already_queued">Bereits eingereiht.</string>
+    <string name="discovery_request_owned">Bereits in deiner Bibliothek.</string>
+    <string name="discovery_request_saved">Gespeichert.</string>
+    <string name="discovery_monitoring_enabled">Künstlerüberwachung aktiviert.</string>
+    <string name="discovery_monitoring_disabled">Künstlerüberwachung deaktiviert.</string>
+    <string name="discovery_request_missing_source">Gespeichert, aber keine Downloadquelle eingerichtet.</string>
+    <string name="discovery_action_forbidden">Dein Konto darf diese Aktion nicht ausführen.</string>
+    <string name="discovery_action_unsupported">Dieser Server unterstützt diese Aktion nicht.</string>
+    <string name="discovery_action_uncertain">Ergebnis konnte nicht bestätigt werden. Prüfe Aurral vor einem erneuten Versuch.</string>
 </resources>

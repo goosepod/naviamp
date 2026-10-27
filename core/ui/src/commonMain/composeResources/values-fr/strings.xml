@@ -354,4 +354,25 @@
     <string name="discovery_releases">Sorties</string>
     <string name="home_scroll_left">Défiler vers la gauche</string>
     <string name="home_scroll_right">Défiler vers la droite</string>
+    <string name="discovery_all_releases">Toutes les sorties</string>
+    <string name="discovery_action_busy">Traitement…</string>
+    <string name="discovery_samples">Extraits</string>
+    <string name="discovery_load_samples">Charger les extraits</string>
+    <string name="discovery_no_samples">Aucun extrait disponible.</string>
+    <string name="discovery_samples_failed">Impossible de charger les extraits.</string>
+    <string name="discovery_play_sample">Écouter un extrait</string>
+    <string name="discovery_request_track">Demander le titre</string>
+    <string name="discovery_request_album">Demander l’album</string>
+    <string name="discovery_monitor_artist">Suivre l’artiste</string>
+    <string name="discovery_stop_monitoring">Arrêter le suivi</string>
+    <string name="discovery_request_queued">Demande en attente.</string>
+    <string name="discovery_request_already_queued">Déjà en attente.</string>
+    <string name="discovery_request_owned">Déjà dans votre bibliothèque.</string>
+    <string name="discovery_request_saved">Enregistré.</string>
+    <string name="discovery_monitoring_enabled">Suivi de l’artiste activé.</string>
+    <string name="discovery_monitoring_disabled">Suivi de l’artiste désactivé.</string>
+    <string name="discovery_request_missing_source">Enregistré, mais aucune source de téléchargement n’est configurée.</string>
+    <string name="discovery_action_forbidden">Votre compte ne peut pas effectuer cette action.</string>
+    <string name="discovery_action_unsupported">Ce serveur ne prend pas en charge cette action.</string>
+    <string name="discovery_action_uncertain">Impossible de confirmer le résultat. Vérifiez dans Aurral avant de réessayer.</string>
 </resources>

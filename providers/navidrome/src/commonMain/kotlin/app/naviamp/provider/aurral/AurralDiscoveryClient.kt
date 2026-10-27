@@ -17,7 +17,8 @@ internal class AurralDiscoveryClient(
 ) : ProviderDiscovery {
     private val mutex = Mutex()
     private var session: Session? = null
-    private data class Session(val token: String, val expiresAt: Long)
+    private data class Session(val token: String, val expiresAt: Long, val permissions: JsonObject?)
+    private var features = emptySet<String>()
     private val base = connection.normalizedBaseUrl
     private val headers = connection.customHeaders.mapNotNull { it.normalized() }
         .mapNotNull { header -> header.value?.let { header.name to it } }.toMap()
@@ -45,6 +46,8 @@ internal class AurralDiscoveryClient(
             check(metadata.text("id").equals(artist.id, ignoreCase = true))
             val feedback = optional { get("/api/discover/feedback").array("feedback") }
             val owned = optional { lookupLibraryArtist(artist.id) }
+            val monitoring = optional { get("/api/library/artists/${artist.id}/monitoring") }
+            val permissions = session?.permissions
             ProviderDiscoveryArtistResult(ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(
                 artist = artist.copy(name = metadata.text("name") ?: artist.name,
                     genres = metadata.array("genres")?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
@@ -54,13 +57,101 @@ internal class AurralDiscoveryClient(
                     val release = entry as? JsonObject ?: return@mapNotNull null
                     val id = release.text("id") ?: return@mapNotNull null
                     val title = release.text("title") ?: return@mapNotNull null
-                    ProviderDiscoveryRelease(id, title, release.text("first-release-date"), release.text("primary-type"))
+                    ProviderDiscoveryRelease(id, title, release.text("first-release-date"), release.text("primary-type"),
+                        secondaryTypes = release.array("secondary-types").orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull },
+                        imageUrl = release.text("coverUrl")?.let(::imageUrl) ?: if (MusicBrainzId.matches(id))
+                            "$base/api/artists/release-group/$id/cover?artistName=${artist.name.urlEncode()}&albumTitle=${title.urlEncode()}" else null)
                 }.distinctBy { it.id },
                 libraryArtist = owned,
+                canRequestTracks = permissions?.get("addAlbum")?.jsonPrimitive?.booleanOrNull == true && "trackDownloads" in features,
+                canRequestAlbums = permissions?.get("addAlbum")?.jsonPrimitive?.booleanOrNull == true,
+                canChangeMonitoring = monitoring != null && monitoring.text("error") == null &&
+                    permissions?.get("changeMonitoring")?.jsonPrimitive?.booleanOrNull == true &&
+                    (monitoring["added"]?.jsonPrimitive?.booleanOrNull == true || permissions["addArtist"]?.jsonPrimitive?.booleanOrNull == true),
+                monitored = monitoring?.takeIf { it.text("error") == null }?.let {
+                    it["monitored"]?.jsonPrimitive?.booleanOrNull ?: (it.text("monitorOption")?.let { mode -> mode != "none" })
+                },
                 feedbackAvailable = feedback != null,
                 feedback = feedback.orEmpty().selectedFeedback(artist.id, artist.name),
             ))
         }
+
+    override suspend fun samples(artist: ProviderDiscoveryArtist): ProviderDiscoverySamples = nativeCall({ ProviderDiscoverySamples(it) }) {
+        require(MusicBrainzId.matches(artist.id))
+        val tracks = get("/api/artists/${artist.id}/preview?artistName=${artist.name.urlEncode()}").array("tracks").orEmpty()
+            .mapNotNull { it as? JsonObject }.mapNotNull { track ->
+                val id = track.text("id")?.takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true } ?: return@mapNotNull null
+                if (track.text("preview_url").isNullOrBlank()) return@mapNotNull null
+                val title = track.text("title")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val album = track["album"] as? JsonObject
+                ProviderDiscoverySample(id, title, album?.text("title") ?: (track["album"] as? JsonPrimitive)?.contentOrNull,
+                    (track.text("artworkUrl") ?: album?.text("cover_medium"))?.let(::imageUrl))
+            }.distinctBy { it.id }.take(20)
+        ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready, tracks)
+    }
+
+    override suspend fun requestTrack(artist: ProviderDiscoveryArtist, sample: ProviderDiscoverySample) = operation {
+        checkPermission("addAlbum")
+        if ("trackDownloads" !in features) throw NavidromeHttpException(404)
+        require(MusicBrainzId.matches(artist.id))
+        post("/api/library/downloads/track", buildJsonObject {
+            put("artistName", artist.name); put("artistMbid", artist.id); put("trackName", sample.title)
+            sample.albumTitle?.let { put("albumName", it) }
+        }).operation()
+    }
+
+    override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease) = operation {
+        checkPermission("addAlbum")
+        require(MusicBrainzId.matches(artist.id) && MusicBrainzId.matches(release.id))
+        post("/api/library/albums/request", buildJsonObject {
+            put("artistName", artist.name); put("artistMbid", artist.id)
+            put("albumName", release.title); put("albumMbid", release.id); put("triggerSearch", true)
+        }).operation()
+    }
+
+    override suspend fun setMonitoring(artist: ProviderDiscoveryArtist, enabled: Boolean) = operation {
+        checkPermission("changeMonitoring")
+        require(MusicBrainzId.matches(artist.id))
+        val current = get("/api/library/artists/${artist.id}/monitoring")
+        check(current.text("error") == null)
+        if (enabled && current["added"]?.jsonPrimitive?.booleanOrNull != true) checkPermission("addArtist")
+        val body = buildJsonObject {
+            put("artistName", artist.name)
+            if (current.text("manager") == "aurral") put("monitoring", buildJsonObject {
+                put("monitored", enabled); put("useDefault", true)
+            }) else if (current.text("manager") == "lidarr") put("monitorOption", if (enabled) "all" else "none")
+            else error("Unknown monitoring manager")
+        }
+        val response = http.putJson("$base/api/library/artists/${artist.id}", body.toString(), authorizedHeaders()).parseObject()
+        check(response.text("error") == null)
+        val verified = get("/api/library/artists/${artist.id}/monitoring")
+        val actual = verified["monitored"]?.jsonPrimitive?.booleanOrNull
+            ?: verified.text("monitorOption")?.let { it != "none" }
+        check(actual == enabled && verified.text("error") == null)
+        ProviderDiscoveryOperation(if (enabled) ProviderDiscoveryOperationStatus.MonitoringEnabled else ProviderDiscoveryOperationStatus.MonitoringDisabled)
+    }
+
+    private fun checkPermission(name: String) {
+        if (session?.permissions?.get(name)?.jsonPrimitive?.booleanOrNull != true) throw NavidromeHttpException(403)
+    }
+    private suspend fun post(path: String, body: JsonObject) = http.postJson("$base$path", body.toString(), authorizedHeaders()).parseObject()
+    private suspend fun operation(block: suspend () -> ProviderDiscoveryOperation): ProviderDiscoveryOperation =
+        nativeCall({ status -> ProviderDiscoveryOperation(when (status) {
+            ProviderDiscoveryStatus.Forbidden -> ProviderDiscoveryOperationStatus.Forbidden
+            ProviderDiscoveryStatus.Unsupported -> ProviderDiscoveryOperationStatus.Unsupported
+            else -> ProviderDiscoveryOperationStatus.Uncertain
+        }) }, block)
+    private fun JsonObject.operation(): ProviderDiscoveryOperation {
+        check(text("error") == null)
+        return ProviderDiscoveryOperation(when {
+            text("status") == "download_source_missing" -> ProviderDiscoveryOperationStatus.MissingSource
+            text("status") == "available" || get("alreadyOwned")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.AlreadyOwned
+            get("alreadyQueued")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.AlreadyQueued
+            text("status") in listOf("queued", "searching") || get("queued")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.Queued
+            get("success")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.Saved
+            else -> error("Unconfirmed request")
+        })
+    }
 
     /** Mirrors the web client's toggle semantics; refresh on a partial failure rather than claiming success. */
     override suspend fun toggleFeedback(artist: ProviderDiscoveryArtist, action: ProviderDiscoveryFeedbackAction): ProviderDiscoveryFeedbackResult =
@@ -119,6 +210,7 @@ internal class AurralDiscoveryClient(
             if (api?.get("version")?.jsonPrimitive?.intOrNull != 1 ||
                 api.array("features")?.any { (it as? JsonPrimitive)?.contentOrNull == "discover" } != true
             ) return@withLock fallback(ProviderDiscoveryStatus.Unsupported)
+            features = api.array("features").orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.toSet()
             if (connection.password.isNullOrBlank()) return@withLock fallback(ProviderDiscoveryStatus.PasswordRequired)
             if (session?.expiresAt?.let { it > nowMillis() + 30_000 } != true) signIn()
             block()
@@ -141,7 +233,7 @@ internal class AurralDiscoveryClient(
         }.toString(), headers = headers).parseObject()
         val token = response.text("token")?.takeIf { it.isNotBlank() } ?: error("Missing session token")
         val expiresAt = response["expiresAt"]?.jsonPrimitive?.longOrNull ?: error("Missing session expiry")
-        session = Session(token, expiresAt)
+        session = Session(token, expiresAt, (response["user"] as? JsonObject)?.get("permissions") as? JsonObject)
     }
 
     private fun authorizedHeaders(): Map<String, String> =
@@ -171,15 +263,16 @@ internal class AurralDiscoveryClient(
         }.distinctBy { it.id }.take(20)
 
     /** A cover endpoint returns JSON; resolve it lazily through the provider artwork boundary. */
-    fun ownsArtistCoverUrl(url: String): Boolean {
-        val path = url.removePrefix("$base/api/artists/")
-        return url.startsWith("$base/api/artists/") &&
-            MusicBrainzId.matches(path.substringBefore('/')) &&
+    fun ownsDiscoveryCoverUrl(url: String): Boolean {
+        val prefix = "$base/api/artists/"
+        if (!url.startsWith(prefix)) return false
+        val path = url.removePrefix(prefix).removePrefix("release-group/")
+        return MusicBrainzId.matches(path.substringBefore('/')) &&
             path.substringAfter('/', "").startsWith("cover?artistName=")
     }
 
-    suspend fun artistCoverBytes(url: String): ByteArray? {
-        require(ownsArtistCoverUrl(url))
+    suspend fun discoveryCoverBytes(url: String): ByteArray? {
+        require(ownsDiscoveryCoverUrl(url))
         val resolved = nativeCall<String?>({ null }) {
             val images = get(url.removePrefix(base)).array("images").orEmpty()
                 .mapNotNull { it as? JsonObject }

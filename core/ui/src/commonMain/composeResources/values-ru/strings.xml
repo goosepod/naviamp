@@ -354,4 +354,25 @@
     <string name="discovery_releases">Релизы</string>
     <string name="home_scroll_left">Прокрутить влево</string>
     <string name="home_scroll_right">Прокрутить вправо</string>
+    <string name="discovery_all_releases">Все релизы</string>
+    <string name="discovery_action_busy">Обработка…</string>
+    <string name="discovery_samples">Фрагменты</string>
+    <string name="discovery_load_samples">Загрузить фрагменты</string>
+    <string name="discovery_no_samples">Нет доступных фрагментов.</string>
+    <string name="discovery_samples_failed">Не удалось загрузить фрагменты.</string>
+    <string name="discovery_play_sample">Воспроизвести фрагмент</string>
+    <string name="discovery_request_track">Запросить трек</string>
+    <string name="discovery_request_album">Запросить альбом</string>
+    <string name="discovery_monitor_artist">Отслеживать исполнителя</string>
+    <string name="discovery_stop_monitoring">Остановить отслеживание</string>
+    <string name="discovery_request_queued">Запрос в очереди.</string>
+    <string name="discovery_request_already_queued">Уже в очереди.</string>
+    <string name="discovery_request_owned">Уже в вашей медиатеке.</string>
+    <string name="discovery_request_saved">Сохранено.</string>
+    <string name="discovery_monitoring_enabled">Отслеживание исполнителя включено.</string>
+    <string name="discovery_monitoring_disabled">Отслеживание исполнителя отключено.</string>
+    <string name="discovery_request_missing_source">Сохранено, но источник загрузки не настроен.</string>
+    <string name="discovery_action_forbidden">Ваша учётная запись не может выполнить это действие.</string>
+    <string name="discovery_action_unsupported">Сервер не поддерживает это действие.</string>
+    <string name="discovery_action_uncertain">Не удалось подтвердить результат. Проверьте Aurral перед повторной попыткой.</string>
 </resources>

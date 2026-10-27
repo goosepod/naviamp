@@ -354,4 +354,25 @@
     <string name="discovery_releases">발매 목록</string>
     <string name="home_scroll_left">왼쪽으로 스크롤</string>
     <string name="home_scroll_right">오른쪽으로 스크롤</string>
+    <string name="discovery_all_releases">모든 발매</string>
+    <string name="discovery_action_busy">처리 중…</string>
+    <string name="discovery_samples">미리 듣기</string>
+    <string name="discovery_load_samples">미리 듣기 불러오기</string>
+    <string name="discovery_no_samples">미리 들을 수 있는 곡이 없습니다.</string>
+    <string name="discovery_samples_failed">미리 듣기를 불러오지 못했습니다.</string>
+    <string name="discovery_play_sample">미리 듣기 재생</string>
+    <string name="discovery_request_track">트랙 요청</string>
+    <string name="discovery_request_album">앨범 요청</string>
+    <string name="discovery_monitor_artist">아티스트 모니터링</string>
+    <string name="discovery_stop_monitoring">모니터링 중지</string>
+    <string name="discovery_request_queued">요청이 대기열에 추가되었습니다.</string>
+    <string name="discovery_request_already_queued">이미 대기열에 있습니다.</string>
+    <string name="discovery_request_owned">이미 라이브러리에 있습니다.</string>
+    <string name="discovery_request_saved">저장되었습니다.</string>
+    <string name="discovery_monitoring_enabled">아티스트 모니터링이 켜졌습니다.</string>
+    <string name="discovery_monitoring_disabled">아티스트 모니터링이 꺼졌습니다.</string>
+    <string name="discovery_request_missing_source">저장되었지만 다운로드 소스가 설정되지 않았습니다.</string>
+    <string name="discovery_action_forbidden">이 계정으로는 이 작업을 수행할 수 없습니다.</string>
+    <string name="discovery_action_unsupported">이 서버는 이 작업을 지원하지 않습니다.</string>
+    <string name="discovery_action_uncertain">결과를 확인하지 못했습니다. 다시 시도하기 전에 Aurral에서 확인하세요.</string>
 </resources>

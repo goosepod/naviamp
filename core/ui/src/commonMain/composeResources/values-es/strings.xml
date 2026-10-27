@@ -1184,4 +1184,25 @@
     <string name="discovery_releases">Lanzamientos</string>
     <string name="home_scroll_left">Desplazar a la izquierda</string>
     <string name="home_scroll_right">Desplazar a la derecha</string>
+    <string name="discovery_all_releases">Todos los lanzamientos</string>
+    <string name="discovery_action_busy">Procesando…</string>
+    <string name="discovery_samples">Muestras</string>
+    <string name="discovery_load_samples">Cargar muestras</string>
+    <string name="discovery_no_samples">No hay muestras disponibles.</string>
+    <string name="discovery_samples_failed">No se pudieron cargar las muestras.</string>
+    <string name="discovery_play_sample">Reproducir muestra</string>
+    <string name="discovery_request_track">Solicitar pista</string>
+    <string name="discovery_request_album">Solicitar álbum</string>
+    <string name="discovery_monitor_artist">Seguir artista</string>
+    <string name="discovery_stop_monitoring">Dejar de seguir</string>
+    <string name="discovery_request_queued">Solicitud en cola.</string>
+    <string name="discovery_request_already_queued">Ya está en cola.</string>
+    <string name="discovery_request_owned">Ya está en tu biblioteca.</string>
+    <string name="discovery_request_saved">Guardado.</string>
+    <string name="discovery_monitoring_enabled">Seguimiento del artista activado.</string>
+    <string name="discovery_monitoring_disabled">Seguimiento del artista desactivado.</string>
+    <string name="discovery_request_missing_source">Guardado, pero no hay una fuente de descarga configurada.</string>
+    <string name="discovery_action_forbidden">Tu cuenta no puede realizar esta acción.</string>
+    <string name="discovery_action_unsupported">Este servidor no admite esta acción.</string>
+    <string name="discovery_action_uncertain">No se pudo confirmar el resultado. Compruébalo en Aurral antes de volver a intentarlo.</string>
 </resources>

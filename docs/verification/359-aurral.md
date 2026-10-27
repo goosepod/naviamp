@@ -211,16 +211,16 @@ keep their existing external destination; unresolved cards do not invent a desti
 case taps portrait, name and card background separately, verifies the same native identity each time,
 and checks external and unresolved behavior. No new user-facing strings or platform code are added.
 
-Additional actions are possible without a browser, but are not implemented in this popup yet:
+The following native APIs underpin the popup actions now implemented below:
 
 - Artist sample metadata and Deezer preview URLs are exposed by the artist-preview API. Availability
   depends on the returned tracks; a missing sample must not masquerade as full-library playback.
 - Native track and album requests can ask the server to acquire music. This is distinct from Naviamp
   offline downloads of existing Library files. Requests need the appropriate user permission and
   configured server sources; capability flags alone do not guarantee success.
-- The current popup offers More/Less/Block recommendation feedback, a verified owned Library link
-  when available, and Open in Aurral. Native sample playback, release details and acquisition/status
-  remain follow-on work; the website is the currently available route for these discovery actions.
+- The popup offers More/Less/Block feedback, a verified owned Library link, Open in Aurral,
+  native samples, acquisition requests and artist monitoring. Full release/track drill-down and
+  ongoing activity management remain follow-on work.
 
 References: [endpoint reference](https://docs.aurral.org/api/endpoints/) and
 [app contract](https://docs.aurral.org/api/app-contract/). Server-side requests should preserve the
@@ -232,3 +232,52 @@ tap locations, external/unresolved cases, circular portrait pixels and independe
 Android and iOS simulator UI compilation, architecture checks and Mac packaging passed. The new
 isolated test copy passed Apple Development deep/strict signature verification and retains the
 previous test profile and local-network metadata. Its foreground owner acceptance remains pending.
+
+
+## Release covers, filters, previews, requests and monitoring
+
+Release rows now show lazy square covers from cached cover URLs or the authenticated native
+release-group cover endpoint. Primary and secondary MusicBrainz types use the same shared classification
+as Library albums. All releases and the present type chips stay above the scrollable details. Filter
+selection is transient UI state, not a new exported preference. Artist images remain circular.
+
+Load samples reads available Deezer previews. Play sample uses the common queue and engine path with
+reserved sample IDs and the server's stable public preview-media endpoint. Full-track duration and
+Library identities are never copied onto a preview. Sample audio bypasses owned/cached audio, audio
+prefetch, disk recovery downloads, library sidecars, presence/scrobbling and Sonic Autoplay seeds.
+Now playing keeps transport controls but hides favorite/rating/radio, playlist and lyrics actions for
+samples; queue menus are restricted to queue management. Sample artwork is a remote cover URL.
+
+Request track and Request album use user-authorized Aurral acquisition APIs, separate from offline
+Library downloads. They respect session permissions, the track-download capability and normal manager
+selection. Results distinguish queued/searching, already queued, available/owned, saved and missing
+sources. Requests reserve shared busy state at dispatch, reject duplicate submissions, and never retry
+a mutation automatically. A failed or ambiguous result directs the user to check Aurral; that action
+remains blocked until an explicit refresh. Dismissed dialogs and changed accounts reject stale commands
+and results. No admin API key or automatic download-client setup is used.
+
+Artist monitoring uses the current server manager. Aurral-managed artists use server-default monitoring
+rules; Lidarr-managed artists use its all/none monitor option. The control requires the relevant user
+permissions, and new artists also require add-artist permission. A successful write is verified by
+reading monitoring state again. Stopping monitoring does not issue any delete-file request.
+
+New action, status and filter strings are present in all 17 maintained catalogs. No platform production
+source, settings schema or database migration was added. Common tests cover covers/types, preview
+eligibility/media routing, permission and capability failures, operation outcomes, no automatic retries,
+manager-aware verified monitoring, stale/duplicate commands, playback engine routing, cache/reporting
+isolation, type filtering, square covers, busy controls and typed UI action callbacks.
+
+Read-only live checks decoded release cover images and fetched MP3 preview bytes through the real
+provider connection/TLS transport. They also rechecked discovery images and the verified owned-artist
+bridge. Acquisition and monitoring mutations were tested with HTTP fixtures, not issued against the
+owner's live library. Foreground audible playback and owner acceptance of the new request/monitoring
+controls remain pending. Hosted CI is required for the new feature head.
+
+Final local verification passed: the provider fixtures and four enabled read-only live cases, eight
+rendered/capability UI cases, ten Home controller cases, 38 playback adapter cases, seven action-graph
+cases, 17 listen-reporting cases, five presence-reporting cases, release classification/audio-source
+fixtures and 12 Sonic Autoplay cases. The feedback-mutation live case was not enabled. Android shared
+presentation/provider and iOS simulator presentation/device provider compilation, architecture checks
+and Mac packaging passed. The rendered popup was inspected with type filters, square release art,
+sample/request/monitor controls and status/busy states. This does not establish foreground audible
+playback or live acquisition/monitoring mutation acceptance.

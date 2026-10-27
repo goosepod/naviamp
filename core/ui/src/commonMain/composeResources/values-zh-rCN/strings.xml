@@ -354,4 +354,25 @@
     <string name="discovery_releases">发行作品</string>
     <string name="home_scroll_left">向左滚动</string>
     <string name="home_scroll_right">向右滚动</string>
+    <string name="discovery_all_releases">所有发行</string>
+    <string name="discovery_action_busy">处理中…</string>
+    <string name="discovery_samples">试听</string>
+    <string name="discovery_load_samples">加载试听</string>
+    <string name="discovery_no_samples">没有可用的试听。</string>
+    <string name="discovery_samples_failed">无法加载试听。</string>
+    <string name="discovery_play_sample">播放试听</string>
+    <string name="discovery_request_track">请求曲目</string>
+    <string name="discovery_request_album">请求专辑</string>
+    <string name="discovery_monitor_artist">监控艺人</string>
+    <string name="discovery_stop_monitoring">停止监控</string>
+    <string name="discovery_request_queued">请求已加入队列。</string>
+    <string name="discovery_request_already_queued">已在队列中。</string>
+    <string name="discovery_request_owned">已在您的媒体库中。</string>
+    <string name="discovery_request_saved">已保存。</string>
+    <string name="discovery_monitoring_enabled">已启用艺人监控。</string>
+    <string name="discovery_monitoring_disabled">已停用艺人监控。</string>
+    <string name="discovery_request_missing_source">已保存，但尚未配置下载来源。</string>
+    <string name="discovery_action_forbidden">您的账户无法执行此操作。</string>
+    <string name="discovery_action_unsupported">此服务器不支持此操作。</string>
+    <string name="discovery_action_uncertain">无法确认结果。请先在 Aurral 中检查，然后再重试。</string>
 </resources>

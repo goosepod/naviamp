@@ -354,4 +354,25 @@
     <string name="discovery_releases">リリース</string>
     <string name="home_scroll_left">左にスクロール</string>
     <string name="home_scroll_right">右にスクロール</string>
+    <string name="discovery_all_releases">すべてのリリース</string>
+    <string name="discovery_action_busy">処理中…</string>
+    <string name="discovery_samples">試聴</string>
+    <string name="discovery_load_samples">試聴を読み込む</string>
+    <string name="discovery_no_samples">試聴できる曲はありません。</string>
+    <string name="discovery_samples_failed">試聴を読み込めませんでした。</string>
+    <string name="discovery_play_sample">試聴する</string>
+    <string name="discovery_request_track">曲をリクエスト</string>
+    <string name="discovery_request_album">アルバムをリクエスト</string>
+    <string name="discovery_monitor_artist">アーティストを監視</string>
+    <string name="discovery_stop_monitoring">監視を停止</string>
+    <string name="discovery_request_queued">リクエストをキューに追加しました。</string>
+    <string name="discovery_request_already_queued">すでにキューにあります。</string>
+    <string name="discovery_request_owned">すでにライブラリにあります。</string>
+    <string name="discovery_request_saved">保存しました。</string>
+    <string name="discovery_monitoring_enabled">アーティストの監視を有効にしました。</string>
+    <string name="discovery_monitoring_disabled">アーティストの監視を無効にしました。</string>
+    <string name="discovery_request_missing_source">保存しましたが、ダウンロード元が設定されていません。</string>
+    <string name="discovery_action_forbidden">このアカウントではこの操作を実行できません。</string>
+    <string name="discovery_action_unsupported">このサーバーはこの操作に対応していません。</string>
+    <string name="discovery_action_uncertain">結果を確認できませんでした。再試行する前にAurralで確認してください。</string>
 </resources>

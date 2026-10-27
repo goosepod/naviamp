@@ -1,5 +1,8 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+import app.naviamp.domain.provider.DiscoveryPreviewTrackPrefix
+
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumExplicitStatus
@@ -1557,6 +1560,7 @@ class NavidromeProvider(
         }
 
     override suspend fun lyrics(trackId: TrackId): Lyrics? {
+        if (trackId.isDiscoveryPreview()) return null
         val structured = if (supportsSongLyrics != false) {
             try {
                 get("getLyricsBySongId.view", buildMap {
@@ -1584,6 +1588,7 @@ class NavidromeProvider(
             displayArtist = legacy.stringValue("artist"), displayTitle = legacy.stringValue("title"))
     }
     override suspend fun reportNowPlaying(trackId: TrackId) {
+        if (trackId.isDiscoveryPreview()) return
         if (!supportsPlaybackReport) {
             if (capabilities.supportsPlayReporting) get("scrobble.view", mapOf("id" to trackId.value, "submission" to "false"))
             return
@@ -1597,12 +1602,14 @@ class NavidromeProvider(
     }
 
     override suspend fun reportLegacyNowPlaying(trackId: TrackId) {
+        if (trackId.isDiscoveryPreview()) return
         if (capabilities.supportsPlayReporting) {
             get("scrobble.view", mapOf("id" to trackId.value, "submission" to "false"))
         }
     }
 
     override suspend fun submitListen(trackId: TrackId, startedAtEpochMillis: Long) {
+        if (trackId.isDiscoveryPreview()) return
         if (capabilities.supportsPlayReporting) get("scrobble.view", mapOf(
             "id" to trackId.value, "submission" to "true", "time" to startedAtEpochMillis.toString(),
         ))
@@ -1613,7 +1620,7 @@ class NavidromeProvider(
         state: PlaybackReportState,
         positionSeconds: Double?,
     ) {
-        if (!supportsPlaybackReport) return
+        if (trackId.isDiscoveryPreview() || !supportsPlaybackReport) return
         reportPlayback(
             trackId = trackId,
             state = state,
@@ -1623,6 +1630,12 @@ class NavidromeProvider(
     }
 
     override suspend fun streamUrl(request: StreamRequest): String {
+        if (request.trackId.isDiscoveryPreview()) {
+            require(aurralDiscovery != null)
+            val id = request.trackId.value.removePrefix(DiscoveryPreviewTrackPrefix)
+            require(id.toLongOrNull()?.let { it > 0 } == true)
+            return "${connection.normalizedBaseUrl}/api/deezer/preview/$id.mp3"
+        }
         val params = when (val quality = capabilities.effectiveStreamingQuality(request.quality)) {
             StreamQuality.Original -> mapOf("id" to request.trackId.value, "format" to "raw")
             is StreamQuality.Transcoded -> {
@@ -1642,6 +1655,7 @@ class NavidromeProvider(
     }
 
     override suspend fun downloadUrl(request: StreamRequest): String {
+        require(!request.trackId.isDiscoveryPreview()) { "Samples cannot be downloaded as Library tracks" }
         if (!capabilities.supportsDownloads) throw NavidromeException("Navidrome request failed.", 50)
         return if (request.quality == StreamQuality.Original && !profile.originalDownloadsUseStream) url("download.view", mapOf("id" to request.trackId.value))
         else streamUrl(request.copy(startPositionSeconds = null))
@@ -1686,7 +1700,7 @@ class NavidromeProvider(
         coverArtUrl(coverArtId, CoverArtSize.Thumbnail)
 
     override fun coverArtUrl(coverArtId: String, size: CoverArtSize): String =
-        url(
+        if (aurralDiscovery != null && (coverArtId.startsWith("https://") || coverArtId.startsWith("http://"))) coverArtId else url(
             "getCoverArt.view",
             mapOf(
                 "id" to coverArtId,
@@ -1718,7 +1732,7 @@ class NavidromeProvider(
 
     override suspend fun bytesForOwnedUrl(url: String): ByteArray? =
         if (!ownsUrl(url)) null
-        else if (aurralDiscovery?.ownsArtistCoverUrl(url) == true) aurralDiscovery.artistCoverBytes(url)
+        else if (aurralDiscovery?.ownsDiscoveryCoverUrl(url) == true) aurralDiscovery.discoveryCoverBytes(url)
         else bytes(url)
 
     suspend fun download(url: String, writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit): Boolean =

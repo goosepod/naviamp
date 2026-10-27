@@ -63,6 +63,28 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    @Test fun discoverySamplesReachTheSharedEngineWithoutAudioCacheWrites() = runTest {
+        val base = FakeCoreMediaProvider()
+        val preview = app.naviamp.domain.provider.ProviderDiscoverySample("42", "Sample").playbackTrack("Artist")
+        val provider = object : MediaProvider by base {
+            override suspend fun streamUrl(request: app.naviamp.domain.StreamRequest): String {
+                assertEquals(preview.id, request.trackId)
+                return "https://sample.test/audio.mp3"
+            }
+        }
+        val engine = RecordingPlaybackEngine()
+        var writes = 0
+        val adapter = NaviampCorePlaybackEngineAdapter(scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() },
+            activeSourceId = { "source" }, cacheSettings = { CacheSettings(audioCachingEnabled = true, audioPrefetchDepth = 2) },
+            cacheAudio = { _, _, _, _ -> writes++; error("Samples must not be cached as owned tracks") })
+        adapter.playQueueSelection(PlaybackQueue(listOf(preview), 0), 0)
+        advanceUntilIdle()
+        assertEquals("https://sample.test/audio.mp3", engine.request?.url)
+        assertEquals(0, writes)
+        adapter.stop()
+    }
+
     @Test
     fun explicitPauseSurvivesLatePlayingCallbacksAndRestartedSeekUntilResume() = runTest {
         val provider = FakeCoreMediaProvider()

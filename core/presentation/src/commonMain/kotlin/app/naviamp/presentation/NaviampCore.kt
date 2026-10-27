@@ -269,6 +269,7 @@ class NaviampCore private constructor(
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
             var completeDatabaseReset: suspend () -> Unit = {}
             var notifyPlaybackSettingsChanged: (app.naviamp.domain.settings.PlaybackSettings, app.naviamp.domain.settings.PlaybackSettings) -> Unit = { _, _ -> }
+            var playDiscoverySample: suspend (app.naviamp.domain.Track) -> Unit = { error("Playback unavailable") }
             val home = NaviampCoreHomeController(
                 stateStore,
                 providerSource,
@@ -282,6 +283,7 @@ class NaviampCore private constructor(
                 observedAtIso8601 = services.favoritedAtIso8601,
                 externalUri = services.content.externalUri,
                 openLibraryArtist = { mediaDetails.selectArtist(it.toSharedMediaItemUi()) },
+                playDiscoverySample = { playDiscoverySample(it) },
             )
             val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
                 livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }
@@ -361,6 +363,7 @@ class NaviampCore private constructor(
                 activeSourceId = { stateStore.state.value.shell.connectionSettings.currentSourceId },
                 profiles = services.playback.profiles,
             )
+            playDiscoverySample = { track -> queuePlayback.play(listOf(track), 0) }
             val downloads = NaviampCoreDownloadsController(
                 scope,
                 stateStore,

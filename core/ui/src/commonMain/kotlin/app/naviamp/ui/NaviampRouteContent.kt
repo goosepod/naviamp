@@ -1010,7 +1010,7 @@ fun SharedHomeRoute(
                     home.providerDiscovery?.let { discovery ->
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist)
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction)
                     }
                     SharedHome(
                         colors = colors,

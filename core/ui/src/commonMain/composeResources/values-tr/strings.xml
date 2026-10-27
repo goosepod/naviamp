@@ -354,4 +354,25 @@
     <string name="discovery_releases">Yayınlar</string>
     <string name="home_scroll_left">Sola kaydır</string>
     <string name="home_scroll_right">Sağa kaydır</string>
+    <string name="discovery_all_releases">Tüm yayınlar</string>
+    <string name="discovery_action_busy">İşleniyor…</string>
+    <string name="discovery_samples">Örnekler</string>
+    <string name="discovery_load_samples">Örnekleri yükle</string>
+    <string name="discovery_no_samples">Örnek bulunamadı.</string>
+    <string name="discovery_samples_failed">Örnekler yüklenemedi.</string>
+    <string name="discovery_play_sample">Örneği çal</string>
+    <string name="discovery_request_track">Parça iste</string>
+    <string name="discovery_request_album">Albüm iste</string>
+    <string name="discovery_monitor_artist">Sanatçıyı izle</string>
+    <string name="discovery_stop_monitoring">İzlemeyi durdur</string>
+    <string name="discovery_request_queued">İstek kuyruğa alındı.</string>
+    <string name="discovery_request_already_queued">Zaten kuyrukta.</string>
+    <string name="discovery_request_owned">Zaten kitaplığınızda.</string>
+    <string name="discovery_request_saved">Kaydedildi.</string>
+    <string name="discovery_monitoring_enabled">Sanatçı izleme etkinleştirildi.</string>
+    <string name="discovery_monitoring_disabled">Sanatçı izleme devre dışı bırakıldı.</string>
+    <string name="discovery_request_missing_source">Kaydedildi, ancak indirme kaynağı yapılandırılmamış.</string>
+    <string name="discovery_action_forbidden">Hesabınız bu işlemi yapamaz.</string>
+    <string name="discovery_action_unsupported">Bu sunucu bu işlemi desteklemiyor.</string>
+    <string name="discovery_action_uncertain">Sonuç doğrulanamadı. Tekrar denemeden önce Aurral üzerinden kontrol edin.</string>
 </resources>

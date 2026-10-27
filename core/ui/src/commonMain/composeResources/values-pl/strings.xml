@@ -473,4 +473,25 @@
     <string name="discovery_releases">Wydania</string>
     <string name="home_scroll_left">Przewiń w lewo</string>
     <string name="home_scroll_right">Przewiń w prawo</string>
+    <string name="discovery_all_releases">Wszystkie wydania</string>
+    <string name="discovery_action_busy">Przetwarzanie…</string>
+    <string name="discovery_samples">Próbki</string>
+    <string name="discovery_load_samples">Wczytaj próbki</string>
+    <string name="discovery_no_samples">Brak dostępnych próbek.</string>
+    <string name="discovery_samples_failed">Nie udało się wczytać próbek.</string>
+    <string name="discovery_play_sample">Odtwórz próbkę</string>
+    <string name="discovery_request_track">Poproś o utwór</string>
+    <string name="discovery_request_album">Poproś o album</string>
+    <string name="discovery_monitor_artist">Monitoruj wykonawcę</string>
+    <string name="discovery_stop_monitoring">Zatrzymaj monitorowanie</string>
+    <string name="discovery_request_queued">Żądanie w kolejce.</string>
+    <string name="discovery_request_already_queued">Już w kolejce.</string>
+    <string name="discovery_request_owned">Już w Twojej bibliotece.</string>
+    <string name="discovery_request_saved">Zapisano.</string>
+    <string name="discovery_monitoring_enabled">Włączono monitorowanie wykonawcy.</string>
+    <string name="discovery_monitoring_disabled">Wyłączono monitorowanie wykonawcy.</string>
+    <string name="discovery_request_missing_source">Zapisano, ale nie skonfigurowano źródła pobierania.</string>
+    <string name="discovery_action_forbidden">Twoje konto nie może wykonać tej czynności.</string>
+    <string name="discovery_action_unsupported">Ten serwer nie obsługuje tej czynności.</string>
+    <string name="discovery_action_uncertain">Nie udało się potwierdzić wyniku. Sprawdź w Aurral przed ponowną próbą.</string>
 </resources>
