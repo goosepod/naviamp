@@ -971,6 +971,13 @@ data class SharedProviderDiscoveryUi(
     val artistDetail: SharedProviderDiscoveryArtistUi? = null,
 )
 
+data class DiscoverySamplePlaybackUi(val trackId: String? = null, val playing: Boolean = false, val canToggle: Boolean = true)
+
+fun NowPlayingUi?.discoverySamplePlayback() = DiscoverySamplePlaybackUi(
+    this?.id?.takeIf { it.startsWith(app.naviamp.domain.provider.DiscoveryPreviewTrackPrefix) },
+    this?.isPlaying == true, this?.canPlayPause ?: true,
+)
+
 data class SharedProviderDiscoveryArtistUi(
     val artist: app.naviamp.domain.provider.ProviderDiscoveryArtist,
     val loading: Boolean = true,
@@ -981,6 +988,7 @@ data class SharedProviderDiscoveryArtistUi(
     val actionBusy: Boolean = false,
     val samples: List<app.naviamp.domain.provider.ProviderDiscoverySample> = emptyList(),
     val samplesStatus: app.naviamp.domain.provider.ProviderDiscoveryStatus? = null,
+    val samplesLoading: Boolean = false,
     val operationStatus: app.naviamp.domain.provider.ProviderDiscoveryOperationStatus? = null,
     val blockedActions: Set<app.naviamp.domain.provider.ProviderDiscoveryAction> = emptySet(),
 )

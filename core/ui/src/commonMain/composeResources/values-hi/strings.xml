@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">सभी रिलीज़</string>
     <string name="discovery_action_busy">कार्य जारी है…</string>
     <string name="discovery_samples">नमूने</string>
-    <string name="discovery_load_samples">नमूने लोड करें</string>
     <string name="discovery_no_samples">कोई नमूना उपलब्ध नहीं है।</string>
     <string name="discovery_samples_failed">नमूने लोड नहीं हो सके।</string>
     <string name="discovery_play_sample">नमूना चलाएँ</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">आपका खाता यह कार्रवाई नहीं कर सकता।</string>
     <string name="discovery_action_unsupported">यह सर्वर इस कार्रवाई का समर्थन नहीं करता।</string>
     <string name="discovery_action_uncertain">परिणाम की पुष्टि नहीं हो सकी। फिर प्रयास करने से पहले Aurral में जाँचें।</string>
+    <string name="discovery_samples_loading">नमूने लोड हो रहे हैं…</string>
 </resources>

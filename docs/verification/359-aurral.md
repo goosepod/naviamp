@@ -238,10 +238,10 @@ previous test profile and local-network metadata. Its foreground owner acceptanc
 
 Release rows now show lazy square covers from cached cover URLs or the authenticated native
 release-group cover endpoint. Primary and secondary MusicBrainz types use the same shared classification
-as Library albums. All releases and the present type chips stay above the scrollable details. Filter
+as Library albums. All releases and the present type chips sit immediately above the responsive release cover grid, below artist information and samples. Filter
 selection is transient UI state, not a new exported preference. Artist images remain circular.
 
-Load samples reads available Deezer previews. Play sample uses the common queue and engine path with
+Opening or refreshing native artist details automatically loads available Deezer previews. Inline play/pause uses the common queue and engine path without opening the full Player, with
 reserved sample IDs and the server's stable public preview-media endpoint. Full-track duration and
 Library identities are never copied onto a preview. Sample audio bypasses owned/cached audio, audio
 prefetch, disk recovery downloads, library sidecars, presence/scrobbling and Sonic Autoplay seeds.
@@ -281,3 +281,37 @@ presentation/provider and iOS simulator presentation/device provider compilation
 and Mac packaging passed. The rendered popup was inspected with type filters, square release art,
 sample/request/monitor controls and status/busy states. This does not establish foreground audible
 playback or live acquisition/monitoring mutation acceptance.
+
+
+## Inline samples and responsive release grid
+
+Artist details now auto-load samples after publishing artist metadata. Loading, empty and failed sample
+states are explicit; the Load samples command/button and its obsolete translations are removed.
+Shared generation/source guards reject late sample responses after another artist/account is selected.
+Refresh reloads the artist and its samples; loading samples never starts audio automatically.
+
+The compact sample presentation follows the reference's numbered title/album rows: two columns on
+wide panels, one on narrow screens, in column-major order. The active sample is highlighted, with
+play/pause/resume and a separate acquisition icon. Playback uses the existing shared engine and keeps
+the artist popup open. Normal full-player queue starts retain their existing navigation. Discovery
+receives only track identity and transport state, not position ticks; there is no new animation timer
+or continuously repainted progress indicator.
+
+Release filters now follow artist information and samples, directly above the albums. Releases are
+lazy, responsive rows of square cover cards with title/year/type below and a permission-gated request
+icon. Available width determines the column count, with no nested unbounded scrolling grid. The same
+shared panel is used in the popup and desktop/phone rendering fixtures. Artist portraits retain the
+circular shared shape and releases keep the album shape policy.
+
+No persisted setting or platform production source is introduced. New loading copy uses every
+maintained translation. Regression checks cover automatic loading/stale response rejection, inline
+play/pause/resume/switching without Player navigation, progress-independent state projection, sample
+column order, filter placement, release cover shape and metadata placement, responsive phone/desktop
+rendering, and acquisition action/busy behavior.
+
+Inline/grid verification: all 10 focused Aurral UI cases, 11 Home controller cases and six queue
+playback cases passed. The shared panel was rendered and inspected at 1100×900 and 390×844;
+geometry checks verify two-column samples on wide layouts, one column on phones, square covers in
+adaptive grid rows, metadata below artwork, filtering and separate acquisition controls. Android and
+iOS simulator presentation compilation, architecture verification and Mac packaging passed. These
+checks add no live acquisition mutations and do not replace foreground audible playback acceptance.

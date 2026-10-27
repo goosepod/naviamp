@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">كل الإصدارات</string>
     <string name="discovery_action_busy">جارٍ العمل…</string>
     <string name="discovery_samples">مقاطع تجريبية</string>
-    <string name="discovery_load_samples">تحميل المقاطع التجريبية</string>
     <string name="discovery_no_samples">لا توجد مقاطع تجريبية.</string>
     <string name="discovery_samples_failed">تعذر تحميل المقاطع التجريبية.</string>
     <string name="discovery_play_sample">تشغيل مقطع تجريبي</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">لا يملك حسابك صلاحية تنفيذ هذا الإجراء.</string>
     <string name="discovery_action_unsupported">لا يدعم هذا الخادم هذا الإجراء.</string>
     <string name="discovery_action_uncertain">تعذر تأكيد النتيجة. تحقق في Aurral قبل إعادة المحاولة.</string>
+    <string name="discovery_samples_loading">جارٍ تحميل المقاطع التجريبية…</string>
 </resources>

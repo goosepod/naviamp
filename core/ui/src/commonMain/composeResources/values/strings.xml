@@ -1212,7 +1212,6 @@
     <string name="discovery_all_releases">All releases</string>
     <string name="discovery_action_busy">Working…</string>
     <string name="discovery_samples">Samples</string>
-    <string name="discovery_load_samples">Load samples</string>
     <string name="discovery_no_samples">No samples available.</string>
     <string name="discovery_samples_failed">Could not load samples.</string>
     <string name="discovery_play_sample">Play sample</string>
@@ -1230,4 +1229,5 @@
     <string name="discovery_action_forbidden">Your account cannot perform this action.</string>
     <string name="discovery_action_unsupported">This server does not support this action.</string>
     <string name="discovery_action_uncertain">Could not confirm the result. Check in Aurral before trying again.</string>
+    <string name="discovery_samples_loading">Loading samples…</string>
 </resources>

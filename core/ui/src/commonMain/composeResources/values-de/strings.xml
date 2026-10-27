@@ -1183,7 +1183,6 @@
     <string name="discovery_all_releases">Alle Veröffentlichungen</string>
     <string name="discovery_action_busy">Wird bearbeitet…</string>
     <string name="discovery_samples">Hörproben</string>
-    <string name="discovery_load_samples">Hörproben laden</string>
     <string name="discovery_no_samples">Keine Hörproben verfügbar.</string>
     <string name="discovery_samples_failed">Hörproben konnten nicht geladen werden.</string>
     <string name="discovery_play_sample">Hörprobe abspielen</string>
@@ -1201,4 +1200,5 @@
     <string name="discovery_action_forbidden">Dein Konto darf diese Aktion nicht ausführen.</string>
     <string name="discovery_action_unsupported">Dieser Server unterstützt diese Aktion nicht.</string>
     <string name="discovery_action_uncertain">Ergebnis konnte nicht bestätigt werden. Prüfe Aurral vor einem erneuten Versuch.</string>
+    <string name="discovery_samples_loading">Hörproben werden geladen…</string>
 </resources>

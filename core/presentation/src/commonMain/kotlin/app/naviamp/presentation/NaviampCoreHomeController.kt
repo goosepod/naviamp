@@ -237,12 +237,10 @@ class NaviampCoreHomeController(
         val discovery = provider.discovery ?: return
         val detail = stateStore.state.value.shell.home.providerDiscovery?.artistDetail?.takeIf { it.artist.id == command.id } ?: return
         val generation = discoveryDetailGeneration
-        var samples: ProviderDiscoverySamples? = null
         var operation: ProviderDiscoveryOperation? = null
         var played = false
         try {
             when (val action = command.action) {
-                ProviderDiscoveryAction.LoadSamples -> samples = discovery.samples(detail.artist)
                 is ProviderDiscoveryAction.PlaySample -> {
                     val sample = detail.samples.firstOrNull { it.id == action.id } ?: return
                     playDiscoverySample(sample.playbackTrack(detail.artist.name)); played = true
@@ -260,16 +258,13 @@ class NaviampCoreHomeController(
             }
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
-            if (command.action == ProviderDiscoveryAction.LoadSamples) samples = ProviderDiscoverySamples(ProviderDiscoveryStatus.Unavailable)
-            else operation = ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Uncertain)
+            operation = ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Uncertain)
         } finally {
             if (generation == discoveryDetailGeneration && providerSource.isCurrent(provider)) {
                 updateDiscovery { current -> current.copy(artistDetail = current.artistDetail?.takeIf { it.artist.id == command.id }?.let { latest ->
                     val result = operation?.status
                     latest.copy(actionBusy = false,
-                        samples = samples?.tracks ?: latest.samples,
-                        samplesStatus = samples?.status ?: latest.samplesStatus,
-                        operationStatus = result ?: if (played || samples != null) null else latest.operationStatus,
+                        operationStatus = result ?: if (played) null else latest.operationStatus,
                         blockedActions = if (result in setOf(ProviderDiscoveryOperationStatus.Queued, ProviderDiscoveryOperationStatus.AlreadyQueued,
                             ProviderDiscoveryOperationStatus.AlreadyOwned, ProviderDiscoveryOperationStatus.Saved, ProviderDiscoveryOperationStatus.Uncertain))
                             latest.blockedActions + command.action else latest.blockedActions,
@@ -324,6 +319,17 @@ class NaviampCoreHomeController(
             stateStore.state.value.shell.home.providerDiscovery?.artistDetail?.artist?.id != id) return
         updateDiscovery { current -> current.copy(artistDetail = SharedProviderDiscoveryArtistUi(
             artist = result.details?.artist ?: artist, loading = false, status = result.status, details = result.details,
+            samplesLoading = true,
+        )) }
+        val samples = if (result.details == null) ProviderDiscoverySamples(result.status) else try {
+            provider.discovery?.samples(result.details?.artist ?: artist) ?: ProviderDiscoverySamples()
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            ProviderDiscoverySamples(ProviderDiscoveryStatus.Unavailable)
+        }
+        if (generation != discoveryDetailGeneration || !providerSource.isCurrent(provider)) return
+        updateDiscovery { current -> current.copy(artistDetail = current.artistDetail?.takeIf { it.artist.id == id }?.copy(
+            samplesLoading = false, samples = samples.tracks, samplesStatus = samples.status,
         )) }
     }
 

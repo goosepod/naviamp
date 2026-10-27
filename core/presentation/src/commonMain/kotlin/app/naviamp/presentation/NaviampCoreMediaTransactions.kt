@@ -1,4 +1,5 @@
 package app.naviamp.presentation
+import app.naviamp.domain.provider.isDiscoveryPreview
 import app.naviamp.domain.radio.radioDiagnostics
 import app.naviamp.domain.radio.radioSimilarityMethod
 
@@ -65,6 +66,7 @@ class NaviampCoreQueuePlaybackController(
         shuffle: Boolean = false,
         groupTarget: PlaybackProfileTarget? = null,
         groupLabel: String = "",
+        openPlayer: Boolean = true,
     ): Boolean {
         val selected = if (shuffle) tracks.shuffled() else tracks
         if (selected.isEmpty()) return false
@@ -93,8 +95,19 @@ class NaviampCoreQueuePlaybackController(
         playback.updateCurrentTrack(update.queue.current)
         effects.playQueueSelection(update.queue, update.queue.currentIndex)
         publishNowPlaying()
-        openNowPlaying()
+        if (openPlayer) openNowPlaying()
         return true
+    }
+
+    /** Previews use the active engine while keeping the discovery popup in place. */
+    fun playSample(track: Track) {
+        require(track.id.isDiscoveryPreview())
+        val current = playback.state.value
+        when {
+            current.currentTrack?.id == track.id && current.playbackState == PlaybackState.Playing -> effects.pause()
+            current.currentTrack?.id == track.id && current.playbackState == PlaybackState.Paused -> effects.resume()
+            else -> play(listOf(track), 0, openPlayer = false)
+        }
     }
 
     fun addToQueue(

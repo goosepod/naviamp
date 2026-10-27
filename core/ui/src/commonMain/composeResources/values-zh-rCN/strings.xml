@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">所有发行</string>
     <string name="discovery_action_busy">处理中…</string>
     <string name="discovery_samples">试听</string>
-    <string name="discovery_load_samples">加载试听</string>
     <string name="discovery_no_samples">没有可用的试听。</string>
     <string name="discovery_samples_failed">无法加载试听。</string>
     <string name="discovery_play_sample">播放试听</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">您的账户无法执行此操作。</string>
     <string name="discovery_action_unsupported">此服务器不支持此操作。</string>
     <string name="discovery_action_uncertain">无法确认结果。请先在 Aurral 中检查，然后再重试。</string>
+    <string name="discovery_samples_loading">正在加载试听…</string>
 </resources>

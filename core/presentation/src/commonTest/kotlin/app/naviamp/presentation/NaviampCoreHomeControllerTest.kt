@@ -40,6 +40,44 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun samplesLoadAutomaticallyAndLateResultsCannotReplaceAnotherArtist() = runTest {
+        val first = ProviderDiscoveryArtist("first", "First", detailsAvailable = true)
+        val second = ProviderDiscoveryArtist("second", "Second", detailsAvailable = true)
+        val waiting = kotlinx.coroutines.CompletableDeferred<ProviderDiscoverySamples>()
+        val calls = mutableListOf<String>()
+        val native = object : ProviderDiscovery {
+            override suspend fun load() = ProviderDiscoveryFeed(trending = listOf(first, second))
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist) = ProviderDiscoveryArtistResult(
+                ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(artist))
+            override suspend fun samples(artist: ProviderDiscoveryArtist): ProviderDiscoverySamples {
+                calls += artist.id
+                return if (artist.id == "first") waiting.await() else ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready,
+                    listOf(ProviderDiscoverySample("2", "Second sample")))
+            }
+        }
+        val provider = HomeTestProvider(discovery = native)
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val old = NaviampCoreCommand.Home.SelectDiscoveryArtist("first")
+        controller.dispatch(old)
+        val job = launch { controller.execute(old) }
+        runCurrent()
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.samplesLoading)
+        assertFalse(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.loading)
+        val current = NaviampCoreCommand.Home.SelectDiscoveryArtist("second")
+        controller.dispatch(current); controller.execute(current)
+        waiting.complete(ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready, listOf(ProviderDiscoverySample("1", "Old sample"))))
+        job.join()
+        val detail = store.state.value.shell.home.providerDiscovery!!.artistDetail!!
+        assertEquals("second", detail.artist.id)
+        assertEquals(listOf("2"), detail.samples.map { it.id })
+        assertFalse(detail.samplesLoading)
+        assertEquals(listOf("first", "second"), calls)
+    }
+
     @Test fun nativeRequestsRejectDuplicatesAndStaleCommandsAndSamplesUseTheSharedPlaybackCallback() = runTest {
         val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
         var requests = 0
@@ -68,7 +106,7 @@ class NaviampCoreHomeControllerTest {
             val command = NaviampCoreCommand.Home.DiscoveryAction("artist", action)
             controller.dispatch(command); controller.execute(command)
         }
-        act(ProviderDiscoveryAction.LoadSamples)
+        assertEquals(listOf("42"), store.state.value.shell.home.providerDiscovery!!.artistDetail!!.samples.map { it.id })
         act(ProviderDiscoveryAction.PlaySample("42"))
         assertEquals("discovery-preview:42", played?.id?.value)
         val request = NaviampCoreCommand.Home.DiscoveryAction("artist", ProviderDiscoveryAction.RequestAlbum("release"))

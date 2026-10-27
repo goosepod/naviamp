@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">모든 발매</string>
     <string name="discovery_action_busy">처리 중…</string>
     <string name="discovery_samples">미리 듣기</string>
-    <string name="discovery_load_samples">미리 듣기 불러오기</string>
     <string name="discovery_no_samples">미리 들을 수 있는 곡이 없습니다.</string>
     <string name="discovery_samples_failed">미리 듣기를 불러오지 못했습니다.</string>
     <string name="discovery_play_sample">미리 듣기 재생</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">이 계정으로는 이 작업을 수행할 수 없습니다.</string>
     <string name="discovery_action_unsupported">이 서버는 이 작업을 지원하지 않습니다.</string>
     <string name="discovery_action_uncertain">결과를 확인하지 못했습니다. 다시 시도하기 전에 Aurral에서 확인하세요.</string>
+    <string name="discovery_samples_loading">미리 듣기 불러오는 중…</string>
 </resources>

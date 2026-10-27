@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">Alle uitgaven</string>
     <string name="discovery_action_busy">Bezig…</string>
     <string name="discovery_samples">Fragmenten</string>
-    <string name="discovery_load_samples">Fragmenten laden</string>
     <string name="discovery_no_samples">Geen fragmenten beschikbaar.</string>
     <string name="discovery_samples_failed">Fragmenten konden niet worden geladen.</string>
     <string name="discovery_play_sample">Fragment afspelen</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">Je account mag deze actie niet uitvoeren.</string>
     <string name="discovery_action_unsupported">Deze server ondersteunt deze actie niet.</string>
     <string name="discovery_action_uncertain">Het resultaat kon niet worden bevestigd. Controleer Aurral voordat je het opnieuw probeert.</string>
+    <string name="discovery_samples_loading">Fragmenten laden…</string>
 </resources>

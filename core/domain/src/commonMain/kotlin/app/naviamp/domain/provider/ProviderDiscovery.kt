@@ -86,7 +86,6 @@ data class ProviderDiscoverySamples(val status: ProviderDiscoveryStatus = Provid
 enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain }
 data class ProviderDiscoveryOperation(val status: ProviderDiscoveryOperationStatus = ProviderDiscoveryOperationStatus.Unsupported)
 sealed interface ProviderDiscoveryAction {
-    data object LoadSamples : ProviderDiscoveryAction
     data class PlaySample(val id: String) : ProviderDiscoveryAction
     data class RequestTrack(val id: String) : ProviderDiscoveryAction
     data class RequestAlbum(val id: String) : ProviderDiscoveryAction

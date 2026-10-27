@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">Tutte le uscite</string>
     <string name="discovery_action_busy">Operazione in corso…</string>
     <string name="discovery_samples">Anteprime</string>
-    <string name="discovery_load_samples">Carica anteprime</string>
     <string name="discovery_no_samples">Nessuna anteprima disponibile.</string>
     <string name="discovery_samples_failed">Impossibile caricare le anteprime.</string>
     <string name="discovery_play_sample">Riproduci anteprima</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">Il tuo account non può eseguire questa azione.</string>
     <string name="discovery_action_unsupported">Questo server non supporta questa azione.</string>
     <string name="discovery_action_uncertain">Impossibile confermare il risultato. Controlla in Aurral prima di riprovare.</string>
+    <string name="discovery_samples_loading">Caricamento anteprime…</string>
 </resources>

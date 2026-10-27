@@ -115,6 +115,7 @@ internal fun TelevisionHome(
     colors: NaviampColors,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
+    discoveryPlayback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
@@ -213,7 +214,7 @@ internal fun TelevisionHome(
                     }) {
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction)
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback)
                     }
                 }
             }

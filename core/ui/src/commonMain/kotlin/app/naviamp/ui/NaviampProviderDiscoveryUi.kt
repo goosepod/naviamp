@@ -1,6 +1,11 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.unit.Dp
+import kotlin.math.floor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
@@ -46,6 +51,7 @@ internal fun NaviampProviderDiscoveryContent(
     onFeedback: (String, ProviderDiscoveryFeedbackAction) -> Unit = { _, _ -> },
     onLibraryArtist: (String) -> Unit = {},
     onAction: (String, ProviderDiscoveryAction) -> Unit = { _, _ -> },
+    playback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
 ) {
     val providerName = localizedProviderName(discovery.providerId)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -77,7 +83,7 @@ internal fun NaviampProviderDiscoveryContent(
             onExternal = { onArtistSelected(detail.artist.id) },
             onFeedback = { onFeedback(detail.artist.id, it) },
             onLibrary = { onLibraryArtist(detail.artist.id) },
-            onAction = { onAction(detail.artist.id, it) })
+            onAction = { onAction(detail.artist.id, it) }, playback = playback)
     }
 }
 
@@ -132,7 +138,6 @@ private fun DiscoveryArtistRail(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DiscoveryArtistDialog(
     screen: SharedProviderDiscoveryArtistUi,
@@ -144,30 +149,46 @@ private fun DiscoveryArtistDialog(
     onFeedback: (ProviderDiscoveryFeedbackAction) -> Unit,
     onLibrary: () -> Unit,
     onAction: (ProviderDiscoveryAction) -> Unit,
+    playback: DiscoverySamplePlaybackUi,
+) {
+    NaviampDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        NaviampDiscoveryArtistPanel(screen, providerName, colors, onDismiss, onRefresh, onExternal, onFeedback, onLibrary, onAction, playback)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun NaviampDiscoveryArtistPanel(
+    screen: SharedProviderDiscoveryArtistUi,
+    providerName: String,
+    colors: NaviampColors,
+    onDismiss: () -> Unit,
+    onRefresh: () -> Unit,
+    onExternal: () -> Unit,
+    onFeedback: (ProviderDiscoveryFeedbackAction) -> Unit,
+    onLibrary: () -> Unit,
+    onAction: (ProviderDiscoveryAction) -> Unit,
+    playback: DiscoverySamplePlaybackUi,
 ) {
     val releases = screen.details?.releases.orEmpty()
     val sections = AlbumReleaseSection.entries.filter { section -> releases.any { it.section == section } }
     var selectedSection by remember(screen.artist.id) { mutableStateOf<AlbumReleaseSection?>(null) }
     val effectiveSection = selectedSection?.takeIf { it in sections }
     val visibleReleases = releases.filter { effectiveSection == null || it.section == effectiveSection }
-    NaviampDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.widthIn(max = 680.dp).fillMaxWidth().padding(12.dp),
-            shape = RoundedCornerShape(12.dp), color = colors.controlSurface) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(screen.artist.name, modifier = Modifier.weight(1f), color = colors.primaryText,
-                        fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                    TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) }
-                }
-                if (releases.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = effectiveSection == null, onClick = { selectedSection = null },
-                        label = { Text(stringResource(Res.string.discovery_all_releases)) })
-                    sections.forEach { section ->
-                        FilterChip(selected = effectiveSection == section, onClick = { selectedSection = section },
-                            label = { Text(albumReleaseSectionLabel(section)) })
-                    }
-                }
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Surface(Modifier.widthIn(max = 1080.dp).fillMaxWidth().padding(12.dp),
+        shape = RoundedCornerShape(12.dp), color = colors.controlSurface) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(screen.artist.name, modifier = Modifier.weight(1f), color = colors.primaryText,
+                    fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) }
+            }
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val releaseColumns = discoveryReleaseColumns(maxWidth.value)
+                val coverSize = (maxWidth - 12.dp * (releaseColumns - 1)) / releaseColumns
+                val sampleColumns = if (maxWidth >= 680.dp) 2 else 1
+                val sampleRows = discoverySampleRows(screen.samples, sampleColumns)
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
                         NaviampCoverArt(screen.artist.imageUrl, colors, 96.dp,
                             mediaArtworkCornerRadius(SharedMediaItemKind.Artist, 96.dp, 6.dp))
@@ -182,9 +203,6 @@ private fun DiscoveryArtistDialog(
                             }), color = colors.secondaryText)
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { onAction(ProviderDiscoveryAction.LoadSamples) }, enabled = !screen.loading && !screen.actionBusy && !screen.savingFeedback) {
-                                Text(stringResource(Res.string.discovery_load_samples))
-                            }
                             if (screen.details?.canChangeMonitoring == true && screen.details.monitored != null) {
                                 TextButton(onClick = { onAction(ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true)) },
                                     enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true) !in screen.blockedActions) {
@@ -218,51 +236,115 @@ private fun DiscoveryArtistDialog(
                         }
                         if (screen.actionBusy) Text(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
                         screen.operationStatus?.let { status -> Text(stringResource(discoveryOperationMessage(status)), color = colors.secondaryText) }
-                        if (screen.samplesStatus != null && screen.samples.isEmpty()) Text(stringResource(
-                            if (screen.samplesStatus == ProviderDiscoveryStatus.Ready) Res.string.discovery_no_samples else Res.string.discovery_samples_failed), color = colors.secondaryText)
                         if (screen.savingFeedback) Text(stringResource(Res.string.discovery_saving_feedback), color = colors.secondaryText)
                         if (screen.feedbackFailed) Text(stringResource(Res.string.discovery_feedback_failed), color = colors.secondaryText)
                     }
-                    if (screen.samples.isNotEmpty()) item {
-                        Text(stringResource(Res.string.discovery_samples), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+                    if (!screen.loading) item(key = "samples-header") {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(stringResource(Res.string.discovery_samples), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+                            if (screen.loading || screen.samplesLoading || screen.samplesStatus == null) Text(stringResource(Res.string.discovery_samples_loading), color = colors.secondaryText)
+                            else if (screen.samples.isEmpty()) Text(stringResource(
+                                if (screen.samplesStatus == ProviderDiscoveryStatus.Ready) Res.string.discovery_no_samples else Res.string.discovery_samples_failed), color = colors.secondaryText)
+                        }
                     }
-                    items(screen.samples, key = { "sample:${it.id}" }) { sample ->
-                        Column {
-                            Text(sample.title, color = colors.primaryText)
+                    items(sampleRows, key = { "samples:${it.first().value.id}" }) { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                            row.forEach { sample ->
+                                DiscoverySampleRow(sample.index + 1, sample.value, screen, playback, colors,
+                                    Modifier.weight(1f), onAction)
+                            }
+                            if (row.size < sampleColumns) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    if (releases.isNotEmpty()) item(key = "release-filters") {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(stringResource(Res.string.discovery_releases), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                TextButton(onClick = { onAction(ProviderDiscoveryAction.PlaySample(sample.id)) }, enabled = !screen.actionBusy && !screen.savingFeedback) {
-                                    Text(stringResource(Res.string.discovery_play_sample))
-                                }
-                                if (screen.details?.canRequestTracks == true) TextButton(
-                                    onClick = { onAction(ProviderDiscoveryAction.RequestTrack(sample.id)) },
-                                    enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestTrack(sample.id) !in screen.blockedActions) {
-                                    Text(stringResource(Res.string.discovery_request_track))
+                                FilterChip(selected = effectiveSection == null, onClick = { selectedSection = null },
+                                    label = { Text(stringResource(Res.string.discovery_all_releases)) })
+                                sections.forEach { section ->
+                                    FilterChip(selected = effectiveSection == section, onClick = { selectedSection = section },
+                                        label = { Text(albumReleaseSectionLabel(section)) })
                                 }
                             }
                         }
                     }
-                    if (releases.isNotEmpty()) item {
-                        Text(stringResource(Res.string.discovery_releases), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
-                    }
-                    items(visibleReleases, key = { it.id }) { release ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            NaviampCoverArt(release.imageUrl, colors, 64.dp,
-                                mediaArtworkCornerRadius(SharedMediaItemKind.Album, 64.dp, 4.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(release.title, color = colors.primaryText)
-                                Text(listOfNotNull(release.releaseDate, albumReleaseSectionLabel(release.section)).joinToString(" · "),
-                                    color = colors.secondaryText, fontSize = 12.sp)
-                                if (screen.details?.canRequestAlbums == true) TextButton(
-                                    onClick = { onAction(ProviderDiscoveryAction.RequestAlbum(release.id)) },
-                                    enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.id) !in screen.blockedActions) {
-                                    Text(stringResource(Res.string.discovery_request_album))
-                                }
-                            }
+                    items(visibleReleases.chunked(releaseColumns), key = { "releases:${it.first().id}" }) { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            row.forEach { release -> DiscoveryReleaseCard(release, coverSize, screen, colors, onAction) }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+internal fun discoveryReleaseColumns(width: Float): Int = floor((width + 12f) / 148f).toInt().coerceIn(1, 6)
+
+internal fun discoverySampleRows(samples: List<ProviderDiscoverySample>, columns: Int): List<List<IndexedValue<ProviderDiscoverySample>>> {
+    val count = columns.coerceIn(1, 2)
+    val rows = (samples.size + count - 1) / count
+    return (0 until rows).map { row -> (0 until count).mapNotNull { column ->
+        val index = row + column * rows
+        samples.getOrNull(index)?.let { IndexedValue(index, it) }
+    } }
+}
+
+@Composable
+private fun DiscoverySampleRow(
+    number: Int, sample: ProviderDiscoverySample, screen: SharedProviderDiscoveryArtistUi,
+    playback: DiscoverySamplePlaybackUi, colors: NaviampColors, modifier: Modifier,
+    onAction: (ProviderDiscoveryAction) -> Unit,
+) {
+    val active = playback.trackId == DiscoveryPreviewTrackPrefix + sample.id
+    val playing = active && playback.playing
+    val enabled = !screen.actionBusy && !screen.savingFeedback && (!active || playback.canToggle)
+    val playLabel = stringResource(if (playing) Res.string.transport_pause else Res.string.discovery_play_sample)
+    val toggle = { onAction(ProviderDiscoveryAction.PlaySample(sample.id)) }
+    Row(modifier.background(if (active) colors.accent.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent,
+        RoundedCornerShape(7.dp)).clickable(enabled = enabled, role = Role.Button, onClickLabel = playLabel, onClick = toggle)
+        .padding(horizontal = 6.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(number.toString(), Modifier.width(20.dp), color = colors.mutedText, fontSize = 11.sp)
+        IconButton(onClick = toggle, enabled = enabled, modifier = Modifier.size(30.dp)) {
+            Icon(if (playing) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
+                playLabel, Modifier.size(16.dp), tint = colors.primaryText)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(sample.title, color = colors.primaryText, fontSize = 13.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            sample.albumTitle?.let { Text(it, color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+        if (screen.details?.canRequestTracks == true) IconButton(
+            onClick = { onAction(ProviderDiscoveryAction.RequestTrack(sample.id)) },
+            enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestTrack(sample.id) !in screen.blockedActions,
+            modifier = Modifier.size(32.dp)) {
+            Icon(NaviampIcons.Downloads, stringResource(Res.string.discovery_request_track), Modifier.size(16.dp), tint = colors.secondaryText)
+        }
+    }
+}
+
+@Composable
+private fun DiscoveryReleaseCard(
+    release: ProviderDiscoveryRelease, size: Dp, screen: SharedProviderDiscoveryArtistUi,
+    colors: NaviampColors, onAction: (ProviderDiscoveryAction) -> Unit,
+) {
+    Column(Modifier.width(size), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box {
+            NaviampCoverArt(release.imageUrl, colors, size, mediaArtworkCornerRadius(SharedMediaItemKind.Album, size, 7.dp))
+            if (screen.details?.canRequestAlbums == true) Surface(Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                shape = RoundedCornerShape(6.dp), color = colors.controlSurface.copy(alpha = 0.92f)) {
+                IconButton(onClick = { onAction(ProviderDiscoveryAction.RequestAlbum(release.id)) },
+                    enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.id) !in screen.blockedActions,
+                    modifier = Modifier.size(30.dp)) {
+                    Icon(NaviampIcons.Downloads, stringResource(Res.string.discovery_request_album), Modifier.size(17.dp), tint = colors.primaryText)
+                }
+            }
+        }
+        Text(release.title, color = colors.primaryText, fontSize = 13.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(listOfNotNull(release.releaseDate?.take(4), albumReleaseSectionLabel(release.section)).joinToString(" · "),
+            color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

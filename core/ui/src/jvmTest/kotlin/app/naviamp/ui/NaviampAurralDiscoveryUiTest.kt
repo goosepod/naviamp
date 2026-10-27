@@ -14,6 +14,81 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampAurralDiscoveryUiTest {
+    @Test fun inlinePlaybackProjectionIgnoresProgressAndLibraryTracks() {
+        val current = NowPlayingUi(id = DiscoveryPreviewTrackPrefix + "42", title = "Sample", subtitle = "Artist",
+            stateLabel = "Playing", isPlaying = true, positionSeconds = 1.0, durationSeconds = 30.0)
+        assertEquals(current.discoverySamplePlayback(), current.copy(positionSeconds = 15.0).discoverySamplePlayback())
+        assertNull(current.copy(id = "library-track").discoverySamplePlayback().trackId)
+        assertNull((null as NowPlayingUi?).discoverySamplePlayback().trackId)
+    }
+
+    @Test fun artistPanelUsesInlineColumnsAndACoverGridAtDesktopAndPhoneWidths() {
+        val palette = listOf("2D658E", "7840A4", "A45135", "387D62", "A58935", "8E3D62", "4F657E", "486D95")
+        val art = palette.mapIndexed { index, color -> checkNotNull(jvmGeneratedCoverArtBytes(
+            "naviamp-radio-tile://cover?label=${index + 1}&from=$color&to=182332")) }
+        listOf(1100 to 900, 390 to 844).forEach { (width, height) ->
+            resetNaviampCoverArtCache()
+            setJvmPlatformCoverArtByteLoader { url -> art[url.substringAfterLast('/').toIntOrNull()?.rem(art.size) ?: 0] }
+            try {
+                runDesktopComposeUiTest(width, height) {
+                    val artist = ProviderDiscoveryArtist("artist", "Discovery artist", imageUrl = "fixture://artist")
+                    val screen = SharedProviderDiscoveryArtistUi(artist, loading = false,
+                        details = ProviderDiscoveryArtistDetails(artist,
+                            releases = (1..8).map { ProviderDiscoveryRelease("release-$it", "Release $it", "2025-02-01",
+                                if (it % 2 == 0) "EP" else "Album", imageUrl = "fixture://cover/$it") },
+                            canRequestAlbums = true, canRequestTracks = true, canChangeMonitoring = true, monitored = false),
+                        samplesStatus = ProviderDiscoveryStatus.Ready,
+                        samples = (1..6).map { ProviderDiscoverySample("$it", "Sample $it", "Sample album $it") })
+                    val playback = mutableStateOf(DiscoverySamplePlaybackUi(DiscoveryPreviewTrackPrefix + "4", playing = true))
+                    val actions = mutableListOf<ProviderDiscoveryAction>()
+                    setContent {
+                        MaterialTheme(colorScheme = darkColorScheme()) {
+                            Box(Modifier.fillMaxSize().background(NaviampColors.Dark.background), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                NaviampDiscoveryArtistPanel(screen, "Aurral", NaviampColors.Dark, {}, {}, {}, {}, {},
+                                    { actions += it }, playback.value)
+                            }
+                        }
+                    }
+                    onNodeWithText("Load samples").assertDoesNotExist()
+                    val first = onNodeWithText("Sample 1").fetchSemanticsNode().boundsInRoot
+                    if (width > 680) {
+                        val fourth = onNodeWithText("Sample 4").fetchSemanticsNode().boundsInRoot
+                        assertTrue(fourth.left > first.right)
+                        assertEquals(first.top, fourth.top)
+                        onNodeWithContentDescription("Pause").performClick()
+                        runOnIdle { assertEquals(ProviderDiscoveryAction.PlaySample("4"), actions.last()); playback.value = playback.value.copy(playing = false) }
+                    } else {
+                        val second = onNodeWithText("Sample 2").fetchSemanticsNode().boundsInRoot
+                        assertEquals(first.left, second.left)
+                        assertTrue(second.top > first.top)
+                    }
+                    fun capture(suffix: String) {
+                        System.getenv("NAVIAMP_AURRAL_CAPTURE")?.let { directory ->
+                            java.io.File(directory).mkdirs()
+                            javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "artist-panel-$width-$suffix.png"))
+                        }
+                    }
+                    capture("samples")
+                    onNodeWithText("All releases").performScrollTo()
+                    onNodeWithText("Release 1").performScrollTo()
+                    val filter = onNodeWithText("All releases").fetchSemanticsNode().boundsInRoot
+                    fun covers() = onAllNodesWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNodes()
+                        .map { it.boundsInRoot }.filter { it.top >= filter.bottom }
+                    waitUntil(timeoutMillis = 5_000) { covers().size >= 2 }
+                    val covers = covers().sortedWith(compareBy({ it.top }, { it.left }))
+                    assertEquals(covers[0].width, covers[0].height)
+                    assertEquals(covers[0].top, covers[1].top)
+                    assertTrue(covers[1].left > covers[0].right)
+                    assertTrue(onNodeWithText("Release 1").fetchSemanticsNode().boundsInRoot.top >= covers[0].bottom)
+                    capture("releases")
+                    onAllNodesWithText("EPs")[0].performClick()
+                    onNodeWithText("Release 1").assertDoesNotExist()
+                    onNodeWithText("Release 2").assertExists()
+                }
+            } finally { resetJvmPlatformCoverArtByteLoader() }
+        }
+    }
+
     @Test fun previewControlsAllowPlaybackButNeverLibraryMutationOrPlaylistActions() {
         val capabilities = nowPlayingTrackCapabilities(isLiveStream = false,
             playbackState = app.naviamp.domain.playback.PlaybackState.Playing, isPreview = true,
@@ -46,7 +121,7 @@ class NaviampAurralDiscoveryUiTest {
                 onAllNodesWithText("EPs")[0].performClick()
                 onNodeWithText("Album release").assertDoesNotExist()
                 onNodeWithText("EP release").assertExists()
-                onNodeWithText("Request album").performClick()
+                onNodeWithContentDescription("Request album").performClick()
                 runOnIdle { assertEquals(ProviderDiscoveryAction.RequestAlbum("ep"), actions.last()) }
                 waitUntil(timeoutMillis = 5_000) { onAllNodesWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNodes().size == 1 }
                 val cover = onNodeWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
@@ -56,23 +131,22 @@ class NaviampAurralDiscoveryUiTest {
                 onNodeWithText("Album release").assertExists()
                 onNodeWithText("Monitor artist").performClick()
                 runOnIdle { assertEquals(ProviderDiscoveryAction.SetMonitoring(true), actions.last()) }
-                onNodeWithText("Load samples").performClick()
+                onNodeWithText("Load samples").assertDoesNotExist()
                 runOnIdle {
-                    assertEquals(ProviderDiscoveryAction.LoadSamples, actions.last())
                     detail.value = detail.value.copy(samplesStatus = ProviderDiscoveryStatus.Ready,
                         samples = listOf(ProviderDiscoverySample("42", "Test sample")),
                         operationStatus = ProviderDiscoveryOperationStatus.MissingSource)
                 }
                 onNodeWithText("Saved, but no download source is configured.").assertExists()
-                onNodeWithText("Play sample").performScrollTo().performClick()
+                onNodeWithContentDescription("Play sample").performScrollTo().performClick()
                 runOnIdle { assertEquals(ProviderDiscoveryAction.PlaySample("42"), actions.last()) }
-                onNodeWithText("Request track").performClick()
+                onNodeWithContentDescription("Request track").performClick()
                 runOnIdle {
                     assertEquals(ProviderDiscoveryAction.RequestTrack("42"), actions.last())
                     detail.value = detail.value.copy(actionBusy = true)
                 }
-                onNodeWithText("Request track").assertIsNotEnabled()
-                onNodeWithText("Load samples").performScrollTo().assertIsNotEnabled()
+                onNodeWithContentDescription("Request track").assertIsNotEnabled()
+                onNodeWithText("Monitor artist").performScrollTo().assertIsNotEnabled()
                 System.getenv("NAVIAMP_AURRAL_CAPTURE")?.let { directory ->
                     java.io.File(directory).mkdirs()
                     javax.imageio.ImageIO.write(onNode(isDialog()).captureToImage().toAwtImage(), "png", java.io.File(directory, "release-actions.png"))

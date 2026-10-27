@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">Tüm yayınlar</string>
     <string name="discovery_action_busy">İşleniyor…</string>
     <string name="discovery_samples">Örnekler</string>
-    <string name="discovery_load_samples">Örnekleri yükle</string>
     <string name="discovery_no_samples">Örnek bulunamadı.</string>
     <string name="discovery_samples_failed">Örnekler yüklenemedi.</string>
     <string name="discovery_play_sample">Örneği çal</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">Hesabınız bu işlemi yapamaz.</string>
     <string name="discovery_action_unsupported">Bu sunucu bu işlemi desteklemiyor.</string>
     <string name="discovery_action_uncertain">Sonuç doğrulanamadı. Tekrar denemeden önce Aurral üzerinden kontrol edin.</string>
+    <string name="discovery_samples_loading">Örnekler yükleniyor…</string>
 </resources>

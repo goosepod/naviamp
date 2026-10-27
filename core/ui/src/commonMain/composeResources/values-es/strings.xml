@@ -1187,7 +1187,6 @@
     <string name="discovery_all_releases">Todos los lanzamientos</string>
     <string name="discovery_action_busy">Procesando…</string>
     <string name="discovery_samples">Muestras</string>
-    <string name="discovery_load_samples">Cargar muestras</string>
     <string name="discovery_no_samples">No hay muestras disponibles.</string>
     <string name="discovery_samples_failed">No se pudieron cargar las muestras.</string>
     <string name="discovery_play_sample">Reproducir muestra</string>
@@ -1205,4 +1204,5 @@
     <string name="discovery_action_forbidden">Tu cuenta no puede realizar esta acción.</string>
     <string name="discovery_action_unsupported">Este servidor no admite esta acción.</string>
     <string name="discovery_action_uncertain">No se pudo confirmar el resultado. Compruébalo en Aurral antes de volver a intentarlo.</string>
+    <string name="discovery_samples_loading">Cargando muestras…</string>
 </resources>

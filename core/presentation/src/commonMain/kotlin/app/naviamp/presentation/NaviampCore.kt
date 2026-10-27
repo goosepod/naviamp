@@ -363,7 +363,7 @@ class NaviampCore private constructor(
                 activeSourceId = { stateStore.state.value.shell.connectionSettings.currentSourceId },
                 profiles = services.playback.profiles,
             )
-            playDiscoverySample = { track -> queuePlayback.play(listOf(track), 0) }
+            playDiscoverySample = { track -> queuePlayback.playSample(track) }
             val downloads = NaviampCoreDownloadsController(
                 scope,
                 stateStore,

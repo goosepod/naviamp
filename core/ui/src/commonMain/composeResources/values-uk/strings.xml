@@ -357,7 +357,6 @@
     <string name="discovery_all_releases">Усі релізи</string>
     <string name="discovery_action_busy">Обробка…</string>
     <string name="discovery_samples">Уривки</string>
-    <string name="discovery_load_samples">Завантажити уривки</string>
     <string name="discovery_no_samples">Немає доступних уривків.</string>
     <string name="discovery_samples_failed">Не вдалося завантажити уривки.</string>
     <string name="discovery_play_sample">Відтворити уривок</string>
@@ -375,4 +374,5 @@
     <string name="discovery_action_forbidden">Ваш обліковий запис не може виконати цю дію.</string>
     <string name="discovery_action_unsupported">Цей сервер не підтримує цю дію.</string>
     <string name="discovery_action_uncertain">Не вдалося підтвердити результат. Перевірте Aurral перед повторною спробою.</string>
+    <string name="discovery_samples_loading">Завантаження уривків…</string>
 </resources>

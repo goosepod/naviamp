@@ -20,6 +20,26 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class NaviampCoreQueuePlaybackControllerTest {
+    @Test fun inlineSamplesPlayPauseResumeAndSwitchWithoutOpeningTheFullPlayer() {
+        val fixture = fixture()
+        val first = testTrack("discovery-preview:42")
+        fixture.controller.playSample(first)
+        assertEquals(first.id, fixture.live.state.value.currentTrack?.id)
+        assertEquals(0, fixture.effects.playerOpenCount)
+        fixture.live.updatePlaybackState(app.naviamp.domain.playback.PlaybackState.Playing)
+        fixture.controller.playSample(first)
+        assertEquals(1, fixture.effects.pauses)
+        fixture.live.updatePlaybackState(app.naviamp.domain.playback.PlaybackState.Paused)
+        fixture.controller.playSample(first)
+        assertEquals(1, fixture.effects.resumes)
+        val next = testTrack("discovery-preview:43")
+        fixture.controller.playSample(next)
+        assertEquals(next.id, fixture.live.state.value.currentTrack?.id)
+        assertEquals(0, fixture.effects.playerOpenCount)
+        fixture.controller.play(testTracks())
+        assertEquals(1, fixture.effects.playerOpenCount)
+    }
+
     @Test
     fun configuredPlaylistLaunchCreatesProfiledQueueGroup() {
         val target = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "playlist-1")
@@ -126,7 +146,7 @@ private fun fixture(profiles: Map<PlaybackProfileTarget, PlaybackProfile> = empt
         queue = NaviampPlaybackQueueCoordinator(live),
         effects = effects,
         publishNowPlaying = {},
-        openNowPlaying = {},
+        openNowPlaying = { effects.playerOpenCount++ },
         activeSourceId = { "source-1" },
         profiles = MapPlaybackProfileRepository(profiles),
     )
@@ -147,9 +167,12 @@ private class QueuePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities()
     override val playbackSource = PlaybackSource.ProviderStream
     var appliedQueue: PlaybackQueue? = null
+    var playerOpenCount = 0
+    var pauses = 0
+    var resumes = 0
 
-    override fun pause() = Unit
-    override fun resume() = Unit
+    override fun pause() { pauses++ }
+    override fun resume() { resumes++ }
     override fun startOrRestore() = true
     override fun seek(positionSeconds: Double) = Unit
     override fun replayCurrent(positionSeconds: Double) = Unit
