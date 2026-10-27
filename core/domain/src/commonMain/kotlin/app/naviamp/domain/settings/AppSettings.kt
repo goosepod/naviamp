@@ -257,7 +257,10 @@ fun InterfaceSettings.homeSectionPresentation(sectionId: String): HomeSectionPre
 
 fun defaultHomeSectionPresentation(sectionId: String): HomeSectionPresentationSettings =
     HomeSectionPresentationSettings(
-        homeLayout = if (sectionId == HomeSectionIds.MixesForYou || sectionId == HomeSectionIds.NavibeatMixes) {
+        homeLayout = if (sectionId in setOf(
+            HomeSectionIds.FavoriteArtists, HomeSectionIds.MixesForYou, HomeSectionIds.MixBuilders,
+            HomeSectionIds.RecentlyAdded, HomeSectionIds.RecentPlaylists, HomeSectionIds.NavibeatMixes,
+        )) {
             HomeSectionLayout.Carousel
         } else {
             HomeSectionLayout.List
