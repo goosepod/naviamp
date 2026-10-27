@@ -24,6 +24,7 @@ class NaviampTelevisionHomeCollectionTest {
                 colors = NaviampColors.Dark,
                 actions = homeActions(onCollectionSelected = opened::add),
                 mediaActions = mediaActions(),
+                discoveryPlayback = DiscoverySamplePlaybackUi(),
             )
         }
 

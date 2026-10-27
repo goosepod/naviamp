@@ -651,6 +651,7 @@ internal fun ConnectedContent(
             SharedRoute.Home -> SharedHomeRoute(
                 colors = colors,
                 home = home,
+                discoveryPlayback = nowPlaying.discoverySamplePlayback(),
                 actions = homeActions,
                 mediaActions = mediaActions,
                 scrollState = homeScrollState,

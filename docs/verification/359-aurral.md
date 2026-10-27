@@ -315,3 +315,11 @@ geometry checks verify two-column samples on wide layouts, one column on phones,
 adaptive grid rows, metadata below artwork, filtering and separate acquisition controls. Android and
 iOS simulator presentation compilation, architecture verification and Mac packaging passed. These
 checks add no live acquisition mutations and do not replace foreground audible playback acceptance.
+
+Sample transport icon regression: the connected shared Home entry point was omitting live playback
+state, leaving sample controls at their default Play state. It now forwards the compact playback
+projection, and Home/TV Home require that input so future callers cannot silently omit it. The route
+regression switches live state through playing, paused, stopped, a different sample and a Library
+track, verifying Pause only on the playing sample and Play otherwise. The focused Aurral and TV Home
+UI suites, Android/iOS presentation compilation, architecture checks and Mac packaging passed.
+No new strings, settings or platform production changes.

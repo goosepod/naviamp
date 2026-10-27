@@ -115,7 +115,7 @@ internal fun TelevisionHome(
     colors: NaviampColors,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
-    discoveryPlayback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
+    discoveryPlayback: DiscoverySamplePlaybackUi,
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {

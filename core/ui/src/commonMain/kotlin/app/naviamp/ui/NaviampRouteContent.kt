@@ -948,7 +948,7 @@ fun SharedHomeRoute(
     home: NaviampHomeScreenUi,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
-    discoveryPlayback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
+    discoveryPlayback: DiscoverySamplePlaybackUi,
     scrollState: ScrollState = rememberScrollState(),
 ) {
     val collectionScrollState = remember(home.collectionPage?.section?.id) { ScrollState(0) }
