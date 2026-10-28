@@ -11,3 +11,8 @@
 
 # Keep source and line information so the archived mapping file can retrace release crashes.
 -keepattributes SourceFile,LineNumberTable
+
+# The shared JNI end-sync bridge invokes this common callback by name/signature.
+-keep class app.naviamp.domain.playback.BassEndSyncCallback {
+    public void onEndSync(int);
+}

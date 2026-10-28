@@ -148,6 +148,11 @@ class AndroidBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_Mixer_ChannelRemove failed")))
         }
 
+    override fun setEndSync(stream: BassStreamHandle, callback: (BassStreamHandle) -> Unit): Result<Int> =
+        bass.setEndSync(stream.value) { callback(BassStreamHandle(it)) }
+            .takeIf { it != 0 }?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException(errorMessage("BASS_ChannelSetSync end failed")))
+
     override fun play(stream: BassStreamHandle): Result<Unit> =
         if (bass.play(stream.value)) {
             Result.success(Unit)

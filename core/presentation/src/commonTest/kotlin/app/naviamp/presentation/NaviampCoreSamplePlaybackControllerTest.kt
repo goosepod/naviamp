@@ -61,6 +61,7 @@ class NaviampCoreSamplePlaybackControllerTest {
                 controller.stop()
                 adapter.resume(); runCurrent()
                 assertEquals(PlaybackState.Playing, mainState)
+                assertEquals("https://music.test/next", bass.urls.last(), "Resume must start the deferred selection, not the older native stream")
             } finally { controller.close(); adapter.stop(); engine.release() }
         }
     }
@@ -209,6 +210,7 @@ private class SampleProvider(override val cacheNamespace: String = "aurral-accou
 private class PendingMainLoadBassBackend : BassAudioBackend {
     private var next = 0
     val states = mutableMapOf<Int, Int>()
+    val urls = mutableListOf<String>()
     val ends = mutableMapOf<Int, (BassStreamHandle) -> Unit>()
     val volumes = mutableMapOf<Int, Float>()
     val freed = mutableListOf<Int>()
@@ -218,9 +220,9 @@ private class PendingMainLoadBassBackend : BassAudioBackend {
     override fun setSampleRateConverterQuality(quality: Int) = Result.success(Unit)
     private fun create() = Result.success(BassStreamHandle(++next))
     override fun createFileStream(path: String) = create()
-    override fun createUrlStream(url: String) = create()
+    override fun createUrlStream(url: String) = create().also { urls += url }
     override fun createFileDecodeStream(path: String) = create()
-    override fun createUrlDecodeStream(url: String) = create()
+    override fun createUrlDecodeStream(url: String) = create().also { urls += url }
     override fun lengthBytes(stream: BassStreamHandle): Long? = null
     override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray) = Result.success(0)
     override fun activeState(stream: BassStreamHandle) = states[stream.value]

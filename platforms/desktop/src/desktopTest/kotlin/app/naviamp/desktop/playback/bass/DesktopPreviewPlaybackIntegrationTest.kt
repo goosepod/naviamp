@@ -29,7 +29,8 @@ class DesktopPreviewPlaybackIntegrationTest {
         val file = Files.createTempFile("naviamp-preview-main-", ".wav")
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         val executor = Executors.newCachedThreadPool { work -> Thread(work, "preview-fixture").apply { isDaemon = true } }
-        val backend = DesktopBassAudioBackend(DesktopBassJniBinding.load().getOrThrow())
+        val binding = DesktopBassJniBinding.load().getOrThrow()
+        val backend = DesktopBassAudioBackend(binding)
         val engine = CoreBassPlaybackEngine(Result.success(backend), DesktopBassPlaybackEngineRuntime())
         try {
             Files.write(file, silentWave(12))
@@ -66,6 +67,7 @@ class DesktopPreviewPlaybackIntegrationTest {
                 withTimeout(5_000) { progress.first { (it.positionSeconds ?: 0.0) > pausedPosition + 0.2 } }
                 println("Independent preview finished; main paused at $pausedPosition, after preview $afterPreview, resumed to ${progress.value.positionSeconds}")
                 engine.stop()
+                assertEquals(0, binding.endSyncRegistrationCount, "Main and preview native callbacks must be released")
             }
         } finally {
             engine.release()

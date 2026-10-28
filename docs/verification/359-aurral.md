@@ -376,3 +376,78 @@ mutation acceptance remain separate from this muted channel-lifetime check.
 All production changes remain in common code; no Android/Desktop/iOS production file changed. The
 only added Desktop source is a real BASS/JNI integration test. No settings/schema change, new UI
 string, live acquisition/monitoring mutation, release tag or published build is introduced.
+
+## Follow-up review and live acceptance (October 28)
+
+PRs #362 (macOS local-network packaging) and #364 (new-install Home Carousel defaults) are merged
+into main and integrated into this feature branch. They retain their separate issues and PRs.
+
+A further reproducible race occurred when main playback was still resolving a URL or opening a native
+stream as a newer preview started. The old main load could later stop the independent preview without
+a new main-playback intent. Core now invalidates/cancels that work before preview playback, retains the
+logical queue and resume position, and restarts the deferred main track only on explicit Resume.
+Regressions cover idle and already-playing main states, non-cancellable late URL completion, native
+Loading cancellation, stale callbacks, and explicit resumption. All **47 focused shared playback,
+sample-controller and output-routing cases** pass. No platform production code or new UI copy changed.
+
+The full **15-test native iOS suite** passes locally on both accepted main and the updated Aurral head.
+The earlier hosted mTLS timeout remains an investigation in #365 / #366: shared phase diagnostics
+retain the existing timeouts and all certificate-rejection, authenticated-stream and seek assertions.
+Successful local runs alone do not establish its cause or resolve the CI gate.
+
+Controlled live acceptance now supersedes the earlier pending mutation/audio checkpoints:
+
+- The actual provider confirms an already-owned track and a fully owned Aurral-managed album.
+  The album response reports available, no created artist/album, no search, and no download job IDs.
+  This verifies idempotent request acceptance; it does not claim a new acquisition completed.
+- A request for an album in the server's read-only Main library is rejected. Server permission denial
+  was verified before the owner enabled the test user's monitoring permission.
+- The actual provider disables and re-enables an existing monitored artist using default rules.
+  It verifies both writes by readback. A final independent read matches every original monitoring
+  field and rule; no file-deletion API is called.
+- A real music preview decodes non-silent PCM through the Desktop BASS/JNI backend (peak 0.8239),
+  and HTTP preview playback reaches its native end after pause/resume with output muted. The existing
+  separate-channel test confirms main stream/queue/paused-position preservation and explicit resume.
+- A second native-engine probe plays a short preview at 20% volume with a pause/resume and explicit
+  stop. The owner confirms hearing the identified playback. This is audible native-engine acceptance,
+  not a claim that every artist-popup interaction was exercised in a foreground application window.
+
+The live probes used the authorized ordinary test account and explicit per-connection TLS opt-out.
+Private addresses, credentials, certificates and local diagnostic files are excluded from this record.
+No new download was queued, no library file was changed, and original monitoring rules were restored.
+Cross-device settings sync and physical mobile/TV interaction remain the separate release gates above.
+
+### Physical Android follow-up and native callback boundary
+
+A physical Android API 37 device exposed an omitted host effect: Android's BASS backend had no
+end-of-stream callback binding. The shared preview owner correctly failed instead of claiming playback.
+The existing common callback contract and preview behavior were verified for JVM, Android and both iOS
+targets before adding the host wiring. The fix adds a common JNI callback object and a narrow Android
+BASS/JNI binding; sample orchestration and completion behavior remain in Core.
+
+The shared JNI implementation now retains each exact callback object until its channel is freed,
+including cancellation before natural end. Token-based registrations reject reused channel identities,
+and overlapping end/free callbacks retain their own references. Desktop delegates through the same
+binding. A native registration-count probe verifies cancellation/completion cleanup. The Android
+release keep rule and mapping check protect the callback class/method from R8 renaming or removal.
+
+Validation: all ten selected real Mac JNI/preview integration cases pass. On the physical phone,
+the permanent native adapter regression and temporary actual-app live acceptance both pass. They cover
+canceled callback release, native completion, preview play/pause/resume, automatic sample loading,
+activity background/restore, unchanged main selection, and dismissal cleanup. The phone's artist panel
+and active Pause icon were captured and inspected; a real portrait tap opened its native artist popup.
+Only the isolated test package was used. All 14 stale test packages and the fresh test app/harness were
+removed; the user's main install was preserved.
+
+Changed platform production files and mandatory placement justification:
+
+- `platforms/android/.../AndroidBassAudioBackend.kt`: translates the shared end-sync contract to the
+  Android BASS JNI effect and translates its native handle/result.
+- `platforms/android/.../AndroidBassJni.kt`: declares/invokes the Android JNI exports for native end
+  registration and native registration-count diagnostics.
+- `platforms/desktop/.../DesktopBassJniBinding.kt`: invokes the shared JNI end-registration ABI with
+  an exact callback object, replacing the channel-keyed host callback map.
+
+`native/bass-jni` contains only JNI/BASS ABI invocation, thread attachment and native reference lifetime.
+Build/R8 metadata and the real adapter instrumentation test are host-boundary verification/packaging.
+No platform controller, feature policy, setting, schema migration or new animation timer was added.
