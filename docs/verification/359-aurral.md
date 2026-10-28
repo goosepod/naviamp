@@ -451,3 +451,9 @@ Changed platform production files and mandatory placement justification:
 `native/bass-jni` contains only JNI/BASS ABI invocation, thread attachment and native reference lifetime.
 Build/R8 metadata and the real adapter instrumentation test are host-boundary verification/packaging.
 No platform controller, feature policy, setting, schema migration or new animation timer was added.
+
+Android `verifyReleaseOptimization` and `verifyCoreFirstArchitecture` pass for the native callback
+correction. The generated release mapping preserves the callback class and `onEndSync(int)` method.
+The draft feature integrates the separately tracked Windows ownership fix (#367 / #368) and quiet
+iOS timeout diagnostics (#365 / #366) so its next CI run contains both verification dependencies.
+These are not a claim that the intermittent native TLS timeout has been diagnosed or fixed.
