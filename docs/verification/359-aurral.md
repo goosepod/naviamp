@@ -514,7 +514,7 @@ values. The final published revision requires a fresh full hosted verification r
 ### Final unattended acceptance (October 28)
 
 The owner deferred further physical-device checks because the phone was leaving the computer.
-No physical device was accessed or changed after that instruction. The earlier physical Android
+No physical device was accessed or changed while that deferral remained in effect. The earlier physical Android
 evidence remains valid; additional physical iOS/TV interaction and real cloud-folder propagation
 are deferred, not counted as completed by emulator or component tests.
 
@@ -576,3 +576,33 @@ the native report confirms `mTLS runner bootstrap supplied`. Android/JVM/both iO
 architecture checks, shell syntax and seven workflow helper tests pass. The feature now includes this
 dependency so a fresh full hosted run can verify its combined tree. Readiness remains gated on that
 result; earlier successful runs are not presented as proof that an intermittent failure is resolved.
+
+### Physical Android acceptance after reconnection
+
+The owner reconnected and unlocked the phone, authorizing the remaining physical checks. On the
+API 37 phone, the actual Desktop settings document imported through ContentResolver and Core.
+Both Aurral profiles retained provider identity and TLS preferences without exported passwords.
+The check exposed #373: importing a second saved connection refreshed presentation but left the
+provider router inventory stale until restart. #374 updates that snapshot in common code while
+preserving the active session, with controller and nested-router regression coverage.
+
+After the fix, both imported profiles were immediately editable and reconnectable. Converting an
+Aurral profile to Subsonic and back retained its source ID. Direct and proxy profiles switched
+successfully; force-stopping and restarting the isolated app restored the last selected direct
+profile and its protected credentials. Native discovery and automatic sample loading succeeded.
+
+Real accessibility actions activated Play, observed native sample playback and the Pause action,
+paused back to Play, and resumed after background/restore. Dismissing discovery cleared the sample
+without changing the main selection. Inspected phone captures show circular artist artwork,
+square release covers in two columns with metadata below, and working EP filters. Some live
+releases have ordinary artwork placeholders. Both physical cases passed; no acquisition or
+monitoring mutation was performed. Test app and instrumentation packages were then removed,
+along with their USB forwarding. The owner's main Naviamp installation was preserved.
+
+The import fix changes three common production files only: the session-port snapshot contract,
+provider router inventory, and connection controller publication. No platform production file,
+settings format, or schema changed. Fifty focused common tests and Android/both iOS compilation
+passed locally. The separately tracked iOS fixture follow-up #372 passed all hosted checks,
+including its mandatory runner-bootstrap marker. The combined feature tree still requires its
+own final hosted verification. Physical iOS/TV, real cloud-folder propagation, distinct-user
+isolation, new acquisition completion and external scrobbling delivery remain unclaimed.
