@@ -375,4 +375,5 @@
     <string name="discovery_action_unsupported">यह सर्वर इस कार्रवाई का समर्थन नहीं करता।</string>
     <string name="discovery_action_uncertain">परिणाम की पुष्टि नहीं हो सकी। फिर प्रयास करने से पहले Aurral में जाँचें।</string>
     <string name="discovery_samples_loading">नमूने लोड हो रहे हैं…</string>
+    <string name="permission_local_network_usage">Naviamp आपके संगीत सर्वर से कनेक्ट होता है और आपके स्थानीय नेटवर्क पर प्लेबैक डिवाइस खोजता है।</string>
 </resources>

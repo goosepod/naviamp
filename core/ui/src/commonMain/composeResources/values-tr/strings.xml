@@ -375,4 +375,5 @@
     <string name="discovery_action_unsupported">Bu sunucu bu işlemi desteklemiyor.</string>
     <string name="discovery_action_uncertain">Sonuç doğrulanamadı. Tekrar denemeden önce Aurral üzerinden kontrol edin.</string>
     <string name="discovery_samples_loading">Örnekler yükleniyor…</string>
+    <string name="permission_local_network_usage">Naviamp müzik sunucularınıza bağlanır ve yerel ağınızdaki oynatma cihazlarını bulur.</string>
 </resources>

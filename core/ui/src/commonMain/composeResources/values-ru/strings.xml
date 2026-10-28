@@ -375,4 +375,5 @@
     <string name="discovery_action_unsupported">Сервер не поддерживает это действие.</string>
     <string name="discovery_action_uncertain">Не удалось подтвердить результат. Проверьте Aurral перед повторной попыткой.</string>
     <string name="discovery_samples_loading">Загрузка фрагментов…</string>
+    <string name="permission_local_network_usage">Naviamp подключается к вашим музыкальным серверам и находит устройства воспроизведения в локальной сети.</string>
 </resources>

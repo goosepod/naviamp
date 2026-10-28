@@ -375,4 +375,5 @@
     <string name="discovery_action_unsupported">此服务器不支持此操作。</string>
     <string name="discovery_action_uncertain">无法确认结果。请先在 Aurral 中检查，然后再重试。</string>
     <string name="discovery_samples_loading">正在加载试听…</string>
+    <string name="permission_local_network_usage">Naviamp 会连接到你的音乐服务器，并发现本地网络上的播放设备。</string>
 </resources>

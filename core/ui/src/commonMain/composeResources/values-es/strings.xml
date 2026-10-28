@@ -1205,4 +1205,5 @@
     <string name="discovery_action_unsupported">Este servidor no admite esta acción.</string>
     <string name="discovery_action_uncertain">No se pudo confirmar el resultado. Compruébalo en Aurral antes de volver a intentarlo.</string>
     <string name="discovery_samples_loading">Cargando muestras…</string>
+    <string name="permission_local_network_usage">Naviamp se conecta a tus servidores de música y busca dispositivos de reproducción en tu red local.</string>
 </resources>
