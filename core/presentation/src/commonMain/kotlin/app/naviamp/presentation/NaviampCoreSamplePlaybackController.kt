@@ -80,6 +80,7 @@ class NaviampCoreSamplePlaybackController(
     private val mainState: () -> PlaybackState,
     private val pauseMain: () -> Unit,
     private val publish: (DiscoverySamplePlaybackUi) -> Unit,
+    private val prepareMain: () -> Unit = {},
 ) {
     private var generation = 0L
     private var job: Job? = null
@@ -94,6 +95,7 @@ class NaviampCoreSamplePlaybackController(
             return
         }
         if (track?.id == sample.id && state == PlaybackState.Playing) { port.pause(); return }
+        prepareMain()
         if (mainState() == PlaybackState.Playing || mainState() == PlaybackState.Loading) pauseMain()
         if (track?.id == sample.id && state == PlaybackState.Paused) { port.resume(); return }
         stop()

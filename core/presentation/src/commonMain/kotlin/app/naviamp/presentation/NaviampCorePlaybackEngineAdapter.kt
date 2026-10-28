@@ -153,6 +153,7 @@ class NaviampCorePlaybackEngineAdapter(
     private var observedTransitionSettings: PlaybackTransitionSettings? = null
     private var playbackState: PlaybackState = PlaybackState.Stopped
     private var resumePositionSeconds: Double? = null
+    private var previewDeferredStart = false
     private var visualizerFramesEnabled = false
     private var visualizerSamplingJob: Job? = null
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
@@ -188,13 +189,32 @@ class NaviampCorePlaybackEngineAdapter(
         }
     }
 
+    override fun prepareForPreview() {
+        val nativeLoading = playbackState == PlaybackState.Loading
+        if (resolutionJob?.isActive != true && unstreamableRecoveryJob?.isActive != true && !nativeLoading) return
+        // Invalidate even non-cancellable URL resolution and recovery callbacks. Keep the logical
+        // queue/seek position so only a later explicit main Resume restarts the deferred track.
+        generation++
+        resolutionJob?.cancel()
+        resolutionJob = null
+        unstreamableRecoveryJob?.cancel()
+        unstreamableRecoveryJob = null
+        cancelAudioPrefetch()
+        clearAudioPrefetchCompletions()
+        previewDeferredStart = true
+        pauseRequested.store(true)
+        if (nativeLoading) engine.stop() else engine.pause()
+        playbackState = PlaybackState.Paused
+        observer?.onStateChanged(playbackState)
+    }
+
     override fun pause() {
         pauseRequested.store(true)
         engine.pause()
     }
     override fun resume() {
         pauseRequested.store(false)
-        engine.resume()
+        if (previewDeferredStart) startCurrent(resumePositionSeconds) else engine.resume()
     }
 
     override fun startOrRestore(): Boolean {
@@ -224,6 +244,7 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun stop() {
+        previewDeferredStart = false
         pauseRequested.store(false)
         resumePositionSeconds = null
         generation += 1
@@ -362,6 +383,7 @@ class NaviampCorePlaybackEngineAdapter(
         recoveryQuality: StreamQuality? = null,
     ) {
         val track = queue.current ?: return
+        previewDeferredStart = false
         pauseRequested.store(pauseWhenStarted)
         if (recoveryLocalAudio == null) {
             unstreamableRecoveryJob?.cancel()

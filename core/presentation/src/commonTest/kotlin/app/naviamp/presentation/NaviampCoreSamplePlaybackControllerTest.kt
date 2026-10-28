@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.domain.*
+import app.naviamp.domain.bass.*
 import app.naviamp.domain.playback.*
 import app.naviamp.domain.provider.*
 import app.naviamp.domain.queue.PlaybackQueue
@@ -16,6 +17,54 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreSamplePlaybackControllerTest {
+    @Test fun pendingMainUrlCannotInterruptANewerPreviewAndResumesOnlyOnExplicitRequest() = runTest {
+        for (initiallyPlaying in listOf(false, true)) {
+            val wait = CompletableDeferred<String>()
+            val provider = object : MediaProvider by SampleProvider() {
+                override suspend fun streamUrl(request: StreamRequest) = if (request.trackId.value == "next") withContext(NonCancellable) { wait.await() }
+                    else "https://music.test/${request.trackId.value}"
+            }
+            val providers = NaviampCoreMediaProviderSource { provider }
+            val bass = PendingMainLoadBassBackend()
+            val runtime = object : BassPlaybackEngineRuntime {
+                override val workContext = kotlin.coroutines.EmptyCoroutineContext
+                override fun localFilePath(url: String): String? = null
+                override fun nowEpochMillis() = 1_000L
+                override fun <T> withPreparedPlaybackLock(block: () -> T) = block()
+            }
+            val engine = CoreBassPlaybackEngine(Result.success(bass), runtime)
+            val adapter = NaviampCorePlaybackEngineAdapter(backgroundScope, engine, providers,
+                settings = { app.naviamp.domain.settings.PlaybackSettings() })
+            var mainState: PlaybackState = PlaybackState.Idle
+            adapter.attach(object : NaviampCorePlaybackObserver {
+                override fun onStateChanged(state: PlaybackState) { mainState = state }
+                override fun onProgressChanged(progress: PlaybackProgress) {}
+                override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {}
+            })
+            val screens = mutableListOf<DiscoverySamplePlaybackUi>()
+            val controller = NaviampCoreSamplePlaybackController(backgroundScope,
+                NaviampCoreEngineSamplePlayback(backgroundScope, engine, providers, { true }, { 50 }), providers,
+                { mainState }, adapter::pause, screens::add, prepareMain = adapter::prepareForPreview)
+            try {
+                if (initiallyPlaying) {
+                    adapter.playQueueSelection(PlaybackQueue(listOf(sample("old").copy(id = TrackId("old"))), 0), 0)
+                    runCurrent()
+                    assertEquals(PlaybackState.Playing, mainState)
+                }
+                adapter.playQueueSelection(PlaybackQueue(listOf(sample("next").copy(id = TrackId("next"))), 0), 0)
+                runCurrent()
+                controller.toggle(sample("42")); runCurrent()
+                assertTrue(screens.last().playing)
+                if (initiallyPlaying) assertEquals(BassActiveState.Paused, bass.states[1])
+                wait.complete("https://music.test/next"); runCurrent()
+                assertTrue(screens.last().playing, "An older pending main URL stopped the newer preview: ${screens.last()}")
+                controller.stop()
+                adapter.resume(); runCurrent()
+                assertEquals(PlaybackState.Playing, mainState)
+            } finally { controller.close(); adapter.stop(); engine.release() }
+        }
+    }
+
     @Test fun canceledLateUrlResolutionCannotStartNativeAudioOrReplaceANewerSample() = runTest {
         val delayed = CompletableDeferred<String>()
         var active: MediaProvider = SampleProvider(resolveUrl = { withContext(NonCancellable) { delayed.await() } })
@@ -155,4 +204,32 @@ private class SampleProvider(override val cacheNamespace: String = "aurral-accou
     override suspend fun genres(limit: Int) = emptyList<Genre>()
     override suspend fun streamUrl(request: StreamRequest) = resolveUrl()
     override fun coverArtUrl(coverArtId: String) = coverArtId
+}
+
+private class PendingMainLoadBassBackend : BassAudioBackend {
+    private var next = 0
+    val states = mutableMapOf<Int, Int>()
+    val ends = mutableMapOf<Int, (BassStreamHandle) -> Unit>()
+    val volumes = mutableMapOf<Int, Float>()
+    val freed = mutableListOf<Int>()
+    var deviceFrees = 0
+    override fun init() = Result.success(Unit)
+    override fun free(): Result<Unit> { deviceFrees++; return Result.success(Unit) }
+    override fun setSampleRateConverterQuality(quality: Int) = Result.success(Unit)
+    private fun create() = Result.success(BassStreamHandle(++next))
+    override fun createFileStream(path: String) = create()
+    override fun createUrlStream(url: String) = create()
+    override fun createFileDecodeStream(path: String) = create()
+    override fun createUrlDecodeStream(url: String) = create()
+    override fun lengthBytes(stream: BassStreamHandle): Long? = null
+    override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray) = Result.success(0)
+    override fun activeState(stream: BassStreamHandle) = states[stream.value]
+    override fun play(stream: BassStreamHandle): Result<Unit> { states[stream.value] = BassActiveState.Playing; return Result.success(Unit) }
+    override fun pause(stream: BassStreamHandle): Result<Unit> { states[stream.value] = BassActiveState.Paused; return Result.success(Unit) }
+    override fun stop(stream: BassStreamHandle): Result<Unit> { states[stream.value] = BassActiveState.Stopped; return Result.success(Unit) }
+    override fun setEndSync(stream: BassStreamHandle, callback: (BassStreamHandle) -> Unit): Result<Int> {
+        ends[stream.value] = callback; return Result.success(1)
+    }
+    override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> { volumes[stream.value] = volume; return Result.success(Unit) }
+    override fun freeStream(stream: BassStreamHandle): Result<Unit> { freed += stream.value; return Result.success(Unit) }
 }

@@ -242,9 +242,9 @@ class NaviampCore private constructor(
                     stateStore.state.value.shell.connect.remoteNowPlaying?.let {
                         if (it.isPlaying) app.naviamp.domain.playback.PlaybackState.Playing else app.naviamp.domain.playback.PlaybackState.Paused
                     } ?: livePlayback.state.value.playbackState
-                }, { pauseMainForSample() }) { sample ->
-                stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(samplePlayback = sample)) }
-            }
+                }, { pauseMainForSample() }, publish = { sample ->
+                    stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(samplePlayback = sample)) }
+                }, prepareMain = routedPlaybackEffects::prepareForPreview)
             routedPlaybackEffects.beforeStart = samplePlayback::stop
             val deferredArtistNavigator = DeferredArtistNavigator()
             val mediaRegistry = NaviampCoreMediaRegistry()
