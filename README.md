@@ -18,6 +18,8 @@ Navidrome project.
 Download for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881)
 or for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9PCFJ644LXLL).
 
+Find standalone downloads and release notes on [GitHub Releases](https://github.com/goosepod/naviamp/releases).
+
 Beta builds are available through TestFlight for [macOS](https://testflight.apple.com/join/vZ48sYNh) and
 [iOS](https://testflight.apple.com/join/efbB6TFd).
 
