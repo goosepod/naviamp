@@ -20,26 +20,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class NaviampCoreQueuePlaybackControllerTest {
-    @Test fun inlineSamplesPlayPauseResumeAndSwitchWithoutOpeningTheFullPlayer() {
-        val fixture = fixture()
-        val first = testTrack("discovery-preview:42")
-        fixture.controller.playSample(first)
-        assertEquals(first.id, fixture.live.state.value.currentTrack?.id)
-        assertEquals(0, fixture.effects.playerOpenCount)
-        fixture.live.updatePlaybackState(app.naviamp.domain.playback.PlaybackState.Playing)
-        fixture.controller.playSample(first)
-        assertEquals(1, fixture.effects.pauses)
-        fixture.live.updatePlaybackState(app.naviamp.domain.playback.PlaybackState.Paused)
-        fixture.controller.playSample(first)
-        assertEquals(1, fixture.effects.resumes)
-        val next = testTrack("discovery-preview:43")
-        fixture.controller.playSample(next)
-        assertEquals(next.id, fixture.live.state.value.currentTrack?.id)
-        assertEquals(0, fixture.effects.playerOpenCount)
-        fixture.controller.play(testTracks())
-        assertEquals(1, fixture.effects.playerOpenCount)
-    }
-
     @Test
     fun configuredPlaylistLaunchCreatesProfiledQueueGroup() {
         val target = PlaybackProfileTarget(PlaybackProfileTargetType.Playlist, "playlist-1")

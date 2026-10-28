@@ -32,6 +32,7 @@ internal class NaviampCoreOutputPlaybackEffects(
     private val outputs: NaviampPlaybackOutputSelectionController,
 ) : NaviampCorePlaybackEffectPort {
     var cast: NaviampCoreCastPlaybackRoute? = null
+    var beforeStart: () -> Unit = {}
 
     private val castSelected: Boolean get() =
         (outputs.state.value as? NaviampPlaybackOutputSelection.Remote)?.target?.kind == NaviampRemoteOutputKind.Cast
@@ -80,10 +81,12 @@ internal class NaviampCoreOutputPlaybackEffects(
     }
 
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) {
+        beforeStart()
         if (castSelected) cast?.navigate(command) else local.applyNavigation(command)
     }
 
     override fun applyAutomaticNavigation(command: PlaybackQueueNavigationCommand) {
+        beforeStart()
         if (castSelected) cast?.navigate(command) else local.applyAutomaticNavigation(command)
     }
 
@@ -92,6 +95,7 @@ internal class NaviampCoreOutputPlaybackEffects(
     }
 
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
+        beforeStart()
         if (castSelected) cast?.loadCurrent() else local.playQueueSelection(queue, index)
     }
 
@@ -100,17 +104,21 @@ internal class NaviampCoreOutputPlaybackEffects(
     }
 
     override fun resume() {
+        beforeStart()
         if (castSelected) cast?.resume() else local.resume()
     }
 
-    override fun startOrRestore(): Boolean =
-        if (castSelected) cast?.loadCurrent() == true else local.startOrRestore()
+    override fun startOrRestore(): Boolean {
+        beforeStart()
+        return if (castSelected) cast?.loadCurrent() == true else local.startOrRestore()
+    }
 
     override fun seek(positionSeconds: Double) {
         if (castSelected) cast?.seek(positionSeconds) else local.seek(positionSeconds)
     }
 
     override fun replayCurrent(positionSeconds: Double) {
+        beforeStart()
         if (castSelected) cast?.loadCurrent(positionSeconds) else local.replayCurrent(positionSeconds)
     }
 
@@ -119,6 +127,7 @@ internal class NaviampCoreOutputPlaybackEffects(
     }
 
     override fun stop() {
+        beforeStart()
         if (castSelected) cast?.stop() else local.stop()
     }
 

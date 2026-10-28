@@ -14,12 +14,12 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampAurralDiscoveryUiTest {
-    @Test fun homeRouteUpdatesSampleIconsFromLivePlaybackAndResetsPausedStoppedAndOtherTracks() = runComposeUiTest {
+    @Test fun homeRouteUpdatesSampleIconsFromIndependentPlayback() = runComposeUiTest {
         val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
-        val detail = SharedProviderDiscoveryArtistUi(artist, loading = false,
+        val detail = mutableStateOf(SharedProviderDiscoveryArtistUi(artist, loading = false,
             details = ProviderDiscoveryArtistDetails(artist), samplesStatus = ProviderDiscoveryStatus.Ready,
-            samples = listOf(ProviderDiscoverySample("1", "First sample"), ProviderDiscoverySample("2", "Second sample")))
-        val nowPlaying = mutableStateOf<NowPlayingUi?>(null)
+            samples = listOf(ProviderDiscoverySample("1", "First sample"), ProviderDiscoverySample("2", "Second sample"))))
+        val samples = mutableStateOf(DiscoverySamplePlaybackUi())
         val homeActions = NaviampHomeActions(onRefresh = {}, onRecentRadioSelected = {}, onInternetRadioStationSelected = {},
             onMixBuilderSelected = {}, onStationSelected = {}, onSonicDiscoveryTrackAction = {}, onRecentlyPlayedTrackAction = {},
             onCollectionSelected = {}, onCollectionBack = {}, onCollectionPageLayoutChanged = { _, _ -> })
@@ -27,36 +27,38 @@ class NaviampAurralDiscoveryUiTest {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Column(Modifier.width(900.dp).height(750.dp)) {
                     SharedHomeRoute(NaviampColors.Dark,
-                        NaviampHomeScreenUi(providerDiscovery = SharedProviderDiscoveryUi(ProviderIdAurral, artistDetail = detail)),
-                        homeActions, NaviampMediaActions({}, {}), discoveryPlayback = nowPlaying.value.discoverySamplePlayback())
+                        NaviampHomeScreenUi(providerDiscovery = SharedProviderDiscoveryUi(ProviderIdAurral, artistDetail = detail.value)),
+                        homeActions, NaviampMediaActions({}, {}), discoveryPlayback = samples.value)
                 }
             }
         }
         onAllNodesWithContentDescription("Play sample").assertCountEquals(2)
-        val first = NowPlayingUi(id = DiscoveryPreviewTrackPrefix + "1", title = "First sample", subtitle = "Artist",
-            stateLabel = "Playing", isPlaying = true)
-        runOnIdle { nowPlaying.value = first }
+        val first = DiscoverySamplePlaybackUi(trackId = DiscoveryPreviewTrackPrefix + "1", playing = true)
+        runOnIdle { samples.value = first }
         onAllNodesWithContentDescription("Pause").assertCountEquals(1)
+        runOnIdle { detail.value = detail.value.copy(actionBusy = true) }
+        onNodeWithContentDescription("Pause").assertIsEnabled()
+        runOnIdle { detail.value = detail.value.copy(actionBusy = false, savingFeedback = true) }
+        onNodeWithContentDescription("Pause").assertIsEnabled()
+        runOnIdle { detail.value = detail.value.copy(savingFeedback = false) }
         onAllNodesWithContentDescription("Play sample").assertCountEquals(1)
-        runOnIdle { nowPlaying.value = first.copy(isPlaying = false, isPaused = true, stateLabel = "Paused") }
+        runOnIdle { samples.value = first.copy(playing = false) }
         onAllNodesWithContentDescription("Pause").assertCountEquals(0)
         onAllNodesWithContentDescription("Play sample").assertCountEquals(2)
-        runOnIdle { nowPlaying.value = first.copy(isPlaying = false, stateLabel = "Stopped") }
+        runOnIdle { samples.value = DiscoverySamplePlaybackUi() }
         onAllNodesWithContentDescription("Pause").assertCountEquals(0)
         onAllNodesWithContentDescription("Play sample").assertCountEquals(2)
-        runOnIdle { nowPlaying.value = first.copy(id = DiscoveryPreviewTrackPrefix + "2", title = "Second sample") }
+        runOnIdle { samples.value = first.copy(trackId = DiscoveryPreviewTrackPrefix + "2") }
         onAllNodesWithContentDescription("Pause").assertCountEquals(1)
-        runOnIdle { nowPlaying.value = first.copy(id = "library-track") }
+        runOnIdle { samples.value = DiscoverySamplePlaybackUi() }
         onAllNodesWithContentDescription("Pause").assertCountEquals(0)
         onAllNodesWithContentDescription("Play sample").assertCountEquals(2)
     }
 
-    @Test fun inlinePlaybackProjectionIgnoresProgressAndLibraryTracks() {
-        val current = NowPlayingUi(id = DiscoveryPreviewTrackPrefix + "42", title = "Sample", subtitle = "Artist",
-            stateLabel = "Playing", isPlaying = true, positionSeconds = 1.0, durationSeconds = 30.0)
-        assertEquals(current.discoverySamplePlayback(), current.copy(positionSeconds = 15.0).discoverySamplePlayback())
-        assertNull(current.copy(id = "library-track").discoverySamplePlayback().trackId)
-        assertNull((null as NowPlayingUi?).discoverySamplePlayback().trackId)
+    @Test fun independentSampleStateSurvivesOrdinaryHomeUpdates() {
+        val home = NaviampHomeScreenUi(samplePlayback = DiscoverySamplePlaybackUi(DiscoveryPreviewTrackPrefix + "42", playing = true))
+        assertEquals(home.samplePlayback, home.copy(refreshing = true).samplePlayback)
+        assertNull(NaviampHomeScreenUi().samplePlayback.trackId)
     }
 
     @Test fun artistPanelUsesInlineColumnsAndACoverGridAtDesktopAndPhoneWidths() {
@@ -182,6 +184,14 @@ class NaviampAurralDiscoveryUiTest {
                     assertEquals(ProviderDiscoveryAction.RequestTrack("42"), actions.last())
                     detail.value = detail.value.copy(actionBusy = true)
                 }
+                onNodeWithContentDescription("Request track").assertIsNotEnabled()
+                onNodeWithContentDescription("Play sample").assertIsEnabled().performClick()
+                runOnIdle {
+                    assertEquals(ProviderDiscoveryAction.PlaySample("42"), actions.last())
+                    assertTrue(detail.value.actionBusy)
+                    detail.value = detail.value.copy(actionBusy = false, savingFeedback = true)
+                }
+                onNodeWithContentDescription("Play sample").assertIsEnabled()
                 onNodeWithContentDescription("Request track").assertIsNotEnabled()
                 onNodeWithText("Monitor artist").performScrollTo().assertIsNotEnabled()
                 System.getenv("NAVIAMP_AURRAL_CAPTURE")?.let { directory ->

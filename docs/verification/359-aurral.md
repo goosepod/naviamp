@@ -323,3 +323,56 @@ regression switches live state through playing, paused, stopped, a different sam
 track, verifying Pause only on the playing sample and Play otherwise. The focused Aurral and TV Home
 UI suites, Android/iOS presentation compilation, architecture checks and Mac packaging passed.
 No new strings, settings or platform production changes.
+
+## Independent sample playback and review fixes (October 27)
+
+This supersedes the earlier queue-based sample-playback checkpoints above. Samples now use a
+separate Core-owned BASS channel and their own inline playback state. Starting or resuming a sample
+pauses main playback when it is playing/loading, retaining its current track, full queue, native
+stream and position. Samples never enter main Now Playing, saved playback sessions, sidecars,
+prefetch, scrobbling or Library mutations. Finishing, failing, dismissing the artist, changing
+artists/accounts or closing Core stops/releases sample resources and does not resume main audio
+implicitly. Explicit main playback restarts stop samples first, including routed playback intents.
+
+`BassPreviewPlayback` owns only its additional channel. The main engine retains device ownership;
+stopping/replacing a preview cannot free the device or main/prepared channels. Shared audio focus,
+ducking and wake-lock handling target the active sample while main remains paused. Native end
+callbacks drive sample completion; no new progress timer or per-frame UI update was introduced.
+Provider-authenticated sample transport has its own relay leases and cancellation generation, so
+sample cleanup cannot invalidate paused main playback's authenticated byte source.
+
+The two review regressions are corrected: feedback results update the latest artist-detail state
+instead of restoring the pre-request snapshot, and queue-to-playlist writes filter synthetic preview
+identities even when a Library track is current. Defensive preview restrictions remain for older
+branch-test sessions. The former queue-replacement sample entry point was removed.
+
+Sample play/pause remains available while acquisition or feedback is in flight, without clearing or
+changing the mutation's busy/result state. A regression checks sample playback during a pending
+album request, and rendered UI checks verify controls remain enabled during both request and feedback.
+
+Regression probes reproduced both failures on `57c267bc` before editing. Updated acceptance:
+
+- Shared engine: 14 focused cases, including independent channel lifetime, stale end callbacks,
+  main resume/release, focus interruptions, ducking, and paused-main polling during preview playback.
+- Shared presentation: 68 focused Home, sample controller, queue, playback, output-routing and
+  Connect command-routing cases. These include feedback/sample ordering, mixed queue filtering,
+  preserved queue/track/position, errors/retry, source changes and late URL resolution cancellation.
+- Shared rendered UI: all 11 Aurral cases pass; desktop (1100×900) and phone (390×844) captures
+  retain the inline controls, responsive columns, circular portrait and square release covers.
+- Android shared presentation compilation and `verifyCoreFirstArchitecture` pass.
+- Real Windows BASS/JNI acceptance: a muted main stream was paused at 2.4 seconds; a separate HTTP
+  sample played to its native end; the main stream remained paused at exactly 2.4 seconds, then
+  resumed to 2.7395 seconds. This case ran without a no-sound device override and was not skipped.
+  The integration test explicitly skips no-sound CI, where native playback clocks do not advance.
+
+Local logs: `build/aurral-sample-fix-acceptance.log` and
+`build/aurral-sample-fix-interruption-checks.log` in the primary workspace; captures are in
+`build/verification-359-independent-samples/ui`. The native test's XML records measured positions.
+iOS cannot be compiled on this Windows host; verification of this update on Apple platforms belongs
+to hosted CI. The preceding head's iOS mTLS timeout was not attributed to Aurral and is not claimed
+fixed by these changes. Foreground audible acceptance and owner-approved acquisition/monitoring
+mutation acceptance remain separate from this muted channel-lifetime check.
+
+All production changes remain in common code; no Android/Desktop/iOS production file changed. The
+only added Desktop source is a real BASS/JNI integration test. No settings/schema change, new UI
+string, live acquisition/monitoring mutation, release tag or published build is introduced.

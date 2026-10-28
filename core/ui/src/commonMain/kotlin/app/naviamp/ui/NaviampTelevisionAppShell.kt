@@ -668,7 +668,7 @@ private fun TelevisionConnectedContent(
         )
         uiState.shellChrome.selectedRoute == SharedRoute.Home -> TelevisionHome(
             home = uiState.home,
-            discoveryPlayback = uiState.nowPlaying.discoverySamplePlayback(),
+            discoveryPlayback = uiState.home.samplePlayback,
             colors = colors,
             actions = actions.homeActions,
             mediaActions = televisionMediaActions,

@@ -60,6 +60,18 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
+    @Test fun mixedQueueMustNotSendPreviewIdentitiesToPlaylistCreation() = runTest {
+        val fixture = playbackFixture(this)
+        val preview = playbackTrack("discovery-preview:42")
+        val owned = playbackTrack("owned")
+        fixture.live.replace(fixture.live.state.value.copy(currentTrack = owned,
+            queue = PlaybackQueue(listOf(preview, owned), currentIndex = 1)))
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Queue(
+            NowPlayingQueueActionRequest(NowPlayingQueueAction.SaveQueueAsPlaylist, playlistName = "Mixed")))
+        assertTrue(fixture.provider.created.none { it.contains("discovery-preview:") },
+            "Playlist writes must exclude preview identities even after a Library track becomes current: ${fixture.provider.created}")
+    }
+
     @Test
     fun savedDjAppearsInNowPlayingWithoutAnotherPlaybackEvent() = runTest {
         val fixture = playbackFixture(this)

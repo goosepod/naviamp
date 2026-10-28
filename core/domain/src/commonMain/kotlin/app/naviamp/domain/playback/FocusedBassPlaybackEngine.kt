@@ -12,7 +12,8 @@ open class FocusedBassPlaybackEngine(
 ) : CoreBassPlaybackEngine(Result.success(bass), runtime) {
     private val focusController = PlaybackFocusController(
         focus, wakeLock,
-        pause = { super.pause() }, resume = { super.resume() },
+        pause = { if (previewActive) super.pausePreview() else super.pause() },
+        resume = { if (previewActive) super.resumePreview() else super.resume() },
         outputVolumeFactor = ::setTransientOutputVolumeFactor,
     )
 
@@ -23,15 +24,16 @@ open class FocusedBassPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
+        stopPreview()
         if (!focusController.requestPlayback()) {
             onStateChanged(PlaybackState.Error("Audio focus is currently held by another app."))
             return
         }
         super.play(scope, request, { state ->
-            focusController.onPlaybackState(state)
+            if (!previewActive) focusController.onPlaybackState(state)
             onStateChanged(state)
         }, { progress ->
-            focusController.onProgress()
+            if (!previewActive) focusController.onProgress()
             onProgressChanged(progress)
         }, onMetadataChanged)
     }
@@ -42,7 +44,35 @@ open class FocusedBassPlaybackEngine(
     }
 
     override fun resume() {
+        stopPreview()
         if (focusController.requestPlayback()) super.resume()
+    }
+
+    override fun playPreview(scope: CoroutineScope, request: PlaybackRequest, verifyNetworkCertificates: Boolean,
+        volumePercent: Int, onStateChanged: (PlaybackState) -> Unit) {
+        stopPreview()
+        if (!focusController.requestPlayback()) {
+            onStateChanged(PlaybackState.Error("Audio focus is currently held by another app."))
+            return
+        }
+        super.playPreview(scope, request, verifyNetworkCertificates, volumePercent, { state ->
+            focusController.onPlaybackState(state)
+            onStateChanged(state)
+        })
+    }
+
+    override fun pausePreview() {
+        if (previewActive) focusController.userPausedOrStopped()
+        super.pausePreview()
+    }
+
+    override fun resumePreview() {
+        if (focusController.requestPlayback()) super.resumePreview()
+    }
+
+    override fun stopPreview() {
+        if (previewActive) focusController.userPausedOrStopped()
+        super.stopPreview()
     }
 
     override fun stop() {

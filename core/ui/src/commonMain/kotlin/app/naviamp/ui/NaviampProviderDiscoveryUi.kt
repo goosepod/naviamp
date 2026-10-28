@@ -242,6 +242,7 @@ internal fun NaviampDiscoveryArtistPanel(
                     if (!screen.loading) item(key = "samples-header") {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(stringResource(Res.string.discovery_samples), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+                            if (playback.failed) Text(stringResource(Res.string.discovery_samples_failed), color = colors.secondaryText)
                             if (screen.loading || screen.samplesLoading || screen.samplesStatus == null) Text(stringResource(Res.string.discovery_samples_loading), color = colors.secondaryText)
                             else if (screen.samples.isEmpty()) Text(stringResource(
                                 if (screen.samplesStatus == ProviderDiscoveryStatus.Ready) Res.string.discovery_no_samples else Res.string.discovery_samples_failed), color = colors.secondaryText)
@@ -299,7 +300,7 @@ private fun DiscoverySampleRow(
 ) {
     val active = playback.trackId == DiscoveryPreviewTrackPrefix + sample.id
     val playing = active && playback.playing
-    val enabled = !screen.actionBusy && !screen.savingFeedback && (!active || playback.canToggle)
+    val enabled = !active || playback.canToggle
     val playLabel = stringResource(if (playing) Res.string.transport_pause else Res.string.discovery_play_sample)
     val toggle = { onAction(ProviderDiscoveryAction.PlaySample(sample.id)) }
     Row(modifier.background(if (active) colors.accent.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent,

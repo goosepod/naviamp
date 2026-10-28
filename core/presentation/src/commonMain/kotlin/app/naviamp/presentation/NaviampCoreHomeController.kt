@@ -140,6 +140,7 @@ class NaviampCoreHomeController(
     private val observedAtIso8601: () -> String = { "" },
     private val externalUri: NaviampCoreExternalUriPort = NaviampCoreExternalUriPort {},
     private val playDiscoverySample: suspend (Track) -> Unit = {},
+    private val stopDiscoverySample: () -> Unit = {},
     private val openLibraryArtist: suspend (app.naviamp.domain.Artist) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var refreshGeneration = 0L
@@ -164,14 +165,18 @@ class NaviampCoreHomeController(
                 else NaviampCoreImmediateCommandResult.Handled()
             }
             NaviampCoreCommand.Home.DismissDiscoveryArtist -> {
+                stopDiscoverySample()
                 discoveryDetailGeneration++
                 updateDiscovery { it.copy(artistDetail = null) }
                 NaviampCoreImmediateCommandResult.Handled()
             }
             is NaviampCoreCommand.Home.DiscoveryAction -> {
                 val detail = stateStore.state.value.shell.home.providerDiscovery?.artistDetail
-                if (detail?.artist?.id == home.id && !detail.loading && !detail.actionBusy && !detail.savingFeedback && home.action !in detail.blockedActions) {
-                    updateDiscovery { it.copy(artistDetail = detail.copy(actionBusy = true, operationStatus = null)) }
+                val sample = home.action as? ProviderDiscoveryAction.PlaySample
+                val allowed = if (sample != null) detail?.samples?.any { it.id == sample.id } == true
+                    else detail != null && !detail.actionBusy && !detail.savingFeedback && home.action !in detail.blockedActions
+                if (detail?.artist?.id == home.id && !detail.loading && allowed) {
+                    if (sample == null) updateDiscovery { it.copy(artistDetail = detail.copy(actionBusy = true, operationStatus = null)) }
                     scheduledDiscoveryCommands += home to discoveryDetailGeneration
                     NaviampCoreImmediateCommandResult.Deferred
                 } else NaviampCoreImmediateCommandResult.Handled()
@@ -236,15 +241,16 @@ class NaviampCoreHomeController(
         val provider = providerSource.current() ?: return
         val discovery = provider.discovery ?: return
         val detail = stateStore.state.value.shell.home.providerDiscovery?.artistDetail?.takeIf { it.artist.id == command.id } ?: return
+        if (command.action is ProviderDiscoveryAction.PlaySample) {
+            val sample = detail.samples.firstOrNull { it.id == command.action.id } ?: return
+            playDiscoverySample(sample.playbackTrack(detail.artist.name))
+            return
+        }
         val generation = discoveryDetailGeneration
         var operation: ProviderDiscoveryOperation? = null
-        var played = false
         try {
             when (val action = command.action) {
-                is ProviderDiscoveryAction.PlaySample -> {
-                    val sample = detail.samples.firstOrNull { it.id == action.id } ?: return
-                    playDiscoverySample(sample.playbackTrack(detail.artist.name)); played = true
-                }
+                is ProviderDiscoveryAction.PlaySample -> Unit // Handled independently above.
                 is ProviderDiscoveryAction.RequestTrack -> {
                     val sample = detail.samples.firstOrNull { it.id == action.id } ?: return
                     if (detail.details?.canRequestTracks == true) operation = discovery.requestTrack(detail.artist, sample)
@@ -264,7 +270,7 @@ class NaviampCoreHomeController(
                 updateDiscovery { current -> current.copy(artistDetail = current.artistDetail?.takeIf { it.artist.id == command.id }?.let { latest ->
                     val result = operation?.status
                     latest.copy(actionBusy = false,
-                        operationStatus = result ?: if (played) null else latest.operationStatus,
+                        operationStatus = result ?: latest.operationStatus,
                         blockedActions = if (result in setOf(ProviderDiscoveryOperationStatus.Queued, ProviderDiscoveryOperationStatus.AlreadyQueued,
                             ProviderDiscoveryOperationStatus.AlreadyOwned, ProviderDiscoveryOperationStatus.Saved, ProviderDiscoveryOperationStatus.Uncertain))
                             latest.blockedActions + command.action else latest.blockedActions,
@@ -298,6 +304,7 @@ class NaviampCoreHomeController(
 
     private fun prepareDiscoveryArtist(id: String): Boolean {
         val artist = discoveryArtist(id)?.takeIf { it.detailsAvailable } ?: return false
+        if (stateStore.state.value.shell.home.providerDiscovery?.artistDetail?.artist?.id != id) stopDiscoverySample()
         discoveryDetailGeneration++
         updateDiscovery { it.copy(artistDetail = SharedProviderDiscoveryArtistUi(artist)) }
         return true
@@ -347,8 +354,10 @@ class NaviampCoreHomeController(
         if (generation != discoveryDetailGeneration || !providerSource.isCurrent(provider) ||
             stateStore.state.value.shell.home.providerDiscovery?.artistDetail?.artist?.id != id) return
         val success = result.status == ProviderDiscoveryStatus.Ready
-        updateDiscovery { it.copy(artistDetail = detail.copy(savingFeedback = false, feedbackFailed = !success,
-            details = detail.details?.copy(feedback = if (success) result.selected else emptySet(), feedbackAvailable = success))) }
+        updateDiscovery { current -> current.copy(artistDetail = current.artistDetail?.takeIf { it.artist.id == id }?.let { latest ->
+            latest.copy(savingFeedback = false, feedbackFailed = !success,
+                details = latest.details?.copy(feedback = if (success) result.selected else emptySet(), feedbackAvailable = success))
+        }) }
         if (success) refreshProviderDiscovery(provider, refreshGeneration)
     }
 
@@ -520,6 +529,7 @@ class NaviampCoreHomeController(
     }
 
     fun resetForSourceChange() {
+        stopDiscoverySample()
         refreshGeneration += 1
         discoveryDetailGeneration++
         discoveryFeedGeneration++

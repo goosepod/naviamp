@@ -15,6 +15,22 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreOutputPlaybackEffectsTest {
+    @Test fun mainPlaybackRestartsStopSamplesButPausingMainDoesNotStopAnIndependentSample() {
+        val local = RecordingLocalEffects()
+        val routed = NaviampCoreOutputPlaybackEffects(local, NaviampPlaybackOutputSelectionController())
+        var stopped = 0
+        routed.beforeStart = { stopped++ }
+        routed.pause()
+        routed.setVolume(40)
+        assertEquals(0, stopped)
+        routed.resume()
+        routed.playQueueSelection(PlaybackQueue(), 0)
+        routed.startOrRestore()
+        routed.replayCurrent(0.0)
+        routed.stop()
+        assertEquals(5, stopped)
+    }
+
     @Test
     fun castSelectionRoutesQueueAndCommandsWithoutStartingLocalAudio() {
         val outputs = NaviampPlaybackOutputSelectionController()

@@ -40,6 +40,41 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun feedbackPreservesSamplesThatFinishWhileFeedbackIsPending() = runTest {
+        val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
+        val samples = kotlinx.coroutines.CompletableDeferred<ProviderDiscoverySamples>()
+        val feedback = kotlinx.coroutines.CompletableDeferred<ProviderDiscoveryFeedbackResult>()
+        val native = object : ProviderDiscovery {
+            override suspend fun load() = ProviderDiscoveryFeed(trending = listOf(artist))
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist) = ProviderDiscoveryArtistResult(
+                ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(artist, feedbackAvailable = true))
+            override suspend fun samples(artist: ProviderDiscoveryArtist) = samples.await()
+            override suspend fun toggleFeedback(artist: ProviderDiscoveryArtist, action: ProviderDiscoveryFeedbackAction) = feedback.await()
+        }
+        val provider = HomeTestProvider(discovery = native)
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val select = NaviampCoreCommand.Home.SelectDiscoveryArtist("artist")
+        controller.dispatch(select)
+        val selectionJob = launch { controller.execute(select) }
+        runCurrent()
+        val action = NaviampCoreCommand.Home.DiscoveryFeedback("artist", ProviderDiscoveryFeedbackAction.MoreLikeThis)
+        controller.dispatch(action)
+        val feedbackJob = launch { controller.execute(action) }
+        runCurrent()
+        samples.complete(ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready, listOf(ProviderDiscoverySample("42", "Sample"))))
+        selectionJob.join()
+        assertEquals(listOf("42"), store.state.value.shell.home.providerDiscovery!!.artistDetail!!.samples.map { it.id })
+        feedback.complete(ProviderDiscoveryFeedbackResult(ProviderDiscoveryStatus.Ready, setOf(ProviderDiscoveryFeedbackAction.MoreLikeThis)))
+        feedbackJob.join()
+        val detail = store.state.value.shell.home.providerDiscovery!!.artistDetail!!
+        assertEquals(listOf("42"), detail.samples.map { it.id }, "Feedback must not overwrite newly loaded samples")
+        assertFalse(detail.samplesLoading)
+    }
+
     @Test fun samplesLoadAutomaticallyAndLateResultsCannotReplaceAnotherArtist() = runTest {
         val first = ProviderDiscoveryArtist("first", "First", detailsAvailable = true)
         val second = ProviderDiscoveryArtist("second", "Second", detailsAvailable = true)
@@ -115,6 +150,10 @@ class NaviampCoreHomeControllerTest {
         runCurrent()
         assertTrue(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.actionBusy)
         assertTrue(controller.dispatch(request) is NaviampCoreImmediateCommandResult.Handled)
+        played = null
+        act(ProviderDiscoveryAction.PlaySample("42"))
+        assertEquals("discovery-preview:42", played?.id?.value)
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.actionBusy)
         controller.dispatch(NaviampCoreCommand.Home.DismissDiscoveryArtist)
         pending.complete(ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued))
         running.join()

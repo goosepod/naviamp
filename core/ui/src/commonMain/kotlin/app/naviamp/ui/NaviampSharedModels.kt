@@ -962,6 +962,7 @@ data class NaviampHomeScreenUi(
     val refreshing: Boolean = false,
     val collectionPage: SharedHomeCollectionPageUi? = null,
     val providerDiscovery: SharedProviderDiscoveryUi? = null,
+    val samplePlayback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
 )
 
 data class SharedProviderDiscoveryUi(
@@ -971,12 +972,8 @@ data class SharedProviderDiscoveryUi(
     val artistDetail: SharedProviderDiscoveryArtistUi? = null,
 )
 
-data class DiscoverySamplePlaybackUi(val trackId: String? = null, val playing: Boolean = false, val canToggle: Boolean = true)
-
-fun NowPlayingUi?.discoverySamplePlayback() = DiscoverySamplePlaybackUi(
-    this?.id?.takeIf { it.startsWith(app.naviamp.domain.provider.DiscoveryPreviewTrackPrefix) },
-    this?.isPlaying == true, this?.canPlayPause ?: true,
-)
+data class DiscoverySamplePlaybackUi(val trackId: String? = null, val playing: Boolean = false,
+    val canToggle: Boolean = true, val failed: Boolean = false)
 
 data class SharedProviderDiscoveryArtistUi(
     val artist: app.naviamp.domain.provider.ProviderDiscoveryArtist,
