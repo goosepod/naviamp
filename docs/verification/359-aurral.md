@@ -553,7 +553,7 @@ The new emulator was shut down; the phone and the pre-existing emulator were lef
 The permanent addition is shared UI regression coverage; no platform production file changed.
 The updated test/documentation revision receives its own hosted verification before merge.
 
-New acquisition completion remains unverified: existing evidence covers already-owned results,
+At this unattended checkpoint, new acquisition completion was unverified: evidence covered already-owned results,
 permission/read-only denial, queued-result fixtures and monitoring with exact restoration. No new
 acquisition job was started as part of these final checks. Native activity/progress management,
 release/track drill-down, broader discovery search and flow management remain follow-on scope.
@@ -604,5 +604,48 @@ provider router inventory, and connection controller publication. No platform pr
 settings format, or schema changed. Fifty focused common tests and Android/both iOS compilation
 passed locally. The separately tracked iOS fixture follow-up #372 passed all hosted checks,
 including its mandatory runner-bootstrap marker. The combined feature tree still requires its
-own final hosted verification. Physical iOS/TV, real cloud-folder propagation, distinct-user
-isolation, new acquisition completion and external scrobbling delivery remain unclaimed.
+own final hosted verification. At that checkpoint, physical iOS/TV, real cloud-folder propagation,
+distinct-user isolation, new acquisition completion and external scrobbling delivery remained
+unclaimed. The subsequent acquisition result is recorded below.
+
+### Final acquisition acceptance and v2.10.0 scope
+
+The owner selected the first increment for v2.10.0 and authorized completing its available checks
+and merging it. One previously absent track was requested through the production Aurral provider
+using the ordinary live account. A one-shot intent guard prevented accidental resubmission; the
+provider returned Queued. Independent server readback matched the new job through queued, searching,
+downloading and completed states, then confirmed that it was no longer queued.
+
+A separate production-provider check found exactly one normal library track through Subsonic search,
+rejected preview identity, and streamed 65,536 bytes with a successful media response. Both live
+checks passed. This establishes one new track acquisition through completion and library streaming;
+it does not claim a new album acquisition or an additional audible/native decoding test. Previously
+recorded native playback and listen-reporting evidence retains its own scope. Temporary live probes
+were removed from source, and their temporary login session file was removed.
+
+The current-main update changed README only and produced candidate
+`db8367cd249ff1006c9e8686114650e5f50d2f02`. Local Desktop distributable verification passed.
+All nine required [hosted checks](https://github.com/goosepod/naviamp/actions/runs/40768349745)
+passed for that candidate, including native iOS, the production iOS app and Keychain boundary,
+and the verified-source record. PR #360 merged into main as
+`8e182fb3c0cd39c36024be61f4bec3f30f5ccbbc`.
+The initial Linux attempt failed before tests on an invalid downloaded NDK archive; its unchanged
+retry passed. Apple jobs initially lacked runner capacity, so only unsuccessful jobs were retried.
+No assertion, timeout, test cadence or branch-protection rule was weakened.
+
+Final platform-production review is limited to three Kotlin adapters:
+
+- `AndroidBassAudioBackend.kt` translates the native BASS end-sync effect into shared types.
+- `AndroidBassJni.kt` declares and invokes the concrete BASS JNI ABI.
+- `DesktopBassJniBinding.kt` supplies the JVM JNI callback ABI.
+
+C++ owns native-thread attachment and exact-object JNI reference lifetime. No iOS production file
+changes in this feature. Product/provider behavior, scheduling, state and UI remain common.
+
+The owner explicitly consolidated physical iOS/TV, spoken accessibility/remote interaction and real
+cloud-folder propagation into the full v2.10.0 acceptance pass in #280. That tracker also retains
+combined track/album request and monitoring scenarios plus the mandatory About changelog, regression
+and release-note checks before tagging. These are future release checks, not implied passes. Broader
+release/track detail, discovery search, activity and flow management are separately tracked in #383.
+Distinct-user isolation and external scrobbling-service delivery remain unclaimed. No release or tag
+is created by this acceptance work.
