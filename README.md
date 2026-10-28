@@ -10,6 +10,11 @@ then browse, discover, queue, download, and play from one polished app on deskto
 
 Your music stays with the server you choose. Naviamp brings the player.
 
+## Try Naviamp on TestFlight
+
+Get the beta for [macOS](https://testflight.apple.com/join/vZ48sYNh) or
+[iOS](https://testflight.apple.com/join/efbB6TFd).
+
 [Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
 and share feedback.
 
