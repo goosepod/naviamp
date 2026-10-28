@@ -117,7 +117,6 @@ import platform.Foundation.NSLog
 import platform.Foundation.NSURL
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.time.Clock
 
 /** Direct BASS C ABI adapter. Core owns every playback and feature decision above these calls. */
 class IosBassAudioBackend : BassAudioBackend {
@@ -594,8 +593,6 @@ class IosBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
     private val preparedLock = NSLock()
 
     override fun localFilePath(url: String): String? = iosPlaybackLocalFilePath(url)
-
-    override fun nowEpochMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
     override fun <T> withPreparedPlaybackLock(block: () -> T): T {
         preparedLock.lock()

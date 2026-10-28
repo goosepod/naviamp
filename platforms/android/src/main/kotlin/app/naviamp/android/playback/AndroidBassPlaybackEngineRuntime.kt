@@ -4,7 +4,7 @@ import android.net.Uri
 import app.naviamp.domain.playback.BassPlaybackEngineRuntime
 import java.io.File
 
-/** Android threading, URI, clock, and synchronization effects required by the Core BASS engine. */
+/** Android URI and synchronization effects required by the Core BASS engine. */
 class AndroidBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
     private val preparedPlaybackLock = Any()
 
@@ -12,8 +12,6 @@ class AndroidBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
         val uri = Uri.parse(url)
         if (uri.scheme == "file") File(requireNotNull(uri.path)).absolutePath else null
     }.getOrNull()
-
-    override fun nowEpochMillis(): Long = System.currentTimeMillis()
 
     override fun <T> withPreparedPlaybackLock(block: () -> T): T =
         synchronized(preparedPlaybackLock, block)

@@ -1,6 +1,7 @@
 package app.naviamp.domain.playback
 
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
@@ -15,6 +16,6 @@ interface BassPlaybackEngineRuntime {
     val workContext: CoroutineContext get() = Dispatchers.IO
 
     fun localFilePath(url: String): String?
-    fun nowEpochMillis(): Long
+    fun nowEpochMillis(): Long = Clock.System.now().toEpochMilliseconds()
     fun <T> withPreparedPlaybackLock(block: () -> T): T
 }
