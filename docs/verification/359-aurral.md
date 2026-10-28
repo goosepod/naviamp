@@ -510,3 +510,50 @@ downloads through the shared transport; no platform production code changes are 
 Six synthetic redirect regressions and three existing download-transport cases pass locally, and the
 provider compiles for Android, JVM, iOS device and iOS simulator. These tests use synthetic hosts and
 values. The final published revision requires a fresh full hosted verification run before merge.
+
+### Final unattended acceptance (October 28)
+
+The owner deferred further physical-device checks because the phone was leaving the computer.
+No physical device was accessed or changed after that instruction. The earlier physical Android
+evidence remains valid; additional physical iOS/TV interaction and real cloud-folder propagation
+are deferred, not counted as completed by emulator or component tests.
+
+- Hosted Verify at `a275bf786` passed all nine checks. Its first API 35 attempt failed two raster
+  visibility assertions; the same source passed on rerun. #371 tracks that intermittent failure
+  independently. No visibility assertion, timeout, animation cadence or CPU budget was weakened.
+- An opt-in live Core probe used isolated Desktop SQLDelight storage and production provider/session
+  effects. It added a generic Subsonic connection, explicitly converted it to Aurral, retained its
+  source ID/credentials/TLS/folders, streamed library audio, switched between two saved sources, and
+  restored the connection after reopening storage. Both source profiles used the same ordinary test
+  account; this does not establish isolation between two distinct server users.
+- A loopback-only reverse proxy forwarded a `/music` subpath to the live server. Native discovery
+  and a second saved-source connection succeeded through that subpath.
+- The real Desktop settings-file effect exported both profiles and read the document back exactly.
+  The file contained Aurral identity and TLS preferences, with no test password. A fresh disposable
+  Android API 34 emulator imported that actual file through its native ContentResolver and Core
+  import command. Both profiles appeared; the password remained blank. Supplying it again allowed
+  connection and discovery through the forwarded test proxy. Direct LAN reconnection timed out on
+  the emulator; proxy success is not presented as verification of emulator LAN DNS/routing.
+- A real 45-second library track completed through Core's BASS engine on the Mac's built-in output,
+  at zero volume. Ordered real progress observations passed through the shared listen reporter.
+  The transport recorded exactly one submission, and an independent Aurral history readback found
+  exactly one new event with source `subsonic`. Repeated terminal observations and a discovery
+  preview produced no additional submission. The default output did not advance in the initial
+  probe; explicitly selecting the built-in output resolved this test condition. No system-wide
+  audio preference or production playback code changed. External scrobbling-service delivery is
+  outside this readback's claim.
+- Eleven existing Aurral UI cases plus the new four-locale regression pass. At 320 pixels wide,
+  Spanish/German/Arabic/Japanese preview labels resolve, keyboard focus and Enter activation play a
+  sample, its accessible action changes to Pause, and filters plus virtualized album/EP rows remain
+  reachable. Narrow control/release captures were inspected. This is shared rendered/semantics
+  verification, not a physical screen-reader or television-remote acceptance claim.
+
+Temporary live probes were removed from the source tree and retained only in private local files.
+The new emulator was shut down; the phone and the pre-existing emulator were left untouched.
+The permanent addition is shared UI regression coverage; no platform production file changed.
+The updated test/documentation revision receives its own hosted verification before merge.
+
+New acquisition completion remains unverified: existing evidence covers already-owned results,
+permission/read-only denial, queued-result fixtures and monitoring with exact restoration. No new
+acquisition job was started as part of these final checks. Native activity/progress management,
+release/track drill-down, broader discovery search and flow management remain follow-on scope.

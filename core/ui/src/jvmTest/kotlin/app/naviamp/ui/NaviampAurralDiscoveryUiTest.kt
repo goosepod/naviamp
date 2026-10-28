@@ -9,6 +9,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.test.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.runtime.remember
+import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.ui.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
+import java.util.Locale
 import app.naviamp.domain.provider.*
 import kotlin.test.*
 
@@ -53,6 +60,66 @@ class NaviampAurralDiscoveryUiTest {
         runOnIdle { samples.value = DiscoverySamplePlaybackUi() }
         onAllNodesWithContentDescription("Pause").assertCountEquals(0)
         onAllNodesWithContentDescription("Play sample").assertCountEquals(2)
+    }
+
+    @Test fun narrowLocalizedArtistPanelKeepsSampleKeyboardActionsAndReleaseFiltersReachable() {
+        val original = Locale.getDefault()
+        try {
+            for (language in listOf("es", "de", "ar", "ja")) {
+                Locale.setDefault(Locale.forLanguageTag(language))
+                runDesktopComposeUiTest(320, 760) {
+                    val artist = ProviderDiscoveryArtist("artist", "Long discovery artist name for narrow screens")
+                    val screen = SharedProviderDiscoveryArtistUi(artist, loading = false,
+                        details = ProviderDiscoveryArtistDetails(artist, releases = listOf(
+                            ProviderDiscoveryRelease("album", "Long album title that wraps below its cover", type = "Album"),
+                            ProviderDiscoveryRelease("ep", "Long EP title that wraps below its cover", type = "EP"))),
+                        samplesStatus = ProviderDiscoveryStatus.Ready,
+                        samples = listOf(ProviderDiscoverySample("1", "Long sample title for keyboard playback", "Long album subtitle")))
+                    val playback = mutableStateOf(DiscoverySamplePlaybackUi())
+                    val actions = mutableListOf<ProviderDiscoveryAction>()
+                    var play = ""
+                    var pause = ""
+                    var releases = ""
+                    setContent {
+                        val localeEffect = remember { createNaviampLocaleEffect() }
+                        NaviampLocaleEnvironment(InterfaceLanguage.System, localeEffect) {
+                            play = stringResource(Res.string.discovery_play_sample)
+                            pause = stringResource(Res.string.transport_pause)
+                            releases = stringResource(Res.string.discovery_all_releases)
+                            MaterialTheme(colorScheme = darkColorScheme()) {
+                                Box(Modifier.fillMaxSize().background(NaviampColors.Dark.background)) {
+                                    NaviampDiscoveryArtistPanel(screen, "Aurral", NaviampColors.Dark, {}, {}, {}, {}, {}, {
+                                        actions += it
+                                        playback.value = DiscoverySamplePlaybackUi(DiscoveryPreviewTrackPrefix + "1", playing = true)
+                                    }, playback.value)
+                                }
+                            }
+                        }
+                    }
+                    waitForIdle()
+                    assertNotEquals("Play sample", play, "Aurral preview labels must resolve in the selected locale")
+                    onNodeWithContentDescription(play).performScrollTo().assertIsDisplayed()
+                        .performSemanticsAction(SemanticsActions.RequestFocus)
+                    onNodeWithContentDescription(play).assertIsFocused().performKeyInput { pressKey(Key.Enter) }
+                    runOnIdle { assertEquals(listOf<ProviderDiscoveryAction>(ProviderDiscoveryAction.PlaySample("1")), actions) }
+                    onNodeWithContentDescription(pause).assertIsDisplayed().assertIsEnabled()
+                    System.getenv("NAVIAMP_AURRAL_CAPTURE")?.let { directory ->
+                        java.io.File(directory).mkdirs()
+                        javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png",
+                            java.io.File(directory, "artist-controls-320-$language.png"))
+                    }
+                    onNodeWithText(releases).performScrollTo().assertIsDisplayed()
+                    onNodeWithText("Long album title that wraps below its cover").performScrollTo().assertIsDisplayed()
+                    onNode(hasScrollAction()).performScrollToNode(hasText("Long EP title that wraps below its cover"))
+                    onNodeWithText("Long EP title that wraps below its cover").assertIsDisplayed()
+                    System.getenv("NAVIAMP_AURRAL_CAPTURE")?.let { directory ->
+                        java.io.File(directory).mkdirs()
+                        javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png",
+                            java.io.File(directory, "artist-panel-320-$language.png"))
+                    }
+                }
+            }
+        } finally { Locale.setDefault(original) }
     }
 
     @Test fun independentSampleStateSurvivesOrdinaryHomeUpdates() {
