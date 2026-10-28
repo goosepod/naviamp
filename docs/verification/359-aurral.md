@@ -2,6 +2,11 @@
 
 Tracking: [#359](https://github.com/goosepod/naviamp/issues/359).
 
+Current status: the first increment is merged in PR #360 and selected for v2.10.0. All nine
+required checks and a new-track acquisition through library streaming passed. Full release-wide
+acceptance is tracked in #280; broader features are in #383. Earlier checkpoint notes below retain
+their historical evidence and limits.
+
 ## Baseline and release scope
 
 The branch `feature/359-aurral` starts from accepted main commit
@@ -10,9 +15,9 @@ unreleased v2.10.0 candidate and identifies itself as v2.10.0/build 60. The late
 remains v2.9.0; the old v2.10.1 metadata was an erroneous unpublished bump, not a public release.
 No release or tag was created or changed during this work.
 
-The owner may include Aurral in v2.10.0 depending on app-store approval timing. This branch does
-not bump the version, select final release scope, or add unfinished work to main. Update the shared
-About changelog and release notes when its release scope is accepted, before any release tag.
+The owner selected the completed first increment for v2.10.0. This work does not bump the version
+or publish a release. Update the shared About changelog, its regression test and release notes
+during release preparation, before any release tag; #280 retains those requirements.
 
 ## Connection and discovery foundation
 
@@ -156,14 +161,15 @@ are not substituted for the remaining live application/device checks.
 
 ## Remaining issue scope and release gates
 
-This work does not close #359. Follow-on native work includes release detail pages, broader native
-search, permission-aware acquisition/activity and flow management. Do not expose these as available merely
+The initial foundation did not close #359; the completed first increment now does. Follow-on #383
+tracks native release/track details, broader search, ongoing acquisition/activity and flow management. Do not expose these as available merely
 because a server advertises another API feature. Each mutation needs request/response/permission
 fixtures and ordinary-user failure coverage before wiring its complete common behavior and UI.
 
-Before release acceptance, finish live application add/edit/convert/restart/playback and account-switch
-checks, actual cross-device settings sync, physical Android/iOS/TV interaction, focus/accessibility
-and localized/narrow-layout checks. The current read-only live test cannot establish these results.
+The initial release gates included live add/edit/convert/restart/playback and account switching,
+cross-device settings, physical Android/iOS/TV interaction, accessibility and localized/narrow layouts.
+Later checkpoints below record the additional passes. Remaining release-wide device and sync checks
+are consolidated in #280; the initial read-only probe is not presented as proof of those results.
 No continuous-animation policy or cadence changed in this increment.
 
 ## Platform diff accountability
