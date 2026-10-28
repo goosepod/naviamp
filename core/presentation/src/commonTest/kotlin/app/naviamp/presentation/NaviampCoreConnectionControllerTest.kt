@@ -18,6 +18,26 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @Test fun importedConnectionsCanBeEditedAndConnectedThroughNestedRoutersWithoutRestart() = kotlinx.coroutines.test.runTest {
+        val empty = NaviampCoreConnectionInventory()
+        val leaf = FakeProviderSessionPort(empty, null, false, emptyList(), emptyList())
+        val inner = NaviampCoreProviderSessionRouter(listOf(NaviampCoreProviderSessionRoute(setOf("subsonic"), leaf)))
+        val outer = NaviampCoreProviderSessionRouter(listOf(NaviampCoreProviderSessionRoute(setOf("subsonic"), inner)))
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreConnectionController(NaviampConnectionController(), store, outer)
+        val imported = savedRecord(id = "imported").copy(providerId = "subsonic")
+        // Settings import has already committed to the repository behind the leaf effect.
+        leaf.inventory = NaviampCoreConnectionInventory(connections = listOf(imported))
+        controller.replaceSavedConnections(listOf(imported))
+        val displayed = store.state.value.shell.connectionSettings.connection.savedConnections.single()
+        controller.execute(NaviampCoreCommand.Connection.Edit(displayed))
+        assertEquals("https://edited.example", store.state.value.shell.connectionSettings.connection.form.serverUrl)
+        controller.execute(NaviampCoreCommand.Connection.ConnectSaved(displayed))
+        assertEquals(NaviampCoreConnectionRequest.Saved("imported"), leaf.connectRequests.single().first)
+        assertEquals("imported", store.state.value.shell.connectionSettings.currentSourceId)
+        assertTrue(store.state.value.shell.connectionSettings.connection.connected)
+    }
+
     @Test fun openingAnotherIdenticalFormRevokesAPendingCertificateSelection() = kotlinx.coroutines.test.runTest {
         val selected = CompletableDeferred<String?>()
         val fixture = fixture(certificateFiles = NaviampCoreCertificateFilePort { selected.await() })
