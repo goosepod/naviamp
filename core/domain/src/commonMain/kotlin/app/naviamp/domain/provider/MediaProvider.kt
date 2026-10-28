@@ -22,6 +22,7 @@ import app.naviamp.domain.smartplaylist.editingResult
 import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
+    val discovery: ProviderDiscovery? get() = null
     val id: ProviderId
     val displayName: String
     val capabilities: ProviderCapabilities

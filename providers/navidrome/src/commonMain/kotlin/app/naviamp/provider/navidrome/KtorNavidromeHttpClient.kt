@@ -5,6 +5,10 @@ import app.naviamp.domain.network.isHttpDownloadComplete
 import app.naviamp.domain.network.NaviampUserAgent
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpSend
+import io.ktor.client.plugins.plugin
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.util.AttributeKey
 import io.ktor.client.request.headers
 import io.ktor.client.request.prepareGet
 import io.ktor.client.request.request
@@ -19,10 +23,46 @@ import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
 
-class KtorNavidromeHttpClient(
-    private val client: HttpClient = createDefaultNavidromeKtorClient(NavidromeTlsSettings()),
+class KtorNavidromeHttpClient private constructor(
+    private val client: HttpClient,
+    private val connectionHeaderNames: Set<String>,
+    private val rateLimitBackoff: NavidromeRateLimitBackoff,
 ) : NavidromeHttpClient {
-    private val rateLimitBackoff = NavidromeRateLimitBackoff()
+    constructor(client: HttpClient = createDefaultNavidromeKtorClient(NavidromeTlsSettings())) :
+        this(client, emptySet(), NavidromeRateLimitBackoff())
+
+    init {
+        client.attributes.computeIfAbsent(OriginHeaderGuardInstalled) {
+            client.plugin(HttpSend).intercept { request ->
+                request.attributes.getOrNull(OriginHeaderScopeKey)?.let { scope ->
+                    val target = request.url.build()
+                    if (scope.protocol != target.protocol.name ||
+                        !scope.host.equals(target.host, ignoreCase = true) || scope.port != target.port) {
+                        scope.names.forEach { request.headers.remove(it) }
+                    }
+                }
+                execute(request)
+            }
+            Unit
+        }
+    }
+
+    internal fun withConnectionHeaderNames(names: Set<String>): KtorNavidromeHttpClient =
+        KtorNavidromeHttpClient(client, connectionHeaderNames + names.map { it.lowercase() }, rateLimitBackoff)
+
+    private fun HttpRequestBuilder.navidromeHeaders(values: Map<String, String>) {
+        val names = values.keys.filter {
+            it.lowercase() !in PublicMediaTransportHeaders || it.lowercase() in connectionHeaderNames
+        }.toSet()
+        if (names.isNotEmpty()) {
+            val origin = url.build()
+            attributes.put(OriginHeaderScopeKey, OriginHeaderScope(origin.protocol.name, origin.host, origin.port, names))
+        }
+        headers { (DefaultNavidromeHeaders + values).forEach { (name, value) -> append(name, value) } }
+    }
+
+    override suspend fun deleteJson(url: String, headers: Map<String, String>): String =
+        request(url, HttpMethod.Delete, headers = headers).body
 
     override suspend fun get(url: String): String =
         getResponse(url).body
@@ -90,9 +130,7 @@ class KtorNavidromeHttpClient(
             rateLimitBackoff.activeExceptionOrNull()?.let { throw it }
             val response = client.request(url) {
                 this.method = method
-                headers {
-                    (DefaultNavidromeHeaders + headers).forEach { (name, value) -> append(name, value) }
-                }
+                navidromeHeaders(headers)
                 if (body != null) {
                     contentType(bodyContentType)
                     setBody(body)
@@ -160,9 +198,7 @@ class KtorNavidromeHttpClient(
         return runCatching {
             val response = client.request(url) {
                 method = HttpMethod.Get
-                headers {
-                    (DefaultNavidromeHeaders + headers).forEach { (name, value) -> append(name, value) }
-                }
+                navidromeHeaders(headers)
             }
             val statusCode = response.status.value
             if (!response.status.isSuccess()) {
@@ -220,9 +256,7 @@ class KtorNavidromeHttpClient(
             // Keep audio on the live response channel instead of allowing Ktor to save the full
             // response in memory before the cache writer receives its first chunk.
             client.prepareGet(url) {
-                headers {
-                    (DefaultNavidromeHeaders + headers).forEach { (name, value) -> append(name, value) }
-                }
+                navidromeHeaders(headers)
             }.execute { response ->
                 val statusCode = response.status.value
                 if (!response.status.isSuccess()) {
@@ -353,3 +387,8 @@ private val DefaultNavidromeHeaders = mapOf(
 
 private const val TooManyRequestsStatusCode = 429
 private const val DefaultRateLimitBackoffMillis = 60_000L
+
+private data class OriginHeaderScope(val protocol: String, val host: String, val port: Int, val names: Set<String>)
+private val OriginHeaderScopeKey = AttributeKey<OriginHeaderScope>("NaviampConnectionHeaderOrigin")
+private val OriginHeaderGuardInstalled = AttributeKey<Unit>("NaviampConnectionHeaderOriginGuard")
+private val PublicMediaTransportHeaders = setOf("accept", "accept-encoding", "range", "if-range")

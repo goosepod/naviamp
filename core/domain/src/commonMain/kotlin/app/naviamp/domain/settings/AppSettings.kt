@@ -69,6 +69,11 @@ fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState 
     val current = providerDescriptor(this.providerId)
     val selected = providerDescriptor(providerId)
     if (!selected.selectable || selected.id == current.id) return this
+    // An explicit reclassification of this same OpenSubsonic server retains its account/library scope.
+    if (setOf(current.id, selected.id) == setOf(
+            app.naviamp.domain.provider.ProviderIdSubsonic, app.naviamp.domain.provider.ProviderIdAurral,
+        ) && authenticationMode != app.naviamp.domain.source.SubsonicAuthApiKey
+    ) return copy(providerId = selected.id)
     val nextServerUrl = when {
         selected.fixedServerUrl != null -> selected.fixedServerUrl
         current.fixedServerUrl != null && serverUrl == current.fixedServerUrl -> ""

@@ -232,12 +232,24 @@ private fun NaviampPlaylistDetailCommand.playlistSelection(id: String) = when (t
 internal class NaviampCoreConnectCommandHandler(
     private val delegate: NaviampCoreCommandHandler,
     private val connect: NaviampCoreConnectController?,
+    private val beforeMainPlayback: () -> Unit = {},
 ) : NaviampCoreCommandHandler {
     override fun dispatch(command: NaviampCoreCommand) {
+        preparePlayback(command)
         if (connect?.routeProductCommand(command) != true) delegate.dispatch(command)
     }
 
-    override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult =
-        if (connect?.routeProductCommand(command) == true) NaviampCoreCommandResult.Completed
+    override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
+        preparePlayback(command)
+        return if (connect?.routeProductCommand(command) == true) NaviampCoreCommandResult.Completed
         else delegate.execute(command)
+    }
+
+    private fun preparePlayback(command: NaviampCoreCommand) {
+        val action = (command as? NaviampCoreCommand.NowPlaying.Playback)?.request?.action
+        if (command.connectMediaSelectionOrNull() != null || action in setOf(
+            app.naviamp.ui.NowPlayingPlaybackAction.TogglePlayPause, app.naviamp.ui.NowPlayingPlaybackAction.Resume,
+            app.naviamp.ui.NowPlayingPlaybackAction.PlayCurrent, app.naviamp.ui.NowPlayingPlaybackAction.Next,
+            app.naviamp.ui.NowPlayingPlaybackAction.Previous)) beforeMainPlayback()
+    }
 }

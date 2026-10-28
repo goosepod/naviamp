@@ -61,6 +61,7 @@ fun ColumnScope.NaviampProductRouteContent(
                 NaviampRoute.Home -> SharedHomeRoute(
                     colors = colors,
                     home = shellState.home,
+                    discoveryPlayback = shellState.home.samplePlayback,
                     actions = shellActions.homeActions,
                     mediaActions = shellActions.mediaActions,
                 )

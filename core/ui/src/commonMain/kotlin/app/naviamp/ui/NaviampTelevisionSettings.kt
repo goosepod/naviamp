@@ -770,7 +770,7 @@ private fun TelevisionSourcesSettings(
         items(saved, key = { it.id }) { source ->
             TelevisionSettingsRow(
                 title = source.displayName,
-                subtitle = listOf(app.naviamp.domain.provider.providerDescriptor(source.providerId).displayName, source.username).filter(String::isNotBlank).joinToString(" • "),
+                subtitle = listOf(localizedProviderName(source.providerId), source.username).filter(String::isNotBlank).joinToString(" • "),
                 value = if (source.current) stringResource(Res.string.common_current) else source.selectedLibrarySummary,
                 serviceProviderId = source.providerId,
                 selected = source.current,

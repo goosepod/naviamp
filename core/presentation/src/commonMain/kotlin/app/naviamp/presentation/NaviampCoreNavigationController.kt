@@ -127,7 +127,8 @@ class NaviampCoreNavigationController(
                 artistDetail = NaviampArtistDetailScreenUi(),
                 playlistDetail = NaviampPlaylistDetailScreenUi(),
                 home = if (route == NaviampRoute.Home) {
-                    shell.home.copy(collectionPage = null)
+                    shell.home.copy(collectionPage = null,
+                        providerDiscovery = shell.home.providerDiscovery?.copy(artistDetail = null))
                 } else {
                     shell.home
                 },

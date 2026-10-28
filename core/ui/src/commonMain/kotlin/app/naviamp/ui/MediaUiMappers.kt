@@ -1043,6 +1043,7 @@ fun nowPlayingTrackCapabilities(
     canRepeatQueue: Boolean = false,
     canSaveQueueAsPlaylist: Boolean = false,
     canAddToPlaylist: Boolean = true,
+    isPreview: Boolean = false,
 ): NowPlayingTrackCapabilities =
     NowPlayingTrackCapabilities(
         canPlayPause = hasPlaybackTarget &&
@@ -1051,12 +1052,12 @@ fun nowPlayingTrackCapabilities(
         canSeek = supportsSeek && !isLiveStream,
         canChangeVolume = supportsSoftwareVolume,
         canRepeat = canRepeatQueue && !isLiveStream,
-        canStartRadio = supportsTrackRadio && !isLiveStream,
-        canAddToPlaylist = canAddToPlaylist && !isLiveStream,
-        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream,
-        canFavorite = supportsTrackFavorites && !isLiveStream,
-        canRate = supportsTrackRatings && !isLiveStream,
-        lyricsAvailable = !isLiveStream,
+        canStartRadio = supportsTrackRadio && !isLiveStream && !isPreview,
+        canAddToPlaylist = canAddToPlaylist && !isLiveStream && !isPreview,
+        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream && !isPreview,
+        canFavorite = supportsTrackFavorites && !isLiveStream && !isPreview,
+        canRate = supportsTrackRatings && !isLiveStream && !isPreview,
+        lyricsAvailable = !isLiveStream && !isPreview,
     )
 
 fun nowPlayingEmbeddedTagRows(tags: List<Pair<String, String>>?): List<Pair<String, String>> =

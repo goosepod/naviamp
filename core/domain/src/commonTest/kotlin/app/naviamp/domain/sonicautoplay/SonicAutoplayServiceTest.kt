@@ -24,6 +24,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SonicAutoplayServiceTest {
+    @Test fun discoverySamplesNeverSeedAutomaticLibraryPlayback() {
+        val preview = track("discovery-preview:42")
+        assertEquals(emptyList(), PlaybackQueue(listOf(track("library"), preview), 1).sonicAutoplaySeeds())
+        assertEquals(listOf(track("library")), PlaybackQueue(listOf(preview, track("library")), 1).sonicAutoplaySeeds())
+    }
+
     @Test
     fun continuationTracksUseRecentSeedsAndSkipExistingQueueTracks() = runTest {
         val provider = FakeSonicProvider(

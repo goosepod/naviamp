@@ -91,7 +91,8 @@ open class CoreBassPlaybackEngine(
     RestartOnSeekPlaybackEngine,
     DownloadFallbackAwarePlaybackEngine,
     AudioOutputDevicePlaybackEngine,
-    PlaybackEngineDiagnostics {
+    PlaybackEngineDiagnostics,
+    PreviewPlaybackEngine {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
     private val startPolicy: BassPlaybackStartPolicy = BassPlaybackStartPolicy.CoreEngine
@@ -158,6 +159,24 @@ open class CoreBassPlaybackEngine(
     private var selectedOutputDeviceId: String? = null
     private var transientOutputVolumeFactor: Float = 1f
     private var verifyNetworkCertificates: Boolean = true
+    private var previewVolumePercent: Int = 100
+    private val preview = BassPreviewPlayback(runtime) { verify ->
+        check(!released)
+        val bass = checkNotNull(backend)
+        ensureInitialized(bass)
+        bass.setVerifyNet(verify).getOrThrow()
+        bass
+    }
+    protected val previewActive: Boolean get() = preview.active
+
+    override open fun playPreview(scope: CoroutineScope, request: PlaybackRequest, verifyNetworkCertificates: Boolean,
+        volumePercent: Int, onStateChanged: (PlaybackState) -> Unit) {
+        previewVolumePercent = volumePercent.coerceIn(0, 100)
+        preview.play(scope, request, verifyNetworkCertificates, volumePercent, onStateChanged)
+    }
+    override open fun pausePreview() = preview.pause()
+    override open fun resumePreview() = preview.resume()
+    override open fun stopPreview() = preview.stop()
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
     private var downloadFallbackListener: (() -> Unit)? = null
 
@@ -172,6 +191,7 @@ open class CoreBassPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
+        stopPreview()
         lastRequestDiagnosticUrl = request.url.sanitizedPlaybackDiagnosticUrl()
         currentScope = scope
         execution.attach(request, onStateChanged, onProgressChanged, onMetadataChanged)
@@ -353,6 +373,7 @@ open class CoreBassPlaybackEngine(
     }
 
     override open fun resume() {
+        stopPreview()
         val handle = stream
         val bass = backend ?: return
         if (handle != 0) {
@@ -385,6 +406,8 @@ open class CoreBassPlaybackEngine(
 
     override fun setVolume(percent: Int) {
         volumePercent = percent.coerceIn(0, 100)
+        previewVolumePercent = volumePercent
+        preview.setVolume(outputVolumeFactor())
         val handle = stream
         val bass = backend ?: return
         if (handle != 0) {
@@ -393,6 +416,7 @@ open class CoreBassPlaybackEngine(
     }
 
     override open fun stop() {
+        stopPreview()
         freePreparedStream()
         stopActiveStream()
         execution.publishProgress(PlaybackProgress.Unknown)
@@ -856,6 +880,7 @@ open class CoreBassPlaybackEngine(
 
     protected fun setTransientOutputVolumeFactor(factor: Float) {
         transientOutputVolumeFactor = factor.coerceIn(0f, 1f)
+        preview.setVolume(playbackUserVolumeFactor(previewVolumePercent, transientOutputVolumeFactor))
         backend?.let(::applyOutputVolume)
     }
 

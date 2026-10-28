@@ -63,6 +63,58 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    @Test fun previewCancelsNativeLoadingAndRestartsOnlyOnExplicitResume() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(this, engine,
+            NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() })
+        val states = mutableListOf<PlaybackState>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) { states += state }
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+        })
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        runCurrent()
+        engine.emitProgress(PlaybackProgress(37.0, 180.0))
+        engine.emitState(PlaybackState.Loading)
+        adapter.prepareForPreview()
+        assertEquals(1, engine.stopCalls, "Cancel the native open before preview starts")
+        assertEquals(PlaybackState.Paused, states.last())
+        engine.emitState(PlaybackState.Playing)
+        engine.emitProgress(PlaybackProgress(0.0, 180.0))
+        assertEquals(PlaybackState.Paused, states.last(), "Ignore the canceled native open")
+        assertEquals(1, engine.requests.size)
+        adapter.resume()
+        runCurrent()
+        assertEquals(2, engine.requests.size)
+        assertEquals(37.0, engine.request?.startPositionSeconds)
+        assertEquals(PlaybackState.Playing, states.last())
+        adapter.stop()
+    }
+
+    @Test fun discoverySamplesReachTheSharedEngineWithoutAudioCacheWrites() = runTest {
+        val base = FakeCoreMediaProvider()
+        val preview = app.naviamp.domain.provider.ProviderDiscoverySample("42", "Sample").playbackTrack("Artist")
+        val provider = object : MediaProvider by base {
+            override suspend fun streamUrl(request: app.naviamp.domain.StreamRequest): String {
+                assertEquals(preview.id, request.trackId)
+                return "https://sample.test/audio.mp3"
+            }
+        }
+        val engine = RecordingPlaybackEngine()
+        var writes = 0
+        val adapter = NaviampCorePlaybackEngineAdapter(scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() },
+            activeSourceId = { "source" }, cacheSettings = { CacheSettings(audioCachingEnabled = true, audioPrefetchDepth = 2) },
+            cacheAudio = { _, _, _, _ -> writes++; error("Samples must not be cached as owned tracks") })
+        adapter.playQueueSelection(PlaybackQueue(listOf(preview), 0), 0)
+        advanceUntilIdle()
+        assertEquals("https://sample.test/audio.mp3", engine.request?.url)
+        assertEquals(0, writes)
+        adapter.stop()
+    }
+
     @Test
     fun explicitPauseSurvivesLatePlayingCallbacksAndRestartedSeekUntilResume() = runTest {
         val provider = FakeCoreMediaProvider()
@@ -1436,6 +1488,7 @@ private class RecordingPlaybackEngine :
     var appliedStereoDownmixEnabled = false
     val seeks = mutableListOf<Double>()
     var pauseCalls = 0
+    var stopCalls = 0
     private var stateCallback: ((PlaybackState) -> Unit)? = null
     private var progressCallback: ((PlaybackProgress) -> Unit)? = null
     private var downloadFallbackListener: (() -> Unit)? = null
@@ -1468,7 +1521,7 @@ private class RecordingPlaybackEngine :
     override fun resume() = Unit
     override fun seek(positionSeconds: Double) { seeks += positionSeconds }
     override fun setVolume(percent: Int) { appliedVolume = percent }
-    override fun stop() = Unit
+    override fun stop() { stopCalls++ }
     override fun setNetworkCertificateVerification(enabled: Boolean) {
         if (recordCertificatePolicy) events += "verify:$enabled"
     }

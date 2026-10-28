@@ -1,5 +1,7 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -143,6 +145,7 @@ suspend fun resolvePlaybackAudioSource(
     cachedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
     cachedAudioForTrack: suspend (sourceId: String, trackId: TrackId) -> PlaybackLocalAudio? = { _, _ -> null },
 ): PlaybackAudioSourcePlan {
+    if (track.id.isDiscoveryPreview()) return providerPlaybackAudioSourcePlan(track, quality, startPositionSeconds)
     val downloaded = sourceId?.let { id -> downloadedAudio(id, track.id, quality) }
     if (downloaded != null && downloadedTrackPlayback == DownloadedTrackPlayback.PreferDownloaded) {
         return playbackAudioSourcePlan(

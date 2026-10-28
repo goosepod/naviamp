@@ -41,6 +41,15 @@ interface ReleasablePlaybackEngine : PlaybackEngine {
     fun release()
 }
 
+/** An independent short-audio channel. It never replaces or observes the main playback stream. */
+interface PreviewPlaybackEngine {
+    fun playPreview(scope: CoroutineScope, request: PlaybackRequest, verifyNetworkCertificates: Boolean,
+        volumePercent: Int, onStateChanged: (PlaybackState) -> Unit)
+    fun pausePreview()
+    fun resumePreview()
+    fun stopPreview()
+}
+
 interface QueueAwarePlaybackEngine : PlaybackEngine {
     fun setCrossfadeDuration(seconds: Int)
 

@@ -29,6 +29,7 @@ import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -96,6 +97,7 @@ class NaviampCore private constructor(
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
+    private val samplePlayback: NaviampCoreSamplePlaybackController,
     private val diagnostics: NaviampCoreDiagnosticsPort,
     private val connectController: NaviampCoreConnectController?,
     private val castController: NaviampCoreCastController?,
@@ -184,6 +186,7 @@ class NaviampCore private constructor(
     fun close() {
         if (closed) return
         closed = true
+        samplePlayback.close()
         castPicker?.close()
         castController?.close()
         connectController?.close()
@@ -233,6 +236,16 @@ class NaviampCore private constructor(
             val queue = NaviampPlaybackQueueCoordinator(livePlayback)
             val playbackOutputs = NaviampPlaybackOutputSelectionController()
             val routedPlaybackEffects = NaviampCoreOutputPlaybackEffects(services.playback.effects, playbackOutputs)
+            var pauseMainForSample: () -> Unit = routedPlaybackEffects::pause
+            val samplePlayback = NaviampCoreSamplePlaybackController(scope, services.playback.samples,
+                providerSource, {
+                    stateStore.state.value.shell.connect.remoteNowPlaying?.let {
+                        if (it.isPlaying) app.naviamp.domain.playback.PlaybackState.Playing else app.naviamp.domain.playback.PlaybackState.Paused
+                    } ?: livePlayback.state.value.playbackState
+                }, { pauseMainForSample() }, publish = { sample ->
+                    stateStore.updateShell { shell -> shell.copy(home = shell.home.copy(samplePlayback = sample)) }
+                }, prepareMain = routedPlaybackEffects::prepareForPreview)
+            routedPlaybackEffects.beforeStart = samplePlayback::stop
             val deferredArtistNavigator = DeferredArtistNavigator()
             val mediaRegistry = NaviampCoreMediaRegistry()
             val navigation = NaviampCoreNavigationController(
@@ -279,6 +292,10 @@ class NaviampCore private constructor(
                 services.content.sonicHomeDiscovery,
                 mediaRegistry = mediaRegistry,
                 observedAtIso8601 = services.favoritedAtIso8601,
+                externalUri = services.content.externalUri,
+                openLibraryArtist = { mediaDetails.selectArtist(it.toSharedMediaItemUi()) },
+                playDiscoverySample = { samplePlayback.toggle(it) },
+                stopDiscoverySample = samplePlayback::stop,
             )
             val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
                 livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }
@@ -325,6 +342,7 @@ class NaviampCore private constructor(
                 services.radio.playback,
                 services.radio.recents,
                 onPlaybackStarted = { station ->
+                    samplePlayback.stop()
                     val track = app.naviamp.domain.radio.internetRadioTrack(station)
                     queue.startQueue(listOf(track), 0)
                     livePlayback.updateCurrentTrack(track)
@@ -729,7 +747,9 @@ class NaviampCore private constructor(
                     controller.start()
                 }
             }
-            val commandHandler = NaviampCoreConnectCommandHandler(router, connect)
+            val commandHandler = NaviampCoreConnectCommandHandler(router, connect, samplePlayback::stop)
+            pauseMainForSample = { commandHandler.dispatch(NaviampCoreCommand.NowPlaying.Playback(
+                NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Pause))) }
             livePlayback.observe { live -> connect?.onLocalPlaybackChanged(live) }
             nowPlayingPresenter.publish()
             scope.launch { connection.restoreInitialConnection() }
@@ -745,6 +765,7 @@ class NaviampCore private constructor(
                 providerSessionLifecycle = providerSessionLifecycle,
                 providerSource = providerSource,
                 sidecars = services.playback.sidecars,
+                samplePlayback = samplePlayback,
                 diagnostics = services.diagnostics,
                 connectController = connect,
                 castController = cast,

@@ -90,6 +90,7 @@ import app.naviamp.domain.source.SubsonicAuthToken
 private fun localizedConnectionStatus(status: String): String =
     when (status) {
         ConnectionPasswordRequiredStatus -> stringResource(Res.string.connection_password_required)
+        "connection_aurral_guidance" -> stringResource(Res.string.connection_aurral_guidance)
         "connection_api_key_required" -> stringResource(Res.string.connection_api_key_required)
         "connection_api_key_unsupported" -> stringResource(Res.string.connection_api_key_unsupported)
         "connection_api_key_invalid" -> stringResource(Res.string.connection_api_key_invalid)
@@ -169,7 +170,7 @@ fun NaviampConnectionForm(
             onProviderSelected = { providerId -> onFormChanged(form.selectProvider(providerId)) },
         )
         Text(
-            providerDescriptor(form.providerId).connectionGuidance,
+            localizedConnectionStatus(providerDescriptor(form.providerId).connectionGuidance),
             color = colors.mutedText,
             fontSize = 11.sp,
         )
@@ -557,7 +558,7 @@ private fun ProviderSelectionTile(
     ) {
         NaviampServiceIcon(provider.id, contentColor)
         Text(
-            provider.displayName,
+            localizedProviderName(provider.id),
             color = contentColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
