@@ -10,9 +10,13 @@ then browse, discover, queue, download, and play from one polished app on deskto
 
 Your music stays with the server you choose. Naviamp brings the player.
 
+Naviamp is an independent third-party client and is not affiliated with or endorsed by the
+Navidrome project.
+
 ## Get Naviamp
 
-Download for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881).
+Download for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881)
+or for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9PCFJ644LXLL).
 
 Beta builds are available through TestFlight for [macOS](https://testflight.apple.com/join/vZ48sYNh) and
 [iOS](https://testflight.apple.com/join/efbB6TFd).
