@@ -103,14 +103,18 @@ private data class NavidromeArtistCatalog(
 @OptIn(ExperimentalAtomicApi::class)
 class NavidromeProvider(
     private val connection: NavidromeConnection,
-    private val httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
+    httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
 ) : MediaProvider,
     ArtistPopularTracksClient,
     SimilarArtistsClient {
+    private val httpClient: NavidromeHttpClient = (httpClient as? KtorNavidromeHttpClient)
+        ?.withConnectionHeaderNames(connection.customHeaders.mapNotNull { header ->
+            header.normalized()?.takeIf { !it.value.isNullOrBlank() }?.name
+        }.toSet()) ?: httpClient
     private val profile = subsonicProviderProfile(connection.providerId)
     private val aurralDiscovery =
         if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) {
-            app.naviamp.provider.aurral.AurralDiscoveryClient(connection, httpClient,
+            app.naviamp.provider.aurral.AurralDiscoveryClient(connection, this.httpClient,
                 resolveLibraryArtist = { identityKey, mbid ->
                     val candidateId = "artist:${identityKey.urlEncode().replace("%3A", ":", ignoreCase = true)}"
                     val raw = get("getArtist.view", mapOf("id" to candidateId)).subsonicResponse()["artist"] as? JsonObject
