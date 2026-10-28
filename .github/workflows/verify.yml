@@ -480,6 +480,11 @@ jobs:
         run: |
           # The preceding step compiles this binary; this required step executes it
           # with real Apple trust services after the common standalone tests finish.
+          # Bootstrap is generated on the runner. Keep setup independent of a freshly
+          # booted simulator's first HTTP request; all HTTPS and server-state audits remain real.
+          fixture_bootstrap="$(cat build/mobile-mtls-fixture.bootstrap)"
+          test -n "$fixture_bootstrap"
+          export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
           ./gradlew --max-workers=2 --console=plain \
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \

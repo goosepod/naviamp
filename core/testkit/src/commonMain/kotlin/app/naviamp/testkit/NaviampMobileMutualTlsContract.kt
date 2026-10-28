@@ -34,6 +34,8 @@ import kotlin.time.TimeSource
 
 /** Hosts supply only private test-file IO and their real native playback boundary. */
 interface NaviampMobileMutualTlsHost {
+    /** Optional generated fixture text delivered by the test runner before native networking starts. */
+    suspend fun fixtureBootstrap(): String? = null
     suspend fun writePrivateFile(name: String, bytes: ByteArray): String
     fun createEngine(): CoreBassPlaybackEngine
 }
@@ -47,7 +49,12 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
             throw AssertionError("mTLS timed out during: $name; state=${lastState.value}; progress=${lastProgress.value}", timeout)
         }
     }
-    val manifest = phase("fixture bootstrap") { mobileTlsFixtureRequest("/fixture") }
+    val manifest = phase("fixture bootstrap") {
+        withTimeout(10_000) {
+            host.fixtureBootstrap()?.let(::decodeNaviampMobileTlsControlResponse)
+                ?: mobileTlsFixtureRequest("/fixture")
+        }
+    }
     suspend fun file(key: String, name: String) = host.writePrivateFile(name, Base64.decode(manifest.getValue(key)))
     val settings = NavidromeTlsSettings(
         customCertificatePath = file("ca", "ca.pem"),
@@ -152,8 +159,13 @@ private suspend fun mobileTlsFixtureRequest(path: String): Map<String, String> =
             require(size in 1..1_048_576)
             val bytes = ByteArray(size)
             response.bodyAsChannel().readFully(bytes)
-            bytes.decodeToString().lineSequence().filter { '=' in it }
-                .associate { it.substringBefore('=') to it.substringAfter('=') }
+            decodeNaviampMobileTlsControlResponse(bytes.decodeToString())
         }
     } finally { client.close() }
+}
+
+internal fun decodeNaviampMobileTlsControlResponse(text: String): Map<String, String> {
+    require(text.encodeToByteArray().size in 1..1_048_576)
+    return text.lineSequence().filter { '=' in it }
+        .associate { it.substringBefore('=') to it.substringAfter('=') }
 }
