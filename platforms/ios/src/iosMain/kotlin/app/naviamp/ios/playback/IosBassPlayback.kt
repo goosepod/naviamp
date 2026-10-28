@@ -105,7 +105,6 @@ import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.usePinned
-import kotlinx.coroutines.Dispatchers
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.AVAudioSessionModeDefault
@@ -593,8 +592,6 @@ class IosBassAudioBackend : BassAudioBackend {
 
 class IosBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
     private val preparedLock = NSLock()
-
-    override val workContext = Dispatchers.Default
 
     override fun localFilePath(url: String): String? = iosPlaybackLocalFilePath(url)
 
