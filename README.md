@@ -10,9 +10,11 @@ then browse, discover, queue, download, and play from one polished app on deskto
 
 Your music stays with the server you choose. Naviamp brings the player.
 
-## Try Naviamp on TestFlight
+## Get Naviamp
 
-Get the beta for [macOS](https://testflight.apple.com/join/vZ48sYNh) or
+Download for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881).
+
+Beta builds are available through TestFlight for [macOS](https://testflight.apple.com/join/vZ48sYNh) and
 [iOS](https://testflight.apple.com/join/efbB6TFd).
 
 [Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
@@ -177,8 +179,11 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 
 ## Platforms and downloads
 
-Naviamp is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA is
-also available for users who can provide their own signing.
+Naviamp is available for macOS, Windows, Linux, and Android. Try the iPhone/iPad beta through
+[TestFlight](https://testflight.apple.com/join/efbB6TFd). An unsigned arm64 IPA is also available for
+users who can provide their own signing.
+
+Get Naviamp for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881).
 
 Get Naviamp for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9pcfj644lxll?hl=en-US&gl=US).
 
@@ -194,7 +199,7 @@ If an older machine-wide Windows release is already installed, uninstall that co
 using the current-user installer. Removing the old copy may require administrator permission; new
 installations and subsequent upgrades do not.
 
-### Opening Naviamp on macOS
+### Opening a standalone macOS download
 
 Only bypass the macOS warning for a Naviamp package downloaded from the official GitHub Releases
 page above. Move `Naviamp.app` into Applications, then try to open it once. Open **System Settings →
