@@ -457,3 +457,38 @@ correction. The generated release mapping preserves the callback class and `onEn
 The draft feature integrates the separately tracked Windows ownership fix (#367 / #368) and quiet
 iOS timeout diagnostics (#365 / #366) so its next CI run contains both verification dependencies.
 These are not a claim that the intermittent native TLS timeout has been diagnosed or fixed.
+
+### Identified iOS CI failure and final dependency checkpoint
+
+Quiet hosted diagnostics locate the repeated ten-second failure at **fixture bootstrap**, with native
+playback Idle and unknown progress: no TLS or playback assertion had started. #365 / #366 replaces
+the test-control raw native socket request with the existing host HTTP engine. The same ten-second
+deadline, bounded payload, negative certificate cases, authenticated uncached stream, seek/range/
+identity audits and stop deadline are retained. The complete fifteen-test native iOS suite passes
+locally with that change and the unchanged production runtime; hosted verification remains required.
+
+The separately reproduced CPU-worker starvation issue is tracked in #369 / #370. Core now provides
+blocking-I/O workers and the portable wall-clock default. Android/Desktop/iOS remove their worker and
+clock implementations; the remaining runtime effects are native URI/path translation and locking.
+The common starvation regression fails with the old iOS CPU-pool policy and passes with blocking-I/O
+workers. JVM tests, Android/both iOS common compilation, all three host compilations and architecture
+verification pass. This correction is not attributed as the fixture-bootstrap fix.
+
+Additional changed platform production files (portable behavior removed):
+
+- `platforms/android/.../AndroidBassPlaybackEngineRuntime.kt`: retains Android URI conversion and JVM
+  monitor locking, inheriting worker/clock behavior from Core.
+- `platforms/desktop/.../DesktopBassPlaybackEngineRuntime.kt`: retains JVM filesystem-URI conversion
+  and monitor locking, inheriting worker/clock behavior from Core.
+- `platforms/ios/.../IosBassPlayback.kt`: removes runtime worker/clock policy; retains the BASS C ABI,
+  NSURL conversion and NSLock effects.
+
+The draft feature now includes the separately tracked verification/runtime dependencies, so its final
+full matrix can exercise their combined tree without bypassing a required gate. No release or tag is
+created by these fixes.
+
+Final combined local checkpoint: **77 tests pass, zero failures/skips** (four shared JVM engine/worker
+cases, 47 shared presentation playback cases, ten real Mac JNI/preview cases, one native iOS common
+worker-isolation case, and all fifteen native iOS adapter/TLS cases). `verifyCoreFirstArchitecture`
+also passes. The two physical Android cases and release R8 callback-name check retain their separate
+passing evidence above. Hosted checks must still pass on this combined source tree before merge.
