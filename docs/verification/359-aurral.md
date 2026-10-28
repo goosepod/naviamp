@@ -492,3 +492,21 @@ cases, 47 shared presentation playback cases, ten real Mac JNI/preview cases, on
 worker-isolation case, and all fifteen native iOS adapter/TLS cases). `verifyCoreFirstArchitecture`
 also passes. The two physical Android cases and release R8 callback-name check retain their separate
 passing evidence above. Hosted checks must still pass on this combined source tree before merge.
+
+### Redirect header isolation
+
+The combined feature checkpoint at `74a72d89d` passed all nine hosted verification checks, including
+iOS. The independently verified support PRs #366, #368 and #370 are now merged into `main`.
+
+The subsequent transport review found that connection-specific headers could follow a redirect to
+an external media origin. With the owner's approval to publish the correction, the shared provider
+HTTP transport now scopes these headers to the original scheme, host and effective port. Same-origin
+redirects retain them; cross-origin redirects remove them and do not restore them if the chain returns
+to the original origin. Independent later requests still receive their configured headers. Generated
+media Range/Accept headers remain available for external playback, while connection-defined headers
+with those same names remain origin-scoped. This applies to requests, artwork bytes and streaming
+downloads through the shared transport; no platform production code changes are required.
+
+Six synthetic redirect regressions and three existing download-transport cases pass locally, and the
+provider compiles for Android, JVM, iOS device and iOS simulator. These tests use synthetic hosts and
+values. The final published revision requires a fresh full hosted verification run before merge.
