@@ -557,3 +557,22 @@ New acquisition completion remains unverified: existing evidence covers already-
 permission/read-only denial, queued-result fixtures and monitoring with exact restoration. No new
 acquisition job was started as part of these final checks. Native activity/progress management,
 release/track drill-down, broader discovery search and flow management remain follow-on scope.
+
+### Repeated hosted fixture-bootstrap failure
+
+The acceptance revision `c1a8a18d4` passed the shared/Android, both Android emulator and all three
+Desktop jobs, but iOS again timed out at fixture bootstrap while playback was Idle. #365 was reopened:
+the earlier #366 HTTP-engine change did not eliminate the setup failure on a fresh hosted simulator.
+
+The separately tracked follow-up #372 saves the disposable fixture bootstrap on the runner and passes
+it into the simulator environment. Core testkit owns the optional bootstrap contract, deadline and
+bounded format decoding; the iOS test supplies only the native environment-read effect. Other hosts
+retain HTTP bootstrap. All negative certificate cases, valid authentication, artwork, uncached native
+streaming, seeks, live HTTP state/range/peer audits and stop deadlines remain unchanged. No production
+code, assertion retry or timeout increase is introduced.
+
+Three JVM parser cases, six native common testkit cases and all fifteen native iOS cases pass locally;
+the native report confirms `mTLS runner bootstrap supplied`. Android/JVM/both iOS compilation,
+architecture checks, shell syntax and seven workflow helper tests pass. The feature now includes this
+dependency so a fresh full hosted run can verify its combined tree. Readiness remains gated on that
+result; earlier successful runs are not presented as proof that an intermittent failure is resolved.
