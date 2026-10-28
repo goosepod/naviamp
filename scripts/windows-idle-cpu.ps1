@@ -15,20 +15,7 @@ $localProfile = Join-Path $profileRoot 'local'
 $applicationProcess = $null
 $measuredProcesses = @()
 
-function Get-ApplicationProcessFamily([int]$RootProcessId) {
-    $nativeProcesses = @(Get-CimInstance Win32_Process)
-    $ids = New-Object 'System.Collections.Generic.HashSet[int]'
-    [void]$ids.Add($RootProcessId)
-    do {
-        $added = $false
-        foreach ($process in $nativeProcesses) {
-            if ($ids.Contains([int]$process.ParentProcessId) -and $ids.Add([int]$process.ProcessId)) {
-                $added = $true
-            }
-        }
-    } while ($added)
-    @(Get-Process -Id @($ids) -ErrorAction Stop)
-}
+. (Join-Path $PSScriptRoot "windows-process-family.ps1")
 
 function Get-ApplicationCpuSeconds($Processes) {
     $values = @($Processes | ForEach-Object {
@@ -73,13 +60,13 @@ try {
 
     Start-Sleep -Seconds $SettleSeconds
     # jpackage's launcher can be idle while its child JVM spins; include the complete family.
-    $measuredProcesses = @(Get-ApplicationProcessFamily $applicationProcess.Id)
+    $measuredProcesses = @(Get-ApplicationProcessFamily $applicationProcess)
     $cpuStartSeconds = Get-ApplicationCpuSeconds $measuredProcesses
     $timer = [Diagnostics.Stopwatch]::StartNew()
     Start-Sleep -Seconds $SampleSeconds
     $cpuEndSeconds = Get-ApplicationCpuSeconds $measuredProcesses
     $elapsedSeconds = $timer.Elapsed.TotalSeconds
-    $afterIds = @(Get-ApplicationProcessFamily $applicationProcess.Id | ForEach-Object Id)
+    $afterIds = @(Get-ApplicationProcessFamily $applicationProcess | ForEach-Object Id)
     if (@(Compare-Object @($measuredProcesses.Id) $afterIds).Count) {
         throw 'Application process family changed during idle measurement.'
     }
@@ -92,19 +79,8 @@ try {
         throw "Windows idle CPU exceeded the $MaximumCpuPercent% regression limit."
     }
 } finally {
-    if ($null -ne $applicationProcess -and -not $applicationProcess.HasExited) {
-        $applicationProcess.CloseMainWindow() | Out-Null
-        if (-not $applicationProcess.WaitForExit(5000)) {
-            Stop-Process -Id $applicationProcess.Id -Force
-        }
-    }
-    foreach ($process in $measuredProcesses) {
-        # Retained Process objects refer to this test's children, even if the launcher already exited.
-        if (-not $process.HasExited) {
-            $process.CloseMainWindow() | Out-Null
-            if (-not $process.WaitForExit(5000)) { Stop-Process -Id $process.Id -Force }
-        }
-    }
+    if ($null -ne $applicationProcess) { Stop-OwnedApplicationProcess $applicationProcess }
+    foreach ($process in $measuredProcesses) { Stop-OwnedApplicationProcess $process }
     if (Test-Path -LiteralPath $profileRoot) {
         Remove-Item -LiteralPath $profileRoot -Recurse -Force
     }
