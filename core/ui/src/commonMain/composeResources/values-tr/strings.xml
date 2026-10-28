@@ -330,4 +330,5 @@
     <string name="smart_playlist_move_up">Yukarı taşı</string>
     <string name="smart_playlist_move_down">Aşağı taşı</string>
     <string name="smart_playlist_row_position">%2$d öğeden %1$d. konum</string>
+    <string name="permission_local_network_usage">Naviamp müzik sunucularınıza bağlanır ve yerel ağınızdaki oynatma cihazlarını bulur.</string>
 </resources>

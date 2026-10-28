@@ -330,4 +330,5 @@
     <string name="smart_playlist_move_up">위로 이동</string>
     <string name="smart_playlist_move_down">아래로 이동</string>
     <string name="smart_playlist_row_position">%2$d개 중 %1$d번째</string>
+    <string name="permission_local_network_usage">Naviamp는 음악 서버에 연결하고 로컬 네트워크에서 재생 기기를 검색합니다.</string>
 </resources>

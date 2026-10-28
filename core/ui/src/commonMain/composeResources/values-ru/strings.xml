@@ -330,4 +330,5 @@
     <string name="smart_playlist_move_up">Переместить вверх</string>
     <string name="smart_playlist_move_down">Переместить вниз</string>
     <string name="smart_playlist_row_position">Позиция %1$d из %2$d</string>
+    <string name="permission_local_network_usage">Naviamp подключается к вашим музыкальным серверам и находит устройства воспроизведения в локальной сети.</string>
 </resources>
