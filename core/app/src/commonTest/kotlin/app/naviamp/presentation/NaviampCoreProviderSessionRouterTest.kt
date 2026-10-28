@@ -12,6 +12,36 @@ import kotlin.test.assertSame
 import kotlin.test.assertNull
 
 class NaviampCoreProviderSessionRouterTest {
+    @Test fun importedProviderChangesRouteImmediatelyWithoutReplacingTheActiveSession() = runTest {
+        val original = inventory().copy(currentSourceId = "subsonic-source")
+        val subsonic = RecordingSessionPort(original)
+        val jellyfin = RecordingSessionPort(original.copy(currentSourceId = null))
+        val router = router(subsonic, jellyfin)
+        val active = router.currentProvider()
+        val changed = original.connections.map { if (it.id == "subsonic-source") it.copy(providerId = "jellyfin") else it }
+        router.replaceSavedConnections(changed)
+        assertSame(active, router.currentProvider())
+        assertEquals("subsonic-source", router.currentSourceId())
+        assertEquals(changed, router.initialInventory().connections)
+        router.editableConnection("subsonic-source")
+        assertEquals(0, subsonic.editableCalls)
+        assertEquals(1, jellyfin.editableCalls)
+        router.connect(NaviampCoreConnectionRequest.Saved("subsonic-source"), plan())
+        assertEquals(listOf("saved:subsonic-source"), jellyfin.connections)
+    }
+
+    @Test fun importedUnknownProviderRemainsUnsupported() = runTest {
+        val empty = NaviampCoreConnectionInventory()
+        val subsonic = RecordingSessionPort(empty)
+        val jellyfin = RecordingSessionPort(empty)
+        val router = router(subsonic, jellyfin)
+        router.replaceSavedConnections(listOf(NaviampCoreSavedConnectionRecord(
+            id = "imported", providerId = "future", displayName = "Future", serverUrl = "https://future.test", username = "demo")))
+        val failure = assertFailsWith<IllegalStateException> { router.editableConnection("imported") }
+        assertEquals("future support is not available yet.", failure.message)
+        assertEquals(0, subsonic.editableCalls + jellyfin.editableCalls)
+    }
+
     @Test
     fun provisioningUsesOnlyTheActiveProvidersDedicatedCredentialExport() = runTest {
         val subsonic = RecordingSessionPort(inventory()).apply {

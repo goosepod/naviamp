@@ -63,6 +63,7 @@ class NaviampCoreConnectionController(
 
     /** Publishes repository changes made by a shared settings import without reconnecting. */
     fun replaceSavedConnections(connections: List<NaviampCoreSavedConnectionRecord>) {
+        sessionPort.replaceSavedConnections(connections)
         inventory = inventory.copy(connections = connections)
         publishConnection()
     }
