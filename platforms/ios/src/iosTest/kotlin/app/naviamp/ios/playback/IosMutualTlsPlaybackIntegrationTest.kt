@@ -20,6 +20,12 @@ class IosMutualTlsPlaybackIntegrationTest {
         check(NSFileManager.defaultManager.createDirectoryAtPath(directory, true, null, null))
         try {
             verifyNaviampMobileMutualTls(object : NaviampMobileMutualTlsHost {
+                override suspend fun fixtureBootstrap(): String? {
+                    val text = NSProcessInfo.processInfo.environment["NAVIAMP_MTLS_FIXTURE_BOOTSTRAP"] as? String
+                    if (text != null) println("mTLS runner bootstrap supplied")
+                    return text
+                }
+
                 override suspend fun writePrivateFile(name: String, bytes: ByteArray): String {
                     val path = "$directory/$name"
                     bytes.usePinned {
