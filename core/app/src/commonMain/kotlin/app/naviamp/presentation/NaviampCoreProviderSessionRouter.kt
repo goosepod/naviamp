@@ -44,6 +44,11 @@ class NaviampCoreProviderSessionRouter(
 
     override fun initialInventory(): NaviampCoreConnectionInventory = inventory
 
+    override fun replaceSavedConnections(connections: List<NaviampCoreSavedConnectionRecord>) {
+        routes.forEach { it.sessionPort.replaceSavedConnections(connections) }
+        inventory = inventory.copy(connections = connections)
+    }
+
     override suspend fun connect(
         request: NaviampCoreConnectionRequest,
         plan: NaviampConnectionAttemptPlan,
