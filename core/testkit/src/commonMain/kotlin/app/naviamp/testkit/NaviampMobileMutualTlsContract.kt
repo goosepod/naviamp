@@ -16,13 +16,10 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.createDefaultNavidromeKtorClient
-import io.ktor.network.selector.SelectorManager
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
+import io.ktor.client.request.prepareGet
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.HttpHeaders
 import io.ktor.utils.io.readFully
-import io.ktor.utils.io.readUTF8Line
-import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Dispatchers
@@ -80,7 +77,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     phase("wrong identity password rejection") { rejected(settings.copy(clientCertificateKeyStorePassword = "wrong-password")) }
     phase("untrusted server rejection") { rejected(settings.copy(customCertificatePath = null)) }
     phase("hostname rejection") { rejected(settings.copy(customCertificatePath = wrongHostCa, clientCertificateKeyStorePath = wrongHostIdentity), "https://127.0.0.1:59977") }
-    check(mobileTlsFixtureRequest("/state").getValue("wrongHostRequests") == "0")
+    check(phase("wrong-host request audit") { mobileTlsFixtureRequest("/state") }.getValue("wrongHostRequests") == "0")
     // A positive control on the same host prevents outages from passing every negative test.
     val challenges = MutableStateFlow<List<app.naviamp.provider.navidrome.NavidromeTlsChallengeEvent>>(emptyList())
     val client = createDefaultNavidromeKtorClient(settings) { event -> challenges.update { it + event } }
@@ -118,7 +115,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
             try {
                 adapter.playQueueSelection(PlaybackQueue(listOf(track), 0), 0)
                 state(PlaybackState.Playing)
-                check(mobileTlsFixtureRequest("/state").getValue("bytes").toLong() < manifest.getValue("audioLength").toLong())
+                check(phase("uncached streaming byte audit") { mobileTlsFixtureRequest("/state") }.getValue("bytes").toLong() < manifest.getValue("audioLength").toLong())
                 adapter.pause()
                 state(PlaybackState.Paused)
                 adapter.seek(90.0)
@@ -126,7 +123,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
                 adapter.resume()
                 state(PlaybackState.Playing)
                 phase("resumed seek position") { withTimeout(20_000) { while ((progress.receive().positionSeconds ?: 0.0) < 90.0) { } } }
-                val report = mobileTlsFixtureRequest("/state")
+                val report = phase("authenticated range and identity audit") { mobileTlsFixtureRequest("/state") }
                 check(report.getValue("peers").split('|').all { it == "CN=Naviamp Test Client" })
                 check(report.getValue("ranges").split('|').any {
                     it.substringAfter("bytes=", "").substringBefore('-').toLongOrNull()?.let { start -> start > 2_000_000 } == true
@@ -145,25 +142,18 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
 
 /** Plaintext loopback control serves generated test secrets only; production traffic stays HTTPS. */
 private suspend fun mobileTlsFixtureRequest(path: String): Map<String, String> = withTimeout(10_000) {
-    val manager = SelectorManager(Dispatchers.Default)
+    // Use the actual host HTTP engine for test control too. A raw native socket control request can stall
+    // on a freshly booted simulator before any certificate or playback assertion has run.
+    val client = createDefaultNavidromeKtorClient(NavidromeTlsSettings())
     try {
-        val socket = aSocket(manager).tcp().connect("127.0.0.1", 59974)
-        try {
-            val output = socket.openWriteChannel(autoFlush = true)
-            output.writeStringUtf8("GET $path HTTP/1.1\r\nHost: 127.0.0.1:59974\r\nConnection: close\r\n\r\n")
-            val input = socket.openReadChannel()
-            check(input.readUTF8Line()?.contains(" 200 ") == true)
-            var length: Int? = null
-            while (true) {
-                val line = checkNotNull(input.readUTF8Line())
-                if (line.isEmpty()) break
-                if (line.startsWith("Content-length:", ignoreCase = true)) length = line.substringAfter(':').trim().toInt()
-            }
-            val size = checkNotNull(length)
+        client.prepareGet("http://127.0.0.1:59974$path").execute { response ->
+            check(response.status.value == 200)
+            val size = checkNotNull(response.headers[HttpHeaders.ContentLength]?.toIntOrNull())
             require(size in 1..1_048_576)
             val bytes = ByteArray(size)
-            input.readFully(bytes)
-            bytes.decodeToString().lineSequence().filter { '=' in it }.associate { it.substringBefore('=') to it.substringAfter('=') }
-        } finally { socket.close() }
-    } finally { manager.close() }
+            response.bodyAsChannel().readFully(bytes)
+            bytes.decodeToString().lineSequence().filter { '=' in it }
+                .associate { it.substringBefore('=') to it.substringAfter('=') }
+        }
+    } finally { client.close() }
 }
