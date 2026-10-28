@@ -43,10 +43,11 @@ interface NaviampMobileMutualTlsHost {
 
 /** One real HTTPS contract runs unchanged against Android and Apple TLS/native decoder adapters. */
 suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = withContext(Dispatchers.Default) {
+    val lastState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
+    val lastProgress = MutableStateFlow(PlaybackProgress.Unknown)
     suspend fun <T> phase(name: String, block: suspend () -> T): T {
-        println("mTLS phase: $name")
         return try { block() } catch (timeout: TimeoutCancellationException) {
-            throw AssertionError("mTLS timed out during: $name", timeout)
+            throw AssertionError("mTLS timed out during: $name; state=${lastState.value}; progress=${lastProgress.value}", timeout)
         }
     }
     val manifest = phase("fixture bootstrap") { mobileTlsFixtureRequest("/fixture") }
@@ -101,15 +102,14 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
                 cacheAudio = { _, _, _, _ -> error("Uncached playback must not download a complete file") },
             )
             adapter.attach(object : NaviampCorePlaybackObserver {
-                override fun onStateChanged(state: PlaybackState) { states.trySend(state) }
-                override fun onProgressChanged(value: PlaybackProgress) { progress.trySend(value) }
+                override fun onStateChanged(state: PlaybackState) { lastState.value = state; states.trySend(state) }
+                override fun onProgressChanged(value: PlaybackProgress) { lastProgress.value = value; progress.trySend(value) }
                 override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
             })
             suspend fun state(expected: PlaybackState) = phase("native state $expected") {
                 withTimeout(20_000) {
                     while (true) {
                         val actual = states.receive()
-                        println("mTLS native state: $actual; waiting for $expected")
                         check(actual !is PlaybackState.Error) { "Authenticated native playback failed: $actual" }
                         if (actual == expected) break
                     }
