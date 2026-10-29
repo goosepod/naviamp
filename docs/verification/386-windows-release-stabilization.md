@@ -156,8 +156,12 @@ the visible CPU finding remains an open acceptance gate.
 
 ## Current release gates
 
-- Verify the final stabilization source locally on Windows and through the hosted cross-platform
-  matrix. Windows cannot execute Apple compilation/native tests; no disabled target is counted as a pass.
+- Hosted verification of stabilization commit `41642a2902f8d55e4bbadc0198e6adeb164f8248`
+  (tree `10de5665ed2c6a0b1ca46e75ba92bab51c18004f`) passed all nine required checks in
+  [Verify 40821716320](https://github.com/goosepod/naviamp/actions/runs/40821716320): shared/Android,
+  Android emulator API 30/35, iOS simulator, desktop native Windows/macOS/Linux, classification and
+  immutable verified-source recording. This completes the hosted matrix for that source, in addition
+  to the local Windows results above. Physical-device checks remain distinct.
 - Retest physical TV queue-end continuation when the owner resumes TV use. The paused living-room
   TV is not contacted during Windows stabilization.
 - Complete physical iOS/TV, spoken accessibility and real cross-device cloud-folder propagation
@@ -175,3 +179,63 @@ the visible CPU finding remains an open acceptance gate.
 
 Publication remains separate: exact release name `Naviamp v2.10.0`, verified release/About notes,
 required Announcements discussion and non-forcing manual mirror. No release/tag is published here.
+
+## October 29 follow-up and stop point
+
+The superseded first workflow retained three running jobs after cancellation for more than ten
+minutes and blocked the current run through concurrency. Force-canceling only that superseded run
+released the queue. The current source then passed the complete matrix linked above.
+
+Native diagnostic sampling used the process and thread identities of the disposable app only.
+Its AWT Windows event-loop thread consumed 2.497% of one core in a fifteen-second diagnostic sample,
+including 1.457% in kernel time. Most instruction snapshots were in `NtUserWaitMessage`; the active
+native chains also included Windows UI Automation hooks. A plain Swing/JDK control with no Naviamp,
+Compose, audio or raster presenter measured 2.494% whole-process CPU before Computer Use capture;
+its event-loop sample also contained UI Automation hooks. This demonstrates an environment/runtime
+contribution, not that all Naviamp CPU is explained or that animation acceptance passes. Native
+stack sampling is diagnostic and changes scheduling; its CPU is not an acceptance measurement.
+
+The plain-control UI inspection timed out awaiting Computer Use app approval. No permission bypass
+was attempted. Control measurements without a verified unobscured window, the lower readings after
+the desktop changed overnight, and a 96.597% sample interrupted by interactive navigation are not
+accepted foreground performance evidence. The installed earlier JDK's 0.312% control sample is also
+insufficient to establish a runtime regression because foreground conditions were not matched.
+
+After the owner provided an idle desktop window, a disposable observer copy of the rebuilt release
+payload repeated the fixed-size 934×601 OPENGL measurement. Motion and the visible menu were checked
+through Computer Use. The short track remained paused at 0:07; progress advanced through 0:25;
+the long title and clock moved through 0:22, 1:03 with the menu, and 2:00–2:36 after restoration.
+No unrelated app overlay was present in those controlled captures.
+
+| Controlled October 29 state | Process CPU / one core | Parent frames / 10s |
+| --- | ---: | ---: |
+| Paused long metadata, marquee moving | 7.499% | 0 |
+| Paused short metadata | 3.437% | 0 |
+| Progress with short metadata | 6.874% | 0 |
+| Combined long metadata and progress | 4.843% | 0 |
+| Menu open with combined motion | 4.687% | 0 |
+| Minimized playback | 2.500% | 0 |
+| Restored combined motion | 10.155% | 0 |
+
+The settled menu surface also recorded zero frames. Its disposed surface later reported
+`SkiaLayer isn't initialized yet`; that is not an additional active rendered surface. The first
+marquee and restoration CPU readings are retained, with JIT timing unavailable in the trimmed
+runtime; they are not silently discarded as warm-up. No CPU budget has been relaxed.
+
+A separate five-sample collection, restricted to this application's GPU engine instances, recorded
+mean summed utilization 0.035513 and no invalid counters. Whole-desktop DWM CPU averaged 27.116%;
+this includes other applications and cannot certify Naviamp's compositor budget. Raw phase files
+and counters are in `build/windows-acceptance/measurements-oct29`. The earlier native snapshots and
+plain-control evidence are retained beside them. Reproducible diagnostic source is under
+`scripts/animation-probe/windows-native-sampler`; it is outside the shipped application.
+
+The performance gate remains open under #136/#386. No speculative product change, renderer switch,
+animation suppression, playback-cadence change, OS accessibility change or runtime downgrade was
+made. Native CPU attribution beyond the observed Windows hooks still needs a controlled native
+CPU trace. ETW tooling and administrator access were unavailable in this session.
+
+At the owner's request, testing stopped after this run. All disposable application/control and
+fixture processes were closed, and the normal settings/database/window-state hashes still match
+their original values. The tested product code is unchanged from the successful hosted source;
+this follow-up adds diagnostic source and verification documentation only. No merge, tag, release
+or store action was performed.

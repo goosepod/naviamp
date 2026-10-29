@@ -60,3 +60,37 @@ and progress-only states and long identities for marquee and combined states. Ke
 loopback-only and playback muted. Exercise menus, diagnostics, pause, minimize/restore, resize,
 clipping, input and accessibility, and apply the budgets in `docs/performance/desktop-popup-animation-136.md`.
 A low CPU measurement or an attached render delegate alone is insufficient acceptance evidence.
+
+## Windows native diagnostic control
+
+`windows-native-sampler/` contains the October 29 investigation helper and a plain Swing control.
+Neither is linked to or packaged with Naviamp. Use only disposable processes with verified PID/TID
+identities. The sampler rejects a thread belonging to another process, limits collection to 30
+seconds, and immediately resumes the target before allocation, symbol lookup or stack unwinding.
+It copies a bounded stack region while suspended. Do not use it during acceptance measurements.
+
+Build with the installed Visual Studio 2022 tools and Windows SDK:
+
+```powershell
+cmake -S scripts/animation-probe/windows-native-sampler -B build/native-sampler/out `
+  -G 'Visual Studio 17 2022' -A x64
+cmake --build build/native-sampler/out --config Release
+# Read the disposable JVM's thread IDs from jcmd <pid> Thread.print -e first.
+build/native-sampler/out/Release/sampler.exe <pid> <native-thread-id> 15 build/native-samples.txt
+javac -d build/native-sampler scripts/animation-probe/windows-native-sampler/AwtIdleControl.java
+java -cp build/native-sampler AwtIdleControl
+```
+
+These are wall-clock instruction snapshots, not ETW on-CPU samples. A high count at a wait syscall
+does not mean it consumed that fraction of CPU. DbgHelp export names may identify the closest export
+rather than the internal function. JVM-generated frames have no supported native unwind metadata
+here: ignore every frame after the first unresolved/JIT address. Reads beyond the copied stack
+region may see live target memory; this prototype is not a general-purpose consistent stack walker.
+Use the native DLL portion only as a lead for a proper CPU trace, not proof of causation. The helper
+was compiled and used locally before testing stopped; relocation of its unchanged source was not
+rebuilt afterward, in accordance with the owner's stop instruction.
+
+Keep the control and application foreground, unobscured, equally sized, and under the same display,
+power and input conditions. Without those conditions, a low control reading cannot establish an
+application or runtime regression. Record window/capture approval failures rather than bypassing
+them. A plain Java control's CPU cost does not waive Naviamp's application performance budget.
