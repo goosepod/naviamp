@@ -8,7 +8,7 @@ No changes yet.
 
 ## v2.10.0
 
-Naviamp 2.10.0 brings store releases for Windows through the Microsoft Store, macOS through the Mac App Store, and iOS through the App Store. It also completes certificate-protected server connections across Android, iOS, Windows, macOS and Linux. It also brings your playlists to artist pages, makes smart playlists safer and easier to build, gives Radio clearer controls, and fixes Android playback recovery crashes.
+Naviamp 2.10.0 brings store releases for Windows through the Microsoft Store, macOS through the Mac App Store, and iOS through the App Store. Version 2.10.0 completes certificate-protected server connections across Android, iOS, Windows, macOS and Linux. It also brings your playlists to artist pages, makes smart playlists safer and easier to build, gives Radio clearer controls, and fixes Android playback recovery crashes.
 
 ### Features
 
