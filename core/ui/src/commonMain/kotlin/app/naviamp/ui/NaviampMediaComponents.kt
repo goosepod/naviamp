@@ -141,6 +141,10 @@ fun TrackRow(
     Row(
         modifier = swipeModifier
             .fillMaxWidth()
+            .semantics {
+                contentDescription = listOf(trackNumber?.toString().orEmpty(), track.title,
+                    track.subtitle, track.meta, track.durationLabel).filter(String::isNotBlank).joinToString(", ")
+            }
             .then(
                 if (background) {
                     Modifier

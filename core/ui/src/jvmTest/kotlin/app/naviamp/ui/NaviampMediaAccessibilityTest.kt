@@ -15,6 +15,24 @@ import kotlin.test.Test
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampMediaAccessibilityTest {
+    @Test fun popularTrackIndicatorRetainsTheSongsAccessibleIdentity() = runComposeUiTest {
+        setContent {
+            TrackRow(
+                track = SharedTrackRowUi("song", "Named song", "Named artist", meta = "1.",
+                    durationLabel = "5:24", popular = true, favoriteActive = true),
+                colors = NaviampColors.Dark, onTrackAction = {}, canSelect = true,
+                canStartRadio = false, canAddToQueue = false, canDownload = false,
+                canAddToPlaylist = false, showCoverArt = false,
+                modifier = Modifier.testTag("track-row"),
+            )
+        }
+        onNodeWithTag("track-row").assert(SemanticsMatcher("Retains song identity alongside status icons") {
+            (if (SemanticsProperties.ContentDescription in it.config)
+                it.config[SemanticsProperties.ContentDescription] else emptyList())
+                .any { label -> label.contains("Named song") && label.contains("Named artist") && label.contains("5:24") }
+        })
+    }
+
     @Test fun loadedArtworkAndFavoriteStateRetainTheMediaRowsAccessibleIdentity() {
         val bitmap = BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB)
         for (y in 0 until 16) for (x in 0 until 16) bitmap.setRGB(x, y, Color.Magenta.toArgb())
