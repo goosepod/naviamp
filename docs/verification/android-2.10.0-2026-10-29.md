@@ -2,6 +2,8 @@
 
 Tracking: #386 / #280, Mac-hosted ARM investigation #394, Android Auto visibility #395.
 
+The owner later authorized a real signed production-package upgrade and extended phone tests; see the [subsequent acceptance report](android-signed-release-extended-2026-10-29.md). The isolation and unchanged-original-app statements below describe this earlier run.
+
 ## Candidate and isolation
 
 Production source: `c58f0b3aeb5dad7c17ace37b8c444f2a418f737f`, v2.10.0/build 60 (the head of #392). Its complete hosted cross-platform matrix passes. Physical device: Pixel 10a, Android 17/API 37, 1080×2424. The initial battery report is 84%, 27.9°C, reporting AC power. No device power, display, refresh-rate, trust-store or Android Auto security setting is changed.
