@@ -3,6 +3,8 @@ package app.naviamp.testkit
 import com.sun.net.httpserver.HttpsConfigurator
 import com.sun.net.httpserver.HttpsParameters
 import com.sun.net.httpserver.HttpsServer
+import com.sun.net.httpserver.HttpServer
+import com.sun.net.httpserver.HttpsExchange
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -82,10 +84,10 @@ class NaviampMutualTlsFixture(
         check(process.exitValue() == 0) { "Disposable certificate generation failed: ${Files.readString(output)}" }
     }
 
-    fun startServer(requireClientCertificate: Boolean = true, pauseAudioAfterBytes: Int? = null, port: Int = 0): Server =
-        Server(requireClientCertificate, pauseAudioAfterBytes, port).also { servers += it }
+    fun startServer(requireClientCertificate: Boolean = true, pauseAudioAfterBytes: Int? = null, port: Int = 0, useTls: Boolean = true): Server =
+        Server(requireClientCertificate, pauseAudioAfterBytes, port, useTls).also { servers += it }
 
-    inner class Server internal constructor(requireClientCertificate: Boolean, private val pauseAudioAfterBytes: Int?, port: Int) : AutoCloseable {
+    inner class Server internal constructor(requireClientCertificate: Boolean, private val pauseAudioAfterBytes: Int?, port: Int, private val useTls: Boolean) : AutoCloseable {
         val requestedPaths: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val peerSubjects: MutableList<String> = Collections.synchronizedList(mutableListOf())
         val requestedRanges: MutableList<String> = Collections.synchronizedList(mutableListOf())
@@ -94,38 +96,42 @@ class NaviampMutualTlsFixture(
         private val workers = Executors.newCachedThreadPool { runnable ->
             Thread(runnable, "naviamp-mtls-fixture").apply { isDaemon = true }
         }
-        private val server = HttpsServer.create(InetSocketAddress("127.0.0.1", port), 0)
+        private val server: HttpServer = if (useTls) HttpsServer.create(InetSocketAddress("127.0.0.1", port), 0)
+            else HttpServer.create(InetSocketAddress("127.0.0.1", port), 0)
         private var closed = false
-        val baseUrl: String get() = "https://127.0.0.1:${server.address.port}"
+        val baseUrl: String get() = "${if (useTls) "https" else "http"}://127.0.0.1:${server.address.port}"
 
         init {
-            val keys = KeyStore.getInstance("PKCS12").apply {
-                Files.newInputStream(directory.resolve("server.p12")).use { load(it, password.toCharArray()) }
-            }
-            val identity = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()).apply {
-                init(keys, password.toCharArray())
-            }
-            val trust = KeyStore.getInstance("PKCS12").apply {
-                load(null, null)
-                setCertificateEntry("ca", keys.getCertificate("ca"))
-            }
-            val authorities = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(trust) }
-            val context = SSLContext.getInstance("TLS").apply { init(identity.keyManagers, authorities.trustManagers, null) }
-            server.httpsConfigurator = object : HttpsConfigurator(context) {
-                override fun configure(parameters: HttpsParameters) {
-                    parameters.setSSLParameters(context.defaultSSLParameters.apply {
-                        protocols = arrayOf("TLSv1.2")
-                        needClientAuth = requireClientCertificate
-                    })
+            if (server is HttpsServer) {
+                val keys = KeyStore.getInstance("PKCS12").apply {
+                    Files.newInputStream(directory.resolve("server.p12")).use { load(it, password.toCharArray()) }
+                }
+                val identity = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()).apply {
+                    init(keys, password.toCharArray())
+                }
+                val trust = KeyStore.getInstance("PKCS12").apply {
+                    load(null, null)
+                    setCertificateEntry("ca", keys.getCertificate("ca"))
+                }
+                val authorities = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(trust) }
+                val context = SSLContext.getInstance("TLS").apply { init(identity.keyManagers, authorities.trustManagers, null) }
+                server.httpsConfigurator = object : HttpsConfigurator(context) {
+                    override fun configure(parameters: HttpsParameters) {
+                        parameters.setSSLParameters(context.defaultSSLParameters.apply {
+                            protocols = arrayOf("TLSv1.2")
+                            needClientAuth = requireClientCertificate
+                        })
+                    }
                 }
             }
             server.executor = workers
-            server.createContext("/") { raw ->
-                val exchange = raw as com.sun.net.httpserver.HttpsExchange
+            server.createContext("/") { exchange ->
                 exchange.use {
                     // Reaching HTTP is insufficient: assert the actual authenticated TLS identity too.
-                    peerSubjects += if (requireClientCertificate) exchange.sslSession.peerPrincipal.name
+                    peerSubjects += if (exchange is HttpsExchange) {
+                        if (requireClientCertificate) exchange.sslSession.peerPrincipal.name
                         else runCatching { exchange.sslSession.peerPrincipal.name }.getOrDefault("anonymous")
+                    } else "plaintext"
                     requestedPaths += exchange.requestURI.path
                     val endpoint = exchange.requestURI.path.substringAfterLast('/')
                     val audioRequest = endpoint in setOf("stream.view", "download.view")

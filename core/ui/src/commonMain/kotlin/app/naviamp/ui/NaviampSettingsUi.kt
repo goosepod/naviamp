@@ -2895,6 +2895,7 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
+            "Connect to Aurral directly and discover recommended and trending artists, open artist details, filter release covers by type, play or pause samples, give discovery feedback, request tracks or albums, and manage artist monitoring when your account permits it. Samples preserve your main queue and position and do not count as library listens.",
             "Install Naviamp for Windows through its official Microsoft Store listing, alongside existing direct downloads.",
             "Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.",
             "Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.",
@@ -2903,6 +2904,7 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Improvements",
         entries = listOf(
+            "Browse primary Home sections as carousels by default; explicitly saved layout choices remain preserved.",
             "Move smart-playlist filters, groups and sort priorities up or down while preserving values, logical groups and keyboard focus.",
             "Build smart playlists with named playlist references, readable rule summaries without JSON syntax, owner-aware explanations, and simpler Options and Advanced sections.",
             "Preview example matches from your synced library, sync directly from the builder, and select calendar dates with clear format guidance.",
@@ -2915,9 +2917,10 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Bug fixes",
         entries = listOf(
+            "Edit and reconnect imported saved connections immediately, without restarting the app.",
             "Keep Sonic and other server capabilities available immediately after refreshing a Navidrome native login.",
             "Ignore late callbacks from a completed playback request so they cannot cancel pending Autoplay or process completion twice.",
-            "Keep playback paused when seeking, even if a late native state callback arrives.",
+            "Keep playback paused when seeking, even if a late native state callback arrives. Seek beyond the downloaded buffer on original Navidrome and Jellyfin streams when the server supports finite byte ranges.",
             "Keep the main Windows window visible when opening menus and remove black tooltip padding while preserving hardware rendering for the main surface.",
             "Preserve secure credentials on first launch of the Windows Store package, including existing saved connections.",
             "Navigate out of TV Radio sliders with Up/Down, adjust values with Left/Right, and read the complete shared release changelog in TV About.",
@@ -2931,6 +2934,7 @@ private val DefaultNaviampChangelog = listOf(
         title = "Upgrade notes",
         entries = listOf(
             "No special upgrade steps are required. Radio method selection is explicit; choose another method if Sonic fails.",
+            "Existing generic Subsonic connections can be explicitly changed to Aurral while preserving their source identity, credentials, TLS preferences and selected folders. Native discovery requires a compatible Aurral API and password login; requests and monitoring follow server capabilities and account permissions.",
             "Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.",
         ),
     ),

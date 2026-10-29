@@ -432,14 +432,14 @@ class NaviampCorePlaybackEngineAdapter(
                     startPositionSeconds = startPositionSeconds,
                 ).withAudioStreamOffsetSupport(provider?.capabilities?.supportsAudioStreamOffset == true)
             }
-            var usesAuthenticatedStream = false
+            var usesProviderTransport = false
             var randomAccess: app.naviamp.domain.playback.PlaybackRandomAccessSource? = null
             val streamUrl = externalStreamUrl ?: runCatching {
                 requireNotNull(plannedAudioSource).playbackStreamUrl { target ->
                     provider?.let {
-                        usesAuthenticatedStream = it.requiresAuthenticatedPlaybackTransport
+                        usesProviderTransport = it.usesProviderPlaybackTransport(target.providerStreamRequest)
                         playbackStreamUrl(it, target.providerStreamRequest, NaviampPlaybackStreamRelay.Slot.Current).also { url ->
-                            if (usesAuthenticatedStream) randomAccess = authenticatedStreams?.randomAccessSource(url)
+                            if (usesProviderTransport) randomAccess = authenticatedStreams?.randomAccessSource(url)
                         }
                     }
                         ?: throw IllegalStateException("Connect to the music server to stream this track.")
@@ -457,7 +457,7 @@ class NaviampCorePlaybackEngineAdapter(
             }
             val audioSource = plannedAudioSource?.resolvedForPlaybackUrl(streamUrl)
             if (requestGeneration != generation) return@launch
-            if (!usesAuthenticatedStream) authenticatedStreams?.clearCurrent()
+            if (!usesProviderTransport) authenticatedStreams?.clearCurrent()
             if (audioSource == null) {
                 publishPlaybackSource(PlaybackSource.ProviderStream, null)
             } else {
@@ -746,7 +746,7 @@ class NaviampCorePlaybackEngineAdapter(
         val streamUrl = runCatching {
             audioSource.playbackStreamUrl { target ->
                 playbackStreamUrl(provider, target.providerStreamRequest, NaviampPlaybackStreamRelay.Slot.PreparedNext).also { url ->
-                    if (provider.requiresAuthenticatedPlaybackTransport) randomAccess = authenticatedStreams?.randomAccessSource(url)
+                    if (provider.usesProviderPlaybackTransport(target.providerStreamRequest)) randomAccess = authenticatedStreams?.randomAccessSource(url)
                 }
             }
         }.getOrNull() ?: return
@@ -774,12 +774,18 @@ class NaviampCorePlaybackEngineAdapter(
         request: app.naviamp.domain.StreamRequest,
         slot: NaviampPlaybackStreamRelay.Slot,
     ): String {
-        if (!provider.requiresAuthenticatedPlaybackTransport) return provider.streamUrl(request)
+        if (!provider.usesProviderPlaybackTransport(request)) return provider.streamUrl(request)
         val relay = authenticatedStreams ?: NaviampPlaybackStreamRelay(scope) { candidate ->
             providerSource.current() === candidate
         }.also { authenticatedStreams = it }
         return relay.url(slot, provider, request)
     }
+
+    private fun app.naviamp.domain.provider.MediaProvider.usesProviderPlaybackTransport(
+        request: app.naviamp.domain.StreamRequest,
+    ): Boolean = requiresAuthenticatedPlaybackTransport ||
+        (supportsPlaybackByteTransport && request.quality == StreamQuality.Original &&
+            !request.trackId.isDiscoveryPreview())
 
     private fun effectivePlaybackSettingsForTrack(index: Int): PlaybackSettings {
         val global = settings()

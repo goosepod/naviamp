@@ -8,10 +8,11 @@ import app.naviamp.domain.resolvedArtistCredits
 import app.naviamp.domain.navibeat.navibeatMixOrNull
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
@@ -38,37 +39,49 @@ suspend fun loadArtistPlaylists(
     if (!isCurrent()) return
     var state = ArtistPlaylists(loading = true)
     publish(state)
-    val listed = artistPlaylistAttempt { provider.playlists(MaximumArtistPlaylists + 1) }
-    if (!isCurrent()) return
-    if (listed.isFailure) {
-        publish(state.copy(loading = false, failed = true))
-        return
-    }
-    val choices = listed.getOrThrow().distinctBy { it.id }
-    state = state.copy(truncated = listed.getOrThrow().size > MaximumArtistPlaylists)
-    for (chunk in choices.take(MaximumArtistPlaylists).chunked(ArtistPlaylistConcurrentReads)) {
-        if (!isCurrent()) return
-        val results = coroutineScope {
-            chunk.map { playlist -> async {
-                artistPlaylistAttempt {
-                    if (!isCurrent() || playlist.navibeatMixOrNull() != null) return@artistPlaylistAttempt null
-                    when (provider.playlistOwnedByCurrentUser(playlist)) {
-                        true -> playlist.takeIf { provider.playlistTracks(it.id).any { track -> track.isCreditedTo(artist) } }
-                        false -> null
-                        null -> error("Playlist ownership unavailable")
-                    }
-                }
-            } }.awaitAll()
+    // Per-request timeouts alone permit 125 slow batches to keep an artist page loading
+    // for over half an hour. One shared deadline includes enumeration and all track reads.
+    val completed = withTimeoutOrNull(ArtistPlaylistLookupTimeoutMillis) {
+        val listed = artistPlaylistAttempt { provider.playlists(MaximumArtistPlaylists + 1) }
+        if (!isCurrent()) return@withTimeoutOrNull true
+        if (listed.isFailure) {
+            state = state.copy(failed = true)
+            return@withTimeoutOrNull true
         }
-        if (!isCurrent()) return
-        state = state.copy(
-            playlists = (state.playlists + results.mapNotNull { it.getOrNull() })
-                .sortedWith(compareBy<Playlist> { it.name.lowercase() }.thenBy { it.id }),
-            failed = state.failed || results.any { it.isFailure },
-        )
-        publish(state)
-    }
-    publish(state.copy(loading = false))
+        val choices = listed.getOrThrow().distinctBy { it.id }
+        state = state.copy(truncated = listed.getOrThrow().size > MaximumArtistPlaylists)
+        for (chunk in choices.take(MaximumArtistPlaylists).chunked(ArtistPlaylistConcurrentReads)) {
+            if (!isCurrent()) return@withTimeoutOrNull true
+            coroutineScope {
+                val results = Channel<Result<Playlist?>>(chunk.size)
+                chunk.forEach { playlist -> launch {
+                    val result = artistPlaylistAttempt {
+                        if (!isCurrent() || playlist.navibeatMixOrNull() != null) return@artistPlaylistAttempt null
+                        when (provider.playlistOwnedByCurrentUser(playlist)) {
+                            true -> playlist.takeIf { provider.playlistTracks(it.id).any { track -> track.isCreditedTo(artist) } }
+                            false -> null
+                            null -> error("Playlist ownership unavailable")
+                        }
+                    }
+                    results.send(result)
+                } }
+                // Consume completed reads independently so a slow sibling cannot discard a
+                // successful match when the overall deadline expires midway through this batch.
+                repeat(chunk.size) {
+                    val result = results.receive()
+                    state = state.copy(
+                        playlists = (state.playlists + listOfNotNull(result.getOrNull()))
+                            .sortedWith(compareBy<Playlist> { it.name.lowercase() }.thenBy { it.id }),
+                        failed = state.failed || result.isFailure,
+                    )
+                }
+            }
+            if (!isCurrent()) return@withTimeoutOrNull true
+            publish(state)
+        }
+        true
+    } == true
+    if (isCurrent()) publish(state.copy(loading = false, failed = state.failed || !completed))
 }
 
 private suspend fun <T> artistPlaylistAttempt(block: suspend () -> T): Result<T> = try {
@@ -85,3 +98,4 @@ private suspend fun <T> artistPlaylistAttempt(block: suspend () -> T): Result<T>
 private const val MaximumArtistPlaylists = 500
 private const val ArtistPlaylistConcurrentReads = 4
 private const val ArtistPlaylistRequestTimeoutMillis = 15_000L
+private const val ArtistPlaylistLookupTimeoutMillis = 30_000L
