@@ -1,6 +1,7 @@
 # Frozen v2.10.0 Windows stabilization
 
-Tracking: [#386](https://github.com/goosepod/naviamp/issues/386), release acceptance
+Tracking: [#386](https://github.com/goosepod/naviamp/issues/386), draft stabilization
+[PR #387](https://github.com/goosepod/naviamp/pull/387), release acceptance
 [#280](https://github.com/goosepod/naviamp/issues/280), queue-end investigation
 [#333](https://github.com/goosepod/naviamp/issues/333).
 
@@ -99,7 +100,9 @@ and release packaging passed. Both changelog captures were visually inspected.
 
 Local candidate: `apps/desktop/build/compose/distributions/Naviamp-v2.10.0-windows-x64-release.zip`,
 SHA-256 `6399576A0EB346AC52F297F456867D0450F481C9EEC667F3CC6EBE77A3548427`.
-It supersedes the earlier local ZIP built before the ordinary-stream seek fix. This is a local
+Built from `2d78dafe3dd519c5c57712e477d1cdb030b09067` (tree
+`dc7d202d82d1cdb0537619c57a8cd08a5aa83d91`); later PR-link-only documentation does not alter
+the packaged source. It supersedes the earlier local ZIP built before the ordinary-stream seek fix. This is a local
 stabilization artifact, not an accepted release tag or published release.
 
 No Android/Desktop/iOS production file changed. The changed Desktop test directly exercises real
