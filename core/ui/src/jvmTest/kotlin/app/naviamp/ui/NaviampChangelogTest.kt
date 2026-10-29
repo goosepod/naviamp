@@ -14,14 +14,17 @@ class NaviampChangelogTest {
         )
         assertEquals("v2.10.0", NaviampAboutUi().version)
         assertEquals(4, changelog[0].entries.size)
-        val aurral = changelog[0].entries[0]
+        val aurral = changelog[0].entries[1]
         assertTrue(aurral.contains("Aurral"))
         assertTrue(aurral.contains("recommended and trending"))
         assertTrue(aurral.contains("play or pause samples"))
         assertTrue(aurral.contains("request tracks or albums"))
         assertTrue(aurral.contains("monitoring"))
         assertTrue(aurral.contains("preserve your main queue and position"))
-        assertTrue(changelog[0].entries[1].contains("Microsoft Store"))
+        val stores = changelog[0].entries[0]
+        assertTrue(stores.contains("Microsoft Store on Windows"))
+        assertTrue(stores.contains("Mac App Store on macOS"))
+        assertTrue(stores.contains("App Store on iOS"))
         val feature = changelog[0].entries[2]
         assertTrue(feature.contains("every platform"))
         assertTrue(feature.contains("PKCS12"))
