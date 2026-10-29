@@ -1,6 +1,11 @@
 package app.naviamp.presentation
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.runComposeUiTest
 import app.naviamp.app.NaviampConnectionPhase
@@ -23,6 +28,48 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampCoreAppSmokeTest {
+    @Test
+    fun connectionEditingUsesOneNavigationBarWhileThePlayerRemainsSelected() = runDesktopComposeUiTest(1000, 740) {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val core = NaviampCore.create(scope, fakeCoreServices())
+        val ui = mutableStateOf(app.naviamp.ui.NaviampAppShellUiState(
+            connectionSettings = app.naviamp.ui.NaviampConnectionSettingsUi(
+                connection = app.naviamp.ui.NaviampShellConnectionUi(connected = true),
+            ),
+            shellChrome = app.naviamp.ui.NaviampShellChromeUi(
+                selectedRoute = SharedRoute.Settings, nowPlayingOpen = true,
+            ),
+            nowPlaying = app.naviamp.ui.NowPlayingUi(id = "song", title = "Song", subtitle = "Artist", stateLabel = "Paused"),
+        ))
+        try {
+            setContent {
+                app.naviamp.ui.NaviampSharedAppShell(
+                    uiState = ui.value, actions = core.actions.shell, syncActions = core.actions.settingsSync,
+                )
+            }
+            onAllNodesWithContentDescription("Home").assertCountEquals(1)
+            onNodeWithTag("docked-player").assertExists()
+            ui.value = ui.value.copy(connectionSettings = ui.value.connectionSettings.copy(
+                connection = ui.value.connectionSettings.connection.copy(editingConnection = true, editingSavedConnection = true),
+            ))
+            waitForIdle()
+            onAllNodesWithContentDescription("Home").assertCountEquals(1)
+            onNodeWithTag("docked-player").assertDoesNotExist()
+            ui.value = ui.value.copy(connectionSettings = ui.value.connectionSettings.copy(
+                connection = ui.value.connectionSettings.connection.copy(editingConnection = false),
+            ))
+            waitForIdle()
+            onAllNodesWithContentDescription("Home").assertCountEquals(1)
+            onNodeWithTag("docked-player").assertExists()
+            ui.value = ui.value.copy(connectionSettings = ui.value.connectionSettings.copy(
+                connection = ui.value.connectionSettings.connection.copy(restoringConnection = true),
+            ))
+            waitForIdle()
+            onAllNodesWithContentDescription("Home").assertCountEquals(1)
+            onNodeWithTag("docked-player").assertDoesNotExist()
+        } finally { scope.cancel() }
+    }
+
     @Test
     fun fakeHostMountsAndNavigatesEveryProductRoute() = runComposeUiTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
