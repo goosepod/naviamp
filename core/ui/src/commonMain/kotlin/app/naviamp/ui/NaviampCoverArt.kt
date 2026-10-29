@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -113,10 +114,10 @@ fun NaviampCoverArt(
         image?.let {
             Image(
                 bitmap = it,
-                contentDescription = "Album art",
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 alpha = incomingAlpha.value,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag("cover-art-image"),
             )
         }
     }

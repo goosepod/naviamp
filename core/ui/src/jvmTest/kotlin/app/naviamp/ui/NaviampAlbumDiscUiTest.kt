@@ -9,7 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import app.naviamp.domain.Album
@@ -56,11 +56,11 @@ class NaviampAlbumDiscUiTest {
                         }
                     }
                     waitUntil(timeoutMillis = 5_000) {
-                        onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 3
+                        onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 3
                     }
                     listOf("Disc 1", "Disc 2").forEach { label ->
                         val heading = onNodeWithText(label).fetchSemanticsNode().boundsInRoot
-                        val art = onAllNodesWithContentDescription("Album art").fetchSemanticsNodes()
+                        val art = onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes()
                             .map { it.boundsInRoot }.single { abs(it.center.y - heading.center.y) < 1f }
                         assertEquals(40f, art.width)
                         assertEquals(art.width, art.height)
@@ -121,7 +121,7 @@ class NaviampAlbumDiscUiTest {
                                 }
                             }
                             waitUntil(timeoutMillis = 5_000) {
-                                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == detail.discSections.size + 1
+                                onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == detail.discSections.size + 1
                             }
                             detail.discSections.forEach { section ->
                                 onNodeWithText("Disc ${section.number}").performScrollTo().assertIsDisplayed()

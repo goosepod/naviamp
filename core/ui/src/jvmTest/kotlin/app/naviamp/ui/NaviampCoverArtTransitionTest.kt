@@ -2,8 +2,8 @@ package app.naviamp.ui
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
@@ -37,13 +37,13 @@ class NaviampCoverArtTransitionTest {
                 )
             }
             waitUntil(timeoutMillis = 5_000) {
-                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 1
+                onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 1
             }
             assertEquals(
                 listOf("https://external.test/missing.webp", "test://provider-cover"),
                 requestedUrls,
             )
-            onNodeWithContentDescription("Album art").assertExists()
+            onNodeWithTag("cover-art-image", useUnmergedTree = true).assertExists()
         } finally {
             resetJvmPlatformCoverArtByteLoader()
             resetNaviampCoverArtCache()
@@ -68,16 +68,16 @@ class NaviampCoverArtTransitionTest {
                 NaviampCoverArt(artworkUrl.value, NaviampColors.Dark, 128.dp, 8.dp)
             }
             waitUntil(timeoutMillis = 5_000) {
-                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 1
+                onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 1
             }
-            onNodeWithContentDescription("Album art").assertExists()
+            onNodeWithTag("cover-art-image", useUnmergedTree = true).assertExists()
 
             runOnIdle { artworkUrl.value = "test://missing" }
 
             waitUntil(timeoutMillis = 5_000) {
-                onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().isEmpty()
+                onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
             }
-            onNodeWithContentDescription("Album art").assertDoesNotExist()
+            onNodeWithTag("cover-art-image", useUnmergedTree = true).assertDoesNotExist()
         } finally {
             resetJvmPlatformCoverArtByteLoader()
             resetNaviampCoverArtCache()

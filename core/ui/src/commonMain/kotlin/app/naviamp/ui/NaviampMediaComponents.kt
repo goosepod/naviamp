@@ -828,6 +828,10 @@ fun SharedMediaRow(
                     rowModifier
                 }
             }
+            .semantics {
+                contentDescription = listOf(item.title, item.subtitle, item.meta)
+                    .filter(String::isNotBlank).joinToString(", ")
+            }
             .padding(horizontal = 8.dp, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -178,7 +178,7 @@ class NaviampAurralDiscoveryUiTest {
                     onNodeWithText("All releases").performScrollTo()
                     onNodeWithText("Release 1").performScrollTo()
                     val filter = onNodeWithText("All releases").fetchSemanticsNode().boundsInRoot
-                    fun covers() = onAllNodesWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNodes()
+                    fun covers() = onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes()
                         .map { it.boundsInRoot }.filter { it.top >= filter.bottom }
                     waitUntil(timeoutMillis = 5_000) { covers().size >= 2 }
                     val covers = covers().sortedWith(compareBy({ it.top }, { it.left }))
@@ -229,8 +229,8 @@ class NaviampAurralDiscoveryUiTest {
                 onNodeWithText("EP release").assertExists()
                 onNodeWithContentDescription("Request album").performClick()
                 runOnIdle { assertEquals(ProviderDiscoveryAction.RequestAlbum("ep"), actions.last()) }
-                waitUntil(timeoutMillis = 5_000) { onAllNodesWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNodes().size == 1 }
-                val cover = onNodeWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+                waitUntil(timeoutMillis = 5_000) { onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 1 }
+                val cover = onNodeWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
                 assertEquals(cover.width, cover.height)
                 assertEquals(4.dp, mediaArtworkCornerRadius(SharedMediaItemKind.Album, 64.dp, 4.dp))
                 onNodeWithText("All releases").performClick()
@@ -289,9 +289,9 @@ class NaviampAurralDiscoveryUiTest {
                     }
                 }
                 waitUntil(timeoutMillis = 5_000) {
-                    onAllNodesWithContentDescription("Album art", useUnmergedTree = true).fetchSemanticsNodes().size == 1
+                    onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 1
                 }
-                onNodeWithContentDescription("Album art", useUnmergedTree = true).performTouchInput { click() }
+                onNodeWithTag("cover-art-image", useUnmergedTree = true).performTouchInput { click() }
                 onNodeWithText("Native artist", useUnmergedTree = true).performTouchInput { click() }
                 onNodeWithText("Native artist").performTouchInput { click(androidx.compose.ui.geometry.Offset(width - 2f, height - 2f)) }
                 runOnIdle { assertEquals(listOf("native", "native", "native"), opened); assertNull(external) }
@@ -325,9 +325,9 @@ class NaviampAurralDiscoveryUiTest {
                     }
                 }
                 waitUntil(timeoutMillis = 5_000) {
-                    onAllNodesWithContentDescription("Album art").fetchSemanticsNodes().size == 1
+                    onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 1
                 }
-                val image = onNodeWithContentDescription("Album art", useUnmergedTree = true).captureToImage().toAwtImage()
+                val image = onNodeWithTag("cover-art-image", useUnmergedTree = true).captureToImage().toAwtImage()
                 assertEquals(java.awt.Color.RED.rgb, image.getRGB(image.width / 2, image.height / 2))
                 assertNotEquals(java.awt.Color.RED.rgb, image.getRGB(0, 0), "Portrait corners must be clipped")
             }
