@@ -14,7 +14,10 @@ class NaviampChangelogTest {
         )
         assertEquals("v2.10.0", NaviampAboutUi().version)
         assertEquals(3, changelog[0].entries.size)
-        assertTrue(changelog[0].entries[0].contains("Microsoft Store"))
+        val stores = changelog[0].entries[0]
+        assertTrue(stores.contains("Microsoft Store on Windows"))
+        assertTrue(stores.contains("Mac App Store on macOS"))
+        assertTrue(stores.contains("App Store on iOS"))
         val feature = changelog[0].entries[1]
         assertTrue(feature.contains("every platform"))
         assertTrue(feature.contains("PKCS12"))

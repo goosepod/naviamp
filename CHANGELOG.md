@@ -8,10 +8,11 @@ No changes yet.
 
 ## v2.10.0
 
-Naviamp 2.10.0 completes certificate-protected server connections across Android, iOS, Windows, macOS and Linux. It also brings your playlists to artist pages, makes smart playlists safer and easier to build, gives Radio clearer controls, and fixes Android playback recovery crashes.
+Naviamp 2.10.0 brings store releases for Windows through the Microsoft Store, macOS through the Mac App Store, and iOS through the App Store. It also completes certificate-protected server connections across Android, iOS, Windows, macOS and Linux. It also brings your playlists to artist pages, makes smart playlists safer and easier to build, gives Radio clearer controls, and fixes Android playback recovery crashes.
 
 ### Features
 
+- Get Naviamp through the [Microsoft Store on Windows](https://apps.microsoft.com/detail/9pcfj644lxll?hl=en-US&gl=US), the [Mac App Store on macOS](https://apps.apple.com/app/naviamp-music-player/id6821135881), and the App Store on iOS, alongside existing direct downloads. ([Issue #323](https://github.com/goosepod/naviamp/issues/323), [PR #324](https://github.com/goosepod/naviamp/pull/324), [Issue #340](https://github.com/goosepod/naviamp/issues/340), [PR #341](https://github.com/goosepod/naviamp/pull/341), [Issue #401](https://github.com/goosepod/naviamp/issues/401))
 - Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.
 - Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.
 

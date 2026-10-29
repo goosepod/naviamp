@@ -2895,7 +2895,7 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Install Naviamp for Windows through its official Microsoft Store listing, alongside existing direct downloads.",
+            "Get Naviamp through the Microsoft Store on Windows, the Mac App Store on macOS, and the App Store on iOS, alongside existing direct downloads.",
             "Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.",
             "Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.",
         ),
