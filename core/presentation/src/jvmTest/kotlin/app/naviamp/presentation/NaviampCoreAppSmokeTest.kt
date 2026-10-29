@@ -55,12 +55,14 @@ class NaviampCoreAppSmokeTest {
             waitForIdle()
             onAllNodesWithContentDescription("Home").assertCountEquals(1)
             onNodeWithTag("docked-player").assertDoesNotExist()
+            onNodeWithTag("connection-name").assertExists()
             ui.value = ui.value.copy(connectionSettings = ui.value.connectionSettings.copy(
                 connection = ui.value.connectionSettings.connection.copy(editingConnection = false),
             ))
             waitForIdle()
             onAllNodesWithContentDescription("Home").assertCountEquals(1)
             onNodeWithTag("docked-player").assertExists()
+            onNodeWithTag("connection-name").assertDoesNotExist()
             ui.value = ui.value.copy(connectionSettings = ui.value.connectionSettings.copy(
                 connection = ui.value.connectionSettings.connection.copy(restoringConnection = true),
             ))

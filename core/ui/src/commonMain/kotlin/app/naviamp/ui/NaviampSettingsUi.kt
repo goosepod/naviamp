@@ -307,6 +307,11 @@ fun NaviampSharedSettingsContent(
     connectActions: NaviampConnectSettingsActions? = null,
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf<NaviampSettingsCategory?>(null) }
+    // Opening an editor can remount Settings when the split player is hidden.
+    // The pending form must select its owning category in that new composition too.
+    LaunchedEffect(isConnectionFormOpen) {
+        if (isConnectionFormOpen) selectedCategory = NaviampSettingsCategory.Source
+    }
     var djEditorOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
     var contentViewport by remember { mutableStateOf(Rect.Zero) }
