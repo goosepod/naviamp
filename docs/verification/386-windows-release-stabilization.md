@@ -101,7 +101,7 @@ and release packaging passed. Both changelog captures were visually inspected.
 Local candidate: `apps/desktop/build/compose/distributions/Naviamp-v2.10.0-windows-x64-release.zip`,
 SHA-256 `6399576A0EB346AC52F297F456867D0450F481C9EEC667F3CC6EBE77A3548427`.
 Built from `2d78dafe3dd519c5c57712e477d1cdb030b09067` (tree
-`dc7d202d82d1cdb0537619c57a8cd08a5aa83d91`); later PR-link-only documentation does not alter
+`dc7d202d82d1cdb0537619c57a8cd08a5aa83d91`); later PR-link documentation and fixture-test naming changes do not alter
 the packaged source. It supersedes the earlier local ZIP built before the ordinary-stream seek fix. This is a local
 stabilization artifact, not an accepted release tag or published release.
 
