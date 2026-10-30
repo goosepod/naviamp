@@ -107,8 +107,23 @@ obtain validated GPU/compositor attribution, and complete the applicable lifecyc
 accessibility matrix on the eventual fix. No animation is disabled, cadence reduced, production
 code changed, high baseline accepted, or release-performance pass claimed.
 
+Source inspection identifies a hypothesis to test: `AndroidRasterRegion.updateSurfaces` submits
+crop/transform/scale/position commands for every visible layer on each running tick and marks
+the transaction changed without comparing the resulting native geometry with its previous value.
+That can resubmit equivalent native operations during quantized progress or marquee hold frames.
+This is not proof of the measured cost's cause. Any experiment must preserve smooth motion,
+common policy ownership, real-app behavior and the full measurement matrix.
+
 The current-source Mac release bundle also builds successfully without the probe flag. A fresh
 isolated observer copy is staged, with all 87 production JAR hashes verified and a separately
 compiled visibility guard. No stale JARs are retained. Its observer launcher uses a fresh isolated
 home; no normal Mac profile is copied. The owner requested phone-only availability, so the Mac
 test app is not launched and no new visible Mac CPU/GPU result is claimed.
+
+The release-integration hosted macOS run separately times out waiting for initial main-stream
+progress at `DesktopPreviewPlaybackIntegrationTest.kt:52`; it does not reach the preview completion
+assertion. The main-integration matrix passes the same native test. A local muted real-output
+reproduction also passes (one test, no skips): paused main position 2.49s stays 2.49s through
+preview completion, then resumes to 3.458s. This headless native test does not require an
+undisturbed visible Mac window and is not an animation performance result. Original hosted
+failure logs/reports are retained; no timeout or assertion is weakened.
