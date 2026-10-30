@@ -36,6 +36,8 @@ class NaviampChangelogRenderedUiTest {
         System.getenv("NAVIAMP_CHANGELOG_CAPTURE")?.let { directory ->
             java.io.File(directory).mkdirs()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-end.png"))
+            onNodeWithText(entries.single { it.contains("Audio Cache and Downloads storage totals") }).performScrollTo().assertIsDisplayed()
+            javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-storage.png"))
             onNodeWithText(entries.first()).performScrollTo()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "about-changelog-start.png"))
         }

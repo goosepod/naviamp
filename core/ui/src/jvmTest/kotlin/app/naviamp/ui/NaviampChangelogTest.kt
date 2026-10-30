@@ -55,6 +55,8 @@ class NaviampChangelogTest {
         assertTrue(changelog[2].entries[9].contains("Artists, Albums and Songs"))
         assertTrue(changelog[2].entries[10].contains("popups"))
         val fixes = changelog[2].entries
+        assertTrue(fixes.last().contains("Audio Cache and Downloads storage totals"))
+        assertTrue(fixes.last().contains("while Settings is open"))
         assertTrue(fixes[0].contains("imported saved connections"))
         assertTrue(fixes[1].contains("native login"))
         assertTrue(fixes[2].contains("pending Autoplay"))

@@ -42,3 +42,12 @@ recorded conditions. No test result is implied merely by starting a build.
 Windows CPU variability/compositor attribution and TV signed-package, external audio focus,
 HDMI/CEC, network recovery and endurance remain explicit outstanding gates. Physical iPhone
 testing is unavailable; iOS testing uses the simulator as requested.
+
+## Accepted cohort and selected-scope follow-up
+
+The cohort subsequently passes both complete protected matrices and lands through #409/#410.
+Main `13dc942ac` and release `2a6ed29a3` have identical trees. The final
+[milestone scope audit](408-release-scope-audit.md) identifies the one omitted common storage-total
+fix (#357/#358), validates it on current Core and records the older work already represented.
+That follow-up requires its own protected checks; initial performance measurements remain
+explicitly pinned to the preceding cohort and do not close performance acceptance.
