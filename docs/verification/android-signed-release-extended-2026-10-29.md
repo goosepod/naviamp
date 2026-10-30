@@ -2,6 +2,15 @@
 
 Tracking: #397. This follows the isolated [physical acceptance report](android-2.10.0-2026-10-29.md), which remains the record of the earlier 59 active checks and Android Auto runs. The owner subsequently authorized an actual signed in-place upgrade and extended live/offline/background tests. These later tests intentionally exercise the normal application.
 
+## Owner's real-truck confirmation — October 29
+
+After the phone and Desktop Head Unit checks below, the owner reports testing the Android Auto
+updates in the actual truck: everything is working well there. This supplies the previously pending
+real-vehicle functional confirmation for #395. It is owner-reported acceptance, distinct from the
+automated head-unit evidence. The report does not identify a separate APK hash, vehicle model or
+connection type, and does not independently establish carrier-call or Bluetooth route-switch cases.
+The earlier statements that the truck check was still pending are historical checkpoints.
+
 ## Actual signed artifact and upgrade
 
 Physical Pixel 10a, Android 17/API 37. Production application code matches `c58f0b3aeb5dad7c17ace37b8c444f2a418f737f`; the acceptance branch adds only native test tooling and documentation. `:apps:android:stageReleaseArtifacts` succeeds. The real release is R8-minified/resource-shrunk and non-debuggable, package `app.naviamp.android`, versionCode 60/versionName v2.10.0.
