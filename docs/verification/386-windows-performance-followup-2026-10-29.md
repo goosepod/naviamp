@@ -1,5 +1,9 @@
 # Windows idle-desktop follow-up — October 29, 2026
 
+Latest: [UI Automation attribution and corrected measurements](386-windows-uia-attribution-2026-10-29.md)
+identify the Computer Use requester. Observation-connected samples below remain historical diagnostics;
+the requesting-client question is resolved. Remaining CPU/compositor limits are recorded in the latest report.
+
 Tracking: #386 and draft PR #406. Follows [the timeline fix and administrator CPU capture](386-windows-performance-2026-10-29.md).
 Branch `fix/386-windows-performance`, starting commit `6b51411a`; product package remains
 `9243c813`. This pass changes verification evidence only, with no production/platform edits.

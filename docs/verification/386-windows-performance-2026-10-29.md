@@ -1,5 +1,9 @@
 # Windows progress timeline performance — October 29, 2026
 
+Latest: [UI Automation attribution and corrected measurements](386-windows-uia-attribution-2026-10-29.md)
+identify the Computer Use requester. Observation-connected samples below remain historical diagnostics;
+the requesting-client question is resolved. Remaining CPU/compositor limits are recorded in the latest report.
+
 Tracking: #386; follows the [earlier Windows investigation](386-windows-release-stabilization.md)
 and [combined candidate acceptance](386-windows-resume-2026-10-29.md). Work starts from
 `ddbf9743` on dedicated branch `fix/386-windows-performance`. Frozen release scope, v2.10.0/build 60.

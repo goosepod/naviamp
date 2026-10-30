@@ -18,6 +18,11 @@ class Program
 
     static void Main(string[] args)
     {
+        if (args.Length > 0 && args[0].StartsWith("--uia-", StringComparison.Ordinal))
+        {
+            UiaRequestTrace.Run(args);
+            return;
+        }
         if (args.Length < 4)
             throw new ArgumentException("Usage: trace.etl targetPid startSeconds endSeconds [symbolCache]");
         int targetPid = int.Parse(args[1], CultureInfo.InvariantCulture);

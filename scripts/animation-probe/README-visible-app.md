@@ -123,6 +123,46 @@ this capture. ETW stack-walking cost is visible in the target itself; never trea
 CPU total as a clean acceptance measurement or subtract inclusive overlapping groups to manufacture
 a passing baseline. See the October 29 verification report for the actual counts and limits.
 
+## Attribute Windows UI Automation observation overhead
+
+The October 29 target-only trace identifies the Computer Use helper as a recurring UI Automation
+requester. An idle desktop does not mean an idle automation client. In this session, releasing the
+Computer Use JavaScript kernel with its supported reset tool also ends its helper and removes the
+requests. Reconnecting starts polling again. Do not terminate arbitrary accessibility clients or
+change accessibility settings to improve a benchmark.
+
+For future CPU/GPU phases: establish and capture the visible state, dismiss hover, release the
+observation session, measure without UI calls, then reconnect to verify retained paint/motion.
+Reset again before the next interval. Native motion is still checked in before/after screenshots;
+blank or frozen content remains a failure. UI Automation traces run separately from CPU samples.
+Retain older observation-contaminated samples as diagnostics; never subtract guessed overhead.
+This protocol does not waive actual playback CPU or per-window compositor acceptance.
+
+The same diagnostic project provides bounded, target-filtered user-provider capture and a narrow
+summary (run from the checkout root, with a .NET 10 SDK):
+
+```powershell
+dotnet run --project scripts/animation-probe/native-cpu-analysis -- `
+  --uia-capture build/native-uia/example.etl <disposable-child-JVM-PID> 10
+dotnet run --project scripts/animation-probe/native-cpu-analysis -- `
+  --uia-summary build/native-uia/example.etl <disposable-child-JVM-PID>
+```
+
+The capture accepts only Naviamp executables under this checkout's build directories, refuses an
+existing output, preserves the target identity, and stops only its own unique session. It enables
+UIAutomationCore performance keyword `0x10000` with PID filtering and event IDs 523/524/545/546.
+The receive/response events carry `PeerProcessId`; execution events supply method identifiers.
+Summaries omit arbitrary payload/property values and unrelated process details. Live requester
+names are used only when their process start precedes the trace; exited/reused identities remain
+unverified and need a contemporaneous process identity record. Keep raw ETL data local.
+
+This provider capture succeeded in the existing non-administrator Windows credential context;
+it does not require kernel CPU-profile privileges. Other machines may grant different trace rights.
+The final source is locally compiled with the installed Roslyn/runtime/NuGet combination, and its
+five-second capture, requester summary, zero-traffic case, non-app target guard and overwrite guard are checked. The SDK
+restore/run path is provided for reproduction, not claimed as executed on this SDK-less machine.
+A first global provider attempt lost events; use the narrow filters and check `EventsLost`.
+
 ## Windows native diagnostic control
 
 `windows-native-sampler/` contains the October 29 investigation helper and a plain Swing control.
