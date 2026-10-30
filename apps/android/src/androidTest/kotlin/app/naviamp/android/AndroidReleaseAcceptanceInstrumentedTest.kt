@@ -31,7 +31,9 @@ class AndroidReleaseAcceptanceInstrumentedTest {
         val args = InstrumentationRegistry.getArguments()
         assumeTrue(args.getString("releaseAcceptance") == "true")
         packageName = args.getString("acceptancePackage") ?: packageName
-        require(packageName in setOf("app.naviamp.android", "com.tailscale.ipn"))
+        require(packageName in setOf("app.naviamp.android", "app.naviamp.android.v2test", "com.tailscale.ipn"))
+        val rememberedSessionIds = mutableMapOf<String, String>()
+        val rememberedSessionQueues = mutableMapOf<String, List<String>>()
         val steps = JSONArray(args.getString("acceptanceSteps") ?: "[]")
         for (index in 0 until steps.length()) {
             val step = steps.getJSONObject(index)
@@ -64,10 +66,98 @@ class AndroidReleaseAcceptanceInstrumentedTest {
                     record("set adjacent checkbox ${step.getString("label")}=$wanted")
                 }
                 "expect" -> await(step.getString("label")) { has(step.getString("label"), step.optBoolean("exact", true)) }
+                "expectFocus" -> await("focused ${step.getString("label")}") {
+                    fun containsLabel(node: AccessibilityNodeInfo): Boolean =
+                        matches(node, step.getString("label"), true) ||
+                            (0 until node.childCount).any { node.getChild(it)?.let(::containsLabel) == true }
+                    val current = nodes()
+                    val matched = current.any { it.isFocused && containsLabel(it) }
+                    if (step.optBoolean("negate")) current.any { it.isFocused } && !matched else matched
+                }
+                "session" -> {
+                    val expected = when (step.optString("state")) {
+                        "playing" -> android.media.session.PlaybackState.STATE_PLAYING
+                        "paused" -> android.media.session.PlaybackState.STATE_PAUSED
+                        "" -> null
+                        else -> error("Unsupported native session state")
+                    }
+                    val minimum = step.optInt("minimumQueueCount", 0).also { require(it >= 0) }
+                    val exact = if (step.has("queueCount")) step.getInt("queueCount") else null
+                    val changedFrom = step.optString("changedFrom").takeIf(String::isNotEmpty)?.let {
+                        requireNotNull(rememberedSessionIds[it]) { "No remembered native session $it" }
+                    }
+                    val retained = step.optString("retainsQueueFrom").takeIf(String::isNotEmpty)?.let {
+                        requireNotNull(rememberedSessionQueues[it]) { "No remembered native queue $it" }
+                    }
+                    var observed: NativeSession? = null
+                    await("native session state/queue") {
+                        nativeSession().also { observed = it }?.let {
+                            (expected == null || it.state == expected) && it.queueCount >= minimum &&
+                                (exact == null || it.queueCount == exact) &&
+                                (!step.has("title") || it.title == step.getString("title")) &&
+                                (!step.has("queueIndex") || it.queueIndex == step.getLong("queueIndex")) &&
+                                (!step.has("maximumPositionMs") || (it.positionMillis ?: Long.MAX_VALUE) <= step.getLong("maximumPositionMs")) &&
+                                (!step.has("minimumPositionMs") || (it.positionMillis ?: -1) >= step.getLong("minimumPositionMs")) &&
+                                (changedFrom == null || (!it.mediaId.isNullOrBlank() && it.mediaId != changedFrom)) &&
+                                (retained == null || retained.groupingBy { id -> id }.eachCount().all { (id, count) ->
+                                    it.queueItems.count { current -> current == id } >= count
+                                })
+                        } == true
+                    }
+                    val value = requireNotNull(observed)
+                    step.optString("remember").takeIf(String::isNotEmpty)?.let {
+                        rememberedSessionIds[it] = requireNotNull(value.mediaId)
+                        rememberedSessionQueues[it] = value.queueItems
+                    }
+                    record("native session state=${value.state} queueCount=${value.queueCount} queueIndex=${value.queueIndex} positionMs=${value.positionMillis}")
+                }
+                "transport" -> {
+                    automation.adoptShellPermissionIdentity(android.Manifest.permission.MEDIA_CONTENT_CONTROL)
+                    try {
+                        val controller = instrumentation.targetContext
+                            .getSystemService(android.media.session.MediaSessionManager::class.java)
+                            .getActiveSessions(null).single { it.packageName == packageName }
+                        val controls = controller.transportControls
+                        when (step.getString("action")) {
+                            "play" -> controls.play()
+                            "pause" -> controls.pause()
+                            "next" -> controls.skipToNext()
+                            "previous" -> controls.skipToPrevious()
+                            "queue" -> controls.skipToQueueItem(step.getLong("index").also {
+                                require(controller.queue.orEmpty().any { item -> item.queueId == it })
+                            })
+                            "seekNearEnd" -> {
+                                val duration = requireNotNull(controller.metadata)
+                                    .getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
+                                val remaining = step.optLong("remainingMs", 10000).also { require(it in 5000..60000) }
+                                require(duration > remaining)
+                                controls.seekTo(duration - remaining)
+                            }
+                            else -> error("Unsupported native transport action")
+                        }
+                    } finally { automation.dropShellPermissionIdentity() }
+                }
                 "back" -> automation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+                "key" -> {
+                    assertTrue(automation.rootInActiveWindow?.packageName?.toString() == packageName,
+                        "Remote input must belong to the selected app")
+                    val key = when (step.getString("key")) {
+                        "up" -> android.view.KeyEvent.KEYCODE_DPAD_UP
+                        "down" -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                        "left" -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                        "right" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                        "center" -> android.view.KeyEvent.KEYCODE_DPAD_CENTER
+                        else -> error("Unsupported remote key")
+                    }
+                    instrumentation.sendKeyDownUpSync(key)
+                    runCatching { automation.waitForIdle(200, 2000) }
+                }
                 "home" -> automation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
                 "lock" -> assertTrue(automation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN))
                 "focus" -> {
+                    require(packageName != instrumentation.targetContext.packageName) {
+                        "Audio focus competition requires a separate target UID"
+                    }
                     // Android 15+ grants focus only to the foreground UID. Bring the isolated
                     // test host forward, request a real OS interruption, then return to the release.
                     instrumentation.targetContext.startActivity(Intent(Intent.ACTION_MAIN).apply {
@@ -102,7 +192,7 @@ class AndroidReleaseAcceptanceInstrumentedTest {
                     val dir = File(instrumentation.targetContext.cacheDir, "release-acceptance").apply { mkdirs() }
                     File(dir, "$name.txt").writeText(nodes().joinToString("\n") {
                         val bounds = Rect().also(it::getBoundsInScreen)
-                        "${labels(it)} checked=${it.isChecked} selected=${it.isSelected} range=${it.rangeInfo?.current} $bounds"
+                        "${labels(it)} checked=${it.isChecked} selected=${it.isSelected} focused=${it.isFocused} range=${it.rangeInfo?.current} $bounds"
                     })
                     requireNotNull(automation.takeScreenshot()) { "Native window screenshot unavailable" }.let { bitmap ->
                         try { File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
@@ -189,6 +279,30 @@ class AndroidReleaseAcceptanceInstrumentedTest {
     private fun progress(): Float {
         val range = nodes().firstOrNull { it.rangeInfo != null }?.rangeInfo ?: return -1f
         return (range.current - range.min) / (range.max - range.min)
+    }
+
+    private data class NativeSession(
+        val state: Int?, val queueCount: Int, val mediaId: String?, val positionMillis: Long?,
+        val queueItems: List<String>, val title: String?, val queueIndex: Long?,
+    )
+
+    private fun nativeSession(): NativeSession? {
+        automation.adoptShellPermissionIdentity(android.Manifest.permission.MEDIA_CONTENT_CONTROL)
+        try {
+            val controller = instrumentation.targetContext.getSystemService(android.media.session.MediaSessionManager::class.java)
+                .getActiveSessions(null).firstOrNull { it.packageName == packageName } ?: return null
+            return NativeSession(
+                controller.playbackState?.state,
+                controller.queue?.size ?: 0,
+                controller.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_MEDIA_ID),
+                controller.playbackState?.position,
+                // History is presented in reverse order, and the current item's media ID differs
+                // from its history ID. Compare the title multiset; retain duplicate occurrences.
+                controller.queue.orEmpty().map { it.description.title.toString() },
+                controller.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE),
+                controller.playbackState?.activeQueueItemId,
+            )
+        } finally { automation.dropShellPermissionIdentity() }
     }
 
     private fun seekNode(description: String, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {

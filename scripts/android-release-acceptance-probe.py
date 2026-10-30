@@ -19,12 +19,12 @@ parser.add_argument('--serial', required=True)
 parser.add_argument('--steps-file', type=Path, required=True)
 parser.add_argument('--evidence-dir', type=Path, required=True)
 parser.add_argument('--name', required=True)
-parser.add_argument('--package', choices=['app.naviamp.android', 'com.tailscale.ipn'], default='app.naviamp.android')
+parser.add_argument('--package', choices=['app.naviamp.android', 'app.naviamp.android.v2test', 'com.tailscale.ipn'], default='app.naviamp.android')
 parser.add_argument('--adb', default=str(Path(os.environ.get('ANDROID_HOME', str(Path.home() / 'Library/Android/sdk'))) / 'platform-tools/adb'))
 args = parser.parse_args()
 if not re.fullmatch(r'[A-Za-z0-9-]+', args.name):
     parser.error('--name must contain only letters, digits and hyphens')
-steps = json.loads(args.steps_file.read_text())
+steps = json.loads(args.steps_file.read_text(encoding='utf-8-sig'))
 if not isinstance(steps, list):
     parser.error('steps must be a JSON array')
 args.evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -36,9 +36,9 @@ command = ['shell', 'am', 'instrument', '-w', '-r',
            '-e', 'releaseAcceptance', 'true', '-e', 'acceptancePackage', args.package,
            '-e', 'acceptanceSteps', payload,
            'app.naviamp.android.v2test.test/androidx.test.runner.AndroidJUnitRunner']
-result = subprocess.run(adb + command, capture_output=True, text=True)
+result = subprocess.run(adb + command, capture_output=True, text=True, encoding='utf-8', errors='replace')
 log = args.evidence_dir / (args.name + '.log')
-log.write_text(result.stdout + result.stderr)
+log.write_text(result.stdout + result.stderr, encoding='utf-8')
 for step in steps:
     if step.get('op') != 'snapshot':
         continue
