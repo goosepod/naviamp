@@ -194,10 +194,30 @@ keyboard failure is promoted to a confirmed product regression from those observ
 
 Computer Use app selection, explicit bundle-ID selection and native Raise do not activate the test
 process; its optional launch_app method is unavailable. The owner is asked to bring the distinctly
-named test app forward using its Dock icon. Final native immediate-Escape and focus-return acceptance
-remain pending that activation. The #425 PR stays draft until this observation is established.
+named test app forward using its Dock icon. At that checkpoint, final native keyboard acceptance is pending activation; the later result below
+completes the immediate-Escape reproduction. Broader focus-return/VoiceOver acceptance remains scoped separately.
 
 The final test app is intentionally left open and paused at 2:31 for that check; the credential-free
 loopback fixture remains available. No phone, public release, tag, store submission or main/release
 merge is performed. Earlier GPU, performance, narrow-resize and spoken-accessibility limits remain
 open and are not waived by these fixes.
+
+
+### Final native immediate-Escape result
+
+The owner brings the final `3b1fa20cc` test app forward using its Dock icon. The read-only native
+activation probe reports `test_app_active=true` before and after the following checks. On two
+fresh Track actions > Track details openings, pressing Escape immediately dismisses the dialog,
+without Tab or clicking its contents first. The source/queue and paused 2:31 position remain intact,
+and Track actions can be reopened after dismissal. This completes the original #421 native
+reproduction for the final common fix. It does not claim exhaustive keyboard focus-return or
+spoken screen-reader acceptance.
+
+Both issue fixes now have passing common regressions, cross-platform compilation and actual
+packaged-Mac reproduction retests. The initial inactive-keyboard observations remain rejected,
+not silently converted into passes. #424 and #425 are ready for review; required hosted checks
+still gate merging. No merge, tag, store submission or release is performed.
+
+Final cleanup closes only the isolated test app normally (the observed process exits), stops the
+loopback fixture, and retains the synthetic profile, package hashes, builds and logs locally.
+The test app is no longer left running. Normal installed app files are not replaced.
