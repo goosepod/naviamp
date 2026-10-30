@@ -84,6 +84,7 @@ android {
             testInstrumentationRunnerArguments["class"] = listOf(
                 "app.naviamp.ui.AndroidAnimationProbeTest",
                 "app.naviamp.ui.AndroidRasterPlacementTest",
+                "app.naviamp.ui.NaviampDialogInitialFocusTest",
                 "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
                 "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
                 "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
