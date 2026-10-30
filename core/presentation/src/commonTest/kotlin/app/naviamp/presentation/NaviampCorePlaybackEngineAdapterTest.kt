@@ -63,6 +63,41 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    @Test fun restoredSeeksWaitForExplicitPlayOnEveryEngine() = runTest {
+        for (restartOnSeek in listOf(false, true)) {
+            val provider = FakeCoreMediaProvider()
+            val engine = RecordingPlaybackEngine()
+            val native: PlaybackEngine = if (restartOnSeek) engine else object : PlaybackEngine by engine {}
+            val adapter = NaviampCorePlaybackEngineAdapter(this, native,
+                NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() })
+            adapter.restoreQueue(PlaybackQueue(listOf(provider.track), 0), 37.0)
+            adapter.seek(60.0)
+            adapter.seek(90.0)
+            advanceUntilIdle()
+            assertEquals(emptyList(), engine.requests, "A restored seek must not open an audio stream")
+            assertEquals(emptyList(), engine.seeks, "No native stream exists to seek yet")
+            adapter.startOrRestore()
+            advanceUntilIdle()
+            assertEquals(90.0, engine.request?.startPositionSeconds)
+            adapter.stop()
+        }
+    }
+
+    @Test fun restoredReplaySeekWaitsForExplicitResume() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(this, engine,
+            NaviampCoreMediaProviderSource { provider }, settings = { PlaybackSettings() })
+        adapter.restoreQueue(PlaybackQueue(listOf(provider.track), 0), 37.0)
+        adapter.replayCurrent(95.0)
+        advanceUntilIdle()
+        assertEquals(emptyList(), engine.requests)
+        adapter.resume()
+        advanceUntilIdle()
+        assertEquals(95.0, engine.request?.startPositionSeconds)
+        adapter.stop()
+    }
+
     @Test fun previewCancelsNativeLoadingAndRestartsOnlyOnExplicitResume() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine()
@@ -138,6 +173,10 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals(PlaybackState.Paused, states.last())
         engine.emitState(PlaybackState.Playing)
         assertEquals(PlaybackState.Paused, states.last(), "Pause survives duplicate startup/poll callbacks")
+        adapter.replayCurrent(45.0)
+        advanceUntilIdle()
+        assertEquals(45.0, engine.request?.startPositionSeconds)
+        assertEquals(PlaybackState.Paused, states.last(), "Provider-offset replay seeks retain pause intent too")
         adapter.resume()
         engine.emitState(PlaybackState.Playing)
         assertEquals(PlaybackState.Playing, states.last())
