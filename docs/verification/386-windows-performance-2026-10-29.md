@@ -237,3 +237,11 @@ foreground/occlusion was not independently recorded throughout and is not assert
 After analysis, the disposable app/launcher and fixture are closed. Normal settings, database and
 window-state hashes still match the saved pre-run values. Raw ETL, derived ETLX, PDBs and stack
 outputs stay in ignored build directories and are not uploaded.
+
+
+## Subsequent idle-desktop repeats
+
+The owner authorizes a new idle-desktop pass after the native capture analysis. See
+[the Windows follow-up](386-windows-performance-followup-2026-10-29.md) for startup controls,
+repeated restore/resize CPU samples, zero-JIT static thread attribution and matched maximized
+compositor controls. Startup/visible lifecycle checks pass; sustained CPU acceptance remains open.
