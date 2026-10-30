@@ -42,4 +42,18 @@ TLS fixture startup initially waited for synthetic key generation; its readiness
 
 The normal Google Play APK hash matches its pre-test baseline; versionCode 57 and installer `com.android.vending` are unchanged. Only the four task-installed test packages are removed, and only the five task-owned adb reverse mappings are removed (none remain). Both disposable local fixtures are stopped. The TLS `/stop` request returns an empty response as the process shuts down; endpoint/listener follow-up confirms it is gone. Screen timeout remains 60000 ms and secure lock timeout remains unset, matching baseline. No emulator or normal-app data is cleared. APK preservation does not establish a before/after hash comparison of the normal app's private data.
 
-**Disposition:** not full Android release acceptance. The reproduced shared keyboard-test failure blocks PR #425 readiness; animation budget #414 and unexercised live/provider, hardware, and extended lifecycle coverage remain open. No store submission, tag, merge, or release is performed.
+**Disposition:** not full Android release acceptance. The initial shared keyboard-test failure is resolved by the follow-up below; animation budget #414 and unexercised live/provider, hardware, and extended lifecycle coverage remain open. No store submission, tag, merge, or release is performed.
+
+
+## Dialog keyboard regression follow-up
+
+PR #425 commit `a9690d7dc4a18a971f756924539c83cc861bc3db` corrects the test setup and adds the dialog cases to the explicit standard Android CI class list. Tests execute against the earlier combined candidate plus that two-file change (local combined commit `d7e54e84a`). No product source changes in this follow-up.
+
+Compose's synthetic key injection bypasses Android's native transition from touch to keyboard input. Button focusability follows that mode, so the original Tab assertion was exercising keyboard navigation while the host remained in touch mode. Explicitly requesting `InputMode.Keyboard` through the shared input-mode contract makes the same focus/activation assertions pass; there is no forced button focus or weakened expectation. The test additionally verifies forward Tab and Shift+Tab before Enter and retains immediate Escape and disabled-dismissal coverage.
+
+- Physical Pixel 10a/API 37: isolated final dialog run **2 passes**; selected standard non-animation rendered suite plus dialog cases **35 passes**, zero failures/skips. The animation probe is not repeated for this test-only correction; its earlier measurements and limits above remain applicable.
+- macOS/JVM: dialog (2), owned-window activation/focus (1), and popup surface (7): **10 passes**, zero failures/errors/skips.
+- `verifyCoreFirstArchitecture` and `:core:ui:assembleDebugAndroidTest` with `-Pnaviamp.animationProbe=true` pass after the runner class-list update. The final source diff changes only the shared rendered test and `core/ui/build.gradle.kts`.
+- The task-installed `app.naviamp.ui.test` package is removed. The only Naviamp package remaining is the normal Play Store installation; its profile is not cleared or reconfigured. No new reverse mapping or fixture is used for this follow-up.
+
+PR #425 is ready for review again. Its full hosted matrix is running for the new revision; the preceding hosted revision had a separate iOS native mutual-TLS playback failure. Local dialog results do not waive the hosted gate or establish complete release acceptance. This follow-up does not rerun the ordinary native Mac app because its production source and binaries are unchanged; the new keyboard assertions do run on the macOS/JVM renderer.
