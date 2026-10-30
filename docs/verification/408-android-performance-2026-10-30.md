@@ -127,3 +127,11 @@ reproduction also passes (one test, no skips): paused main position 2.49s stays 
 preview completion, then resumes to 3.458s. This headless native test does not require an
 undisturbed visible Mac window and is not an animation performance result. Original hosted
 failure logs/reports are retained; no timeout or assertion is weakened.
+
+The one hosted retry subsequently fails the sampled-position assertion (`0.991875 -> 2.2`).
+[The #412/#413 native-test correction](412-native-preview-clock.md) replaces a fixed-sleep
+assumption with agreement between the paused sample and actual native position, and adds direct
+native before/after assertions. Its finalized local native suite passes 65 cases with no failures
+and two Linux-only skips. The two earlier handle-recording adapter iterations are retained in
+that report. Final protected hosted verification remains required; no further unchanged-source
+retry or branch-protection bypass is used to declare success.
