@@ -18,6 +18,9 @@
 #include <algorithm>
 #include <atomic>
 #include <limits>
+#include <memory>
+#include <mutex>
+#include <cstdint>
 #include <cmath>
 #include <cstdlib>
 #include <string>
@@ -243,12 +246,6 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #endif
 
 std::unordered_map<DWORD, std::vector<HFX>> equalizerFxByChannel;
-
-struct DesktopEndSyncRegistration {
-    JavaVM* javaVm;
-    jobject binding;
-    jmethodID callbackMethod;
-};
 
 bool configure_playback_buffers(DWORD playbackBufferMillis, DWORD updatePeriodMillis, DWORD deviceBufferMillis) {
     bool configured = true;
@@ -726,33 +723,77 @@ HSTREAM create_random_access_stream(JNIEnv* env, jobject callbacks, jboolean dec
     return stream;
 }
 
-void CALLBACK desktop_end_sync_proc(HSYNC handle, DWORD channel, DWORD data, void* user) {
-    (void)handle;
-    (void)data;
-    auto* registration = static_cast<DesktopEndSyncRegistration*>(user);
-    if (registration == nullptr || registration->javaVm == nullptr) return;
-
-    JNIEnv* env = nullptr;
-    bool didAttach = false;
-    jint envResult = registration->javaVm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
-    if (envResult == JNI_EDETACHED) {
-#if defined(__ANDROID__)
-        if (registration->javaVm->AttachCurrentThread(&env, nullptr) != JNI_OK) return;
-#else
-        if (registration->javaVm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != JNI_OK) return;
-#endif
-        didAttach = true;
-    } else if (envResult != JNI_OK) {
-        return;
+struct EndSyncRegistration {
+    JavaVM* vm = nullptr;
+    jobject callback = nullptr;
+    jmethodID method = nullptr;
+    ~EndSyncRegistration() {
+        CallbackEnv context(vm);
+        if (context.env && callback) context.env->DeleteGlobalRef(callback);
     }
+};
 
-    env->CallVoidMethod(registration->binding, registration->callbackMethod, static_cast<jint>(channel));
-    env->DeleteGlobalRef(registration->binding);
-    if (didAttach) {
-        registration->javaVm->DetachCurrentThread();
-    }
-    delete registration;
+std::mutex endSyncMutex;
+std::uintptr_t nextEndSyncToken = 0;
+std::unordered_map<std::uintptr_t, std::shared_ptr<EndSyncRegistration>> endSyncRegistrations;
+
+std::shared_ptr<EndSyncRegistration> end_sync_registration(void* user, bool remove) {
+    std::lock_guard<std::mutex> lock(endSyncMutex);
+    auto found = endSyncRegistrations.find(reinterpret_cast<std::uintptr_t>(user));
+    if (found == endSyncRegistrations.end()) return {};
+    auto registration = found->second;
+    if (remove) endSyncRegistrations.erase(found);
+    return registration;
 }
+
+void CALLBACK end_sync_proc(HSYNC, DWORD channel, DWORD, void* user) {
+    auto registration = end_sync_registration(user, false);
+    if (!registration) return;
+    CallbackEnv context(registration->vm);
+    if (!context.env) return;
+    context.env->CallVoidMethod(registration->callback, registration->method, static_cast<jint>(channel));
+    context.failed();
+}
+
+void CALLBACK end_sync_free_proc(HSYNC, DWORD, DWORD, void* user) {
+    // The callback can overlap/reenter channel free. A held shared_ptr retains its exact JNI
+    // object until both callbacks return; tokens cannot address a newer reused stream handle.
+    auto registration = end_sync_registration(user, true);
+}
+
+jint set_end_sync(JNIEnv* env, jobject callback, jint stream) {
+    JavaVM* vm = nullptr;
+    if (env->GetJavaVM(&vm) != JNI_OK || !vm || !callback) return 0;
+    jclass type = env->GetObjectClass(callback);
+    if (!type) return 0;
+    jmethodID method = env->GetMethodID(type, "onEndSync", "(I)V");
+    env->DeleteLocalRef(type);
+    if (!method) return 0;
+    auto registration = std::make_shared<EndSyncRegistration>();
+    registration->vm = vm;
+    registration->callback = env->NewGlobalRef(callback);
+    registration->method = method;
+    if (!registration->callback) return 0;
+    std::uintptr_t token;
+    {
+        std::lock_guard<std::mutex> lock(endSyncMutex);
+        do { token = ++nextEndSyncToken; } while (!token || endSyncRegistrations.count(token));
+        endSyncRegistrations.emplace(token, registration);
+    }
+    void* user = reinterpret_cast<void*>(token);
+    const HSYNC freeSync = BASS_ChannelSetSync(static_cast<DWORD>(stream), BASS_SYNC_FREE | BASS_SYNC_ONETIME,
+        0, end_sync_free_proc, user);
+    const HSYNC sync = freeSync ? BASS_ChannelSetSync(static_cast<DWORD>(stream), BASS_SYNC_END | BASS_SYNC_ONETIME,
+        0, end_sync_proc, user) : 0;
+    if (!sync) end_sync_registration(user, true);
+    return static_cast<jint>(sync);
+}
+
+jint end_sync_registration_count() {
+    std::lock_guard<std::mutex> lock(endSyncMutex);
+    return static_cast<jint>(endSyncRegistrations.size());
+}
+
 }
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
@@ -1389,32 +1430,23 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeRemoveMixerCh
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetEndSync(JNIEnv* env, jobject thiz, jint stream) {
-    JavaVM* javaVm = nullptr;
-    if (env->GetJavaVM(&javaVm) != JNI_OK || javaVm == nullptr) return 0;
-    jclass bindingClass = env->GetObjectClass(thiz);
-    if (bindingClass == nullptr) return 0;
-    jmethodID callbackMethod = env->GetMethodID(bindingClass, "onEndSync", "(I)V");
-    env->DeleteLocalRef(bindingClass);
-    if (callbackMethod == nullptr) return 0;
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetEndSync(JNIEnv* env, jobject, jint stream, jobject callback) {
+    return set_end_sync(env, callback, stream);
+}
 
-    auto* registration = new DesktopEndSyncRegistration{
-        javaVm,
-        env->NewGlobalRef(thiz),
-        callbackMethod,
-    };
-    HSYNC sync = BASS_ChannelSetSync(
-        static_cast<DWORD>(stream),
-        BASS_SYNC_END | BASS_SYNC_ONETIME,
-        0,
-        desktop_end_sync_proc,
-        registration
-    );
-    if (sync == 0) {
-        env->DeleteGlobalRef(registration->binding);
-        delete registration;
-    }
-    return static_cast<jint>(sync);
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSetEndSync(JNIEnv* env, jobject, jint stream, jobject callback) {
+    return set_end_sync(env, callback, stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeEndSyncRegistrationCount(JNIEnv*, jobject) {
+    return end_sync_registration_count();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeEndSyncRegistrationCount(JNIEnv*, jobject) {
+    return end_sync_registration_count();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

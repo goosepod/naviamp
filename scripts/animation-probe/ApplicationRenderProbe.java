@@ -81,6 +81,7 @@ public final class ApplicationRenderProbe {
                     Window window = javax.swing.SwingUtilities.getWindowAncestor(component);
                     result.append(" surface=").append(window instanceof Frame ? "parent" : "owned")
                         .append(':').append(component.getWidth()).append('x').append(component.getHeight())
+                        .append(" scale=").append(scale(component))
                         .append(" visible=").append(component.isShowing())
                         .append(" iconified=").append(window instanceof Frame && (((Frame) window).getExtendedState() & Frame.ICONIFIED) != 0)
                         .append(" frames=").append(counter.get())
@@ -101,6 +102,13 @@ public final class ApplicationRenderProbe {
     private static long cpuNanos() {
         return ProcessHandle.current().info().totalCpuDuration()
             .orElseThrow(() -> new IllegalStateException("Process CPU duration unavailable")).toNanos();
+    }
+
+    private static String scale(Component component) {
+        var configuration = component.getGraphicsConfiguration();
+        if (configuration == null) return "unavailable";
+        var transform = configuration.getDefaultTransform();
+        return transform.getScaleX() + "x" + transform.getScaleY();
     }
 
     private static Object renderer(Component component) {

@@ -14,6 +14,7 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.provider.*
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
@@ -31,12 +32,261 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.ui.SharedHomeCollectionSectionIds
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun feedbackPreservesSamplesThatFinishWhileFeedbackIsPending() = runTest {
+        val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
+        val samples = kotlinx.coroutines.CompletableDeferred<ProviderDiscoverySamples>()
+        val feedback = kotlinx.coroutines.CompletableDeferred<ProviderDiscoveryFeedbackResult>()
+        val native = object : ProviderDiscovery {
+            override suspend fun load() = ProviderDiscoveryFeed(trending = listOf(artist))
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist) = ProviderDiscoveryArtistResult(
+                ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(artist, feedbackAvailable = true))
+            override suspend fun samples(artist: ProviderDiscoveryArtist) = samples.await()
+            override suspend fun toggleFeedback(artist: ProviderDiscoveryArtist, action: ProviderDiscoveryFeedbackAction) = feedback.await()
+        }
+        val provider = HomeTestProvider(discovery = native)
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val select = NaviampCoreCommand.Home.SelectDiscoveryArtist("artist")
+        controller.dispatch(select)
+        val selectionJob = launch { controller.execute(select) }
+        runCurrent()
+        val action = NaviampCoreCommand.Home.DiscoveryFeedback("artist", ProviderDiscoveryFeedbackAction.MoreLikeThis)
+        controller.dispatch(action)
+        val feedbackJob = launch { controller.execute(action) }
+        runCurrent()
+        samples.complete(ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready, listOf(ProviderDiscoverySample("42", "Sample"))))
+        selectionJob.join()
+        assertEquals(listOf("42"), store.state.value.shell.home.providerDiscovery!!.artistDetail!!.samples.map { it.id })
+        feedback.complete(ProviderDiscoveryFeedbackResult(ProviderDiscoveryStatus.Ready, setOf(ProviderDiscoveryFeedbackAction.MoreLikeThis)))
+        feedbackJob.join()
+        val detail = store.state.value.shell.home.providerDiscovery!!.artistDetail!!
+        assertEquals(listOf("42"), detail.samples.map { it.id }, "Feedback must not overwrite newly loaded samples")
+        assertFalse(detail.samplesLoading)
+    }
+
+    @Test fun samplesLoadAutomaticallyAndLateResultsCannotReplaceAnotherArtist() = runTest {
+        val first = ProviderDiscoveryArtist("first", "First", detailsAvailable = true)
+        val second = ProviderDiscoveryArtist("second", "Second", detailsAvailable = true)
+        val waiting = kotlinx.coroutines.CompletableDeferred<ProviderDiscoverySamples>()
+        val calls = mutableListOf<String>()
+        val native = object : ProviderDiscovery {
+            override suspend fun load() = ProviderDiscoveryFeed(trending = listOf(first, second))
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist) = ProviderDiscoveryArtistResult(
+                ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(artist))
+            override suspend fun samples(artist: ProviderDiscoveryArtist): ProviderDiscoverySamples {
+                calls += artist.id
+                return if (artist.id == "first") waiting.await() else ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready,
+                    listOf(ProviderDiscoverySample("2", "Second sample")))
+            }
+        }
+        val provider = HomeTestProvider(discovery = native)
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val old = NaviampCoreCommand.Home.SelectDiscoveryArtist("first")
+        controller.dispatch(old)
+        val job = launch { controller.execute(old) }
+        runCurrent()
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.samplesLoading)
+        assertFalse(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.loading)
+        val current = NaviampCoreCommand.Home.SelectDiscoveryArtist("second")
+        controller.dispatch(current); controller.execute(current)
+        waiting.complete(ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready, listOf(ProviderDiscoverySample("1", "Old sample"))))
+        job.join()
+        val detail = store.state.value.shell.home.providerDiscovery!!.artistDetail!!
+        assertEquals("second", detail.artist.id)
+        assertEquals(listOf("2"), detail.samples.map { it.id })
+        assertFalse(detail.samplesLoading)
+        assertEquals(listOf("first", "second"), calls)
+    }
+
+    @Test fun nativeRequestsRejectDuplicatesAndStaleCommandsAndSamplesUseTheSharedPlaybackCallback() = runTest {
+        val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
+        var requests = 0
+        val pending = kotlinx.coroutines.CompletableDeferred<ProviderDiscoveryOperation>()
+        val discovery = object : ProviderDiscovery {
+            override suspend fun load() = ProviderDiscoveryFeed(trending = listOf(artist))
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist) = ProviderDiscoveryArtistResult(
+                ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(artist,
+                    releases = listOf(ProviderDiscoveryRelease("release", "Album")), canRequestAlbums = true, canRequestTracks = true))
+            override suspend fun samples(artist: ProviderDiscoveryArtist) = ProviderDiscoverySamples(ProviderDiscoveryStatus.Ready,
+                listOf(ProviderDiscoverySample("42", "Sample")))
+            override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation {
+                requests++; return pending.await()
+            }
+        }
+        val provider = HomeTestProvider(discovery = discovery)
+        val store = NaviampCoreStateStore()
+        var played: Track? = null
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) }, playDiscoverySample = { played = it })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val select = NaviampCoreCommand.Home.SelectDiscoveryArtist("artist")
+        controller.dispatch(select); controller.execute(select)
+        suspend fun act(action: ProviderDiscoveryAction) {
+            val command = NaviampCoreCommand.Home.DiscoveryAction("artist", action)
+            controller.dispatch(command); controller.execute(command)
+        }
+        assertEquals(listOf("42"), store.state.value.shell.home.providerDiscovery!!.artistDetail!!.samples.map { it.id })
+        act(ProviderDiscoveryAction.PlaySample("42"))
+        assertEquals("discovery-preview:42", played?.id?.value)
+        val request = NaviampCoreCommand.Home.DiscoveryAction("artist", ProviderDiscoveryAction.RequestAlbum("release"))
+        controller.dispatch(request)
+        val running = launch { controller.execute(request) }
+        runCurrent()
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.actionBusy)
+        assertTrue(controller.dispatch(request) is NaviampCoreImmediateCommandResult.Handled)
+        played = null
+        act(ProviderDiscoveryAction.PlaySample("42"))
+        assertEquals("discovery-preview:42", played?.id?.value)
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.artistDetail!!.actionBusy)
+        controller.dispatch(NaviampCoreCommand.Home.DismissDiscoveryArtist)
+        pending.complete(ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued))
+        running.join()
+        assertEquals(1, requests)
+        assertEquals(null, store.state.value.shell.home.providerDiscovery?.artistDetail)
+        controller.dispatch(select); controller.execute(select)
+        controller.dispatch(request)
+        controller.resetForSourceChange()
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        controller.dispatch(select); controller.execute(select)
+        controller.execute(request)
+        assertEquals(1, requests)
+    }
+
+    @Test fun discoveryDetailsAndFeedbackStayScopedToTheSelectedArtistAndAccount() = runTest {
+        val artist = app.naviamp.domain.provider.ProviderDiscoveryArtist("mbid", "Discovery", detailsAvailable = true)
+        val waiting = kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.provider.ProviderDiscoveryArtistResult>()
+        var blocked = false
+        var waitForDetails = true
+        var slowFeed: kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.provider.ProviderDiscoveryFeed>? = null
+        val discovery = object : app.naviamp.domain.provider.ProviderDiscovery {
+            override suspend fun load(): app.naviamp.domain.provider.ProviderDiscoveryFeed {
+                slowFeed?.let { pending -> slowFeed = null; return pending.await() }
+                return app.naviamp.domain.provider.ProviderDiscoveryFeed(trending = if (blocked) emptyList() else listOf(artist))
+            }
+            override suspend fun artistDetails(artist: app.naviamp.domain.provider.ProviderDiscoveryArtist) =
+                if (waitForDetails) waiting.await() else app.naviamp.domain.provider.ProviderDiscoveryArtistResult(
+                    app.naviamp.domain.provider.ProviderDiscoveryStatus.Ready,
+                    app.naviamp.domain.provider.ProviderDiscoveryArtistDetails(artist,
+                        libraryArtist = Artist(ArtistId("subsonic-library-id"), "Owned"), feedbackAvailable = true))
+            override suspend fun toggleFeedback(artist: app.naviamp.domain.provider.ProviderDiscoveryArtist,
+                action: app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction): app.naviamp.domain.provider.ProviderDiscoveryFeedbackResult {
+                blocked = !blocked
+                return app.naviamp.domain.provider.ProviderDiscoveryFeedbackResult(app.naviamp.domain.provider.ProviderDiscoveryStatus.Ready,
+                    if (blocked) setOf(action) else emptySet())
+            }
+        }
+        val provider = HomeTestProvider(discovery = discovery)
+        val store = NaviampCoreStateStore()
+        val opened = mutableListOf<String>()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator { error("unused") }),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) }, openLibraryArtist = { opened += it.id.value })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val queued = NaviampCoreCommand.Home.SelectDiscoveryArtist("mbid")
+        controller.dispatch(queued)
+        controller.dispatch(NaviampCoreCommand.Home.DismissDiscoveryArtist)
+        controller.execute(queued)
+        assertEquals(null, store.state.value.shell.home.providerDiscovery?.artistDetail)
+
+        val selecting = NaviampCoreCommand.Home.SelectDiscoveryArtist("mbid")
+        controller.dispatch(selecting)
+        val loading = backgroundScope.launch { controller.execute(selecting) }
+        runCurrent()
+        controller.dispatch(NaviampCoreCommand.Home.DismissDiscoveryArtist)
+        waiting.complete(app.naviamp.domain.provider.ProviderDiscoveryArtistResult(app.naviamp.domain.provider.ProviderDiscoveryStatus.Ready))
+        loading.join()
+        assertEquals(null, store.state.value.shell.home.providerDiscovery?.artistDetail)
+        waitForDetails = false
+        val current = NaviampCoreCommand.Home.SelectDiscoveryArtist("mbid")
+        controller.dispatch(current); controller.execute(current)
+        controller.execute(NaviampCoreCommand.Home.OpenDiscoveryLibraryArtist("mbid"))
+        assertEquals(listOf("subsonic-library-id"), opened)
+        val pendingFeed = kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.provider.ProviderDiscoveryFeed>()
+        slowFeed = pendingFeed
+        val olderRefresh = backgroundScope.launch { controller.execute(NaviampCoreCommand.Home.Refresh) }
+        runCurrent()
+        val action = NaviampCoreCommand.Home.DiscoveryFeedback("mbid", app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction.BlockArtist)
+        controller.dispatch(action); controller.execute(action)
+        pendingFeed.complete(app.naviamp.domain.provider.ProviderDiscoveryFeed(trending = listOf(artist)))
+        olderRefresh.join()
+        val state = store.state.value.shell.home.providerDiscovery!!
+        assertTrue(state.feed.trending.isEmpty())
+        assertEquals(setOf(app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction.BlockArtist), state.artistDetail?.details?.feedback)
+        assertFalse(state.artistDetail!!.savingFeedback)
+        // A queued old-account mutation must never run against a newly opened account/detail.
+        controller.dispatch(action)
+        controller.resetForSourceChange()
+        blocked = false
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        val newSelection = NaviampCoreCommand.Home.SelectDiscoveryArtist("mbid")
+        controller.dispatch(newSelection); controller.execute(newSelection)
+        val newAction = NaviampCoreCommand.Home.DiscoveryFeedback("mbid", app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction.BlockArtist)
+        controller.dispatch(newAction)
+        controller.execute(action)
+        assertFalse(blocked)
+        controller.execute(newAction)
+        assertTrue(blocked)
+    }
+
+    @Test fun aurralDiscoveryFailureDoesNotHideHomeAndSourceChangesRejectStaleResults() = runTest {
+        val waiting = kotlinx.coroutines.CompletableDeferred<app.naviamp.domain.provider.ProviderDiscoveryFeed>()
+        var active: MediaProvider = HomeTestProvider(discovery = app.naviamp.domain.provider.ProviderDiscovery { waiting.await() })
+        val store = NaviampCoreStateStore()
+        val opened = mutableListOf<String>()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { active },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator { error("unused") }),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) }, externalUri = NaviampCoreExternalUriPort { opened += it })
+        val refresh = backgroundScope.launch { controller.execute(NaviampCoreCommand.Home.Refresh) }
+        runCurrent()
+        assertTrue(store.state.value.shell.home.content.collectionSections.isNotEmpty())
+        assertTrue(store.state.value.shell.home.providerDiscovery!!.loading)
+        active = HomeTestProvider()
+        controller.resetForSourceChange()
+        waiting.complete(app.naviamp.domain.provider.ProviderDiscoveryFeed(trending = listOf(
+            app.naviamp.domain.provider.ProviderDiscoveryArtist("discovery-id", "External", externalUrl = "https://music.test/artist/id"))))
+        refresh.join()
+        assertEquals(null, store.state.value.shell.home.providerDiscovery)
+        controller.dispatch(NaviampCoreCommand.Home.OpenDiscoveryArtist("discovery-id"))
+        assertTrue(opened.isEmpty())
+
+        active = HomeTestProvider(discovery = app.naviamp.domain.provider.ProviderDiscovery { error("offline") })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        assertEquals(app.naviamp.domain.provider.ProviderDiscoveryStatus.Unavailable,
+            store.state.value.shell.home.providerDiscovery?.feed?.status)
+        assertTrue(store.state.value.shell.home.content.collectionSections.isNotEmpty())
+    }
+
+    @Test fun discoveryOpensOnlyTheCurrentFeedsExternalIdentityWithoutLibraryNavigation() = runTest {
+        val feed = app.naviamp.domain.provider.ProviderDiscoveryFeed(trending = listOf(
+            app.naviamp.domain.provider.ProviderDiscoveryArtist("mbid", "External", externalUrl = "https://music.test/artist/mbid")))
+        val provider = HomeTestProvider(discovery = app.naviamp.domain.provider.ProviderDiscovery { feed })
+        val store = NaviampCoreStateStore()
+        val opened = mutableListOf<String>()
+        val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+            NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator { error("unused") }),
+            NaviampCoreHomeDateSource { HomeDate(2026, 100) }, externalUri = NaviampCoreExternalUriPort { opened += it })
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        controller.dispatch(NaviampCoreCommand.Home.OpenDiscoveryArtist("unknown"))
+        controller.dispatch(NaviampCoreCommand.Home.OpenDiscoveryArtist("mbid"))
+        assertEquals(listOf("https://music.test/artist/mbid"), opened)
+        assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
+    }
     @Test
     fun collectionPageNavigationAndLayoutAreOwnedByCore() = runTest {
         val store = NaviampCoreStateStore()
@@ -244,6 +494,7 @@ class NaviampCoreHomeControllerTest {
 
 private class HomeTestProvider(
     supportsSonicSimilarity: Boolean = false,
+    override val discovery: app.naviamp.domain.provider.ProviderDiscovery? = null,
 ) : MediaProvider {
     override val id = ProviderId("home")
     override val displayName = "Home"

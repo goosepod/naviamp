@@ -22,11 +22,14 @@ import app.naviamp.domain.smartplaylist.editingResult
 import app.naviamp.domain.media.ArtistDiscography
 
 interface MediaProvider {
+    val discovery: ProviderDiscovery? get() = null
     val id: ProviderId
     val displayName: String
     val capabilities: ProviderCapabilities
     /** Native URL consumers cannot reproduce this connection's TLS identity/trust or headers. */
     val requiresAuthenticatedPlaybackTransport: Boolean get() = false
+    /** Implements streamTrackBytes for ordinary playback, independently of TLS/header requirements. */
+    val supportsPlaybackByteTransport: Boolean get() = false
     val cacheNamespace: String
         get() = id.value
     val selectedMusicFolderIds: List<String>
@@ -35,6 +38,7 @@ interface MediaProvider {
 
     suspend fun validateConnection(): ConnectionValidation
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
+    suspend fun libraries(): List<MediaLibrary> = emptyList()
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
     /** Complete paged album membership for downloads; null when the source cannot guarantee it. */
@@ -108,6 +112,8 @@ interface MediaProvider {
             request.toMediaPage(emptyList())
         }
     suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
+    /** Creator ownership, distinct from shared edit/manage permission; null when not knowable. */
+    suspend fun playlistOwnedByCurrentUser(playlist: Playlist): Boolean? = null
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
     suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         throw UnsupportedOperationException("Playlist creation is not supported by $displayName.")

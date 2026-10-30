@@ -83,6 +83,11 @@ object AndroidBassJni {
 
     fun removeMixerChannel(stream: Int): Boolean = nativeRemoveMixerChannel(stream)
 
+    fun setEndSync(stream: Int, callback: (Int) -> Unit): Int =
+        nativeSetEndSync(stream, app.naviamp.domain.playback.BassEndSyncCallback(callback))
+
+    val endSyncRegistrationCount: Int get() = nativeEndSyncRegistrationCount()
+
     fun play(stream: Int): Boolean = nativePlay(stream)
 
     fun pause(stream: Int): Boolean = nativePause(stream)
@@ -147,6 +152,8 @@ object AndroidBassJni {
         }
     }
 
+    private external fun nativeSetEndSync(stream: Int, callback: app.naviamp.domain.playback.BassEndSyncCallback): Int
+    private external fun nativeEndSyncRegistrationCount(): Int
     private external fun nativeBassVersion(): Int
     private external fun nativeMixerVersion(): Int
     private external fun nativeLastErrorCode(): Int

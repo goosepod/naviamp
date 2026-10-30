@@ -52,6 +52,14 @@ val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
 }
 val desktopReleaseArtifactsDir = layout.buildDirectory.dir("release-artifacts")
 val desktopDevelopmentDataProfileJvmOption = "-Dnaviamp.developmentDataProfile=true"
+val macSigningIdentity = providers.gradleProperty("naviamp.macos.signingIdentity")
+    .map(String::trim).orElse("-")
+val macLocalNetworkPackagingInputs = files(
+    rootProject.file("scripts/configure-macos-local-network.py"),
+    rootProject.file("core/domain/src/commonMain/kotlin/app/naviamp/domain/connect/NaviampConnectProtocol.kt"),
+    rootProject.file("core/app/src/commonMain/kotlin/app/naviamp/app/NaviampCastDiscoveryController.kt"),
+    rootProject.fileTree("core/ui/src/commonMain/composeResources") { include("values*/strings.xml") },
+)
 // Per-user packages use a distinct upgrade family so Windows never tries to remove a legacy
 // machine-wide installation (and request elevation) while installing the current-user package.
 val windowsInstallerUpgradeUuid = "75051da2-0b4b-4f67-81d9-56d2e36a6437"
@@ -247,6 +255,8 @@ tasks.matching {
         configureDesktopDataProfile(appDirectory, releaseArtifact)
         sealMacAppBundle(appDirectory)
     }
+    inputs.files(macLocalNetworkPackagingInputs)
+    inputs.property("naviampMacSigningIdentity", macSigningIdentity)
 }
 
 fun Zip.packageDesktopApp(
@@ -387,6 +397,7 @@ tasks.register("verifyDesktopDistributable") {
             check(visualizer.canExecute()) {
                 "Desktop package Metal visualizer library is not executable: ${visualizer.absolutePath}"
             }
+            configureMacLocalNetworkPrivacy(appDirectory, checkOnly = true)
             sealMacAppBundle(appDirectory)
             verifyMacAppBundleSeal(appDirectory)
         }
@@ -628,7 +639,21 @@ fun patchMacAppBundleVersion(appDirectory: File) {
             .replacePlistStringValue("CFBundleShortVersionString", naviampNativePackageVersion)
             .replacePlistStringValue("CFBundleVersion", naviampVersionCode.toString()),
     )
+    configureMacLocalNetworkPrivacy(appDirectory)
+    configureMacLocalNetworkPrivacy(appDirectory, checkOnly = true)
     refreshMacAppBundleModificationTime(appDirectory)
+}
+
+fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = false) {
+    if (!desktopNativePlatform.get().startsWith("macos-")) return
+    project.exec {
+        commandLine(buildList {
+            add("python3")
+            add(rootProject.file("scripts/configure-macos-local-network.py").absolutePath)
+            addAll(listOf("--repo", rootProject.projectDir.absolutePath, "--app", appDirectory.absolutePath))
+            if (checkOnly) add("--check")
+        })
+    }.assertNormalExitValue()
 }
 
 fun sealMacAppBundle(appDirectory: File) {
@@ -639,7 +664,7 @@ fun sealMacAppBundle(appDirectory: File) {
             "/usr/bin/codesign",
             "--force",
             "--sign",
-            "-",
+            macSigningIdentity.get().also { check(it.isNotEmpty()) { "macOS signing identity cannot be empty." } },
             "--options",
             "runtime",
             "--entitlements",

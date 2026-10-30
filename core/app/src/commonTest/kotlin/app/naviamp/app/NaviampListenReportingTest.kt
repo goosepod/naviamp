@@ -7,6 +7,21 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
 class NaviampListenReportingTest {
+    @Test fun discoveryPreviewsNeverBecomeLibraryPresenceOrListens() = runTest {
+        val provider = Provider(timeline = true)
+        val preview = track.copy(id = TrackId("discovery-preview:42"))
+        val reporting = NaviampListenReporting()
+        reporting.observe(provider, preview, PlaybackState.Playing, PlaybackProgress(0.0, 30.0), 0)
+        reporting.observe(provider, preview, PlaybackState.Finished, PlaybackProgress(30.0, 30.0), 30_000)
+        assertTrue(provider.events.isEmpty())
+        assertTrue(provider.listens.isEmpty())
+        assertTrue(provider.timelineAttempts.isEmpty())
+        val presence = NaviampPlaybackReportingController()
+        assertNull(presence.nowPlayingReport(NaviampNowPlayingReportRequest(preview.id, false, true)))
+        assertNull(presence.stateReport(NaviampPlaybackStateReportRequest(1, preview.id, false, true,
+            PlaybackState.Playing, PlaybackProgress(10.0, 30.0), 10_000)))
+    }
+
     @Test fun interruptionTimeDoesNotQualifyAndReconnectRetriesOnlyOneListen() = runTest {
         val provider = Provider().apply { offline = true }
         val reporting = NaviampListenReporting()

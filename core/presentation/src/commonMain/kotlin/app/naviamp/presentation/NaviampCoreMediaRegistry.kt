@@ -69,6 +69,10 @@ class NaviampCoreMediaRegistry {
         albumDetails = details
     }
 
+    fun updateArtistPopularTracks(tracks: List<Track>) {
+        artistPopularTracks = tracks
+    }
+
     fun updateArtist(
         details: ArtistDetails?,
         popularTracks: List<Track> = emptyList(),

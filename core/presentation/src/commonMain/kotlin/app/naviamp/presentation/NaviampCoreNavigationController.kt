@@ -85,6 +85,7 @@ class NaviampCoreNavigationController(
     }
 
     fun openPlaylistDetail() {
+        navigation.recordPlaylistDetailOpened()
         navigation.navigate(NaviampRoute.PlaylistDetail)
         publishDetailRoute()
     }
@@ -126,7 +127,8 @@ class NaviampCoreNavigationController(
                 artistDetail = NaviampArtistDetailScreenUi(),
                 playlistDetail = NaviampPlaylistDetailScreenUi(),
                 home = if (route == NaviampRoute.Home) {
-                    shell.home.copy(collectionPage = null)
+                    shell.home.copy(collectionPage = null,
+                        providerDiscovery = shell.home.providerDiscovery?.copy(artistDetail = null))
                 } else {
                     shell.home
                 },
@@ -176,17 +178,27 @@ class NaviampCoreNavigationController(
     }
 
     private fun closePlaylist() {
-        val destination = if (stateStore.state.value.shell.home.collectionPage != null) {
+        val fallback = if (stateStore.state.value.shell.home.collectionPage != null) {
             NaviampRoute.Home
         } else {
             NaviampRoute.Playlists
         }
-        navigation.navigate(destination)
+        val result = navigation.closePlaylistDetail(fallback)
         stateStore.updateShell { shell ->
-            shell.copy(
-                shellChrome = shell.shellChrome.copy(selectedRoute = destination.toSharedRoute()),
-                playlistDetail = NaviampPlaylistDetailScreenUi(),
-            )
+            shell.copy(playlistDetail = NaviampPlaylistDetailScreenUi())
+        }
+        when (result) {
+            is NaviampDetailBackCommand.OpenArtist -> {
+                // Mark this as a continuation before loading, preserving the artist's origin/stack.
+                navigation.navigate(NaviampRoute.ArtistDetail)
+                artistNavigator.openArtist(result.artist)
+            }
+            is NaviampDetailBackCommand.Navigate -> {
+                navigation.navigate(result.route)
+                stateStore.updateShell { shell -> shell.copy(
+                    shellChrome = shell.shellChrome.copy(selectedRoute = result.route.toSharedRoute()),
+                ) }
+            }
         }
     }
 

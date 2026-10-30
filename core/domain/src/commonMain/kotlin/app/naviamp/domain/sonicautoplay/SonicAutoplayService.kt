@@ -1,5 +1,7 @@
 package app.naviamp.domain.sonicautoplay
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
@@ -45,8 +47,8 @@ class SonicAutoplayService(
 }
 
 fun PlaybackQueue.sonicAutoplaySeeds(limit: Int = DefaultSonicAutoplaySeedCount): List<Track> {
-    val current = current ?: return emptyList()
-    return (listOf(current) + backTo())
+    val current = current?.takeUnless { it.id.isDiscoveryPreview() } ?: return emptyList()
+    return (listOf(current) + backTo()).filterNot { it.id.isDiscoveryPreview() }
         .distinctBy { track -> track.id }
         .take(limit.coerceAtLeast(1))
 }

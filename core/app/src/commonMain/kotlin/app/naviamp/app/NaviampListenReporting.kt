@@ -1,5 +1,7 @@
 package app.naviamp.app
 
+import app.naviamp.domain.provider.isDiscoveryPreview
+
 import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackProgress
@@ -27,6 +29,7 @@ class NaviampListenReporting {
         now: Long,
         presenceState: PlaybackReportState? = state.toPlaybackReportState(),
     ) {
+        if (track.id.isDiscoveryPreview()) { session?.let { close(it) }; session = null; return }
         if (!provider.capabilities.supportsPlayReporting || track.isInternetRadioTrack()) return
         val prior = session
         val newSession = prior == null || prior.track.id != track.id || prior.provider.cacheNamespace != provider.cacheNamespace ||

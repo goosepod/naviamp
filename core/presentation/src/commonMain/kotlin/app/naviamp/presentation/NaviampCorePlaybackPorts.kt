@@ -42,6 +42,9 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     /** Enables expensive native FFT sampling only while shared UI has a visualizer consumer. */
     fun setVisualizerFramesEnabled(enabled: Boolean) = Unit
 
+    /** Quiesce pending main loads before a separate preview can take audio output. */
+    fun prepareForPreview() = Unit
+
     fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean)
     fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
         applyQueue(queue, clearPreparedNext = true)

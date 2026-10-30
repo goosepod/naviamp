@@ -180,6 +180,9 @@ class OpenSubsonicAuditTest {
         assertTrue(playlists[0].canEdit)
         assertFalse(playlists[1].canEdit)
         assertFalse(playlists[1].canManage)
+        assertEquals(false, p.playlistOwnedByCurrentUser(playlists[0]))
+        assertEquals(true, p.playlistOwnedByCurrentUser(playlists[1]))
+        assertNull(p.playlistOwnedByCurrentUser(Playlist("unknown", "Unknown owner", 0)))
     }
 
     @Test fun ownershipFallbackUsesServerAuthenticatedUsername() = runTest {
@@ -190,6 +193,7 @@ class OpenSubsonicAuditTest {
         val p = provider(http)
         p.validateConnection()
         assertTrue(p.playlists(20).single().canEdit)
+        assertEquals(true, p.playlistOwnedByCurrentUser(p.playlists(20).single()))
     }
 
     @Test fun errorDocumentsCannotBecomeAudio() {

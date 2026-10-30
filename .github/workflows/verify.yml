@@ -39,18 +39,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          run_full=true
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            run_full=false
-            while IFS= read -r path; do
-              case "$path" in
-                *.md|docs/*|readme-assets/*) ;;
-                *) run_full=true; break ;;
-              esac
-            done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-          fi
-          echo "run_full=$run_full" >> "$GITHUB_OUTPUT"
+        run: scripts/classify-verification-scope.sh >> "$GITHUB_OUTPUT"
 
   shared-android:
     name: Shared and Android tests
@@ -59,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Require successful change classification
-        if: needs.changes.result != 'success'
+        if: needs.changes.result != 'success' || (needs.changes.outputs.run_full != 'true' && needs.changes.outputs.run_full != 'false')
         run: exit 1
 
       - name: Check out repository
@@ -70,6 +59,9 @@ jobs:
 
       - name: Validate release version metadata
         run: scripts/validate-version.sh
+
+      - name: Test verification workflow helpers
+        run: python3 -m unittest discover -s scripts/tests -p 'test_verification_*.py' -v
 
       - name: Validate documentation-only changes
         if: needs.changes.outputs.run_full == 'false'
@@ -170,7 +162,7 @@ jobs:
   android-device:
     name: Android emulator native tests (API ${{ matrix.api-level }})
     needs: changes
-    if: needs.changes.outputs.run_full == 'true'
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -178,37 +170,55 @@ jobs:
       matrix:
         api-level: [30, 35]
     steps:
+      - name: Require successful change classification
+        if: needs.changes.result != 'success' || (needs.changes.outputs.run_full != 'true' && needs.changes.outputs.run_full != 'false')
+        run: exit 1
+
       - name: Check out repository
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Validate documentation-only changes
+        if: needs.changes.outputs.run_full == 'false'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: git diff --check "$BASE_SHA" "$HEAD_SHA"
 
       - name: Set up JDK
+        if: needs.changes.outputs.run_full == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
+        if: needs.changes.outputs.run_full == 'true'
         uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
 
       - name: Create test emulator
+        if: needs.changes.outputs.run_full == 'true'
+        shell: bash
         run: |
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
-          echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973" "emulator" "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-sdkmanager.log
+          echo no | avdmanager create avd --force --name naviamp-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64" 2>&1 | tee /tmp/naviamp-avdmanager.log
 
       - name: Enable KVM access
+        if: needs.changes.outputs.run_full == 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
       - name: Start emulator
+        if: needs.changes.outputs.run_full == 'true'
         run: |
           "$ANDROID_HOME/emulator/emulator" -avd naviamp-ci -no-window -no-audio -no-boot-anim -no-snapshot -no-metrics -gpu swiftshader_indirect >/tmp/naviamp-emulator.log 2>&1 &
           emulator_pid=$!
@@ -233,6 +243,7 @@ jobs:
           adb shell input keyevent 82
 
       - name: Start disposable mobile mTLS fixture
+        if: needs.changes.outputs.run_full == 'true'
         run: |
           bash scripts/start-mobile-mtls-fixture.sh
           for port in 59974 59975 59976 59977; do
@@ -240,10 +251,11 @@ jobs:
           done
 
       - name: Exercise native boundaries and raster animation
+        if: needs.changes.outputs.run_full == 'true'
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
       - name: Repeat API 35 DNS-SD discovery tests
-        if: matrix.api-level == 35
+        if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35
         run: |
           adb install -r apps/android/build/outputs/apk/debug/android-debug.apk
           adb install -r apps/android/build/outputs/apk/androidTest/debug/android-debug-androidTest.apk
@@ -257,20 +269,16 @@ jobs:
           done
 
       - name: Stop disposable mobile mTLS fixture
-        if: always()
+        if: always() && needs.changes.outputs.run_full == 'true'
         run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
 
       - name: Capture Android discovery diagnostics
-        if: failure()
-        run: |
-          mkdir -p build/android-emulator-diagnostics
-          adb shell getprop > build/android-emulator-diagnostics/properties.txt || true
-          adb shell dumpsys connectivity > build/android-emulator-diagnostics/connectivity.txt || true
-          adb shell dumpsys mdns > build/android-emulator-diagnostics/mdns.txt || true
-          adb logcat -d -t 8000 -v threadtime > build/android-emulator-diagnostics/logcat.txt || true
+        if: failure() && needs.changes.outputs.run_full == 'true'
+        timeout-minutes: 2
+        run: python3 scripts/capture-android-diagnostics.py
 
       - name: Upload device reports
-        if: always()
+        if: always() && needs.changes.outputs.run_full == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: android-device-api-${{ matrix.api-level }}-test-reports
@@ -284,6 +292,8 @@ jobs:
             build/mobile-mtls-fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
+            /tmp/naviamp-sdkmanager.log
+            /tmp/naviamp-avdmanager.log
 
   desktop-windows:
     name: Desktop native tests (Windows)
@@ -306,9 +316,25 @@ jobs:
         shell: powershell
         run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest :providers:navidrome:jvmTest
 
+      - name: Test Windows process ownership
+        shell: powershell
+        run: .\scripts\tests\test-windows-process-family.ps1
+
       - name: Verify packaged Windows idle CPU
         shell: powershell
         run: .\scripts\windows-idle-cpu.ps1
+
+      - name: Build Windows release app for native acceptance
+        shell: powershell
+        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable
+
+      - name: Upload Windows release app
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-windows-release-app
+          retention-days: 7
+          if-no-files-found: error
+          path: apps/desktop/build/compose/distributions/*-windows-x64-release.zip
 
       - name: Measure isolated Windows animation surfaces
         shell: powershell
@@ -454,10 +480,17 @@ jobs:
         run: |
           # The preceding step compiles this binary; this required step executes it
           # with real Apple trust services after the common standalone tests finish.
+          # Bootstrap is generated on the runner. Keep setup independent of a freshly
+          # booted simulator's first HTTP request; all HTTPS and server-state audits remain real.
+          fixture_bootstrap="$(cat build/mobile-mtls-fixture.bootstrap)"
+          test -n "$fixture_bootstrap"
+          export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
           ./gradlew --max-workers=2 --console=plain \
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
             :platforms:ios:iosSimulatorArm64Test
+          grep -q 'mTLS runner bootstrap supplied' \
+            platforms/ios/build/test-results/iosSimulatorArm64Test/TEST-app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest.xml
           elapsed_seconds="$(($(date +%s) - started_at))"
           printf 'Native TLS and BASS tests\t%s\n' "$elapsed_seconds" >> build/ci-timings/ios.tsv
           echo "| Native TLS and BASS tests | ${elapsed_seconds}s |" >> "$GITHUB_STEP_SUMMARY"

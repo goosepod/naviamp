@@ -60,7 +60,10 @@ class DesktopMutualTlsIntegrationTest {
     @Test fun normalPlaybackRejectsAMissingClientIdentityWithoutInsecureFallback() =
         exerciseNormalPlayback(serverRequiresIdentity = true, provideIdentity = false)
 
-    private fun exerciseNormalPlayback(serverRequiresIdentity: Boolean, provideIdentity: Boolean) = runBlocking {
+    @Test fun uncachedOrdinaryHttpPlaybackSeeksBeyondTheBufferedPrefixWhilePaused() =
+        exerciseNormalPlayback(serverRequiresIdentity = false, provideIdentity = false, useTls = false)
+
+    private fun exerciseNormalPlayback(serverRequiresIdentity: Boolean, provideIdentity: Boolean, useTls: Boolean = true) = runBlocking {
         val originalContext = SSLContext.getDefault()
         val originalSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory()
         val originalVerifier = HttpsURLConnection.getDefaultHostnameVerifier()
@@ -68,7 +71,7 @@ class DesktopMutualTlsIntegrationTest {
             withContext(Dispatchers.Default) {
                 coroutineScope {
                     NaviampMutualTlsFixture(audioSeconds = 60).use { fixture ->
-                        val server = fixture.startServer(serverRequiresIdentity, pauseAudioAfterBytes = 262_144)
+                        val server = fixture.startServer(serverRequiresIdentity, pauseAudioAfterBytes = 262_144, useTls = useTls)
                         val trusted = NavidromeTlsSettings(customCertificatePath = fixture.serverCa.toString(),
                             clientCertificateKeyStorePath = fixture.clientKeyStore.toString(),
                             clientCertificateKeyStorePassword = fixture.password)
@@ -77,7 +80,7 @@ class DesktopMutualTlsIntegrationTest {
                             assertNotNull(NavidromeProvider(NavidromeConnectionForTest(server.baseUrl, trusted),
                                 KtorNavidromeHttpClient(validClient)).track(TrackId("track")))
                         } finally { validClient.close() }
-                        val settings = if (provideIdentity) trusted else trusted.copy(
+                        val settings = if (!useTls) NavidromeTlsSettings() else if (provideIdentity) trusted else trusted.copy(
                             clientCertificateKeyStorePath = null, clientCertificateKeyStorePassword = null)
                         val client = createDefaultNavidromeKtorClient(settings)
                         val provider = NavidromeProvider(NavidromeConnectionForTest(server.baseUrl, settings), KtorNavidromeHttpClient(client))
@@ -142,7 +145,7 @@ class DesktopMutualTlsIntegrationTest {
                                     }) kotlinx.coroutines.delay(10)
                                 }
                                 assertTrue(server.peerSubjects.isNotEmpty())
-                                assertTrue(server.peerSubjects.toList().all { it == if (provideIdentity) "CN=Naviamp Test Client" else "anonymous" })
+                                assertTrue(server.peerSubjects.toList().all { it == if (!useTls) "plaintext" else if (provideIdentity) "CN=Naviamp Test Client" else "anonymous" })
                                 val stopping = kotlin.time.TimeSource.Monotonic.markNow()
                                 adapter.stop()
                                 assertTrue(stopping.elapsedNow().inWholeMilliseconds < 3_000, "Stop must cancel pending authenticated reads")

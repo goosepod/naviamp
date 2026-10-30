@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -81,7 +82,7 @@ class NaviampSmartPlaylistRoundTripUiTest {
         }
         onNodeWithTag("smart-playlist-advanced-toggle").performScrollTo().performClick()
         onNodeWithText("Import JSON").performScrollTo().performClick()
-        onNodeWithText("Paste .nsp or Navidrome smart playlist JSON").performScrollTo().performTextInput(
+        onNodeWithContentDescription("Paste .nsp or Navidrome smart playlist JSON").performScrollTo().performTextInput(
             """{"name":"Broken","all":[{"gt":{"rating":3.75}}]}""",
         )
         onNodeWithText("Validate and load").performScrollTo().performClick()

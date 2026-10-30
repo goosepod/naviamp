@@ -10,8 +10,42 @@ then browse, discover, queue, download, and play from one polished app on deskto
 
 Your music stays with the server you choose. Naviamp brings the player.
 
+Naviamp is an independent third-party client and is not affiliated with or endorsed by the
+Navidrome project.
+
+## Get Naviamp
+
+Download for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881)
+or for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9PCFJ644LXLL).
+
+Find standalone downloads and release notes on [GitHub Releases](https://github.com/goosepod/naviamp/releases).
+
+Beta builds are available through TestFlight for [macOS](https://testflight.apple.com/join/vZ48sYNh) and
+[iOS](https://testflight.apple.com/join/efbB6TFd).
+
 [Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
 and share feedback.
+
+### Android Alpha on Google Play
+
+Naviamp is available through a closed Android Alpha on Google Play. To join:
+
+1. Join the [Naviamp testers Google Group](https://groups.google.com/g/naviamp-testers).
+2. Open the [Android Alpha opt-in page](https://play.google.com/apps/testing/app.naviamp.android)
+   and select **Become a tester**.
+3. Install [Naviamp from Google Play](https://play.google.com/store/apps/details?id=app.naviamp.android).
+
+Use the **same Google account** for the Google Group, tester enrollment, and Play Store. If you
+already belong to the group, start at step 2: group membership alone does not enroll you in the
+Play test. If the opt-in page says **You are a tester**, continue to installation. If access is
+unavailable, check that you joined the group with the account you are using for Google Play.
+
+Please use the app, stay opted in for at least 14 consecutive days, and share feedback on
+[Discord](https://discord.gg/7dd9954VGd). Include your device model, Android version, and steps to
+reproduce any problem; keep server credentials private.
+
+If you already have a newer sideloaded build, Google Play's older Alpha will not replace it.
+Ask on Discord before uninstalling: uninstalling erases local app data.
 
 <p align="center">
   <img src="readme-assets/screenshots/desktop-now-playing-queue.png" alt="Naviamp desktop Now Playing screen and queue" width="780">
@@ -172,13 +206,19 @@ Naviamp uses the BASS audio engine and combines its playback controls with a fle
 
 ## Platforms and downloads
 
-Naviamp is available for macOS, Windows, Linux, and Android. An unsigned arm64 iPhone/iPad IPA is
-also available for users who can provide their own signing.
+Naviamp is available for macOS, Windows, Linux, and Android. Try the iPhone/iPad beta through
+[TestFlight](https://testflight.apple.com/join/efbB6TFd). An unsigned arm64 IPA is also available for
+users who can provide their own signing.
 
-Download current packages from [GitHub Releases](https://github.com/goosepod/naviamp/releases).
-Windows and macOS desktop packages are not publisher-signed and may show an operating-system
-warning. Windows installers install only for the current user and do not require administrator
-permission. See the [latest Naviamp release notes](https://github.com/goosepod/naviamp/releases/latest)
+Get Naviamp for macOS from the [Mac App Store](https://apps.apple.com/app/naviamp-music-player/id6821135881).
+
+Get Naviamp for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9pcfj644lxll?hl=en-US&gl=US).
+
+Direct downloads for all available platforms are on [GitHub Releases](https://github.com/goosepod/naviamp/releases).
+Windows and macOS desktop packages downloaded from GitHub are not publisher-signed and may show
+an operating-system warning. The Windows installers on GitHub install only for the current user
+and do not require administrator permission. See the
+[latest Naviamp release notes](https://github.com/goosepod/naviamp/releases/latest)
 for current upgrade details and
 [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) for the iOS preview.
 
@@ -186,7 +226,7 @@ If an older machine-wide Windows release is already installed, uninstall that co
 using the current-user installer. Removing the old copy may require administrator permission; new
 installations and subsequent upgrades do not.
 
-### Opening Naviamp on macOS
+### Opening a standalone macOS download
 
 Only bypass the macOS warning for a Naviamp package downloaded from the official GitHub Releases
 page above. Move `Naviamp.app` into Applications, then try to open it once. Open **System Settings →

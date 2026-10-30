@@ -1,6 +1,7 @@
 package app.naviamp.domain.provider
 
 const val ProviderIdNavidrome = "navidrome"
+const val ProviderIdAurral = "aurral"
 const val ProviderIdSubsonic = "subsonic"
 const val ProviderIdJellyfin = "jellyfin"
 const val ProviderIdBandcamp = "bandcamp"
@@ -15,6 +16,7 @@ enum class ProviderProtocolFamily {
 
 enum class ProviderConnectionIcon {
     Navidrome,
+    Aurral,
     Subsonic,
     Jellyfin,
     Bandcamp,
@@ -46,6 +48,14 @@ val NaviampProviderCatalog: List<ProviderDescriptor> = listOf(
         icon = ProviderConnectionIcon.Navidrome,
         availability = ProviderAvailability.Available,
         connectionGuidance = "Connect to a Navidrome music server.",
+    ),
+    ProviderDescriptor(
+        id = ProviderIdAurral,
+        displayName = "Aurral",
+        protocolFamily = ProviderProtocolFamily.Subsonic,
+        icon = ProviderConnectionIcon.Aurral,
+        availability = ProviderAvailability.Available,
+        connectionGuidance = "connection_aurral_guidance",
     ),
     ProviderDescriptor(
         id = ProviderIdSubsonic,

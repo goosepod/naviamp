@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -31,8 +32,12 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -74,11 +79,44 @@ internal fun naviampMenuPosition(anchor: IntRect, window: IntSize, content: IntS
 @Composable
 private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: PopupProperties,
     scrim: Color = Color.Transparent, content: @Composable BoxScope.() -> Unit) {
-    Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
-        properties = properties) {
+    val nativeSurface = LocalNaviampOwnedDialogSurface.current
+    val viewport = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    val size = with(density) { DpSize(viewport.width.toDp(), viewport.height.toDp()) }
+    val body: @Composable () -> Unit = {
         NaviampOwnedWindowFocusScope {
-            Box(Modifier.fillMaxSize().clipToBounds().background(scrim), content = content)
+            val initialFocus = remember { FocusRequester() }
+            var containsFocus by remember { mutableStateOf(false) }
+            val windowFocused = LocalWindowInfo.current.isWindowFocused
+            LaunchedEffect(windowFocused, properties.focusable) {
+                // A native owned surface does not provide Popup's initial focus. Give Escape a
+                // target immediately, without taking focus from a child editor on reactivation.
+                if (windowFocused && properties.focusable) {
+                    // Its composition can precede native attachment. Wait for this surface's
+                    // first frame before asking its focus owner to accept keyboard input.
+                    withFrameNanos { }
+                    if (!containsFocus) initialFocus.requestFocus()
+                }
+            }
+            Box(Modifier.fillMaxSize().clipToBounds().onKeyEvent { event ->
+                if (properties.dismissOnBackPress && event.type == KeyEventType.KeyDown &&
+                    (event.key == Key.Escape || event.key == Key.Back)) {
+                    onDismissRequest()
+                    true
+                } else false
+            }.focusRequester(initialFocus).onFocusChanged { containsFocus = it.hasFocus }
+                .focusable(enabled = properties.focusable).drawBehind {
+                // Keep the native surface's recorded extent fixed from its first frame,
+                // including before the dialog entrance and floating labels have settled.
+                drawRect(Color.Transparent, blendMode = BlendMode.Src)
+            }.background(scrim), content = content)
         }
+    }
+    if (nativeSurface == null) {
+        Popup(popupPositionProvider = WindowOrigin, onDismissRequest = onDismissRequest,
+            properties = properties, content = body)
+    } else {
+        nativeSurface.Render(size, properties, { if (properties.dismissOnBackPress) onDismissRequest() }, body)
     }
 }
 
@@ -159,15 +197,16 @@ internal fun NaviampDialog(onDismissRequest: () -> Unit, properties: DialogPrope
         Dialog(onDismissRequest, properties, content)
         return
     }
-    val entered = remember { MutableTransitionState(false).apply { targetState = true } }
-    val transition = updateTransition(entered, label = "Naviamp dialog")
-    val alpha by transition.animateFloat(transitionSpec = { tween(200) }, label = "opacity") { if (it) 1f else .2f }
-    val scale by transition.animateFloat(transitionSpec = { tween(200) }, label = "scale") { if (it) 1f else .95f }
-    var dialogBounds by remember { mutableStateOf(Rect.Zero) }
     NaviampViewportPopup(onDismissRequest, PopupProperties(focusable = true,
-        dismissOnBackPress = properties.dismissOnBackPress, dismissOnClickOutside = false),
-        scrim = Color.Black.copy(alpha = .6f * alpha)) {
-        Box(Modifier.fillMaxSize().pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
+        dismissOnBackPress = properties.dismissOnBackPress, dismissOnClickOutside = false)) {
+        // Animate on the popup's frame clock, rather than the cached owner window's clock.
+        val entered = remember { MutableTransitionState(false).apply { targetState = true } }
+        val transition = updateTransition(entered, label = "Naviamp dialog")
+        val alpha by transition.animateFloat(transitionSpec = { tween(200) }, label = "opacity") { if (it) 1f else .2f }
+        val scale by transition.animateFloat(transitionSpec = { tween(200) }, label = "scale") { if (it) 1f else .95f }
+        var dialogBounds by remember { mutableStateOf(Rect.Zero) }
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .6f * alpha))
+            .pointerInput(onDismissRequest, properties.dismissOnClickOutside) {
             if (properties.dismissOnClickOutside) awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                 // Content clicks belong to child controls, including editable menu anchors.

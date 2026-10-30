@@ -75,7 +75,7 @@ fun createNaviampCoreActions(
         onReferences = {
             (handler.execute(NaviampCoreCommand.SmartPlaylist.References) as NaviampCoreCommandResult.SmartPlaylistReferencesLoaded).references
         },
-        onSyncLibrary = { handler.execute(NaviampCoreCommand.Settings.RefreshLibrary) },
+        onSyncLibrary = { progress -> handler.execute(NaviampCoreCommand.SmartPlaylist.SyncLibrary(progress)) },
         onPreview = ::previewSmartPlaylist,
         onSave = { definition -> handler.execute(NaviampCoreCommand.SmartPlaylist.Save(definition)) },
         onUpdate = { playlist, definition ->
@@ -259,6 +259,11 @@ fun createNaviampCoreActions(
             onAlbumAction = { send(NaviampCoreCommand.Detail.ArtistAlbum(it)) },
             onPopularTrackAction = { send(NaviampCoreCommand.Detail.ArtistPopularTrack(it)) },
             onKeepDownloaded = { send(NaviampCoreCommand.Downloads.PrepareArtist(it.id, it.title)) },
+            onPlaylistSelected = { playlist -> send(NaviampCoreCommand.Media.ItemAction(
+                app.naviamp.ui.NaviampMediaItemActionRequest(playlist,
+                    app.naviamp.ui.NaviampMediaItemCommand.Playlist(app.naviamp.ui.NaviampPlaylistMediaCommand.Select)),
+            )) },
+            onPlaylistsRefresh = { send(NaviampCoreCommand.Detail.RefreshArtistPlaylists(it)) },
         ),
         playlistDetailActions = NaviampPlaylistDetailActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromPlaylist) },
@@ -269,6 +274,12 @@ fun createNaviampCoreActions(
             onTrackAction = { send(NaviampCoreCommand.Detail.PlaylistTrack(it)) },
         ),
         homeActions = NaviampHomeActions(
+            onDiscoveryArtistSelected = { send(NaviampCoreCommand.Home.OpenDiscoveryArtist(it)) },
+            onDiscoveryArtistDetails = { send(NaviampCoreCommand.Home.SelectDiscoveryArtist(it)) },
+            onDiscoveryArtistDismiss = { send(NaviampCoreCommand.Home.DismissDiscoveryArtist) },
+            onDiscoveryFeedback = { id, action -> send(NaviampCoreCommand.Home.DiscoveryFeedback(id, action)) },
+            onDiscoveryAction = { id, action -> send(NaviampCoreCommand.Home.DiscoveryAction(id, action)) },
+            onDiscoveryLibraryArtist = { send(NaviampCoreCommand.Home.OpenDiscoveryLibraryArtist(it)) },
             onFavoriteArtistSortChanged = { send(NaviampCoreCommand.Settings.ChangeFavoriteArtistSort(it)) },
             onRefresh = { send(NaviampCoreCommand.Home.Refresh) },
             onRecentRadioSelected = { send(NaviampCoreCommand.Home.SelectRecentRadio(it)) },

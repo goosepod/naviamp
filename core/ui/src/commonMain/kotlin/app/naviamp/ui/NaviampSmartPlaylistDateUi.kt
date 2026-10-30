@@ -31,10 +31,10 @@ internal fun SmartPlaylistOperandField(
 ) {
     var choosingDate by remember(calendarDate) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        OutlinedTextField(
-            colors = naviampOutlinedTextFieldColors(colors),
+        SmartPlaylistOutlinedTextField(
+            colors = colors,
             value = value, onValueChange = onValueChange,
-            label = { Text(label, color = colors.secondaryText) },
+            label = label,
             singleLine = true, textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
         )

@@ -335,6 +335,7 @@ fun NaviampSharedAppShell(
                         ConnectedContent(
                             colors = colors,
                             uiState = uiState,
+                            showFullNowPlaying = showFullNowPlaying,
                             playbackProgress = effectivePlaybackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
@@ -471,6 +472,7 @@ internal fun sharedRouteUsesOwnScroll(
 internal fun ConnectedContent(
     colors: NaviampColors,
     uiState: NaviampAppShellUiState,
+    showFullNowPlaying: Boolean,
     playbackProgress: StateFlow<PlaybackProgress>?,
     visualizerBandsProvider: () -> List<Float>,
     settingsSync: NaviampSettingsSyncUi,
@@ -542,7 +544,6 @@ internal fun ConnectedContent(
         .copy(onCreateRadioDj = onCreateRadioDj)
     val effectivePlaybackProgress = playbackProgress.takeIf { remoteNowPlaying == null }
     val selectedRoute = shellChrome.selectedRoute
-    val nowPlayingOpen = shellChrome.nowPlayingOpen
     val selectedVisualizer = shellChrome.selectedVisualizer
     val onTrackAction = mediaActions.onTrackAction
     val onMediaItemAction = mediaActions.onMediaItemAction
@@ -612,6 +613,8 @@ internal fun ConnectedContent(
             colors = colors,
             screen = artistDetail,
             albumCollectionLayout = interfaceSettings.albumCollectionLayout,
+            artistPlaylistLayout = interfaceSettings.artistPlaylistLayout,
+            artistAppearanceAlbumLayout = interfaceSettings.artistAppearanceAlbumLayout,
             albumSortOrder = interfaceSettings.albumSortOrder,
             groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
             actions = artistDetailActions,
@@ -649,6 +652,7 @@ internal fun ConnectedContent(
             SharedRoute.Home -> SharedHomeRoute(
                 colors = colors,
                 home = home,
+                discoveryPlayback = home.samplePlayback,
                 actions = homeActions,
                 mediaActions = mediaActions,
                 scrollState = homeScrollState,
@@ -841,9 +845,9 @@ internal fun ConnectedContent(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = supportsPlayerWorkspace(maxWidth.value, maxHeight.value)
         val layout = interfaceSettings.nowPlaying.wideLayout
-        val docked = nowPlayingOpen && nowPlaying != null && wide && layout == WideNowPlayingLayout.Split
+        val docked = showFullNowPlaying && nowPlaying != null && wide && layout == WideNowPlayingLayout.Split
         LaunchedEffect(docked) { actions.navigationActions.onPlayerDockedChanged(docked) }
-        if (nowPlayingOpen && nowPlaying != null) {
+        if (showFullNowPlaying && nowPlaying != null) {
             NaviampPlayerWorkspace(wide, layout, onLayoutChanged = {
                 valueActions.onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = interfaceSettings.nowPlaying.copy(wideLayout = it)))
             }, player = { panelLayout ->
