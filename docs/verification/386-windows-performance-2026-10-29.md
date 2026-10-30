@@ -173,3 +173,67 @@ All disposable app and loopback fixture processes are closed while the administr
 pending. Normal settings, database and window-state hashes match the pre-run values. The original
 checkout and unrelated research file remain untouched. No canonical merge, tag, release, store
 submission, mirror update or OS policy change is performed.
+
+
+## Owner-run administrator capture and native analysis
+
+After the handoff above, the disposable muted fixture is reopened with the uninstrumented
+production package from `9243c813`: child JVM PID 2836, launcher 29592, loopback fixture 23236.
+The recorded target start time is `2026-10-29T18:16:16.2508288-07:00`. The owner runs the helper
+for 30 seconds in an administrator PowerShell and reports completion. The app remains unelevated.
+The capture succeeds and the target remains alive; the prior administrator handoff is resolved.
+
+Local capture: `build/windows-native-cpu/Naviamp-90b6b65cb93f43d48f476ace105ed305/cpu.etl`,
+391,118,848 bytes. TraceEvent 4.0.0 reads it successfully: duration 52.910436 seconds, CPU sampling
+interval 1 ms, zero reported lost events, 3,112 target CPU samples. The ETL includes WPR setup and
+rundown beyond the requested sleep interval. That original helper did not save exact recording
+brackets, so the following 15–40 second diagnostic slice is explicitly not a certified steady
+state. Future helper runs save interval brackets; no additional administrator recording is claimed.
+
+The reusable analyzer is `scripts/animation-probe/native-cpu-analysis/`. Its final checked-in source
+is compiled using installed Visual Studio Roslyn, .NET 10.0.14 runtime assemblies and TraceEvent
+4.0.0 DLLs, and run against this ETL. The SDK project is supplied for reproduction but SDK restore
+is not run because this machine has no SDK. Matching Windows PDBs are downloaded from Microsoft's
+public symbol server. Sandbox TLS fails with a Windows credential-context error; normal Windows
+execution succeeds. No security setting, authentication setup or certificate validation is changed.
+Analysis/output stays local and is restricted to PID 2836. Its identity is corroborated by helper
+metadata and the still-running matching JVM's thread dump.
+
+The 25-second slice contains 1,036 CPU samples; 318 (30.7%) have no associated call stack.
+Known thread counts are:
+
+| Target thread | Samples | Interpretation |
+| --- | ---: | --- |
+| 8472, C2 CompilerThread0 | 222 | JIT compilation |
+| 31012, C1 CompilerThread0 | 88 | JIT compilation |
+| 20380, AWT-Windows | 128 | Windows message thread |
+| 31584, AWT-EventQueue-0 | 93 | Swing/Compose event thread |
+
+The two identified compiler threads account for 310 samples (29.9% of target samples in this
+slice). This supports compilation as a contributor in this particular run; it does not explain
+away earlier warmed restore outliers with little measured compilation.
+
+Inclusive stack groups overlap and must not be added together: JVM 307, AWT 112, BASS 112,
+UIAutomationCore 61, DirectComposition 15, Skiko 12. There are 180 samples with `ntoskrnl!Etwp*`
+frames and 150 with `RtlWalkFrameChain`. These demonstrate profiler/event stack-walking overhead
+inside the target. They are not an estimate of a removable application CPU budget.
+
+UIAutomationCore appears in 26 AWT-Windows samples and 35 samples on native thread 7820.
+Matching symbols resolve paths including `UiaNode::CrossProcess_GetPropertyValues`,
+`RemoteUiaNodeStub::Incoming_GetPropertyValues`, `HandleHookMessage`, and
+`OverlappedIOManager::IoThreadProc`. This corroborates real on-CPU UI Automation activity, rather
+than relying on the previous wall-time wait snapshots. It does not identify the requesting client
+or establish a Naviamp accessibility defect. Accessibility remains enabled. JVM/JIT native stacks
+remain partially unresolved, so these module counts are not a complete Java function profile.
+
+No new production change is justified by this mixed capture. The existing common timeline fix and
+its passing 1,153 tests stand; this follow-up changes only diagnostic tooling and evidence. The
+strict performance gate remains open for reproducible warmed CPU outliers, isolated compositor
+cost, and startup-white reconciliation. Next acceptance work should pair non-instrumented windows
+under identical idle desktop conditions, bracket compilation, and use a lower-overhead targeted
+native capture only where needed. The owner was asked to keep the app visible during the trace;
+foreground/occlusion was not independently recorded throughout and is not asserted as verified.
+
+After analysis, the disposable app/launcher and fixture are closed. Normal settings, database and
+window-state hashes still match the saved pre-run values. Raw ETL, derived ETLX, PDBs and stack
+outputs stay in ignored build directories and are not uploaded.

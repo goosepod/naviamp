@@ -91,8 +91,37 @@ scripts/animation-probe/capture-windows-native-cpu.ps1 -ApplicationProcessId <ch
 The helper requires an administrator shell, validates a disposable Naviamp build in this checkout,
 records for twelve seconds, and saves under ignored `build/windows-native-cpu`. It creates a unique
 WPR instance and only stops/cancels that instance. It does not elevate the app, change OS policy,
-or control the UI. Its administrator capture path has not been exercised in the non-elevated
-October 29 session. Keep raw ETL data local; restrict analysis to the recorded target PID.
+or control the UI. The owner successfully ran its administrator capture on October 29 (30 seconds).
+Future captures also save wall-clock interval brackets in `recording-window.json`, separately from
+WPR setup/rundown; this metadata addition is syntax-checked, not re-recorded. Keep raw ETL data local;
+restrict analysis to the recorded target PID.
+
+### Analyze a saved native CPU capture
+
+`native-cpu-analysis/` uses Microsoft's TraceEvent 4.0.0 package. With a .NET 10 SDK, run:
+
+```powershell
+dotnet run --project scripts/animation-probe/native-cpu-analysis -- `
+  <trace.etl> <target-PID> <start-seconds> <end-seconds> build/native-symbols
+```
+
+Times are relative to the ETL session start; select them from capture brackets when available.
+The optional final argument enables matching Windows PDB downloads from Microsoft's public symbol
+server. Without it, module/thread counts still work, but function-specific ETW classifications
+cannot be interpreted. The tool creates a derived ETLX beside the local trace. It reports only
+samples belonging to the specified PID, missing-stack counts, time bins, exclusive leaf modules,
+and overlapping inclusive stack groups. Its top stacks contain local addresses; keep outputs local.
+Use the saved target identity/start time to exclude PID reuse before interpreting results.
+
+The October 29 analyzer source was compiled with the installed Visual Studio Roslyn compiler,
+.NET 10.0.14 runtime assemblies and the exact NuGet DLLs, then exercised against the owner's ETL;
+this machine has no .NET SDK, so the SDK project/restore command was not executed here.
+TraceEvent documentation: https://github.com/microsoft/perfview/blob/main/documentation/TraceEvent/TraceEventLibrary.md
+
+Zero lost events does not guarantee complete JVM stacks. JIT frames lack Java method mapping in
+this capture. ETW stack-walking cost is visible in the target itself; never treat an instrumented
+CPU total as a clean acceptance measurement or subtract inclusive overlapping groups to manufacture
+a passing baseline. See the October 29 verification report for the actual counts and limits.
 
 ## Windows native diagnostic control
 

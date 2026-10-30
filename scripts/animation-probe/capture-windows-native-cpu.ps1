@@ -35,14 +35,22 @@ New-Item -ItemType Directory -Path $directory | Out-Null
 $trace = Join-Path $directory 'cpu.etl'
 & $recorder -start CPU -filemode -recordtempto $directory -instancename $instance
 if ($LASTEXITCODE -ne 0) { throw "WPR could not start (exit $LASTEXITCODE). No existing session is canceled." }
+# Bracket the requested interval separately from WPR setup and merge/rundown.
+$recordingStarted = [DateTimeOffset]::Now
 try {
     Start-Sleep -Seconds $Seconds
 } finally {
+    $recordingStopped = [DateTimeOffset]::Now
     & $recorder -stop $trace -instancename $instance
     if ($LASTEXITCODE -ne 0) {
         & $recorder -cancel -instancename $instance
         throw 'WPR could not save the trace; cancellation was limited to this helper session.'
     }
+    [pscustomobject]@{
+        RecordingStarted = $recordingStarted.ToString('o')
+        RecordingStopped = $recordingStopped.ToString('o')
+        Note = 'Requested sleep interval; ETL also includes WPR setup and rundown.'
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $directory 'recording-window.json')
 }
 $target.Refresh()
 if ($target.HasExited) { throw "Target exited during recording; retain the rejected trace at $trace" }
