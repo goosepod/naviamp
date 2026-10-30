@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import kotlin.time.TimeMark
 
 /**
  * Shared sRGB pixels and motion; hosts only present these declarative layers. Coordinates are pixels
@@ -28,7 +29,14 @@ internal data class NaviampRasterLayer(
     val reveal: Float = 1f,
     val revealMotion: NaviampLayerMotion? = null,
     val clipFromStart: Boolean = false,
+    val revealStarted: TimeMark? = null,
 )
+
+internal fun NaviampRasterLayer.forPresentation(): NaviampRasterLayer {
+    val elapsed = revealStarted?.elapsedNow()?.inWholeMilliseconds ?: return this
+    val motion = revealMotion ?: return this
+    return copy(reveal = motion.valueAt(elapsed), revealMotion = motion.remainingAfter(elapsed), revealStarted = null)
+}
 
 internal interface NaviampRasterPresenter {
     /** True only when native pixels are intrinsically below the host's owned popup windows. */
@@ -66,7 +74,10 @@ internal class NaviampRasterPosition {
 private data class RasterSubmission(
     val layers: List<NaviampRasterLayer>, val bounds: Rect, val clip: Rect, val cornerRadius: Float,
 )
-private class RasterSubmissionState { var latest: RasterSubmission? = null }
+private class RasterSubmissionState {
+    var latest: RasterSubmission? = null
+    var fallbackRevealOffsets = emptyList<Long>()
+}
 private class RasterContentState { var layers: List<NaviampRasterLayer> = emptyList() }
 
 /** Read changing shared values without subscribing the surrounding composition to them. */
@@ -104,10 +115,14 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
         val next = RasterSubmission(rasterContent.layers, bounds, clip, cornerRadius)
         if (submission.latest != next) {
             submission.latest = next
-            presented = region?.present(rasterContent.layers, bounds, clip, cornerRadius) == true
+            presented = region?.present(rasterContent.layers.map { it.forPresentation() }, bounds, clip, cornerRadius) == true
             if (region?.requiresDrawSynchronization == true) drawRevision++
             else region?.synchronizeDraw()
-            if (!presented) { elapsed = 0L; fallbackRevision++ }
+            if (!presented) {
+                elapsed = 0L
+                submission.fallbackRevealOffsets = rasterContent.layers.map { it.revealStarted?.elapsedNow()?.inWholeMilliseconds ?: 0L }
+                fallbackRevision++
+            }
         }
     }
     DisposableEffect(region) {
@@ -151,15 +166,21 @@ internal fun <T> NaviampAnimatedRaster(content: NaviampRasterContent<T>, modifie
                 val start = withFrameNanos { it }
                 do {
                     elapsed = withFrameNanos { (it - start) / 1_000_000L }
-                } while (motions.any { it.repeat || elapsed < it.durationMillis })
+                } while (rasterContent.layers.withIndex().any { (index, layer) ->
+                    layer.translation?.let { it.repeat || elapsed < it.durationMillis } == true ||
+                        layer.revealMotion?.let {
+                            it.repeat || elapsed + submission.fallbackRevealOffsets.getOrElse(index) { 0L } < it.durationMillis
+                        } == true
+                })
             }
             Canvas(Modifier.fillMaxSize()) {
                 fallbackRevision
-                rasterContent.layers.forEach { layer ->
-                    val fraction = layer.revealMotion?.valueAt(elapsed) ?: layer.reveal
+                val frameElapsed = elapsed
+                rasterContent.layers.forEachIndexed { index, layer ->
+                    val fraction = layer.revealMotion?.valueAt(frameElapsed + submission.fallbackRevealOffsets.getOrElse(index) { 0L }) ?: layer.reveal
                     clipRect(left = if (layer.clipFromStart) size.width * fraction else 0f,
                         right = if (layer.clipFromStart) size.width else size.width * fraction) {
-                        drawImage(layer.image, topLeft = layer.origin + Offset(layer.translation?.valueAt(elapsed) ?: 0f, 0f))
+                        drawImage(layer.image, topLeft = layer.origin + Offset(layer.translation?.valueAt(frameElapsed) ?: 0f, 0f))
                     }
                 }
             }
