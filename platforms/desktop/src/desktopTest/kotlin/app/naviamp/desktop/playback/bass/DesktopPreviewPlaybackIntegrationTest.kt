@@ -4,13 +4,15 @@ import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassActiveState
+import app.naviamp.domain.bass.BassStreamHandle
 import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.util.concurrent.Executors
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -30,7 +32,16 @@ class DesktopPreviewPlaybackIntegrationTest {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         val executor = Executors.newCachedThreadPool { work -> Thread(work, "preview-fixture").apply { isDaemon = true } }
         val binding = DesktopBassJniBinding.load().getOrThrow()
-        val backend = DesktopBassAudioBackend(binding)
+        val nativeBackend = DesktopBassAudioBackend(binding)
+        val mainSource = MutableStateFlow<BassStreamHandle?>(null)
+        val mainPlayback = MutableStateFlow<BassStreamHandle?>(null)
+        val backend = object : BassAudioBackend by nativeBackend {
+            override fun positionSeconds(stream: BassStreamHandle): Double? =
+                nativeBackend.positionSeconds(stream).also { mainSource.compareAndSet(null, stream) }
+
+            override fun play(stream: BassStreamHandle): Result<Unit> =
+                nativeBackend.play(stream).onSuccess { mainPlayback.compareAndSet(null, stream) }
+        }
         val engine = CoreBassPlaybackEngine(Result.success(backend), DesktopBassPlaybackEngineRuntime())
         try {
             Files.write(file, silentWave(12))
@@ -51,21 +62,31 @@ class DesktopPreviewPlaybackIntegrationTest {
                 engine.play(this, PlaybackRequest(file.toUri().toString()), { main.value = it }, { progress.value = it })
                 withTimeout(10_000) { progress.first { (it.positionSeconds ?: 0.0) >= 0.2 } }
                 engine.pause()
-                // Progress is sampled once per second; wait for the native paused position to
-                // replace the last moving snapshot before comparing across the sample.
-                delay(1_100)
+                val sourceHandle = checkNotNull(mainSource.value)
+                val playbackHandle = checkNotNull(mainPlayback.value)
+                assertEquals(BassActiveState.Paused, nativeBackend.activeState(playbackHandle))
+                val nativePausedPosition = checkNotNull(nativeBackend.positionSeconds(sourceHandle))
+                // A fixed sleep cannot establish that the shared polling callback has run.
+                // Compare only after its paused snapshot agrees with the actual native clock.
+                withTimeout(10_000) {
+                    progress.first { abs((it.positionSeconds ?: Double.NEGATIVE_INFINITY) - nativePausedPosition) < 0.15 }
+                }
                 val pausedPosition = checkNotNull(progress.value.positionSeconds)
                 assertEquals(PlaybackState.Paused, main.value)
                 engine.playPreview(this, PlaybackRequest("http://127.0.0.1:${server.address.port}/preview.wav"), true, 0) { sample.value = it }
                 withTimeout(10_000) { sample.first { it == PlaybackState.Finished || it is PlaybackState.Error } }
                 assertEquals(PlaybackState.Finished, sample.value)
                 assertEquals(PlaybackState.Paused, main.value)
+                assertEquals(BassActiveState.Paused, nativeBackend.activeState(playbackHandle))
+                val nativeAfterPreview = checkNotNull(nativeBackend.positionSeconds(sourceHandle))
+                assertTrue(abs(nativeAfterPreview - nativePausedPosition) < 0.15,
+                    "Native main position changed during preview: $nativePausedPosition -> $nativeAfterPreview")
                 val afterPreview = checkNotNull(progress.value.positionSeconds)
                 assertTrue(abs(afterPreview - pausedPosition) < 0.15,
                     "Main position changed during preview: $pausedPosition -> $afterPreview")
                 engine.resume()
                 withTimeout(5_000) { progress.first { (it.positionSeconds ?: 0.0) > pausedPosition + 0.2 } }
-                println("Independent preview finished; main paused at $pausedPosition, after preview $afterPreview, resumed to ${progress.value.positionSeconds}")
+                println("Independent preview finished; native main $nativePausedPosition -> $nativeAfterPreview; sampled main $pausedPosition -> $afterPreview, resumed to ${progress.value.positionSeconds}")
                 engine.stop()
                 assertEquals(0, binding.endSyncRegistrationCount, "Main and preview native callbacks must be released")
             }
