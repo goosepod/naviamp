@@ -2,6 +2,11 @@
 
 Tracking: #401, requested by the owner during phone acceptance fixes #398/#399.
 
+**Superseded by the owner on October 29:** Store launch entries are not required in the
+changelog. The current combined candidate removes them from the shared About changelog,
+`CHANGELOG.md` and draft v2.10.0 release body, restoring Aurral as the leading feature.
+The observations below describe the earlier Store-first candidate, not the current content.
+
 The shared English About changelog now names Microsoft Store distribution on Windows, Mac App Store distribution on macOS, and App Store distribution on iOS in one leading store-release entry. The matching `CHANGELOG.md` and draft v2.10.0 GitHub release body carry the same platform mapping and place store distribution first. Existing direct downloads remain mentioned. The existing Mac listing is reused; no unverified iOS listing URL is invented.
 
 The signed validation candidate retains its existing Aurral notes and orders them after the store releases. The focused branch against main changes only the omitted store wording and matching regression; it does not drop other accepted release changes when integrated with the newer candidate.

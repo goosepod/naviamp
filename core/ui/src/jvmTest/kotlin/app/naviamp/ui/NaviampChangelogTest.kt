@@ -13,25 +13,22 @@ class NaviampChangelogTest {
             changelog.map { it.title },
         )
         assertEquals("v2.10.0", NaviampAboutUi().version)
-        assertEquals(4, changelog[0].entries.size)
-        val aurral = changelog[0].entries[1]
+        assertEquals(3, changelog[0].entries.size)
+        val aurral = changelog[0].entries[0]
         assertTrue(aurral.contains("Aurral"))
         assertTrue(aurral.contains("recommended and trending"))
         assertTrue(aurral.contains("play or pause samples"))
         assertTrue(aurral.contains("request tracks or albums"))
         assertTrue(aurral.contains("monitoring"))
         assertTrue(aurral.contains("preserve your main queue and position"))
-        val stores = changelog[0].entries[0]
-        assertTrue(stores.contains("Microsoft Store on Windows"))
-        assertTrue(stores.contains("Mac App Store on macOS"))
-        assertTrue(stores.contains("App Store on iOS"))
-        val feature = changelog[0].entries[2]
+        assertTrue(changelog[0].entries.none { it.contains("Microsoft Store") || it.contains("App Store") })
+        val feature = changelog[0].entries[1]
         assertTrue(feature.contains("every platform"))
         assertTrue(feature.contains("PKCS12"))
         assertTrue(feature.contains("private server authorities"))
         assertTrue(feature.contains("uncached playback"))
-        assertTrue(changelog[0].entries[3].contains("playlists you created"))
-        assertTrue(changelog[0].entries[3].contains("Experience settings"))
+        assertTrue(changelog[0].entries[2].contains("playlists you created"))
+        assertTrue(changelog[0].entries[2].contains("Experience settings"))
         val improvements = changelog[1].entries
         assertEquals(8, improvements.size)
         assertTrue(improvements[0].contains("carousels"))

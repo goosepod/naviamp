@@ -127,3 +127,19 @@ queue-end case remains separate from the successful phone/server Radio repair an
 Hosted verification of the final combined source, immutable release-tag reconciliation and store
 publication holds remain separate release gates. No canonical merge, tag, release, mirror or store
 submission is performed by this test run.
+
+## Owner changelog correction — October 29
+
+After the native acceptance run, the owner clarified that Store launch entries do not need
+to appear in the changelog. They are removed from the shared About content, `CHANGELOG.md`
+and the draft v2.10.0 release body; Aurral is again the first feature. The Windows Store
+credential bug-fix entry remains a functional correction. The earlier Store-first captures
+and ZIP above describe the previous candidate; that ZIP has not been rebuilt for this copy edit.
+
+The focused Windows `:core:ui:jvmTest` selection (`*NaviampChangelog*`, `*NaviampAboutUiTest*`)
+passes all five cases, with no failures, errors or skips, in a successful 1m 21s Gradle run.
+Desktop rendering scrolls through every entry and the TV case checks keyboard navigation.
+The regenerated start/end captures were visually inspected: Aurral leads, the three functional
+features remain readable, and the final upgrade/known-issue entries render correctly.
+Local evidence is under ignored `build/windows-oct29/changelog-owner-correction*`.
+No platform production file changes, broad retest or new performance claim accompanies this edit.

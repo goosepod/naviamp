@@ -2900,7 +2900,6 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Get Naviamp through the Microsoft Store on Windows, the Mac App Store on macOS, and the App Store on iOS, alongside existing direct downloads.",
             "Connect to Aurral directly and discover recommended and trending artists, open artist details, filter release covers by type, play or pause samples, give discovery feedback, request tracks or albums, and manage artist monitoring when your account permits it. Samples preserve your main queue and position and do not count as library listens.",
             "Connect to certificate-protected servers on every platform: import password-protected PKCS12 client identities and private server authorities into app storage for browsing, artwork and uncached playback, including seeking on range-capable streams.",
             "Find playlists you created that contain an artist directly on the artist page, with an optional section controlled in Experience settings.",
