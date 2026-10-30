@@ -78,8 +78,12 @@ network/security settings, or server configuration are edited. Raw captures/logs
 The newly added instrumentation package is removed after testing; the updated `.v2test` app is
 reopened on Home with its saved paused session. The original APK/profile backups remain local.
 
-This does not close #399: this TV/account/path succeeds, but the earlier physical phone's specific
-Radio/similarity timeout still needs its own reproduction. Competing-UID audio-focus interruption,
+This TV/account/path succeeds independently of the phone repair. The earlier phone timeout was
+subsequently traced to the AudioMuse plugin's obsolete backend address and repaired; see
+[the server repair and physical-phone verification](399-audiomuse-radio-repair.md).
+The October 30 final signed-phone Autoplay and cleanup also pass, as recorded in
+[the final phone acceptance continuation](401-store-changelog.md).
+Competing-UID audio-focus interruption,
 HDMI/CEC route changes, real Wi-Fi loss/reassociation, overnight endurance, fresh Connect pairing,
 and final signed-package acceptance are not established by these checks. Emulator/synthetic fixture
 results elsewhere must not be relabeled as physical acceptance of this candidate.
