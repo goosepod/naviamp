@@ -30,8 +30,12 @@ import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toCacheSettingsUi
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class NaviampCoreInitialState(
@@ -166,6 +170,26 @@ class NaviampCore private constructor(
         playbackProfileRows = playbackController.playbackProfileDiagnostics(),
         external = diagnostics.snapshot(),
     )
+
+    /** Uses the same storage facts as Stats for Nerds, only while Settings is mounted. */
+    internal suspend fun maintainSettingsStorage() {
+        while (currentCoroutineContext().isActive) {
+            val stats = runCatching { diagnostics.snapshot().storage }.getOrNull()
+            if (stats != null) {
+                stateStore.updateShell { shell ->
+                    val refreshed = shell.cache.settings.toCacheSettingsUi(stats, shell.capabilities)
+                    shell.copy(
+                        cache = shell.cache.copy(
+                            audioCacheDiagnostics = refreshed.audioCacheDiagnostics,
+                            downloadsDiagnostics = refreshed.downloadsDiagnostics,
+                        ),
+                        playback = shell.playback.copy(downloadBytes = stats.downloadBytes),
+                    )
+                }
+            }
+            delay(2_000L)
+        }
+    }
 
     fun tickSleepTimer(nowEpochMillis: Long) {
         playbackController.tickSleepTimer(nowEpochMillis)

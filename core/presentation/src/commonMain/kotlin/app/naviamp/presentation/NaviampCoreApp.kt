@@ -25,6 +25,7 @@ import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
 import app.naviamp.ui.NaviampTelevisionAppShell
+import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.CoroutineScope
 import app.naviamp.app.NaviampPlaybackOutputSelection
 import app.naviamp.app.NaviampRemoteOutputKind
@@ -103,6 +104,10 @@ fun NaviampCoreApp(
     },
 ) {
     val state by core.state.collectAsState()
+    NaviampCoreSettingsStorageRefresh(
+        core = core,
+        visible = state.shell.shellChrome.selectedRoute == SharedRoute.Settings,
+    )
     val playbackOutput by core.playbackOutputs.state.collectAsState()
     val selectedCast = (playbackOutput as? NaviampPlaybackOutputSelection.Remote)
         ?.takeIf { it.target.kind == NaviampRemoteOutputKind.Cast }
@@ -187,6 +192,13 @@ internal fun NaviampCoreDiagnosticsPresentation(
     val updates = remember(core) { naviampCoreDiagnosticsUpdates(core::statsForNerdsDiagnostics) }
     val diagnostics = updates.collectAsState(remember(core) { core.statsForNerdsDiagnostics() })
     presenter(diagnostics, remember(core) { { core.dispatch(NaviampCoreCommand.Settings.CloseStats) } })
+}
+
+@Composable
+internal fun NaviampCoreSettingsStorageRefresh(core: NaviampCore, visible: Boolean) {
+    LaunchedEffect(core, visible) {
+        if (visible) core.maintainSettingsStorage()
+    }
 }
 
 /** The single product surface mounted unchanged by every thin platform client. */
