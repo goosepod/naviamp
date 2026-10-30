@@ -128,3 +128,76 @@ The Mac release gate stays open; earlier valid provider/device evidence retains 
 Only disposable test processes and the loopback fixture are stopped. Test homes and local evidence
 are retained for reproduction. No Android phone operation, installed-app replacement, platform
 production change, source behavior change or performance-budget waiver is included.
+
+## Shared fixes and rebuilt-package continuation
+
+The owner requests fixing #421 and #422. They remain separate issue branches/PRs:
+#424 (`fix/422-restored-paused-seek`, `098005f0`) and #425
+(`fix/421-dialog-initial-focus`, initial `188a74dc`, attachment refinement `72f9e653`).
+The local combined verification revision is `3b1fa20cc` on
+`test/421-422-macos-verification`. Every production change is in Core commonMain. No Android,
+Desktop or iOS production file, native adapter, setting, migration, translated UI copy or playback
+update cadence changes.
+
+The playback adapter extends its existing deferred-start state to restored queues: seeks update
+the saved start position without opening audio, until explicit Play/Resume. Provider-offset replay
+seeks retain explicit pause intent. The common playback controller uses accepted seek generations
+to bypass the telemetry save throttle, including a seek immediately after Pause.
+
+The shared dialog viewport gains a focus target, requesting it after the owned surface's first
+frame when its window is active and no child already owns focus. Child-first Escape handling and
+the configured dismissOnBackPress policy are retained. Focus acquisition is a bounded lifecycle
+effect, not a continuous animation or polling loop.
+
+### Regression and build evidence
+
+- Before the playback change: four selected cases execute; the three new restored-seek/persistence
+  regressions fail. Afterward all 537 presentation cases pass, with zero failures/errors/skips.
+  An extended explicit-pause/provider-offset replay assertion passes too.
+- Before the dialog change: two rendered cases execute and immediate Escape fails. The fake native
+  surface deliberately omits Compose Popup's own focus behavior; the other case covers disabled
+  Escape and Tab/Enter activation.
+- Final combined source passes all 624 UI and 537 presentation cases with zero failures/errors/skips,
+  verifyCoreFirstArchitecture, Android shared-presentation compilation, and both iOS ARM64 device
+  and simulator shared-presentation compilations (including the changed common UI).
+- The initial packaging invocation selects Homebrew's JDK and fails the packaging vendor check;
+  this is not a source compilation failure and the check is not bypassed. Rebuilding with the
+  existing `~/Library/Java/JavaVirtualMachines/jbr-21.0.11/Contents/Home` succeeds. The final combined
+  build repeats packaging, both full suites and all shared-target checks successfully.
+- The ordinary optimized bundle is copied whole to ignored
+  `build/fix421422/Naviamp Fixed Acceptance.app`, using test ID `app.naviamp.fix421422` and a copied
+  synthetic fixture home. All 87 production JARs match; strict deep signature verification passes
+  after the test copy's identity/configuration changes and ad-hoc seal. No observer replaces its
+  production entry point. Initial/final payload manifests and source IDs remain local.
+
+Logs: `/tmp/naviamp-422-red.log`, `/tmp/naviamp-421-red.log`, `/tmp/naviamp-422-green.log`,
+`/tmp/naviamp-421-green.log`, `/tmp/naviamp-422-replay-check.log`,
+`/tmp/naviamp-421-422-package.log` (vendor rejection), `/tmp/naviamp-421-422-jbr-package.log`,
+`/tmp/naviamp-421-422-final-presentation.log` and `/tmp/naviamp-421-422-final.log`.
+
+### Native playback acceptance and keyboard limitation
+
+The initial combined fixed package (`5eddbde24`, with the final #422 production code) restores
+paused at 5:37. Clicking the seek midpoint leaves Play available at 5:00; subsequent screenshot/AX
+observations confirm it does not advance. Normal native window close exits the observed process;
+reopening restores 5:00 with Play available. Explicit Play then advances from 5:00 to 5:09.
+Explicit Pause at 5:13 followed immediately by a seek to 2:31 remains paused; normal close/reopen
+restores 2:31 with Play available. These pass the two original playback reproductions. The final
+combined copy (`3b1fa20cc`) also opens paused at 2:31, retaining the test source and queue.
+
+Keyboard retesting cannot yet be accepted. Escape and Tab observations in the first fixed copy
+are inconclusive: the menu control case also ignores Escape, and a read-only AppKit query confirms
+`NSRunningApplication.isActive=false` for that process. A current screenshot/AX window alone does
+not establish a valid keyboard target. The native visibility guard finds an obscured full client
+rectangle, while a small region away from tool overlays is visibly test-owned. No first-candidate
+keyboard failure is promoted to a confirmed product regression from those observations.
+
+Computer Use app selection, explicit bundle-ID selection and native Raise do not activate the test
+process; its optional launch_app method is unavailable. The owner is asked to bring the distinctly
+named test app forward using its Dock icon. Final native immediate-Escape and focus-return acceptance
+remain pending that activation. The #425 PR stays draft until this observation is established.
+
+The final test app is intentionally left open and paused at 2:31 for that check; the credential-free
+loopback fixture remains available. No phone, public release, tag, store submission or main/release
+merge is performed. Earlier GPU, performance, narrow-resize and spoken-accessibility limits remain
+open and are not waived by these fixes.
