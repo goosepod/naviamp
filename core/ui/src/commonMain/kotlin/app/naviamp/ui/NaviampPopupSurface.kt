@@ -91,7 +91,12 @@ private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: Popup
             LaunchedEffect(windowFocused, properties.focusable) {
                 // A native owned surface does not provide Popup's initial focus. Give Escape a
                 // target immediately, without taking focus from a child editor on reactivation.
-                if (windowFocused && properties.focusable && !containsFocus) initialFocus.requestFocus()
+                if (windowFocused && properties.focusable) {
+                    // Its composition can precede native attachment. Wait for this surface's
+                    // first frame before asking its focus owner to accept keyboard input.
+                    withFrameNanos { }
+                    if (!containsFocus) initialFocus.requestFocus()
+                }
             }
             Box(Modifier.fillMaxSize().clipToBounds().onKeyEvent { event ->
                 if (properties.dismissOnBackPress && event.type == KeyEventType.KeyDown &&
