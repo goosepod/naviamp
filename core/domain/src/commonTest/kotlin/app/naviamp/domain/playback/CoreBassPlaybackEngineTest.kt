@@ -19,6 +19,38 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class CoreBassPlaybackEngineTest {
     @Test
+    fun failedAuthenticatedReadsNeverPublishFinishedFromSyncOrPolling() = runTest {
+        for (sync in listOf(false, true)) {
+            var transportFailure: Throwable? = null
+            val source = object : PlaybackRandomAccessSource {
+                override val lengthBytes = 1_000L
+                override val failure: Throwable? get() = transportFailure
+                override suspend fun read(offset: Long, count: Int) = byteArrayOf()
+            }
+            val delegate = RecordingPlaybackBackend(emitEndSync = sync)
+            val backend = object : BassAudioBackend by delegate {
+                override fun createRandomAccessStream(source: PlaybackRandomAccessSource, decode: Boolean) =
+                    delegate.createFileStream("fixture")
+                override fun setEndSync(stream: BassStreamHandle, callback: (BassStreamHandle) -> Unit) =
+                    delegate.setEndSync(stream) { channel ->
+                        transportFailure = IllegalStateException("Authenticated range failed")
+                        callback(channel)
+                    }
+                override fun activeState(stream: BassStreamHandle): Int = delegate.activeState(stream).also {
+                    if (!sync && it == BassActiveState.Stopped) transportFailure = IllegalStateException("Authenticated range failed")
+                }
+            }
+            val engine = CoreBassPlaybackEngine(Result.success(backend), FakeBassPlaybackEngineRuntime)
+            val states = mutableListOf<PlaybackState>()
+            engine.play(this, PlaybackRequest("http://127.0.0.1/fixture", randomAccess = source), states::add, {})
+            advanceUntilIdle()
+            assertTrue(states.any { it is PlaybackState.Error && it.message == "Authenticated range failed" })
+            assertFalse(PlaybackState.Finished in states)
+            engine.release()
+        }
+    }
+
+    @Test
     fun classifiesUnstreamableNativeUrlFailuresForCoreRecovery() = runTest {
         val engine = CoreBassPlaybackEngine(
             backendResult = Result.success(UnstreamableUrlPlaybackBackend()),

@@ -86,6 +86,11 @@ android {
                 "app.naviamp.ui.AndroidRasterPlacementTest",
                 "app.naviamp.ui.NaviampSmartPlaylistReferencePickerTest",
                 "app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest",
+                "app.naviamp.ui.NaviampArtistPlaylistsUiTest",
+                "app.naviamp.ui.NaviampLibrarySearchLayoutTest",
+                "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
+                "app.naviamp.ui.NaviampArtistTopTracksUiTest",
+                "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
             ).joinToString(",")
         }
     }
@@ -118,14 +123,36 @@ val buildAnimationCompositorProbe by tasks.registering(Exec::class) {
     }
 }
 
+tasks.register<JavaExec>("smartPlaylistWindowProbe") {
+    group = "verification"
+    description = "Checks smart-playlist scrolling in a visible native owned window."
+    dependsOn("jvmTestClasses")
+    classpath = tasks.named<Test>("jvmTest").get().classpath
+    mainClass.set("app.naviamp.ui.NaviampSmartPlaylistWindowProbeKt")
+    if (System.getProperty("os.name").startsWith("Windows")) systemProperty("skiko.renderApi", "OPENGL")
+}
+
 tasks.register<JavaExec>("playerAnimationProbe") {
     group = "verification"
     description = "Measures CPU for static, marquee, smooth waveform, and combined player rendering."
     dependsOn("jvmTestClasses")
     classpath = tasks.named<Test>("jvmTest").get().classpath
     mainClass.set("app.naviamp.ui.NaviampPlayerAnimationProbeKt")
-    // Match the Windows application backend; Direct3D is not used by the packaged app.
-    if (System.getProperty("os.name").startsWith("Windows")) systemProperty("skiko.renderApi", "OPENGL")
+    // Match the packaged Windows surface backend; native cached animation remains accelerated.
+    if (System.getProperty("os.name").startsWith("Windows")) {
+        val renderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
+            .orElse("OPENGL").get().trim()
+        if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {
+            systemProperty("skiko.renderApi", renderApi)
+        }
+        val popupRenderApi = providers.gradleProperty("naviamp.windows.popupRenderApi")
+            .orElse(providers.provider {
+                if (providers.gradleProperty("naviamp.windows.skiko.renderApi").isPresent) "" else "SOFTWARE_FAST"
+            }).get().trim()
+        if (popupRenderApi.isNotBlank() && !popupRenderApi.equals("DEFAULT", ignoreCase = true)) {
+            systemProperty("naviamp.desktop.popupRenderApi", popupRenderApi)
+        }
+    }
     providers.environmentVariable("NAVIAMP_PROBE_JFR").orNull?.let { recording ->
         jvmArgs("-XX:StartFlightRecording=filename=$recording,settings=profile,dumponexit=true")
     }

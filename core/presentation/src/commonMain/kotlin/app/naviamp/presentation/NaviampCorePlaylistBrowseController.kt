@@ -115,6 +115,7 @@ class NaviampCorePlaylistBrowseController(
             return
         }
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
+        loadLibraries(provider)
         runCatching { provider.playlists(playlistLimit) }
             .onSuccess { playlists ->
                 if (generation != listGeneration || !providerSource.isCurrent(provider)) return@onSuccess
@@ -291,6 +292,7 @@ class NaviampCorePlaylistBrowseController(
         }
         val playlist = resolvePlaylist(item)
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
+        loadLibraries(provider)
         runCatching { provider.playlistTracks(playlist.id) }
             .onSuccess { tracks ->
                 if (generation != detailGeneration || !providerSource.isCurrent(provider)) return@onSuccess
@@ -329,6 +331,25 @@ class NaviampCorePlaylistBrowseController(
                     publishDetailFailure(item, cause.message ?: "Playlist failed to load.")
                 }
             }
+    }
+
+    internal suspend fun loadLibraries(provider: app.naviamp.domain.provider.MediaProvider) {
+        val generation = sourceGeneration
+        val libraries = try {
+            provider.libraries().map { app.naviamp.domain.settings.ConnectionFormMusicFolder(it.id, it.name) }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // A failed optional name lookup must not prevent browsing or discard known names.
+            return
+        }
+        if (generation != sourceGeneration || !providerSource.isCurrent(provider)) return
+        stateStore.updateShell { shell -> shell.copy(
+            playlists = shell.playlists.copy(availableLibraries = libraries,
+                selectedConnectionLibraryIds = provider.selectedMusicFolderIds),
+            playlistDetail = shell.playlistDetail.copy(availableLibraries = libraries,
+                selectedConnectionLibraryIds = provider.selectedMusicFolderIds),
+        ) }
     }
 
     private fun publishListFailure(status: String) {

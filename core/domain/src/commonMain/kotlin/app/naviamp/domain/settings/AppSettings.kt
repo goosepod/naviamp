@@ -69,6 +69,11 @@ fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState 
     val current = providerDescriptor(this.providerId)
     val selected = providerDescriptor(providerId)
     if (!selected.selectable || selected.id == current.id) return this
+    // An explicit reclassification of this same OpenSubsonic server retains its account/library scope.
+    if (setOf(current.id, selected.id) == setOf(
+            app.naviamp.domain.provider.ProviderIdSubsonic, app.naviamp.domain.provider.ProviderIdAurral,
+        ) && authenticationMode != app.naviamp.domain.source.SubsonicAuthApiKey
+    ) return copy(providerId = selected.id)
     val nextServerUrl = when {
         selected.fixedServerUrl != null -> selected.fixedServerUrl
         current.fixedServerUrl != null && serverUrl == current.fixedServerUrl -> ""
@@ -172,6 +177,11 @@ data class InterfaceSettings(
     val keepScreenAwake: Boolean = false,
     val showDesktopTooltips: Boolean = true,
     val showArtistInformation: Boolean = true,
+    val showArtistPlaylists: Boolean = true,
+    val artistPlaylistLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
+    val artistAppearanceAlbumLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
+    val showArtistTopTracks: Boolean = true,
+    val artistTopTracksLimit: Int = DefaultArtistTopTracksLimit,
     val showAlbumInformation: Boolean = true,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,
@@ -193,6 +203,7 @@ data class InterfaceSettings(
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
     fun normalized(): InterfaceSettings = copy(
+        artistTopTracksLimit = normalizedArtistTopTracksLimit(artistTopTracksLimit),
         auroraColorSteps = auroraColorSteps.coerceIn(2, 5),
         auroraAngleDegrees = auroraAngleDegrees.coerceIn(0, 180),
         albumBlurRadiusDp = albumBlurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp),
@@ -208,6 +219,10 @@ data class InterfaceSettings(
         globalKeyboardShortcuts = globalKeyboardShortcuts.normalized(),
     )
 }
+
+const val DefaultArtistTopTracksLimit = 10
+val ArtistTopTracksLimits = (5..50 step 5).toList()
+fun normalizedArtistTopTracksLimit(value: Int): Int = ((value.coerceIn(5, 50) + 2) / 5) * 5
 
 @Serializable
 enum class HomeSectionLayout(val label: String) {
@@ -247,7 +262,10 @@ fun InterfaceSettings.homeSectionPresentation(sectionId: String): HomeSectionPre
 
 fun defaultHomeSectionPresentation(sectionId: String): HomeSectionPresentationSettings =
     HomeSectionPresentationSettings(
-        homeLayout = if (sectionId == HomeSectionIds.MixesForYou || sectionId == HomeSectionIds.NavibeatMixes) {
+        homeLayout = if (sectionId in setOf(
+            HomeSectionIds.FavoriteArtists, HomeSectionIds.MixesForYou, HomeSectionIds.MixBuilders,
+            HomeSectionIds.RecentlyAdded, HomeSectionIds.RecentPlaylists, HomeSectionIds.NavibeatMixes,
+        )) {
             HomeSectionLayout.Carousel
         } else {
             HomeSectionLayout.List

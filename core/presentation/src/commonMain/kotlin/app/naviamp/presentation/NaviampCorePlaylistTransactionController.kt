@@ -85,6 +85,7 @@ class NaviampCorePlaylistTransactionController(
         NaviampCorePlaybackProfileController(stateStore),
     private val staleDraftMessage: suspend () -> String = ::playlistStaleDraftMessage,
     private val selfReferenceMessage: suspend () -> String = ::smartPlaylistSelfReferenceMessage,
+    private val syncLibrary: app.naviamp.ui.NaviampSmartPlaylistSync = { error("Library sync is unavailable") },
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -106,6 +107,7 @@ class NaviampCorePlaylistTransactionController(
         NaviampCoreCommand.SmartPlaylist.References -> {
             val provider = smartProvider(null, "load")
             val generation = browseController.sourceGeneration
+            browseController.loadLibraries(provider)
             val references = try {
                 provider.playlists(Int.MAX_VALUE).map { it.toSmartPlaylistReference() }
             } finally {
@@ -126,6 +128,10 @@ class NaviampCorePlaylistTransactionController(
         }
         is NaviampCoreCommand.SmartPlaylist.Save -> {
             saveSmartPlaylist(command.definition, command.password)
+            NaviampCoreCommandResult.Completed
+        }
+        is NaviampCoreCommand.SmartPlaylist.SyncLibrary -> {
+            syncLibrary(command.onProgress)
             NaviampCoreCommandResult.Completed
         }
         is NaviampCoreCommand.SmartPlaylist.Preview ->
@@ -295,6 +301,7 @@ class NaviampCorePlaylistTransactionController(
 
     private suspend fun inspectSmartPlaylist(item: SharedMediaItemUi, password: String?): app.naviamp.domain.smartplaylist.SmartPlaylistEditingResult {
         val provider = smartProvider(password, "load")
+        browseController.loadLibraries(provider)
         val playlist = browseController.resolvePlaylist(item)
         return try {
             provider.inspectSmartPlaylist(playlist.id)
@@ -309,6 +316,7 @@ class NaviampCorePlaylistTransactionController(
         password: String?,
     ): SmartPlaylistDefinition {
         val provider = smartProvider(password, "load")
+        browseController.loadLibraries(provider)
         val playlist = browseController.resolvePlaylist(item)
         publishListStatus("Loading ${playlist.name} rules...")
         return try {

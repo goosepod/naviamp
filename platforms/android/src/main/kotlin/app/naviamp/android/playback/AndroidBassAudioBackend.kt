@@ -86,6 +86,10 @@ class AndroidBassAudioBackend(
         bass.createUrlStream(url)
             .toHandleResult("BASS_StreamCreateURL failed")
 
+    override fun createRandomAccessStream(source: app.naviamp.domain.playback.PlaybackRandomAccessSource, decode: Boolean): Result<BassStreamHandle> =
+        bass.createRandomAccessStream(app.naviamp.domain.playback.BassFileCallbacks(source), decode)
+            .toHandleResult("BASS_StreamCreateFile failed")
+
     override fun createFileDecodeStream(path: String): Result<BassStreamHandle> =
         bass.createFileDecodeStream(path)
             .toHandleResult("BASS_StreamCreateFile decode failed")
@@ -143,6 +147,11 @@ class AndroidBassAudioBackend(
         } else {
             Result.failure(IllegalStateException(errorMessage("BASS_Mixer_ChannelRemove failed")))
         }
+
+    override fun setEndSync(stream: BassStreamHandle, callback: (BassStreamHandle) -> Unit): Result<Int> =
+        bass.setEndSync(stream.value) { callback(BassStreamHandle(it)) }
+            .takeIf { it != 0 }?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException(errorMessage("BASS_ChannelSetSync end failed")))
 
     override fun play(stream: BassStreamHandle): Result<Unit> =
         if (bass.play(stream.value)) {

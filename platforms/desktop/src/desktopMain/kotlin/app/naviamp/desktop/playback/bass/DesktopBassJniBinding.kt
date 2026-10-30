@@ -9,7 +9,6 @@ class DesktopBassJniBinding private constructor(
     val libraryDirectory: File,
     private val platform: BassPlatform,
 ) {
-    private val endSyncCallbacks: MutableMap<Int, (Int) -> Unit> = mutableMapOf()
     private val loadedPlugins: MutableMap<String, DesktopBassJniPlugin> = mutableMapOf()
 
     val version: Int
@@ -50,6 +49,9 @@ class DesktopBassJniBinding private constructor(
 
     fun createUrlStream(url: String): Int = nativeCreateUrlStream(url)
 
+    fun createRandomAccessStream(callbacks: app.naviamp.domain.playback.BassFileCallbacks, decode: Boolean): Int =
+        nativeCreateRandomAccessStream(callbacks, decode)
+
     fun createFileStream(path: String): Int = nativeCreateFileStream(path)
 
     fun createUrlDecodeStream(url: String, bounded: Boolean = false): Int =
@@ -71,19 +73,10 @@ class DesktopBassJniBinding private constructor(
 
     fun removeMixerChannel(stream: Int): Boolean = nativeRemoveMixerChannel(stream)
 
-    fun setEndSync(stream: Int, callback: (Int) -> Unit): Int {
-        endSyncCallbacks[stream] = callback
-        val sync = nativeSetEndSync(stream)
-        if (sync == 0) {
-            endSyncCallbacks.remove(stream)
-        }
-        return sync
-    }
+    fun setEndSync(stream: Int, callback: (Int) -> Unit): Int =
+        nativeSetEndSync(stream, app.naviamp.domain.playback.BassEndSyncCallback(callback))
 
-    @Suppress("unused")
-    private fun onEndSync(stream: Int) {
-        endSyncCallbacks.remove(stream)?.invoke(stream)
-    }
+    val endSyncRegistrationCount: Int get() = nativeEndSyncRegistrationCount()
 
     fun play(stream: Int): Boolean = nativePlay(stream)
 
@@ -162,6 +155,7 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeSetStreamOutputDevice(stream: Int, deviceId: String?): Boolean
     private external fun nativeConfigureInternetStreams(): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
+    private external fun nativeCreateRandomAccessStream(callbacks: app.naviamp.domain.playback.BassFileCallbacks, decode: Boolean): Int
     private external fun nativeCreateFileStream(path: String): Int
     private external fun nativeCreateUrlDecodeStream(url: String, bounded: Boolean): Int
     private external fun nativeCreateFileDecodeStream(path: String): Int
@@ -171,7 +165,8 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeAddMixerChannel(mixer: Int, stream: Int): Boolean
     private external fun nativeAddMixerChannelWithMatrix(mixer: Int, stream: Int, matrix: FloatArray): Boolean
     private external fun nativeRemoveMixerChannel(stream: Int): Boolean
-    private external fun nativeSetEndSync(stream: Int): Int
+    private external fun nativeSetEndSync(stream: Int, callback: app.naviamp.domain.playback.BassEndSyncCallback): Int
+    private external fun nativeEndSyncRegistrationCount(): Int
     private external fun nativePlay(stream: Int): Boolean
     private external fun nativePause(stream: Int): Boolean
     private external fun nativeStop(stream: Int): Boolean

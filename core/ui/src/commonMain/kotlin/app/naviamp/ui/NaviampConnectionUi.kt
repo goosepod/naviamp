@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -90,10 +91,12 @@ import app.naviamp.domain.source.SubsonicAuthToken
 private fun localizedConnectionStatus(status: String): String =
     when (status) {
         ConnectionPasswordRequiredStatus -> stringResource(Res.string.connection_password_required)
+        "connection_aurral_guidance" -> stringResource(Res.string.connection_aurral_guidance)
         "connection_api_key_required" -> stringResource(Res.string.connection_api_key_required)
         "connection_api_key_unsupported" -> stringResource(Res.string.connection_api_key_unsupported)
         "connection_api_key_invalid" -> stringResource(Res.string.connection_api_key_invalid)
         "connection_server_url_required" -> stringResource(Res.string.connection_server_url_required)
+        "connection_certificate_import_failed" -> stringResource(Res.string.connection_certificate_import_failed)
         else -> status
     }
 
@@ -133,6 +136,8 @@ fun NaviampConnectionForm(
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onImportSettingsSyncFile: (() -> Unit)? = null,
+    onChooseServerCertificate: (() -> Unit)? = null,
+    onChooseClientCertificate: (() -> Unit)? = null,
     onCancel: (() -> Unit)?,
 ) {
     var advancedVisible by remember { mutableStateOf(false) }
@@ -166,7 +171,7 @@ fun NaviampConnectionForm(
             onProviderSelected = { providerId -> onFormChanged(form.selectProvider(providerId)) },
         )
         Text(
-            providerDescriptor(form.providerId).connectionGuidance,
+            localizedConnectionStatus(providerDescriptor(form.providerId).connectionGuidance),
             color = colors.mutedText,
             fontSize = 11.sp,
         )
@@ -295,13 +300,17 @@ fun NaviampConnectionForm(
             }
             if (capabilities.insecureServerVerification) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().toggleable(
+                        value = form.skipTlsVerification,
+                        role = Role.Checkbox,
+                        onValueChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Checkbox(
                         checked = form.skipTlsVerification,
-                        onCheckedChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
+                        onCheckedChange = null,
                     )
                     Text(stringResource(Res.string.connection_skip_tls_certificate_verification), color = colors.secondaryText, fontSize = 13.sp)
                 }
@@ -315,6 +324,11 @@ fun NaviampConnectionForm(
                     enabled = !form.skipTlsVerification,
                     inputKind = NaviampTextInputKind.Technical,
                 )
+                onChooseServerCertificate?.let { choose ->
+                    TextButton(onClick = choose, enabled = !isConnecting && !form.skipTlsVerification) {
+                        Text(stringResource(Res.string.common_choose))
+                    }
+                }
             }
             if (clientCertificatesVisible) {
                 SettingsSectionTitle("mTLS", colors)
@@ -325,6 +339,11 @@ fun NaviampConnectionForm(
                     colors = colors,
                     inputKind = NaviampTextInputKind.Technical,
                 )
+                onChooseClientCertificate?.let { choose ->
+                    TextButton(onClick = choose, enabled = !isConnecting) {
+                        Text(stringResource(Res.string.common_choose))
+                    }
+                }
                 NaviampTextField(
                     value = form.clientCertificatePassword,
                     onValueChange = { onFormChanged(form.copy(clientCertificatePassword = it)) },
@@ -544,7 +563,7 @@ private fun ProviderSelectionTile(
     ) {
         NaviampServiceIcon(provider.id, contentColor)
         Text(
-            provider.displayName,
+            localizedProviderName(provider.id),
             color = contentColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,

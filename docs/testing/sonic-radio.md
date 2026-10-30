@@ -92,3 +92,13 @@ the complete environment mapping matched the original Compose service plus image
 the image matched the baseline, and the installed plugin inventory was empty.
 Successful Sonic playback remains a manual verification case; common/provider tests cover its
 selection and response parsing. Native iOS runtime verification requires a macOS host.
+
+## Self-hosted AudioMuse connectivity
+
+An advertised Sonic extension does not prove its backend is reachable. If both similarity methods
+time out while browsing/playback work, inspect Navidrome's plugin log and test the configured
+AudioMuse API URL from Navidrome's own container/network. An empty plugin configuration can leave
+an obsolete address from the plugin manifest active. Use a stable reachable service name and the
+correct internal port, preserve other settings and a rollback copy, then verify both diagnostics,
+explicit Radio and queue-end Autoplay. Do not hide the problem by increasing the app timeout or
+silently selecting another method. See the [physical-phone repair evidence](../verification/399-audiomuse-radio-repair.md).

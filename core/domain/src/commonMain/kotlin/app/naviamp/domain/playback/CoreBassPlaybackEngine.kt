@@ -91,7 +91,8 @@ open class CoreBassPlaybackEngine(
     RestartOnSeekPlaybackEngine,
     DownloadFallbackAwarePlaybackEngine,
     AudioOutputDevicePlaybackEngine,
-    PlaybackEngineDiagnostics {
+    PlaybackEngineDiagnostics,
+    PreviewPlaybackEngine {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
     private val startPolicy: BassPlaybackStartPolicy = BassPlaybackStartPolicy.CoreEngine
@@ -158,6 +159,24 @@ open class CoreBassPlaybackEngine(
     private var selectedOutputDeviceId: String? = null
     private var transientOutputVolumeFactor: Float = 1f
     private var verifyNetworkCertificates: Boolean = true
+    private var previewVolumePercent: Int = 100
+    private val preview = BassPreviewPlayback(runtime) { verify ->
+        check(!released)
+        val bass = checkNotNull(backend)
+        ensureInitialized(bass)
+        bass.setVerifyNet(verify).getOrThrow()
+        bass
+    }
+    protected val previewActive: Boolean get() = preview.active
+
+    override open fun playPreview(scope: CoroutineScope, request: PlaybackRequest, verifyNetworkCertificates: Boolean,
+        volumePercent: Int, onStateChanged: (PlaybackState) -> Unit) {
+        previewVolumePercent = volumePercent.coerceIn(0, 100)
+        preview.play(scope, request, verifyNetworkCertificates, volumePercent, onStateChanged)
+    }
+    override open fun pausePreview() = preview.pause()
+    override open fun resumePreview() = preview.resume()
+    override open fun stopPreview() = preview.stop()
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
     private var downloadFallbackListener: (() -> Unit)? = null
 
@@ -172,6 +191,7 @@ open class CoreBassPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
+        stopPreview()
         lastRequestDiagnosticUrl = request.url.sanitizedPlaybackDiagnosticUrl()
         currentScope = scope
         execution.attach(request, onStateChanged, onProgressChanged, onMetadataChanged)
@@ -224,7 +244,7 @@ open class CoreBassPlaybackEngine(
                             bass = bass,
                             request = activeRequest,
                             plan = creationPlan,
-                        ).getOrThrow()
+                        ).getOrElse { throw activeRequest.randomAccess?.failure ?: it }
                         if (!execution.isCurrent(currentPlaybackId)) {
                             freeCreatedPlayback(bass, createdPlayback)
                             createdPlayback = null
@@ -234,7 +254,7 @@ open class CoreBassPlaybackEngine(
                         stream = playbackHandle
                         currentSourceStream = createdPlayback.sourceHandle
                         currentReplayGainAdjustment = createdPlayback.replayGainAdjustment
-                        val endState = attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged, activeRequest.isLive)
+                        val endState = attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged, activeRequest.isLive, activeRequest.randomAccess)
                         createdPlayback = null
                         applyOutputVolume(bass)
                         applyEqualizer(bass)
@@ -263,6 +283,7 @@ open class CoreBassPlaybackEngine(
 
                         var pollingState = BassPlaybackPollingState()
                         while (execution.isCurrent(currentPlaybackId)) {
+                            activeRequest.randomAccess?.failure?.let { throw it }
                             val snapshot = bass.bassPlaybackSnapshot(
                                 playbackHandle = playbackHandle,
                                 sourceHandle = currentSourceStream,
@@ -352,6 +373,7 @@ open class CoreBassPlaybackEngine(
     }
 
     override open fun resume() {
+        stopPreview()
         val handle = stream
         val bass = backend ?: return
         if (handle != 0) {
@@ -384,6 +406,8 @@ open class CoreBassPlaybackEngine(
 
     override fun setVolume(percent: Int) {
         volumePercent = percent.coerceIn(0, 100)
+        previewVolumePercent = volumePercent
+        preview.setVolume(outputVolumeFactor())
         val handle = stream
         val bass = backend ?: return
         if (handle != 0) {
@@ -392,6 +416,7 @@ open class CoreBassPlaybackEngine(
     }
 
     override open fun stop() {
+        stopPreview()
         freePreparedStream()
         stopActiveStream()
         execution.publishProgress(PlaybackProgress.Unknown)
@@ -479,9 +504,10 @@ open class CoreBassPlaybackEngine(
                         replayGainFactor = plan.replayGainFactor,
                         stereoDownmixEnabled = stereoDownmixEnabled,
                         playbackDecode = true,
+                        randomAccess = request.randomAccess,
                     ).getOrThrow()
                     crossfadeActive = prepared.crossfadeActive
-                    attachEndSync(bass, prepared.sourceHandle, execution.currentPlaybackId, isLive = request.isLive)
+                    attachEndSync(bass, prepared.sourceHandle, execution.currentPlaybackId, isLive = request.isLive, randomAccess = request.randomAccess)
                     preparedBassPlaybackSucceeded(
                         preparedHandle = prepared.sourceHandle,
                         request = request,
@@ -700,7 +726,7 @@ open class CoreBassPlaybackEngine(
         currentReplayGainAdjustment = update.replayGainAdjustment
         applyEqualizer(bass)
         crossfadeActive = false
-        val endState = attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged, request.isLive)
+        val endState = attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged, request.isLive, request.randomAccess)
         applyPreparedReset(update.preparedReset)
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
@@ -779,6 +805,7 @@ open class CoreBassPlaybackEngine(
             replayGainFactor = plan.replayGainFactor,
             stereoDownmixEnabled = stereoDownmixEnabled,
             playbackDecode = plan.useMixer,
+            randomAccess = request.randomAccess,
         ).map { playback -> bassPlaybackActivated(playback, plan.replayGainAdjustment) }
     }
 
@@ -788,6 +815,7 @@ open class CoreBassPlaybackEngine(
         currentPlaybackId: Int,
         stateCallback: ((PlaybackState) -> Unit)? = null,
         isLive: Boolean = false,
+        randomAccess: PlaybackRandomAccessSource? = null,
     ): () -> PlaybackState {
         val handle = BassStreamHandle(source)
         // Capture before a truncated download can change the native end estimate. Byte counts,
@@ -796,7 +824,7 @@ open class CoreBassPlaybackEngine(
         val audioEnd = bass.filePosition(handle, BassFilePosition.End)
         var failure: PlaybackState.Error? = null
         val endState = {
-            failure ?: bassStreamEndState(
+            failure ?: randomAccess?.failure?.let { PlaybackState.Error(it.message ?: "BASS playback failed.") } ?: bassStreamEndState(
                 isLive = isLive,
                 fileSizeBytes = fileSize,
                 audioEndBytes = audioEnd,
@@ -852,6 +880,7 @@ open class CoreBassPlaybackEngine(
 
     protected fun setTransientOutputVolumeFactor(factor: Float) {
         transientOutputVolumeFactor = factor.coerceIn(0f, 1f)
+        preview.setVolume(playbackUserVolumeFactor(previewVolumePercent, transientOutputVolumeFactor))
         backend?.let(::applyOutputVolume)
     }
 

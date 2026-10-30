@@ -1043,6 +1043,7 @@ fun nowPlayingTrackCapabilities(
     canRepeatQueue: Boolean = false,
     canSaveQueueAsPlaylist: Boolean = false,
     canAddToPlaylist: Boolean = true,
+    isPreview: Boolean = false,
 ): NowPlayingTrackCapabilities =
     NowPlayingTrackCapabilities(
         canPlayPause = hasPlaybackTarget &&
@@ -1051,12 +1052,12 @@ fun nowPlayingTrackCapabilities(
         canSeek = supportsSeek && !isLiveStream,
         canChangeVolume = supportsSoftwareVolume,
         canRepeat = canRepeatQueue && !isLiveStream,
-        canStartRadio = supportsTrackRadio && !isLiveStream,
-        canAddToPlaylist = canAddToPlaylist && !isLiveStream,
-        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream,
-        canFavorite = supportsTrackFavorites && !isLiveStream,
-        canRate = supportsTrackRatings && !isLiveStream,
-        lyricsAvailable = !isLiveStream,
+        canStartRadio = supportsTrackRadio && !isLiveStream && !isPreview,
+        canAddToPlaylist = canAddToPlaylist && !isLiveStream && !isPreview,
+        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream && !isPreview,
+        canFavorite = supportsTrackFavorites && !isLiveStream && !isPreview,
+        canRate = supportsTrackRatings && !isLiveStream && !isPreview,
+        lyricsAvailable = !isLiveStream && !isPreview,
     )
 
 fun nowPlayingEmbeddedTagRows(tags: List<Pair<String, String>>?): List<Pair<String, String>> =
@@ -1654,6 +1655,8 @@ fun ArtistDetails.toSharedArtistDetailUi(
     appearanceLoadFailed: Boolean = false,
     appearancesTruncated: Boolean = false,
     popularTracks: List<Track> = emptyList(),
+    showArtistTopTracks: Boolean = true,
+    artistTopTracksLimit: Int = app.naviamp.domain.settings.DefaultArtistTopTracksLimit,
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
     similarArtistsStatus: String? = null,
@@ -1687,8 +1690,10 @@ fun ArtistDetails.toSharedArtistDetailUi(
         appearancesTruncated = appearancesTruncated,
         localLibraryLabel = artistLocalLibraryLabel(albums.size),
         biography = info?.biography.takeIf { showArtistInformation },
-        popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },
-        popularTracksStatus = popularTracksStatus,
+        popularTracks = if (showArtistTopTracks) popularTracks.take(app.naviamp.domain.settings.normalizedArtistTopTracksLimit(artistTopTracksLimit))
+            .map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) } else emptyList(),
+        popularTracksVisible = showArtistTopTracks,
+        popularTracksStatus = popularTracksStatus.takeIf { showArtistTopTracks },
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
         similarArtistsExpanded = similarArtistsExpanded,

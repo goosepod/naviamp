@@ -53,6 +53,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Connection : NaviampCoreCommand {
+        data class ChooseCertificate(val kind: NaviampConnectionCertificateKind) : Connection
         data class ChangeForm(val form: ConnectionFormState) : Connection
         data object Connect : Connection
         data object EditCurrent : Connection
@@ -145,6 +146,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface SmartPlaylist : NaviampCoreCommand {
+        data class SyncLibrary(val onProgress: suspend (app.naviamp.domain.library.LibrarySyncProgress) -> Unit) : SmartPlaylist
         data object References : SmartPlaylist
         data class Preview(val definition: SmartPlaylistDefinition) : SmartPlaylist
         data class Save(val definition: SmartPlaylistDefinition, val password: String? = null) : SmartPlaylist
@@ -164,6 +166,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Detail : NaviampCoreCommand {
+        data class RefreshArtistPlaylists(val artistId: String) : Detail
         data class Album(val request: NaviampAlbumDetailActionRequest) : Detail
         data class Artist(val request: NaviampArtistDetailActionRequest) : Detail
         data class ArtistAlbum(val request: NaviampArtistAlbumActionRequest) : Detail
@@ -179,6 +182,12 @@ sealed interface NaviampCoreCommand {
 
     sealed interface Home : NaviampCoreCommand {
         data object Refresh : Home
+        data class OpenDiscoveryArtist(val id: String) : Home
+        data class SelectDiscoveryArtist(val id: String) : Home
+        data object DismissDiscoveryArtist : Home
+        data class DiscoveryAction(val id: String, val action: app.naviamp.domain.provider.ProviderDiscoveryAction) : Home
+        data class DiscoveryFeedback(val id: String, val action: app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction) : Home
+        data class OpenDiscoveryLibraryArtist(val id: String) : Home
         data class SelectRecentRadio(val item: SharedMediaItemUi) : Home
         data class SelectInternetRadio(val item: SharedMediaItemUi) : Home
         data class SelectMixBuilder(val item: SharedMixBuilderUi) : Home

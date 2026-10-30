@@ -8,6 +8,28 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SmartPlaylistPreviewTest {
+    @Test fun libraryScopedFavoritesNeedMembershipAndRecoverWhenMetadataIsSynced() {
+        val definition = SmartPlaylistDefinition("Favorites", libraryIds = listOf("2"), rules = listOf(
+            SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.Loved, SmartPlaylistValue.Flag(true)),
+        ))
+        val favorite = track("favorite", "Favorite", emptyList()).copy(favoritedAtIso8601 = "2026-10-19T12:00:00Z")
+        val unavailable = previewSmartPlaylist(definition, listOf(favorite), nowEpochMillis = 0)
+        assertFalse(unavailable.available)
+        assertEquals(listOf(SmartPlaylistFields.LibraryId), unavailable.unsupportedFields)
+        val indexed = listOf(favorite.copy(musicFolderId = "2"),
+            favorite.copy(id = TrackId("other"), musicFolderId = "3"),
+            favorite.copy(id = TrackId("not-favorite"), musicFolderId = "2", favoritedAtIso8601 = null))
+        val preview = previewSmartPlaylist(definition, indexed, nowEpochMillis = 0)
+        assertEquals(1, preview.matchingTrackCount)
+        assertEquals(listOf("favorite"), preview.exampleTracks.map { it.id.value })
+        val explicitLibraryRule = definition.copy(libraryIds = null, rules = listOf(
+            SmartPlaylistGroup(SmartPlaylistMatch.All, listOf(
+                SmartPlaylistCondition(SmartPlaylistOperator.Is, SmartPlaylistFields.LibraryId, SmartPlaylistValue.Number(2)),
+            )),
+        ))
+        assertFalse(previewSmartPlaylist(explicitLibraryRule, listOf(favorite), nowEpochMillis = 0).available)
+        assertEquals(2, previewSmartPlaylist(explicitLibraryRule, indexed, nowEpochMillis = 0).matchingTrackCount)
+    }
     @Test
     fun liveExamplesAreBoundedAndSatisfyEveryActiveRule() {
         val definition = SmartPlaylistDefinition(
@@ -19,10 +41,10 @@ class SmartPlaylistPreviewTest {
         )
         val tracks = listOf(track("excluded-genre", "Match excluded", listOf("Rock")),
             track("excluded-title", "Other", listOf("Jazz"))) +
-            (1..10).map { track("$it", "Match $it", listOf("Jazz")) }
+            (1..75).map { track("$it", "Match $it", listOf("Jazz")) }
         val preview = previewSmartPlaylist(definition, tracks, nowEpochMillis = 0)
-        assertEquals(10, preview.matchingTrackCount)
-        assertEquals(5, preview.exampleTracks.size)
+        assertEquals(75, preview.matchingTrackCount)
+        assertEquals(50, preview.exampleTracks.size)
         assertTrue(preview.exampleTracks.all { it.genres == listOf("Jazz") && it.title.startsWith("Match") })
         assertEquals(2, previewSmartPlaylist(definition.copy(limit = 2), tracks, nowEpochMillis = 0).exampleTracks.size)
     }

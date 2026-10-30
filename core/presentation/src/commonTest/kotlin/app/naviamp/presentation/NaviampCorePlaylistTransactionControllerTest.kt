@@ -56,6 +56,8 @@ class NaviampCorePlaylistTransactionControllerTest {
         assertEquals(setOf("playlist-a", "playlist-b", "smart"), result.references.map { it.id }.toSet())
         assertTrue(result.references.single { it.id == "smart" }.isSmart)
         assertEquals(1, fixture.persistedSessions())
+        assertEquals("Music Library", fixture.store.state.value.shell.playlists.availableLibraries.single().name)
+        assertEquals("Music Library", fixture.store.state.value.shell.playlistDetail.availableLibraries.single().name)
     }
 
     @Test fun referenceLookupFailureIsRecoverableAndDoesNotMutatePlaylists() = runTest {
@@ -460,6 +462,7 @@ private class TransactionTestEffects :
 }
 
 private class TransactionTestProvider(override val cacheNamespace: String = "original") : MediaProvider {
+    override suspend fun libraries() = listOf(app.naviamp.domain.provider.MediaLibrary("1", "Music Library"))
     override val id = ProviderId("transactions")
     override val displayName = "Transactions"
     override val capabilities = ProviderCapabilities(

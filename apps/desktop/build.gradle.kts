@@ -19,6 +19,13 @@ val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersio
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName, naviampVersionCode)
 val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
 val desktopExecutableDescription = "Naviamp"
+// Skiko backend initialization is native to the Windows JVM host, including transparent HWNDs.
+val windowsSkikoRenderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
+    .orElse("OPENGL").map(String::trim)
+val windowsPopupRenderApi = providers.gradleProperty("naviamp.windows.popupRenderApi")
+    .orElse(providers.provider {
+        if (providers.gradleProperty("naviamp.windows.skiko.renderApi").isPresent) "" else "SOFTWARE_FAST"
+    }).map(String::trim)
 val macOsFullscreenJvmArgs = listOf(
     "--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED",
     "--add-exports=java.desktop/sun.awt=ALL-UNNAMED",
@@ -45,6 +52,14 @@ val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
 }
 val desktopReleaseArtifactsDir = layout.buildDirectory.dir("release-artifacts")
 val desktopDevelopmentDataProfileJvmOption = "-Dnaviamp.developmentDataProfile=true"
+val macSigningIdentity = providers.gradleProperty("naviamp.macos.signingIdentity")
+    .map(String::trim).orElse("-")
+val macLocalNetworkPackagingInputs = files(
+    rootProject.file("scripts/configure-macos-local-network.py"),
+    rootProject.file("core/domain/src/commonMain/kotlin/app/naviamp/domain/connect/NaviampConnectProtocol.kt"),
+    rootProject.file("core/app/src/commonMain/kotlin/app/naviamp/app/NaviampCastDiscoveryController.kt"),
+    rootProject.fileTree("core/ui/src/commonMain/composeResources") { include("values*/strings.xml") },
+)
 // Per-user packages use a distinct upgrade family so Windows never tries to remove a legacy
 // machine-wide installation (and request elevation) while installing the current-user package.
 val windowsInstallerUpgradeUuid = "75051da2-0b4b-4f67-81d9-56d2e36a6437"
@@ -103,15 +118,16 @@ compose.desktop {
         )
         when {
             desktopNativePlatform.get().startsWith("windows-") -> {
-                val renderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
-                    // Skiko's Direct3D backend can spin a render thread at one full logical core
-                    // while an otherwise static window is visible. OpenGL preserves GPU rendering
-                    // and lets the Windows event loop sleep between actual frame invalidations.
-                    .orElse("OPENGL")
-                    .get()
-                    .trim()
+                // Keep the primary surface hardware-initialized. The native adapter selects the
+                // popup default after primary construction and before any popup constructor.
+                // Late per-layer renderer switches do not repair native initialization.
+                val renderApi = windowsSkikoRenderApi.get()
                 if (renderApi.isNotBlank() && !renderApi.equals("DEFAULT", ignoreCase = true)) {
                     jvmArgs += "-Dskiko.renderApi=$renderApi"
+                }
+                val popupRenderApi = windowsPopupRenderApi.get()
+                if (popupRenderApi.isNotBlank() && !popupRenderApi.equals("DEFAULT", ignoreCase = true)) {
+                    jvmArgs += "-Dnaviamp.desktop.popupRenderApi=$popupRenderApi"
                 }
                 jvmArgs += "-Dnaviamp.visualizer.windowsOpenGl=true"
             }
@@ -239,6 +255,8 @@ tasks.matching {
         configureDesktopDataProfile(appDirectory, releaseArtifact)
         sealMacAppBundle(appDirectory)
     }
+    inputs.files(macLocalNetworkPackagingInputs)
+    inputs.property("naviampMacSigningIdentity", macSigningIdentity)
 }
 
 fun Zip.packageDesktopApp(
@@ -347,6 +365,24 @@ tasks.register("verifyDesktopDistributable") {
         check(missing.isEmpty()) {
             "Desktop package is missing native playback resources in ${bassResourcesDirectory.absolutePath}: ${missing.joinToString()}"
         }
+        if (platform.startsWith("windows-")) {
+            val launcherConfig = appDirectory.resolve("app/Naviamp.cfg").readText()
+            val expectedRenderer = windowsSkikoRenderApi.get()
+            if (expectedRenderer.isNotBlank() && !expectedRenderer.equals("DEFAULT", ignoreCase = true)) {
+                check(launcherConfig.lineSequence().any { it == "java-options=-Dskiko.renderApi=$expectedRenderer" }) {
+                    "Windows launcher does not select the configured Skiko renderer before surface creation."
+                }
+            }
+            val expectedPopup = windowsPopupRenderApi.get()
+            if (expectedPopup.isNotBlank() && !expectedPopup.equals("DEFAULT", ignoreCase = true)) {
+                check(launcherConfig.lineSequence().any { it == "java-options=-Dnaviamp.desktop.popupRenderApi=$expectedPopup" }) {
+                    "Windows launcher does not configure the future popup renderer."
+                }
+            }
+            check(launcherConfig.contains("java-options=-Dnaviamp.visualizer.windowsOpenGl=true")) {
+                "Windows launcher does not enable the native visualizer backend."
+            }
+        }
         if (platform.startsWith("macos-")) {
             val applicationIcon = desktopPackagedResourcesDir(platform, appDirectory)
                 .resolve("icons/naviamp.png")
@@ -361,6 +397,7 @@ tasks.register("verifyDesktopDistributable") {
             check(visualizer.canExecute()) {
                 "Desktop package Metal visualizer library is not executable: ${visualizer.absolutePath}"
             }
+            configureMacLocalNetworkPrivacy(appDirectory, checkOnly = true)
             sealMacAppBundle(appDirectory)
             verifyMacAppBundleSeal(appDirectory)
         }
@@ -602,7 +639,21 @@ fun patchMacAppBundleVersion(appDirectory: File) {
             .replacePlistStringValue("CFBundleShortVersionString", naviampNativePackageVersion)
             .replacePlistStringValue("CFBundleVersion", naviampVersionCode.toString()),
     )
+    configureMacLocalNetworkPrivacy(appDirectory)
+    configureMacLocalNetworkPrivacy(appDirectory, checkOnly = true)
     refreshMacAppBundleModificationTime(appDirectory)
+}
+
+fun configureMacLocalNetworkPrivacy(appDirectory: File, checkOnly: Boolean = false) {
+    if (!desktopNativePlatform.get().startsWith("macos-")) return
+    project.exec {
+        commandLine(buildList {
+            add("python3")
+            add(rootProject.file("scripts/configure-macos-local-network.py").absolutePath)
+            addAll(listOf("--repo", rootProject.projectDir.absolutePath, "--app", appDirectory.absolutePath))
+            if (checkOnly) add("--check")
+        })
+    }.assertNormalExitValue()
 }
 
 fun sealMacAppBundle(appDirectory: File) {
@@ -613,7 +664,7 @@ fun sealMacAppBundle(appDirectory: File) {
             "/usr/bin/codesign",
             "--force",
             "--sign",
-            "-",
+            macSigningIdentity.get().also { check(it.isNotEmpty()) { "macOS signing identity cannot be empty." } },
             "--options",
             "runtime",
             "--entitlements",

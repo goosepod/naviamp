@@ -13,6 +13,18 @@ $profileRoot = Join-Path $repositoryRoot "build/performance/windows-idle-$([guid
 $roamingProfile = Join-Path $profileRoot 'roaming'
 $localProfile = Join-Path $profileRoot 'local'
 $applicationProcess = $null
+$measuredProcesses = @()
+
+. (Join-Path $PSScriptRoot "windows-process-family.ps1")
+
+function Get-ApplicationCpuSeconds($Processes) {
+    $values = @($Processes | ForEach-Object {
+        $_.Refresh()
+        if ($_.HasExited -or $null -eq $_.CPU) { throw "Application CPU unavailable for PID $($_.Id)." }
+        $_.CPU
+    })
+    ($values | Measure-Object -Sum).Sum
+}
 
 try {
     Set-Location $repositoryRoot
@@ -21,7 +33,7 @@ try {
         & .\gradlew.bat `
             '-Pkotlin.native.enableKlibsCrossCompilation=false' `
             '-Pnaviamp.bass.platform=windows-x64' `
-            :apps:desktop:createDistributable
+            :apps:desktop:verifyDesktopDistributable
         if ($LASTEXITCODE -ne 0) {
             throw "Windows distributable build failed with exit code $LASTEXITCODE."
         }
@@ -47,24 +59,28 @@ try {
     }
 
     Start-Sleep -Seconds $SettleSeconds
-    $applicationProcess.Refresh()
-    $cpuStartSeconds = $applicationProcess.CPU
+    # jpackage's launcher can be idle while its child JVM spins; include the complete family.
+    $measuredProcesses = @(Get-ApplicationProcessFamily $applicationProcess)
+    $cpuStartSeconds = Get-ApplicationCpuSeconds $measuredProcesses
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     Start-Sleep -Seconds $SampleSeconds
-    $applicationProcess.Refresh()
-    $cpuPercent = (($applicationProcess.CPU - $cpuStartSeconds) / $SampleSeconds) * 100.0
+    $cpuEndSeconds = Get-ApplicationCpuSeconds $measuredProcesses
+    $elapsedSeconds = $timer.Elapsed.TotalSeconds
+    $afterIds = @(Get-ApplicationProcessFamily $applicationProcess | ForEach-Object Id)
+    if (@(Compare-Object @($measuredProcesses.Id) $afterIds).Count) {
+        throw 'Application process family changed during idle measurement.'
+    }
+    $cpuPercent = (($cpuEndSeconds - $cpuStartSeconds) / $elapsedSeconds) * 100.0
     $roundedCpuPercent = [math]::Round($cpuPercent, 1)
 
+    Write-Host "Windows idle PIDs: $($measuredProcesses.Id -join ',')"
     Write-Host "Windows idle CPU: $roundedCpuPercent% of one logical core (limit: $MaximumCpuPercent%)."
     if ($cpuPercent -gt $MaximumCpuPercent) {
         throw "Windows idle CPU exceeded the $MaximumCpuPercent% regression limit."
     }
 } finally {
-    if ($null -ne $applicationProcess -and -not $applicationProcess.HasExited) {
-        $applicationProcess.CloseMainWindow() | Out-Null
-        if (-not $applicationProcess.WaitForExit(5000)) {
-            Stop-Process -Id $applicationProcess.Id -Force
-        }
-    }
+    if ($null -ne $applicationProcess) { Stop-OwnedApplicationProcess $applicationProcess }
+    foreach ($process in $measuredProcesses) { Stop-OwnedApplicationProcess $process }
     if (Test-Path -LiteralPath $profileRoot) {
         Remove-Item -LiteralPath $profileRoot -Recurse -Force
     }

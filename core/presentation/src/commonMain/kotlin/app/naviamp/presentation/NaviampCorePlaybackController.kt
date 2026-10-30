@@ -1,4 +1,5 @@
 package app.naviamp.presentation
+import app.naviamp.domain.provider.isDiscoveryPreview
 import app.naviamp.domain.radio.radioDiagnostics
 
 import app.naviamp.app.NaviampLivePlaybackController
@@ -704,7 +705,7 @@ class NaviampCorePlaybackController(
             return
         }
         val name = requestedName?.trim().orEmpty()
-        val tracks = playback.state.value.queue.tracks
+        val tracks = playback.state.value.queue.tracks.filterNot { it.id.isDiscoveryPreview() }
         when {
             name.isEmpty() -> publishPlaylistStatus("Playlist name cannot be blank.")
             tracks.isEmpty() -> publishPlaylistStatus("The queue is empty.")

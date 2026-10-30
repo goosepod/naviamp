@@ -16,6 +16,11 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
+#include <limits>
+#include <memory>
+#include <mutex>
+#include <cstdint>
 #include <cmath>
 #include <cstdlib>
 #include <string>
@@ -47,6 +52,7 @@ struct BassApi {
     SetConfigPtrProc BASS_SetConfigPtr = nullptr;
     StreamCreateUrlProc BASS_StreamCreateURL = nullptr;
     StreamCreateFileProc BASS_StreamCreateFile = nullptr;
+    decltype(&::BASS_StreamCreateFileUser) BASS_StreamCreateFileUser = nullptr;
     decltype(&::BASS_ChannelGetInfo) BASS_ChannelGetInfo = nullptr;
     decltype(&::BASS_Mixer_StreamAddChannel) BASS_Mixer_StreamAddChannel = nullptr;
     decltype(&::BASS_Mixer_ChannelSetMatrix) BASS_Mixer_ChannelSetMatrix = nullptr;
@@ -112,6 +118,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_SetConfigPtr", bassApi.BASS_SetConfigPtr) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateURL", bassApi.BASS_StreamCreateURL) && ok;
     ok = load_symbol(bassApi.bass, "BASS_StreamCreateFile", bassApi.BASS_StreamCreateFile) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_StreamCreateFileUser", bassApi.BASS_StreamCreateFileUser) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetInfo", bassApi.BASS_ChannelGetInfo) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_StreamAddChannel", bassApi.BASS_Mixer_StreamAddChannel) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelSetMatrix", bassApi.BASS_Mixer_ChannelSetMatrix) && ok;
@@ -197,6 +204,7 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_SetConfig bassApi.BASS_SetConfig
 #define BASS_SetConfigPtr bassApi.BASS_SetConfigPtr
 #define BASS_StreamCreateURL bassApi.BASS_StreamCreateURL
+#define BASS_StreamCreateFileUser bassApi.BASS_StreamCreateFileUser
 #define BASS_StreamCreateFile bassApi.BASS_StreamCreateFile
 #define BASS_ChannelGetInfo bassApi.BASS_ChannelGetInfo
 #define BASS_Mixer_StreamAddChannel bassApi.BASS_Mixer_StreamAddChannel
@@ -238,12 +246,6 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #endif
 
 std::unordered_map<DWORD, std::vector<HFX>> equalizerFxByChannel;
-
-struct DesktopEndSyncRegistration {
-    JavaVM* javaVm;
-    jobject binding;
-    jmethodID callbackMethod;
-};
 
 bool configure_playback_buffers(DWORD playbackBufferMillis, DWORD updatePeriodMillis, DWORD deviceBufferMillis) {
     bool configured = true;
@@ -610,33 +612,188 @@ jlong length_bytes(jint stream) {
     return static_cast<jlong>(bytes);
 }
 
-void CALLBACK desktop_end_sync_proc(HSYNC handle, DWORD channel, DWORD data, void* user) {
-    (void)handle;
-    (void)data;
-    auto* registration = static_cast<DesktopEndSyncRegistration*>(user);
-    if (registration == nullptr || registration->javaVm == nullptr) return;
-
+// FILEPROCS is synchronous. Core supplies the cursor, authenticated ranges and bounded cache;
+// this bridge only attaches native decoder threads and translates JNI arrays/resource lifetime.
+struct CallbackEnv {
+    JavaVM* vm;
     JNIEnv* env = nullptr;
-    bool didAttach = false;
-    jint envResult = registration->javaVm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
-    if (envResult == JNI_EDETACHED) {
+    bool attached = false;
+    explicit CallbackEnv(JavaVM* value) : vm(value) {
+        jint result = vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+        if (result == JNI_EDETACHED) {
 #if defined(__ANDROID__)
-        if (registration->javaVm->AttachCurrentThread(&env, nullptr) != JNI_OK) return;
+            attached = vm->AttachCurrentThread(&env, nullptr) == JNI_OK;
 #else
-        if (registration->javaVm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != JNI_OK) return;
+            attached = vm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) == JNI_OK;
 #endif
-        didAttach = true;
-    } else if (envResult != JNI_OK) {
-        return;
+            if (!attached) env = nullptr;
+        } else if (result != JNI_OK) env = nullptr;
     }
+    ~CallbackEnv() { if (attached) vm->DetachCurrentThread(); }
+    bool failed() { if (env && env->ExceptionCheck()) { env->ExceptionClear(); return true; } return env == nullptr; }
+};
 
-    env->CallVoidMethod(registration->binding, registration->callbackMethod, static_cast<jint>(channel));
-    env->DeleteGlobalRef(registration->binding);
-    if (didAttach) {
-        registration->javaVm->DetachCurrentThread();
+struct RandomAccessRegistration {
+    JavaVM* vm = nullptr;
+    jobject callbacks = nullptr;
+    jmethodID length = nullptr, read = nullptr, seek = nullptr, close = nullptr;
+    std::atomic<int> references{2}; // creation call and BASS; close may run during failed creation
+    std::atomic<bool> closed{false};
+    void release() {
+        if (references.fetch_sub(1) == 1) {
+            CallbackEnv callback(vm);
+            if (callback.env) callback.env->DeleteGlobalRef(callbacks);
+            delete this;
+        }
     }
-    delete registration;
+};
+
+struct RandomAccessCall {
+    RandomAccessRegistration* file;
+    explicit RandomAccessCall(void* user) : file(static_cast<RandomAccessRegistration*>(user)) { file->references.fetch_add(1); }
+    ~RandomAccessCall() { file->release(); }
+};
+
+void CALLBACK random_access_close(void* user) {
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    if (file->closed.exchange(true)) return;
+    CallbackEnv callback(file->vm);
+    if (callback.env) { callback.env->CallVoidMethod(file->callbacks, file->close); callback.failed(); }
+    file->release();
 }
+
+QWORD CALLBACK random_access_length(void* user) {
+    RandomAccessCall held(user);
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    CallbackEnv callback(file->vm);
+    if (!callback.env || file->closed) return 0;
+    jlong length = callback.env->CallLongMethod(file->callbacks, file->length);
+    return callback.failed() || length < 0 ? 0 : static_cast<QWORD>(length);
+}
+
+DWORD CALLBACK random_access_read(void* buffer, DWORD length, void* user) {
+    RandomAccessCall held(user);
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    CallbackEnv callback(file->vm);
+    if (!callback.env || file->closed || length > static_cast<DWORD>(std::numeric_limits<jint>::max())) return 0;
+    DWORD copied = 0;
+    while (copied < length && !file->closed) {
+        auto bytes = static_cast<jbyteArray>(callback.env->CallObjectMethod(file->callbacks, file->read, static_cast<jint>(length - copied)));
+        if (callback.failed() || !bytes) break;
+        jsize count = callback.env->GetArrayLength(bytes);
+        if (count <= 0 || static_cast<DWORD>(count) > length - copied) { callback.env->DeleteLocalRef(bytes); break; }
+        callback.env->GetByteArrayRegion(bytes, 0, count, static_cast<jbyte*>(buffer) + copied);
+        callback.env->DeleteLocalRef(bytes);
+        if (callback.failed()) break;
+        copied += static_cast<DWORD>(count);
+    }
+    return copied;
+}
+
+BOOL CALLBACK random_access_seek(QWORD offset, void* user) {
+    RandomAccessCall held(user);
+    auto* file = static_cast<RandomAccessRegistration*>(user);
+    CallbackEnv callback(file->vm);
+    if (!callback.env || file->closed || offset > static_cast<QWORD>(std::numeric_limits<jlong>::max())) return FALSE;
+    jboolean result = callback.env->CallBooleanMethod(file->callbacks, file->seek, static_cast<jlong>(offset));
+    return !callback.failed() && result == JNI_TRUE;
+}
+
+HSTREAM create_random_access_stream(JNIEnv* env, jobject callbacks, jboolean decode) {
+    auto* file = new RandomAccessRegistration;
+    env->GetJavaVM(&file->vm);
+    file->callbacks = env->NewGlobalRef(callbacks);
+    jclass type = env->GetObjectClass(callbacks);
+    file->length = env->GetMethodID(type, "length", "()J");
+    file->read = env->GetMethodID(type, "read", "(I)[B");
+    file->seek = env->GetMethodID(type, "seek", "(J)Z");
+    file->close = env->GetMethodID(type, "close", "()V");
+    env->DeleteLocalRef(type);
+    if (env->ExceptionCheck() || !file->vm || !file->callbacks || !file->length || !file->read || !file->seek || !file->close) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        if (file->callbacks) env->DeleteGlobalRef(file->callbacks);
+        delete file;
+        return 0;
+    }
+    BASS_FILEPROCS procs{random_access_close, random_access_length, random_access_read, random_access_seek};
+    HSTREAM stream = BASS_StreamCreateFileUser(STREAMFILE_NOBUFFER,
+        BASS_SAMPLE_FLOAT | BASS_ASYNCFILE | (decode == JNI_TRUE ? BASS_STREAM_DECODE : 0), &procs, file);
+    if (stream == 0) random_access_close(file);
+    file->release();
+    return stream;
+}
+
+struct EndSyncRegistration {
+    JavaVM* vm = nullptr;
+    jobject callback = nullptr;
+    jmethodID method = nullptr;
+    ~EndSyncRegistration() {
+        CallbackEnv context(vm);
+        if (context.env && callback) context.env->DeleteGlobalRef(callback);
+    }
+};
+
+std::mutex endSyncMutex;
+std::uintptr_t nextEndSyncToken = 0;
+std::unordered_map<std::uintptr_t, std::shared_ptr<EndSyncRegistration>> endSyncRegistrations;
+
+std::shared_ptr<EndSyncRegistration> end_sync_registration(void* user, bool remove) {
+    std::lock_guard<std::mutex> lock(endSyncMutex);
+    auto found = endSyncRegistrations.find(reinterpret_cast<std::uintptr_t>(user));
+    if (found == endSyncRegistrations.end()) return {};
+    auto registration = found->second;
+    if (remove) endSyncRegistrations.erase(found);
+    return registration;
+}
+
+void CALLBACK end_sync_proc(HSYNC, DWORD channel, DWORD, void* user) {
+    auto registration = end_sync_registration(user, false);
+    if (!registration) return;
+    CallbackEnv context(registration->vm);
+    if (!context.env) return;
+    context.env->CallVoidMethod(registration->callback, registration->method, static_cast<jint>(channel));
+    context.failed();
+}
+
+void CALLBACK end_sync_free_proc(HSYNC, DWORD, DWORD, void* user) {
+    // The callback can overlap/reenter channel free. A held shared_ptr retains its exact JNI
+    // object until both callbacks return; tokens cannot address a newer reused stream handle.
+    auto registration = end_sync_registration(user, true);
+}
+
+jint set_end_sync(JNIEnv* env, jobject callback, jint stream) {
+    JavaVM* vm = nullptr;
+    if (env->GetJavaVM(&vm) != JNI_OK || !vm || !callback) return 0;
+    jclass type = env->GetObjectClass(callback);
+    if (!type) return 0;
+    jmethodID method = env->GetMethodID(type, "onEndSync", "(I)V");
+    env->DeleteLocalRef(type);
+    if (!method) return 0;
+    auto registration = std::make_shared<EndSyncRegistration>();
+    registration->vm = vm;
+    registration->callback = env->NewGlobalRef(callback);
+    registration->method = method;
+    if (!registration->callback) return 0;
+    std::uintptr_t token;
+    {
+        std::lock_guard<std::mutex> lock(endSyncMutex);
+        do { token = ++nextEndSyncToken; } while (!token || endSyncRegistrations.count(token));
+        endSyncRegistrations.emplace(token, registration);
+    }
+    void* user = reinterpret_cast<void*>(token);
+    const HSYNC freeSync = BASS_ChannelSetSync(static_cast<DWORD>(stream), BASS_SYNC_FREE | BASS_SYNC_ONETIME,
+        0, end_sync_free_proc, user);
+    const HSYNC sync = freeSync ? BASS_ChannelSetSync(static_cast<DWORD>(stream), BASS_SYNC_END | BASS_SYNC_ONETIME,
+        0, end_sync_proc, user) : 0;
+    if (!sync) end_sync_registration(user, true);
+    return static_cast<jint>(sync);
+}
+
+jint end_sync_registration_count() {
+    std::lock_guard<std::mutex> lock(endSyncMutex);
+    return static_cast<jint>(endSyncRegistrations.size());
+}
+
 }
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
@@ -1181,6 +1338,18 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlStre
 }
 
 extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateRandomAccessStream(JNIEnv* env, jobject thiz, jobject callbacks, jboolean decode) {
+    (void)thiz;
+    return static_cast<jint>(create_random_access_stream(env, callbacks, decode));
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateRandomAccessStream(JNIEnv* env, jobject thiz, jobject callbacks, jboolean decode) {
+    (void)thiz;
+    return static_cast<jint>(create_random_access_stream(env, callbacks, decode));
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateFileStream(JNIEnv* env, jobject thiz, jstring path) {
     (void)thiz;
     const char* chars = env->GetStringUTFChars(path, nullptr);
@@ -1261,32 +1430,23 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeRemoveMixerCh
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetEndSync(JNIEnv* env, jobject thiz, jint stream) {
-    JavaVM* javaVm = nullptr;
-    if (env->GetJavaVM(&javaVm) != JNI_OK || javaVm == nullptr) return 0;
-    jclass bindingClass = env->GetObjectClass(thiz);
-    if (bindingClass == nullptr) return 0;
-    jmethodID callbackMethod = env->GetMethodID(bindingClass, "onEndSync", "(I)V");
-    env->DeleteLocalRef(bindingClass);
-    if (callbackMethod == nullptr) return 0;
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetEndSync(JNIEnv* env, jobject, jint stream, jobject callback) {
+    return set_end_sync(env, callback, stream);
+}
 
-    auto* registration = new DesktopEndSyncRegistration{
-        javaVm,
-        env->NewGlobalRef(thiz),
-        callbackMethod,
-    };
-    HSYNC sync = BASS_ChannelSetSync(
-        static_cast<DWORD>(stream),
-        BASS_SYNC_END | BASS_SYNC_ONETIME,
-        0,
-        desktop_end_sync_proc,
-        registration
-    );
-    if (sync == 0) {
-        env->DeleteGlobalRef(registration->binding);
-        delete registration;
-    }
-    return static_cast<jint>(sync);
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSetEndSync(JNIEnv* env, jobject, jint stream, jobject callback) {
+    return set_end_sync(env, callback, stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeEndSyncRegistrationCount(JNIEnv*, jobject) {
+    return end_sync_registration_count();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeEndSyncRegistrationCount(JNIEnv*, jobject) {
+    return end_sync_registration_count();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

@@ -105,4 +105,9 @@ private val AndroidSettingsDocumentMimeTypes = arrayOf(
     "text/json",
     "text/plain",
     "application/octet-stream",
+    "application/x-pkcs12",
+    "application/pkcs12",
+    "application/x-x509-ca-cert",
+    "application/pkix-cert",
+    "application/x-pem-file",
 )

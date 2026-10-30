@@ -298,7 +298,7 @@ fun subsonicFamilyProviderSessionRouter(
 ): NaviampCoreProviderSessionPort = NaviampCoreProviderSessionRouter(
     routes = listOf(
         NaviampCoreProviderSessionRoute(
-            providerIds = setOf(ProviderIdNavidrome, ProviderIdSubsonic, ProviderIdBandcamp),
+            providerIds = setOf(ProviderIdNavidrome, ProviderIdSubsonic, ProviderIdBandcamp, app.naviamp.domain.provider.ProviderIdAurral),
             sessionPort = sessionPort,
         ),
     ) + additionalRoutes,

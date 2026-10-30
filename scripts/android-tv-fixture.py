@@ -7,6 +7,7 @@ GET /_test/off and /_test/on simulate transport loss/recovery; /_test/status is 
 import argparse
 import json
 import math
+import re
 import socket
 import struct
 import threading
@@ -150,16 +151,25 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data)
     def audio(self, live=False):
         global bytes_sent, max_active_streams
-        start = 0
+        start, end = 0, len(DATA) - 1
         unknown = live or args.unknown_length
-        if not unknown and self.headers.get('Range','').startswith('bytes='):
-            start = int(self.headers['Range'][6:].split('-')[0] or 0)
-        if start >= len(DATA): self.send_error(416); return
-        self.send_response(206 if start else 200)
+        range_header = None if unknown else self.headers.get('Range')
+        if range_header is not None:
+            match = re.fullmatch(r'bytes=(\d+)-(\d*)', range_header)
+            if match:
+                start = int(match[1])
+                end = min(int(match[2]), end) if match[2] else end
+            if not match or start > end or start >= len(DATA):
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{len(DATA)}')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+        self.send_response(206 if range_header is not None else 200)
         self.send_header('Content-Type','audio/wav')
         if not unknown: self.send_header('Accept-Ranges','bytes')
-        if start: self.send_header('Content-Range',f'bytes {start}-{len(DATA)-1}/{len(DATA)}')
-        if not unknown: self.send_header('Content-Length',str(len(DATA)-start))
+        if range_header is not None: self.send_header('Content-Range',f'bytes {start}-{end}/{len(DATA)}')
+        if not unknown: self.send_header('Content-Length',str(end-start+1))
         self.end_headers()
         with lock:
             streams.add(self.connection)
@@ -175,9 +185,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(PCM); self.wfile.flush()
                     with lock: bytes_sent += len(PCM)
                     time.sleep(1)
-            for offset in range(start,len(DATA),8192):
-                self.wfile.write(DATA[offset:offset+8192]); self.wfile.flush()
-                with lock: bytes_sent += len(DATA[offset:offset+8192])
+            for offset in range(start,end+1,8192):
+                chunk = DATA[offset:min(offset+8192,end+1)]
+                self.wfile.write(chunk); self.wfile.flush()
+                with lock: bytes_sent += len(chunk)
                 if offset - start >= args.burst_seconds * RATE * 2: time.sleep(0.25)
         except (OSError, ConnectionError): pass
         finally:

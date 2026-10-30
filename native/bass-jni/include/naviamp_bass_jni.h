@@ -67,7 +67,7 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeRemoveMixerChannel(JNIEnv* env, jobject thiz, jint stream);
 
 extern "C" JNIEXPORT jint JNICALL
-Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetEndSync(JNIEnv* env, jobject thiz, jint stream);
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetEndSync(JNIEnv* env, jobject thiz, jint stream, jobject callback);
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativePlay(JNIEnv* env, jobject thiz, jint stream);

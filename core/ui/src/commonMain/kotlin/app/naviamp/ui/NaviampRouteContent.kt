@@ -348,7 +348,7 @@ private fun HomeCollectionSectionTitle(
 }
 
 @Composable
-private fun HomeRailArrow(
+internal fun HomeRailArrow(
     pointsRight: Boolean,
     enabled: Boolean,
     colors: NaviampColors,
@@ -361,7 +361,7 @@ private fun HomeRailArrow(
     ) {
         Icon(
             imageVector = NaviampIcons.ChevronRight,
-            contentDescription = if (pointsRight) "Scroll right" else "Scroll left",
+            contentDescription = stringResource(if (pointsRight) Res.string.home_scroll_right else Res.string.home_scroll_left),
             tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.45f),
             modifier = Modifier
                 .size(19.dp)
@@ -948,6 +948,7 @@ fun SharedHomeRoute(
     home: NaviampHomeScreenUi,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
+    discoveryPlayback: DiscoverySamplePlaybackUi,
     scrollState: ScrollState = rememberScrollState(),
 ) {
     val collectionScrollState = remember(home.collectionPage?.section?.id) { ScrollState(0) }
@@ -1006,12 +1007,19 @@ fun SharedHomeRoute(
                     .fillMaxSize()
                     .verticalScroll(scrollState),
             ) {
-                SharedHome(
-                    colors = colors,
-                    home = home.content,
-                    actions = actions,
-                    mediaActions = mediaActions,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    home.providerDiscovery?.let { discovery ->
+                        NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
+                            actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback)
+                    }
+                    SharedHome(
+                        colors = colors,
+                        home = home.content,
+                        actions = actions,
+                        mediaActions = mediaActions,
+                    )
+                }
             }
         }
     }
@@ -1373,9 +1381,12 @@ fun NaviampLibraryContent(
     }
     val restoredTarget = viewportState.focusedTarget(screen.selectedView)
     val restoredItemFocusRequester = remember(screen.selectedView, restoredTarget) { FocusRequester() }
-    val filteredItems = remember(items, query) {
+    // Provider matching may include accents, aliases, tokenization or hidden metadata.
+    // Only locally preview an unqueried/old catalog; never re-filter current server matches.
+    val serverMatches = query.isNotBlank() && catalog.resultsQuery == query
+    val filteredItems = remember(items, query, serverMatches) {
         val normalizedQuery = query.trim().lowercase()
-        if (normalizedQuery.isBlank()) {
+        if (normalizedQuery.isBlank() || serverMatches) {
             items
         } else {
             items.filter { item ->
@@ -1385,9 +1396,9 @@ fun NaviampLibraryContent(
             }
         }
     }
-    val filteredTracks = remember(tracks, query) {
+    val filteredTracks = remember(tracks, query, serverMatches) {
         val normalizedQuery = query.trim().lowercase()
-        if (normalizedQuery.isBlank()) tracks else tracks.filter { track ->
+        if (normalizedQuery.isBlank() || serverMatches) tracks else tracks.filter { track ->
             track.title.lowercase().contains(normalizedQuery) || track.subtitle.lowercase().contains(normalizedQuery)
         }
     }
@@ -1498,7 +1509,6 @@ fun NaviampLibraryContent(
                 },
             )
         }
-        NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -1599,6 +1609,8 @@ fun NaviampLibraryContent(
                     },
             )
         }
+        // Loading and refresh feedback must never displace the search controls.
+        NaviampLibraryLoadingStatus(colors, screen.selectedView, catalog)
         Row(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1609,7 +1621,7 @@ fun NaviampLibraryContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             if (filteredItems.isEmpty() && filteredTracks.isEmpty() &&
-                !syncStatus.isSyncing && catalog.pendingJump == null) {
+                !syncStatus.isSyncing && !catalog.searching && catalog.pendingJump == null) {
                 item {
                 val emptyMessage = when (screen.selectedView) {
                     NaviampLibraryView.Artists -> if (query.isBlank()) {
@@ -1738,8 +1750,8 @@ fun NaviampLibraryContent(
             }
             if (filteredItems.isNotEmpty() || filteredTracks.isNotEmpty()) {
                 item(key = "library-load-more-${screen.selectedView.name}") {
-                    androidx.compose.runtime.LaunchedEffect(screen.selectedView, items.size, tracks.size, query) {
-                        if (!syncStatus.isSyncing) actions.onLoadMore()
+                    androidx.compose.runtime.LaunchedEffect(screen.selectedView, items.size, tracks.size, query, catalog.searching) {
+                        if (!syncStatus.isSyncing && !catalog.searching) actions.onLoadMore()
                     }
                 }
             }

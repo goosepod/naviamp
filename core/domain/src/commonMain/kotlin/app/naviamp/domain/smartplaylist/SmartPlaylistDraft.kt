@@ -171,6 +171,7 @@ data class SmartPlaylistConditionDraft(
 data class SmartPlaylistSortDraft(
     val field: SmartPlaylistFieldOption = SmartPlaylistFieldCatalog.sortableFields.first(),
     val descending: Boolean = true,
+    val id: Long = Random.nextLong(),
 ) {
     fun toSortOrNull(): SmartPlaylistSort? =
         field.takeIf { it.sortable }?.let { SmartPlaylistSort(it.field, descending) }

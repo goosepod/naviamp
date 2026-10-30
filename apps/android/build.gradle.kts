@@ -140,6 +140,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(project(":core:testkit"))
     androidTestImplementation(libs.sqldelight.android.driver)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
@@ -256,6 +257,16 @@ tasks.register("verifyReleaseOptimization") {
             it == "app.naviamp.android.playback.AndroidBassJni -> app.naviamp.android.playback.AndroidBassJni:"
         }) {
             "R8 mapping does not preserve the name-based AndroidBassJni boundary"
+        }
+        val callbackClass = "app.naviamp.domain.playback.BassEndSyncCallback"
+        val callbackHeader = "$callbackClass -> $callbackClass:"
+        val mappingLines = mapping.readLines()
+        val callbackStart = mappingLines.indexOf(callbackHeader)
+        check(callbackStart >= 0) { "R8 mapping does not preserve the shared JNI end callback class" }
+        val callbackMembers = mappingLines.drop(callbackStart + 1)
+            .takeWhile { it.isBlank() || it.startsWith(" ") || it.startsWith("#") }
+        check(callbackMembers.any { it.contains("void onEndSync(int)") && it.endsWith(" -> onEndSync") }) {
+            "R8 mapping does not preserve the shared JNI end callback method"
         }
         check(usage.isFile && usage.length() > 0L) { "R8 did not report removed release code" }
         check(ZipFile(nativeSymbols).use { it.size() > 0 }) {

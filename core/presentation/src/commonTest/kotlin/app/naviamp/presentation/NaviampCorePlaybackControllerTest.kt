@@ -61,6 +61,81 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
     @Test
+    fun elevenTrackQueueContinuesThroughTheRealSharedAdapterDespiteLateCompletionCallbacks() = runTest {
+        for (sonic in listOf(true, false)) for (eligible in listOf(true, false)) {
+            val provider = PlaybackTestProvider()
+            val providers = NaviampCoreMediaProviderSource { provider }
+            val settings = PlaybackSettings(sonicAutoplayEnabled = true, sonicAutoplayMinimumTracks = 10,
+                sonicSimilarityEnabled = sonic, sonicSimilarityPreferenceConfigured = true)
+            val store = NaviampCoreStateStore().also { it.updateShell { shell -> shell.copy(
+                connectionSettings = shell.connectionSettings.copy(currentSourceId = "source"),
+                playback = shell.playback.copy(settings = settings)) } }
+            val tracks = (0..10).map { playbackTrack("seed-$it") }
+            val initialQueue = PlaybackQueue(tracks, 10)
+            val live = NaviampLivePlaybackController(NaviampLivePlaybackState(
+                queue = initialQueue, currentTrack = tracks.last(), playbackState = PlaybackState.Idle))
+            val coordinator = NaviampPlaybackQueueCoordinator(live)
+            var callback: ((PlaybackState) -> Unit)? = null
+            val starts = mutableListOf<String?>()
+            val engine = object : app.naviamp.domain.playback.PlaybackEngine by UnavailableNaviampPlaybackEngine {
+                override fun play(scope: kotlinx.coroutines.CoroutineScope, request: app.naviamp.domain.playback.PlaybackRequest,
+                    onStateChanged: (PlaybackState) -> Unit, onProgressChanged: (PlaybackProgress) -> Unit,
+                    onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit) {
+                    starts += request.mediaId
+                    callback = onStateChanged
+                    onStateChanged(PlaybackState.Playing)
+                }
+            }
+            val adapter = NaviampCorePlaybackEngineAdapter(this, engine, providers, settings = { settings })
+            val sidecars = PlaybackTestSidecars()
+            val presenter = NaviampCoreNowPlayingPresenter(store, providers, live, coordinator, adapter, sidecars)
+            val controller = NaviampCorePlaybackController(this, store, providers, live, coordinator, adapter,
+                NaviampCorePlaybackSettingsPort { value, _ -> value }, sidecars,
+                NaviampPlaybackSessionController(RecordingPlaybackSessionRepository()), presenter, nowEpochMillis = { 10_000L })
+            val gate = CompletableDeferred<Unit>()
+            val candidates = if (eligible) tracks.take(5) + List(15) { playbackTrack("new-${it % 10}") } else tracks
+            tracks.takeLast(3).forEach { seed ->
+                provider.sonicMatchesBySeed[seed.id.value] = candidates.map { SonicSimilarTrack(it, 0.9) }
+                provider.radioTracksBySeed[seed.id.value] = candidates
+            }
+            if (sonic) provider.beforeSonicRequest = { gate.await() }
+            else provider.beforeRadioRequest = { gate.await() }
+            controller.attachNativePlayback()
+            adapter.playQueueSelection(initialQueue, 10)
+            runCurrent()
+            val completedCallback = checkNotNull(callback)
+            completedCallback(PlaybackState.Finished)
+            runCurrent()
+            completedCallback(PlaybackState.Playing)
+            completedCallback(PlaybackState.Loading)
+            completedCallback(PlaybackState.Finished)
+            assertEquals(PlaybackState.Finished, live.state.value.playbackState)
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(if (eligible) 21 else 11, live.state.value.queue.tracks.size)
+            assertEquals(live.state.value.queue.tracks.size, live.state.value.queue.tracks.map { it.id }.distinct().size)
+            assertEquals(if (eligible) "new-0" else "seed-10", live.state.value.currentTrack?.id?.value)
+            assertEquals(if (eligible) PlaybackState.Playing else PlaybackState.Finished, live.state.value.playbackState)
+            assertEquals(if (eligible) 2 else 1, starts.size)
+            if (!eligible) assertEquals(app.naviamp.domain.radio.RadioBuildDiagnostics(
+                app.naviamp.domain.radio.RadioBuildOutcome.Empty, autoplay = true), store.state.value.overlays.radioNotice)
+            adapter.stop()
+        }
+    }
+
+    @Test fun mixedQueueMustNotSendPreviewIdentitiesToPlaylistCreation() = runTest {
+        val fixture = playbackFixture(this)
+        val preview = playbackTrack("discovery-preview:42")
+        val owned = playbackTrack("owned")
+        fixture.live.replace(fixture.live.state.value.copy(currentTrack = owned,
+            queue = PlaybackQueue(listOf(preview, owned), currentIndex = 1)))
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Queue(
+            NowPlayingQueueActionRequest(NowPlayingQueueAction.SaveQueueAsPlaylist, playlistName = "Mixed")))
+        assertTrue(fixture.provider.created.none { it.contains("discovery-preview:") },
+            "Playlist writes must exclude preview identities even after a Library track becomes current: ${fixture.provider.created}")
+    }
+
+    @Test
     fun savedDjAppearsInNowPlayingWithoutAnotherPlaybackEvent() = runTest {
         val fixture = playbackFixture(this)
         val previous = fixture.store.state.value.shell.playback.settings

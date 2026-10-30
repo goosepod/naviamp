@@ -68,6 +68,7 @@ data class NaviampCorePlaybackServices(
     val visualizerSettings: NaviampCoreVisualizerSettingsPort,
     val sessions: NaviampPlaybackSessionController,
     val profiles: PlaybackProfileRepository = EmptyPlaybackProfileRepository,
+    val samples: NaviampCoreSamplePlaybackPort = UnavailableNaviampSamplePlayback,
 )
 
 /** Settings stores and maintenance mechanisms; Core owns their ordering and presentation. */
@@ -131,4 +132,5 @@ data class NaviampCoreServices(
     val diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
     val connect: NaviampCoreConnectServices? = null,
     val cast: NaviampCoreCastServices? = null,
+    val certificateFiles: NaviampCoreCertificateFilePort? = null,
 )
