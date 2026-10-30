@@ -92,6 +92,42 @@ class ArtistPlaylistsTest {
         assertTrue(provider.readIds.size <= 4)
         assertTrue(updates.all { it.loading })
     }
+
+    @Test fun slowLargeAccountsStopAtTheOverallBudgetAndRetainCompletedMatches() = runTest {
+        val provider = ArtistPlaylistProvider().apply {
+            choices = List(500) { Playlist("$it", "Playlist $it", 1) }
+            contents = { id ->
+                if (id.toInt() >= 4 && id != "9") delay(60_000)
+                listOf(track())
+            }
+        }
+        val updates = mutableListOf<ArtistPlaylists>()
+        loadArtistPlaylists(provider, artist, updates::add)
+        assertTrue(currentTime <= 30_000, "Whole lookup took $currentTime ms")
+        assertEquals(listOf("0", "1", "2", "3", "9"), updates.last().playlists.map { it.id },
+            "Keep completed reads even from the batch interrupted by the overall deadline")
+        assertFalse(updates.last().loading)
+        assertTrue(updates.last().failed, "Incomplete lookup must not claim an empty/complete success")
+        assertFalse(updates.last().truncated, "The 500-playlist truncation message does not describe a timeout")
+        assertEquals(0, provider.activeReads)
+        assertTrue(provider.readIds.size <= 12)
+        val completedUpdates = updates.size
+        advanceUntilIdle()
+        assertEquals(completedUpdates, updates.size)
+    }
+
+    @Test fun overallTimeoutDoesNotSwallowParentCancellation() = runTest {
+        val provider = ArtistPlaylistProvider().apply {
+            choices = List(500) { Playlist("$it", "$it", 1) }
+            contents = { delay(60_000); listOf(track()) }
+        }
+        val updates = mutableListOf<ArtistPlaylists>()
+        assertFailsWith<TimeoutCancellationException> {
+            withTimeout(100) { loadArtistPlaylists(provider, artist, updates::add) }
+        }
+        assertTrue(updates.all { it.loading })
+        assertEquals(0, provider.activeReads)
+    }
 }
 
 private class ArtistPlaylistProvider : MediaProvider {

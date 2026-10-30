@@ -28,6 +28,8 @@ interface MediaProvider {
     val capabilities: ProviderCapabilities
     /** Native URL consumers cannot reproduce this connection's TLS identity/trust or headers. */
     val requiresAuthenticatedPlaybackTransport: Boolean get() = false
+    /** Implements streamTrackBytes for ordinary playback, independently of TLS/header requirements. */
+    val supportsPlaybackByteTransport: Boolean get() = false
     val cacheNamespace: String
         get() = id.value
     val selectedMusicFolderIds: List<String>

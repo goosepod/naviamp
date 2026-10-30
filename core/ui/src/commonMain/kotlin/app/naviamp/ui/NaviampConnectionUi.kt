@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -299,13 +300,17 @@ fun NaviampConnectionForm(
             }
             if (capabilities.insecureServerVerification) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().toggleable(
+                        value = form.skipTlsVerification,
+                        role = Role.Checkbox,
+                        onValueChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Checkbox(
                         checked = form.skipTlsVerification,
-                        onCheckedChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
+                        onCheckedChange = null,
                     )
                     Text(stringResource(Res.string.connection_skip_tls_certificate_verification), color = colors.secondaryText, fontSize = 13.sp)
                 }

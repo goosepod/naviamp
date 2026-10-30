@@ -79,6 +79,7 @@ class JellyfinProvider(
 
     override val id = ProviderId(ProviderIdJellyfin)
     override val displayName: String = "Jellyfin"
+    override val supportsPlaybackByteTransport: Boolean = true
     override val source: String = JellyfinMetadataSource
     override val selectedMusicFolderIds: List<String> = connection.selectedMusicFolderIds
     override val cacheNamespace: String = buildString {

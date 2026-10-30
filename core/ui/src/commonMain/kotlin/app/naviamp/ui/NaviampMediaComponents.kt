@@ -141,6 +141,10 @@ fun TrackRow(
     Row(
         modifier = swipeModifier
             .fillMaxWidth()
+            .semantics {
+                contentDescription = listOf(trackNumber?.toString().orEmpty(), track.title,
+                    track.subtitle, track.meta, track.durationLabel).filter(String::isNotBlank).joinToString(", ")
+            }
             .then(
                 if (background) {
                     Modifier
@@ -827,6 +831,10 @@ fun SharedMediaRow(
                 } else {
                     rowModifier
                 }
+            }
+            .semantics {
+                contentDescription = listOf(item.title, item.subtitle, item.meta)
+                    .filter(String::isNotBlank).joinToString(", ")
             }
             .padding(horizontal = 8.dp, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,

@@ -48,15 +48,37 @@ internal fun progressLayerMotion(progress: Float, durationSeconds: Double?): Nav
 internal class NaviampProgressPrediction {
     private var motion: NaviampLayerMotion? = null
     private var startedMillis = 0L
+    private var previousDuration: Double? = null
+    private var previousValue: Float? = null
+    var revision = 0L
+        private set
 
     fun update(target: Float, smooth: Boolean, duration: Double?, nowMillis: Long): Float {
         val bounded = if (target.isFinite()) target.coerceIn(0f, 1f) else 0f
         val predicted = motion?.valueAt(nowMillis - startedMillis) ?: bounded
         val canAdvance = smooth && duration != null && duration.isFinite() && duration > 0.0
         val threshold = if (canAdvance) minOf(.025f, (2.0 / requireNotNull(duration)).toFloat()) else 0f
-        val start = if (canAdvance && kotlin.math.abs(predicted - bounded) <= threshold) predicted else bounded
+        if (canAdvance && motion != null && duration == previousDuration &&
+            kotlin.math.abs(predicted - bounded) <= threshold) return predicted
+        if (!canAdvance && motion == null && previousValue == bounded && duration == previousDuration) return bounded
+        val start = if (canAdvance && duration == previousDuration && kotlin.math.abs(predicted - bounded) <= threshold) predicted else bounded
         motion = if (canAdvance) progressLayerMotion(start, duration) else null
         startedMillis = nowMillis
+        previousDuration = duration
+        previousValue = bounded
+        revision++
         return start
     }
+}
+
+/** Resume a finite compositor timeline at its current position after rebinding or resizing. */
+internal fun NaviampLayerMotion.remainingAfter(elapsedMillis: Long): NaviampLayerMotion? {
+    require(!repeat)
+    val elapsed = elapsedMillis.coerceAtLeast(0L)
+    if (elapsed >= durationMillis) return null
+    val remaining = timesMillis.indices.filter { timesMillis[it] > elapsed }
+    return NaviampLayerMotion(
+        listOf(valueAt(elapsed)) + remaining.map { values[it] },
+        listOf(0L) + remaining.map { timesMillis[it] - elapsed },
+    )
 }

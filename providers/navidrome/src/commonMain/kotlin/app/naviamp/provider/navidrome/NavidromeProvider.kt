@@ -124,6 +124,7 @@ class NavidromeProvider(
     override val discovery: app.naviamp.domain.provider.ProviderDiscovery? get() = aurralDiscovery
     override val id: ProviderId = ProviderId(profile.providerId)
     override val displayName: String = profile.displayName
+    override val supportsPlaybackByteTransport: Boolean = true
     override val requiresAuthenticatedPlaybackTransport: Boolean
         get() = connection.tlsSettings != NavidromeTlsSettings() || customHeaders.isNotEmpty()
     override val source: String = NavidromeAgentMetadataSource

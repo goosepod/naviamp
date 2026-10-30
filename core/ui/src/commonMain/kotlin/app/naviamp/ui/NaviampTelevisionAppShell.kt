@@ -723,6 +723,7 @@ private fun TelevisionConnectedContent(
         else -> ConnectedContent(
             colors = colors,
             uiState = uiState,
+            showFullNowPlaying = false,
             playbackProgress = playbackProgress,
             visualizerBandsProvider = visualizerBandsProvider,
             settingsSync = settingsSync,
