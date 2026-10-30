@@ -61,6 +61,39 @@ loopback-only and playback muted. Exercise menus, diagnostics, pause, minimize/r
 clipping, input and accessibility, and apply the budgets in `docs/performance/desktop-popup-animation-136.md`.
 A low CPU measurement or an attached render delegate alone is insufficient acceptance evidence.
 
+## Windows compiler attribution with a trimmed runtime
+
+The observer records each surface's scale. If its `compilation_ms` is unavailable because the
+packaged runtime omits `java.management`, bracket a phase with the installed JDK's HotSpot counters:
+
+```powershell
+scripts/animation-probe/measure-windows-application-phase.ps1 `
+  -ApplicationProcessId <child-JVM-PID> -ObserverDirectory <absolute-observer-output> `
+  -Phase <unique-phase-name> -JdkDirectory <installed-JDK-directory>
+```
+
+This does not control the UI. Establish and visibly verify the state first. The helper reads
+compiler counters before requesting the observer interval and after its result exists, avoiding
+diagnostic attachment during the CPU sample. It verifies the result PID, refuses an existing
+phase result and times out if the observer does not respond. Missing counters fail explicitly.
+The `*-jit.json` reports aggregate compiler elapsed time across that bracket, not process CPU or
+an exact partition of the observer interval. Keep high samples even when compilation occurs.
+
+Native WPR is under `Windows/Sysnative` from a 32-bit shell and `Windows/System32` from a
+64-bit shell. A missing PATH command does not establish that WPR is unavailable. If Windows
+rejects kernel profiling with `0xc5585011`, an administrator must run the capture. Keep the
+disposable Naviamp application unelevated, visible and at the measured size, then use:
+
+```powershell
+scripts/animation-probe/capture-windows-native-cpu.ps1 -ApplicationProcessId <child-JVM-PID>
+```
+
+The helper requires an administrator shell, validates a disposable Naviamp build in this checkout,
+records for twelve seconds, and saves under ignored `build/windows-native-cpu`. It creates a unique
+WPR instance and only stops/cancels that instance. It does not elevate the app, change OS policy,
+or control the UI. Its administrator capture path has not been exercised in the non-elevated
+October 29 session. Keep raw ETL data local; restrict analysis to the recorded target PID.
+
 ## Windows native diagnostic control
 
 `windows-native-sampler/` contains the October 29 investigation helper and a plain Swing control.

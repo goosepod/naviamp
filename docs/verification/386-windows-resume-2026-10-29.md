@@ -120,6 +120,10 @@ The user's initial main checkout and unrelated research document remain untouche
 
 ## Remaining acceptance scope
 
+The subsequent [Windows performance follow-up](386-windows-performance-2026-10-29.md) retains
+shared progress timelines across routine telemetry and records the full visible CPU/frame/GPU
+matrix, including high and rejected samples. It does not close the strict performance gate.
+
 This resumed batch establishes functional Windows behavior for the combined fixes. It does not
 close the existing strict animation CPU/GPU budget or Windows spoken accessibility gate. No new
 performance pass is claimed from functional screenshots. The original physical-TV eleven-track
