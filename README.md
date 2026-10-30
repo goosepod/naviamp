@@ -26,6 +26,27 @@ Beta builds are available through TestFlight for [macOS](https://testflight.appl
 [Join us on Discord](https://discord.gg/7dd9954VGd) to chat with the Naviamp community, ask questions,
 and share feedback.
 
+### Android Alpha on Google Play
+
+Naviamp is available through a closed Android Alpha on Google Play. To join:
+
+1. Join the [Naviamp testers Google Group](https://groups.google.com/g/naviamp-testers).
+2. Open the [Android Alpha opt-in page](https://play.google.com/apps/testing/app.naviamp.android)
+   and select **Become a tester**.
+3. Install [Naviamp from Google Play](https://play.google.com/store/apps/details?id=app.naviamp.android).
+
+Use the **same Google account** for the Google Group, tester enrollment, and Play Store. If you
+already belong to the group, start at step 2: group membership alone does not enroll you in the
+Play test. If the opt-in page says **You are a tester**, continue to installation. If access is
+unavailable, check that you joined the group with the account you are using for Google Play.
+
+Please use the app, stay opted in for at least 14 consecutive days, and share feedback on
+[Discord](https://discord.gg/7dd9954VGd). Include your device model, Android version, and steps to
+reproduce any problem; keep server credentials private.
+
+If you already have a newer sideloaded build, Google Play's older Alpha will not replace it.
+Ask on Discord before uninstalling: uninstalling erases local app data.
+
 <p align="center">
   <img src="readme-assets/screenshots/desktop-now-playing-queue.png" alt="Naviamp desktop Now Playing screen and queue" width="780">
 </p>
