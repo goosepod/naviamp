@@ -22,7 +22,14 @@ not a claim that those pull requests have merged or that the release is accepted
 The unchanged candidate `0f95e6a4f` passed the complete hosted matrix: shared/Android, native
 Windows/macOS/Linux, Android API 30/API 35, iOS simulator, and verified-tree recording.
 Independent Mac review passed 36 focused shared UI regressions and four real HTTP range tests.
-This consolidation changes verification documentation only; no platform production file changes.
+The initial `f4da8bbc5` integration changes verification documentation only. The subsequent
+#412/#413 follow-up strengthens the desktop native preview test by synchronizing its paused
+baseline with the actual native clock; its full local native suite passes 65 cases with two
+Linux-only skips. No production implementation changes in either follow-up. The final combined
+source still requires the protected main/release hosted matrices before merging.
+
+The release transfer from its older baseline also has a separate
+[native-boundary inventory](408-release-native-boundaries.md) for the already accepted host adapters.
 
 Current-source macOS and physical Android performance testing remains necessary. Prior Mac
 performance samples predate the retained progress timeline fix and include rejected/diagnostic
