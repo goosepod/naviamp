@@ -25,7 +25,8 @@ Apple allows up to 100 registered iPhones and 100 registered iPads per membershi
 - Build the repository in Xcode and select your own Team to install directly on a connected device.
 - Use a locally trusted signing/sideloading tool to sign the release's unsigned IPA with your own
   identity before installation.
-- Use the official TestFlight build once Goosepod's App Store Connect distribution is available.
+- Use the official [iOS TestFlight link](https://testflight.apple.com/join/efbB6TFd) when enrollment
+  and an eligible build are available. TestFlight has its own version and review status.
 
 The unsigned artifact is a convenience for experienced testers, not a replacement for TestFlight
 or an App Store release.

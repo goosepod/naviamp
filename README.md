@@ -5,7 +5,7 @@
 # Naviamp
 
 Naviamp is a modern music player for the libraries you already own and the services you already
-use. Connect Navidrome, another Subsonic/OpenSubsonic server, Jellyfin, or your Bandcamp collection,
+use. Connect Aurral, Navidrome, another Subsonic/OpenSubsonic server, Jellyfin, or your Bandcamp collection,
 then browse, discover, queue, download, and play from one polished app on desktop, Android, and iOS.
 
 Your music stays with the server you choose. Naviamp brings the player.
@@ -57,7 +57,8 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
   and recently played music, random picks, and every credited artist on a track.
 - **Powerful discovery.** Build Artist, Album, and Genre mixes; use Sonic Mix and Sonic Path; start
   track radio; explore related music; and let sonic autoplay keep the queue moving when the server
-  supports similarity data.
+  supports similarity data. Aurral adds recommended and trending artists, samples, library requests,
+  and artist monitoring when your account permits it.
 - **Playlists that go further.** Create and edit regular playlists, add music from throughout the
   app, save generated queues, and build reusable smart playlists on compatible servers.
 - **A full Now Playing experience.** Manage Back To, Up Next, and related queues alongside waveform
@@ -72,6 +73,8 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
 - **Make it yours.** Album-art colors, Aurora gradients, blur and solid-color treatments, compact
   layouts, configurable metadata, waveforms, and a large collection of reactive desktop
   visualizers are all available.
+- **Certificate-protected connections.** Import client identities and private server authorities for
+  authenticated browsing, artwork and playback on all supported platforms.
 - **One app across devices.** Naviamp targets macOS, Windows, Linux, Android, and iOS with shared
   product behavior, secure credential storage, settings sync, and Android Auto support.
 
@@ -79,6 +82,7 @@ Ask on Discord before uninstalling: uninstalling erases local app data.
 
 | Service | What Naviamp brings |
 | --- | --- |
+| **Aurral** | Connect directly for music discovery, samples that preserve your main queue, library requests and artist monitoring, subject to server capabilities and account permissions. |
 | **Navidrome** | The fullest experience, including native authentication, smart playlists, ratings, favorites, rich OpenSubsonic features, and sonic discovery when enabled on the server. |
 | **Subsonic and OpenSubsonic** | Connect compatible self-hosted servers through the standard protocol. Naviamp detects advertised capabilities and shows only the features the server can provide. |
 | **Jellyfin** | Connect directly to Jellyfin music libraries for browsing, search, playback, downloads, playlists, lyrics, and favorites. |
@@ -214,6 +218,9 @@ Get Naviamp for macOS from the [Mac App Store](https://apps.apple.com/app/naviam
 
 Get Naviamp for Windows from the [Microsoft Store](https://apps.microsoft.com/detail/9pcfj644lxll?hl=en-US&gl=US).
 
+Store and beta channels can carry different versions and have separate review or tester eligibility
+requirements. A GitHub release does not automatically update any store.
+
 Direct downloads for all available platforms are on [GitHub Releases](https://github.com/goosepod/naviamp/releases).
 Windows and macOS desktop packages downloaded from GitHub are not publisher-signed and may show
 an operating-system warning. The Windows installers on GitHub install only for the current user
@@ -245,13 +252,19 @@ Gatekeeper system-wide and do not require `sudo`.
 
 ## Translations
 
+Choose System default or any of the 17 bundled interface languages in Settings. German and Spanish
+cover all current string keys; the other catalogs are partial and fall back to English where text
+is missing. Language preferences participate in settings export/import and sync. Upgrade receiving
+devices to v2.10.0 or later before syncing one of the newly selectable language choices.
+
+
 Naviamp uses Weblate to manage community translations. To improve an existing translation or help
 add a new language, visit the [Naviamp project on Hosted Weblate](https://hosted.weblate.org/projects/naviamp/).
 
 ## Building from source
 
 Naviamp uses Kotlin Multiplatform, Compose Multiplatform, Gradle, SQLDelight, and native BASS
-integration. You will need JDK 17 or newer, plus the Android SDK or platform packaging tools for the
+integration. You will need JDK 17 or newer, Python 3 for release verification, and the Android SDK or platform packaging tools for the
 targets you want to build.
 
 ```shell
@@ -278,6 +291,9 @@ make android-debug
 - `./gradlew :apps:android:stageReleaseArtifacts` stages the unified Android APK and Google Play
   App Bundle; see [Android distribution](docs/android-distribution.md).
 - Windows and Linux standalone/installer targets must run on their respective operating systems.
+
+Release operators should use the [v2.10.0 distribution handoff](docs/releases/v2.10.0-readiness.md)
+for exact packages, signing and remaining store gates.
 
 The complete test matrix is documented in [Testing Naviamp](docs/testing.md). The shared
 architecture and platform boundaries are documented in

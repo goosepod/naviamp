@@ -2940,7 +2940,7 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
-            "No special upgrade steps are required. Radio method selection is explicit; choose another method if Sonic fails.",
+            "No database schema migration is introduced. Radio method selection is explicit; choose another method if Sonic fails.",
             "Upgrade other devices to v2.10.0 or later before syncing settings that select one of the newly available interface languages.",
             "Existing generic Subsonic connections can be explicitly changed to Aurral while preserving their source identity, credentials, TLS preferences and selected folders. Native discovery requires a compatible Aurral API and password login; requests and monitoring follow server capabilities and account permissions.",
             "Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.",
