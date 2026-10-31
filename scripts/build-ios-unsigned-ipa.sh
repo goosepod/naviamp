@@ -69,6 +69,14 @@ if [[ "$archived_version" != "$marketing_version" || "$archived_build" != "$buil
     exit 1
 fi
 
+# Check the archived resource, not just the source project: a missing Xcode resource entry
+# would otherwise silently omit the app-local UserDefaults required-reason declaration.
+privacy_manifest="$app_path/PrivacyInfo.xcprivacy"
+plutil -lint "$privacy_manifest"
+test "$(plutil -extract NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPIType raw "$privacy_manifest")" = \
+    "NSPrivacyAccessedAPICategoryUserDefaults"
+test "$(plutil -extract NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPITypeReasons.0 raw "$privacy_manifest")" = "CA92.1"
+
 mkdir -p "$package_root/Payload"
 ditto "$app_path" "$package_root/Payload/Naviamp.app"
 (
