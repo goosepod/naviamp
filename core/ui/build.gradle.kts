@@ -67,9 +67,19 @@ kotlin {
     }
 }
 
+// Java/Android locale APIs can report Indonesian as either modern `id` or legacy `in`.
+// Maintain one catalog and package an identical alias for both runtime representations.
+val packagedComposeResources = layout.buildDirectory.dir("generated/languageResources/commonMain")
+val prepareLanguageResources by tasks.registering(Sync::class) {
+    from("src/commonMain/composeResources")
+    from("src/commonMain/composeResources/values-id") { into("values-in") }
+    into(packagedComposeResources)
+}
+
 compose.resources {
     generateResClass = always
     packageOfResClass = "app.naviamp.ui.generated.resources"
+    customDirectory("commonMain", prepareLanguageResources.map { packagedComposeResources.get() })
 }
 
 android {
@@ -92,6 +102,7 @@ android {
                 "app.naviamp.ui.NaviampLibrarySearchResultsUiTest",
                 "app.naviamp.ui.NaviampArtistTopTracksUiTest",
                 "app.naviamp.ui.NaviampArtistSectionLayoutsUiTest",
+                "app.naviamp.ui.NaviampLanguageResourcesUiTest",
             ).joinToString(",")
         }
     }
