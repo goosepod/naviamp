@@ -18,7 +18,7 @@ import org.jetbrains.compose.resources.stringResource
 class NaviampLocaleEnvironmentTest {
     @Test fun switchingRestoresSystemWithoutRecreatingRememberedUiOrLosingFocus() {
         val original = Locale.getDefault()
-        Locale.setDefault(Locale.FRENCH) // Unsupported system language falls back to English resources.
+        Locale.setDefault(Locale.FRENCH) // This label is absent from the partial French catalog and falls back to English.
         try {
             runComposeUiTest {
                 var language by mutableStateOf(InterfaceLanguage.Spanish)

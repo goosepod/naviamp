@@ -459,6 +459,21 @@ enum class InterfaceLanguage(
     System(languageTag = null),
     English(languageTag = "en"),
     Spanish(languageTag = "es"),
+    Arabic(languageTag = "ar"),
+    ChineseSimplified(languageTag = "zh-CN"),
+    Dutch(languageTag = "nl"),
+    French(languageTag = "fr"),
+    German(languageTag = "de"),
+    Hindi(languageTag = "hi"),
+    Indonesian(languageTag = "id"),
+    Italian(languageTag = "it"),
+    Japanese(languageTag = "ja"),
+    Korean(languageTag = "ko"),
+    Polish(languageTag = "pl"),
+    PortugueseBrazil(languageTag = "pt-BR"),
+    Russian(languageTag = "ru"),
+    Turkish(languageTag = "tr"),
+    Ukrainian(languageTag = "uk"),
 }
 
 @Serializable

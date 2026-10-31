@@ -2934,12 +2934,14 @@ private val DefaultNaviampChangelog = listOf(
             "Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see.",
             "Expose translated playback-position and volume slider labels to assistive technology, and let keyboard users focus and adjust the volume bar.",
             "Keep Audio Cache and Downloads storage totals current while Settings is open.",
+            "Choose any of the 17 bundled interface languages in Settings, including regional Portuguese and Chinese. Text without a translation falls back to English.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Upgrade notes",
         entries = listOf(
             "No special upgrade steps are required. Radio method selection is explicit; choose another method if Sonic fails.",
+            "Upgrade other devices to v2.10.0 or later before syncing settings that select one of the newly available interface languages.",
             "Existing generic Subsonic connections can be explicitly changed to Aurral while preserving their source identity, credentials, TLS preferences and selected folders. Native discovery requires a compatible Aurral API and password login; requests and monitoring follow server capabilities and account permissions.",
             "Import certificates separately on each device for certificate-protected connections; private certificate files and identity passwords are not transferred by settings sync.",
         ),
