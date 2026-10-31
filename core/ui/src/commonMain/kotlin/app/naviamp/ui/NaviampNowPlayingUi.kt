@@ -99,6 +99,7 @@ import kotlin.math.abs
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -1821,6 +1822,7 @@ internal fun WaveformScrubber(
     modifier: Modifier = Modifier,
 ) {
     val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
+    val accessibilityLabel = stringResource(Res.string.now_playing_playback_position)
     val playedColor = waveformPlayedColor(colors, enabled)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
@@ -1850,6 +1852,7 @@ internal fun WaveformScrubber(
             .onFocusChanged { focused = it.isFocused }
             .focusable(enabled)
             .naviampLiveSemantics({ drawValue().coerceIn(0f, 1f) }) { progress ->
+                contentDescription = accessibilityLabel
                 progressBarRangeInfo = ProgressBarRangeInfo(
                     current = progress,
                     range = 0f..1f,
@@ -2067,12 +2070,22 @@ private fun VolumeRow(
     trackWidth: Dp? = null,
 ) {
     var widthPx by remember { mutableFloatStateOf(1f) }
+    var focused by remember { mutableStateOf(false) }
+    val accessibilityLabel = stringResource(Res.string.now_playing_volume)
+    val currentOnValueChanged by rememberUpdatedState(onValueChanged)
+    val currentIsChangingVolume by rememberUpdatedState(isChangingVolume)
     val density = LocalDensity.current
     val thumbRadiusPx = with(density) { VolumeThumbRadius.toPx() }
 
     fun updateFromX(x: Float) {
         val trackWidth = (widthPx - thumbRadiusPx * 2f).coerceAtLeast(1f)
-        onValueChanged(((x - thumbRadiusPx) / trackWidth).coerceIn(0f, 1f))
+        currentOnValueChanged(((x - thumbRadiusPx) / trackWidth).coerceIn(0f, 1f))
+    }
+
+    fun commitVolume(target: Float) {
+        currentIsChangingVolume(true)
+        try { currentOnValueChanged(target.coerceIn(0f, 1f)) }
+        finally { currentIsChangingVolume(false) }
     }
 
     val rowModifier = if (trackWidth == null) {
@@ -2087,7 +2100,7 @@ private fun VolumeRow(
     ) {
         Icon(
             imageVector = NaviampTransportIcons.Volume,
-            contentDescription = "Volume",
+            contentDescription = null,
             tint = colors.primaryText.copy(alpha = 0.86f),
             modifier = Modifier.size(17.dp),
         )
@@ -2095,23 +2108,50 @@ private fun VolumeRow(
             modifier = (if (trackWidth == null) Modifier.weight(1f) else Modifier.width(trackWidth))
                 .height(24.dp)
                 .testTag("now-playing-volume-slider")
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    // The custom volume track, like the waveform, is drawn left to right in every locale.
+                    val target = when (event.key) {
+                        Key.DirectionLeft, Key.DirectionDown -> value - .05f
+                        Key.DirectionRight, Key.DirectionUp -> value + .05f
+                        Key.PageDown -> value - .1f
+                        Key.PageUp -> value + .1f
+                        Key.MoveHome -> 0f
+                        Key.MoveEnd -> 1f
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    commitVolume(target)
+                    true
+                }
+                .onFocusChanged { focused = it.isFocused }
+                .focusable()
+                .semantics {
+                    contentDescription = accessibilityLabel
+                    progressBarRangeInfo = ProgressBarRangeInfo(value.coerceIn(0f, 1f), 0f..1f)
+                    setProgress { target ->
+                        if (!target.isFinite()) false else {
+                            commitVolume(target)
+                            true
+                        }
+                    }
+                }
                 .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(widthPx, thumbRadiusPx) {
                     detectTapGestures { offset ->
-                        isChangingVolume(true)
+                        currentIsChangingVolume(true)
                         updateFromX(offset.x)
-                        isChangingVolume(false)
+                        currentIsChangingVolume(false)
                     }
                 }
                 .pointerInput(widthPx, thumbRadiusPx) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            isChangingVolume(true)
+                            currentIsChangingVolume(true)
                             updateFromX(offset.x)
                         },
                         onDrag = { change, _ -> updateFromX(change.position.x) },
-                        onDragEnd = { isChangingVolume(false) },
-                        onDragCancel = { isChangingVolume(false) },
+                        onDragEnd = { currentIsChangingVolume(false) },
+                        onDragCancel = { currentIsChangingVolume(false) },
                     )
                 },
         ) {
@@ -2150,6 +2190,9 @@ private fun VolumeRow(
                 radius = thumbRadius * 0.42f,
                 center = Offset(endX, centerY),
             )
+            if (focused) drawRoundRect(colors.primaryText,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
         }
     }
 }

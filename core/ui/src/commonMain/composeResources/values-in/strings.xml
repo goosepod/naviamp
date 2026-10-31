@@ -376,4 +376,6 @@
     <string name="discovery_action_uncertain">Hasil tidak dapat dipastikan. Periksa di Aurral sebelum mencoba lagi.</string>
     <string name="discovery_samples_loading">Memuat cuplikan…</string>
     <string name="permission_local_network_usage">Naviamp terhubung ke server musik Anda dan menemukan perangkat pemutaran di jaringan lokal Anda.</string>
+    <string name="now_playing_playback_position">Posisi pemutaran</string>
+    <string name="now_playing_volume">Volume</string>
 </resources>
