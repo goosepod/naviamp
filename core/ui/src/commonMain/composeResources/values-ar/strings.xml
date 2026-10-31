@@ -378,4 +378,20 @@
     <string name="permission_local_network_usage">يتصل Naviamp بخوادم الموسيقى ويكتشف أجهزة التشغيل على شبكتك المحلية.</string>
     <string name="now_playing_playback_position">موضع التشغيل</string>
     <string name="now_playing_volume">مستوى الصوت</string>
+    <string name="settings_language_arabic_title">العربية</string>
+    <string name="settings_language_chinese_simplified_title">简体中文</string>
+    <string name="settings_language_dutch_title">Nederlands</string>
+    <string name="settings_language_french_title">Français</string>
+    <string name="settings_language_german_title">Deutsch</string>
+    <string name="settings_language_hindi_title">हिन्दी</string>
+    <string name="settings_language_indonesian_title">Bahasa Indonesia</string>
+    <string name="settings_language_italian_title">Italiano</string>
+    <string name="settings_language_japanese_title">日本語</string>
+    <string name="settings_language_korean_title">한국어</string>
+    <string name="settings_language_polish_title">Polski</string>
+    <string name="settings_language_portuguese_brazil_title">Português (Brasil)</string>
+    <string name="settings_language_russian_title">Русский</string>
+    <string name="settings_language_turkish_title">Türkçe</string>
+    <string name="settings_language_ukrainian_title">Українська</string>
+    <string name="settings_language_use_subtitle">استخدم هذه اللغة في Naviamp.</string>
 </resources>

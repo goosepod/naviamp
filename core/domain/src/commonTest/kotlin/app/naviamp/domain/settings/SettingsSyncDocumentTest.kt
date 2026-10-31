@@ -9,6 +9,23 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSyncDocumentTest {
+    @Test fun everyInterfaceLanguageSurvivesExportImportAndOlderDefaultsRemainCompatible() {
+        for (language in InterfaceLanguage.entries) {
+            val settings = InterfaceSettings(language = language)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val restored = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(settings, restored)
+        }
+        for (name in listOf("English", "Spanish")) {
+            val restored = SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"language":"$name"}}}""")
+            assertEquals(name, restored.preferences.interfaceSettings.language.name)
+        }
+        assertEquals(InterfaceLanguage.System, SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{}}}""")
+            .preferences.interfaceSettings.language)
+        kotlin.test.assertFailsWith<kotlinx.serialization.SerializationException> {
+            SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"language":"Unknown"}}}""")
+        }
+    }
     @Test
     fun artistPlaylistVisibilityRoundTripsThroughSyncAndDefaultsOnForOlderExports() {
         for (enabled in listOf(false, true)) {
