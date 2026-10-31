@@ -376,4 +376,6 @@
     <string name="discovery_action_uncertain">結果を確認できませんでした。再試行する前にAurralで確認してください。</string>
     <string name="discovery_samples_loading">試聴を読み込み中…</string>
     <string name="permission_local_network_usage">Naviampは音楽サーバーに接続し、ローカルネットワーク上の再生デバイスを検索します。</string>
+    <string name="now_playing_playback_position">再生位置</string>
+    <string name="now_playing_volume">音量</string>
 </resources>

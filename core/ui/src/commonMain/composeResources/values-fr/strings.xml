@@ -376,4 +376,6 @@
     <string name="discovery_action_uncertain">Impossible de confirmer le résultat. Vérifiez dans Aurral avant de réessayer.</string>
     <string name="discovery_samples_loading">Chargement des extraits…</string>
     <string name="permission_local_network_usage">Naviamp se connecte à vos serveurs de musique et recherche les appareils de lecture sur votre réseau local.</string>
+    <string name="now_playing_playback_position">Position de lecture</string>
+    <string name="now_playing_volume">Volume</string>
 </resources>
