@@ -74,7 +74,7 @@ class NaviampChangelogTest {
         val knownIssues = changelog[4].entries
         assertTrue(knownIssues.any { it.contains("stream failure or Wi-Fi interruption") && it.contains("paused position a few seconds earlier") })
         assertTrue(knownIssues.any { it.contains("elevated CPU") && it.contains("visible macOS testing") && it.contains("deferred") })
-        assertTrue(changelog[3].entries.any { it.contains("No special upgrade steps") })
+        assertTrue(changelog[3].entries.any { it.contains("No database schema migration") })
         assertTrue(changelog[3].entries.any { it.contains("v2.10.0 or later") && it.contains("newly available interface languages") })
         assertTrue(changelog[3].entries.any { it.contains("Radio method selection is explicit") })
         assertTrue(changelog[3].entries.any { it.contains("not transferred by settings sync") })

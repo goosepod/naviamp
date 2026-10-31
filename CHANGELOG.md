@@ -48,13 +48,13 @@ Naviamp 2.10.0 adds dedicated Aurral connections with native music discovery, sa
 - Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list. ([Issue #304](https://github.com/goosepod/naviamp/issues/304), [PR #305](https://github.com/goosepod/naviamp/pull/305), [Issue #306](https://github.com/goosepod/naviamp/issues/306), [PR #307](https://github.com/goosepod/naviamp/pull/307))
 - Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see. ([Issue #246](https://github.com/goosepod/naviamp/issues/246), [PR #247](https://github.com/goosepod/naviamp/pull/247), [Issue #269](https://github.com/goosepod/naviamp/issues/269), [PR #270](https://github.com/goosepod/naviamp/pull/270))
 
-- Expose translated playback-position and volume slider labels to assistive technology, and let keyboard users focus and adjust the volume bar. ([Issue #431](https://github.com/goosepod/naviamp/issues/431))
+- Expose translated playback-position and volume slider labels to assistive technology, and let keyboard users focus and adjust the volume bar. ([Issue #431](https://github.com/goosepod/naviamp/issues/431), [PR #432](https://github.com/goosepod/naviamp/pull/432))
 - Keep Audio Cache and Downloads storage totals current while Settings is open. ([Issue #357](https://github.com/goosepod/naviamp/issues/357), [PR #358](https://github.com/goosepod/naviamp/pull/358))
-- Choose any of the 17 bundled interface languages in Settings, including regional Portuguese and Chinese. Text without a translation falls back to English. ([Issue #444](https://github.com/goosepod/naviamp/issues/444))
+- Choose any of the 17 bundled interface languages in Settings, including regional Portuguese and Chinese. Text without a translation falls back to English. ([Issue #444](https://github.com/goosepod/naviamp/issues/444), [PR #445](https://github.com/goosepod/naviamp/pull/445))
 
 ### Upgrade notes
 
-- No special upgrade steps are required. No database schema migration is introduced in this release.
+- No database schema migration is introduced in this release.
 - Upgrade other devices to v2.10.0 or later before syncing settings that select one of the newly available interface languages.
 - Existing generic Subsonic connections can be explicitly changed to Aurral while preserving their source identity, credentials, TLS preferences and selected folders. Native discovery requires a compatible Aurral API and password login; requests and monitoring follow server capabilities and account permissions. ([Issue #359](https://github.com/goosepod/naviamp/issues/359), [PR #360](https://github.com/goosepod/naviamp/pull/360))
 - Certificate-protected connections require the appropriate server authority and/or client identity to be imported on each device; the client identity password is required when the PKCS12 file is protected. These private files are device-local. ([Issue #297](https://github.com/goosepod/naviamp/issues/297), [PR #298](https://github.com/goosepod/naviamp/pull/298))
