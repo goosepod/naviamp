@@ -63,3 +63,13 @@ skips, plus the separately failing real-output attempt. Only a microphone endpoi
 and a system PickerHost blocks visible input while captures remain gray. Those setup/visibility
 findings are not passing playback or animation evidence and do not establish a product regression.
 Windows real-output, visible functional and CPU/frame/GPU acceptance remains open.
+
+After the owner confirms working output and clears the picker, Windows enumerates the BenQ output
+endpoint and the unchanged native preview/pause/resume regression passes. The ordinary package
+paints correctly, restores a paused seek across normal restart, resumes explicitly, renders the
+Aurral-first About changelog, and dismisses Track details with immediate Escape. The pixel-verified
+two-cycle menu/animation/lifecycle probe completes with visible motion, unchanged siblings and zero
+parent frames, including twelve popup transitions and waveform input. Retained CPU outliers and
+real-app playback/compositor costs prevent a full performance sign-off. See the continuation in
+the same Windows report for exact intervals and limits; the earlier gray/output failures are
+preserved as historical setup observations.
