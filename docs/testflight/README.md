@@ -2,9 +2,15 @@
 
 Tracking: [#355](https://github.com/goosepod/naviamp/issues/355). Prepared October 27, 2026.
 This packet covers iOS and macOS separately and preserves the pending public App Store submissions.
-It does not select the unreleased v2.10.0 candidate for beta distribution.
+Its original operations applied to v2.9.0/build 57.
 
-## Current evidence
+The owner accepted the Windows v2.10.0/build 60 candidate on October 31. The
+[v2.10.0 distribution handoff](../releases/v2.10.0-readiness.md) now selects that version
+for release preparation. This older packet and its console observations remain historical;
+they do not establish v2.10.0 upload, review, enrollment or installation. Reuse the existing
+app records and groups after checking their live status.
+
+## Historical evidence
 
 Live browser verification resumed October 27 through native Firefox control. See the
 [current operations checkpoint](status-2026-10-27.md) for completed changes and remaining gates.
