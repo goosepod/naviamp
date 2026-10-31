@@ -51,3 +51,15 @@ Main `13dc942ac` and release `2a6ed29a3` have identical trees. The final
 fix (#357/#358), validates it on current Core and records the older work already represented.
 That follow-up requires its own protected checks; initial performance measurements remain
 explicitly pinned to the preceding cohort and do not close performance acceptance.
+
+## October 30 final-source Windows continuation
+
+PR #426 subsequently integrates the completed restored-seek/dialog fixes and their acceptance
+reports. Main `91d49ef56` and release `ccef38104` have identical source tree
+`ecc056a72d408bf9dd36d36a56e7a4a13baa750d`; its complete protected matrix passes.
+The [current-source local Windows report](386-windows-final-acceptance-2026-10-30.md) records a
+fresh native build/package, 2,949 reported cases with zero failures/errors and three explicit
+skips, plus the separately failing real-output attempt. Only a microphone endpoint is enumerated,
+and a system PickerHost blocks visible input while captures remain gray. Those setup/visibility
+findings are not passing playback or animation evidence and do not establish a product regression.
+Windows real-output, visible functional and CPU/frame/GPU acceptance remains open.
