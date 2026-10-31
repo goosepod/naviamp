@@ -17,11 +17,27 @@ class IosReleaseVersionTest(unittest.TestCase):
         manifest = root / "apps/ios/iosApp/PrivacyInfo.xcprivacy"
         data = plistlib.loads(manifest.read_bytes())
         self.assertEqual([{"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-                           "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]}], data["NSPrivacyAccessedAPITypes"])
+                           "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]},
+                          {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+                           "NSPrivacyAccessedAPITypeReasons": ["C617.1"]}], data["NSPrivacyAccessedAPITypes"])
         project = (root / "apps/ios/Naviamp.xcodeproj/project.pbxproj").read_text()
         resource_id = re.search(r"(\w+) /\* PrivacyInfo.xcprivacy in Resources \*/ =", project).group(1)
         resources = re.search(r"A10000000000000000000032 /\* Resources \*/ = \{[^}]+", project).group(0)
         self.assertIn(resource_id, resources)
+
+    def test_audited_sdk_imports_have_manifests_in_both_slices(self):
+        root = SCRIPT.parents[1] / "platforms/ios/vendor/bass"
+        expected = [
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+             "NSPrivacyAccessedAPITypeReasons": ["C617.1"]},
+            {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+             "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]},
+        ]
+        for sdk in ("bass", "bassmidi"):
+            manifests = list((root / f"{sdk}.xcframework").glob(f"*/{sdk}.framework/PrivacyInfo.xcprivacy"))
+            self.assertEqual(2, len(manifests))
+            for manifest in manifests:
+                self.assertEqual(expected, plistlib.loads(manifest.read_bytes())["NSPrivacyAccessedAPITypes"])
 
     def test_real_project_matches_canonical_release(self):
         MODULE.validate(SCRIPT.parents[1])

@@ -2,3 +2,6 @@
 # separators that Git's whitespace/conflict-marker checks would otherwise rewrite or misclassify.
 platforms/ios/vendor/bass/** -text -diff
 native/bass-jni/vendor/** -text -diff
+
+# Naviamp-added Apple packaging declarations are reviewable text, not upstream SDK inputs.
+platforms/ios/vendor/bass/**/PrivacyInfo.xcprivacy text eol=lf diff

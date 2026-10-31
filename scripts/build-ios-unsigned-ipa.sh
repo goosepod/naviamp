@@ -76,6 +76,19 @@ plutil -lint "$privacy_manifest"
 test "$(plutil -extract NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPIType raw "$privacy_manifest")" = \
     "NSPrivacyAccessedAPICategoryUserDefaults"
 test "$(plutil -extract NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPITypeReasons.0 raw "$privacy_manifest")" = "CA92.1"
+test "$(plutil -extract NSPrivacyAccessedAPITypes.1.NSPrivacyAccessedAPIType raw "$privacy_manifest")" = \
+    "NSPrivacyAccessedAPICategoryFileTimestamp"
+test "$(plutil -extract NSPrivacyAccessedAPITypes.1.NSPrivacyAccessedAPITypeReasons.0 raw "$privacy_manifest")" = "C617.1"
+for sdk in bass bassmidi; do
+    sdk_manifest="$app_path/Frameworks/$sdk.framework/PrivacyInfo.xcprivacy"
+    plutil -lint "$sdk_manifest"
+    test "$(plutil -extract NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPIType raw "$sdk_manifest")" = \
+        "NSPrivacyAccessedAPICategoryFileTimestamp"
+    test "$(plutil -extract NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPITypeReasons.0 raw "$sdk_manifest")" = "C617.1"
+    test "$(plutil -extract NSPrivacyAccessedAPITypes.1.NSPrivacyAccessedAPIType raw "$sdk_manifest")" = \
+        "NSPrivacyAccessedAPICategorySystemBootTime"
+    test "$(plutil -extract NSPrivacyAccessedAPITypes.1.NSPrivacyAccessedAPITypeReasons.0 raw "$sdk_manifest")" = "35F9.1"
+done
 
 mkdir -p "$package_root/Payload"
 ditto "$app_path" "$package_root/Payload/Naviamp.app"
