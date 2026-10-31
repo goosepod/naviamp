@@ -58,8 +58,8 @@ class NaviampChangelogTest {
         val sliders = fixes.single { it.contains("volume slider labels") }
         assertTrue(sliders.contains("playback-position"))
         assertTrue(sliders.contains("keyboard users focus and adjust"))
-        assertTrue(fixes.last().contains("Audio Cache and Downloads storage totals"))
-        assertTrue(fixes.last().contains("while Settings is open"))
+        assertTrue(fixes.any { it.contains("Audio Cache and Downloads storage totals") && it.contains("while Settings is open") })
+        assertTrue(fixes.last().contains("17 bundled interface languages"))
         assertTrue(fixes[0].contains("imported saved connections"))
         assertTrue(fixes[1].contains("native login"))
         assertTrue(fixes[2].contains("pending Autoplay"))
@@ -75,6 +75,7 @@ class NaviampChangelogTest {
         assertTrue(knownIssues.any { it.contains("stream failure or Wi-Fi interruption") && it.contains("paused position a few seconds earlier") })
         assertTrue(knownIssues.any { it.contains("elevated CPU") && it.contains("visible macOS testing") && it.contains("deferred") })
         assertTrue(changelog[3].entries.any { it.contains("No special upgrade steps") })
+        assertTrue(changelog[3].entries.any { it.contains("v2.10.0 or later") && it.contains("newly available interface languages") })
         assertTrue(changelog[3].entries.any { it.contains("Radio method selection is explicit") })
         assertTrue(changelog[3].entries.any { it.contains("not transferred by settings sync") })
         assertTrue(changelog[4].entries.any { it.contains("buffered-seeking") })

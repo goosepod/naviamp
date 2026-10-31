@@ -5,6 +5,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import app.naviamp.domain.settings.InterfaceLanguage
 
 /** Native locale override with a captured, restorable system default. No preference is persisted here. */
@@ -41,7 +43,16 @@ fun NaviampLocaleEnvironment(
     // Resources read the native locale during composition, so apply before composing descendants.
     controller.select(language)
     DisposableEffect(controller) { onDispose(controller::close) }
-    CompositionLocalProvider(LocalNaviampResourceLanguage provides language, content = content)
+    val direction = when (language) {
+        InterfaceLanguage.System -> LocalLayoutDirection.current
+        InterfaceLanguage.Arabic -> LayoutDirection.Rtl
+        else -> LayoutDirection.Ltr
+    }
+    CompositionLocalProvider(
+        LocalNaviampResourceLanguage provides language,
+        LocalLayoutDirection provides direction,
+        content = content,
+    )
 }
 
 /** Creates the narrow native override for one application composition's lifetime. */
