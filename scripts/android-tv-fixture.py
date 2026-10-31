@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Loopback-only, credential-free Subsonic/audio fixture for disposable TV emulators.
+"""Credential-free Subsonic/audio fixture for disposable TV acceptance profiles.
 
 Use adb reverse tcp:18080 tcp:18080. Never forwards traffic to another server.
+Loopback is the default; an explicit private IPv4 bind supports physical Wi-Fi recovery tests.
 GET /_test/off and /_test/on simulate transport loss/recovery; /_test/status is telemetry.
 """
 import argparse
+import ipaddress
 import json
 import math
 import re
@@ -16,6 +18,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--bind-address', default='127.0.0.1', help='Loopback or an explicitly selected private LAN IPv4 address')
+parser.add_argument('--silent', action='store_true', help='Serve silent PCM for unattended native playback tests')
 parser.add_argument('--burst-seconds', type=float, default=125)
 parser.add_argument('--track-seconds', type=int, default=600)
 parser.add_argument('--tracks', type=int, default=1)
@@ -25,6 +29,13 @@ parser.add_argument('--long-metadata', action='store_true', help='Overflow all p
 parser.add_argument('--mixed-metadata', action='store_true', help='Provide one short track and long metadata on remaining tracks for animation isolation')
 parser.add_argument('--accounts', action='store_true', help='Return distinct catalogs for each fixture username')
 args = parser.parse_args()
+try:
+    bind_address = ipaddress.IPv4Address(args.bind_address)
+    private_lans = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16')
+    if not (bind_address.is_loopback or any(bind_address in ipaddress.IPv4Network(net) for net in private_lans)):
+        raise ValueError('only loopback or private LAN addresses are allowed')
+except ValueError as error:
+    parser.error(str(error))
 if args.mixed_metadata and (args.long_metadata or args.tracks < 2):
     parser.error('mixed metadata requires at least two tracks and cannot be combined with long metadata')
 if not (0 <= args.burst_seconds <= 600 and 30 <= args.track_seconds <= 600 and 1 <= args.tracks <= 240 and 1 <= args.albums <= args.tracks and args.tracks % args.albums == 0):
@@ -54,7 +65,7 @@ if args.long_metadata or args.mixed_metadata:
         track = TRACKS[i * PER_ALBUM]
         album.update(name=track['album'], artist=track['artist'])
 RATE = 16000
-PCM = b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
+PCM = bytes(RATE * 2) if args.silent else b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
 DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*args.track_seconds, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*args.track_seconds) + PCM*args.track_seconds
 lock = threading.Lock()
 offline = False
@@ -64,17 +75,28 @@ reports = []
 bytes_sent = 0
 max_active_streams = 0
 rejected_accounts = set()
+stream_requests = []
+failure_range = None
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass
     def do_CONNECT(self): self.send_error(403, "Fixture never proxies traffic")
     def do_GET(self):
-        global offline, bytes_sent
+        global offline, bytes_sent, failure_range
         parsed = urlsplit(self.path)
-        if parsed.hostname and parsed.hostname not in ('127.0.0.1', 'localhost'):
+        if parsed.hostname and parsed.hostname not in ('127.0.0.1', 'localhost', str(bind_address)):
             self.send_error(403); return
         path = parsed.path
         if path.startswith('/_test/'):
+            parameters = parse_qs(parsed.query)
+            if path.endswith('/fail-range'):
+                try:
+                    minimum = int(parameters['minimum'][0])
+                    track_id = parameters['id'][0]
+                    if not (0 <= minimum < len(DATA)) or track_id not in [track['id'] for track in TRACKS]:
+                        raise ValueError()
+                except (KeyError, ValueError, IndexError):
+                    self.send_error(400, 'A valid fixture track and minimum byte are required'); return
             with lock:
                 account = parse_qs(parsed.query).get('user', [''])[0]
                 if args.accounts and path.endswith('/reject'): rejected_accounts.add(account)
@@ -84,15 +106,33 @@ class Handler(BaseHTTPRequestHandler):
                     for stream in list(streams):
                         try: stream.shutdown(socket.SHUT_RDWR)
                         except OSError: pass
-                elif path.endswith('/on'): offline = False
-                payload = dict(config=dict(tracks=args.tracks, albums=args.albums, trackSeconds=args.track_seconds, burstSeconds=args.burst_seconds), maxActiveStreams=max_active_streams, offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent)
+                elif path.endswith('/on'):
+                    offline = False
+                    failure_range = None
+                elif path.endswith('/fail-range'):
+                    failure_range = dict(id=track_id, minimum=minimum)
+                payload = dict(config=dict(tracks=args.tracks, albums=args.albums, trackSeconds=args.track_seconds, burstSeconds=args.burst_seconds, bindAddress=str(bind_address), silent=args.silent), maxActiveStreams=max_active_streams, offline=offline, activeStreams=len(streams), requests=dict(counts), reports=list(reports), bytesSent=bytes_sent, streamRequests=list(stream_requests), armedRangeFailure=failure_range)
             return self.json(payload)
         action = path.rsplit('/',1)[-1].removesuffix('.view')
+        query = parse_qs(parsed.query)
         with lock:
             counts[action] = counts.get(action, 0)+1
+            requested_range = re.fullmatch(r'bytes=(\d+)-(\d*)', self.headers.get('Range', ''))
+            triggered = bool(action == 'stream' and failure_range and query.get('id') == [failure_range['id']] and
+                requested_range and int(requested_range[1]) >= failure_range['minimum'])
+            if triggered:
+                offline = True
+                failure_range = None
+                for stream in list(streams):
+                    try: stream.shutdown(socket.SHUT_RDWR)
+                    except OSError: pass
             unavailable = offline
+            if action == 'stream':
+                # Allowlist seek diagnostics; never record authentication query parameters.
+                stream_requests.append(dict(at=time.time(), offline=unavailable, triggeredFault=triggered, range=self.headers.get('Range'),
+                    query={key: query[key] for key in ('id', 'format', 'maxBitRate', 'timeOffset') if key in query}))
+                del stream_requests[:-200]
         if unavailable: self.send_error(503); return
-        query = parse_qs(parsed.query)
         account = query.get('u', ['fixture'])[0]
         if args.accounts and account in rejected_accounts:
             return self.json({'subsonic-response': dict(status='failed', version='1.16.1', error=dict(code=40, message='Fixture session expired'))})
@@ -118,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
             'getGenres': {'genres': {'genre':[]}},
-            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[dict(id='fixture-radio', name='TV live fixture', streamUrl='http://127.0.0.1:18080/live')]}},
+            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[dict(id='fixture-radio', name='TV live fixture', streamUrl=f'http://{bind_address}:18080/live')]}},
             'getOpenSubsonicExtensions': {'openSubsonicExtensions':[]},
         }
         if action == 'getAlbumList2' and int(query.get('offset', ['0'])[0]) > 0:
@@ -195,4 +235,4 @@ class Handler(BaseHTTPRequestHandler):
             with lock: streams.discard(self.connection)
 
 if __name__ == '__main__':
-    ThreadingHTTPServer(('127.0.0.1',18080),Handler).serve_forever()
+    ThreadingHTTPServer((str(bind_address),18080),Handler).serve_forever()
