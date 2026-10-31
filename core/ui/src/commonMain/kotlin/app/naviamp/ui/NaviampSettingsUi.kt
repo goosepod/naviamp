@@ -2947,6 +2947,8 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Known issues",
         entries = listOf(
+            "Android TV playback can restart from the beginning after a stream failure or Wi-Fi interruption. A cold restart can also restore a paused position a few seconds earlier.",
+            "Android scrolling and progress animations can use elevated CPU. Further Android performance work and current-source visible macOS testing are deferred to a future release.",
             "The reported Android TV queue-end Autoplay stop remains under investigation; its original cause is not confirmed resolved by the completed-request callback fix.",
             "Authenticated streams from servers without finite byte-range support or provider time offsets retain buffered-seeking limitations.",
             "Google Cast requires online provider media and a reachable local network. Physical macOS Cast verification and broader offline, lyrics and audio-effect support remain follow-ups.",
