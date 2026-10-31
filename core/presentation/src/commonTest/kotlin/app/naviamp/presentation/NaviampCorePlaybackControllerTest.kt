@@ -60,6 +60,19 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
+    @Test fun explicitSeekPersistsInsideThePauseSaveThrottle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Paused)
+        assertEquals(20.0, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        fixture.controller.execute(NaviampCoreCommand.NowPlaying.Playback(
+            NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Seek, seekSeconds = 60.0)))
+        assertEquals(60.0, fixture.sessionRepository.sessions["source"]!!.positionSeconds)
+        fixture.controller.restoreSession("source")
+        assertEquals(60.0, fixture.live.state.value.progress.positionSeconds)
+        assertEquals(PlaybackState.Idle, fixture.live.state.value.playbackState)
+    }
+
     @Test
     fun elevenTrackQueueContinuesThroughTheRealSharedAdapterDespiteLateCompletionCallbacks() = runTest {
         for (sonic in listOf(true, false)) for (eligible in listOf(true, false)) {

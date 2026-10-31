@@ -153,7 +153,8 @@ class NaviampCorePlaybackEngineAdapter(
     private var observedTransitionSettings: PlaybackTransitionSettings? = null
     private var playbackState: PlaybackState = PlaybackState.Stopped
     private var resumePositionSeconds: Double? = null
-    private var previewDeferredStart = false
+    // Restored metadata and interrupted preview preparation have no runnable native stream yet.
+    private var deferredStart = false
     private var visualizerFramesEnabled = false
     private var visualizerSamplingJob: Job? = null
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
@@ -201,7 +202,7 @@ class NaviampCorePlaybackEngineAdapter(
         unstreamableRecoveryJob = null
         cancelAudioPrefetch()
         clearAudioPrefetchCompletions()
-        previewDeferredStart = true
+        deferredStart = true
         pauseRequested.store(true)
         if (nativeLoading) engine.stop() else engine.pause()
         playbackState = PlaybackState.Paused
@@ -214,7 +215,7 @@ class NaviampCorePlaybackEngineAdapter(
     }
     override fun resume() {
         pauseRequested.store(false)
-        if (previewDeferredStart) startCurrent(resumePositionSeconds) else engine.resume()
+        if (deferredStart) startCurrent(resumePositionSeconds) else engine.resume()
     }
 
     override fun startOrRestore(): Boolean {
@@ -225,6 +226,7 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun seek(positionSeconds: Double) {
+        if (seekBeforeDeferredStart(positionSeconds)) return
         if (engine is RestartOnSeekPlaybackEngine) {
             val preservePausedState = pauseRequested.load() || playbackState == PlaybackState.Paused
             clearPreparedTransition()
@@ -236,7 +238,15 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun replayCurrent(positionSeconds: Double) {
-        startCurrent(positionSeconds)
+        if (seekBeforeDeferredStart(positionSeconds)) return
+        startCurrent(positionSeconds, pauseWhenStarted = pauseRequested.load() || playbackState == PlaybackState.Paused)
+    }
+
+    private fun seekBeforeDeferredStart(positionSeconds: Double): Boolean {
+        if (!deferredStart) return false
+        resumePositionSeconds = positionSeconds
+        observer?.onProgressChanged(PlaybackProgress(positionSeconds, queue.current?.durationSeconds?.toDouble()))
+        return true
     }
 
     override fun setVolume(percent: Int) {
@@ -244,7 +254,7 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun stop() {
-        previewDeferredStart = false
+        deferredStart = false
         pauseRequested.store(false)
         resumePositionSeconds = null
         generation += 1
@@ -298,6 +308,8 @@ class NaviampCorePlaybackEngineAdapter(
         clearAudioPrefetchCompletions()
         this.queue = queue
         resumePositionSeconds = startPositionSeconds
+        deferredStart = true
+        pauseRequested.store(true)
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
         authenticatedStreams?.clearPrepared()
         preparedForGeneration = -1L
@@ -383,7 +395,7 @@ class NaviampCorePlaybackEngineAdapter(
         recoveryQuality: StreamQuality? = null,
     ) {
         val track = queue.current ?: return
-        previewDeferredStart = false
+        deferredStart = false
         pauseRequested.store(pauseWhenStarted)
         if (recoveryLocalAudio == null) {
             unstreamableRecoveryJob?.cancel()

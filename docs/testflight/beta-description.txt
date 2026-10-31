@@ -1,0 +1,5 @@
+Naviamp is a music player for your own compatible self-hosted music server. Connect your server, browse your library and playlists, and listen using the playback features available on your Apple device. Naviamp does not include a music subscription or a bundled music library.
+
+This beta helps us check installation, server sign-in, library browsing, playback, queue behavior and recovery from interruptions on iPhone, iPad and Mac through their respective builds.
+
+Please send feedback through TestFlight. Include the app version/build, device and OS, what you were doing, what you expected and what happened. Do not include passwords, access tokens or private server details in screenshots or reports.

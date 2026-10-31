@@ -87,6 +87,7 @@ class NaviampCorePlaybackController(
     private val sonicAutoplay = SonicAutoplayService(providerSource::current)
     private var persistedQueue = PlaybackQueue()
     private var persistedStationId: String? = null
+    private var persistedSeekGeneration = 0L
     private var sourceTransitionTargetId: String? = null
     private var connectHandoffAwaitingStart = false
 
@@ -517,7 +518,9 @@ class NaviampCorePlaybackController(
                     playbackQueue = live.queue,
                     progressPositionSeconds = live.progress.positionSeconds,
                 ),
-                force = force || structuralChange,
+                // A seek can follow Pause within the telemetry save interval and then receive no
+                // further clock updates. Persist each accepted seek independently of that throttle.
+                force = force || structuralChange || live.progress.seekGeneration != persistedSeekGeneration,
                 nowMillis = nowEpochMillis(),
                 saveIntervalMillis = PlaybackSessionSaveIntervalMillis,
             )
@@ -525,6 +528,7 @@ class NaviampCorePlaybackController(
         if (plan is PlaybackSessionSavePlan.Save) {
             persistedQueue = live.queue
             persistedStationId = live.currentStation?.id
+            persistedSeekGeneration = live.progress.seekGeneration
         }
     }
 

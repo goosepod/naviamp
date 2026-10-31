@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -31,8 +32,12 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -80,13 +85,27 @@ private fun NaviampViewportPopup(onDismissRequest: () -> Unit, properties: Popup
     val size = with(density) { DpSize(viewport.width.toDp(), viewport.height.toDp()) }
     val body: @Composable () -> Unit = {
         NaviampOwnedWindowFocusScope {
+            val initialFocus = remember { FocusRequester() }
+            var containsFocus by remember { mutableStateOf(false) }
+            val windowFocused = LocalWindowInfo.current.isWindowFocused
+            LaunchedEffect(windowFocused, properties.focusable) {
+                // A native owned surface does not provide Popup's initial focus. Give Escape a
+                // target immediately, without taking focus from a child editor on reactivation.
+                if (windowFocused && properties.focusable) {
+                    // Its composition can precede native attachment. Wait for this surface's
+                    // first frame before asking its focus owner to accept keyboard input.
+                    withFrameNanos { }
+                    if (!containsFocus) initialFocus.requestFocus()
+                }
+            }
             Box(Modifier.fillMaxSize().clipToBounds().onKeyEvent { event ->
                 if (properties.dismissOnBackPress && event.type == KeyEventType.KeyDown &&
                     (event.key == Key.Escape || event.key == Key.Back)) {
                     onDismissRequest()
                     true
                 } else false
-            }.drawBehind {
+            }.focusRequester(initialFocus).onFocusChanged { containsFocus = it.hasFocus }
+                .focusable(enabled = properties.focusable).drawBehind {
                 // Keep the native surface's recorded extent fixed from its first frame,
                 // including before the dialog entrance and floating labels have settled.
                 drawRect(Color.Transparent, blendMode = BlendMode.Src)
