@@ -55,6 +55,9 @@ class NaviampChangelogTest {
         assertTrue(changelog[2].entries[9].contains("Artists, Albums and Songs"))
         assertTrue(changelog[2].entries[10].contains("popups"))
         val fixes = changelog[2].entries
+        val sliders = fixes.single { it.contains("volume slider labels") }
+        assertTrue(sliders.contains("playback-position"))
+        assertTrue(sliders.contains("keyboard users focus and adjust"))
         assertTrue(fixes.last().contains("Audio Cache and Downloads storage totals"))
         assertTrue(fixes.last().contains("while Settings is open"))
         assertTrue(fixes[0].contains("imported saved connections"))

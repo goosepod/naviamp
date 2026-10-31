@@ -48,6 +48,7 @@ Naviamp 2.10.0 adds dedicated Aurral connections with native music discovery, sa
 - Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list. ([Issue #304](https://github.com/goosepod/naviamp/issues/304), [PR #305](https://github.com/goosepod/naviamp/pull/305), [Issue #306](https://github.com/goosepod/naviamp/issues/306), [PR #307](https://github.com/goosepod/naviamp/pull/307))
 - Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see. ([Issue #246](https://github.com/goosepod/naviamp/issues/246), [PR #247](https://github.com/goosepod/naviamp/pull/247), [Issue #269](https://github.com/goosepod/naviamp/issues/269), [PR #270](https://github.com/goosepod/naviamp/pull/270))
 
+- Expose translated playback-position and volume slider labels to assistive technology, and let keyboard users focus and adjust the volume bar. ([Issue #431](https://github.com/goosepod/naviamp/issues/431))
 - Keep Audio Cache and Downloads storage totals current while Settings is open. ([Issue #357](https://github.com/goosepod/naviamp/issues/357), [PR #358](https://github.com/goosepod/naviamp/pull/358))
 
 ### Upgrade notes
