@@ -2932,6 +2932,7 @@ private val DefaultNaviampChangelog = listOf(
             "Keep incomplete smart-playlist rules from disappearing on save, preserve sort, limit and decimal semantics, and protect unsupported definitions from destructive editing.",
             "Keep Library search controls stationary and preserve server matches for accented names, aliases and metadata across Artists, Albums and Songs without refreshing the library. Clearing a search restores the previous browse list.",
             "Keep owned desktop popups behind other apps when Naviamp loses activation, and make text-entry cursors easier to see.",
+            "Expose translated playback-position and volume slider labels to assistive technology, and let keyboard users focus and adjust the volume bar.",
             "Keep Audio Cache and Downloads storage totals current while Settings is open.",
         ),
     ),
