@@ -445,6 +445,44 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
+    fun liveRadioShowsOnlyControlsThatApplyToAStream() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "current-station",
+                    title = "Current stream title",
+                    subtitle = "Current station",
+                    stateLabel = "Playing",
+                    isLive = true,
+                    isPlaying = true,
+                    canPlayPause = true,
+                    radioStations = listOf(NaviampNowPlayingItemUi("current-station", "Current station", "Internet radio")),
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { _ -> },
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = { _ -> },
+                    onQueueItemAction = { _ -> },
+                ),
+                onClose = {},
+                onOpenSettings = {},
+            )
+        }
+        mainClock.advanceTimeBy(200)
+
+        listOf("Pause", "Queue", "Settings").forEach { onNodeWithContentDescription(it).assertExists() }
+        listOf("Previous", "Next", "Lyrics", "Favorite", "Repeat off", "Shuffle").forEach {
+            onNodeWithContentDescription(it).assertDoesNotExist()
+        }
+    }
+
+    @Test
     fun liveRadioQueueShowsSavedStationsAndSelectsThemAsStations() = runComposeUiTest {
         mainClock.autoAdvance = false
         val selections = mutableListOf<NowPlayingSelectionActionRequest>()
