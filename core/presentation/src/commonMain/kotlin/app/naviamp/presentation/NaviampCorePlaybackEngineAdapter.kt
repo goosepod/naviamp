@@ -75,6 +75,7 @@ import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.radioTrackArtworkMatch
 import app.naviamp.ui.radioTrackArtworkQuery
 import kotlinx.coroutines.CancellationException
 import app.naviamp.app.NaviampPlaybackStreamRelay
@@ -1119,9 +1120,9 @@ class NaviampCoreProviderNowPlayingSidecars(
         val provider = providerSource.current() ?: return
         val query = radioTrackArtworkQuery(metadata.title) ?: return
         val artworkUrl = runCatching {
-            provider.search(query, limit = 5)
-                .tracks
-                .firstOrNull { it.coverArtId != null }
+            // The Subsonic default page size: the announced song is not always the first hit, and some
+            // servers only add songs from outside the library to a full-size search.
+            radioTrackArtworkMatch(provider.search(query, limit = 20).tracks, metadata.title)
                 ?.coverArtId
                 ?.let(provider::coverArtUrl)
         }.getOrNull()
