@@ -1781,6 +1781,17 @@ fun radioTrackArtworkQuery(streamTitle: String?): String? =
         ?.trim()
         ?.takeIf { it.length >= 3 }
 
+/** The search result that is the song a station announces, as "Artist - Title" or as the title alone. */
+fun radioTrackArtworkMatch(tracks: List<Track>, streamTitle: String?): Track? {
+    val announced = radioTrackArtworkQuery(streamTitle) ?: return null
+    return tracks.firstOrNull { track ->
+        track.coverArtId != null && (
+            announced.equals("${track.artistName} - ${track.title}", ignoreCase = true) ||
+                announced.equals(track.title, ignoreCase = true)
+            )
+    }
+}
+
 private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
     val artworkKeys = setOf(
         "artwork",
