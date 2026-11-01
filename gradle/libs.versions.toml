@@ -4,6 +4,7 @@ agp = "8.13.2"
 compose = "1.11.0"
 material3 = "1.9.0"
 activity-compose = "1.13.0"
+androidx-fragment = "1.9.1"
 androidx-lifecycle = "2.9.6"
 androidx-media = "1.8.0"
 androidx-profileinstaller = "1.4.1"
@@ -25,6 +26,7 @@ ksoup-entities = { module = "com.mohamedrejeb.ksoup:ksoup-entities", version.ref
 androidx-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+androidx-fragment = { module = "androidx.fragment:fragment", version.ref = "androidx-fragment" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 androidx-media = { module = "androidx.media:media", version.ref = "androidx-media" }
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "androidx-profileinstaller" }
