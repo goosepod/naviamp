@@ -127,6 +127,7 @@ dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:ui"))
     implementation(libs.activity.compose)
+    implementation(libs.androidx.fragment)
     implementation(libs.androidx.media)
     implementation(libs.androidx.profileinstaller)
     implementation("org.jetbrains.compose.foundation:foundation:$composeVersion")
