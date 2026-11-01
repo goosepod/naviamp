@@ -750,6 +750,21 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun rapidSkipCancelsPreviousSidecarsBeforeTheNextStreamStarts() = runTest {
+        val sidecars = PlaybackTestSidecars(blockingTrackId = "two")
+        val fixture = playbackFixture(this, sidecars)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        // Slow (Octo) stream: the engine never reports Playing for "three" before the next skip.
+        fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Next))
+        runCurrent()
+
+        assertEquals(listOf("two"), sidecars.cancelledTracks)
+    }
+
+    @Test
     fun changingTracksCancelsThePreviousSidecarWork() = runTest {
         val sidecars = PlaybackTestSidecars(blockingTrackId = "two")
         val fixture = playbackFixture(this, sidecars)
