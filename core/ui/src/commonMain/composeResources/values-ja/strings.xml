@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Naviamp でこの言語を使用します。</string>
+    <string name="tv_keep_now_playing_controls_visible">プレーヤーの操作ボタンを常に表示</string>
+    <string name="tv_keep_now_playing_controls_visible_description">数秒後も再生中の操作ボタンを非表示にしない</string>
 </resources>

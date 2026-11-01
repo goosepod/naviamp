@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Naviamp için bu dili kullan.</string>
+    <string name="tv_keep_now_playing_controls_visible">Oynatıcı kontrollerini görünür tut</string>
+    <string name="tv_keep_now_playing_controls_visible_description">Birkaç saniye sonra Şimdi Çalınıyor kontrollerini gizleme</string>
 </resources>

@@ -1169,6 +1169,23 @@ private fun TelevisionDisplaySettings(
                 },
             )
         }
+        item(key = "keep-controls-visible") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.tv_keep_now_playing_controls_visible),
+                stringResource(Res.string.tv_keep_now_playing_controls_visible_description),
+                nowPlaying.keepTelevisionControlsVisible,
+                colors,
+                {
+                    actions.onInterfaceSettingsChanged(
+                        settings.copy(
+                            nowPlaying = nowPlaying.copy(
+                                keepTelevisionControlsVisible = !nowPlaying.keepTelevisionControlsVisible,
+                            ),
+                        ),
+                    )
+                },
+            )
+        }
 
     }
 }

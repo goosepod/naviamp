@@ -683,6 +683,8 @@
     <string name="tv_display_codec_and_playback_quality">Display codec and playback quality</string>
     <string name="tv_prefer_track_artwork">Prefer track artwork</string>
     <string name="tv_use_track_specific_art_when_available">Use track-specific art when available</string>
+    <string name="tv_keep_now_playing_controls_visible">Keep player controls visible</string>
+    <string name="tv_keep_now_playing_controls_visible_description">Do not hide the Now Playing controls after a few seconds</string>
     <string name="tv_stats_for_nerds">Stats for Nerds</string>
     <string name="tv_playback_connection_and_cache_details">Playback, connection, and cache details</string>
     <string name="tv_refresh_library">Refresh library</string>
