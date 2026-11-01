@@ -1417,8 +1417,8 @@ internal fun TelevisionNowPlaying(
     var controlsVisible by remember(interactive) { mutableStateOf(interactive) }
     var interactionSequence by remember { mutableIntStateOf(0) }
     var consumedWakeKey by remember { mutableStateOf<Key?>(null) }
-    LaunchedEffect(controlsVisible, interactionSequence, interactive, queueOpen) {
-        if (interactive && controlsVisible && !queueOpen) {
+    LaunchedEffect(controlsVisible, interactionSequence, interactive, queueOpen, displaySettings.keepTelevisionControlsVisible) {
+        if (interactive && controlsVisible && !queueOpen && !displaySettings.keepTelevisionControlsVisible) {
             delay(TelevisionNowPlayingControlsTimeoutMillis)
             controlsVisible = false
         }

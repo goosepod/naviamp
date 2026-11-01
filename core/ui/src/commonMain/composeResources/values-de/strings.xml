@@ -731,6 +731,8 @@
     <string name="tv_display_codec_and_playback_quality">Codec und Wiedergabequalität anzeigen</string>
     <string name="tv_prefer_track_artwork">Bevorzugen Sie Track-Artwork</string>
     <string name="tv_use_track_specific_art_when_available">Verwenden Sie titelspezifische Grafiken, sofern verfügbar</string>
+    <string name="tv_keep_now_playing_controls_visible">Player-Steuerung sichtbar lassen</string>
+    <string name="tv_keep_now_playing_controls_visible_description">Die Steuerung in „Aktuelle Wiedergabe“ nicht nach einigen Sekunden ausblenden</string>
     <string name="tv_stats_for_nerds">Statistiken für Nerds</string>
     <string name="tv_playback_connection_and_cache_details">Details zu Wiedergabe, Verbindung und Cache</string>
     <string name="tv_refresh_library">Bibliothek aktualisieren</string>

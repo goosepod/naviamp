@@ -176,6 +176,43 @@ class NaviampTelevisionNowPlayingFocusTest {
     }
 
     @Test
+    fun keepControlsVisibleSettingStopsInactivityFromHidingThem() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        setContent {
+            TelevisionNowPlaying(
+                nowPlaying = NowPlayingUi(
+                    id = "track",
+                    title = "Track",
+                    subtitle = "Artist",
+                    stateLabel = "Playing",
+                    isPlaying = true,
+                    canPlayPause = true,
+                ),
+                playbackProgress = null,
+                colors = NaviampColors.Dark,
+                actions = NaviampNowPlayingActions(
+                    onPlaybackAction = { _ -> },
+                    onDisplayAction = { _ -> },
+                    onCurrentTrackAction = { _ -> },
+                    onQueueAction = { _ -> },
+                    onSleepTimerAction = { _ -> },
+                    onSelectionAction = { _ -> },
+                    onQueueItemAction = { _ -> },
+                ),
+                onClose = {},
+                onOpenSettings = {},
+                displaySettings = NowPlayingDisplaySettings(keepTelevisionControlsVisible = true),
+            )
+        }
+        mainClock.advanceTimeBy(200)
+
+        mainClock.advanceTimeBy(
+            TelevisionNowPlayingControlsTimeoutMillis + TelevisionListeningModeTransitionMillis + 400,
+        )
+        onNodeWithContentDescription("Pause").assertIsFocused()
+    }
+
+    @Test
     fun trackChangeKeepsListeningModeWhenControlsWereAlreadyHidden() = runComposeUiTest {
         mainClock.autoAdvance = false
         val trackId = mutableStateOf("track-one")

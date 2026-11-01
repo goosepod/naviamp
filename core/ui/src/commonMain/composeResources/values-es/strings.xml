@@ -650,6 +650,8 @@
     <string name="tv_display_codec_and_playback_quality">Mostrar códec y calidad de reproducción</string>
     <string name="tv_prefer_track_artwork">Preferir portada de la pista</string>
     <string name="tv_use_track_specific_art_when_available">Usar la portada específica de la pista cuando esté disponible</string>
+    <string name="tv_keep_now_playing_controls_visible">Mantener visibles los controles</string>
+    <string name="tv_keep_now_playing_controls_visible_description">No ocultar los controles de la reproducción actual tras unos segundos</string>
     <string name="tv_stats_for_nerds">Estadísticas para expertos</string>
     <string name="tv_playback_connection_and_cache_details">Detalles de reproducción, conexión y caché</string>
     <string name="tv_refresh_library">Actualizar biblioteca</string>
