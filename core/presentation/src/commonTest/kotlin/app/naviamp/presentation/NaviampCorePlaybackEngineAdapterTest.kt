@@ -1292,6 +1292,64 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun rapidDoubleNextWithSlowStreamResolutionPlaysOnlyTheLastTrack() = runTest {
+        val base = FakeCoreMediaProvider()
+        val provider = object : MediaProvider by base {
+            override suspend fun streamUrl(request: app.naviamp.domain.StreamRequest): String {
+                if (request.trackId.value != "core-track") kotlinx.coroutines.delay(5_000)
+                return base.streamUrl(request)
+            }
+        }
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+        )
+        val b = base.track.copy(id = TrackId("b"), title = "B")
+        val c = base.track.copy(id = TrackId("c"), title = "C")
+        adapter.playQueueSelection(PlaybackQueue(listOf(base.track, b, c), 0), 0)
+        advanceUntilIdle()
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        runCurrent()
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        advanceUntilIdle()
+
+        assertEquals(listOf("core-track", "c"), engine.requests.map { it.mediaId })
+        adapter.stop()
+    }
+
+    @Test
+    fun manualNextSilencesTheOldStreamBeforeASlowNextStreamResolves() = runTest {
+        val base = FakeCoreMediaProvider()
+        val provider = object : MediaProvider by base {
+            override suspend fun streamUrl(request: app.naviamp.domain.StreamRequest): String {
+                if (request.trackId.value == "b") kotlinx.coroutines.delay(5_000)
+                return base.streamUrl(request)
+            }
+        }
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+        )
+        val b = base.track.copy(id = TrackId("b"), title = "B")
+        adapter.playQueueSelection(PlaybackQueue(listOf(base.track, b), 0), 0)
+        advanceUntilIdle()
+        val stopsBefore = engine.stopCalls
+
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        runCurrent()
+
+        assertEquals(stopsBefore + 1, engine.stopCalls, "old stream must be silenced while B resolves")
+        assertEquals(listOf("core-track"), engine.requests.map { it.mediaId })
+        advanceUntilIdle()
+        assertEquals("b", engine.request?.mediaId)
+        adapter.stop()
+    }
+
+    @Test
     fun coreAppliesEffectiveSettingsToEveryEngine() {
         val engine = RecordingPlaybackEngine()
         val settings = NaviampCorePlaybackEngineSettings(engine)

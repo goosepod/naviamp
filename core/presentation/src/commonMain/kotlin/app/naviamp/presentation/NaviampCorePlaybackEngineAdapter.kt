@@ -350,6 +350,9 @@ class NaviampCorePlaybackEngineAdapter(
         if (!preservePreparedTransition) clearPreparedTransition()
         cancelAudioPrefetch()
         startCurrent(startPositionSeconds = null)
+        // Manual skip: silence the old stream now; a slow (proxied) stream may take seconds to resolve.
+        // After startCurrent so the bumped generation drops the Stopped callback. Automatic advance keeps gapless.
+        if (!preservePreparedTransition) engine.stop()
     }
 
     override fun applyRepeatMode(mode: RepeatMode) {
