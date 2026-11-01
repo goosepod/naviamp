@@ -83,6 +83,8 @@ class NaviampCorePlaybackController(
     private var reportingTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarLoadJob: Job? = null
+    private var streamMetadata = PlaybackStreamMetadata()
+    private var streamMetadataTrackId: app.naviamp.domain.TrackId? = null
     private var sonicAutoplayJob: Job? = null
     private val sonicAutoplay = SonicAutoplayService(providerSource::current)
     private var persistedQueue = PlaybackQueue()
@@ -384,14 +386,9 @@ class NaviampCorePlaybackController(
             }
 
             override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {
-                presenter.updateStreamMetadata(metadata)
-                presenter.publish(display)
-                playback.state.value.currentStation?.let { station ->
-                    scope.launch {
-                        sidecars.loadInternetRadioArtwork(station, metadata)
-                        presenter.publish(display)
-                    }
-                }
+                streamMetadata = metadata
+                streamMetadataTrackId = playback.state.value.currentTrack?.id
+                publishStreamMetadata(metadata)
             }
 
             override fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) {
@@ -589,8 +586,23 @@ class NaviampCorePlaybackController(
         }
     }
 
+    private fun publishStreamMetadata(metadata: PlaybackStreamMetadata) {
+        presenter.updateStreamMetadata(metadata)
+        presenter.publish(display)
+        playback.state.value.currentStation?.let { station ->
+            scope.launch {
+                sidecars.loadInternetRadioArtwork(station, metadata)
+                presenter.publish(display)
+            }
+        }
+    }
+
     private suspend fun loadTrackSidecars(track: app.naviamp.domain.Track) {
         sidecars.loadForTrack(track)
+        // Loading sidecars starts the track from empty sidecars, stream metadata included. The engine only
+        // publishes metadata when it changes, and a live stream usually reports its first title before this
+        // asynchronous load starts, so restore what the engine already published for this same track.
+        if (streamMetadataTrackId == track.id) publishStreamMetadata(streamMetadata)
         val lyricsNeeded = display.lyricsVisible ||
             stateStore.state.value.shell.shellChrome.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel
         if (lyricsNeeded && playback.state.value.currentTrack?.id == track.id) {

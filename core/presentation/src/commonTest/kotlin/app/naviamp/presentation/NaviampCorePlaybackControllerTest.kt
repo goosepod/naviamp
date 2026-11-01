@@ -30,6 +30,7 @@ import app.naviamp.domain.playback.PlaybackProfileTargetType
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -467,6 +468,37 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(42.0, fixture.effects.restoredStartPositionSeconds)
         assertEquals("remembered-two", fixture.sidecars.loadedTracks.single())
         assertEquals(0, fixture.effects.starts)
+    }
+
+    @Test
+    fun streamTitlePublishedBeforeTheSidecarLoadSurvivesIt() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        val metadata = PlaybackStreamMetadata(title = "Artist - Live title")
+
+        // A live stream reports Playing and then its first ICY title on the next poll, before the
+        // sidecar load launched by Playing runs and resets the track's sidecars.
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer?.onMetadataChanged(metadata)
+        runCurrent()
+
+        assertEquals(listOf("two"), fixture.sidecars.loadedTracks)
+        assertEquals(metadata, fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun streamTitleOfThePreviousTrackIsNotRestoredForTheNextTrack() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer?.onMetadataChanged(PlaybackStreamMetadata(title = "Previous title"))
+        val next = fixture.live.state.value.queue.copy(currentIndex = 2)
+        fixture.live.replace(fixture.live.state.value.copy(currentTrack = next.current, queue = next))
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        assertEquals(listOf("three"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
     }
 
     @Test
@@ -1127,8 +1159,14 @@ private class PlaybackTestSidecars(
 ) : NaviampCoreNowPlayingSidecarPort {
     val loadedTracks = mutableListOf<String>()
     val cancelledTracks = mutableListOf<String>()
-    override fun snapshot() = NaviampCoreNowPlayingSidecars()
+    private var streamMetadata = PlaybackStreamMetadata()
+    override fun snapshot() = NaviampCoreNowPlayingSidecars(streamMetadata = streamMetadata)
+    override fun updateStreamMetadata(metadata: PlaybackStreamMetadata) {
+        streamMetadata = metadata
+    }
     override suspend fun loadForTrack(track: Track) {
+        // Like the production sidecars, a track load starts from empty sidecars.
+        streamMetadata = PlaybackStreamMetadata()
         loadedTracks += track.id.value
         if (track.id.value == blockingTrackId) {
             try {
