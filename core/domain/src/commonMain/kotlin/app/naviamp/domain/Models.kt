@@ -259,6 +259,8 @@ data class InternetRadioStation(
     val name: String,
     val streamUrl: String,
     val homePageUrl: String? = null,
+    /** Server artwork URL. Not persisted: it may carry provider credentials. */
+    val coverArtUrl: String? = null,
 )
 
 data class StreamRequest(
