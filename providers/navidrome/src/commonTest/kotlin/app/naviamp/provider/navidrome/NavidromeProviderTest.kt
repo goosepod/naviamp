@@ -2649,7 +2649,8 @@ class NavidromeProviderTest {
                           "id": "station-1",
                           "name": "KEXP",
                           "streamUrl": "https://kexp.example/stream",
-                          "homePageUrl": "https://kexp.org"
+                          "homePageUrl": "https://kexp.org",
+                          "coverArt": "ra-station-1"
                         }
                       ]
                     }
@@ -2665,6 +2666,7 @@ class NavidromeProviderTest {
         assertEquals("KEXP", stations.single().name)
         assertEquals("https://kexp.example/stream", stations.single().streamUrl)
         assertEquals("https://kexp.org", stations.single().homePageUrl)
+        assertEquals(provider.coverArtUrl("ra-station-1"), stations.single().coverArtUrl)
     }
 
     @Test
