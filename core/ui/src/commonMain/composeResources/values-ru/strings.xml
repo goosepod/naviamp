@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Использовать этот язык в Naviamp.</string>
+    <string name="tv_keep_now_playing_controls_visible">Не скрывать элементы управления плеером</string>
+    <string name="tv_keep_now_playing_controls_visible_description">Не скрывать элементы управления текущим воспроизведением через несколько секунд</string>
 </resources>
