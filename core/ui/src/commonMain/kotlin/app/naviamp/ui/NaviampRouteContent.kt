@@ -371,7 +371,7 @@ internal fun HomeRailArrow(
 }
 
 @Composable
-private fun HomeCollectionGridCard(
+internal fun HomeCollectionGridCard(
     item: SharedHomeCollectionItemUi,
     colors: NaviampColors,
     width: androidx.compose.ui.unit.Dp,
@@ -381,7 +381,9 @@ private fun HomeCollectionGridCard(
     onFocused: () -> Unit = {},
 ) {
     var focused by remember(item.mediaItem.id) { mutableStateOf(false) }
-    val shape = RoundedCornerShape(7.dp)
+    // The card encloses the artwork, so its top corners must not override the image policy.
+    val shape = RoundedCornerShape(minOf(7.dp,
+        resolvedMediaArtworkCornerRadius(item.mediaKind, width, 7.dp)))
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier

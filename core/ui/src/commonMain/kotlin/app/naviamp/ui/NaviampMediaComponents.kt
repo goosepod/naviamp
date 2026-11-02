@@ -654,7 +654,7 @@ internal fun MixCard(
         modifier = Modifier
             .width(154.dp)
             .height(120.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 154.dp, 6.dp)))
             .clickable(onClick = onClick),
     ) {
         NaviampCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp, mediaKind = SharedMediaItemKind.Album)
