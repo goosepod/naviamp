@@ -23,8 +23,8 @@ SDK, and adapter references are cleared even if native listener removal fails.
 
 ## Reproduction
 
-On 2026-11-02 a read-only clone of the local Pixel 8 API 34 AVD (Android 14, arm64) reproduced
-the report's exact exception after disabling `com.google.android.gms` for that disposable
+On 2026-11-02 a read-only session of the existing Pixel 8 API 34 AVD (Android 14, arm64) reproduced
+the report's exact exception after disabling `com.google.android.gms` for that read-only
 session. The pre-existing v2.10.0/build 60 test package crashed from
 `AndroidNaviampCastSessionEffect.start` through `NaviampCoreCastController.start`:
 
@@ -75,7 +75,7 @@ adb -s "$TEST_SERIAL" shell am instrument -w \
 - The broader shared Cast/Core pass: 80 tests passed (51 Core app, 29 presentation), with
   no failures or skips. All four Android debug unit tests and `verifyCoreFirstArchitecture`
   passed. The app and instrumentation APKs built successfully.
-- With Play Services disabled in the disposable Android 14 emulator, the new real SDK/Core/
+- With Play Services disabled in the read-only Android 14 emulator session, the new real SDK/Core/
   Activity regression and the existing unused-adapter regression both passed. SDK availability
   was explicitly required to be false; failed initialization, cleanup, repeated start and
   Activity recreation all completed without crashing.
@@ -84,13 +84,17 @@ adb -s "$TEST_SERIAL" shell am instrument -w \
   `scripts/android-tv-fixture.py --silent --tracks 3`, forwarded with `adb reverse`.
   The actual Core connected, loaded library tracks, started BASS playback, and advanced at least
   five seconds. This is silent synthetic playback acceptance, not an audible listening claim.
-- After re-enabling Play Services and resetting only the disposable test-app profile, the new
+- After re-enabling Play Services and resetting only the temporary test-app profile within that read-only session, the new
   regression passed again with SDK availability explicitly required to be true. Cast remained
   available in Core and Activity recreation succeeded. An actual receiver connection was not
   exercised; shared handoff/session regressions passed.
 
-Only the read-only emulator clone and its `app.naviamp.android.v2test` profile were modified.
-The physical phone and main installation were not changed. The original LineageOS 23.2 / Android 16
+These tests reused an existing owner AVD with `-read-only -no-snapshot`; they did not create a new
+AVD. App profile resets and Play Services changes occurred within those temporary sessions. After
+shutdown, the persistent userdata, SD-card and encryption images still had modification times
+predating the runs. Emulator launch metadata did change. The owner confirmed that this AVD contains
+valuable data: future destructive tests must use a separately created dedicated test AVD, not treat
+an existing AVD as disposable. The physical phone and main installation were not changed. The original LineageOS 23.2 / Android 16
 device and a physical MicroG installation remain untested. No release was tagged or published.
 
 ## Platform diff accountability
