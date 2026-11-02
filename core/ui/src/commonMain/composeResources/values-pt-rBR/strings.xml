@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Usar este idioma no Naviamp.</string>
+    <string name="settings_square_album_artwork">Capas com cantos retos</string>
+    <string name="settings_square_album_artwork_description">Usar cantos retos nas capas de álbuns e faixas em todo o aplicativo.</string>
 </resources>

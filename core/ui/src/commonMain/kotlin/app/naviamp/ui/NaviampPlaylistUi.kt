@@ -409,6 +409,7 @@ private fun PlaylistListRow(
             colors = colors,
             covers = listOfNotNull(playlist.coverArtUrl).ifEmpty { playlist.coverArtUrls },
             size = 44.dp,
+            mediaKind = SharedMediaItemKind.Playlist,
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -799,6 +800,7 @@ private fun PlaylistDetailContent(
                     detail.tracks.mapNotNull { it.coverArtUrl }.distinct().take(4)
                 },
                 size = 96.dp,
+                mediaKind = SharedMediaItemKind.Playlist,
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
@@ -1068,30 +1070,32 @@ private fun PlaylistBulkToolsDialog(
 }
 
 @Composable
-fun MultiCoverArt(colors: NaviampColors, covers: List<String>, size: Dp, cornerRadius: Dp = 4.dp) {
+fun MultiCoverArt(colors: NaviampColors, covers: List<String>, size: Dp, cornerRadius: Dp = 4.dp, mediaKind: SharedMediaItemKind) {
+    val resolvedRadius = resolvedMediaArtworkCornerRadius(mediaKind, size, cornerRadius)
     val visibleCovers = covers.distinct().take(4)
     Box(
         modifier = Modifier
             .size(size)
-            .clip(RoundedCornerShape(cornerRadius)),
+            .clip(RoundedCornerShape(resolvedRadius)),
     ) {
         when (visibleCovers.size) {
-            0 -> NaviampCoverArt(null, colors, size, cornerRadius)
-            1 -> NaviampCoverArt(visibleCovers[0], colors, size, cornerRadius)
+            0 -> NaviampCoverArt(null, colors, size, resolvedRadius, mediaKind = mediaKind)
+            1 -> NaviampCoverArt(visibleCovers[0], colors, size, resolvedRadius, mediaKind = mediaKind)
             else -> {
                 val cell = size / 2
                 Column {
                     Row {
-                        NaviampCoverArt(visibleCovers[0], colors, cell, 0.dp)
-                        NaviampCoverArt(visibleCovers[1], colors, cell, 0.dp)
+                        NaviampCoverArt(visibleCovers[0], colors, cell, 0.dp, mediaKind = SharedMediaItemKind.Album)
+                        NaviampCoverArt(visibleCovers[1], colors, cell, 0.dp, mediaKind = SharedMediaItemKind.Album)
                     }
                     Row {
-                        NaviampCoverArt(visibleCovers.getOrElse(2) { visibleCovers[0] }, colors, cell, 0.dp)
+                        NaviampCoverArt(visibleCovers.getOrElse(2) { visibleCovers[0] }, colors, cell, 0.dp, mediaKind = SharedMediaItemKind.Album)
                         NaviampCoverArt(
                             visibleCovers.getOrElse(3) { visibleCovers.getOrElse(2) { visibleCovers[1] } },
                             colors,
                             cell,
                             0.dp,
+                            mediaKind = SharedMediaItemKind.Album,
                         )
                     }
                 }

@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Naviamp でこの言語を使用します。</string>
+    <string name="settings_square_album_artwork">アルバム画像の角を直角にする</string>
+    <string name="settings_square_album_artwork_description">アプリ全体でアルバムと曲のカバー画像を角丸なしで表示します。</string>
 </resources>

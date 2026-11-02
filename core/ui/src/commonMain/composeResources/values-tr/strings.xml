@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Naviamp için bu dili kullan.</string>
+    <string name="settings_square_album_artwork">Dik köşeli albüm kapakları</string>
+    <string name="settings_square_album_artwork_description">Uygulama genelinde albüm ve parça kapaklarını dik köşelerle göster.</string>
 </resources>

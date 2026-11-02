@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">استخدم هذه اللغة في Naviamp.</string>
+    <string name="settings_square_album_artwork">أغلفة ألبومات مربعة</string>
+    <string name="settings_square_album_artwork_description">استخدام زوايا قائمة لأغلفة الألبومات والمقاطع في جميع أنحاء التطبيق.</string>
 </resources>
