@@ -36,6 +36,7 @@ class NaviampFilledArtworkLayoutTest {
     @Test fun singlePaneFillAndLegacyWideLayoutsKeepControlsUsableAcrossPlaybackUpdates() {
         val cases = listOf(
             Triple(320, 720, NaviampPlayerPanelLayout.Adaptive),
+            Triple(412, 818, NaviampPlayerPanelLayout.Adaptive),
             Triple(400, 760, NaviampPlayerPanelLayout.Standalone),
             Triple(876, 728, NaviampPlayerPanelLayout.Adaptive),
             Triple(640, 420, NaviampPlayerPanelLayout.Adaptive),
@@ -58,7 +59,8 @@ class NaviampFilledArtworkLayoutTest {
                                 NowPlayingUi(id = "track", title = "Artwork review", subtitle = "Artist",
                                     albumTitle = "Album", coverArtUrl = "test://fill", stateLabel = "Paused",
                                     positionSeconds = 8.0, durationSeconds = 180.0,
-                                    isPaused = true, canPlayPause = true, canSeek = true),
+                                    isPaused = true, canPlayPause = true, canSeek = true,
+                                    canFavorite = true, canRate = true, audioInfo = "MP3 320 kbps"),
                                 progress, NaviampColors.Dark,
                                 NaviampNowPlayingActions({ actions += it }, {}, {}, {}, {}, {}, {}),
                                 displaySettings = NowPlayingDisplaySettings(fillArtworkArea = true),
@@ -76,6 +78,18 @@ class NaviampFilledArtworkLayoutTest {
                     if (shouldFill) play.performScrollTo()
                     play.assertIsDisplayed().performClick()
                     assertTrue(actions.any { it.action == NowPlayingPlaybackAction.Resume })
+                    if (shouldFill) {
+                        val density = onRoot().fetchSemanticsNode().layoutInfo.density.density
+                        val title = onNodeWithText("Artwork review").fetchSemanticsNode().boundsInRoot
+                        val artist = onNodeWithText("Artist").fetchSemanticsNode().boundsInRoot
+                        val album = onNodeWithText("Album").fetchSemanticsNode().boundsInRoot
+                        val audio = onNodeWithText("MP3 320 kbps").fetchSemanticsNode().boundsInRoot
+                        val transport = onNodeWithTag("now-playing-transport-row").fetchSemanticsNode().boundsInRoot
+                        assertTrue(artist.top - title.bottom >= 3.5f * density, "Title/artist spacing")
+                        assertTrue(album.top - artist.bottom >= 3.5f * density, "Artist/album spacing")
+                        assertTrue(transport.top - audio.bottom >= 5.5f * density, "Audio/transport spacing")
+                        onNodeWithTag("now-playing-bottom-actions").assertIsDisplayed()
+                    }
                     val before = loads.get()
                     repeat(60) { tick -> runOnIdle { progress.value = PlaybackProgress(8.0 + tick / 10.0, 180.0) } }
                     waitForIdle()

@@ -88,3 +88,14 @@ corners off. The debug APK signature was verified and the APK installed successf
 connected Pixel 10a as `app.naviamp.android.v2test` (Naviamp v2 Test), alongside the existing release
 package. Installation and package version were verified; no app data was cleared and no AVD was
 changed. Phone visual acceptance remains with the owner.
+
+## Filled-player control spacing
+
+The owner accepted Android keyboard behavior and both artwork corner modes, then reported that the
+filled player packed controls too tightly at the bottom. A physical Pixel screenshot confirmed
+minimal gaps between the waveform, identity, rating/audio information and transport groups.
+Filled-player details now use 8 dp group gaps (6 dp at compact heights), 4 dp identity-line gaps,
+and 4 dp between rating and audio information. Existing button sizes and other player layouts are
+unchanged. The regression checks minimum rendered gaps and visible bottom actions, including a
+412×818 usable Pixel viewport and 320 dp width with 1.4 font scale; both layout tests passed.
+The 412×818 capture was inspected. No platform production files changed.

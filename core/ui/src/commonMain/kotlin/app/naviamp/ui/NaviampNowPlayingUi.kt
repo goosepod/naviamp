@@ -413,7 +413,8 @@ fun NaviampNowPlayingPanel(
                             selectedVisualizer = selectedVisualizer, displaySettings = displaySettings,
                             onOpenPlaylistDialog = openPlaylistMembership,
                             onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
-                            mobileLayout = true, compactLayout = viewportMaxHeight < 500.dp,
+                            mobileLayout = true, filledArtworkLayout = true,
+                            compactLayout = viewportMaxHeight < 500.dp,
                             compactSizing = maxWidth < 380.dp,
                             matchVolumeToTransportWidth = true,
                             modifier = Modifier.fillMaxWidth().heightIn(max = viewportMaxHeight)
@@ -874,6 +875,7 @@ private fun NowPlayingDetails(
     showIdentity: Boolean = true,
     showControls: Boolean = true,
     matchVolumeToTransportWidth: Boolean = false,
+    filledArtworkLayout: Boolean = false,
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
@@ -934,7 +936,9 @@ private fun NowPlayingDetails(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = if ((mobileLayout && !compactLayout) || pinBottomActions) {
+        verticalArrangement = if (filledArtworkLayout) {
+            Arrangement.spacedBy(if (compactLayout) 6.dp else 8.dp)
+        } else if ((mobileLayout && !compactLayout) || pinBottomActions) {
             Arrangement.SpaceBetween
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
@@ -976,7 +980,7 @@ private fun NowPlayingDetails(
                 Column(
                     horizontalAlignment = if (largePresentation) Alignment.Start else Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(
-                        if (largePresentation) largeIdentitySpacing else if (mobileLayout) 2.dp else 1.dp,
+                        if (largePresentation) largeIdentitySpacing else if (filledArtworkLayout) 4.dp else if (mobileLayout) 2.dp else 1.dp,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1072,7 +1076,7 @@ private fun NowPlayingDetails(
             } else if (showRating || showAudioInfo) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (filledArtworkLayout) 4.dp else 1.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {
