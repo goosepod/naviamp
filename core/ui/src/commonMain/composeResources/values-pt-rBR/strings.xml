@@ -396,4 +396,7 @@
     <string name="settings_language_use_subtitle">Usar este idioma no Naviamp.</string>
     <string name="settings_square_album_artwork">Capas com cantos retos</string>
     <string name="settings_square_album_artwork_description">Usar cantos retos nas capas de álbuns e faixas em todo o aplicativo.</string>
+    <string name="settings_fill_now_playing_artwork">Preencher a área da capa em reprodução</string>
+    <string name="settings_fill_now_playing_artwork_description">Recortar a capa para preencher o player, com um degradê escuro atrás dos controles.</string>
+    <string name="now_playing_toggle_visualizer">Ativar ou desativar visualizador</string>
 </resources>

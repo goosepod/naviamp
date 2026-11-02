@@ -1475,6 +1475,12 @@ internal fun TelevisionNowPlaying(
                 }
             },
     ) {
+        Box(Modifier.fillMaxSize()) {
+        if (displaySettings.fillArtworkArea) {
+            NaviampFilledNowPlayingArtwork(nowPlaying.coverArtUrl, colors,
+                if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
+                Modifier.fillMaxSize())
+        }
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 24.dp),
         ) {
@@ -1483,7 +1489,7 @@ internal fun TelevisionNowPlaying(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
-                NaviampCoverArt(
+                if (!displaySettings.fillArtworkArea) NaviampCoverArt(
                     nowPlaying.coverArtUrl,
                     colors,
                     listeningCoverArtSize,
@@ -1763,6 +1769,7 @@ internal fun TelevisionNowPlaying(
                     .focusRequester(listeningModeFocusRequester)
                     .focusable(),
             )
+        }
         }
     }
     queueActionItem?.let { item ->

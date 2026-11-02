@@ -1088,6 +1088,15 @@ private fun TelevisionDisplaySettings(
                 } else Modifier,
             )
         }
+        item(key = "fill-now-playing-artwork") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.settings_fill_now_playing_artwork),
+                stringResource(Res.string.settings_fill_now_playing_artwork_description),
+                settings.nowPlaying.fillArtworkArea, colors,
+                { actions.onInterfaceSettingsChanged(settings.copy(nowPlaying = settings.nowPlaying.copy(
+                    fillArtworkArea = !settings.nowPlaying.fillArtworkArea))) },
+            )
+        }
         item(key = "square-album-artwork") {
             TelevisionSettingsToggleRow(
                 stringResource(Res.string.settings_square_album_artwork),

@@ -515,4 +515,7 @@
     <string name="settings_language_use_subtitle">Używaj tego języka w Naviamp.</string>
     <string name="settings_square_album_artwork">Okładki z prostymi rogami</string>
     <string name="settings_square_album_artwork_description">Używaj prostych rogów okładek albumów i utworów w całej aplikacji.</string>
+    <string name="settings_fill_now_playing_artwork">Wypełnij obszar okładki odtwarzacza</string>
+    <string name="settings_fill_now_playing_artwork_description">Przytnij okładkę do obszaru odtwarzacza i dodaj ciemny gradient za elementami sterowania.</string>
+    <string name="now_playing_toggle_visualizer">Włącz lub wyłącz wizualizację</string>
 </resources>
