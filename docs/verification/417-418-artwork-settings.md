@@ -129,6 +129,7 @@ acceptance. Compilation attribution is unavailable in this trimmed JVM.
 | Previous inset layout, combined | 4.235% | 0 | 14.75% | 50.14% |
 | Previous inset layout, confirmation | 3.196% | 0 | 15.08% | 99.73% |
 | Filled, restored, paused marquee | 0.544% | 0 | See raw counters | See raw counters |
+| Filled, natively hidden, paused marquee | 0.680% | 0 | Not sampled | Not sampled |
 
 The scoped acceptance budget is <1% app CPU and no continuous parent redraws for paused static
 and marquee states, and <=1 percentage point additional sustained app CPU compared with the
@@ -154,13 +155,17 @@ attempts produced no accepted sample. New clean app processes were used with the
 window geometry, and all samples (including rejected/outlier results) are retained.
 
 The owner manually minimized for twenty seconds and restored for fifteen seconds, confirming the
-functional lifecycle check. The observer's wait expired before that action, so **hidden CPU was not
-captured and has no passing measurement**. A separate post-restore visible phase passed at 0.544%
-and zero parent frames, and moving metadata was observed again. Native minimize/hide automation
-attempts did not change CGWindow visibility and are not counted as lifecycle acceptance. This is
-an explicit measurement limitation, not a claim of a new hidden-state performance fix. Resize,
-clipping, input, pause, font scaling and accessibility are covered by owner review, rendered tests,
-and the live accessibility tree; all transport actions remained exposed.
+functional lifecycle check. The first observer wait expired before that action; that attempt has
+no hidden CPU result. A separate post-restore visible phase passed at 0.544% and zero parent frames,
+and moving metadata was observed again. A later native app-menu Hide action did remove all owned
+onscreen windows: a second CGWindow observer verified absence before and after a ten-second hidden
+sample (0.680%, zero parent frames). Its filename is `filled-minimized-manual`, but the measured
+state was **hidden**, not iconified. AWT continued reporting visible=true/iconified=false, so the
+native CGWindow result is the lifecycle evidence. The second observer was stopped while waiting
+for restoration, after its hidden sample completed; it does not establish a paired restore sample.
+The uninstrumented app was then launched and raised separately, and its controls and moving text
+were visibly verified. Resize, clipping, input, pause, font scaling and accessibility are covered
+by owner review, rendered tests, and the live accessibility tree; transport actions remained exposed.
 
 ### Reproduction
 
