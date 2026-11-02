@@ -15,7 +15,7 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampFilledArtworkLayoutTest {
-    @Test fun televisionFillPreservesPlayPauseFocusAndSettingsAccess() = runComposeUiTest {
+    @Test fun televisionKeepsItsExistingPresentationWhenFillIsEnabled() = runComposeUiTest {
         mainClock.autoAdvance = false
         setContent {
             TelevisionNowPlaying(
@@ -28,14 +28,16 @@ class NaviampFilledArtworkLayoutTest {
             )
         }
         mainClock.advanceTimeBy(200)
-        onNodeWithTag("now-playing-filled-artwork").assertIsDisplayed()
+        onNodeWithTag("now-playing-filled-artwork").assertDoesNotExist()
         onNodeWithContentDescription("Pause").assertIsFocused()
         onNodeWithContentDescription("Settings").assertIsDisplayed()
     }
 
-    @Test fun filledLayoutsKeepControlsUsableAndArtworkStableAcrossPlaybackUpdates() {
+    @Test fun singlePaneFillAndLegacyWideLayoutsKeepControlsUsableAcrossPlaybackUpdates() {
         val cases = listOf(
-            Triple(320, 720, NaviampPlayerPanelLayout.Standalone),
+            Triple(320, 720, NaviampPlayerPanelLayout.Adaptive),
+            Triple(400, 760, NaviampPlayerPanelLayout.Standalone),
+            Triple(876, 728, NaviampPlayerPanelLayout.Adaptive),
             Triple(640, 420, NaviampPlayerPanelLayout.Adaptive),
             Triple(1200, 760, NaviampPlayerPanelLayout.Adaptive),
             Triple(1200, 760, NaviampPlayerPanelLayout.Full),
@@ -64,11 +66,15 @@ class NaviampFilledArtworkLayoutTest {
                             )
                         }
                     }
-                    onNodeWithTag("now-playing-filled-artwork").assertIsDisplayed()
+                    val shouldFill = width < 780 && layout == NaviampPlayerPanelLayout.Adaptive
+                    if (shouldFill) onNodeWithTag("now-playing-filled-artwork").assertIsDisplayed()
+                    else onNodeWithTag("now-playing-filled-artwork").assertDoesNotExist()
                     waitUntil(timeoutMillis = 5_000) {
                         onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
                     }
-                    onNodeWithContentDescription("Play").performScrollTo().performClick()
+                    val play = onNodeWithContentDescription("Play")
+                    if (shouldFill) play.performScrollTo()
+                    play.assertIsDisplayed().performClick()
                     assertTrue(actions.any { it.action == NowPlayingPlaybackAction.Resume })
                     val before = loads.get()
                     repeat(60) { tick -> runOnIdle { progress.value = PlaybackProgress(8.0 + tick / 10.0, 180.0) } }

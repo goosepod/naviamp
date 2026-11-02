@@ -395,13 +395,13 @@ fun NaviampNowPlayingPanel(
 
         if (useFilledNowPlayingArtwork(displaySettings.fillArtworkArea,
                 nowPlaying.visualizerVisible && nowPlaying.visualizerAvailable,
-                nowPlaying.lyricsVisible && !showStationList, wideLayout)) {
-            val fullPresentation = wideLayout && panelLayout == NaviampPlayerPanelLayout.Full
-            val filledPane: @Composable (Modifier) -> Unit = { paneModifier ->
+                nowPlaying.lyricsVisible && !showStationList, wideLayout, panelLayout)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 NaviampFilledNowPlayingArtwork(
                     url = nowPlaying.coverArtUrl, colors = colors,
                     mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
-                    modifier = paneModifier,
+                    modifier = Modifier.fillMaxWidth().height(viewportMaxHeight),
                     onArtworkClick = if (nowPlaying.visualizerAvailable) {
                         { actions.display(NowPlayingDisplayAction.ToggleVisualizer) }
                     } else null,
@@ -415,52 +415,16 @@ fun NaviampNowPlayingPanel(
                             onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                             mobileLayout = true, compactLayout = viewportMaxHeight < 500.dp,
                             compactSizing = maxWidth < 380.dp,
-                            showIdentity = !fullPresentation,
-                            showCollapse = panelLayout != NaviampPlayerPanelLayout.Standalone,
-                            showWindowFullscreen = panelLayout != NaviampPlayerPanelLayout.Standalone,
                             matchVolumeToTransportWidth = true,
                             modifier = Modifier.fillMaxWidth().heightIn(max = viewportMaxHeight)
                                 .verticalScroll(rememberScrollState()).padding(16.dp),
                         )
                     }
                 }
-            }
-            if (wideLayout) {
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    filledPane(Modifier.weight(if (fullPresentation) 0.82f else 0.9f).fillMaxHeight())
-                    if (fullPresentation && !nowPlaying.lyricsVisible) {
-                        Box(Modifier.weight(1.18f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                        NowPlayingDetails(
-                            progressStableNowPlaying, playbackProgress, colors, visualizerColors, actions,
-                            selectedVisualizer, displaySettings, openPlaylistMembership,
-                            { saveQueueDialogOpen = true },
-                            mobileLayout = true, showProgress = false, showControls = false,
-                            showCollapse = false, largePresentation = true,
-                            largePresentationScale = fullNowPlayingTypographyScale(viewportMaxWidth * 0.4f),
-                            modifier = Modifier.fillMaxWidth().heightIn(max = viewportMaxHeight)
-                                .verticalScroll(rememberScrollState()).padding(24.dp),
-                        )
-                        }
-                    } else {
-                        NowPlayingSidePanel(
-                            progressStableNowPlaying, playbackProgress, colors, selectedTab,
-                            { selectedTab = it }, showStationList = showStationList,
-                            showLyrics = nowPlaying.lyricsVisible, compactQueueRows = true,
-                            actions = actions, modifier = Modifier.weight(1.1f).fillMaxHeight(),
-                        )
-                    }
-                }
-            } else {
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    filledPane(Modifier.fillMaxWidth().height(viewportMaxHeight))
-                    if (panelLayout != NaviampPlayerPanelLayout.Standalone) {
-                        NowPlayingSidePanel(progressStableNowPlaying, playbackProgress, colors,
-                            selectedTab, { selectedTab = it }, showStationList = showStationList,
-                            showLyrics = false, actions = actions,
-                            modifier = Modifier.fillMaxWidth().height(sidePanelHeight).padding(horizontal = 14.dp))
-                    }
-                }
+                NowPlayingSidePanel(progressStableNowPlaying, playbackProgress, colors,
+                    selectedTab, { selectedTab = it }, showStationList = showStationList,
+                    showLyrics = false, actions = actions,
+                    modifier = Modifier.fillMaxWidth().height(sidePanelHeight).padding(horizontal = 14.dp))
             }
         } else if (wideLayout && panelLayout == NaviampPlayerPanelLayout.Full) {
             val largeArtSize = minOf(
