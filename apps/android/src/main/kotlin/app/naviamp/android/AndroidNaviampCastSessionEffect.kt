@@ -27,9 +27,10 @@ class AndroidNaviampCastSessionEffect(context: Context) : NaviampCastSessionEffe
     private val appContext = context.applicationContext
     // Core's start contract owns activation. Constructing an unused TV adapter must not load
     // the native sender Dynamite module, which may be absent from that host.
-    private val sessionManager by lazy(LazyThreadSafetyMode.NONE) {
+    private val nativeSessionManager = lazy(LazyThreadSafetyMode.NONE) {
         CastContext.getSharedInstance(appContext).sessionManager
     }
+    private val sessionManager by nativeSessionManager
     private var listener: NaviampCastSessionListener? = null
     private var activeSession: CastSession? = null
     private var activeSelectionId: Long? = null
@@ -110,15 +111,20 @@ class AndroidNaviampCastSessionEffect(context: Context) : NaviampCastSessionEffe
 
     override fun stop() {
         if (listener == null) return
-        sessionManager.removeSessionManagerListener(sessionListener, CastSession::class.java)
-        unobserveMedia()
-        listener = null
-        activeSession = null
-        activeSelectionId = null
+        try {
+            if (nativeSessionManager.isInitialized()) {
+                sessionManager.removeSessionManagerListener(sessionListener, CastSession::class.java)
+            }
+        } finally {
+            unobserveMedia()
+            listener = null
+            activeSession = null
+            activeSelectionId = null
+        }
     }
 
     override fun disconnect() {
-        sessionManager.endCurrentSession(true)
+        if (nativeSessionManager.isInitialized()) sessionManager.endCurrentSession(true)
     }
 
     override suspend fun load(selectionId: Long, media: NaviampCastReceiverMedia): Boolean {
