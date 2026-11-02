@@ -53,6 +53,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -1292,6 +1293,27 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun immediateNextResolutionIsNotStoppedAfterItStarts() = runTest(UnconfinedTestDispatcher()) {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply { recordStopEvents = true }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this, engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+        engine.events.clear()
+
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        advanceUntilIdle()
+
+        assertEquals(listOf("clear", "stop", "play:next"), engine.events)
+        adapter.stop()
+    }
+
+    @Test
     fun rapidDoubleNextWithSlowStreamResolutionPlaysOnlyTheLastTrack() = runTest {
         val base = FakeCoreMediaProvider()
         val provider = object : MediaProvider by base {
@@ -1594,6 +1616,7 @@ private class RecordingPlaybackEngine :
     private var downloadFallbackListener: (() -> Unit)? = null
     var visualizerReads = 0
     var recordCertificatePolicy = false
+    var recordStopEvents = false
     val events = mutableListOf<String>()
 
     override fun play(
@@ -1621,7 +1644,10 @@ private class RecordingPlaybackEngine :
     override fun resume() = Unit
     override fun seek(positionSeconds: Double) { seeks += positionSeconds }
     override fun setVolume(percent: Int) { appliedVolume = percent }
-    override fun stop() { stopCalls++ }
+    override fun stop() {
+        stopCalls++
+        if (recordStopEvents) events += "stop"
+    }
     override fun setNetworkCertificateVerification(enabled: Boolean) {
         if (recordCertificatePolicy) events += "verify:$enabled"
     }
