@@ -25,6 +25,16 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test fun squareAlbumArtworkAppliesThroughPortableExportImportAndDefaultsForOlderExports() {
+        for (square in listOf(false, true)) {
+            val settings = InterfaceSettings(squareAlbumArtwork = square)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+        assertFalse(SettingsSyncJson.decode("{}").preferences.interfaceSettings.squareAlbumArtwork)
+    }
     @Test fun aurralConnectionIdentityAndTlsPreferenceRoundTripWithoutSecrets() {
         val source = savedSource().copy(providerId = app.naviamp.domain.provider.ProviderIdAurral,
             password = "account-secret", nativeToken = "session-secret",

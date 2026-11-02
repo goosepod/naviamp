@@ -394,4 +394,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Naviamp के लिए इस भाषा का उपयोग करें।</string>
+    <string name="settings_square_album_artwork">चौकोर एल्बम कवर</string>
+    <string name="settings_square_album_artwork_description">पूरे ऐप में एल्बम और ट्रैक कवर के लिए समकोण वाले कोने इस्तेमाल करें।</string>
 </resources>
