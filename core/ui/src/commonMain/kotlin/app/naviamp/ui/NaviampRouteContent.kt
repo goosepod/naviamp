@@ -440,8 +440,8 @@ internal fun HomeCollectionArtwork(
 ) {
     val artwork = when (item.artwork) {
         SharedHomeCollectionArtwork.CoverArt -> {
-            val cornerRadius = mediaArtworkCornerRadius(item.mediaKind, size, 7.dp)
-            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, cornerRadius, modifier)
+            val cornerRadius = resolvedMediaArtworkCornerRadius(item.mediaKind, size, 7.dp)
+            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, cornerRadius, modifier, mediaKind = item.mediaKind)
             return
         }
         SharedHomeCollectionArtwork.NavibeatGenerated -> navibeatMixArtwork(item.artworkKey.orEmpty())
@@ -1352,6 +1352,7 @@ internal fun MediaListContent(
         ) { item ->
             SharedMediaRow(
                 item = item,
+                mediaKind = itemKind,
                 colors = colors,
                 onClick = onItemSelected?.let { { it(item) } },
             )
@@ -1927,7 +1928,7 @@ fun NaviampDownloadsContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    NaviampCoverArt(download.track.coverArtUrl, colors, 42.dp, 4.dp)
+                    NaviampCoverArt(download.track.coverArtUrl, colors, 42.dp, 4.dp, mediaKind = SharedMediaItemKind.Track)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(download.track.title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(download.track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

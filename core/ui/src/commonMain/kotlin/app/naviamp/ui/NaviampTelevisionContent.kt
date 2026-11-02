@@ -342,11 +342,7 @@ private fun TelevisionHomeCard(
         onClick = onClick,
         modifier = modifier,
     ) { focused ->
-        val artworkShape = if (item.mediaKind == SharedMediaItemKind.Artist) {
-            RoundedCornerShape(TelevisionHomeCardWidth / 2)
-        } else {
-            RoundedCornerShape(7.dp)
-        }
+        val artworkShape = RoundedCornerShape(resolvedMediaArtworkCornerRadius(item.mediaKind, TelevisionHomeCardWidth, 7.dp))
         HomeCollectionArtwork(
             item,
             colors,
@@ -770,7 +766,7 @@ private fun TelevisionInternetRadioRow(
             .background(if (focused) colors.accent.copy(alpha = 0.34f) else Color.Black.copy(alpha = 0.22f))
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        NaviampCoverArt(station.item.coverArtUrl, colors, 58.dp, 10.dp)
+        NaviampCoverArt(station.item.coverArtUrl, colors, 58.dp, 10.dp, mediaKind = SharedMediaItemKind.RadioStation)
         Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
             Text(
                 station.item.title,
@@ -855,6 +851,7 @@ internal fun TelevisionPlaylists(
                         title = playlist.title,
                         subtitle = playlist.subtitle,
                         coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
+                        mediaKind = SharedMediaItemKind.Playlist,
                         action = {
                             mediaActions.onMediaItemAction(
                                 playlist.playlistActionRequest(NaviampPlaylistMediaCommand.Select),
@@ -878,14 +875,10 @@ internal data class TelevisionMediaGridItem(
     val title: String,
     val subtitle: String,
     val coverArtUrl: String?,
-    val artworkShape: TelevisionArtworkShape = TelevisionArtworkShape.RoundedSquare,
+    val mediaKind: SharedMediaItemKind,
     val action: () -> Unit,
 )
 
-internal enum class TelevisionArtworkShape {
-    RoundedSquare,
-    Circle,
-}
 
 @Composable
 internal fun TelevisionSearch(
@@ -951,7 +944,7 @@ internal fun TelevisionSearch(
                     title = artist.title,
                     subtitle = artist.subtitle,
                     coverArtUrl = artist.coverArtUrl,
-                    artworkShape = TelevisionArtworkShape.Circle,
+                    mediaKind = SharedMediaItemKind.Artist,
                     action = {
                         mediaActions.onMediaItemAction(artist.artistActionRequest(NaviampArtistMediaCommand.Select))
                     },
@@ -960,14 +953,14 @@ internal fun TelevisionSearch(
         }
         results.albums.forEach { album ->
             add(
-                TelevisionMediaGridItem("album:${album.id}", album.title, album.subtitle, album.coverArtUrl) {
+                TelevisionMediaGridItem("album:${album.id}", album.title, album.subtitle, album.coverArtUrl, SharedMediaItemKind.Album) {
                     mediaActions.onMediaItemAction(album.albumActionRequest(NaviampArtistAlbumCommand.Select))
                 },
             )
         }
         results.tracks.forEach { track ->
             add(
-                TelevisionMediaGridItem("track:${track.id}", track.title, track.subtitle, track.coverArtUrl) {
+                TelevisionMediaGridItem("track:${track.id}", track.title, track.subtitle, track.coverArtUrl, SharedMediaItemKind.Track) {
                     mediaActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
                 },
             )
@@ -1115,7 +1108,7 @@ internal fun TelevisionMediaGrid(
                     title = item.title,
                     subtitle = item.subtitle,
                     coverArtUrl = item.coverArtUrl,
-                    artworkShape = item.artworkShape,
+                    mediaKind = item.mediaKind,
                     colors = colors,
                     onFocused = {
                         focusedRowStart = televisionGridRowStart(index, columnCount)
@@ -1191,16 +1184,13 @@ private fun TelevisionMediaGridCard(
     title: String,
     subtitle: String,
     coverArtUrl: String?,
-    artworkShape: TelevisionArtworkShape,
+    mediaKind: SharedMediaItemKind,
     colors: NaviampColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onFocused: () -> Unit = {},
 ) {
-    val cornerRadius = when (artworkShape) {
-        TelevisionArtworkShape.RoundedSquare -> 12.dp
-        TelevisionArtworkShape.Circle -> TelevisionGridArtworkSize / 2
-    }
+    val cornerRadius = resolvedMediaArtworkCornerRadius(mediaKind, TelevisionGridArtworkSize, 12.dp)
     val shape = RoundedCornerShape(cornerRadius)
     TelevisionFocusableCard(
         colors = colors,
@@ -1215,6 +1205,7 @@ private fun TelevisionMediaGridCard(
             TelevisionGridArtworkSize,
             cornerRadius,
             Modifier.televisionMediaArtworkFocusEffect(focused, colors, shape),
+            mediaKind = mediaKind,
         )
         TelevisionCardLabels(title, subtitle, colors)
     }
@@ -1498,6 +1489,7 @@ internal fun TelevisionNowPlaying(
                     listeningCoverArtSize,
                     listeningCoverArtRadius,
                     decodeSize = 310.dp,
+                    mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
                 )
                 if (queueOpen) {
                     TelevisionNowPlayingQueue(
@@ -1814,6 +1806,7 @@ private fun TelevisionNowPlayingQueue(
             meta = nowPlaying.albumLine.ifBlank { nowPlaying.albumTitle },
             coverArtUrl = nowPlaying.coverArtUrl,
             artistCredits = nowPlaying.artistCredits,
+            mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
         )
     }
     LaunchedEffect(Unit) {
@@ -2001,7 +1994,7 @@ private fun TelevisionQueueRow(
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        NaviampCoverArt(item.coverArtUrl, colors, 48.dp, 7.dp)
+        NaviampCoverArt(item.coverArtUrl, colors, 48.dp, 7.dp, mediaKind = item.mediaKind)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
             Text(
                 item.title,
@@ -2083,7 +2076,7 @@ internal fun TelevisionMiniPlayer(
             .background(Color.Black.copy(alpha = 0.34f), shape)
             .padding(horizontal = 12.dp, vertical = 5.dp),
     ) {
-        NaviampCoverArt(nowPlaying.coverArtUrl, colors, 36.dp, 6.dp)
+        NaviampCoverArt(nowPlaying.coverArtUrl, colors, 36.dp, 6.dp, mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 nowPlaying.title,
