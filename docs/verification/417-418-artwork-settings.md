@@ -72,3 +72,19 @@ iOS Simulator ARM64 compilation, architecture verification and staged Mac packag
 log is `/private/tmp/naviamp-artwork-owner-fixes-final.log`; captures include docked 400×760 and
 wide 876×728/1200×760 fallbacks. The same Mac review bundle was updated in place after quitting it;
 its connected profile was preserved and backed up beside the app before replacement.
+
+## Filled viewport corners
+
+A second owner screenshot showed the rounded thumbnail preference clipping the filled player
+background. Filled artwork now clips only to rectangular viewport bounds, independently of the
+square-album preference. A rendered regression checks all four outer pixels with the preference
+both off and on and asserts identical coverage. All 7 selected artwork tests passed; both iOS
+compiles, architecture verification, Mac packaging and Android debug assembly passed in
+`/private/tmp/naviamp-artwork-viewport-phone.log`.
+
+The Mac review bundle was updated and relaunched with the connected profile preserved and backed
+up. A visible screenshot of the same narrow player confirmed full top-corner coverage with square
+corners off. The debug APK signature was verified and the APK installed successfully on the owner's
+connected Pixel 10a as `app.naviamp.android.v2test` (Naviamp v2 Test), alongside the existing release
+package. Installation and package version were verified; no app data was cleared and no AVD was
+changed. Phone visual acceptance remains with the owner.

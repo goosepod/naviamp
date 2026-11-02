@@ -3,11 +3,10 @@ package app.naviamp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -31,7 +30,6 @@ internal fun NaviampFilledNowPlayingArtwork(
 ) {
     BoxWithConstraints(modifier.testTag("now-playing-filled-artwork")) {
         val decodeSize = maxOf(maxWidth, maxHeight)
-        val radius = resolvedMediaArtworkCornerRadius(mediaKind, decodeSize, 8.dp)
         val fade = remember { Brush.verticalGradient(
             0f to Color.Black.copy(alpha = 0.12f),
             0.35f to Color.Black.copy(alpha = 0.28f),
@@ -43,7 +41,8 @@ internal fun NaviampFilledNowPlayingArtwork(
             Modifier.clickable(role = Role.Button, onClickLabel = label, onClick = onArtworkClick)
                 .semantics { contentDescription = label }
         } else Modifier
-        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(radius))) {
+        // Filled artwork is a viewport background, independent of thumbnail corner preferences.
+        Box(Modifier.fillMaxSize().clipToBounds()) {
             // A rectangular constraint plus Crop preserves the bitmap's aspect ratio. There is
             // no second image, timer, blur or read of playback progress in this background.
             Box(Modifier.matchParentSize().graphicsLayer().then(artworkAction)) {
