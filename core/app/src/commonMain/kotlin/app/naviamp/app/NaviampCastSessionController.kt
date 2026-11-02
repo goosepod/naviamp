@@ -15,6 +15,7 @@ data class NaviampCastTarget(val id: String, val displayName: String) {
 /** Native Cast SDK operations. The host reports SDK events through the listener without owning policy. */
 interface NaviampCastSessionEffect {
     val localAddress: String? get() = null
+    /** May throw when the native sender cannot initialize. stop() must be safe after a failed start. */
     fun start(listener: NaviampCastSessionListener)
     fun stop()
     fun disconnect()
@@ -89,15 +90,28 @@ class NaviampCastSessionController(
         try { effect.shutdown() } finally { outputs.selectLocal() }
     }
 
-    fun start() {
-        if (started) return
+    /** Optional sender failure must not prevent the rest of the application from starting. */
+    fun start(): Boolean {
+        if (started) return true
         started = true
         val revision = ++lifecycleRevision
-        effect.start(object : NaviampCastSessionListener by this@NaviampCastSessionController {
-            override fun onTargetSelected(target: NaviampCastTarget): Long =
-                if (started && revision == lifecycleRevision) this@NaviampCastSessionController.onTargetSelected(target)
-                else -1L
-        })
+        try {
+            effect.start(object : NaviampCastSessionListener by this@NaviampCastSessionController {
+                override fun onTargetSelected(target: NaviampCastTarget): Long =
+                    if (started && revision == lifecycleRevision) this@NaviampCastSessionController.onTargetSelected(target)
+                    else -1L
+            })
+        } catch (failure: Exception) {
+            started = false
+            ++lifecycleRevision
+            if (currentSelectionId() != null) outputs.selectLocal()
+            selectionId = null
+            mutableMediaStatus.value = null
+            try { effect.stop() } catch (cleanup: Exception) { failure.addSuppressed(cleanup) }
+            if (failure is CancellationException) throw failure
+            return false
+        }
+        return true
     }
 
     fun stop() {
