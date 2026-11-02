@@ -513,4 +513,6 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Używaj tego języka w Naviamp.</string>
+    <string name="settings_square_album_artwork">Okładki z prostymi rogami</string>
+    <string name="settings_square_album_artwork_description">Używaj prostych rogów okładek albumów i utworów w całej aplikacji.</string>
 </resources>

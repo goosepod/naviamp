@@ -34,6 +34,7 @@ class NaviampCoverArtTransitionTest {
                     size = 128.dp,
                     cornerRadius = 8.dp,
                     fallbackUrl = "test://provider-cover",
+                    mediaKind = SharedMediaItemKind.Album,
                 )
             }
             waitUntil(timeoutMillis = 5_000) {
@@ -65,7 +66,7 @@ class NaviampCoverArtTransitionTest {
 
         try {
             setContent {
-                NaviampCoverArt(artworkUrl.value, NaviampColors.Dark, 128.dp, 8.dp)
+                NaviampCoverArt(artworkUrl.value, NaviampColors.Dark, 128.dp, 8.dp, mediaKind = SharedMediaItemKind.Album)
             }
             waitUntil(timeoutMillis = 5_000) {
                 onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().size == 1

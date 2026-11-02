@@ -1,5 +1,6 @@
 package app.naviamp.android
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -48,7 +49,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
     private val publicationPlanner = NaviampExternalPlaybackPublicationPlanner()
     private val presentation = NaviampPlaybackServicePresentationCoordinator(
         establish = { startForeground(NotificationId, notification(it)) },
-        update = { getSystemService(NotificationManager::class.java).notify(NotificationId, notification(it)) },
+        update = ::updateMediaNotification,
         remove = { stopForeground(STOP_FOREGROUND_REMOVE) },
     )
 
@@ -288,6 +289,14 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         bridge?.browseChildren(parentId).orEmpty().map { item ->
             if (item.playable) playableItem(item) else browsableItem(item.mediaId, item.title, item.subtitle)
         }.toMutableList()
+
+    // Every notification built below has MediaStyle and this service's MediaSession token.
+    // Android exempts media-session notifications from POST_NOTIFICATIONS, including updates.
+    // https://developer.android.com/develop/ui/compose/notifications/notification-permission#media-sessions
+    @SuppressLint("NotificationPermission")
+    private fun updateMediaNotification(value: NaviampExternalPlaybackSnapshot) {
+        getSystemService(NotificationManager::class.java).notify(NotificationId, notification(value))
+    }
 
     private fun notification(value: NaviampExternalPlaybackSnapshot): Notification {
         val current = value.current

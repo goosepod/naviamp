@@ -199,7 +199,7 @@ fun TrackRow(
             }
         }
         if (showCoverArt) {
-            NaviampCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius)
+            NaviampCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius, mediaKind = SharedMediaItemKind.Track)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(titleSubtitleSpacing)) {
             Text(track.title, color = colors.primaryText, style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -654,10 +654,10 @@ internal fun MixCard(
         modifier = Modifier
             .width(154.dp)
             .height(120.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 154.dp, 6.dp)))
             .clickable(onClick = onClick),
     ) {
-        NaviampCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp, mediaKind = SharedMediaItemKind.Album)
         Column(
             verticalArrangement = Arrangement.Bottom,
             modifier = Modifier
@@ -749,6 +749,7 @@ internal fun HomeSection(
     title: String,
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
+    mediaKind: SharedMediaItemKind,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     stationStyle: Boolean = false,
@@ -772,6 +773,7 @@ internal fun HomeSection(
                 } else {
                     SharedMediaRow(
                         item = item,
+                        mediaKind = mediaKind,
                         colors = colors,
                         onClick = onItemSelected?.let { { it(item) } },
                         onFavoriteToggled = onFavoriteToggled,
@@ -787,6 +789,7 @@ internal fun MediaSection(
     title: String,
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
+    mediaKind: SharedMediaItemKind,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
 ) {
@@ -797,6 +800,7 @@ internal fun MediaSection(
         items.forEach { item ->
             SharedMediaRow(
                 item = item,
+                mediaKind = mediaKind,
                 colors = colors,
                 onClick = onItemSelected?.let { { it(item) } },
                 onFavoriteToggled = onFavoriteToggled,
@@ -818,7 +822,7 @@ fun SharedMediaRow(
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
     modifier: Modifier = Modifier,
-    mediaKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    mediaKind: SharedMediaItemKind,
 ) {
     Row(
         modifier = modifier
@@ -845,7 +849,8 @@ fun SharedMediaRow(
             colors = colors,
             covers = coverUrls,
             size = coverArtSize,
-            cornerRadius = mediaArtworkCornerRadius(mediaKind, coverArtSize, coverArtCornerRadius),
+            cornerRadius = resolvedMediaArtworkCornerRadius(mediaKind, coverArtSize, coverArtCornerRadius),
+            mediaKind = mediaKind,
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(
@@ -931,7 +936,7 @@ fun SharedMediaGridTile(
     modifier: Modifier = Modifier,
     tileSize: Dp = 144.dp,
 ) {
-    val cornerRadius = mediaArtworkCornerRadius(mediaKind, tileSize, 8.dp)
+    val cornerRadius = resolvedMediaArtworkCornerRadius(mediaKind, tileSize, 8.dp)
     val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
         NaviampRowMenuItem(
             label = if (item.favoriteActive) "Remove favorite" else "Favorite",
@@ -951,7 +956,7 @@ fun SharedMediaGridTile(
                 .clickable(onClick = onClick)
                 .semantics { contentDescription = item.title },
         ) {
-            MultiCoverArt(colors, listOfNotNull(item.coverArtUrl).ifEmpty { item.coverArtUrls }, tileSize, cornerRadius)
+            MultiCoverArt(colors, listOfNotNull(item.coverArtUrl).ifEmpty { item.coverArtUrls }, tileSize, cornerRadius, mediaKind = mediaKind)
             if (item.favoriteActive) {
                 Icon(
                     imageVector = NaviampTransportIcons.HeartFilled,
@@ -1901,7 +1906,7 @@ private fun ArtistMixSelectedArtist(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        NaviampCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp, mediaKind = SharedMediaItemKind.Artist)
         Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1973,7 +1978,7 @@ private fun AlbumMixSelectedAlbum(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        NaviampCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp, mediaKind = SharedMediaItemKind.Album)
         Text(album.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1995,7 +2000,7 @@ private fun AlbumMixAlbumTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        NaviampCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp, mediaKind = SharedMediaItemKind.Album)
         Text(
             album.title,
             color = colors.primaryText,
@@ -2033,7 +2038,7 @@ private fun ArtistMixArtistTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        NaviampCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp, mediaKind = SharedMediaItemKind.Artist)
         Text(
             artist.title,
             color = colors.primaryText,
@@ -2130,6 +2135,7 @@ fun InternetRadioContent(
                 val stationItem = station.item
                 SharedMediaRow(
                     item = stationItem,
+                    mediaKind = SharedMediaItemKind.RadioStation,
                     colors = colors,
                     onClick = {
                         handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))

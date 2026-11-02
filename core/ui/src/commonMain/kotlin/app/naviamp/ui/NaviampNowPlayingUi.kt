@@ -172,6 +172,7 @@ data class NaviampNowPlayingItemUi(
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val playNextPriority: Boolean = false,
     val actionTarget: NowPlayingItemTarget? = null,
+    val mediaKind: SharedMediaItemKind = SharedMediaItemKind.Track,
 )
 
 data class NaviampNowPlayingActions(
@@ -737,7 +738,7 @@ private fun NowPlayingArtSurface(
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
     onVisualizerSwiped: (VisualizerCycleDirection) -> Unit,
 ) {
-    val shape = RoundedCornerShape(cornerRadius)
+    val shape = RoundedCornerShape(resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Track, size, cornerRadius))
     val toggleModifier = Modifier.clickable(enabled = visualizerAvailable, onClick = onToggleVisualizer)
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
 
@@ -794,7 +795,7 @@ private fun NowPlayingArtSurface(
                     .shadow(7.dp, shape, clip = false),
             ) {
                 Box(modifier = toggleModifier) {
-                    NaviampCoverArt(coverArtUrl, colors, size, cornerRadius)
+                    NaviampCoverArt(coverArtUrl, colors, size, cornerRadius, mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track)
                 }
             }
         }
@@ -3354,7 +3355,7 @@ private fun NowPlayingItemList(
                         .clickable { onClick(item) }
                         .padding(horizontal = 6.dp, vertical = rowVerticalPadding),
                 ) {
-                    NaviampCoverArt(item.coverArtUrl, colors, artworkSize, 4.dp)
+                    NaviampCoverArt(item.coverArtUrl, colors, artworkSize, 4.dp, mediaKind = item.mediaKind)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(item.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
