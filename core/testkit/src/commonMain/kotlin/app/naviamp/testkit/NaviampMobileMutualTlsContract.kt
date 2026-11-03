@@ -34,7 +34,7 @@ import kotlin.time.TimeSource
 
 /** Hosts supply only private test-file IO and their real native playback boundary. */
 interface NaviampMobileMutualTlsHost {
-    /** Optional generated fixture text delivered by the test runner before native networking starts. */
+    /** Expected fixture identity, verified against its live control endpoint through native HTTP. */
     suspend fun fixtureBootstrap(): String? = null
     /** Runner-selected loopback port when bootstrap is fetched through the native HTTP engine. */
     fun fixtureControlPort(): Int? = null
@@ -61,8 +61,10 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     val manifest = phase("fixture bootstrap") {
         withTimeout(10_000) {
             host.verifyNativeCallbackDelivery()
-            host.fixtureBootstrap()?.let(::decodeNaviampMobileTlsControlResponse)
-                ?: mobileTlsFixtureRequest(requireNotNull(host.fixtureControlPort()) { "Runner must supply fixture bootstrap or control port" }, "/fixture")
+            val bootstrap = host.fixtureBootstrap()
+            loadVerifiedNaviampMobileTlsFixture(bootstrap, if (bootstrap == null) host.fixtureControlPort() else null) { port ->
+                mobileTlsFixtureRequest(port, "/fixture")
+            }
         }
     }
     val endpoints = NaviampMobileTlsEndpoints.fromManifest(manifest)

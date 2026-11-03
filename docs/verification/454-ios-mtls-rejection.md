@@ -1,4 +1,4 @@
-# Native TLS test event-loop liveness
+# Native TLS fixture bootstrap and event-loop liveness
 
 Tracking: #454, v2.11.0; unblocks #467. Production TLS and playback behavior are unchanged.
 
@@ -8,24 +8,64 @@ Fresh #467 Verify [41708491114](https://github.com/goosepod/naviamp/actions/runs
 head `02f98541f1d453e4b7e2a65a45d1a782e33f5284`, includes accepted #509 and again fails
 the missing-client-identity rejection. All other platform jobs pass. The iOS native suite runs
 17 methods with one failure; callback bootstrap and run-loop regressions pass. The timeout reports
-`tlsStage=closing client`, no TLS challenges, Idle playback and unknown progress. CFNetwork records
+`tlsStage=closing client`, no recorded TLS challenges, Idle playback and unknown progress. CFNetwork records
 the first secure ping starting and being cancelled approximately 25 seconds later, without HTTP
-bytes or a TLS challenge. The main-loop correction alone therefore does not resolve #454.
+bytes or a recorded TLS challenge. The main-loop correction alone therefore does not resolve #454.
 
 Three further independent cloned-device suites pass locally (51 executions), matching the hosted
 device-clone setup. Evidence: `/private/tmp/naviamp-454-clone-_ly25q3k`. These passing runs do not
 invalidate the hosted failure. An attempted local live sample completed after the process had
 finished and contains no call graph; it provides no liveness evidence.
 
-The follow-up test observer samples only newly started processes whose command begins with the exact
+The follow-up test observer samples only newly started processes whose executable exactly matches the
 native binary path from this checkout. At 8 and 18 seconds it records CPU, TCP sockets and native
 stacks, preserving the underlying test exit status. The fixture PID is recorded when launched;
-its JVM threads and TCP sockets are captured only while its command still identifies the same
-generated bootstrap. It excludes preexisting processes, enclosing
+its TCP sockets are captured only while its command still identifies the same generated bootstrap.
+JVM thread attachment happens only after a failed command, so it cannot wake a fixture during
+authentication. Process inventory reads exact executable paths rather than every process's argument
+vector, once per second. It excludes preexisting processes, enclosing
 shells, simctl and other checkouts. Logs also include all messages from `test.kexe`, not only the
 CFNetwork subsystem. A fourth fresh native suite with the observer enabled also passes all
 17 tests (`/private/tmp/naviamp-454-observed-o808v9tz`). This is diagnostic evidence gathering, not a fix, request retry or deadline
 change. Keep #454 open and #467 unmerged until the remaining stall is understood and corrected.
+
+## Shared live-bootstrap correction
+
+The runner-file branch returned its manifest without making any native control request. That file
+identifies the fixture but does not establish that the native HTTP engine can reach the live fixture.
+The first authentication rejection therefore also became the contract's first native HTTP operation.
+The control-port branch already used native HTTP for bootstrap; the shared contract now applies the
+same liveness precondition to every host.
+
+`loadVerifiedNaviampMobileTlsFixture` validates the published endpoints, fetches `/fixture` through
+the actual host HTTP engine and checks that both the control listener and complete manifest match
+the expected runner data. A missing fixture, recycled listener, changed identity or cancelled request
+cannot fall back to the file. Only after this succeeds does the contract import certificates and
+begin authentication. The existing 10-second bootstrap deadline and all five 25-second negative
+authentication deadlines are unchanged. Main callback readiness and the #509 run-loop correction stay.
+
+Eight common tests cover the live request, selected port, absent/malformed runner data, recycled
+listener ownership, failure propagation and cancellation. All pass; Android/JVM/both iOS compilation,
+the architecture guard and real native binary linking pass. Three independently generated fixture
+and cloned-simulator suites execute 17 methods each with zero failures/errors/skips under the new
+bootstrap contract. Evidence: `/private/tmp/454-live-bootstrap-cold-sdk` and
+`/private/tmp/454-live-bootstrap-prepare.log`. The first local replay attempt omitted `ANDROID_HOME`
+and failed during Gradle configuration before native execution; its log remains separate and every
+owned resource was cleaned. It is not counted as native verification.
+
+The cold replay tool rebuilds neither the application nor the test binary between executions. It
+requires the same complete native method set as the initial report, actual Gradle task execution,
+and zero failed/errored/skipped cases. Every execution gets independent identities, state and an owned
+device; the first failure stops the sequence. Ownership checks and a cleanup step handle interrupted
+clones without touching other devices. Each run retains logs, reports, diagnostics and a summary;
+bootstrap private material is excluded from CI report uploads.
+
+PR label `verify:ios-native-cold` requires two additional cold executions after the standard native
+suite, giving three hosted suites from one compilation. Ordinary PRs retain their normal verification
+cost. This is repeated acceptance, not retry-until-green. All required checks and these three hosted
+executions remain a merge gate for #510; a passing run alone is not proof of the private CFNetwork
+cause in earlier failures. The unmodified diagnostic iOS attempt also passed all 17 methods, app build
+and Keychain; its overall workflow remained red on independently tracked API 35 raster issue #371.
 
 ## Preserved failure and demonstrated harness defect
 

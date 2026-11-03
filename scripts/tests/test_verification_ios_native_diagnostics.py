@@ -20,14 +20,14 @@ class NativeDiagnosticOwnershipTest(unittest.TestCase):
     def test_selects_only_the_exact_native_executable(self):
         executable = '/work/naviamp/platforms/ios/test.kexe'
         table = '\n'.join([
-            '11 ' + executable + ' -- --ktest_logger=TEAMCITY',
+            '11 ' + executable,
             '12 /other/naviamp/platforms/ios/test.kexe --test',
             '13 /usr/bin/simctl spawn owned-device ' + executable,
             '14 /bin/sh -c ' + executable,
             '15 ' + executable + '.old --test',
-            '16 ' + executable,
+            '16 ' + executable + ' copy',
         ])
-        self.assertEqual({11, 16}, HELPER['matching_pids'](table, executable))
+        self.assertEqual({11}, HELPER['matching_pids'](table, executable))
 
     def test_preserves_failing_test_exit_status(self):
         with tempfile.TemporaryDirectory() as directory:

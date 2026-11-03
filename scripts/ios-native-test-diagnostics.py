@@ -15,14 +15,15 @@ def matching_pids(process_table, executable):
         if len(fields) != 2 or not fields[0].isdigit():
             continue
         command = fields[1]
-        if command == executable or command.startswith(executable + ' '):
+        if command == executable:
             result.add(int(fields[0]))
     return result
 
 
 def processes(executable):
     try:
-        table = subprocess.check_output(['ps', '-axo', 'pid=,command='], text=True)
+        # Read executable paths, not every process's potentially paged-out argument vector.
+        table = subprocess.check_output(['ps', '-axo', 'pid=,comm='], text=True)
         return matching_pids(table, executable)
     except (OSError, subprocess.CalledProcessError) as error:
         print(f'Native process diagnostics unavailable: {error}', flush=True)
@@ -41,8 +42,9 @@ def owns_fixture(command, bootstrap):
 
 
 def capture(pid, output, age, fixture_bootstrap=None):
-    stem = output / f'native-{pid}-{age}s'
-    commands = [
+    suffix = f'{age}s' if isinstance(age, int) else age
+    stem = output / f'native-{pid}-{suffix}'
+    commands = [] if age == 'failed' else [
         ('cpu', ['ps', '-p', str(pid), '-o', 'pid,pcpu,comm']),
         ('sockets', ['lsof', '-nP', '-a', '-p', str(pid), '-iTCP']),
         ('stack', ['sample', str(pid), '2', '-file', str(stem) + '.sample.txt']),
@@ -55,8 +57,10 @@ def capture(pid, output, age, fixture_bootstrap=None):
             # A recycled PID or another fixture must never be sampled.
             if owns_fixture(command, fixture_bootstrap):
                 jcmd = Path(os.environ['JAVA_HOME']) / 'bin/jcmd'
-                commands.insert(0, ('fixture-threads', [str(jcmd), str(fixture_pid), 'Thread.print']))
-                commands.insert(1, ('fixture-sockets', ['lsof', '-nP', '-a', '-p', str(fixture_pid), '-iTCP']))
+                # Observe socket state during the test; attach to the JVM only after a failure.
+                commands.insert(0, ('fixture-sockets', ['lsof', '-nP', '-a', '-p', str(fixture_pid), '-iTCP']))
+                if age == 'failed':
+                    commands.append(('fixture-threads', [str(jcmd), str(fixture_pid), 'Thread.print']))
         except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
             pass
     for name, command in commands:
@@ -82,7 +86,10 @@ def observe(command, executable, output, fixture_bootstrap=None):
                     if time.monotonic() - started >= age and key not in captured:
                         captured.add(key)
                         capture(pid, output, age, fixture_bootstrap)
-            time.sleep(0.5)
+            time.sleep(1)
+        if test.returncode != 0:
+            for pid in first_seen:
+                capture(pid, output, 'failed', fixture_bootstrap)
         return test.returncode
     finally:
         # Interrupting the wrapper must not leave its own Gradle invocation running.
