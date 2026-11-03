@@ -38,6 +38,10 @@ interface NaviampMobileMutualTlsHost {
     suspend fun fixtureBootstrap(): String? = null
     /** Runner-selected loopback port when bootstrap is fetched through the native HTTP engine. */
     fun fixtureControlPort(): Int? = null
+    /** Native execution facts only, to diagnose callback delivery before authentication begins. */
+    fun transportContext(): String = ""
+    /** Hosts requiring an external event loop prove callback delivery; other transports need no effect. */
+    suspend fun verifyNativeCallbackDelivery() = Unit
     suspend fun writePrivateFile(name: String, bytes: ByteArray): String
     fun createEngine(): CoreBassPlaybackEngine
 }
@@ -46,13 +50,17 @@ interface NaviampMobileMutualTlsHost {
 suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = withContext(Dispatchers.Default) {
     val lastState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     val lastProgress = MutableStateFlow(PlaybackProgress.Unknown)
+    val tlsTrace = MutableStateFlow<List<app.naviamp.provider.navidrome.NavidromeTlsChallengeEvent>>(emptyList())
+    val tlsStage = MutableStateFlow("not started")
+    val tlsContext = MutableStateFlow("")
     suspend fun <T> phase(name: String, block: suspend () -> T): T {
         return try { block() } catch (timeout: TimeoutCancellationException) {
-            throw AssertionError("mTLS timed out during: $name; state=${lastState.value}; progress=${lastProgress.value}", timeout)
+            throw AssertionError("mTLS timed out during: $name; state=${lastState.value}; progress=${lastProgress.value}; tlsStage=${tlsStage.value}; nativeContext=${tlsContext.value}; challenges=${tlsTrace.value}", timeout)
         }
     }
     val manifest = phase("fixture bootstrap") {
         withTimeout(10_000) {
+            host.verifyNativeCallbackDelivery()
             host.fixtureBootstrap()?.let(::decodeNaviampMobileTlsControlResponse)
                 ?: mobileTlsFixtureRequest(requireNotNull(host.fixtureControlPort()) { "Runner must supply fixture bootstrap or control port" }, "/fixture")
         }
@@ -73,10 +81,19 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     )
     suspend fun rejected(tls: NavidromeTlsSettings, url: String = endpoints.mutualUrl) {
         var failed = false
+        tlsTrace.value = emptyList()
+        tlsStage.value = "creating client"
+        tlsContext.value = host.transportContext()
         withTimeout(25_000) {
             try {
-                val client = createDefaultNavidromeKtorClient(tls)
-                try { provider(url, tls, client).validateConnection() } finally { client.close() }
+                val client = createDefaultNavidromeKtorClient(tls) { event -> tlsTrace.update { (it + event).takeLast(16) } }
+                try {
+                    tlsStage.value = "validating"
+                    provider(url, tls, client).validateConnection()
+                } finally {
+                    tlsStage.value = "closing client"
+                    client.close()
+                }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { failed = true }
         }
