@@ -37,8 +37,8 @@ Host validation passed: Android debug assembly, both iOS host compiles, and arch
 (`/private/tmp/naviamp-482-host.log`). APK signature verification passed and the packaged manifest
 contained `windowSoftInputMode=0x10` (adjustResize). The update installed successfully on the connected
 Pixel 10a using an explicit serial and replacement install, preserving persisted app data. The
-release package and existing emulator were untouched. The owner must reopen the test app and
-confirm the live keyboard interaction; no keyboard-input automation or data reset was performed.
+release package and existing emulator were untouched. The owner subsequently confirmed on the
+physical phone: “The new keyboard onscreen issue is fixed.” No data reset was performed.
 
 These local checks and the phone APK include the artwork preview changes from #480/#481. The
 connection fix is also submitted as an independent patch against main; its hosted checks validate
