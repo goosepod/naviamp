@@ -45,6 +45,12 @@ internal fun NaviampDiscoveryArtistPage(
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             TextButton(onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
             Text(release.result?.release?.title ?: release.release.title, color = colors.primaryText)
+            val metadata = release.result?.release ?: release.release
+            val date = metadata.releaseDate ?: release.release.releaseDate
+            val kind = metadata.takeIf { it.type != null || it.secondaryTypes.isNotEmpty() }
+                ?: release.release.takeIf { it.type != null || it.secondaryTypes.isNotEmpty() }
+            val context = listOfNotNull(date, kind?.let { albumReleaseSectionLabel(it.section) }).joinToString(" · ")
+            if (context.isNotEmpty()) Text(context, color = colors.secondaryText)
             val cover = release.result?.release?.imageUrl ?: release.release.imageUrl
             NaviampCoverArt(cover, colors, 240.dp, resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 240.dp, 7.dp), mediaKind = SharedMediaItemKind.Album)
             when {

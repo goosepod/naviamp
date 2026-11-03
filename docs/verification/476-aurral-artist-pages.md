@@ -135,3 +135,10 @@ Physical touch/TV remote and screen-reader acceptance remain open. The Windows i
 exposed only window-level accessibility nodes; it cannot establish a screen-reader pass. The shared
 rendered tests provide narrow/wide/TV layout and keyboard/focus coverage, not physical-device or
 assistive-technology acceptance. #476 remains draft with these limits recorded.
+
+The final release-page review also restored the available release date/type context from the
+discography/details models, reusing existing translated release categories. The same rendered test
+now asserts this context on each layout. Focused rendered tests, Android/JVM/both iOS common
+compilation and architecture verification pass in `build/476-release-context.log`. The first hosted
+follow-up run failed in SDK setup while unpacking the NDK archive, before shared tests ran; it is
+neither a product-test failure nor accepted verification of the follow-up tree.
