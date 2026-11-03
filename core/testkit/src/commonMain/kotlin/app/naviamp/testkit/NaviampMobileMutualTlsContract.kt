@@ -36,6 +36,8 @@ import kotlin.time.TimeSource
 interface NaviampMobileMutualTlsHost {
     /** Optional generated fixture text delivered by the test runner before native networking starts. */
     suspend fun fixtureBootstrap(): String? = null
+    /** Runner-selected loopback port when bootstrap is fetched through the native HTTP engine. */
+    fun fixtureControlPort(): Int? = null
     suspend fun writePrivateFile(name: String, bytes: ByteArray): String
     fun createEngine(): CoreBassPlaybackEngine
 }
@@ -52,9 +54,10 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     val manifest = phase("fixture bootstrap") {
         withTimeout(10_000) {
             host.fixtureBootstrap()?.let(::decodeNaviampMobileTlsControlResponse)
-                ?: mobileTlsFixtureRequest("/fixture")
+                ?: mobileTlsFixtureRequest(requireNotNull(host.fixtureControlPort()) { "Runner must supply fixture bootstrap or control port" }, "/fixture")
         }
     }
+    val endpoints = NaviampMobileTlsEndpoints.fromManifest(manifest)
     suspend fun file(key: String, name: String) = host.writePrivateFile(name, Base64.decode(manifest.getValue(key)))
     val settings = NavidromeTlsSettings(
         customCertificatePath = file("ca", "ca.pem"),
@@ -68,7 +71,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
         NavidromeConnection(baseUrl = baseUrl, username = "fixture", password = "fixture", salt = "fixture-salt", token = "fixture-token", tlsSettings = tls),
         KtorNavidromeHttpClient(client),
     )
-    suspend fun rejected(tls: NavidromeTlsSettings, url: String = "https://127.0.0.1:59975") {
+    suspend fun rejected(tls: NavidromeTlsSettings, url: String = endpoints.mutualUrl) {
         var failed = false
         withTimeout(25_000) {
             try {
@@ -83,13 +86,13 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     phase("untrusted identity rejection") { rejected(settings.copy(clientCertificateKeyStorePath = untrustedIdentity)) }
     phase("wrong identity password rejection") { rejected(settings.copy(clientCertificateKeyStorePassword = "wrong-password")) }
     phase("untrusted server rejection") { rejected(settings.copy(customCertificatePath = null)) }
-    phase("hostname rejection") { rejected(settings.copy(customCertificatePath = wrongHostCa, clientCertificateKeyStorePath = wrongHostIdentity), "https://127.0.0.1:59977") }
-    check(phase("wrong-host request audit") { mobileTlsFixtureRequest("/state") }.getValue("wrongHostRequests") == "0")
+    phase("hostname rejection") { rejected(settings.copy(customCertificatePath = wrongHostCa, clientCertificateKeyStorePath = wrongHostIdentity), endpoints.wrongHostUrl) }
+    check(phase("wrong-host request audit") { mobileTlsFixtureRequest(endpoints.controlPort, "/state") }.getValue("wrongHostRequests") == "0")
     // A positive control on the same host prevents outages from passing every negative test.
     val challenges = MutableStateFlow<List<app.naviamp.provider.navidrome.NavidromeTlsChallengeEvent>>(emptyList())
     val client = createDefaultNavidromeKtorClient(settings) { event -> challenges.update { it + event } }
     try {
-        val media = provider("https://127.0.0.1:59975", settings, client)
+        val media = provider(endpoints.mutualUrl, settings, client)
         try { phase("valid client authentication") { check(media.validateConnection().serverVersion == "fixture") } }
         catch (failure: Exception) { throw AssertionError("Valid mTLS connection failed; native TLS challenge facts=${challenges.value}", failure) }
         check(media.artists(10).single().name == "TLS Artist")
@@ -122,7 +125,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
             try {
                 adapter.playQueueSelection(PlaybackQueue(listOf(track), 0), 0)
                 state(PlaybackState.Playing)
-                check(phase("uncached streaming byte audit") { mobileTlsFixtureRequest("/state") }.getValue("bytes").toLong() < manifest.getValue("audioLength").toLong())
+                check(phase("uncached streaming byte audit") { mobileTlsFixtureRequest(endpoints.controlPort, "/state") }.getValue("bytes").toLong() < manifest.getValue("audioLength").toLong())
                 adapter.pause()
                 state(PlaybackState.Paused)
                 adapter.seek(90.0)
@@ -130,7 +133,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
                 adapter.resume()
                 state(PlaybackState.Playing)
                 phase("resumed seek position") { withTimeout(20_000) { while ((progress.receive().positionSeconds ?: 0.0) < 90.0) { } } }
-                val report = phase("authenticated range and identity audit") { mobileTlsFixtureRequest("/state") }
+                val report = phase("authenticated range and identity audit") { mobileTlsFixtureRequest(endpoints.controlPort, "/state") }
                 check(report.getValue("peers").split('|').all { it == "CN=Naviamp Test Client" })
                 check(report.getValue("ranges").split('|').any {
                     it.substringAfter("bytes=", "").substringBefore('-').toLongOrNull()?.let { start -> start > 2_000_000 } == true
@@ -143,17 +146,18 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     } finally { client.close() }
     val caOnly = settings.copy(clientCertificateKeyStorePath = null, clientCertificateKeyStorePassword = null)
     val privateClient = createDefaultNavidromeKtorClient(caOnly)
-    try { check(provider("https://127.0.0.1:59976", caOnly, privateClient).validateConnection().serverVersion == "fixture") }
+    try { check(provider(endpoints.privateCaUrl, caOnly, privateClient).validateConnection().serverVersion == "fixture") }
     finally { privateClient.close() }
 }
 
 /** Plaintext loopback control serves generated test secrets only; production traffic stays HTTPS. */
-private suspend fun mobileTlsFixtureRequest(path: String): Map<String, String> = withTimeout(10_000) {
+private suspend fun mobileTlsFixtureRequest(port: Int, path: String): Map<String, String> = withTimeout(10_000) {
     // Use the actual host HTTP engine for test control too. A raw native socket control request can stall
     // on a freshly booted simulator before any certificate or playback assertion has run.
+    require(port in 1..65535)
     val client = createDefaultNavidromeKtorClient(NavidromeTlsSettings())
     try {
-        client.prepareGet("http://127.0.0.1:59974$path").execute { response ->
+        client.prepareGet("http://127.0.0.1:$port$path").execute { response ->
             check(response.status.value == 200)
             val size = checkNotNull(response.headers[HttpHeaders.ContentLength]?.toIntOrNull())
             require(size in 1..1_048_576)

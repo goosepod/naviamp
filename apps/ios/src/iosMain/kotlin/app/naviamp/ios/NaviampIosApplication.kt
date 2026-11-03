@@ -1,9 +1,6 @@
 package app.naviamp.ios
 
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.ComposeUIViewController
 import app.cash.sqldelight.db.SqlDriver
 import app.naviamp.ios.platform.IosCapabilityPresentation
@@ -302,7 +299,6 @@ class NaviampIosApplication(
         NaviampIosRasterHost(rootLayer = { contentViewController?.view?.layer }) {
             NaviampCoreApp(
                 core = core,
-                modifier = Modifier.safeDrawingPadding().imePadding(),
                 screenAwakeEffect = remember { IosScreenAwakeEffect() },
                 applicationUpdateChecker = environment.applicationUpdateChecker,
             )

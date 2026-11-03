@@ -3,6 +3,8 @@ package app.naviamp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -16,6 +18,36 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampArtworkSettingsUiTest {
+    @Test fun filledViewportAlwaysCoversAllCornersRegardlessOfAlbumCornerSetting() = runComposeUiTest {
+        val square = mutableStateOf(false)
+        val bytes = requireNotNull(jvmGeneratedCoverArtBytes("naviamp-radio-tile://cover?label=A&from=0044CC&to=001133"))
+        resetNaviampCoverArtCache()
+        setJvmPlatformCoverArtByteLoader { bytes }
+        try {
+            setContent {
+                CompositionLocalProvider(LocalSquareAlbumArtwork provides square.value) {
+                    Box(Modifier.size(160.dp, 240.dp).background(Color.Magenta).testTag("viewport")) {
+                        NaviampFilledNowPlayingArtwork("test://viewport", NaviampColors.Dark,
+                            SharedMediaItemKind.Track, Modifier.fillMaxSize())
+                    }
+                }
+            }
+            waitUntil(timeoutMillis = 5_000) { onAllNodesWithTag("cover-art-image", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+            fun corners(): List<Color> {
+                val pixels = onNodeWithTag("viewport").captureToImage().toPixelMap()
+                return listOf(pixels[0, 0], pixels[pixels.width - 1, 0],
+                    pixels[0, pixels.height - 1], pixels[pixels.width - 1, pixels.height - 1])
+            }
+            val roundedPreference = corners()
+            assertTrue(roundedPreference.none { it == Color.Magenta }, "Filled viewport must not expose the app background")
+            runOnIdle { square.value = true }
+            assertEquals(roundedPreference, corners(), "Thumbnail corner setting must not change the filled background")
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+            resetNaviampCoverArtCache()
+        }
+    }
+
     @Test fun homeCardsPreserveAllFourArtworkCornersAcrossTheSquareToggle() = runComposeUiTest {
         val square = mutableStateOf(false)
         val bytes = requireNotNull(jvmGeneratedCoverArtBytes("naviamp-radio-tile://cover?label=A&from=0044CC&to=001133"))
