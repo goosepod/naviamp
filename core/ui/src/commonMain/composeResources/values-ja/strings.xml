@@ -396,4 +396,7 @@
     <string name="settings_language_use_subtitle">Naviamp でこの言語を使用します。</string>
     <string name="settings_square_album_artwork">アルバム画像の角を直角にする</string>
     <string name="settings_square_album_artwork_description">アプリ全体でアルバムと曲のカバー画像を角丸なしで表示します。</string>
+    <string name="settings_fill_now_playing_artwork">再生中のアートワーク領域を埋める</string>
+    <string name="settings_fill_now_playing_artwork_description">カバー画像をトリミングしてプレーヤー全体に表示し、操作部分の背景を暗くします。</string>
+    <string name="now_playing_toggle_visualizer">ビジュアライザーを切り替え</string>
 </resources>

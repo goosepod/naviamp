@@ -1222,4 +1222,7 @@
     <string name="settings_language_use_subtitle">Diese Sprache für Naviamp verwenden.</string>
     <string name="settings_square_album_artwork">Eckige Albumcover</string>
     <string name="settings_square_album_artwork_description">Album- und Titelcover in der gesamten App mit rechtwinkligen Ecken anzeigen.</string>
+    <string name="settings_fill_now_playing_artwork">Cover in der Wiedergabe ausfüllen</string>
+    <string name="settings_fill_now_playing_artwork_description">Das Cover füllt zugeschnitten den Player, mit einem dunklen Verlauf hinter den Bedienelementen.</string>
+    <string name="now_playing_toggle_visualizer">Visualisierung umschalten</string>
 </resources>

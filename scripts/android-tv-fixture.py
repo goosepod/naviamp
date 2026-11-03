@@ -6,6 +6,7 @@ Loopback is the default; an explicit private IPv4 bind supports physical Wi-Fi r
 GET /_test/off and /_test/on simulate transport loss/recovery; /_test/status is telemetry.
 """
 import argparse
+from pathlib import Path
 import ipaddress
 import json
 import math
@@ -19,6 +20,8 @@ from urllib.parse import parse_qs, urlsplit
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--bind-address', default='127.0.0.1', help='Loopback or an explicitly selected private LAN IPv4 address')
+parser.add_argument('--port', type=int, default=18080, help='HTTP port; 0 selects an available test port')
+parser.add_argument('--artwork', action='store_true', help='Serve deterministic opaque covers for visible player acceptance')
 parser.add_argument('--silent', action='store_true', help='Serve silent PCM for unattended native playback tests')
 parser.add_argument('--burst-seconds', type=float, default=125)
 parser.add_argument('--track-seconds', type=int, default=600)
@@ -29,6 +32,8 @@ parser.add_argument('--long-metadata', action='store_true', help='Overflow all p
 parser.add_argument('--mixed-metadata', action='store_true', help='Provide one short track and long metadata on remaining tracks for animation isolation')
 parser.add_argument('--accounts', action='store_true', help='Return distinct catalogs for each fixture username')
 args = parser.parse_args()
+if not 0 <= args.port <= 65535:
+    parser.error('port must be 0..65535')
 try:
     bind_address = ipaddress.IPv4Address(args.bind_address)
     private_lans = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16')
@@ -64,6 +69,12 @@ if args.long_metadata or args.mixed_metadata:
     for i, album in enumerate(ALBUMS):
         track = TRACKS[i * PER_ALBUM]
         album.update(name=track['album'], artist=track['artist'])
+COVERS = tuple((Path(__file__).parent / 'animation-probe' / 'fixtures' / f'artwork-{i}.png').read_bytes()
+               for i in range(2)) if args.artwork else ()
+if args.artwork:
+    for i, item in enumerate(TRACKS): item['coverArt'] = f'fixture-cover-{i % 2}'
+    for i, item in enumerate(ALBUMS): item['coverArt'] = f'fixture-cover-{i % 2}'
+
 RATE = 16000
 PCM = bytes(RATE * 2) if args.silent else b"".join(struct.pack("<h", int(1200 * math.sin(2 * math.pi * 440 * i / RATE))) for i in range(RATE))
 DATA = struct.pack('<4sI4s4sIHHIIHH4sI', b'RIFF', 36+len(PCM)*args.track_seconds, b'WAVE', b'fmt ',16,1,1,RATE,RATE*2,2,16,b'data',len(PCM)*args.track_seconds) + PCM*args.track_seconds
@@ -138,6 +149,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({'subsonic-response': dict(status='failed', version='1.16.1', error=dict(code=40, message='Fixture session expired'))})
         if args.accounts and 'id' in query:
             query['id'] = [value.removeprefix(account + ':') for value in query['id']]
+        if action == 'getCoverArt' and args.artwork:
+            image = COVERS[1 if query.get('id', [''])[0].endswith('1') else 0]
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/png')
+            self.send_header('Content-Length', str(len(image)))
+            self.end_headers()
+            self.wfile.write(image)
+            return
         if action == 'stream': return self.audio()
         if action == 'live': return self.audio(live=True)
         if action == 'scrobble':
@@ -158,7 +177,7 @@ class Handler(BaseHTTPRequestHandler):
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
             'getGenres': {'genres': {'genre':[]}},
-            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[dict(id='fixture-radio', name='TV live fixture', streamUrl=f'http://{bind_address}:18080/live')]}},
+            'getInternetRadioStations': {'internetRadioStations': {'internetRadioStation':[dict(id='fixture-radio', name='TV live fixture', streamUrl=f'http://{bind_address}:{args.port}/live')]}},
             'getOpenSubsonicExtensions': {'openSubsonicExtensions':[]},
         }
         if action == 'getAlbumList2' and int(query.get('offset', ['0'])[0]) > 0:
@@ -235,4 +254,7 @@ class Handler(BaseHTTPRequestHandler):
             with lock: streams.discard(self.connection)
 
 if __name__ == '__main__':
-    ThreadingHTTPServer((str(bind_address),18080),Handler).serve_forever()
+    server = ThreadingHTTPServer((str(bind_address), args.port), Handler)
+    args.port = server.server_port
+    print(f'Fixture ready at http://{bind_address}:{args.port}', flush=True)
+    server.serve_forever()

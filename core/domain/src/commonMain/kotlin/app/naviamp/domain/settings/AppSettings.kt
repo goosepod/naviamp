@@ -436,6 +436,7 @@ data class NowPlayingDisplaySettings(
     val scrollTrackTitle: Boolean = true,
     val scrollArtistName: Boolean = false,
     val scrollAlbumName: Boolean = false,
+    val fillArtworkArea: Boolean = false,
 ) {
     fun normalized(): NowPlayingDisplaySettings = copy(
         splitPaneBackgroundOpacityPercent = splitPaneBackgroundOpacityPercent.coerceIn(0, 100),
