@@ -51,12 +51,13 @@ pause/resume, seek position, client identity/range audits and wrong-host HTTP ex
 - Two native run-loop regressions pass in 0.096 seconds, proving main callback delivery and that
   asynchronous failure after a native callback reaches the test assertion. The callback regression
   has a five-second CI budget; it does not change any TLS deadline.
-- Three fresh-fixture/fresh-simulator complete native suites are in progress. Each must execute all
-  17 methods with no failures/errors/skips; a failed or unexecuted run is not accepted. Per-run
-  fixture state is independent so cumulative byte/identity audits cannot contaminate repetitions.
-- Required exact-source hosted verification remains pending the final correction. The diagnostic
-  revision's API 35 job failed while unpacking an emulator system-image ZIP, before tests ran;
-  preserve that setup failure separately from TLS evidence.
+- Fresh-fixture/fresh-simulator acceptance requires three complete native suites, each executing
+  all 17 methods with no failures/errors/skips. Per-run fixture state is independent so cumulative
+  byte/identity audits cannot contaminate repetitions. Results are recorded on PR #509 and in
+  `/private/tmp/454-fixed-cold-suites.log`, with its per-run JUnit/log artifact directories.
+- Exact-source hosted results are tracked by PR #509's required checks. The diagnostic revision's
+  API 35 job failed while unpacking an emulator system-image ZIP, before tests ran; that setup
+  failure remains separate evidence. A passing diagnostic baseline is not a fix.
 
 ## Reproduction and merge gate
 
