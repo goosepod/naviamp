@@ -69,7 +69,7 @@ be recorded separately; previous #359 acceptance does not cover the new navigati
 
 ## Recorded results
 
-- 82 deterministic regressions pass: 36 presentation/controller/back-policy cases, 14 rendered/UI
+- 83 deterministic regressions pass: 36 presentation/controller/back-policy cases, 15 rendered/UI
   and resource cases, and 32 provider cases. The six opt-in live methods that return early without
   configured credentials are excluded from this total.
 - Common Android/JVM/iOS ARM64/iOS Simulator ARM64 compilation and architecture verification pass
@@ -81,10 +81,9 @@ be recorded separately; previous #359 acceptance does not cover the new navigati
   circular, release placeholders square, and title, filters, sample and release controls remain
   visible/reachable in the tested layouts. Tests activate samples and Back by keyboard and exercise
   native release/related entry callbacks.
-- The synthetic shared-component review window launched successfully. Computer Use inspection hit
-  an app-access approval timeout, so no manual input or live window capture is counted as accepted.
-  Full production-host navigation, physical touch/TV remote and screen-reader acceptance remain
-  open. The component probe is not a replacement for those checks; #476 must remain open/draft.
+- The earlier synthetic shared-component review window hit an app-access approval timeout. A later
+  isolated **production desktop app** session was successfully inspected and operated through
+  Computer Use. The previous timeout is not counted as acceptance evidence.
 
 Final review also verifies release-request feedback on the release destination and two abandoned
 work cases: Back must not retain a sample spinner whose request was superseded, and an in-flight
@@ -93,3 +92,46 @@ common compilations pass in `build/476-request-feedback.log` and `build/476-fina
 The synthetic review process was stopped after the app-access timeout. No input was sent to an
 owner application. PR #487 merged after all nine required hosted checks passed; its accepted main
 tree matches the foundation used for these tests.
+
+Follow-up acceptance found that the TV artist destination bypassed Home's content-focus handoff.
+The common destination now focuses Back on artist/release entry and when the sidebar hands focus
+back to content, and acknowledges the shell's entry generation. A rendered regression checks initial
+entry, release entry, keyboard Back and sidebar re-entry. Both page tests, Android/JVM/both iOS
+common compilation and architecture verification pass in `build/476-tv-focus.log`. All changed
+production files remain common Kotlin.
+
+The `:platforms:desktop:prepareDesktopAurralAppFixture` test task seeds a **new** directory supplied
+with `-Pnaviamp.aurral.fixtureDirectory=...`. It reads the existing `NAVIAMP_AURRAL_TEST_URL`,
+`NAVIAMP_AURRAL_TEST_USER`, `NAVIAMP_AURRAL_TEST_PASSWORD` and optional
+`NAVIAMP_AURRAL_TEST_INSECURE` environment variables. Preparation prohibits network access and uses
+the production shared schema/source store. The application applies its normal credential protection
+on first launch. Never point it at an owner profile. Launch the production desktop app with child-only
+`APPDATA=<fixture>/Roaming`, `-Duser.home=<fixture>` and the existing development-profile option;
+isolate both paths so the credential key and settings are also disposable. No private server address
+or credentials belong in a committed fixture or command example.
+
+The committed init script makes this isolation explicit, including the development-profile flag:
+
+```sh
+./gradlew :platforms:desktop:prepareDesktopAurralAppFixture -Pnaviamp.aurral.fixtureDirectory=<new-absolute-directory>
+./gradlew :apps:desktop:run -I scripts/desktop-aurral-acceptance.init.gradle -Pnaviamp.aurral.fixtureDirectory=<same-directory>
+```
+
+Windows production-host acceptance (2026-11-02 local): the fresh test profile connected, rendered
+Home recommendations/trending artists, and opened Munknörr. Artist artwork was circular; samples,
+permissions, release filters and square release covers loaded. Opened Aegishjalmur, confirmed its
+title/artist/cover, and returned to the same artist viewport. Started a sample and observed its pause
+control while the main player remained Nothing Playing; this does not prove audible output or
+nonempty-queue preservation. Opened Gealdýr through Similar artists; its loaded metadata included a
+validated Open in Library action. Back restored Munknörr at the related rail. Keyboard Enter on Back
+returned to discovery Home. No request, monitoring or feedback mutations were submitted. The
+disposable app was closed afterward; the owner's packaged Naviamp process/profile was untouched.
+Profile preparation and native/app build passed (`build/476-profile-prepare.log`,
+`build/476-production-app.log`). The first launch painted only after resize; the second launch
+painted normally. This is recorded as a local presentation observation, not an animation/performance
+acceptance result.
+
+Physical touch/TV remote and screen-reader acceptance remain open. The Windows inspection tool
+exposed only window-level accessibility nodes; it cannot establish a screen-reader pass. The shared
+rendered tests provide narrow/wide/TV layout and keyboard/focus coverage, not physical-device or
+assistive-technology acceptance. #476 remains draft with these limits recorded.

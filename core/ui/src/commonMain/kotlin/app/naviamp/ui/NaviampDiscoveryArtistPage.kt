@@ -6,7 +6,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import app.naviamp.domain.provider.*
 import app.naviamp.ui.generated.resources.*
@@ -19,14 +24,26 @@ internal fun NaviampDiscoveryArtistPage(
     colors: NaviampColors,
     actions: NaviampHomeActions,
     playback: DiscoverySamplePlaybackUi,
+    television: Boolean = false,
+    entryFocusGeneration: Int? = null,
+    onEntryFocusHandled: (Int) -> Unit = {},
 ) {
     val artist = discovery.artistDetail ?: return
     NaviampSystemBackHandler(enabled = true, onBack = actions.onDiscoveryArtistDismiss)
     val release = discovery.releasePage
+    val backFocus = remember { FocusRequester() }
+    LaunchedEffect(television, discovery.sourceId, discovery.sourceGeneration, artist.artist.id,
+        release?.release?.id, entryFocusGeneration) {
+        if (television) {
+            withFrameNanos { }
+            backFocus.requestFocus()
+            entryFocusGeneration?.let(onEntryFocusHandled)
+        }
+    }
     if (release != null) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(onClick = actions.onDiscoveryArtistDismiss) { Text(stringResource(Res.string.common_back)) }
+            TextButton(onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
             Text(release.result?.release?.title ?: release.release.title, color = colors.primaryText)
             val cover = release.result?.release?.imageUrl ?: release.release.imageUrl
             NaviampCoverArt(cover, colors, 240.dp, resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 240.dp, 7.dp), mediaKind = SharedMediaItemKind.Album)
@@ -60,5 +77,6 @@ internal fun NaviampDiscoveryArtistPage(
         onAction = { actions.onDiscoveryAction(artist.artist.id, it) }, playback = playback,
         fullPage = true, onArtistDetails = actions.onDiscoveryArtistDetails,
         onReleaseSelected = actions.onDiscoveryRelease, onViewport = actions.onDiscoveryViewport,
-        stateKey = discovery.sourceId to discovery.sourceGeneration)
+        stateKey = discovery.sourceId to discovery.sourceGeneration,
+        dismissModifier = Modifier.focusRequester(backFocus))
 }

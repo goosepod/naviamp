@@ -179,6 +179,7 @@ internal fun NaviampDiscoveryArtistPanel(
     onReleaseSelected: (String) -> Unit = {},
     onViewport: (Int, Int, AlbumReleaseSection?) -> Unit = { _, _, _ -> },
     stateKey: Any? = null,
+    dismissModifier: Modifier = Modifier,
 ) {
     val releases = screen.details?.releases.orEmpty()
     val sections = AlbumReleaseSection.entries.filter { section -> releases.any { it.section == section } }
@@ -198,7 +199,7 @@ internal fun NaviampDiscoveryArtistPanel(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(screen.artist.name, modifier = Modifier.weight(1f), color = colors.primaryText,
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = onDismiss) { Text(stringResource(if (fullPage) Res.string.common_back else Res.string.common_close)) }
+                TextButton(onClick = onDismiss, modifier = dismissModifier) { Text(stringResource(if (fullPage) Res.string.common_back else Res.string.common_close)) }
             }
             BoxWithConstraints(Modifier.fillMaxWidth().then(if (fullPage) Modifier.weight(1f) else Modifier)) {
                 val releaseColumns = discoveryReleaseColumns(maxWidth.value)

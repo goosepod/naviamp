@@ -291,6 +291,16 @@ tasks.register<JavaExec>("runDesktopMutualTlsAppFixture") {
         .orElse(layout.buildDirectory.dir("mtls-app-fixture").map { it.asFile.absolutePath }).get())
 }
 
+tasks.register<JavaExec>("prepareDesktopAurralAppFixture") {
+    group = "verification"
+    description = "Seed a fresh disposable Aurral acceptance profile from explicit test environment variables"
+    dependsOn("desktopTestClasses")
+    classpath = tasks.named<Test>("desktopTest").get().classpath
+    mainClass.set("app.naviamp.desktop.DesktopAurralAppFixtureKt")
+    val fixtureDirectory = providers.gradleProperty("naviamp.aurral.fixtureDirectory")
+    doFirst { args(fixtureDirectory.get()) }
+}
+
 fun desktopNativePlatformId(): String {
     val os = System.getProperty("os.name").lowercase().let { name ->
         when {

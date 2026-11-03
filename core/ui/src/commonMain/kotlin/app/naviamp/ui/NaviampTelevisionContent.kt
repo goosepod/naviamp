@@ -120,7 +120,8 @@ internal fun TelevisionHome(
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
     home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
-        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback)
+        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
         return
     }
     val sections = televisionHomeSections(home.content.collectionSections)

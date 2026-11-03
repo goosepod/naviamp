@@ -14,6 +14,32 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryArtistPageTest {
+    @Test fun televisionDestinationAndSidebarReentryHandFocusToBack() = runDesktopComposeUiTest(1280, 800) {
+        val screen = mutableStateOf(discoveryPageFixture())
+        val generation = mutableStateOf(1)
+        val handled = mutableListOf<Int>()
+        val actions = discoveryPageFixtureActions(screen, mutableListOf())
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                TelevisionHome(NaviampHomeScreenUi(providerDiscovery = screen.value), NaviampColors.Dark,
+                    actions, NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi(), generation.value,
+                    onEntryFocusHandled = { handled += it })
+            }
+        }
+        onNodeWithText("Back").assertIsFocused()
+        runOnIdle { assertEquals(listOf(1), handled) }
+        onNodeWithText("Release 1").performScrollTo().performClick()
+        onNodeWithText("Back").assertIsFocused()
+        onNodeWithText("Back").performKeyInput { pressKey(Key.Enter) }
+        onNodeWithText("Discovery artist").assertIsDisplayed()
+        onNodeWithText("Back").assertIsFocused()
+        onNodeWithContentDescription("Play sample").performScrollTo()
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+        runOnIdle { generation.value = 2 }
+        onNodeWithText("Back").assertIsFocused()
+        runOnIdle { assertEquals(listOf(1, 1, 1, 2), handled) }
+    }
+
     @Test fun narrowWideAndTelevisionPagesKeepArtistReleaseAndKeyboardActionsReachable() {
         for ((width, height, television) in listOf(Triple(360, 780, false), Triple(1100, 850, false), Triple(1280, 800, true))) {
             runDesktopComposeUiTest(width, height) {
