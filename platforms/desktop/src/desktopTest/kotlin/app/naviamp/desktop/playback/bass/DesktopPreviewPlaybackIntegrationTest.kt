@@ -15,6 +15,8 @@ import java.nio.file.Files
 import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assume.assumeTrue
@@ -60,7 +62,18 @@ class DesktopPreviewPlaybackIntegrationTest {
                 val progress = MutableStateFlow(PlaybackProgress.Unknown)
                 engine.setVolume(0)
                 engine.play(this, PlaybackRequest(file.toUri().toString()), { main.value = it }, { progress.value = it })
-                withTimeout(10_000) { progress.first { (it.positionSeconds ?: 0.0) >= 0.2 } }
+                try {
+                    withTimeout(10_000) {
+                        combine(main, progress) { state, clock ->
+                            check(state !is PlaybackState.Error) { "Initial native playback failed: $state" }
+                            clock
+                        }.first { (it.positionSeconds ?: 0.0) >= 0.2 }
+                    }
+                } catch (timeout: TimeoutCancellationException) {
+                    throw AssertionError("Initial native playback did not advance; state=${main.value}; progress=${progress.value}; " +
+                        "source=${mainSource.value?.let(nativeBackend::positionSeconds)}; " +
+                        "active=${mainPlayback.value?.let(nativeBackend::activeState)}", timeout)
+                }
                 engine.pause()
                 val sourceHandle = checkNotNull(mainSource.value)
                 val playbackHandle = checkNotNull(mainPlayback.value)
