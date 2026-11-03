@@ -10,12 +10,13 @@ import app.naviamp.testkit.NaviampMobileMutualTlsHost
 import app.naviamp.testkit.verifyNaviampMobileMutualTls
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import platform.Foundation.*
 import kotlin.test.Test
 
 class IosMutualTlsPlaybackIntegrationTest {
-    @Test fun realMutualTlsAuthenticatesAndSeeksThroughNormalPlayback() = runBlocking {
+    @Test fun realMutualTlsAuthenticatesAndSeeksThroughNormalPlayback() = runIosNativeEventLoopTest {
         val directory = "${NSTemporaryDirectory().trimEnd('/')}/naviamp-mtls-${NSUUID.UUID().UUIDString}"
         check(NSFileManager.defaultManager.createDirectoryAtPath(directory, true, null, null))
         try {
@@ -24,6 +25,10 @@ class IosMutualTlsPlaybackIntegrationTest {
                     val text = NSProcessInfo.processInfo.environment["NAVIAMP_MTLS_FIXTURE_BOOTSTRAP"] as? String
                     if (text != null) println("mTLS runner bootstrap supplied")
                     return text
+                }
+
+                override suspend fun verifyNativeCallbackDelivery() = withContext(Dispatchers.Main) {
+                    check(NSThread.isMainThread)
                 }
 
                 override fun transportContext(): String {

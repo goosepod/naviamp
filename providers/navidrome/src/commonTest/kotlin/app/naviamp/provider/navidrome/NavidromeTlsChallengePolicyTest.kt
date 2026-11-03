@@ -23,21 +23,6 @@ class NavidromeTlsChallengePolicyTest {
         }
     }
 
-    @Test fun throwingDiagnosticsCannotInterruptChallengeEntryOrCompletion() {
-        val events = mutableListOf<NavidromeTlsChallengeEvent>()
-        val observer: (NavidromeTlsChallengeEvent) -> Unit = { events += it; error("Diagnostic observer failed") }
-        val started = NavidromeTlsChallengeEvent(NavidromeTlsChallenge.ServerTrust, 0,
-            NavidromeTlsChallengeAction.EvaluateServerTrust, stage = NavidromeTlsChallengeStage.Started)
-        reportNavidromeTlsChallenge(observer, started)
-        // The actual native effect can still complete after a failing entry observer.
-        reportNavidromeTlsChallenge(observer, started.copy(accepted = false,
-            nativeError = "Untrusted certificate", stage = NavidromeTlsChallengeStage.Completed))
-        assertEquals(listOf(NavidromeTlsChallengeStage.Started, NavidromeTlsChallengeStage.Completed), events.map { it.stage })
-        assertEquals(null, events.first().accepted)
-        assertEquals(false, events.last().accepted)
-        assertEquals("Untrusted certificate", events.last().nativeError)
-    }
-
     @Test fun certificateBundlesPreserveAllDerEntries() {
         val first = byteArrayOf(0x30, 1, 0)
         assertContentEquals(first, navidromeCertificateDerChain(first).single())

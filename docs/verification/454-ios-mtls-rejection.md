@@ -1,55 +1,84 @@
-# iOS mTLS rejection reliability
+# Native TLS test event-loop liveness
 
-Tracking: #454, selected for v2.11.0 to unblock #467. This is an active investigation; a passing
-retry does not establish a fix.
+Tracking: #454, v2.11.0; unblocks #467. Production TLS and playback behavior are unchanged.
 
-## Preserved failure
+## Preserved failure and demonstrated harness defect
 
 PR #467 head `6765c9b6ac239742d761065fc317a992b01033cc`, Verify
 [41682705435](https://github.com/goosepod/naviamp/actions/runs/41682705435), attempt 1:
-the native iOS suite ran 15 tests and failed only the shared mTLS contract's **missing client
-identity rejection** phase. The 25-second outer deadline cancelled validation; playback had not
-started (Idle, null progress). All other platform jobs and the common iOS compile/test stage passed.
-The assertion matches earlier #454 reports; attribution to #467 is not established.
+the native iOS suite ran 15 tests and failed the shared mTLS contract's **missing client identity
+rejection** phase. The 25-second outer deadline cancelled validation; playback had not started
+(Idle, null progress). All other platform jobs and the common iOS compile/test stage passed.
+The native network log shows the initial secure ping waiting until cancellation, without HTTP
+request/response bytes. This is not evidence that a missing identity authenticated.
 
-The native CFNetwork log records the first ping starting a secure connection and then being
-cancelled by the test, with no HTTP request/response bytes. That does not establish which native
-authentication challenge was reached. Raw failure artifacts are retained in the hosted run and
-privately under `/private/tmp/review-467-ios-failure`.
+The native test entered through `runBlocking` on the main thread. Moving its coroutine body to
+Dispatchers.Default does not service Foundation's main run loop while the test waits. A direct
+native regression queues a callback from Default to Main and waits for it. Under the blocking
+harness it deadlocks: even its one-second coroutine timeout cannot finish delivery on the blocked
+main queue. The owned simulator had to be stopped. A two-second process sample records the main
+thread in `BlockingCoroutine.joinBlocking` / `Worker.park`. Raw artifacts:
+`/private/tmp/454-blocking-main-probe.log` and `/private/tmp/454-blocking-main-sample.txt`.
 
-## Diagnostic source and local reproduction
+This demonstrates a harness liveness defect. It does not identify the private CFNetwork routine
+involved in every historical timeout. Earlier passing TLS runs and retries remain baseline data,
+not fixes. Apple's [main-run-loop explanation](https://developer.apple.com/documentation/xcode/understanding-hangs-in-your-app)
+describes why blocked main-thread work prevents delivery of other callbacks.
 
-The shared contract now records a bounded last-sixteen challenge trace and whether it was creating,
-validating or closing the negative-check client. Timeout errors include those facts. No TLS policy,
-certificate validation, timeout, assertion or negative case has changed. The shared Started/Completed event stages now distinguish callback entry from a returned trust
-evaluation. A common regression verifies that throwing diagnostic observers cannot interrupt either
-stage. The provider common implementation compiles for Android/JVM/both iOS targets.
+## Correction and ownership
 
-The only platform production change is
-`providers/navidrome/src/iosMain/kotlin/app/naviamp/provider/navidrome/NavidromeIosPlatform.kt`:
-it reports entry to the concrete NSURLSession authentication callback before invoking the existing
-Apple Security operation. Those APIs cannot compile in common Kotlin; authentication decisions
-remain in the common policy. The iOS test host only reads Foundation thread/operation-queue facts.
+- Common testkit's `NaviampEventLoopTestRun` owns coroutine lifetime, completion, cancellation and
+  failure propagation. Pending/cancelled work cannot become a passing result; the native test
+  thread rethrows asynchronous failures.
+- The iOS test adapter services the concrete Foundation main run loop while that shared run is
+  pending. It contains only the unavoidable native run-loop effect and result delegation.
+- The shared mTLS bootstrap phase now requires a real native main-thread callback before testing
+  authentication. Thin Android/iOS test hosts execute their actual Looper/Foundation callback.
+- Shared bounded TLS/context diagnostics remain available on timeouts. Temporary production TLS
+  instrumentation used during investigation was removed; no platform production file changes.
 
-The initial real native simulator run passes one executed integration method in 7.105 seconds,
-including all five negative cases, positive mTLS controls, decoded streaming, pause/resume and seek
-identity/range audits. This first device was booted while the binary compiled and is not evidence
-that a cold-start failure has been fixed. Two subsequently created iOS 26.5 profiles pass in 4.139 and 2.878 seconds. A third method passed
-in 1.974 seconds, but its binary was rebuilt after boot while diagnostics were extended, so it is
-excluded from immediate-cold timing evidence. The final callback-entry/context instrumentation also
-passes the full real native integration method. These passes do not demonstrate a correction.
+All five negative cases remain: missing/untrusted client identity, wrong identity password,
+untrusted server and wrong hostname. Their 25-second deadlines are unchanged, as are the existing
+bootstrap/playback deadlines. Positive authentication, metadata/artwork, native BASS streaming,
+pause/resume, seek position, client identity/range audits and wrong-host HTTP exclusion remain.
 
-Separate newly created iOS 26.5 profiles are being tested;
-CI uses its runner-selected runtime. Preserve the environment distinction.
+## Validation
 
-## Acceptance still required
+- Five common runner regressions pass: pending work, asynchronous success, original failure
+  propagation, cancellation cleanup and parent cancellation. Android/JVM/iOS ARM64/iOS Simulator
+  ARM64 compilation and Android test-host compilation pass; architecture verification passes.
+  Final preparation log: `/private/tmp/454-final-shared-build.log`.
+- Two native run-loop regressions pass in 0.096 seconds, proving main callback delivery and that
+  asynchronous failure after a native callback reaches the test assertion. The callback regression
+  has a five-second CI budget; it does not change any TLS deadline.
+- Three fresh-fixture/fresh-simulator complete native suites are in progress. Each must execute all
+  17 methods with no failures/errors/skips; a failed or unexecuted run is not accepted. Per-run
+  fixture state is independent so cumulative byte/identity audits cannot contaminate repetitions.
+- Required exact-source hosted verification remains pending the final correction. The diagnostic
+  revision's API 35 job failed while unpacking an emulator system-image ZIP, before tests ran;
+  preserve that setup failure separately from TLS evidence.
 
-- Reproduce or characterize fresh-boot failures with actual challenge/transport observations.
-- Implement a demonstrated correction in the common owner, with shared behavior/failure tests.
-  A native adapter may only execute an irreducible Apple operation if evidence requires one.
-- Preserve missing/untrusted client, wrong identity password, untrusted server and wrong hostname
-  rejection, positive authentication, streaming/ranges/seek and cancellation.
-- Do not increase deadlines, skip a check, count a timeout as rejection or claim a retry fixed it.
-- Run common regressions, Android/JVM/both iOS compilation, repeated fresh-device native verification
-  and the required exact-source CI matrix before merging. Then refresh #467 from accepted main and
-  re-run its CI.
+## Reproduction and merge gate
+
+Use JDK 21, the Android SDK and an available Apple simulator runtime. Compile common tests, fixture
+and native binary before booting the disposable test device:
+
+```sh
+./gradlew :core:testkit:jvmTest --tests '*NaviampEventLoopTestRunTest*' \
+  :core:testkit:prepareMobileMutualTlsFixture \
+  :platforms:ios:linkDebugTestIosSimulatorArm64 \
+  :platforms:ios:stageIosSimulatorTestBassFrameworks
+```
+
+Use the existing Verify workflow's generated fixture/bootstrap and owned-device boot steps. With
+`SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP` set to that fixture's generated bootstrap text:
+
+```sh
+./gradlew -Pnaviamp.ios.testDevice="$device_id" \
+  :platforms:ios:iosSimulatorArm64Test --rerun
+```
+
+For independent repetitions create a new fixture and device each time, preserve JUnit/log results,
+then stop only that run's fixture and delete only its owned device. No real account, certificate or
+server configuration is used. Merge only after local native evidence and required hosted checks
+pass; then refresh #467 from accepted main and run its required matrix again.

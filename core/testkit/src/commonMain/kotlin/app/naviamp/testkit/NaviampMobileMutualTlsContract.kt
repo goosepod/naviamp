@@ -40,6 +40,8 @@ interface NaviampMobileMutualTlsHost {
     fun fixtureControlPort(): Int? = null
     /** Native execution facts only, to diagnose callback delivery before authentication begins. */
     fun transportContext(): String = ""
+    /** Prove native callback delivery is live before testing authentication. */
+    suspend fun verifyNativeCallbackDelivery()
     suspend fun writePrivateFile(name: String, bytes: ByteArray): String
     fun createEngine(): CoreBassPlaybackEngine
 }
@@ -58,6 +60,7 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     }
     val manifest = phase("fixture bootstrap") {
         withTimeout(10_000) {
+            host.verifyNativeCallbackDelivery()
             host.fixtureBootstrap()?.let(::decodeNaviampMobileTlsControlResponse)
                 ?: mobileTlsFixtureRequest(requireNotNull(host.fixtureControlPort()) { "Runner must supply fixture bootstrap or control port" }, "/fixture")
         }

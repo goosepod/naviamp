@@ -5,8 +5,6 @@ import kotlin.io.encoding.Base64
 /** Platform TLS engines report facts; this policy chooses connection-scoped authentication. */
 enum class NavidromeTlsChallenge { ServerTrust, ClientIdentity, Other }
 enum class NavidromeTlsChallengeAction { DefaultHandling, EvaluateServerTrust, UseClientIdentity, Cancel }
-/** Callback entry and native evaluation results are separate facts; entry is not acceptance. */
-enum class NavidromeTlsChallengeStage { Started, Completed }
 
 data class NavidromeTlsChallengeEvent(
     val challenge: NavidromeTlsChallenge,
@@ -14,7 +12,6 @@ data class NavidromeTlsChallengeEvent(
     val action: NavidromeTlsChallengeAction,
     val accepted: Boolean? = null,
     val nativeError: String? = null,
-    val stage: NavidromeTlsChallengeStage = NavidromeTlsChallengeStage.Completed,
 )
 
 internal fun reportNavidromeTlsChallenge(observer: (NavidromeTlsChallengeEvent) -> Unit, event: NavidromeTlsChallengeEvent) {
