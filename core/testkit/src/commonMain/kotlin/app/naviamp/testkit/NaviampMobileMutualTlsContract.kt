@@ -46,9 +46,11 @@ interface NaviampMobileMutualTlsHost {
 suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = withContext(Dispatchers.Default) {
     val lastState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     val lastProgress = MutableStateFlow(PlaybackProgress.Unknown)
+    val tlsTrace = MutableStateFlow<List<app.naviamp.provider.navidrome.NavidromeTlsChallengeEvent>>(emptyList())
+    val tlsStage = MutableStateFlow("not started")
     suspend fun <T> phase(name: String, block: suspend () -> T): T {
         return try { block() } catch (timeout: TimeoutCancellationException) {
-            throw AssertionError("mTLS timed out during: $name; state=${lastState.value}; progress=${lastProgress.value}", timeout)
+            throw AssertionError("mTLS timed out during: $name; state=${lastState.value}; progress=${lastProgress.value}; tlsStage=${tlsStage.value}; challenges=${tlsTrace.value}", timeout)
         }
     }
     val manifest = phase("fixture bootstrap") {
@@ -73,10 +75,18 @@ suspend fun verifyNaviampMobileMutualTls(host: NaviampMobileMutualTlsHost) = wit
     )
     suspend fun rejected(tls: NavidromeTlsSettings, url: String = endpoints.mutualUrl) {
         var failed = false
+        tlsTrace.value = emptyList()
+        tlsStage.value = "creating client"
         withTimeout(25_000) {
             try {
-                val client = createDefaultNavidromeKtorClient(tls)
-                try { provider(url, tls, client).validateConnection() } finally { client.close() }
+                val client = createDefaultNavidromeKtorClient(tls) { event -> tlsTrace.update { (it + event).takeLast(16) } }
+                try {
+                    tlsStage.value = "validating"
+                    provider(url, tls, client).validateConnection()
+                } finally {
+                    tlsStage.value = "closing client"
+                    client.close()
+                }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { failed = true }
         }
