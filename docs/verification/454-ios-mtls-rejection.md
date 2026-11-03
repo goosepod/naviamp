@@ -32,8 +32,9 @@ describes why blocked main-thread work prevents delivery of other callbacks.
   thread rethrows asynchronous failures.
 - The iOS test adapter services the concrete Foundation main run loop while that shared run is
   pending. It contains only the unavoidable native run-loop effect and result delegation.
-- The shared mTLS bootstrap phase now requires a real native main-thread callback before testing
-  authentication. Thin Android/iOS test hosts execute their actual Looper/Foundation callback.
+- The shared mTLS bootstrap phase verifies required native callback delivery before authentication.
+  Android/iOS test hosts execute their actual Looper/Foundation callback. The common default is a
+  no-op for transports without an external-main-loop requirement, preserving the Desktop host.
 - Shared bounded TLS/context diagnostics remain available on timeouts. Temporary production TLS
   instrumentation used during investigation was removed; no platform production file changes.
 
@@ -48,6 +49,10 @@ pause/resume, seek position, client identity/range audits and wrong-host HTTP ex
   propagation, cancellation cleanup and parent cancellation. Android/JVM/iOS ARM64/iOS Simulator
   ARM64 compilation and Android test-host compilation pass; architecture verification passes.
   Final preparation log: `/private/tmp/454-final-shared-build.log`.
+- The Desktop shared mTLS contract also passes (one executed integration method in 16.85 seconds),
+  including real authentication and native playback/seek. An initial Linux compile failure exposed
+  the missed Desktop host when callback readiness was briefly mandatory; the portable default was
+  restored and the failed attempt retained.
 - Two native run-loop regressions pass in 0.096 seconds, proving main callback delivery and that
   asynchronous failure after a native callback reaches the test assertion. The callback regression
   has a five-second CI budget; it does not change any TLS deadline.

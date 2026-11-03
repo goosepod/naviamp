@@ -40,8 +40,8 @@ interface NaviampMobileMutualTlsHost {
     fun fixtureControlPort(): Int? = null
     /** Native execution facts only, to diagnose callback delivery before authentication begins. */
     fun transportContext(): String = ""
-    /** Prove native callback delivery is live before testing authentication. */
-    suspend fun verifyNativeCallbackDelivery()
+    /** Hosts requiring an external event loop prove callback delivery; other transports need no effect. */
+    suspend fun verifyNativeCallbackDelivery() = Unit
     suspend fun writePrivateFile(name: String, bytes: ByteArray): String
     fun createEngine(): CoreBassPlaybackEngine
 }
