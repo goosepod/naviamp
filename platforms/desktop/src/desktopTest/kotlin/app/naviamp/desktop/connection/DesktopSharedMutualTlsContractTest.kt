@@ -15,8 +15,9 @@ class DesktopSharedMutualTlsContractTest {
     @Test fun realTlsContractAuthenticatesAndSeeksThroughTheSharedPlaybackPath() {
         val directory = Files.createTempDirectory("naviamp-mobile-contract-")
         try {
-            withNaviampMobileMutualTlsFixture { _ -> runBlocking {
+            withNaviampMobileMutualTlsFixture { fixture -> runBlocking {
                 verifyNaviampMobileMutualTls(object : NaviampMobileMutualTlsHost {
+                    override suspend fun fixtureBootstrap(): String = fixture.bootstrap
                     override suspend fun writePrivateFile(name: String, bytes: ByteArray): String {
                         val source = directory.resolve(name).also { Files.write(it, bytes) }
                         val port = app.naviamp.desktop.settings.DesktopCoreCertificateFilePort(directory.resolve("imported")) { source.toFile() }

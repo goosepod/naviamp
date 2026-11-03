@@ -23,6 +23,9 @@ class AndroidMutualTlsPlaybackInstrumentedTest {
         check(directory.mkdirs())
         try {
             verifyNaviampMobileMutualTls(object : NaviampMobileMutualTlsHost {
+                override fun fixtureControlPort(): Int = requireNotNull(
+                    InstrumentationRegistry.getArguments().getString("naviamp.mtls.controlPort"),
+                ) { "Start the disposable fixture and supply naviamp.mtls.controlPort" }.toInt()
                 override suspend fun writePrivateFile(name: String, bytes: ByteArray): String {
                     val source = File(directory, name).also { it.writeBytes(bytes) }
                     val port = AndroidCoreCertificateFilePort(context,
