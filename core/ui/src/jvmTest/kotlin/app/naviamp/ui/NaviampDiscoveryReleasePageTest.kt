@@ -61,7 +61,7 @@ class NaviampDiscoveryReleasePageTest {
                 onAllNodesWithContentDescription("Request track").assertCountEquals(1)
                 onNodeWithContentDescription("Request track").performScrollTo().assertIsEnabled().performClick()
                 onNodeWithContentDescription("Request track").assertIsNotEnabled()
-                onNodeWithText("Request queued.").assertIsDisplayed()
+                onNodeWithText("Request queued.").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Disc 2").performScrollTo().assertIsDisplayed()
                 onNodeWithText("Preview unavailable").performScrollTo().assertIsDisplayed()
                 onNodeWithText("1:10").assertIsDisplayed()

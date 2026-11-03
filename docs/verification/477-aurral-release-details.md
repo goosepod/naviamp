@@ -99,10 +99,21 @@ the earlier temporary failure. Final narrow/wide/TV captures confirm visible pre
 partial-ownership context, per-track queued feedback and the explicit missing-preview label.
 Evidence: `build/477-live-candidate-retry.log` and `build/477-captures`.
 
-- Submit exactly one specifically authorized acquisition request. The supplied test connection was
-  authorized for read-only verification; no acquisition has been submitted. The private candidate
-  and guarded single-use probe make the proposed action concrete for review.
+- Live acquisition acceptance passed on 2026-11-03. With explicit owner authorization, the guarded
+  probe submitted exactly one Radiohead / OK Computer / Airbag recording request. Aurral returned
+  HTTP 202, Queued, and one job ID. The test executed once with zero failures; its atomic attempt
+  marker and private result artifact remain in place. Evidence: `build/477-approved-acquisition.log`
+  and `build/477-candidate.json.result.json`. Correct request/response handling completes Naviamp's
+  acquisition acceptance; downstream download completion is Aurral's responsibility.
 - Complete hosted verification of the final source tree and keep the PR dependent on #488 until
   that artist-page increment is accepted.
 - Physical touch/remote and screen-reader acceptance remain open at the user's request. Automated
   semantics and injected keys do not establish speech or physical-device acceptance.
+
+Hosted run `41598648177` passed all three Desktop jobs and Android API 35. Shared UI verification
+found that the new release test asserted the queued message without scrolling it into view; the
+assertion now scrolls before checking visibility. Android API 30 completed 37 tests with no test
+failures but failed device cleanup with `device offline`. iOS failed its existing mutual-TLS BASS
+playback assertion. These remain hosted verification gates, separate from the passed live request.
+Both release-page tests pass locally after the assertion correction, including all three viewport
+variants. Evidence: `build/477-ui-visibility.log`.
