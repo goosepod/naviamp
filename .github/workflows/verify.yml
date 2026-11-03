@@ -502,7 +502,11 @@ jobs:
           test -n "$fixture_bootstrap"
           export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
-          ./gradlew --max-workers=2 --console=plain \
+          python3 scripts/ios-native-test-diagnostics.py \
+            --executable platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe \
+            --fixture-bootstrap "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE" \
+            --output build/ios-native-diagnostics -- \
+            ./gradlew --max-workers=2 --console=plain \
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
             :platforms:ios:iosSimulatorArm64Test
           grep -q 'mTLS runner bootstrap supplied' \
@@ -515,7 +519,7 @@ jobs:
         if: always() && env.NAVIAMP_IOS_TLS_TEST_DEVICE != ''
         run: |
           xcrun simctl spawn "$NAVIAMP_IOS_TLS_TEST_DEVICE" log show --style compact --last 5m \
-            --predicate 'process == "trustd" OR subsystem == "com.apple.CFNetwork"' \
+            --predicate 'process == "trustd" OR process == "test.kexe" OR subsystem == "com.apple.CFNetwork"' \
             > build/ios-tls-services.log 2>&1 || true
           xcrun simctl shutdown "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
           xcrun simctl delete "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
@@ -569,6 +573,7 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/iosSimulatorArm64Test/**
+            build/ios-native-diagnostics/**
             build/reports/profile/**
             build/ci-timings/ios.tsv
             build/mobile-mtls-run.*/fixture.log

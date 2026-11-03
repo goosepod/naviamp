@@ -2,6 +2,31 @@
 
 Tracking: #454, v2.11.0; unblocks #467. Production TLS and playback behavior are unchanged.
 
+## Follow-up: issue remains open after #509
+
+Fresh #467 Verify [41708491114](https://github.com/goosepod/naviamp/actions/runs/41708491114),
+head `02f98541f1d453e4b7e2a65a45d1a782e33f5284`, includes accepted #509 and again fails
+the missing-client-identity rejection. All other platform jobs pass. The iOS native suite runs
+17 methods with one failure; callback bootstrap and run-loop regressions pass. The timeout reports
+`tlsStage=closing client`, no TLS challenges, Idle playback and unknown progress. CFNetwork records
+the first secure ping starting and being cancelled approximately 25 seconds later, without HTTP
+bytes or a TLS challenge. The main-loop correction alone therefore does not resolve #454.
+
+Three further independent cloned-device suites pass locally (51 executions), matching the hosted
+device-clone setup. Evidence: `/private/tmp/naviamp-454-clone-_ly25q3k`. These passing runs do not
+invalidate the hosted failure. An attempted local live sample completed after the process had
+finished and contains no call graph; it provides no liveness evidence.
+
+The follow-up test observer samples only newly started processes whose command begins with the exact
+native binary path from this checkout. At 8 and 18 seconds it records CPU, TCP sockets and native
+stacks, preserving the underlying test exit status. The fixture PID is recorded when launched;
+its JVM threads and TCP sockets are captured only while its command still identifies the same
+generated bootstrap. It excludes preexisting processes, enclosing
+shells, simctl and other checkouts. Logs also include all messages from `test.kexe`, not only the
+CFNetwork subsystem. A fourth fresh native suite with the observer enabled also passes all
+17 tests (`/private/tmp/naviamp-454-observed-o808v9tz`). This is diagnostic evidence gathering, not a fix, request retry or deadline
+change. Keep #454 open and #467 unmerged until the remaining stall is understood and corrected.
+
 ## Preserved failure and demonstrated harness defect
 
 PR #467 head `6765c9b6ac239742d761065fc317a992b01033cc`, Verify

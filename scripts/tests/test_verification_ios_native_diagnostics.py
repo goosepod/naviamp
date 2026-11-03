@@ -1,0 +1,38 @@
+"""Process snapshots must never target another checkout or an enclosing shell."""
+from pathlib import Path
+import runpy
+import sys
+import tempfile
+import unittest
+
+HELPER = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'ios-native-test-diagnostics.py'))
+
+
+class NativeDiagnosticOwnershipTest(unittest.TestCase):
+    def test_fixture_pid_must_still_belong_to_this_bootstrap(self):
+        bootstrap = Path('/work/fixture-run/fixture.bootstrap')
+        valid = '/jdk/bin/java @build/mobile-mtls-fixture.args ' + str(bootstrap)
+        self.assertTrue(HELPER['owns_fixture'](valid, bootstrap))
+        self.assertFalse(HELPER['owns_fixture'](valid.replace('fixture-run', 'another-run'), bootstrap))
+        self.assertFalse(HELPER['owns_fixture']('/bin/sh -c ' + valid, bootstrap))
+        self.assertFalse(HELPER['owns_fixture'](valid.replace('mobile-mtls-fixture.args', 'other.args'), bootstrap))
+
+    def test_selects_only_the_exact_native_executable(self):
+        executable = '/work/naviamp/platforms/ios/test.kexe'
+        table = '\n'.join([
+            '11 ' + executable + ' -- --ktest_logger=TEAMCITY',
+            '12 /other/naviamp/platforms/ios/test.kexe --test',
+            '13 /usr/bin/simctl spawn owned-device ' + executable,
+            '14 /bin/sh -c ' + executable,
+            '15 ' + executable + '.old --test',
+            '16 ' + executable,
+        ])
+        self.assertEqual({11, 16}, HELPER['matching_pids'](table, executable))
+
+    def test_preserves_failing_test_exit_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = HELPER['observe'](
+                [sys.executable, '-c', 'raise SystemExit(7)'],
+                str(Path(directory) / 'unrelated-test.kexe'), Path(directory) / 'diagnostics',
+            )
+        self.assertEqual(7, result)
