@@ -359,6 +359,7 @@ fun NaviampNowPlayingPanel(
         val artSizeDefault = if (panelLayout == NaviampPlayerPanelLayout.Standalone) {
             (maxWidth - 48.dp).coerceIn(170.dp, 500.dp)
         } else 286.dp
+        val viewportMaxWidth = maxWidth
         val viewportMaxHeight = maxHeight
         val compactStackLayout = !wideLayout && viewportMaxHeight < CompactNowPlayingStackBreakpoint
         val stackedArtSize = ((viewportMaxHeight * 0.48f) - 18.dp)
@@ -392,7 +393,41 @@ fun NaviampNowPlayingPanel(
             Dp.Unspecified
         }
 
-        if (wideLayout && panelLayout == NaviampPlayerPanelLayout.Full) {
+        if (useFilledNowPlayingArtwork(displaySettings.fillArtworkArea,
+                nowPlaying.visualizerVisible && nowPlaying.visualizerAvailable,
+                nowPlaying.lyricsVisible && !showStationList, wideLayout, panelLayout)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                NaviampFilledNowPlayingArtwork(
+                    url = nowPlaying.coverArtUrl, colors = colors,
+                    mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
+                    modifier = Modifier.fillMaxWidth().height(viewportMaxHeight),
+                    onArtworkClick = if (nowPlaying.visualizerAvailable) {
+                        { actions.display(NowPlayingDisplayAction.ToggleVisualizer) }
+                    } else null,
+                ) {
+                    BoxWithConstraints(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                        NowPlayingDetails(
+                            nowPlaying = progressStableNowPlaying, playbackProgress = playbackProgress,
+                            colors = colors, playerColors = visualizerColors, actions = actions,
+                            selectedVisualizer = selectedVisualizer, displaySettings = displaySettings,
+                            onOpenPlaylistDialog = openPlaylistMembership,
+                            onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
+                            mobileLayout = true, filledArtworkLayout = true,
+                            compactLayout = viewportMaxHeight < 500.dp,
+                            compactSizing = maxWidth < 380.dp,
+                            matchVolumeToTransportWidth = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(max = viewportMaxHeight)
+                                .verticalScroll(rememberScrollState()).padding(16.dp),
+                        )
+                    }
+                }
+                NowPlayingSidePanel(progressStableNowPlaying, playbackProgress, colors,
+                    selectedTab, { selectedTab = it }, showStationList = showStationList,
+                    showLyrics = false, actions = actions,
+                    modifier = Modifier.fillMaxWidth().height(sidePanelHeight).padding(horizontal = 14.dp))
+            }
+        } else if (wideLayout && panelLayout == NaviampPlayerPanelLayout.Full) {
             val largeArtSize = minOf(
                 maxWidth * 0.385f - NowPlayingArtShadowMargin * 2,
                 maxHeight - FullNowPlayingControlsReserve,
@@ -840,6 +875,7 @@ private fun NowPlayingDetails(
     showIdentity: Boolean = true,
     showControls: Boolean = true,
     matchVolumeToTransportWidth: Boolean = false,
+    filledArtworkLayout: Boolean = false,
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
@@ -900,7 +936,9 @@ private fun NowPlayingDetails(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = if ((mobileLayout && !compactLayout) || pinBottomActions) {
+        verticalArrangement = if (filledArtworkLayout) {
+            Arrangement.spacedBy(if (compactLayout) 6.dp else 8.dp)
+        } else if ((mobileLayout && !compactLayout) || pinBottomActions) {
             Arrangement.SpaceBetween
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
@@ -942,7 +980,7 @@ private fun NowPlayingDetails(
                 Column(
                     horizontalAlignment = if (largePresentation) Alignment.Start else Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(
-                        if (largePresentation) largeIdentitySpacing else if (mobileLayout) 2.dp else 1.dp,
+                        if (largePresentation) largeIdentitySpacing else if (filledArtworkLayout) 4.dp else if (mobileLayout) 2.dp else 1.dp,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1038,7 +1076,7 @@ private fun NowPlayingDetails(
             } else if (showRating || showAudioInfo) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (filledArtworkLayout) 4.dp else 1.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {

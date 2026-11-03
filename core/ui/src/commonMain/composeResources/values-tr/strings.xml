@@ -396,4 +396,7 @@
     <string name="settings_language_use_subtitle">Naviamp için bu dili kullan.</string>
     <string name="settings_square_album_artwork">Dik köşeli albüm kapakları</string>
     <string name="settings_square_album_artwork_description">Uygulama genelinde albüm ve parça kapaklarını dik köşelerle göster.</string>
+    <string name="settings_fill_now_playing_artwork">Çalınan parça görsel alanını doldur</string>
+    <string name="settings_fill_now_playing_artwork_description">Kapağı oynatıcıyı dolduracak şekilde kırp ve denetimlerin arkasına koyu geçiş ekle.</string>
+    <string name="now_playing_toggle_visualizer">Görselleştiriciyi aç veya kapat</string>
 </resources>
