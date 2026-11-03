@@ -9,6 +9,66 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun expandedCatalogContractsUseReadOnlyRoutesAndKeepIdentityNamespaces() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        var loginCount = 0
+        val metadataFailures = mutableMapOf<String, Int>()
+        val readOnly = object : NavidromeHttpClient by transport {
+            override suspend fun get(url: String, headers: Map<String, String>): String = try {
+                transport.get(url, headers)
+            } catch (failure: NavidromeHttpException) {
+                if ("/release-group/" in url) {
+                    metadataFailures[if (url.endsWith("/tracks")) "tracks" else "details"] = failure.statusCode
+                }
+                throw failure
+            }
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                check(url == connection.normalizedBaseUrl + "/api/auth/login") { "Live research cannot submit mutations" }
+                loginCount++
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Live research is read-only")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Live research is read-only")
+        }
+        val discovery = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, readOnly)
+        val first = discovery.recommendations(0, 200)
+        assertEquals(ProviderDiscoveryStatus.Ready, first.status)
+        assertNotNull(first.totalCount)
+        assertTrue(first.artists.isNotEmpty())
+        val nextOffset = first.nextOffset
+        if (nextOffset != null) {
+            val next = discovery.recommendations(nextOffset, 200)
+            assertEquals(ProviderDiscoveryStatus.Ready, next.status)
+            assertTrue(next.artists.first().recommendation!!.rank!! > first.artists.last().recommendation!!.rank!!)
+        }
+        val artists = discovery.searchCatalog("Radiohead", ProviderCatalogScope.Artist, limit = 2)
+        assertEquals(ProviderDiscoveryStatus.Ready, artists.status)
+        // The configured catalog service can legitimately return no artist matches.
+        assertNotNull(artists.totalCount)
+        val albums = discovery.searchCatalog("Radiohead", ProviderCatalogScope.Album, limit = 2)
+        assertEquals(ProviderDiscoveryStatus.Ready, albums.status)
+        val album = albums.albums.first()
+        val release = DiscoveryReleaseGroupMbid(album.release.id)
+        val details = discovery.releaseDetails(release)
+        fun expectedMetadataStatus(key: String) = if (metadataFailures[key] in setOf(404, 429, 500, 502, 503, 504))
+            ProviderDiscoveryStatus.Unavailable else ProviderDiscoveryStatus.Ready
+        assertEquals(expectedMetadataStatus("details"), details.status)
+        if (details.status == ProviderDiscoveryStatus.Ready) {
+            assertEquals(release.value, details.release?.id)
+            assertTrue(details.credits.isNotEmpty())
+        }
+        val tracks = discovery.releaseTracks(release)
+        assertEquals(expectedMetadataStatus("tracks"), tracks.status)
+        if (tracks.status == ProviderDiscoveryStatus.Ready) {
+            assertTrue(tracks.tracks.isNotEmpty())
+            assertTrue(tracks.tracks.any { it.recordingMbid != null })
+        }
+        println("Aurral catalog live result: recommendationCount=${first.totalCount}, artistCount=${artists.totalCount}, release=${details.status}, tracks=${tracks.status}")
+        assertEquals(ProviderDiscoveryStatus.Ready, discovery.requestActivity().status)
+        assertEquals(1, loginCount)
+    }
+
     @Test fun nativeSamplesAndReleaseCoversUseTheProviderTransport() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val provider = NavidromeProvider(connection)
