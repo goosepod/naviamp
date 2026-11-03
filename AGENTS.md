@@ -61,6 +61,29 @@ Order announcement content by product significance. Major launches lead the summ
 highlights; GitHub release names retain the exact format above. Improvements and fixes to
 previously released behavior follow.
 
+## Release Contributor Acknowledgments
+
+For each GitHub release-note change involving a community contributor, credit the contributor by
+GitHub handle and state their role accurately (for example, reported by, fixed by, or translated by).
+Link the GitHub release-note entry directly to the originating issue and implementation PR; use a
+commit link when there is no issue or PR. Use absolute links in GitHub release notes.
+
+Track contributors across releases and explicitly welcome first-time contributors. Verify first-time
+status against earlier releases and repository contribution history, including issue reports,
+testing, documentation, and translations; do not rely only on commit authors or GitHub's generated
+first-PR list. A first-time contributor is someone receiving their first release acknowledgment for
+a contribution to Naviamp. Do not announce credits for work that has not shipped.
+
+Include a deduplicated **Thanks** section in the GitHub release notes, shared About-page release
+changelog, Discord announcement, and release Announcements Discussion whenever a release has
+community contributions. Thank everyone who contributed to that release, including reporters and
+testers, and identify first-time contributors. Use public handles or the contributor's preferred
+public attribution; honor requests to remain anonymous. Keep attribution consistent across channels.
+The About-page changelog, Discord posts, and similar announcements retain their existing plain
+bulleted change lists, without issue, PR, or commit references or per-change contributor credits.
+Only add the Thanks section to those formats; detailed links and per-change credits belong in the
+GitHub release notes. When forwarding release notes to Discord, prepare this plain-list version.
+
 ## In-App Release Changelog
 
 Before tagging every Naviamp release, update the shared changelog shown on the About page. Its
