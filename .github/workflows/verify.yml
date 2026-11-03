@@ -245,15 +245,24 @@ jobs:
 
       - name: Start disposable mobile mTLS fixture
         if: needs.changes.outputs.run_full == 'true'
+        run: bash scripts/start-mobile-mtls-fixture.sh
+
+      - name: Route this fixture into the Android emulator
+        if: needs.changes.outputs.run_full == 'true'
         run: |
-          bash scripts/start-mobile-mtls-fixture.sh
-          for port in 59974 59975 59976 59977; do
-            adb reverse "tcp:$port" "tcp:$port"
+          fixture_ports="$(python3 scripts/mobile-mtls-fixture.py ports "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
+          for port in $fixture_ports; do
+            adb reverse --no-rebind "tcp:$port" "tcp:$port"
+            echo "$port" >> "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE.android-reverse-ports"
           done
 
       - name: Exercise native boundaries and raster animation
         if: needs.changes.outputs.run_full == 'true'
-        run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
+        run: |
+          control_port="$(python3 scripts/mobile-mtls-fixture.py control-port "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
+          ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
+            "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
+            :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
       - name: Repeat API 35 DNS-SD discovery tests
         if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35
@@ -271,7 +280,13 @@ jobs:
 
       - name: Stop disposable mobile mTLS fixture
         if: always() && needs.changes.outputs.run_full == 'true'
-        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
+        run: |
+          if [ -n "${NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE:-}" ]; then
+            if [ -f "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE.android-reverse-ports" ]; then
+              while read -r port; do adb reverse --remove "tcp:$port" || true; done < "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE.android-reverse-ports"
+            fi
+            python3 scripts/mobile-mtls-fixture.py stop "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE"
+          fi
 
       - name: Capture Android discovery diagnostics
         if: failure() && needs.changes.outputs.run_full == 'true'
@@ -290,7 +305,7 @@ jobs:
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
-            build/mobile-mtls-fixture.log
+            build/mobile-mtls-run.*/fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
             /tmp/naviamp-sdkmanager.log
@@ -483,7 +498,7 @@ jobs:
           # with real Apple trust services after the common standalone tests finish.
           # Bootstrap is generated on the runner. Keep setup independent of a freshly
           # booted simulator's first HTTP request; all HTTPS and server-state audits remain real.
-          fixture_bootstrap="$(cat build/mobile-mtls-fixture.bootstrap)"
+          fixture_bootstrap="$(cat "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
           test -n "$fixture_bootstrap"
           export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
@@ -507,7 +522,10 @@ jobs:
 
       - name: Stop disposable mobile mTLS fixture
         if: always()
-        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
+        run: |
+          if [ -n "${NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE:-}" ]; then
+            python3 scripts/mobile-mtls-fixture.py stop "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE"
+          fi
 
       - name: Build the production iOS app
         run: |
@@ -553,7 +571,7 @@ jobs:
             **/build/reports/tests/iosSimulatorArm64Test/**
             build/reports/profile/**
             build/ci-timings/ios.tsv
-            build/mobile-mtls-fixture.log
+            build/mobile-mtls-run.*/fixture.log
             build/ios-keychain-tests.xcresult
             build/ios-tls-services.log
 
