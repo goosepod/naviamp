@@ -69,7 +69,7 @@ be recorded separately; previous #359 acceptance does not cover the new navigati
 
 ## Recorded results
 
-- 83 deterministic regressions pass: 36 presentation/controller/back-policy cases, 15 rendered/UI
+- 85 deterministic regressions pass: 36 presentation/controller/back-policy cases, 17 rendered/UI
   and resource cases, and 32 provider cases. The six opt-in live methods that return early without
   configured credentials are excluded from this total.
 - Common Android/JVM/iOS ARM64/iOS Simulator ARM64 compilation and architecture verification pass
@@ -142,3 +142,19 @@ now asserts this context on each layout. Focused rendered tests, Android/JVM/bot
 compilation and architecture verification pass in `build/476-release-context.log`. The first hosted
 follow-up run failed in SDK setup while unpacking the NDK archive, before shared tests ran; it is
 neither a product-test failure nor accepted verification of the follow-up tree.
+
+The complete hosted matrix passed on `924ca4777` (run `41585040510`, all nine checks). Subsequent
+automated acceptance found that the isolated TV page did not handle directional focus traversal.
+It now delegates D-pad directions to the shared focus manager, allowing unhandled edge navigation
+to reach the surrounding shell. Tests enter from Back, reach a sample without pointer focus, return
+up to Refresh, and activate the sample with D-pad center. Semantic tests assert artist/release and
+section headings, named preview/request actions, disabled requests while busy, and hidden requests
+when permission is absent. These are Compose semantics and injected-key checks, not proof of
+screen-reader speech. Shared page tests, Android/JVM/both iOS common compilation and architecture
+verification pass in `build/476-accessibility.log`; the additional Up/Down regression is recorded in
+`build/476-dpad-return.log`.
+
+The user selected continued automated coverage with physical-device checks left open. No test
+package was installed on the connected TV device, and its installed Naviamp app was not modified.
+Keep the PR draft for physical remote/touch and assistive-technology acceptance; #477 can proceed
+on its own dependent branch while this gate remains open.

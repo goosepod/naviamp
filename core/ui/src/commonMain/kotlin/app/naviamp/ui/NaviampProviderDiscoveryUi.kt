@@ -7,6 +7,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.unit.Dp
 import kotlin.math.floor
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -104,7 +106,7 @@ private fun DiscoveryArtistRail(
     val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+        Text(title, Modifier.weight(1f).semantics { heading() }, color = colors.primaryText, fontWeight = FontWeight.SemiBold)
         listOf(false, true).forEach { forward ->
             HomeRailArrow(forward, if (forward) state.canScrollForward else state.canScrollBackward, colors) {
                 scope.launch {
@@ -180,6 +182,7 @@ internal fun NaviampDiscoveryArtistPanel(
     onViewport: (Int, Int, AlbumReleaseSection?) -> Unit = { _, _, _ -> },
     stateKey: Any? = null,
     dismissModifier: Modifier = Modifier,
+    navigationModifier: Modifier = Modifier,
 ) {
     val releases = screen.details?.releases.orEmpty()
     val sections = AlbumReleaseSection.entries.filter { section -> releases.any { it.section == section } }
@@ -193,11 +196,11 @@ internal fun NaviampDiscoveryArtistPanel(
     }
     val effectiveSection = selectedSection?.takeIf { it in sections }
     val visibleReleases = releases.filter { effectiveSection == null || it.section == effectiveSection }
-    Surface(if (fullPage) Modifier.fillMaxSize() else Modifier.widthIn(max = 1080.dp).fillMaxWidth().padding(12.dp),
+    Surface((if (fullPage) Modifier.fillMaxSize() else Modifier.widthIn(max = 1080.dp).fillMaxWidth().padding(12.dp)).then(navigationModifier),
         shape = RoundedCornerShape(if (fullPage) 0.dp else 12.dp), color = colors.controlSurface) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(screen.artist.name, modifier = Modifier.weight(1f), color = colors.primaryText,
+                Text(screen.artist.name, modifier = Modifier.weight(1f).semantics { heading() }, color = colors.primaryText,
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 TextButton(onClick = onDismiss, modifier = dismissModifier) { Text(stringResource(if (fullPage) Res.string.common_back else Res.string.common_close)) }
             }
@@ -261,7 +264,7 @@ internal fun NaviampDiscoveryArtistPanel(
                     }
                     if (!screen.loading) item(key = "samples-header") {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(stringResource(Res.string.discovery_samples), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(Res.string.discovery_samples), modifier = Modifier.semantics { heading() }, color = colors.primaryText, fontWeight = FontWeight.SemiBold)
                             if (playback.failed) Text(stringResource(Res.string.discovery_samples_failed), color = colors.secondaryText)
                             if (screen.loading || screen.samplesLoading || screen.samplesStatus == null) Text(stringResource(Res.string.discovery_samples_loading), color = colors.secondaryText)
                             else if (screen.samples.isEmpty()) Text(stringResource(
@@ -279,7 +282,7 @@ internal fun NaviampDiscoveryArtistPanel(
                     }
                     if (releases.isNotEmpty()) item(key = "release-filters") {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(stringResource(Res.string.discovery_releases), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(Res.string.discovery_releases), modifier = Modifier.semantics { heading() }, color = colors.primaryText, fontWeight = FontWeight.SemiBold)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 FilterChip(selected = effectiveSection == null, onClick = { selectedSection = null; onViewport(0, 0, null) },
                                     label = { Text(stringResource(Res.string.discovery_all_releases)) })

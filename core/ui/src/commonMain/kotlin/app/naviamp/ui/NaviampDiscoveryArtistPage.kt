@@ -12,6 +12,11 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.dp
 import app.naviamp.domain.provider.*
 import app.naviamp.ui.generated.resources.*
@@ -31,6 +36,19 @@ internal fun NaviampDiscoveryArtistPage(
     val artist = discovery.artistDetail ?: return
     NaviampSystemBackHandler(enabled = true, onBack = actions.onDiscoveryArtistDismiss)
     val release = discovery.releasePage
+    val focusManager = LocalFocusManager.current
+    val navigation = Modifier.onPreviewKeyEvent { event ->
+        if (!television || event.type != KeyEventType.KeyDown) false else {
+            val direction = when (event.key) {
+                Key.DirectionDown -> FocusDirection.Down
+                Key.DirectionUp -> FocusDirection.Up
+                Key.DirectionLeft -> FocusDirection.Left
+                Key.DirectionRight -> FocusDirection.Right
+                else -> null
+            }
+            direction?.let(focusManager::moveFocus) ?: false
+        }
+    }
     val backFocus = remember { FocusRequester() }
     LaunchedEffect(television, discovery.sourceId, discovery.sourceGeneration, artist.artist.id,
         release?.release?.id, entryFocusGeneration) {
@@ -41,10 +59,11 @@ internal fun NaviampDiscoveryArtistPage(
         }
     }
     if (release != null) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        Column(Modifier.fillMaxSize().then(navigation).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             TextButton(onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
-            Text(release.result?.release?.title ?: release.release.title, color = colors.primaryText)
+            Text(release.result?.release?.title ?: release.release.title, color = colors.primaryText,
+                modifier = Modifier.semantics { heading() })
             val metadata = release.result?.release ?: release.release
             val date = metadata.releaseDate ?: release.release.releaseDate
             val kind = metadata.takeIf { it.type != null || it.secondaryTypes.isNotEmpty() }
@@ -84,5 +103,6 @@ internal fun NaviampDiscoveryArtistPage(
         fullPage = true, onArtistDetails = actions.onDiscoveryArtistDetails,
         onReleaseSelected = actions.onDiscoveryRelease, onViewport = actions.onDiscoveryViewport,
         stateKey = discovery.sourceId to discovery.sourceGeneration,
+        navigationModifier = navigation,
         dismissModifier = Modifier.focusRequester(backFocus))
 }

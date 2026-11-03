@@ -7,13 +7,69 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.*
 import app.naviamp.domain.provider.*
 import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryArtistPageTest {
+    @Test fun televisionDpadCanReachAndActivateSampleWithoutPointerFocus() = runDesktopComposeUiTest(1280, 800) {
+        val screen = mutableStateOf(discoveryPageFixture())
+        val actions = mutableListOf<String>()
+        lateinit var inputMode: InputModeManager
+        setContent {
+            inputMode = LocalInputModeManager.current
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                TelevisionHome(NaviampHomeScreenUi(providerDiscovery = screen.value), NaviampColors.Dark,
+                    discoveryPageFixtureActions(screen, actions), NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi())
+            }
+        }
+        onNodeWithText("Back").assertIsFocused()
+        runOnIdle { assertTrue(inputMode.requestInputMode(InputMode.Keyboard)) }
+        onNodeWithText("Back").performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithText("Sample track").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionUp) }
+        onNodeWithText("Refresh").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithText("Sample track").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        runOnIdle { assertTrue("sample" in actions) }
+    }
+
+    @Test fun accessibilityTreeExposesHeadingsNamedActionsAndPermissionState() = runDesktopComposeUiTest(1100, 850) {
+        val screen = mutableStateOf(discoveryPageFixture())
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                SharedHomeRoute(NaviampColors.Dark, NaviampHomeScreenUi(providerDiscovery = screen.value),
+                    discoveryPageFixtureActions(screen, mutableListOf()), NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi())
+            }
+        }
+        val heading = SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
+        onNodeWithText("Discovery artist").assert(heading)
+        onNodeWithText("Samples").assert(heading)
+        onNodeWithContentDescription("Play sample").assertHasClickAction().assertIsEnabled()
+        onNodeWithText("Release 1").performScrollTo()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)).performClick()
+        onNodeWithText("Release 1").assert(heading)
+        onNodeWithText("Request album").assertHasClickAction().assertIsEnabled()
+        runOnIdle {
+            screen.value = screen.value.copy(artistDetail = screen.value.artistDetail?.copy(actionBusy = true))
+        }
+        onNodeWithText("Request album").assertIsNotEnabled()
+        runOnIdle {
+            screen.value = screen.value.copy(artistDetail = screen.value.artistDetail?.let {
+                it.copy(actionBusy = false, details = it.details?.copy(canRequestAlbums = false))
+            })
+        }
+        onNodeWithText("Request album").assertDoesNotExist()
+    }
+
     @Test fun televisionDestinationAndSidebarReentryHandFocusToBack() = runDesktopComposeUiTest(1280, 800) {
         val screen = mutableStateOf(discoveryPageFixture())
         val generation = mutableStateOf(1)
