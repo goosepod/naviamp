@@ -502,6 +502,31 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun returningToAnEarlierStationDoesNotRestoreItsPreviousTitle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+
+        // Station A ("two") publishes its first title; its sidecar load consumes the cached restore.
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer?.onMetadataChanged(PlaybackStreamMetadata(title = "A - first title"))
+        runCurrent()
+
+        // Switch to station B ("three") before it publishes any metadata, then back to A: A must start
+        // from empty sidecars instead of the title cached from its previous playback session.
+        fun switchTo(index: Int) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+            runCurrent()
+        }
+        switchTo(2)
+        switchTo(1)
+
+        assertEquals(listOf("two", "three", "two"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
     fun restoredTrackIsPublishedBeforeItsSidecarsFinishLoading() = runTest {
         val sidecars = PlaybackTestSidecars(blockingTrackId = "long-track")
         val fixture = playbackFixture(this, sidecars)

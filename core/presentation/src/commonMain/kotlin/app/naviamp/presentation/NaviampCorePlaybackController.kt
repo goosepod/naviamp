@@ -598,11 +598,16 @@ class NaviampCorePlaybackController(
     }
 
     private suspend fun loadTrackSidecars(track: app.naviamp.domain.Track) {
-        sidecars.loadForTrack(track)
         // Loading sidecars starts the track from empty sidecars, stream metadata included. The engine only
         // publishes metadata when it changes, and a live stream usually reports its first title before this
         // asynchronous load starts, so restore what the engine already published for this same track.
-        if (streamMetadataTrackId == track.id) publishStreamMetadata(streamMetadata)
+        // The cache is consumed by this load: it bridges one sidecar load only, never a later playback
+        // of the same track, so returning to a station cannot resurface its previous session's title.
+        val cachedMetadata = if (streamMetadataTrackId == track.id) streamMetadata else null
+        streamMetadata = PlaybackStreamMetadata()
+        streamMetadataTrackId = null
+        sidecars.loadForTrack(track)
+        if (cachedMetadata != null && streamMetadataTrackId == null) publishStreamMetadata(cachedMetadata)
         val lyricsNeeded = display.lyricsVisible ||
             stateStore.state.value.shell.shellChrome.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel
         if (lyricsNeeded && playback.state.value.currentTrack?.id == track.id) {
