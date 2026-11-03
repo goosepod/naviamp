@@ -21,13 +21,25 @@ privately under `/private/tmp/review-467-ios-failure`.
 
 The shared contract now records a bounded last-sixteen challenge trace and whether it was creating,
 validating or closing the negative-check client. Timeout errors include those facts. No TLS policy,
-certificate validation, timeout, assertion or negative case has changed. No platform production
-file is modified.
+certificate validation, timeout, assertion or negative case has changed. The shared Started/Completed event stages now distinguish callback entry from a returned trust
+evaluation. A common regression verifies that throwing diagnostic observers cannot interrupt either
+stage. The provider common implementation compiles for Android/JVM/both iOS targets.
+
+The only platform production change is
+`providers/navidrome/src/iosMain/kotlin/app/naviamp/provider/navidrome/NavidromeIosPlatform.kt`:
+it reports entry to the concrete NSURLSession authentication callback before invoking the existing
+Apple Security operation. Those APIs cannot compile in common Kotlin; authentication decisions
+remain in the common policy. The iOS test host only reads Foundation thread/operation-queue facts.
 
 The initial real native simulator run passes one executed integration method in 7.105 seconds,
 including all five negative cases, positive mTLS controls, decoded streaming, pause/resume and seek
 identity/range audits. This first device was booted while the binary compiled and is not evidence
-that a cold-start failure has been fixed. Separate newly created iOS 26.5 profiles are being tested;
+that a cold-start failure has been fixed. Two subsequently created iOS 26.5 profiles pass in 4.139 and 2.878 seconds. A third method passed
+in 1.974 seconds, but its binary was rebuilt after boot while diagnostics were extended, so it is
+excluded from immediate-cold timing evidence. The final callback-entry/context instrumentation also
+passes the full real native integration method. These passes do not demonstrate a correction.
+
+Separate newly created iOS 26.5 profiles are being tested;
 CI uses its runner-selected runtime. Preserve the environment distinction.
 
 ## Acceptance still required

@@ -26,6 +26,13 @@ class IosMutualTlsPlaybackIntegrationTest {
                     return text
                 }
 
+                override fun transportContext(): String {
+                    val queue = NSOperationQueue.currentQueue()
+                    return "mainThread=${NSThread.isMainThread}; operationQueuePresent=${queue != null}; " +
+                        "mainQueue=${queue == NSOperationQueue.mainQueue}; operations=${queue?.operationCount}; " +
+                        "maxConcurrent=${queue?.maxConcurrentOperationCount}"
+                }
+
                 override suspend fun writePrivateFile(name: String, bytes: ByteArray): String {
                     val path = "$directory/$name"
                     bytes.usePinned {

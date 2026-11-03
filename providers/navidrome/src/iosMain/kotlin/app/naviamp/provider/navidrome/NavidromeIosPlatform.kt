@@ -34,8 +34,10 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings, o
                         else -> NavidromeTlsChallenge.Other
                     }
                     val action = tlsSettings.challengeAction(kind, challenge.previousFailureCount)
-                    fun report(accepted: Boolean? = null, error: String? = null) = reportNavidromeTlsChallenge(onTlsChallenge,
-                        NavidromeTlsChallengeEvent(kind, challenge.previousFailureCount, action, accepted, error))
+                    fun report(accepted: Boolean? = null, error: String? = null,
+                        stage: NavidromeTlsChallengeStage = NavidromeTlsChallengeStage.Completed) = reportNavidromeTlsChallenge(onTlsChallenge,
+                        NavidromeTlsChallengeEvent(kind, challenge.previousFailureCount, action, accepted, error, stage))
+                    report(stage = NavidromeTlsChallengeStage.Started)
                     when (action) {
                         NavidromeTlsChallengeAction.Cancel -> {
                             report(false)
