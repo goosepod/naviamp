@@ -1254,4 +1254,5 @@
     <string name="settings_fill_now_playing_artwork">Fill Now Playing artwork area</string>
     <string name="settings_fill_now_playing_artwork_description">Crop the cover to fill the player, with a dark fade behind the controls.</string>
     <string name="now_playing_toggle_visualizer">Toggle visualizer</string>
+    <string name="discovery_similar_artists">Similar artists</string>
 </resources>

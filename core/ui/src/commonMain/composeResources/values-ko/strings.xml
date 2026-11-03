@@ -399,4 +399,5 @@
     <string name="settings_fill_now_playing_artwork">지금 재생 중 표지 영역 채우기</string>
     <string name="settings_fill_now_playing_artwork_description">표지를 잘라 플레이어를 채우고 컨트롤 뒤에 어두운 그라데이션을 표시합니다.</string>
     <string name="now_playing_toggle_visualizer">시각화 전환</string>
+    <string name="discovery_similar_artists">비슷한 아티스트</string>
 </resources>

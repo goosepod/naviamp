@@ -33,6 +33,7 @@ fun interface ProviderDiscovery {
     suspend fun releaseTracks(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseTracks = ProviderDiscoveryReleaseTracks()
     suspend fun releaseDetails(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseDetails = ProviderDiscoveryReleaseDetails()
     suspend fun requestActivity(): ProviderDiscoveryActivities = ProviderDiscoveryActivities()
+    suspend fun similarArtists(artist: DiscoveryArtistMbid): ProviderDiscoverySimilarArtists = ProviderDiscoverySimilarArtists()
     suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult =
         ProviderDiscoveryArtistResult(ProviderDiscoveryStatus.Unsupported)
     suspend fun samples(artist: ProviderDiscoveryArtist): ProviderDiscoverySamples = ProviderDiscoverySamples()
@@ -73,6 +74,11 @@ data class ProviderDiscoveryArtistDetails(
 data class ProviderDiscoveryArtistResult(
     val status: ProviderDiscoveryStatus,
     val details: ProviderDiscoveryArtistDetails? = null,
+)
+
+data class ProviderDiscoverySimilarArtists(
+    val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported,
+    val artists: List<ProviderDiscoveryArtist> = emptyList(),
 )
 
 data class ProviderDiscoveryFeedbackResult(

@@ -954,6 +954,10 @@ fun SharedHomeRoute(
     scrollState: ScrollState = rememberScrollState(),
 ) {
     val collectionScrollState = remember(home.collectionPage?.section?.id) { ScrollState(0) }
+    home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
+        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback)
+        return
+    }
     home.collectionPage?.let { page ->
         Column(modifier = Modifier.fillMaxSize()) {
             HomeCollectionPageHeader(page, colors, actions)

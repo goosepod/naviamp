@@ -970,6 +970,18 @@ data class SharedProviderDiscoveryUi(
     val feed: app.naviamp.domain.provider.ProviderDiscoveryFeed = app.naviamp.domain.provider.ProviderDiscoveryFeed(),
     val loading: Boolean = false,
     val artistDetail: SharedProviderDiscoveryArtistUi? = null,
+    val artistPage: Boolean = false,
+    val artistBackStack: List<SharedProviderDiscoveryArtistUi> = emptyList(),
+    val releasePage: SharedDiscoveryReleaseUi? = null,
+    val sourceId: String? = null,
+    val originRoute: SharedRoute? = null,
+    val sourceGeneration: Long = 0,
+)
+
+data class SharedDiscoveryReleaseUi(
+    val release: app.naviamp.domain.provider.ProviderDiscoveryRelease,
+    val loading: Boolean = true,
+    val result: app.naviamp.domain.provider.ProviderDiscoveryReleaseDetails? = null,
 )
 
 data class DiscoverySamplePlaybackUi(val trackId: String? = null, val playing: Boolean = false,
@@ -988,6 +1000,12 @@ data class SharedProviderDiscoveryArtistUi(
     val samplesLoading: Boolean = false,
     val operationStatus: app.naviamp.domain.provider.ProviderDiscoveryOperationStatus? = null,
     val blockedActions: Set<app.naviamp.domain.provider.ProviderDiscoveryAction> = emptySet(),
+    val pendingAction: app.naviamp.domain.provider.ProviderDiscoveryAction? = null,
+    val similar: app.naviamp.domain.provider.ProviderDiscoverySimilarArtists? = null,
+    val similarLoading: Boolean = false,
+    val firstVisibleItem: Int = 0,
+    val firstVisibleOffset: Int = 0,
+    val releaseSection: app.naviamp.domain.media.AlbumReleaseSection? = null,
 )
 
 data class NaviampHomeActions(
@@ -1008,6 +1026,8 @@ data class NaviampHomeActions(
     val onDiscoveryFeedback: (String, app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction) -> Unit = { _, _ -> },
     val onDiscoveryLibraryArtist: (String) -> Unit = {},
     val onDiscoveryAction: (String, app.naviamp.domain.provider.ProviderDiscoveryAction) -> Unit = { _, _ -> },
+    val onDiscoveryRelease: (String) -> Unit = {},
+    val onDiscoveryViewport: (Int, Int, app.naviamp.domain.media.AlbumReleaseSection?) -> Unit = { _, _, _ -> },
 )
 
 data class NaviampMediaActions(

@@ -119,6 +119,10 @@ internal fun TelevisionHome(
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
+    home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
+        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback)
+        return
+    }
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
     val discoveryScope = rememberCoroutineScope()

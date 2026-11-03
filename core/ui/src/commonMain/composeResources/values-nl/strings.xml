@@ -399,4 +399,5 @@
     <string name="settings_fill_now_playing_artwork">Hoes vult het afspeelvlak</string>
     <string name="settings_fill_now_playing_artwork_description">Snijd de hoes bij om het afspeelvlak te vullen, met een donkere overgang achter de bediening.</string>
     <string name="now_playing_toggle_visualizer">Visualisatie aan- of uitzetten</string>
+    <string name="discovery_similar_artists">Vergelijkbare artiesten</string>
 </resources>

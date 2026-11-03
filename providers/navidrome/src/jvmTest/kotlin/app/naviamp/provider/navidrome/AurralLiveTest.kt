@@ -21,6 +21,7 @@ class AurralLiveTest {
                 if ("/release-group/" in url) {
                     metadataFailures[if (url.endsWith("/tracks")) "tracks" else "details"] = failure.statusCode
                 }
+                if ("/similar?" in url) metadataFailures["similar"] = failure.statusCode
                 throw failure
             }
             override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
@@ -69,6 +70,9 @@ class AurralLiveTest {
             assertTrue(tracks.tracks.isNotEmpty())
             assertTrue(tracks.tracks.any { it.recordingMbid != null })
         }
+        val similar = discovery.similarArtists(DiscoveryArtistMbid("a74b1b7f-71a5-4011-9441-d0b5e4122711"))
+        assertEquals(expectedMetadataStatus("similar"), similar.status)
+        println("Aurral similar live result: status=${similar.status}, count=${similar.artists.size}")
         println("Aurral catalog live result: recommendationCount=${first.totalCount}, artistCount=${artists.totalCount}, release=${details.status}, tracks=${tracks.status}")
         assertEquals(ProviderDiscoveryStatus.Ready, discovery.requestActivity().status)
         assertEquals(1, loginCount)

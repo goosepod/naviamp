@@ -22,6 +22,7 @@ class NaviampCoreNavigationController(
     private val stateStore: NaviampCoreStateStore,
     private val artistNavigator: NaviampCoreArtistNavigator,
     private val persistNowPlayingOpen: (Boolean) -> Unit = {},
+    private val onLeaveDiscovery: () -> Unit = {},
 ) : NaviampCoreCommandController {
     init {
         publishNavigation()
@@ -84,6 +85,17 @@ class NaviampCoreNavigationController(
         navigation.updateActiveArtist(artist)
     }
 
+    fun openDiscoveryPage() {
+        navigation.navigate(NaviampRoute.Home)
+        publishDetailRoute()
+        stateStore.updateShell { it.copy(shellChrome = it.shellChrome.copy(selectedRoute = app.naviamp.ui.SharedRoute.Home)) }
+    }
+
+    fun returnFromDiscoveryPage(route: app.naviamp.ui.SharedRoute) {
+        navigation.navigate(route.toNaviampRoute())
+        stateStore.updateShell { it.copy(shellChrome = it.shellChrome.copy(selectedRoute = route)) }
+    }
+
     fun openPlaylistDetail() {
         navigation.recordPlaylistDetailOpened()
         navigation.navigate(NaviampRoute.PlaylistDetail)
@@ -114,6 +126,7 @@ class NaviampCoreNavigationController(
     }
 
     private fun selectRoute(route: NaviampRoute) {
+        if (stateStore.state.value.shell.home.providerDiscovery?.artistPage == true) onLeaveDiscovery()
         navigation.navigate(route)
         navigation.updateLastContentRoute(route)
         navigation.clearDetailHistory()
@@ -126,12 +139,9 @@ class NaviampCoreNavigationController(
                 albumDetail = NaviampAlbumDetailScreenUi(),
                 artistDetail = NaviampArtistDetailScreenUi(),
                 playlistDetail = NaviampPlaylistDetailScreenUi(),
-                home = if (route == NaviampRoute.Home) {
-                    shell.home.copy(collectionPage = null,
-                        providerDiscovery = shell.home.providerDiscovery?.copy(artistDetail = null))
-                } else {
-                    shell.home
-                },
+                home = shell.home.copy(collectionPage = if (route == NaviampRoute.Home) null else shell.home.collectionPage,
+                    providerDiscovery = shell.home.providerDiscovery?.copy(artistDetail = null, artistPage = false,
+                        artistBackStack = emptyList(), releasePage = null)),
             )
         }
         persistNowPlayingOpen(stateStore.state.value.shell.shellChrome.nowPlayingOpen)

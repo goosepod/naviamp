@@ -276,6 +276,7 @@ class NaviampCore private constructor(
                 navigationState,
                 stateStore,
                 deferredArtistNavigator,
+                onLeaveDiscovery = samplePlayback::stop,
                 persistNowPlayingOpen = { open ->
                     val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
                     services.playback.sessions.updateNowPlayingOpen(open, sourceId)

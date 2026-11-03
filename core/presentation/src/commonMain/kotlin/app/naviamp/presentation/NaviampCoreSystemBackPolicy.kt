@@ -7,6 +7,8 @@ package app.naviamp.presentation
 fun NaviampCoreState.systemBackCommand(): NaviampCoreCommand? = when {
     overlays.statsForNerdsVisible -> NaviampCoreCommand.Settings.CloseStats
     shell.shellChrome.nowPlayingOpen -> NaviampCoreCommand.Navigation.CloseNowPlaying
+    shell.shellChrome.selectedRoute == app.naviamp.ui.SharedRoute.Home &&
+        shell.home.providerDiscovery?.let { it.artistPage && it.artistDetail != null } == true -> NaviampCoreCommand.Home.DismissDiscoveryArtist
     shell.home.collectionPage != null -> NaviampCoreCommand.Home.CloseCollection
     shell.playlistDetail.selectedPlaylist != null -> NaviampCoreCommand.Navigation.BackFromPlaylist
     shell.albumDetail.selectedAlbum != null -> NaviampCoreCommand.Navigation.BackFromAlbum

@@ -399,4 +399,5 @@
     <string name="settings_fill_now_playing_artwork">Espandi la copertina in riproduzione</string>
     <string name="settings_fill_now_playing_artwork_description">Ritaglia la copertina per riempire il lettore, con una sfumatura scura dietro i controlli.</string>
     <string name="now_playing_toggle_visualizer">Attiva o disattiva la visualizzazione</string>
+    <string name="discovery_similar_artists">Artisti simili</string>
 </resources>

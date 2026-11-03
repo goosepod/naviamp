@@ -1231,4 +1231,5 @@
         <item quantity="many">%1$d de itens</item>
         <item quantity="other">%1$d itens</item>
     </plurals>
+    <string name="discovery_similar_artists">Artistas semelhantes</string>
 </resources>

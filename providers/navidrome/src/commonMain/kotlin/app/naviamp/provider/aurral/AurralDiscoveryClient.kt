@@ -135,6 +135,13 @@ internal class AurralDiscoveryClient(
         })
     }
 
+    override suspend fun similarArtists(artist: DiscoveryArtistMbid): ProviderDiscoverySimilarArtists =
+        nativeCall({ ProviderDiscoverySimilarArtists(it) }, notFoundStatus = ProviderDiscoveryStatus.Unavailable) {
+            val result = get("/api/artists/${artist.value}/similar?limit=20")
+            check(result.array("artists") != null)
+            ProviderDiscoverySimilarArtists(ProviderDiscoveryStatus.Ready, result.artists("artists"))
+        }
+
     override suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult =
         nativeCall({ ProviderDiscoveryArtistResult(it) }) {
             require(MusicBrainzId.matches(artist.id))
