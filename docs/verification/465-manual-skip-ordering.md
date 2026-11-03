@@ -19,3 +19,13 @@ The regression expects `clear, stop, play:next`. The existing slow-resolution, r
 prepared automatic transition, preview, pause/resume and sidecar cancellation tests remain part of
 the focused controller/engine suite. Shared Android, JVM and both iOS targets must compile, and the
 complete required GitHub matrix still gates merge against current main.
+
+## Combined contributor review
+
+The seven owner-selected contributor PRs (#456, #461, #462, #463, #464, #467 and #468) were
+combined only in an isolated test checkout at `a65d3205487a18f4e200b78aa269a29db2b7d670`. No integration branch was pushed.
+All 262 focused tests passed: 32 domain (lyrics/settings), 86 presentation (playback controller
+and engine), 126 Navidrome provider, and 18 UI (radio matching/TV focus). Shared presentation
+compiled for Android, JVM and both iOS targets. Append-only translation conflicts preserved
+every entry from both sides; all production changes in these PRs belong to common code.
+This combined regression does not replace each PR's required CI against current main.
