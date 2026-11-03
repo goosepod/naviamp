@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">표지를 잘라 플레이어를 채우고 컨트롤 뒤에 어두운 그라데이션을 표시합니다.</string>
     <string name="now_playing_toggle_visualizer">시각화 전환</string>
     <string name="discovery_similar_artists">비슷한 아티스트</string>
+    <string name="discovery_editions">에디션</string>
+    <string name="discovery_preview_unavailable">미리듣기를 사용할 수 없음</string>
+    <string name="discovery_no_release_tracks">트랙 목록을 사용할 수 없습니다.</string>
+    <string name="discovery_release_catalogued">서버 라이브러리에 저장되었지만 사용 가능한 파일이 없습니다.</string>
+    <string name="discovery_release_partial">서버 라이브러리에서 일부를 사용할 수 있습니다.</string>
+    <string name="discovery_release_available">서버 라이브러리에서 사용할 수 있습니다.</string>
+    <string name="discovery_server_acquisition">요청하면 서버 라이브러리에 음악이 추가됩니다.</string>
+    <string name="discovery_request_conflict">다시 요청하기 전에 Aurral에서 소유권 충돌을 해결하세요.</string>
+    <string name="discovery_request_identity_unavailable">요청할 수 없음: 아티스트 크레딧을 확인할 수 없습니다.</string>
 </resources>

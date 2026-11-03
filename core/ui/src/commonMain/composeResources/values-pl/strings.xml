@@ -519,4 +519,13 @@
     <string name="settings_fill_now_playing_artwork_description">Przytnij okładkę do obszaru odtwarzacza i dodaj ciemny gradient za elementami sterowania.</string>
     <string name="now_playing_toggle_visualizer">Włącz lub wyłącz wizualizację</string>
     <string name="discovery_similar_artists">Podobni wykonawcy</string>
+    <string name="discovery_editions">Wydania</string>
+    <string name="discovery_preview_unavailable">Podgląd niedostępny</string>
+    <string name="discovery_no_release_tracks">Lista utworów jest niedostępna.</string>
+    <string name="discovery_release_catalogued">Zapisano w bibliotece serwera; brak dostępnych plików.</string>
+    <string name="discovery_release_partial">Częściowo dostępne w bibliotece serwera.</string>
+    <string name="discovery_release_available">Dostępne w bibliotece serwera.</string>
+    <string name="discovery_server_acquisition">Żądania dodają muzykę do biblioteki serwera.</string>
+    <string name="discovery_request_conflict">Rozwiąż konflikt własności w Aurral przed ponownym żądaniem.</string>
+    <string name="discovery_request_identity_unavailable">Żądanie niedostępne: nie można zweryfikować wykonawców.</string>
 </resources>

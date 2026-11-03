@@ -1255,4 +1255,13 @@
     <string name="settings_fill_now_playing_artwork_description">Crop the cover to fill the player, with a dark fade behind the controls.</string>
     <string name="now_playing_toggle_visualizer">Toggle visualizer</string>
     <string name="discovery_similar_artists">Similar artists</string>
+    <string name="discovery_editions">Editions</string>
+    <string name="discovery_preview_unavailable">Preview unavailable</string>
+    <string name="discovery_no_release_tracks">No track list available.</string>
+    <string name="discovery_release_catalogued">Saved in the server library; no files available.</string>
+    <string name="discovery_release_partial">Partially available in the server library.</string>
+    <string name="discovery_release_available">Available in the server library.</string>
+    <string name="discovery_server_acquisition">Requests add music to the server library.</string>
+    <string name="discovery_request_conflict">Resolve the ownership conflict in Aurral before requesting again.</string>
+    <string name="discovery_request_identity_unavailable">Request unavailable: artist credits could not be verified.</string>
 </resources>

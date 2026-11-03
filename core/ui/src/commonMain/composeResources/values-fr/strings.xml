@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">Recadrer la pochette pour remplir le lecteur, avec un dégradé sombre derrière les commandes.</string>
     <string name="now_playing_toggle_visualizer">Activer ou désactiver la visualisation</string>
     <string name="discovery_similar_artists">Artistes similaires</string>
+    <string name="discovery_editions">Éditions</string>
+    <string name="discovery_preview_unavailable">Extrait indisponible</string>
+    <string name="discovery_no_release_tracks">Aucune liste de pistes disponible.</string>
+    <string name="discovery_release_catalogued">Enregistré dans la bibliothèque du serveur ; aucun fichier disponible.</string>
+    <string name="discovery_release_partial">Partiellement disponible dans la bibliothèque du serveur.</string>
+    <string name="discovery_release_available">Disponible dans la bibliothèque du serveur.</string>
+    <string name="discovery_server_acquisition">Les demandes ajoutent de la musique à la bibliothèque du serveur.</string>
+    <string name="discovery_request_conflict">Résolvez le conflit de propriété dans Aurral avant de refaire une demande.</string>
+    <string name="discovery_request_identity_unavailable">Demande indisponible : les crédits des artistes n’ont pas pu être vérifiés.</string>
 </resources>

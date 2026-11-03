@@ -388,6 +388,15 @@ private fun DiscoveryReleaseCard(
     }
 }
 
+internal fun discoveryStatusMessage(status: ProviderDiscoveryStatus?) = when (status) {
+    ProviderDiscoveryStatus.Unsupported -> Res.string.discovery_unsupported
+    ProviderDiscoveryStatus.PasswordRequired -> Res.string.discovery_password_required
+    ProviderDiscoveryStatus.SignInRequired -> Res.string.discovery_sign_in_required
+    ProviderDiscoveryStatus.Forbidden -> Res.string.discovery_forbidden
+    ProviderDiscoveryStatus.Building -> Res.string.discovery_building
+    else -> Res.string.discovery_unavailable
+}
+
 internal fun discoveryOperationMessage(status: ProviderDiscoveryOperationStatus) = when (status) {
     ProviderDiscoveryOperationStatus.Queued -> Res.string.discovery_request_queued
     ProviderDiscoveryOperationStatus.AlreadyQueued -> Res.string.discovery_request_already_queued
@@ -396,7 +405,9 @@ internal fun discoveryOperationMessage(status: ProviderDiscoveryOperationStatus)
     ProviderDiscoveryOperationStatus.MonitoringEnabled -> Res.string.discovery_monitoring_enabled
     ProviderDiscoveryOperationStatus.MonitoringDisabled -> Res.string.discovery_monitoring_disabled
     ProviderDiscoveryOperationStatus.MissingSource -> Res.string.discovery_request_missing_source
+    ProviderDiscoveryOperationStatus.Conflict -> Res.string.discovery_request_conflict
     ProviderDiscoveryOperationStatus.Forbidden -> Res.string.discovery_action_forbidden
     ProviderDiscoveryOperationStatus.Unsupported -> Res.string.discovery_action_unsupported
-    ProviderDiscoveryOperationStatus.Unavailable, ProviderDiscoveryOperationStatus.Uncertain -> Res.string.discovery_action_uncertain
+    ProviderDiscoveryOperationStatus.Unavailable -> Res.string.discovery_unavailable
+    ProviderDiscoveryOperationStatus.Uncertain -> Res.string.discovery_action_uncertain
 }

@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">裁剪封面以填满播放器，并在控件后方添加深色渐变。</string>
     <string name="now_playing_toggle_visualizer">切换可视化效果</string>
     <string name="discovery_similar_artists">相似艺人</string>
+    <string name="discovery_editions">版本</string>
+    <string name="discovery_preview_unavailable">试听不可用</string>
+    <string name="discovery_no_release_tracks">曲目列表不可用。</string>
+    <string name="discovery_release_catalogued">已保存到服务器媒体库；没有可用文件。</string>
+    <string name="discovery_release_partial">在服务器媒体库中部分可用。</string>
+    <string name="discovery_release_available">在服务器媒体库中可用。</string>
+    <string name="discovery_server_acquisition">请求会将音乐添加到服务器媒体库。</string>
+    <string name="discovery_request_conflict">再次请求前，请先在 Aurral 中解决归属冲突。</string>
+    <string name="discovery_request_identity_unavailable">请求不可用：无法验证艺人署名。</string>
 </resources>

@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">Обрізати обкладинку за розміром плеєра та додати темний градієнт під елементами керування.</string>
     <string name="now_playing_toggle_visualizer">Перемкнути візуалізацію</string>
     <string name="discovery_similar_artists">Схожі виконавці</string>
+    <string name="discovery_editions">Видання</string>
+    <string name="discovery_preview_unavailable">Уривок недоступний</string>
+    <string name="discovery_no_release_tracks">Список композицій недоступний.</string>
+    <string name="discovery_release_catalogued">Збережено в бібліотеці сервера; файли недоступні.</string>
+    <string name="discovery_release_partial">Частково доступно в бібліотеці сервера.</string>
+    <string name="discovery_release_available">Доступно в бібліотеці сервера.</string>
+    <string name="discovery_server_acquisition">Запити додають музику до бібліотеки сервера.</string>
+    <string name="discovery_request_conflict">Вирішіть конфлікт належності в Aurral перед повторним запитом.</string>
+    <string name="discovery_request_identity_unavailable">Запит недоступний: не вдалося перевірити дані виконавців.</string>
 </resources>

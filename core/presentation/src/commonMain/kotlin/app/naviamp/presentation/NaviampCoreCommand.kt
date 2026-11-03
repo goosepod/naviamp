@@ -186,6 +186,9 @@ sealed interface NaviampCoreCommand {
         data class SelectDiscoveryArtist(val id: String) : Home
         data class BrowseDiscoveryArtist(val sourceId: String?, val artist: app.naviamp.domain.provider.ProviderDiscoveryArtist) : Home
         data class SelectDiscoveryRelease(val id: String) : Home
+        data class OpenDiscoveryLibraryRelease(val sourceId: String?, val sourceGeneration: Long, val releaseId: String) : Home
+        data class DiscoveryReleaseAction(val sourceId: String?, val sourceGeneration: Long, val releaseId: String,
+            val action: app.naviamp.domain.provider.ProviderDiscoveryAction) : Home
         data class DiscoveryViewport(val index: Int, val offset: Int, val section: app.naviamp.domain.media.AlbumReleaseSection?) : Home
         data object DismissDiscoveryArtist : Home
         data class DiscoveryAction(val id: String, val action: app.naviamp.domain.provider.ProviderDiscoveryAction) : Home

@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">प्लेयर भरने के लिए कवर को क्रॉप करें और नियंत्रणों के पीछे गहरा ग्रेडिएंट दिखाएँ।</string>
     <string name="now_playing_toggle_visualizer">विज़ुअलाइज़र चालू या बंद करें</string>
     <string name="discovery_similar_artists">मिलते-जुलते कलाकार</string>
+    <string name="discovery_editions">संस्करण</string>
+    <string name="discovery_preview_unavailable">पूर्वावलोकन उपलब्ध नहीं</string>
+    <string name="discovery_no_release_tracks">ट्रैक सूची उपलब्ध नहीं है।</string>
+    <string name="discovery_release_catalogued">सर्वर लाइब्रेरी में सहेजा गया; कोई फ़ाइल उपलब्ध नहीं है।</string>
+    <string name="discovery_release_partial">सर्वर लाइब्रेरी में आंशिक रूप से उपलब्ध है।</string>
+    <string name="discovery_release_available">सर्वर लाइब्रेरी में उपलब्ध है।</string>
+    <string name="discovery_server_acquisition">अनुरोध सर्वर लाइब्रेरी में संगीत जोड़ते हैं।</string>
+    <string name="discovery_request_conflict">दोबारा अनुरोध करने से पहले Aurral में स्वामित्व का विरोध हल करें।</string>
+    <string name="discovery_request_identity_unavailable">अनुरोध उपलब्ध नहीं: कलाकार के क्रेडिट सत्यापित नहीं किए जा सके।</string>
 </resources>

@@ -1226,4 +1226,13 @@
     <string name="settings_fill_now_playing_artwork_description">Das Cover füllt zugeschnitten den Player, mit einem dunklen Verlauf hinter den Bedienelementen.</string>
     <string name="now_playing_toggle_visualizer">Visualisierung umschalten</string>
     <string name="discovery_similar_artists">Ähnliche Künstler</string>
+    <string name="discovery_editions">Ausgaben</string>
+    <string name="discovery_preview_unavailable">Hörprobe nicht verfügbar</string>
+    <string name="discovery_no_release_tracks">Keine Titelliste verfügbar.</string>
+    <string name="discovery_release_catalogued">In der Serverbibliothek gespeichert; keine Dateien verfügbar.</string>
+    <string name="discovery_release_partial">Teilweise in der Serverbibliothek verfügbar.</string>
+    <string name="discovery_release_available">In der Serverbibliothek verfügbar.</string>
+    <string name="discovery_server_acquisition">Anfragen fügen Musik zur Serverbibliothek hinzu.</string>
+    <string name="discovery_request_conflict">Löse den Zuordnungskonflikt in Aurral, bevor du erneut anfragst.</string>
+    <string name="discovery_request_identity_unavailable">Anfrage nicht verfügbar: Künstlerangaben konnten nicht bestätigt werden.</string>
 </resources>

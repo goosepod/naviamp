@@ -31,7 +31,9 @@ fun interface ProviderDiscovery {
     suspend fun recommendations(offset: Int = 0, limit: Int = 100): ProviderRecommendationPage = ProviderRecommendationPage()
     suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int = 0, limit: Int = 24): ProviderCatalogPage = ProviderCatalogPage()
     suspend fun releaseTracks(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseTracks = ProviderDiscoveryReleaseTracks()
+    suspend fun releaseTracks(release: DiscoveryReleaseGroupMbid, context: ProviderDiscoveryReleaseContext): ProviderDiscoveryReleaseTracks = releaseTracks(release)
     suspend fun releaseDetails(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseDetails = ProviderDiscoveryReleaseDetails()
+    suspend fun releaseOwnership(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseOwnership = ProviderDiscoveryReleaseOwnership()
     suspend fun requestActivity(): ProviderDiscoveryActivities = ProviderDiscoveryActivities()
     suspend fun similarArtists(artist: DiscoveryArtistMbid): ProviderDiscoverySimilarArtists = ProviderDiscoverySimilarArtists()
     suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult =
@@ -39,6 +41,7 @@ fun interface ProviderDiscovery {
     suspend fun samples(artist: ProviderDiscoveryArtist): ProviderDiscoverySamples = ProviderDiscoverySamples()
     suspend fun requestTrack(artist: ProviderDiscoveryArtist, sample: ProviderDiscoverySample): ProviderDiscoveryOperation = ProviderDiscoveryOperation()
     suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation = ProviderDiscoveryOperation()
+    suspend fun requestReleaseTrack(context: ProviderDiscoveryReleaseContext, track: ProviderDiscoveryReleaseTrack): ProviderDiscoveryOperation = ProviderDiscoveryOperation()
     suspend fun setMonitoring(artist: ProviderDiscoveryArtist, enabled: Boolean): ProviderDiscoveryOperation = ProviderDiscoveryOperation()
     suspend fun toggleFeedback(artist: ProviderDiscoveryArtist, action: ProviderDiscoveryFeedbackAction): ProviderDiscoveryFeedbackResult =
         ProviderDiscoveryFeedbackResult(ProviderDiscoveryStatus.Unsupported)
@@ -97,10 +100,11 @@ data class ProviderDiscoverySample(val id: String, val title: String, val albumT
 const val DiscoveryPreviewTrackPrefix = "discovery-preview:"
 fun app.naviamp.domain.TrackId.isDiscoveryPreview(): Boolean = value.startsWith(DiscoveryPreviewTrackPrefix)
 data class ProviderDiscoverySamples(val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported, val tracks: List<ProviderDiscoverySample> = emptyList())
-enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain }
+enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Conflict, Forbidden, Unsupported, Unavailable, Uncertain }
 data class ProviderDiscoveryOperation(
     val status: ProviderDiscoveryOperationStatus = ProviderDiscoveryOperationStatus.Unsupported,
     val identity: ProviderDiscoveryRequestIdentity? = null,
+    val httpStatusCode: Int? = null,
 )
 sealed interface ProviderDiscoveryAction {
     data class PlaySample(val id: String) : ProviderDiscoveryAction

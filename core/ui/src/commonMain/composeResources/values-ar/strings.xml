@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">اقتصاص الغلاف لملء المشغّل مع تدرج داكن خلف عناصر التحكم.</string>
     <string name="now_playing_toggle_visualizer">تبديل المؤثرات المرئية</string>
     <string name="discovery_similar_artists">فنانون مشابهون</string>
+    <string name="discovery_editions">الإصدارات</string>
+    <string name="discovery_preview_unavailable">المعاينة غير متاحة</string>
+    <string name="discovery_no_release_tracks">قائمة المقاطع غير متاحة.</string>
+    <string name="discovery_release_catalogued">محفوظ في مكتبة الخادم؛ لا توجد ملفات متاحة.</string>
+    <string name="discovery_release_partial">متاح جزئيًا في مكتبة الخادم.</string>
+    <string name="discovery_release_available">متاح في مكتبة الخادم.</string>
+    <string name="discovery_server_acquisition">تضيف الطلبات الموسيقى إلى مكتبة الخادم.</string>
+    <string name="discovery_request_conflict">حل تعارض الملكية في Aurral قبل الطلب مجددًا.</string>
+    <string name="discovery_request_identity_unavailable">الطلب غير متاح: تعذر التحقق من أسماء الفنانين.</string>
 </resources>

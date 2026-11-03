@@ -5,6 +5,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -75,21 +78,107 @@ internal fun NaviampDiscoveryArtistPage(
             when {
                 release.loading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                 release.result?.status != ProviderDiscoveryStatus.Ready -> {
-                    Text(stringResource(Res.string.discovery_unavailable), color = colors.secondaryText)
+                    Text(stringResource(discoveryStatusMessage(release.result?.status)), color = colors.secondaryText)
                     TextButton(onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
                 }
                 else -> {
                     Text(release.result.credits.joinToString(", ") { it.name }, color = colors.secondaryText)
                     NaviampProviderDescription(release.result.overview, release.release.id, colors)
+                    if (release.result.genres.isNotEmpty()) Text(release.result.genres.joinToString(", "), color = colors.secondaryText)
+                    if (release.result.editions.isNotEmpty()) {
+                        Text(stringResource(Res.string.discovery_editions), color = colors.primaryText, modifier = Modifier.semantics { heading() })
+                        release.result.editions.forEach { edition ->
+                            Text(listOfNotNull(edition.title, edition.date, edition.status).joinToString(" · "), color = colors.secondaryText)
+                        }
+                    }
                 }
             }
+            if (release.ownershipLoading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+            else if (release.ownership?.status !in listOf(ProviderDiscoveryStatus.Ready, ProviderDiscoveryStatus.Unsupported)) {
+                Text(stringResource(discoveryStatusMessage(release.ownership?.status)), color = colors.secondaryText)
+                TextButton(onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+            }
+            release.ownership?.availability?.let { availability ->
+                val label = when (availability) {
+                    ProviderDiscoveryReleaseAvailability.NotOwned -> null
+                    ProviderDiscoveryReleaseAvailability.Catalogued -> Res.string.discovery_release_catalogued
+                    ProviderDiscoveryReleaseAvailability.Partial -> Res.string.discovery_release_partial
+                    ProviderDiscoveryReleaseAvailability.Available -> Res.string.discovery_release_available
+                }
+                label?.let { Text(stringResource(it), color = colors.secondaryText) }
+            }
+            if (release.ownership?.libraryAlbum != null) TextButton(onClick = {
+                actions.onDiscoveryLibraryRelease(discovery.sourceId, discovery.sourceGeneration, release.release.id)
+            }) { Text(stringResource(Res.string.discovery_open_library)) }
+            if (!release.loading && release.result?.status == ProviderDiscoveryStatus.Ready && release.requestContext == null &&
+                (artist.details?.canRequestAlbums == true || artist.details?.canRequestTracks == true))
+                Text(stringResource(Res.string.discovery_request_identity_unavailable), color = colors.secondaryText)
             if (artist.details?.canRequestAlbums == true) TextButton(
-                enabled = !artist.actionBusy && !artist.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.release.id) !in artist.blockedActions,
-                onClick = { actions.onDiscoveryAction(artist.artist.id, ProviderDiscoveryAction.RequestAlbum(release.release.id)) }) {
+                enabled = release.requestContext != null && !artist.actionBusy && !artist.savingFeedback && release.ownership?.availability != ProviderDiscoveryReleaseAvailability.Available &&
+                    ProviderDiscoveryAction.RequestAlbum(release.release.id) !in artist.blockedActions,
+                onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration,
+                    release.release.id, ProviderDiscoveryAction.RequestAlbum(release.release.id)) }) {
                 Text(stringResource(Res.string.discovery_request_album))
             }
+            if (artist.details?.canRequestAlbums == true || artist.details?.canRequestTracks == true)
+                Text(stringResource(Res.string.discovery_server_acquisition), color = colors.secondaryText)
             if (artist.actionBusy) Text(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
-            artist.operationStatus?.let { Text(stringResource(discoveryOperationMessage(it)), color = colors.secondaryText) }
+            artist.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.release.id)]?.status
+                ?.let { Text(stringResource(discoveryOperationMessage(it)), color = colors.secondaryText) }
+            Text(stringResource(Res.string.search_tracks_section), color = colors.primaryText, modifier = Modifier.semantics { heading() })
+            when {
+                release.tracksLoading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+                release.tracks?.status != ProviderDiscoveryStatus.Ready -> {
+                    Text(stringResource(discoveryStatusMessage(release.tracks?.status)), color = colors.secondaryText)
+                    TextButton(onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+                }
+                release.tracks.tracks.isEmpty() -> Text(stringResource(Res.string.discovery_no_release_tracks), color = colors.secondaryText)
+                else -> {
+                    if (playback.failed) Text(stringResource(Res.string.discovery_samples_failed), color = colors.secondaryText)
+                    var previousDisc: Int? = null
+                    release.tracks.tracks.forEach { track ->
+                        if (track.discNumber != previousDisc) {
+                            track.discNumber?.let { Text(stringResource(Res.string.album_disc_number, it), color = colors.secondaryText) }
+                            previousDisc = track.discNumber
+                        }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(track.trackNumber?.toString().orEmpty(), color = colors.secondaryText)
+                            val preview = track.previewId
+                            if (preview != null) {
+                                val active = playback.trackId == DiscoveryPreviewTrackPrefix + preview.value
+                                val playing = active && playback.playing
+                                IconButton(enabled = !active || playback.canToggle,
+                                    onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration,
+                                        release.release.id, ProviderDiscoveryAction.PlaySample(preview.value)) }) {
+                                    Icon(if (playing) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
+                                        stringResource(if (playing) Res.string.transport_pause else Res.string.discovery_play_sample), tint = colors.primaryText)
+                                }
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(track.title, color = colors.primaryText)
+                                if (preview == null) Text(stringResource(Res.string.discovery_preview_unavailable), color = colors.secondaryText)
+                            }
+                            Text(track.durationMillis?.let { (it / 1000.0).durationLabel() } ?: "", color = colors.secondaryText)
+                            track.recordingMbid?.let { recording ->
+                                val action = ProviderDiscoveryAction.RequestTrack(recording.value)
+                                if (artist.details?.canRequestTracks == true) IconButton(
+                                    enabled = release.requestContext != null && !artist.actionBusy && !artist.savingFeedback &&
+                                        action !in artist.blockedActions && recording !in release.ownership?.ownedRecordings.orEmpty(),
+                                    onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration, release.release.id, action) }) {
+                                    Icon(NaviampIcons.Downloads, stringResource(Res.string.discovery_request_track), tint = colors.secondaryText)
+                                }
+                            }
+                        }
+                        track.recordingMbid?.let { recording ->
+                            if (recording in release.ownership?.ownedRecordings.orEmpty())
+                                Text(stringResource(Res.string.discovery_request_owned), color = colors.secondaryText)
+                            artist.requestOperations[ProviderDiscoveryAction.RequestTrack(recording.value)]?.status
+                                ?.let { Text(stringResource(discoveryOperationMessage(it)), color = colors.secondaryText) }
+                        }
+                    }
+                }
+            }
         }
         return
     }

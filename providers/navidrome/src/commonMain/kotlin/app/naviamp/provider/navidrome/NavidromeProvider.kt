@@ -119,6 +119,11 @@ class NavidromeProvider(
                     val candidateId = "artist:${identityKey.urlEncode().replace("%3A", ":", ignoreCase = true)}"
                     val raw = get("getArtist.view", mapOf("id" to candidateId)).subsonicResponse()["artist"] as? JsonObject
                     raw?.takeIf { it.stringValue("musicBrainzId").equals(mbid, ignoreCase = true) }?.toArtist()
+                }, resolveLibraryAlbum = { identityKey, mbid ->
+                    val candidateId = "album:${identityKey.urlEncode().replace("%3A", ":", ignoreCase = true)}"
+                    val raw = get("getAlbum.view", mapOf("id" to candidateId)).subsonicResponse()["album"] as? JsonObject
+                    raw?.takeIf { it.stringValue("id") == candidateId && it.stringValue("musicBrainzId").equals(mbid, ignoreCase = true) &&
+                        (it["song"] as? JsonArray)?.isNotEmpty() == true }?.toAlbum()
                 })
         } else null
     override val discovery: app.naviamp.domain.provider.ProviderDiscovery? get() = aurralDiscovery
@@ -2524,6 +2529,7 @@ interface NavidromeHttpClient {
 data class NavidromeHttpResponse(
     val body: String,
     val headers: Map<String, String> = emptyMap(),
+    val statusCode: Int = 200,
 ) {
     fun header(name: String): String? =
         headers.entries.firstOrNull { (key, _) -> key.equals(name, ignoreCase = true) }?.value
@@ -2612,7 +2618,7 @@ open class NavidromeException(
 class NavidromePasswordRequiredException :
     NavidromeException(ConnectionPasswordRequiredStatus, 41)
 
-class NavidromeHttpException(val statusCode: Int) :
+class NavidromeHttpException(val statusCode: Int, val responseBody: String? = null) :
     NavidromeException("Navidrome returned HTTP $statusCode.")
 
 class NavidromeRateLimitException(

@@ -9,6 +9,32 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun releaseContextLoadsEditionAndPreviewMetadataWithoutAcquisition() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        val readOnly = object : NavidromeHttpClient by transport {
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                check(url == connection.normalizedBaseUrl + "/api/auth/login") { "Live acceptance cannot submit acquisition" }
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Read-only acceptance")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Read-only acceptance")
+        }
+        val client = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, readOnly)
+        val artist = ProviderDiscoveryArtist("a74b1b7f-71a5-4011-9441-d0b5e4122711", "Radiohead", detailsAvailable = true)
+        val releases = client.artistDetails(artist).details!!.releases
+        val release = releases.first { it.releaseGroupMbid != null }
+        val details = client.releaseDetails(release.releaseGroupMbid!!)
+        val tracks = client.releaseTracks(release.releaseGroupMbid!!, ProviderDiscoveryReleaseContext(artist, release))
+        assertEquals(ProviderDiscoveryStatus.Ready, details.status)
+        assertEquals(ProviderDiscoveryStatus.Ready, tracks.status)
+        assertTrue(tracks.tracks.isNotEmpty())
+        assertTrue(tracks.tracks.any { it.recordingMbid != null })
+        println("Aurral release context: editions=${details.editions.size}, tracks=${tracks.tracks.size}, previews=${tracks.tracks.count { it.previewId != null }}")
+    }
+
     @Test fun expandedCatalogContractsUseReadOnlyRoutesAndKeepIdentityNamespaces() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
@@ -29,6 +55,8 @@ class AurralLiveTest {
                 loginCount++
                 return transport.postJson(url, body, headers)
             }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
             override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Live research is read-only")
             override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Live research is read-only")
         }

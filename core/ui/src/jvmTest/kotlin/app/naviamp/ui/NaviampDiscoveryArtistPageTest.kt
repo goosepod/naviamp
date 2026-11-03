@@ -154,20 +154,27 @@ internal fun discoveryPageFixture(): SharedProviderDiscoveryUi {
 internal fun discoveryPageFixtureActions(
     screen: androidx.compose.runtime.MutableState<SharedProviderDiscoveryUi>,
     actions: MutableList<String>,
-): NaviampHomeActions = NaviampHomeActions({}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> },
+): NaviampHomeActions {
+    val runAction: (String, ProviderDiscoveryAction) -> Unit = { _, action ->
+        if (action is ProviderDiscoveryAction.RequestAlbum || action is ProviderDiscoveryAction.RequestTrack)
+            screen.value = screen.value.copy(artistDetail = screen.value.artistDetail?.let { it.copy(
+                operationStatus = ProviderDiscoveryOperationStatus.Queued, blockedActions = it.blockedActions + action,
+                requestOperations = it.requestOperations + (action to ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued))) })
+        else actions += "sample"
+    }
+    return NaviampHomeActions({}, {}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> },
     onDiscoveryArtistDismiss = { actions += "back"; screen.value = screen.value.copy(releasePage = null) },
     onDiscoveryArtistDetails = { actions += "related" },
-    onDiscoveryAction = { _, action ->
-        if (action is ProviderDiscoveryAction.RequestAlbum) screen.value = screen.value.copy(artistDetail = screen.value.artistDetail?.copy(
-            operationStatus = ProviderDiscoveryOperationStatus.Queued, blockedActions = setOf(action)))
-        else actions += "sample"
-    },
+    onDiscoveryAction = runAction,
+    onDiscoveryReleaseAction = { _, _, _, action -> runAction(screen.value.artistDetail!!.artist.id, action) },
     onDiscoveryRelease = { id ->
         val release = screen.value.artistDetail!!.details!!.releases.first { it.id == id }
         screen.value = screen.value.copy(releasePage = SharedDiscoveryReleaseUi(release, loading = false,
-            result = ProviderDiscoveryReleaseDetails(ProviderDiscoveryStatus.Ready, release, overview = "Release overview")))
+            result = ProviderDiscoveryReleaseDetails(ProviderDiscoveryStatus.Ready, release, overview = "Release overview"),
+            requestContext = ProviderDiscoveryReleaseContext(screen.value.artistDetail!!.artist, release)))
     },
     onDiscoveryViewport = { index, offset, section ->
         screen.value = screen.value.copy(artistDetail = screen.value.artistDetail?.copy(
             firstVisibleItem = index, firstVisibleOffset = offset, releaseSection = section))
     })
+}

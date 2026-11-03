@@ -280,6 +280,8 @@ fun createNaviampCoreActions(
             onDiscoveryFeedback = { id, action -> send(NaviampCoreCommand.Home.DiscoveryFeedback(id, action)) },
             onDiscoveryAction = { id, action -> send(NaviampCoreCommand.Home.DiscoveryAction(id, action)) },
             onDiscoveryRelease = { send(NaviampCoreCommand.Home.SelectDiscoveryRelease(it)) },
+            onDiscoveryLibraryRelease = { source, generation, id -> send(NaviampCoreCommand.Home.OpenDiscoveryLibraryRelease(source, generation, id)) },
+            onDiscoveryReleaseAction = { source, generation, id, action -> send(NaviampCoreCommand.Home.DiscoveryReleaseAction(source, generation, id, action)) },
             onDiscoveryViewport = { index, offset, section -> send(NaviampCoreCommand.Home.DiscoveryViewport(index, offset, section)) },
             onDiscoveryLibraryArtist = { send(NaviampCoreCommand.Home.OpenDiscoveryLibraryArtist(it)) },
             onFavoriteArtistSortChanged = { send(NaviampCoreCommand.Settings.ChangeFavoriteArtistSort(it)) },

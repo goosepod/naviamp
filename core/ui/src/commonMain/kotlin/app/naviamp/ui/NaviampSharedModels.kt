@@ -982,6 +982,11 @@ data class SharedDiscoveryReleaseUi(
     val release: app.naviamp.domain.provider.ProviderDiscoveryRelease,
     val loading: Boolean = true,
     val result: app.naviamp.domain.provider.ProviderDiscoveryReleaseDetails? = null,
+    val tracksLoading: Boolean = true,
+    val tracks: app.naviamp.domain.provider.ProviderDiscoveryReleaseTracks? = null,
+    val ownershipLoading: Boolean = true,
+    val ownership: app.naviamp.domain.provider.ProviderDiscoveryReleaseOwnership? = null,
+    val requestContext: app.naviamp.domain.provider.ProviderDiscoveryReleaseContext? = null,
 )
 
 data class DiscoverySamplePlaybackUi(val trackId: String? = null, val playing: Boolean = false,
@@ -1001,6 +1006,7 @@ data class SharedProviderDiscoveryArtistUi(
     val operationStatus: app.naviamp.domain.provider.ProviderDiscoveryOperationStatus? = null,
     val blockedActions: Set<app.naviamp.domain.provider.ProviderDiscoveryAction> = emptySet(),
     val pendingAction: app.naviamp.domain.provider.ProviderDiscoveryAction? = null,
+    val requestOperations: Map<app.naviamp.domain.provider.ProviderDiscoveryAction, app.naviamp.domain.provider.ProviderDiscoveryOperation> = emptyMap(),
     val similar: app.naviamp.domain.provider.ProviderDiscoverySimilarArtists? = null,
     val similarLoading: Boolean = false,
     val firstVisibleItem: Int = 0,
@@ -1027,6 +1033,8 @@ data class NaviampHomeActions(
     val onDiscoveryLibraryArtist: (String) -> Unit = {},
     val onDiscoveryAction: (String, app.naviamp.domain.provider.ProviderDiscoveryAction) -> Unit = { _, _ -> },
     val onDiscoveryRelease: (String) -> Unit = {},
+    val onDiscoveryLibraryRelease: (String?, Long, String) -> Unit = { _, _, _ -> },
+    val onDiscoveryReleaseAction: (String?, Long, String, app.naviamp.domain.provider.ProviderDiscoveryAction) -> Unit = { _, _, _, _ -> },
     val onDiscoveryViewport: (Int, Int, app.naviamp.domain.media.AlbumReleaseSection?) -> Unit = { _, _, _ -> },
 )
 

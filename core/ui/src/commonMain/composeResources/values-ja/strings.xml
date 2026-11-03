@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">カバー画像をトリミングしてプレーヤー全体に表示し、操作部分の背景を暗くします。</string>
     <string name="now_playing_toggle_visualizer">ビジュアライザーを切り替え</string>
     <string name="discovery_similar_artists">似ているアーティスト</string>
+    <string name="discovery_editions">エディション</string>
+    <string name="discovery_preview_unavailable">プレビューを利用できません</string>
+    <string name="discovery_no_release_tracks">トラックリストを利用できません。</string>
+    <string name="discovery_release_catalogued">サーバーのライブラリに保存済みですが、利用可能なファイルはありません。</string>
+    <string name="discovery_release_partial">サーバーのライブラリで一部が利用可能です。</string>
+    <string name="discovery_release_available">サーバーのライブラリで利用可能です。</string>
+    <string name="discovery_server_acquisition">リクエストするとサーバーのライブラリに音楽が追加されます。</string>
+    <string name="discovery_request_conflict">再度リクエストする前に、Aurral で所有権の競合を解決してください。</string>
+    <string name="discovery_request_identity_unavailable">リクエストできません：アーティストのクレジットを確認できませんでした。</string>
 </resources>

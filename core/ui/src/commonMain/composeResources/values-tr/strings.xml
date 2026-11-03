@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">Kapağı oynatıcıyı dolduracak şekilde kırp ve denetimlerin arkasına koyu geçiş ekle.</string>
     <string name="now_playing_toggle_visualizer">Görselleştiriciyi aç veya kapat</string>
     <string name="discovery_similar_artists">Benzer sanatçılar</string>
+    <string name="discovery_editions">Sürümler</string>
+    <string name="discovery_preview_unavailable">Önizleme kullanılamıyor</string>
+    <string name="discovery_no_release_tracks">Parça listesi mevcut değil.</string>
+    <string name="discovery_release_catalogued">Sunucu kitaplığına kaydedildi; kullanılabilir dosya yok.</string>
+    <string name="discovery_release_partial">Sunucu kitaplığında kısmen kullanılabilir.</string>
+    <string name="discovery_release_available">Sunucu kitaplığında kullanılabilir.</string>
+    <string name="discovery_server_acquisition">İstekler sunucu kitaplığına müzik ekler.</string>
+    <string name="discovery_request_conflict">Yeniden istemeden önce Aurral içindeki sahiplik çakışmasını çözün.</string>
+    <string name="discovery_request_identity_unavailable">İstek kullanılamıyor: sanatçı bilgileri doğrulanamadı.</string>
 </resources>

@@ -142,6 +142,7 @@ class NaviampCoreHomeController(
     private val playDiscoverySample: suspend (Track) -> Unit = {},
     private val stopDiscoverySample: () -> Unit = {},
     private val openLibraryArtist: suspend (app.naviamp.domain.Artist) -> Unit = {},
+    private val openLibraryAlbum: suspend (app.naviamp.domain.Album) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var refreshGeneration = 0L
     private var discoveryFeedGeneration = 0L
@@ -151,6 +152,7 @@ class NaviampCoreHomeController(
         refreshFeed = { provider -> refreshProviderDiscovery(provider, refreshGeneration) },
         showPage = navigationController::openDiscoveryPage,
         restoreRoute = navigationController::returnFromDiscoveryPage,
+        openLibraryAlbum = openLibraryAlbum,
     )
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {

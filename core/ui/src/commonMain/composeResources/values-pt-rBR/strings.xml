@@ -1232,4 +1232,13 @@
         <item quantity="other">%1$d itens</item>
     </plurals>
     <string name="discovery_similar_artists">Artistas semelhantes</string>
+    <string name="discovery_editions">Edições</string>
+    <string name="discovery_preview_unavailable">Prévia indisponível</string>
+    <string name="discovery_no_release_tracks">Nenhuma lista de faixas disponível.</string>
+    <string name="discovery_release_catalogued">Salvo na biblioteca do servidor; nenhum arquivo disponível.</string>
+    <string name="discovery_release_partial">Parcialmente disponível na biblioteca do servidor.</string>
+    <string name="discovery_release_available">Disponível na biblioteca do servidor.</string>
+    <string name="discovery_server_acquisition">As solicitações adicionam músicas à biblioteca do servidor.</string>
+    <string name="discovery_request_conflict">Resolva o conflito de propriedade no Aurral antes de solicitar novamente.</string>
+    <string name="discovery_request_identity_unavailable">Solicitação indisponível: não foi possível verificar os créditos dos artistas.</string>
 </resources>

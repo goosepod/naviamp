@@ -139,11 +139,12 @@ class KtorNavidromeHttpClient private constructor(
             val statusCode = response.status.value
             if (!response.status.isSuccess()) {
                 rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])?.let { throw it }
-                throw NavidromeHttpException(statusCode)
+                throw NavidromeHttpException(statusCode, if (statusCode == 409) response.body<String>() else null)
             }
             NavidromeHttpResponse(
                 body = response.body<String>(),
                 headers = response.headers.entries().associate { (name, values) -> name to values.joinToString(",") },
+                statusCode = statusCode,
             ).also {
                 recordApiCall(
                     method = method.value,

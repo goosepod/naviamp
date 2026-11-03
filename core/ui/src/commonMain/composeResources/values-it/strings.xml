@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">Ritaglia la copertina per riempire il lettore, con una sfumatura scura dietro i controlli.</string>
     <string name="now_playing_toggle_visualizer">Attiva o disattiva la visualizzazione</string>
     <string name="discovery_similar_artists">Artisti simili</string>
+    <string name="discovery_editions">Edizioni</string>
+    <string name="discovery_preview_unavailable">Anteprima non disponibile</string>
+    <string name="discovery_no_release_tracks">Nessun elenco di brani disponibile.</string>
+    <string name="discovery_release_catalogued">Salvato nella libreria del server; nessun file disponibile.</string>
+    <string name="discovery_release_partial">Parzialmente disponibile nella libreria del server.</string>
+    <string name="discovery_release_available">Disponibile nella libreria del server.</string>
+    <string name="discovery_server_acquisition">Le richieste aggiungono musica alla libreria del server.</string>
+    <string name="discovery_request_conflict">Risolvi il conflitto di proprietà in Aurral prima di richiedere di nuovo.</string>
+    <string name="discovery_request_identity_unavailable">Richiesta non disponibile: impossibile verificare i crediti degli artisti.</string>
 </resources>

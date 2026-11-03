@@ -319,6 +319,9 @@ class NaviampCore private constructor(
                 observedAtIso8601 = services.favoritedAtIso8601,
                 externalUri = services.content.externalUri,
                 openLibraryArtist = { mediaDetails.selectArtist(it.toSharedMediaItemUi()) },
+                openLibraryAlbum = { album -> mediaDetails.selectAlbum(album.toSharedMediaItemUi(coverArtUrl = { id ->
+                    id?.let { providerSource.current()?.coverArtUrl(it) }
+                })) },
                 playDiscoverySample = { samplePlayback.toggle(it) },
                 stopDiscoverySample = samplePlayback::stop,
             )

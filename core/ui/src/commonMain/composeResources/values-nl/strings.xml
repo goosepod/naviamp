@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">Snijd de hoes bij om het afspeelvlak te vullen, met een donkere overgang achter de bediening.</string>
     <string name="now_playing_toggle_visualizer">Visualisatie aan- of uitzetten</string>
     <string name="discovery_similar_artists">Vergelijkbare artiesten</string>
+    <string name="discovery_editions">Edities</string>
+    <string name="discovery_preview_unavailable">Fragment niet beschikbaar</string>
+    <string name="discovery_no_release_tracks">Geen tracklijst beschikbaar.</string>
+    <string name="discovery_release_catalogued">Opgeslagen in de serverbibliotheek; geen bestanden beschikbaar.</string>
+    <string name="discovery_release_partial">Gedeeltelijk beschikbaar in de serverbibliotheek.</string>
+    <string name="discovery_release_available">Beschikbaar in de serverbibliotheek.</string>
+    <string name="discovery_server_acquisition">Verzoeken voegen muziek toe aan de serverbibliotheek.</string>
+    <string name="discovery_request_conflict">Los het eigendomsconflict in Aurral op voordat je opnieuw een verzoek indient.</string>
+    <string name="discovery_request_identity_unavailable">Verzoek niet beschikbaar: artiestvermeldingen konden niet worden geverifieerd.</string>
 </resources>

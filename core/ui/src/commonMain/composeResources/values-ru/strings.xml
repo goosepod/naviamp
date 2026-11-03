@@ -400,4 +400,13 @@
     <string name="settings_fill_now_playing_artwork_description">Обрезать обложку по размеру плеера и добавить тёмный градиент под элементами управления.</string>
     <string name="now_playing_toggle_visualizer">Переключить визуализацию</string>
     <string name="discovery_similar_artists">Похожие исполнители</string>
+    <string name="discovery_editions">Издания</string>
+    <string name="discovery_preview_unavailable">Фрагмент недоступен</string>
+    <string name="discovery_no_release_tracks">Список композиций недоступен.</string>
+    <string name="discovery_release_catalogued">Сохранено в библиотеке сервера; файлы недоступны.</string>
+    <string name="discovery_release_partial">Частично доступно в библиотеке сервера.</string>
+    <string name="discovery_release_available">Доступно в библиотеке сервера.</string>
+    <string name="discovery_server_acquisition">Запросы добавляют музыку в библиотеку сервера.</string>
+    <string name="discovery_request_conflict">Разрешите конфликт принадлежности в Aurral перед повторным запросом.</string>
+    <string name="discovery_request_identity_unavailable">Запрос недоступен: не удалось проверить данные исполнителей.</string>
 </resources>

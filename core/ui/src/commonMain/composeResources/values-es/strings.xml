@@ -1230,4 +1230,13 @@
     <string name="settings_fill_now_playing_artwork_description">Recortar la carátula para llenar el reproductor, con un degradado oscuro detrás de los controles.</string>
     <string name="now_playing_toggle_visualizer">Activar o desactivar el visualizador</string>
     <string name="discovery_similar_artists">Artistas similares</string>
+    <string name="discovery_editions">Ediciones</string>
+    <string name="discovery_preview_unavailable">Vista previa no disponible</string>
+    <string name="discovery_no_release_tracks">No hay lista de pistas disponible.</string>
+    <string name="discovery_release_catalogued">Guardado en la biblioteca del servidor; no hay archivos disponibles.</string>
+    <string name="discovery_release_partial">Disponible parcialmente en la biblioteca del servidor.</string>
+    <string name="discovery_release_available">Disponible en la biblioteca del servidor.</string>
+    <string name="discovery_server_acquisition">Las solicitudes añaden música a la biblioteca del servidor.</string>
+    <string name="discovery_request_conflict">Resuelve el conflicto de propiedad en Aurral antes de volver a solicitar.</string>
+    <string name="discovery_request_identity_unavailable">Solicitud no disponible: no se pudieron verificar los créditos del artista.</string>
 </resources>
