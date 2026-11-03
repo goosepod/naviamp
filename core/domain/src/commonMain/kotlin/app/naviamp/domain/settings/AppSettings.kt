@@ -183,6 +183,7 @@ data class InterfaceSettings(
     val showArtistTopTracks: Boolean = true,
     val artistTopTracksLimit: Int = DefaultArtistTopTracksLimit,
     val showAlbumInformation: Boolean = true,
+    val squareAlbumArtwork: Boolean = false,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,
     val auroraColorSteps: Int = 3,

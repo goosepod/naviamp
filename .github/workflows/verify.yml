@@ -102,6 +102,7 @@ jobs:
           jvmTest
           :apps:android:testDebugUnitTest
           :apps:android:testReleaseUnitTest
+          :apps:android:lintRelease
           :apps:android:verifyDebugBassNativePackage
           :apps:android:verifyReleaseOptimization
           :apps:android:bundleDebug

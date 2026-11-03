@@ -1,11 +1,16 @@
 package app.naviamp.android
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.ActivityManager
+import android.app.Notification
+import android.app.NotificationManager
 import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
@@ -43,6 +48,53 @@ class AndroidPlaybackServiceStartupInstrumentedTest {
 
     @Test
     fun foregroundStartAcknowledgesAnUnavailableBridge() = assertAcknowledgment(withoutBridge = true)
+
+    /** Check the actual service notification and Android's media-session exemption on API 33+. */
+    @SuppressLint("NotificationPermission")
+    @Test
+    fun mediaSessionNotificationCanBeUpdatedWithoutNotificationPermission() {
+        assumeTrue(Build.VERSION.SDK_INT >= 33)
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        // The app deliberately does not request this permission. Never modify a user's grants.
+        assertEquals(PackageManager.PERMISSION_DENIED, context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS))
+        ActivityScenario.launch(MainActivity::class.java).use {
+            val originalBridge = AndroidNaviampPlaybackRuntime.bridge()!!
+            assumeTrue(originalBridge.snapshot().state == NaviampExternalPlaybackState.Idle)
+            SystemClock.sleep(1_500)
+            context.stopService(AndroidNaviampPlaybackService.refreshIntent(context))
+            instrumentation.waitForIdleSync()
+            AndroidNaviampPlaybackRuntime.uninstall(originalBridge)
+            val manager = context.getSystemService(NotificationManager::class.java)
+            try {
+                context.startForegroundService(AndroidNaviampPlaybackService.foregroundStartIntent(context))
+                val deadline = SystemClock.elapsedRealtime() + 5_000
+                var posted = manager.activeNotifications.firstOrNull { it.notification.channelId == "naviamp-playback-v2" }
+                while (posted == null && SystemClock.elapsedRealtime() < deadline) {
+                    SystemClock.sleep(25)
+                    posted = manager.activeNotifications.firstOrNull { it.notification.channelId == "naviamp-playback-v2" }
+                }
+                val initial = checkNotNull(posted) { "Media-session notification was not posted" }
+                assertEquals(Notification.MediaStyle::class.java.name, initial.notification.extras.getString(Notification.EXTRA_TEMPLATE))
+                assertTrue(initial.notification.extras.containsKey(Notification.EXTRA_MEDIA_SESSION))
+                val updated = Notification.Builder.recoverBuilder(context, initial.notification)
+                    .setContentText("Notification exemption regression")
+                    .build()
+                manager.notify(initial.id, updated)
+                val updateDeadline = SystemClock.elapsedRealtime() + 5_000
+                while (manager.activeNotifications.none {
+                    it.id == initial.id && it.notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() == "Notification exemption regression"
+                } && SystemClock.elapsedRealtime() < updateDeadline) SystemClock.sleep(25)
+                assertTrue(manager.activeNotifications.any {
+                    it.id == initial.id && it.notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() == "Notification exemption regression"
+                }, "Android rejected the media-session notification update without POST_NOTIFICATIONS")
+                assertTrue(isForeground(context))
+            } finally {
+                AndroidNaviampPlaybackRuntime.install(originalBridge)
+                context.stopService(AndroidNaviampPlaybackService.refreshIntent(context))
+            }
+        }
+    }
 
     private fun assertAcknowledgment(withoutBridge: Boolean) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()

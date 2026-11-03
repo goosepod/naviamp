@@ -342,6 +342,7 @@ private fun ArtistDetailContent(
                     96.dp,
                     48.dp,
                     fallbackUrl = detail.artist.fallbackCoverArtUrl,
+                    mediaKind = SharedMediaItemKind.Artist,
                 )
             }
             Column(
@@ -505,6 +506,7 @@ private fun ArtistDetailContent(
                             section.albums.forEach { album ->
                                 SharedMediaRow(
                                     item = album,
+                                    mediaKind = SharedMediaItemKind.Album,
                                     colors = colors,
                                     onClick = { onAlbumSelected(album) },
                                     menuItems = albumMenuItems(album),
@@ -716,7 +718,7 @@ private fun SimilarArtistRow(
             }
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        NaviampCoverArt(artist.imageUrl, colors, 42.dp, 21.dp)
+        NaviampCoverArt(artist.imageUrl, colors, 42.dp, 21.dp, mediaKind = SharedMediaItemKind.Artist)
         Column(
             verticalArrangement = Arrangement.spacedBy(1.dp),
             modifier = Modifier.weight(1f),

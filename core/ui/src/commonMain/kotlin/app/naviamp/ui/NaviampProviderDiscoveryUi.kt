@@ -123,7 +123,7 @@ private fun DiscoveryArtistRail(
                 else Modifier
             Column(modifier = Modifier.width(142.dp).then(interaction), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 NaviampCoverArt(artist.imageUrl, colors, 128.dp,
-                    mediaArtworkCornerRadius(SharedMediaItemKind.Artist, 128.dp, 7.dp))
+                    resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Artist, 128.dp, 7.dp), mediaKind = SharedMediaItemKind.Artist)
                 Text(artist.name, color = colors.primaryText, fontSize = 13.sp,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (artist.genres.isNotEmpty()) {
@@ -191,7 +191,7 @@ internal fun NaviampDiscoveryArtistPanel(
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
                         NaviampCoverArt(screen.artist.imageUrl, colors, 96.dp,
-                            mediaArtworkCornerRadius(SharedMediaItemKind.Artist, 96.dp, 6.dp))
+                            resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Artist, 96.dp, 6.dp), mediaKind = SharedMediaItemKind.Artist)
                         if (screen.loading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                         if (!screen.loading && screen.status != ProviderDiscoveryStatus.Ready) {
                             Text(stringResource(when (screen.status) {
@@ -332,7 +332,7 @@ private fun DiscoveryReleaseCard(
 ) {
     Column(Modifier.width(size), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box {
-            NaviampCoverArt(release.imageUrl, colors, size, mediaArtworkCornerRadius(SharedMediaItemKind.Album, size, 7.dp))
+            NaviampCoverArt(release.imageUrl, colors, size, resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, size, 7.dp), mediaKind = SharedMediaItemKind.Album)
             if (screen.details?.canRequestAlbums == true) Surface(Modifier.align(Alignment.BottomEnd).padding(6.dp),
                 shape = RoundedCornerShape(6.dp), color = colors.controlSurface.copy(alpha = 0.92f)) {
                 IconButton(onClick = { onAction(ProviderDiscoveryAction.RequestAlbum(release.id)) },
