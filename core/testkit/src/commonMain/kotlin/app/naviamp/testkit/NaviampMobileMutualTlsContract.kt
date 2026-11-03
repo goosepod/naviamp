@@ -186,9 +186,3 @@ private suspend fun mobileTlsFixtureRequest(port: Int, path: String): Map<String
         }
     } finally { client.close() }
 }
-
-internal fun decodeNaviampMobileTlsControlResponse(text: String): Map<String, String> {
-    require(text.encodeToByteArray().size in 1..1_048_576)
-    return text.lineSequence().filter { '=' in it }
-        .associate { it.substringBefore('=') to it.substringAfter('=') }
-}
