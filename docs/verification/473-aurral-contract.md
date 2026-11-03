@@ -142,6 +142,18 @@ The live harness compares fallback status with the underlying HTTP failure and f
 payload is instead lost during parsing. A fallback pass is not successful release-payload acceptance;
 that still requires a healthy metadata provider. #473 remains open while this acceptance is pending.
 
+### Resumed acceptance
+
+The November 2 continuation found a readable release in the existing artist discography. Direct
+HTTP comparison returned complete release metadata and ten recording/preview rows. The production
+client probe now selects a known discography release rather than assuming album text search finds
+releases by that artist. Against updated main, the 11 catalog regressions, common Android/JVM/both
+iOS compilation and architecture verification pass. Fresh configured live output is
+`recommendationCount=337, artistCount=0, release=Ready, tracks=Ready`, with activity also Ready and
+one user login. No acquisition or server configuration changes were performed. Log:
+`build/473-resumed-live.log`. This resolves the earlier successful-payload acceptance gap without
+discarding the observed cooldown behavior or claiming that artist search returned matches.
+
 ## Verification results
 
 - 31 deterministic provider regressions pass: 11 catalog contract, 9 existing discovery, 5 action,

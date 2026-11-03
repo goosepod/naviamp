@@ -48,8 +48,13 @@ class AurralLiveTest {
         assertNotNull(artists.totalCount)
         val albums = discovery.searchCatalog("Radiohead", ProviderCatalogScope.Album, limit = 2)
         assertEquals(ProviderDiscoveryStatus.Ready, albums.status)
-        val album = albums.albums.first()
-        val release = DiscoveryReleaseGroupMbid(album.release.id)
+        assertTrue(albums.albums.isNotEmpty())
+        // Album text search matches release titles, not necessarily releases by this artist.
+        // Use the existing artist discography for a known, cacheable release-detail probe.
+        val artist = discovery.artistDetails(ProviderDiscoveryArtist(
+            "a74b1b7f-71a5-4011-9441-d0b5e4122711", "Radiohead", detailsAvailable = true))
+        assertEquals(ProviderDiscoveryStatus.Ready, artist.status)
+        val release = assertNotNull(artist.details).releases.first().releaseGroupMbid!!
         val details = discovery.releaseDetails(release)
         fun expectedMetadataStatus(key: String) = if (metadataFailures[key] in setOf(404, 429, 500, 502, 503, 504))
             ProviderDiscoveryStatus.Unavailable else ProviderDiscoveryStatus.Ready
