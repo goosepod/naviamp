@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">Tersedia sebagian di pustaka server.</string>
     <string name="discovery_release_available">Tersedia di pustaka server.</string>
     <string name="discovery_server_acquisition">Permintaan menambahkan musik ke pustaka server.</string>
-    <string name="discovery_request_conflict">Selesaikan konflik kepemilikan di Aurral sebelum meminta lagi.</string>
     <string name="discovery_request_identity_unavailable">Permintaan tidak tersedia: kredit artis tidak dapat diverifikasi.</string>
+    <string name="discovery_request_rejected">Aurral menolak permintaan ini. Periksa detailnya sebelum mencoba lagi.</string>
+    <string name="discovery_request_conflict">Album ini memiliki konflik kepemilikan pustaka. Tinjau di Aurral.</string>
 </resources>

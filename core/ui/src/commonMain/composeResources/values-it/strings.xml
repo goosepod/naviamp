@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">Parzialmente disponibile nella libreria del server.</string>
     <string name="discovery_release_available">Disponibile nella libreria del server.</string>
     <string name="discovery_server_acquisition">Le richieste aggiungono musica alla libreria del server.</string>
-    <string name="discovery_request_conflict">Risolvi il conflitto di proprietà in Aurral prima di richiedere di nuovo.</string>
     <string name="discovery_request_identity_unavailable">Richiesta non disponibile: impossibile verificare i crediti degli artisti.</string>
+    <string name="discovery_request_rejected">Aurral ha rifiutato questa richiesta. Controlla i dettagli prima di riprovare.</string>
+    <string name="discovery_request_conflict">Questo album presenta un conflitto di appartenenza nella libreria. Controllalo in Aurral.</string>
 </resources>

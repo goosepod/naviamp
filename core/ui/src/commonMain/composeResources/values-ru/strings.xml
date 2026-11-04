@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">Частично доступно в библиотеке сервера.</string>
     <string name="discovery_release_available">Доступно в библиотеке сервера.</string>
     <string name="discovery_server_acquisition">Запросы добавляют музыку в библиотеку сервера.</string>
-    <string name="discovery_request_conflict">Разрешите конфликт принадлежности в Aurral перед повторным запросом.</string>
     <string name="discovery_request_identity_unavailable">Запрос недоступен: не удалось проверить данные исполнителей.</string>
+    <string name="discovery_request_rejected">Aurral отклонил этот запрос. Проверьте подробности перед повторной попыткой.</string>
+    <string name="discovery_request_conflict">Для этого альбома возник конфликт принадлежности в библиотеке. Проверьте его в Aurral.</string>
 </resources>

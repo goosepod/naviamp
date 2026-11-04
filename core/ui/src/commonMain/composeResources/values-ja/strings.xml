@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">サーバーのライブラリで一部が利用可能です。</string>
     <string name="discovery_release_available">サーバーのライブラリで利用可能です。</string>
     <string name="discovery_server_acquisition">リクエストするとサーバーのライブラリに音楽が追加されます。</string>
-    <string name="discovery_request_conflict">再度リクエストする前に、Aurral で所有権の競合を解決してください。</string>
     <string name="discovery_request_identity_unavailable">リクエストできません：アーティストのクレジットを確認できませんでした。</string>
+    <string name="discovery_request_rejected">Aurralがこのリクエストを拒否しました。再試行する前に詳細を確認してください。</string>
+    <string name="discovery_request_conflict">このアルバムにはライブラリの所有関係の競合があります。Aurralで確認してください。</string>
 </resources>

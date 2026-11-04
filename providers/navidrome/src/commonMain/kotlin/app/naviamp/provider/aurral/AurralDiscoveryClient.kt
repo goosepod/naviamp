@@ -332,15 +332,18 @@ internal class AurralDiscoveryClient(
         val response = http.postJsonResponse("$base$path", body.toString(), authorizedHeaders())
         response.body.parseObject().operation(response.statusCode)
     } catch (error: NavidromeHttpException) {
-        if (error.statusCode != 409) throw error
+        // Only released route/status envelopes establish a definite rejection. Error identities
+        // cannot establish ownership, and unknown or partial submissions must never be replayed.
         val payload = error.responseBody?.let { runCatching { it.parseObject() }.getOrNull() }
-        val identityPayload = payload?.let { original ->
-            if (path != "/api/library/albums/request") original else JsonObject(original + buildMap {
-                original["canonicalId"]?.let { put("canonicalAlbumId", it) }
-                if (original["album"] == null) original["providerId"]?.let { put("album", buildJsonObject { put("id", it) }) }
-            })
+        val status = when {
+            error.statusCode == 400 && payload?.text("error") == "Invalid request" -> ProviderDiscoveryOperationStatus.Rejected
+            path == "/api/library/albums/request" && error.statusCode == 409 &&
+                payload?.text("code") == "album_owner_conflict" -> ProviderDiscoveryOperationStatus.Conflict
+            path == "/api/library/albums/request" && error.statusCode == 422 &&
+                payload?.text("code") == "ambiguous_identity" -> ProviderDiscoveryOperationStatus.Rejected
+            else -> throw error
         }
-        ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Conflict, identityPayload?.requestIdentity(), 409)
+        ProviderDiscoveryOperation(status, httpStatusCode = error.statusCode)
     }
     private suspend fun operation(block: suspend () -> ProviderDiscoveryOperation): ProviderDiscoveryOperation =
         mutationMutex.withLock { nativeCall({ status -> ProviderDiscoveryOperation(when (status) {

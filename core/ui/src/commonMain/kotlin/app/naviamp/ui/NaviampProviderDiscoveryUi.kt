@@ -408,6 +408,7 @@ internal fun discoveryOperationMessage(status: ProviderDiscoveryOperationStatus)
     ProviderDiscoveryOperationStatus.Conflict -> Res.string.discovery_request_conflict
     ProviderDiscoveryOperationStatus.Forbidden -> Res.string.discovery_action_forbidden
     ProviderDiscoveryOperationStatus.Unsupported -> Res.string.discovery_action_unsupported
+    ProviderDiscoveryOperationStatus.Rejected -> Res.string.discovery_request_rejected
     ProviderDiscoveryOperationStatus.Unavailable -> Res.string.discovery_unavailable
     ProviderDiscoveryOperationStatus.Uncertain -> Res.string.discovery_action_uncertain
 }

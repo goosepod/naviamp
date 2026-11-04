@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">متاح جزئيًا في مكتبة الخادم.</string>
     <string name="discovery_release_available">متاح في مكتبة الخادم.</string>
     <string name="discovery_server_acquisition">تضيف الطلبات الموسيقى إلى مكتبة الخادم.</string>
-    <string name="discovery_request_conflict">حل تعارض الملكية في Aurral قبل الطلب مجددًا.</string>
     <string name="discovery_request_identity_unavailable">الطلب غير متاح: تعذر التحقق من أسماء الفنانين.</string>
+    <string name="discovery_request_rejected">رفض Aurral هذا الطلب. تحقق من تفاصيله قبل المحاولة مجددًا.</string>
+    <string name="discovery_request_conflict">يوجد تعارض في ملكية هذا الألبوم في المكتبة. راجعه في Aurral.</string>
 </resources>

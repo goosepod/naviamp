@@ -1262,6 +1262,7 @@
     <string name="discovery_release_partial">Partially available in the server library.</string>
     <string name="discovery_release_available">Available in the server library.</string>
     <string name="discovery_server_acquisition">Requests add music to the server library.</string>
-    <string name="discovery_request_conflict">Resolve the ownership conflict in Aurral before requesting again.</string>
     <string name="discovery_request_identity_unavailable">Request unavailable: artist credits could not be verified.</string>
+    <string name="discovery_request_rejected">Aurral rejected this request. Check its details before trying again.</string>
+    <string name="discovery_request_conflict">This album has a library ownership conflict. Review it in Aurral.</string>
 </resources>

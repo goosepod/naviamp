@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">Sunucu kitaplığında kısmen kullanılabilir.</string>
     <string name="discovery_release_available">Sunucu kitaplığında kullanılabilir.</string>
     <string name="discovery_server_acquisition">İstekler sunucu kitaplığına müzik ekler.</string>
-    <string name="discovery_request_conflict">Yeniden istemeden önce Aurral içindeki sahiplik çakışmasını çözün.</string>
     <string name="discovery_request_identity_unavailable">İstek kullanılamıyor: sanatçı bilgileri doğrulanamadı.</string>
+    <string name="discovery_request_rejected">Aurral bu isteği reddetti. Tekrar denemeden önce ayrıntılarını kontrol edin.</string>
+    <string name="discovery_request_conflict">Bu albümde kitaplık sahipliği çakışması var. Aurral üzerinden inceleyin.</string>
 </resources>

@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">सर्वर लाइब्रेरी में आंशिक रूप से उपलब्ध है।</string>
     <string name="discovery_release_available">सर्वर लाइब्रेरी में उपलब्ध है।</string>
     <string name="discovery_server_acquisition">अनुरोध सर्वर लाइब्रेरी में संगीत जोड़ते हैं।</string>
-    <string name="discovery_request_conflict">दोबारा अनुरोध करने से पहले Aurral में स्वामित्व का विरोध हल करें।</string>
     <string name="discovery_request_identity_unavailable">अनुरोध उपलब्ध नहीं: कलाकार के क्रेडिट सत्यापित नहीं किए जा सके।</string>
+    <string name="discovery_request_rejected">Aurral ने यह अनुरोध अस्वीकार कर दिया। फिर से प्रयास करने से पहले उसका विवरण जाँचें।</string>
+    <string name="discovery_request_conflict">इस एल्बम के लाइब्रेरी स्वामित्व में विरोध है। Aurral में इसकी समीक्षा करें।</string>
 </resources>

@@ -45,8 +45,9 @@ Native calls serialize session creation/renewal rather than entire metadata rout
 its immutable session/capability context; an older 401 cannot clear a newer session. Mutations retain
 a separate serialized protocol boundary, including feedback read/modify/write operations. Artwork
 requests retain the correct origin-scoped header snapshot without sending it to external services.
-Acquisition responses preserve HTTP 201/202 and correlation IDs. HTTP 409 is an explicit conflict;
-ambiguous failures are never automatically replayed or treated as downloaded media.
+Acquisition responses preserve HTTP 201/202 and correlation IDs. Only the released album HTTP 409
+`album_owner_conflict` envelope establishes a conflict; its response IDs cannot establish ownership.
+Unknown or ambiguous failures are never automatically replayed or treated as downloaded media.
 
 All changed production code belongs to Core/provider commonMain. No platform production file,
 schema or setting changed.
@@ -117,3 +118,30 @@ failures but failed device cleanup with `device offline`. iOS failed its existin
 playback assertion. These remain hosted verification gates, separate from the passed live request.
 Both release-page tests pass locally after the assertion correction, including all three viewport
 variants. Evidence: `build/477-ui-visibility.log`.
+
+## November 4: accepted 2.13 compatibility integration
+
+Integrated the refreshed artist branch and accepted main
+`c5e119f2f49c721c6816f6b6b6000ab3ae82b996` / #508. Acquisition retains successful HTTP status and
+correlation IDs, serialized mutations and independently serialized session renewal. The request
+mapper uses the released 2.13 route/status envelopes: HTTP 400 `Invalid request` is Rejected;
+album HTTP 422 `ambiguous_identity` is Rejected; album HTTP 409 `album_owner_conflict` is Conflict.
+Those album-specific codes on recording routes, wrong statuses, generic/malformed/oversized or
+partial errors remain Uncertain. Conflict/error identities are discarded rather than promoted to
+canonical, manager or playable Library identities. The transport retains #508's bounded complete
+error body and privacy/cancellation handling. Read-side canonical resolution keeps its own path.
+
+The common execution guard now accompanies dispatch checks. Tests verify explicit retry after
+rejection and no resubmission after Conflict/Uncertain, including exact recording requests after
+closing and reopening the artist/release. Request ledgers remain scoped to source/account.
+All catalogs retain one translated conflict message and the new rejection message, alongside the
+release strings; no duplicate resource keys remain.
+
+112 focused JVM methods pass with zero failures/errors/skips: 32 Home/discovery controller,
+62 Aurral/provider HTTP and 18 rendered artist/release/discovery UI methods. Architecture verification
+and shared Android, JVM, iOS ARM64 and iOS Simulator ARM64 compilation pass. The focused command
+uses the same class filters recorded for #476 plus `NaviampDiscoveryReleasePageTest`; provider tests
+include the release contract/ownership/mutation cases. No platform production file, setting, schema
+or animation policy changed. No live acquisition or feedback mutation was submitted, and the earlier
+single-use live acquisition must not be repeated. Current-head CI, audible live previews, physical
+input and screen-reader acceptance remain open; these local results do not close #477 or #506.
