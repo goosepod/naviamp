@@ -91,7 +91,7 @@ data class ProviderDiscoverySample(val id: String, val title: String, val albumT
 const val DiscoveryPreviewTrackPrefix = "discovery-preview:"
 fun app.naviamp.domain.TrackId.isDiscoveryPreview(): Boolean = value.startsWith(DiscoveryPreviewTrackPrefix)
 data class ProviderDiscoverySamples(val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported, val tracks: List<ProviderDiscoverySample> = emptyList())
-enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain }
+enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain, Rejected, Conflict }
 data class ProviderDiscoveryOperation(
     val status: ProviderDiscoveryOperationStatus = ProviderDiscoveryOperationStatus.Unsupported,
     val identity: ProviderDiscoveryRequestIdentity? = null,

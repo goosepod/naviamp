@@ -1225,4 +1225,6 @@
     <string name="settings_fill_now_playing_artwork">Cover in der Wiedergabe ausfüllen</string>
     <string name="settings_fill_now_playing_artwork_description">Das Cover füllt zugeschnitten den Player, mit einem dunklen Verlauf hinter den Bedienelementen.</string>
     <string name="now_playing_toggle_visualizer">Visualisierung umschalten</string>
+    <string name="discovery_request_rejected">Aurral hat diese Anfrage abgelehnt. Prüfe die Details vor einem erneuten Versuch.</string>
+    <string name="discovery_request_conflict">Bei diesem Album besteht ein Konflikt bei der Bibliothekszuordnung. Prüfe ihn in Aurral.</string>
 </resources>

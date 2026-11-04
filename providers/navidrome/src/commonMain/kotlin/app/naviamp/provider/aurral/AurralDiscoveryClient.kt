@@ -230,13 +230,34 @@ internal class AurralDiscoveryClient(
     private fun checkPermission(name: String) {
         if (session?.permissions?.get(name)?.jsonPrimitive?.booleanOrNull != true) throw NavidromeHttpException(403)
     }
-    private suspend fun post(path: String, body: JsonObject) = http.postJson("$base$path", body.toString(), authorizedHeaders()).parseObject()
+    private suspend fun post(path: String, body: JsonObject): JsonObject = try {
+        http.postJson("$base$path", body.toString(), authorizedHeaders()).parseObject()
+    } catch (error: NavidromeHttpException) {
+        // Interpret only released route-specific errors. A generic 400/409/422 may follow
+        // partial server work; it is neither evidence of ownership nor safe to replay.
+        val response = error.responseBody?.let { raw ->
+            runCatching { json.parseToJsonElement(raw) as? JsonObject }.getOrNull()
+        }
+        val result = when {
+            error.statusCode == 400 && response?.text("error") == "Invalid request" -> ProviderDiscoveryOperationStatus.Rejected
+            path == "/api/library/albums/request" && error.statusCode == 409 &&
+                response?.text("code") == "album_owner_conflict" -> ProviderDiscoveryOperationStatus.Conflict
+            path == "/api/library/albums/request" && error.statusCode == 422 &&
+                response?.text("code") == "ambiguous_identity" -> ProviderDiscoveryOperationStatus.Rejected
+            else -> null
+        }
+        if (result != null) throw RequestRejected(result)
+        throw error
+    }
+    private class RequestRejected(val status: ProviderDiscoveryOperationStatus) : RuntimeException()
     private suspend fun operation(block: suspend () -> ProviderDiscoveryOperation): ProviderDiscoveryOperation =
         nativeCall({ status -> ProviderDiscoveryOperation(when (status) {
             ProviderDiscoveryStatus.Forbidden -> ProviderDiscoveryOperationStatus.Forbidden
             ProviderDiscoveryStatus.Unsupported -> ProviderDiscoveryOperationStatus.Unsupported
             else -> ProviderDiscoveryOperationStatus.Uncertain
-        }) }, block = block)
+        }) }) {
+            try { block() } catch (error: RequestRejected) { ProviderDiscoveryOperation(error.status) }
+        }
     private fun JsonObject.operation(): ProviderDiscoveryOperation {
         check(text("error") == null)
         return ProviderDiscoveryOperation(when {

@@ -399,4 +399,6 @@
     <string name="settings_fill_now_playing_artwork">再生中のアートワーク領域を埋める</string>
     <string name="settings_fill_now_playing_artwork_description">カバー画像をトリミングしてプレーヤー全体に表示し、操作部分の背景を暗くします。</string>
     <string name="now_playing_toggle_visualizer">ビジュアライザーを切り替え</string>
+    <string name="discovery_request_rejected">Aurralがこのリクエストを拒否しました。再試行する前に詳細を確認してください。</string>
+    <string name="discovery_request_conflict">このアルバムにはライブラリの所有関係の競合があります。Aurralで確認してください。</string>
 </resources>
