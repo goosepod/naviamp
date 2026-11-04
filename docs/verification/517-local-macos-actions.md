@@ -29,7 +29,7 @@ Operator procedure:
 6. The final merge must still meet current-main and exact-head branch protection. Source changes
    after dispatch require fresh verification. Local success does not resolve intermittent #454.
 
-Local validation: four routing/failure tests and the complete 45 workflow-helper tests pass;
+Local validation: five routing/failure tests and the complete 46 workflow-helper tests pass;
 workflow YAML parses and `git diff --check` passes. The first unprivileged helper invocation could
 not bind its loopback test sockets; the normal local test context passes. Full Actions verification
 is pending. No platform production code changed.
@@ -38,3 +38,20 @@ The selection step also preserves reusable recovery of an older public source wi
 helper: only the unchanged hosted default is allowed in that case; manual dispatch fails closed
 if its helper is absent. The initial real local Actions desktop job passed in 4m 14s, but that
 run predates this recovery correction and is not final-head acceptance.
+
+
+## Protected PR checks
+
+A successful manual diagnostic run on the branch head was not accepted as PR #518's required run;
+its head checks passed but the PR check rollup stayed empty. To satisfy that gate, use the actual
+`pull_request` workflow and GitHub's merge snapshot. Before a new push/synchronize event, an owner
+sets `NAVIAMP_LOCAL_MACOS_<PR number>` to a fresh selector and adds `verify:local-macos` to the PR.
+The workflow permits that selector only when the head repository is the current repository and
+the owner label is present. Forks and unselected PRs remain hosted. Missing/malformed selected
+variables fail closed. Validate the actual PR association and exact head before connecting workers.
+Remove the per-PR variable and opt-in label after the work is merged or abandoned.
+
+The manual dispatch remains available for diagnostics, but its passing checks alone must not be
+reported as satisfying a protected PR. Reusable older-release recovery inherits the caller's event
+name: a dispatch with an explicit recovery source and no local selector retains the hosted default
+when the helper is absent. That distinction is tested without weakening the local opt-in guard.

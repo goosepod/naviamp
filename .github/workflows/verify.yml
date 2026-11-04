@@ -47,11 +47,13 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          MACOS_RUNNER_LABEL: ${{ inputs.macos_runner_label }}
+          MACOS_RUNNER_LABEL: ${{ inputs.macos_runner_label || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'verify:local-macos') && vars[format('NAVIAMP_LOCAL_MACOS_{0}', github.event.pull_request.number)]) || '' }}
+          LOCAL_PR_AUTHORIZED: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'verify:local-macos') }}
+          SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           if [ -f scripts/select-verification-macos-runner.py ]; then
             python3 scripts/select-verification-macos-runner.py >> "$GITHUB_OUTPUT"
-          elif [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] && [ -z "$MACOS_RUNNER_LABEL" ]; then
+          elif [ -z "$MACOS_RUNNER_LABEL" ] && [ "$LOCAL_PR_AUTHORIZED" != true ] && { [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] || [ -n "$SOURCE_REF" ]; }; then
             # Release recovery can check out a public source that predates this helper.
             printf '%s\n' 'macos_runner="macos-latest"' >> "$GITHUB_OUTPUT"
           else
