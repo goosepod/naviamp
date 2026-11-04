@@ -496,15 +496,24 @@ jobs:
         run: |
           # The preceding step compiles this binary; this required step executes it
           # with real Apple trust services after the common standalone tests finish.
-          # Bootstrap is generated on the runner. Keep setup independent of a freshly
-          # booted simulator's first HTTP request; all HTTPS and server-state audits remain real.
+          # The generated bootstrap identifies this run's fixture. The shared contract
+          # verifies its live control endpoint through native HTTP before authentication.
           fixture_bootstrap="$(cat "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
           test -n "$fixture_bootstrap"
           export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
-          ./gradlew --max-workers=2 --console=plain \
+          native_test=(./gradlew --max-workers=2 --console=plain --profile \
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
-            :platforms:ios:iosSimulatorArm64Test
+            :platforms:ios:iosSimulatorArm64Test)
+          if [ -f scripts/ios-native-test-diagnostics.py ]; then
+            python3 scripts/ios-native-test-diagnostics.py \
+              --executable platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe \
+              --fixture-bootstrap "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE" \
+              --output build/ios-native-diagnostics -- "${native_test[@]}"
+          else
+            # Recovery may verify an older public source that predates the observer.
+            "${native_test[@]}"
+          fi
           grep -q 'mTLS runner bootstrap supplied' \
             platforms/ios/build/test-results/iosSimulatorArm64Test/TEST-app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest.xml
           elapsed_seconds="$(($(date +%s) - started_at))"
@@ -515,7 +524,7 @@ jobs:
         if: always() && env.NAVIAMP_IOS_TLS_TEST_DEVICE != ''
         run: |
           xcrun simctl spawn "$NAVIAMP_IOS_TLS_TEST_DEVICE" log show --style compact --last 5m \
-            --predicate 'process == "trustd" OR subsystem == "com.apple.CFNetwork"' \
+            --predicate 'process == "trustd" OR process == "test.kexe" OR subsystem == "com.apple.CFNetwork"' \
             > build/ios-tls-services.log 2>&1 || true
           xcrun simctl shutdown "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
           xcrun simctl delete "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
@@ -526,6 +535,15 @@ jobs:
           if [ -n "${NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE:-}" ]; then
             python3 scripts/mobile-mtls-fixture.py stop "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE"
           fi
+
+      - name: Require independent cold native TLS replays
+        if: contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold')
+        timeout-minutes: 25
+        run: python3 scripts/replay-ios-native-tls.py --runs 2 --output build/ios-native-replays
+
+      - name: Clean up owned cold replay resources
+        if: always() && contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold')
+        run: python3 scripts/replay-ios-native-tls.py --cleanup-only --output build/ios-native-replays
 
       - name: Build the production iOS app
         run: |
@@ -569,6 +587,17 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/iosSimulatorArm64Test/**
+            build/ios-native-diagnostics/**
+            build/ios-native-replays/plan.json
+            build/ios-native-replays/initial/**
+            build/ios-native-replays/run-*/summary.json
+            build/ios-native-replays/run-*/native.log
+            build/ios-native-replays/run-*/fixture.log
+            build/ios-native-replays/run-*/boot.log
+            build/ios-native-replays/run-*/services.log
+            build/ios-native-replays/run-*/diagnostics/**
+            build/ios-native-replays/run-*/results/**
+            build/ios-native-replays/run-*/report/**
             build/reports/profile/**
             build/ci-timings/ios.tsv
             build/mobile-mtls-run.*/fixture.log

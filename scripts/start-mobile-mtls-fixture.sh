@@ -8,6 +8,7 @@ fixture_directory="$(mktemp -d "$PWD/build/mobile-mtls-run.XXXXXX")"
 fixture_bootstrap="$fixture_directory/fixture.bootstrap"
 "$JAVA_HOME/bin/java" @build/mobile-mtls-fixture.args "$fixture_bootstrap" >"$fixture_directory/fixture.log" 2>&1 &
 fixture_launcher=$!
+printf '%s\n' "$fixture_launcher" > "$fixture_directory/fixture.pid"
 fixture_ready=false
 cleanup_failed_start() {
   if [ "$fixture_ready" != true ]; then
