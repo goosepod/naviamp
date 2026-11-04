@@ -410,4 +410,7 @@
     <string name="discovery_request_identity_unavailable">Verzoek niet beschikbaar: artiestvermeldingen konden niet worden geverifieerd.</string>
     <string name="discovery_request_rejected">Aurral heeft dit verzoek afgewezen. Controleer de details voordat je het opnieuw probeert.</string>
     <string name="discovery_request_conflict">Dit album heeft een conflict met de bibliotheektoewijzing. Bekijk dit in Aurral.</string>
+    <string name="discovery_waiting_for_release">Wachten op uitgave</string>
+    <string name="discovery_waiting_for_release_date">Wachten op uitgave: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Aurral beheert dit verzoek.</string>
 </resources>

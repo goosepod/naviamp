@@ -410,4 +410,7 @@
     <string name="discovery_request_identity_unavailable">الطلب غير متاح: تعذر التحقق من أسماء الفنانين.</string>
     <string name="discovery_request_rejected">رفض Aurral هذا الطلب. تحقق من تفاصيله قبل المحاولة مجددًا.</string>
     <string name="discovery_request_conflict">يوجد تعارض في ملكية هذا الألبوم في المكتبة. راجعه في Aurral.</string>
+    <string name="discovery_waiting_for_release">بانتظار الإصدار</string>
+    <string name="discovery_waiting_for_release_date">بانتظار الإصدار: %1$s</string>
+    <string name="discovery_waiting_for_release_description">يتولى Aurral إدارة هذا الطلب.</string>
 </resources>

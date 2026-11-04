@@ -410,4 +410,7 @@
     <string name="discovery_request_identity_unavailable">请求不可用：无法验证艺人署名。</string>
     <string name="discovery_request_rejected">Aurral 拒绝了此请求。请先检查详细信息，然后再重试。</string>
     <string name="discovery_request_conflict">此专辑存在音乐库归属冲突。请在 Aurral 中检查。</string>
+    <string name="discovery_waiting_for_release">等待发行</string>
+    <string name="discovery_waiting_for_release_date">等待发行：%1$s</string>
+    <string name="discovery_waiting_for_release_description">此请求由 Aurral 管理。</string>
 </resources>

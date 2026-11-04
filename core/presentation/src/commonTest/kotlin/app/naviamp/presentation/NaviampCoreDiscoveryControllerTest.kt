@@ -9,10 +9,58 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun waitingAlbumRetainsContextAndNeverResubmitsAcrossNavigationDateOrSourceChanges() = runTest {
+        var albumCalls = 0
+        var trackCalls = 0
+        val waiting = ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.WaitingForRelease,
+            ProviderDiscoveryRequestIdentity(canonicalAlbumId = DiscoveryCanonicalAlbumId("71")), 201,
+            ProviderDiscoveryWaitingForRelease(DiscoveryLibraryManager.Aurral, "2027-03-05"))
+        val native = object : DiscoveryNative() {
+            override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation {
+                albumCalls++
+                return waiting
+            }
+            override suspend fun requestReleaseTrack(context: ProviderDiscoveryReleaseContext, track: ProviderDiscoveryReleaseTrack): ProviderDiscoveryOperation {
+                trackCalls++
+                return ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued)
+            }
+        }
+        val h = DiscoveryHarness(native)
+        val action = ProviderDiscoveryAction.RequestAlbum(Release.id)
+        h.open(First); h.openRelease()
+        val request = h.releaseAction(action)
+        h.controller.dispatch(request); h.controller.execute(request)
+        h.back(); h.open(Second); h.back(); h.openRelease()
+        h.back(); h.back(); h.open(First); h.openRelease()
+        assertEquals(waiting, h.detail().requestOperations[action])
+        assertTrue(action in h.detail().blockedActions)
+        assertNull(h.discovery().releasePage?.ownership?.libraryAlbum)
+        for (duplicate in listOf(h.releaseAction(action), h.releaseAction(ProviderDiscoveryAction.RequestTrack(Recording)))) {
+            assertTrue(h.controller.dispatch(duplicate) is NaviampCoreImmediateCommandResult.Handled)
+            h.controller.execute(duplicate)
+        }
+        advanceTimeBy(400L * 86_400_000L)
+        runCurrent()
+        assertEquals(1, albumCalls)
+        assertEquals(0, trackCalls)
+        assertEquals(waiting, h.detail().requestOperations[action])
+
+        h.account = "account-two"
+        h.active = discoveryProvider(native, h.account)
+        h.open(First); h.openRelease()
+        assertTrue(h.detail().requestOperations.isEmpty())
+        h.controller.dispatch(request); h.controller.execute(request)
+        assertEquals(1, albumCalls, "An old account command cannot acquire on the new account")
+        val newRequest = h.releaseAction(action)
+        h.controller.dispatch(newRequest); h.controller.execute(newRequest)
+        assertEquals(2, albumCalls, "The new account has an independent explicit request")
+    }
+
     @Test fun recordingRejectionsAllowExplicitRetryButConflictsStayBlockedAfterReopening() = runTest {
         for (status in listOf(ProviderDiscoveryOperationStatus.Rejected,
             ProviderDiscoveryOperationStatus.Conflict, ProviderDiscoveryOperationStatus.Uncertain)) {

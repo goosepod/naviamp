@@ -1242,4 +1242,7 @@
     <string name="discovery_request_identity_unavailable">Solicitação indisponível: não foi possível verificar os créditos dos artistas.</string>
     <string name="discovery_request_rejected">O Aurral rejeitou esta solicitação. Confira os detalhes antes de tentar novamente.</string>
     <string name="discovery_request_conflict">Este álbum tem um conflito de pertencimento na biblioteca. Confira no Aurral.</string>
+    <string name="discovery_waiting_for_release">Aguardando lançamento</string>
+    <string name="discovery_waiting_for_release_date">Aguardando lançamento: %1$s</string>
+    <string name="discovery_waiting_for_release_description">O Aurral gerencia esta solicitação.</string>
 </resources>

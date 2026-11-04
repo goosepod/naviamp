@@ -100,11 +100,24 @@ data class ProviderDiscoverySample(val id: String, val title: String, val albumT
 const val DiscoveryPreviewTrackPrefix = "discovery-preview:"
 fun app.naviamp.domain.TrackId.isDiscoveryPreview(): Boolean = value.startsWith(DiscoveryPreviewTrackPrefix)
 data class ProviderDiscoverySamples(val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported, val tracks: List<ProviderDiscoverySample> = emptyList())
-enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain, Rejected, Conflict }
+enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain, Rejected, Conflict, WaitingForRelease }
+/** A server-confirmed monitored request; a date alone never establishes this state. */
+data class ProviderDiscoveryWaitingForRelease(
+    val manager: DiscoveryLibraryManager,
+    val releaseDate: String? = null,
+)
+
+val ProviderDiscoveryOperationStatus.blocksRepeatedRequest: Boolean
+    get() = this in listOf(ProviderDiscoveryOperationStatus.Queued, ProviderDiscoveryOperationStatus.AlreadyQueued,
+        ProviderDiscoveryOperationStatus.AlreadyOwned, ProviderDiscoveryOperationStatus.Saved,
+        ProviderDiscoveryOperationStatus.MissingSource, ProviderDiscoveryOperationStatus.Conflict,
+        ProviderDiscoveryOperationStatus.Uncertain, ProviderDiscoveryOperationStatus.WaitingForRelease)
+
 data class ProviderDiscoveryOperation(
     val status: ProviderDiscoveryOperationStatus = ProviderDiscoveryOperationStatus.Unsupported,
     val identity: ProviderDiscoveryRequestIdentity? = null,
     val httpStatusCode: Int? = null,
+    val waitingForRelease: ProviderDiscoveryWaitingForRelease? = null,
 )
 sealed interface ProviderDiscoveryAction {
     data class PlaySample(val id: String) : ProviderDiscoveryAction

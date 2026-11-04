@@ -1265,4 +1265,7 @@
     <string name="discovery_request_identity_unavailable">Request unavailable: artist credits could not be verified.</string>
     <string name="discovery_request_rejected">Aurral rejected this request. Check its details before trying again.</string>
     <string name="discovery_request_conflict">This album has a library ownership conflict. Review it in Aurral.</string>
+    <string name="discovery_waiting_for_release">Waiting for release</string>
+    <string name="discovery_waiting_for_release_date">Waiting for release: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Aurral manages this request.</string>
 </resources>

@@ -110,7 +110,7 @@ class NaviampCoreDiscoveryController(
                 val release = current?.releasePage
                 val sample = home.action as? ProviderDiscoveryAction.PlaySample
                 val allowed = if (sample != null) visibleSamples().any { it.id == sample.id }
-                    else detail != null && !detail.actionBusy && !detail.savingFeedback && home.action !in detail.blockedActions &&
+                    else detail != null && !detail.actionBusy && !detail.savingFeedback && !requestBlocked(detail, home.action, release) &&
                         (release == null || release.requestContext != null && when (val action = home.action) {
                             is ProviderDiscoveryAction.RequestAlbum -> detail.details?.canRequestAlbums == true && action.id == release.release.id &&
                                 release.ownership?.availability != ProviderDiscoveryReleaseAvailability.Available
@@ -223,7 +223,7 @@ class NaviampCoreDiscoveryController(
             playDiscoverySample(sample.playbackTrack(detail.artist.name))
             return
         }
-        if (command.action in detail.blockedActions) return
+        if (requestBlocked(detail, command.action, releasePage)) return
         val generation = discoveryDetailGeneration
         var operation: ProviderDiscoveryOperation? = null
         try {
@@ -265,9 +265,7 @@ class NaviampCoreDiscoveryController(
                         requestOperations = operation?.takeIf { command.action is ProviderDiscoveryAction.RequestAlbum ||
                             command.action is ProviderDiscoveryAction.RequestTrack }?.let { latest.requestOperations + (command.action to it) } ?: latest.requestOperations,
                         operationStatus = result ?: latest.operationStatus,
-                        blockedActions = if (result in setOf(ProviderDiscoveryOperationStatus.Queued, ProviderDiscoveryOperationStatus.AlreadyQueued,
-                            ProviderDiscoveryOperationStatus.AlreadyOwned, ProviderDiscoveryOperationStatus.Saved, ProviderDiscoveryOperationStatus.MissingSource,
-                            ProviderDiscoveryOperationStatus.Conflict, ProviderDiscoveryOperationStatus.Uncertain))
+                        blockedActions = if (result?.blocksRepeatedRequest == true)
                             latest.blockedActions + command.action else latest.blockedActions,
                         details = latest.details?.let { details -> details.copy(monitored = when (result) {
                             ProviderDiscoveryOperationStatus.MonitoringEnabled -> true
@@ -283,12 +281,14 @@ class NaviampCoreDiscoveryController(
         requestLedger[artistId] = requestLedger[artistId].orEmpty() + (action to operation)
     }
 
+    private fun requestBlocked(artist: SharedProviderDiscoveryArtistUi, action: ProviderDiscoveryAction,
+        release: SharedDiscoveryReleaseUi?): Boolean = action in artist.blockedActions ||
+        (action is ProviderDiscoveryAction.RequestTrack && release != null &&
+            artist.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.release.id)]?.status == ProviderDiscoveryOperationStatus.WaitingForRelease)
+
     private fun withRetainedRequests(artist: SharedProviderDiscoveryArtistUi): SharedProviderDiscoveryArtistUi {
         val operations = artist.requestOperations + requestLedger[artist.artist.id].orEmpty()
-        val blocked = operations.filterValues { it.status in setOf(ProviderDiscoveryOperationStatus.Queued,
-            ProviderDiscoveryOperationStatus.AlreadyQueued, ProviderDiscoveryOperationStatus.AlreadyOwned,
-            ProviderDiscoveryOperationStatus.Saved, ProviderDiscoveryOperationStatus.MissingSource,
-            ProviderDiscoveryOperationStatus.Conflict, ProviderDiscoveryOperationStatus.Uncertain) }.keys
+        val blocked = operations.filterValues { it.status.blocksRepeatedRequest }.keys
         return artist.copy(requestOperations = operations, blockedActions = artist.blockedActions + blocked)
     }
 

@@ -62,6 +62,11 @@ internal fun NaviampDiscoveryArtistPage(
         }
     }
     if (release != null) {
+        val albumOperation = artist.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.release.id)]
+        val available = release.ownership?.status == ProviderDiscoveryStatus.Ready &&
+            release.ownership.availability == ProviderDiscoveryReleaseAvailability.Available
+        val waitingRequest = albumOperation?.status == ProviderDiscoveryOperationStatus.WaitingForRelease
+        val waiting = waitingRequest && !available
         Column(Modifier.fillMaxSize().then(navigation).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             TextButton(onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
@@ -101,7 +106,7 @@ internal fun NaviampDiscoveryArtistPage(
             release.ownership?.availability?.let { availability ->
                 val label = when (availability) {
                     ProviderDiscoveryReleaseAvailability.NotOwned -> null
-                    ProviderDiscoveryReleaseAvailability.Catalogued -> Res.string.discovery_release_catalogued
+                    ProviderDiscoveryReleaseAvailability.Catalogued -> if (waiting) null else Res.string.discovery_release_catalogued
                     ProviderDiscoveryReleaseAvailability.Partial -> Res.string.discovery_release_partial
                     ProviderDiscoveryReleaseAvailability.Available -> Res.string.discovery_release_available
                 }
@@ -114,17 +119,17 @@ internal fun NaviampDiscoveryArtistPage(
                 (artist.details?.canRequestAlbums == true || artist.details?.canRequestTracks == true))
                 Text(stringResource(Res.string.discovery_request_identity_unavailable), color = colors.secondaryText)
             if (artist.details?.canRequestAlbums == true) TextButton(
-                enabled = release.requestContext != null && !artist.actionBusy && !artist.savingFeedback && release.ownership?.availability != ProviderDiscoveryReleaseAvailability.Available &&
+                enabled = !waiting && release.requestContext != null && !artist.actionBusy && !artist.savingFeedback && release.ownership?.availability != ProviderDiscoveryReleaseAvailability.Available &&
                     ProviderDiscoveryAction.RequestAlbum(release.release.id) !in artist.blockedActions,
                 onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration,
                     release.release.id, ProviderDiscoveryAction.RequestAlbum(release.release.id)) }) {
-                Text(stringResource(Res.string.discovery_request_album))
+                Text(stringResource(if (waiting) Res.string.discovery_waiting_for_release else Res.string.discovery_request_album))
             }
             if (artist.details?.canRequestAlbums == true || artist.details?.canRequestTracks == true)
                 Text(stringResource(Res.string.discovery_server_acquisition), color = colors.secondaryText)
             if (artist.actionBusy) Text(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
-            artist.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.release.id)]?.status
-                ?.let { Text(stringResource(discoveryOperationMessage(it)), color = colors.secondaryText) }
+            albumOperation?.takeUnless { it.status == ProviderDiscoveryOperationStatus.WaitingForRelease && available }
+                ?.let { DiscoveryOperationResult(it, colors) }
             Text(stringResource(Res.string.search_tracks_section), color = colors.primaryText, modifier = Modifier.semantics { heading() })
             when {
                 release.tracksLoading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
@@ -163,7 +168,7 @@ internal fun NaviampDiscoveryArtistPage(
                             track.recordingMbid?.let { recording ->
                                 val action = ProviderDiscoveryAction.RequestTrack(recording.value)
                                 if (artist.details?.canRequestTracks == true) IconButton(
-                                    enabled = release.requestContext != null && !artist.actionBusy && !artist.savingFeedback &&
+                                    enabled = !waitingRequest && release.requestContext != null && !artist.actionBusy && !artist.savingFeedback &&
                                         action !in artist.blockedActions && recording !in release.ownership?.ownedRecordings.orEmpty(),
                                     onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration, release.release.id, action) }) {
                                     Icon(NaviampIcons.Downloads, stringResource(Res.string.discovery_request_track), tint = colors.secondaryText)
@@ -173,8 +178,8 @@ internal fun NaviampDiscoveryArtistPage(
                         track.recordingMbid?.let { recording ->
                             if (recording in release.ownership?.ownedRecordings.orEmpty())
                                 Text(stringResource(Res.string.discovery_request_owned), color = colors.secondaryText)
-                            artist.requestOperations[ProviderDiscoveryAction.RequestTrack(recording.value)]?.status
-                                ?.let { Text(stringResource(discoveryOperationMessage(it)), color = colors.secondaryText) }
+                            artist.requestOperations[ProviderDiscoveryAction.RequestTrack(recording.value)]
+                                ?.let { DiscoveryOperationResult(it, colors) }
                         }
                     }
                 }

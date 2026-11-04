@@ -1236,4 +1236,7 @@
     <string name="discovery_request_identity_unavailable">Anfrage nicht verfügbar: Künstlerangaben konnten nicht bestätigt werden.</string>
     <string name="discovery_request_rejected">Aurral hat diese Anfrage abgelehnt. Prüfe die Details vor einem erneuten Versuch.</string>
     <string name="discovery_request_conflict">Bei diesem Album besteht ein Konflikt bei der Bibliothekszuordnung. Prüfe ihn in Aurral.</string>
+    <string name="discovery_waiting_for_release">Warten auf Veröffentlichung</string>
+    <string name="discovery_waiting_for_release_date">Warten auf Veröffentlichung: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Aurral verwaltet diese Anfrage.</string>
 </resources>

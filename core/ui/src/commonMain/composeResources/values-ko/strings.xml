@@ -410,4 +410,7 @@
     <string name="discovery_request_identity_unavailable">요청할 수 없음: 아티스트 크레딧을 확인할 수 없습니다.</string>
     <string name="discovery_request_rejected">Aurral이 이 요청을 거부했습니다. 다시 시도하기 전에 세부 정보를 확인하세요.</string>
     <string name="discovery_request_conflict">이 앨범에 라이브러리 소유권 충돌이 있습니다. Aurral에서 확인하세요.</string>
+    <string name="discovery_waiting_for_release">출시 대기 중</string>
+    <string name="discovery_waiting_for_release_date">출시 대기 중: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Aurral이 이 요청을 관리합니다.</string>
 </resources>

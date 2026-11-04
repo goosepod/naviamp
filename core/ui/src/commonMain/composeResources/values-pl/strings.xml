@@ -529,4 +529,7 @@
     <string name="discovery_request_identity_unavailable">Żądanie niedostępne: nie można zweryfikować wykonawców.</string>
     <string name="discovery_request_rejected">Aurral odrzucił to żądanie. Sprawdź szczegóły przed ponowną próbą.</string>
     <string name="discovery_request_conflict">Ten album ma konflikt przypisania w bibliotece. Sprawdź go w Aurral.</string>
+    <string name="discovery_waiting_for_release">Oczekiwanie na wydanie</string>
+    <string name="discovery_waiting_for_release_date">Oczekiwanie na wydanie: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Aurral zarządza tym żądaniem.</string>
 </resources>

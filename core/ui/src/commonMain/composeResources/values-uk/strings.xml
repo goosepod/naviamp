@@ -410,4 +410,7 @@
     <string name="discovery_request_identity_unavailable">Запит недоступний: не вдалося перевірити дані виконавців.</string>
     <string name="discovery_request_rejected">Aurral відхилив цей запит. Перевірте подробиці перед повторною спробою.</string>
     <string name="discovery_request_conflict">Для цього альбому виник конфлікт належності в бібліотеці. Перевірте його в Aurral.</string>
+    <string name="discovery_waiting_for_release">Очікування релізу</string>
+    <string name="discovery_waiting_for_release_date">Очікування релізу: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Aurral керує цим запитом.</string>
 </resources>

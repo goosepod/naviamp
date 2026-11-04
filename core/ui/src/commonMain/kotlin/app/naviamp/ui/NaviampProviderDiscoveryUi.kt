@@ -259,6 +259,8 @@ internal fun NaviampDiscoveryArtistPanel(
                         }
                         if (screen.actionBusy) Text(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
                         screen.operationStatus?.let { status -> Text(stringResource(discoveryOperationMessage(status)), color = colors.secondaryText) }
+                        if (screen.operationStatus == ProviderDiscoveryOperationStatus.WaitingForRelease)
+                            Text(stringResource(Res.string.discovery_waiting_for_release_description), color = colors.secondaryText)
                         if (screen.savingFeedback) Text(stringResource(Res.string.discovery_saving_feedback), color = colors.secondaryText)
                         if (screen.feedbackFailed) Text(stringResource(Res.string.discovery_feedback_failed), color = colors.secondaryText)
                     }
@@ -368,6 +370,8 @@ private fun DiscoveryReleaseCard(
     colors: NaviampColors, onAction: (ProviderDiscoveryAction) -> Unit,
     onOpen: (() -> Unit)? = null,
 ) {
+    val operation = screen.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.id)]
+    val waiting = operation?.status == ProviderDiscoveryOperationStatus.WaitingForRelease
     Column(Modifier.width(size).then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box {
@@ -375,9 +379,9 @@ private fun DiscoveryReleaseCard(
             if (screen.details?.canRequestAlbums == true) Surface(Modifier.align(Alignment.BottomEnd).padding(6.dp),
                 shape = RoundedCornerShape(6.dp), color = colors.controlSurface.copy(alpha = 0.92f)) {
                 IconButton(onClick = { onAction(ProviderDiscoveryAction.RequestAlbum(release.id)) },
-                    enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.id) !in screen.blockedActions,
+                    enabled = !waiting && !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.id) !in screen.blockedActions,
                     modifier = Modifier.size(30.dp)) {
-                    Icon(NaviampIcons.Downloads, stringResource(Res.string.discovery_request_album), Modifier.size(17.dp), tint = colors.primaryText)
+                    Icon(NaviampIcons.Downloads, stringResource(if (waiting) Res.string.discovery_waiting_for_release else Res.string.discovery_request_album), Modifier.size(17.dp), tint = colors.primaryText)
                 }
             }
         }
@@ -385,7 +389,25 @@ private fun DiscoveryReleaseCard(
             maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(listOfNotNull(release.releaseDate?.take(4), albumReleaseSectionLabel(release.section)).joinToString(" · "),
             color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        operation?.takeIf { waiting }?.let {
+            Text(discoveryOperationLabel(it), color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp)
+        }
     }
+}
+
+@Composable
+internal fun discoveryOperationLabel(operation: ProviderDiscoveryOperation): String {
+    val date = operation.waitingForRelease?.releaseDate
+    return if (operation.status == ProviderDiscoveryOperationStatus.WaitingForRelease && date != null)
+        stringResource(Res.string.discovery_waiting_for_release_date, date)
+    else stringResource(discoveryOperationMessage(operation.status))
+}
+
+@Composable
+internal fun DiscoveryOperationResult(operation: ProviderDiscoveryOperation, colors: NaviampColors) {
+    Text(discoveryOperationLabel(operation), color = colors.secondaryText)
+    if (operation.status == ProviderDiscoveryOperationStatus.WaitingForRelease)
+        Text(stringResource(Res.string.discovery_waiting_for_release_description), color = colors.secondaryText)
 }
 
 internal fun discoveryStatusMessage(status: ProviderDiscoveryStatus?) = when (status) {
@@ -402,6 +424,7 @@ internal fun discoveryOperationMessage(status: ProviderDiscoveryOperationStatus)
     ProviderDiscoveryOperationStatus.AlreadyQueued -> Res.string.discovery_request_already_queued
     ProviderDiscoveryOperationStatus.AlreadyOwned -> Res.string.discovery_request_owned
     ProviderDiscoveryOperationStatus.Saved -> Res.string.discovery_request_saved
+    ProviderDiscoveryOperationStatus.WaitingForRelease -> Res.string.discovery_waiting_for_release
     ProviderDiscoveryOperationStatus.MonitoringEnabled -> Res.string.discovery_monitoring_enabled
     ProviderDiscoveryOperationStatus.MonitoringDisabled -> Res.string.discovery_monitoring_disabled
     ProviderDiscoveryOperationStatus.MissingSource -> Res.string.discovery_request_missing_source

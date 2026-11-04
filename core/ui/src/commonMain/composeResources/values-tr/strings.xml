@@ -410,4 +410,7 @@
     <string name="discovery_request_identity_unavailable">İstek kullanılamıyor: sanatçı bilgileri doğrulanamadı.</string>
     <string name="discovery_request_rejected">Aurral bu isteği reddetti. Tekrar denemeden önce ayrıntılarını kontrol edin.</string>
     <string name="discovery_request_conflict">Bu albümde kitaplık sahipliği çakışması var. Aurral üzerinden inceleyin.</string>
+    <string name="discovery_waiting_for_release">Yayınlanması bekleniyor</string>
+    <string name="discovery_waiting_for_release_date">Yayınlanması bekleniyor: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Bu isteği Aurral yönetir.</string>
 </resources>

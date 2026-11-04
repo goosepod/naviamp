@@ -330,7 +330,7 @@ internal class AurralDiscoveryClient(
     private suspend fun post(path: String, body: JsonObject) = http.postJson("$base$path", body.toString(), authorizedHeaders()).parseObject()
     private suspend fun postOperation(path: String, body: JsonObject): ProviderDiscoveryOperation = try {
         val response = http.postJsonResponse("$base$path", body.toString(), authorizedHeaders())
-        response.body.parseObject().operation(response.statusCode)
+        response.body.parseObject().operation(response.statusCode, albumRequest = path == "/api/library/albums/request")
     } catch (error: NavidromeHttpException) {
         // Only released route/status envelopes establish a definite rejection. Error identities
         // cannot establish ownership, and unknown or partial submissions must never be replayed.
@@ -351,16 +351,32 @@ internal class AurralDiscoveryClient(
             ProviderDiscoveryStatus.Unsupported -> ProviderDiscoveryOperationStatus.Unsupported
             else -> ProviderDiscoveryOperationStatus.Uncertain
         }) }, block = block) }
-    private fun JsonObject.operation(httpStatusCode: Int? = null): ProviderDiscoveryOperation {
+    private fun JsonObject.operation(httpStatusCode: Int? = null, albumRequest: Boolean = false): ProviderDiscoveryOperation {
         check(text("error") == null)
+        val identity = requestIdentity()
+        val summary = this["albumStatus"] as? JsonObject
+        val album = this["album"] as? JsonObject
+        val managers = listOfNotNull(text("managedBy"), summary?.text("managedBy"), album?.text("managedBy"))
+        val waiting = albumRequest && get("success")?.jsonPrimitive?.booleanOrNull == true &&
+            summary?.text("status") == "unreleased" && managers.isNotEmpty() && managers.all { it == "aurral" } &&
+            text("status") in listOf(null, "inLibrary", "blocked", "unreleased") &&
+            get("alreadyOwned")?.jsonPrimitive?.booleanOrNull != true &&
+            get("alreadyQueued")?.jsonPrimitive?.booleanOrNull != true &&
+            (album?.get("monitored") as? JsonPrimitive)?.booleanOrNull != false &&
+            get("queued")?.jsonPrimitive?.booleanOrNull != true && identity?.jobIds.isNullOrEmpty()
+        // This is display metadata, including partial dates. Never schedule or infer availability from it.
+        val waitingContext = if (waiting) ProviderDiscoveryWaitingForRelease(DiscoveryLibraryManager.Aurral,
+            (summary?.get("releaseDate") as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+                ?.trim()?.takeIf { it.isNotEmpty() && it.length <= 64 }) else null
         return ProviderDiscoveryOperation(when {
+            waiting -> ProviderDiscoveryOperationStatus.WaitingForRelease
             text("status") == "download_source_missing" -> ProviderDiscoveryOperationStatus.MissingSource
             text("status") == "available" || get("alreadyOwned")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.AlreadyOwned
             get("alreadyQueued")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.AlreadyQueued
             text("status") in listOf("queued", "searching") || get("queued")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.Queued
             get("success")?.jsonPrimitive?.booleanOrNull == true -> ProviderDiscoveryOperationStatus.Saved
             else -> error("Unconfirmed request")
-        }, requestIdentity(), httpStatusCode)
+        }, identity, httpStatusCode, waitingContext)
     }
 
     /** Mirrors the web client's toggle semantics; refresh on a partial failure rather than claiming success. */
@@ -511,7 +527,7 @@ internal class AurralDiscoveryClient(
         }
         fun String?.positiveId() = this?.takeIf { it.toLongOrNull()?.let { n -> n > 0 } == true }
         val identity = ProviderDiscoveryRequestIdentity(
-            requestGroupId = (text("requestGroupId") ?: album?.text("requestGroupId"))
+            requestGroupId = (text("requestGroupId") ?: album?.text("requestGroupId") ?: (this["albumStatus"] as? JsonObject)?.text("requestGroupId"))
                 ?.takeIf { it.isNotBlank() }?.let(::DiscoveryRequestGroupId),
             jobIds = (strings("jobIds") + listOfNotNull(text("jobId")?.takeIf { it.isNotBlank() })).distinct().map(::DiscoveryJobId),
             canonicalAlbumId = (text("canonicalAlbumId") ?: album?.text("canonicalId")).positiveId()?.let(::DiscoveryCanonicalAlbumId),

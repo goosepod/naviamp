@@ -410,4 +410,7 @@
     <string name="discovery_request_identity_unavailable">अनुरोध उपलब्ध नहीं: कलाकार के क्रेडिट सत्यापित नहीं किए जा सके।</string>
     <string name="discovery_request_rejected">Aurral ने यह अनुरोध अस्वीकार कर दिया। फिर से प्रयास करने से पहले उसका विवरण जाँचें।</string>
     <string name="discovery_request_conflict">इस एल्बम के लाइब्रेरी स्वामित्व में विरोध है। Aurral में इसकी समीक्षा करें।</string>
+    <string name="discovery_waiting_for_release">रिलीज़ की प्रतीक्षा है</string>
+    <string name="discovery_waiting_for_release_date">रिलीज़ की प्रतीक्षा है: %1$s</string>
+    <string name="discovery_waiting_for_release_description">Aurral इस अनुरोध का प्रबंधन करता है।</string>
 </resources>
