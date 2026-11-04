@@ -223,6 +223,7 @@ class NaviampCoreDiscoveryController(
             playDiscoverySample(sample.playbackTrack(detail.artist.name))
             return
         }
+        if (command.action in detail.blockedActions) return
         val generation = discoveryDetailGeneration
         var operation: ProviderDiscoveryOperation? = null
         try {

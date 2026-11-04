@@ -35,6 +35,40 @@ class AurralLiveTest {
         println("Aurral release context: editions=${details.editions.size}, tracks=${tracks.tracks.size}, previews=${tracks.tracks.count { it.previewId != null }}")
     }
 
+    @Test fun upgradedBootstrapRetainsV1AndAdvertisesTheExpectedRelease() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        val bootstrap = Json.parseToJsonElement(transport.get(
+            connection.normalizedBaseUrl + "/api/health/bootstrap")).jsonObject
+        val api = bootstrap.getValue("api").jsonObject
+        assertEquals(1, api.getValue("version").jsonPrimitive.int)
+        val version = bootstrap.getValue("appVersion").jsonPrimitive.content
+        System.getenv("NAVIAMP_AURRAL_TEST_EXPECTED_VERSION")?.let { assertEquals(it, version) }
+        val features = api.getValue("features").jsonArray.map { it.jsonPrimitive.content }.toSet()
+        assertTrue("discover" in features)
+        if (version == "2.13.0") assertTrue(features.containsAll(setOf(
+            "playlistCoverTemplates", "shareImports", "trending", "flowAutoDownload")))
+        println("Aurral bootstrap live result: appVersion=$version, apiVersion=1, featureCount=${features.size}")
+    }
+
+    @Test fun libraryAudioServesInitialAndNonzeroByteRangesThroughTheProvider() = runBlocking {
+        val provider = NavidromeProvider(liveConnection() ?: return@runBlocking)
+        provider.validateConnection()
+        val album = provider.album(provider.recentlyAddedAlbums(1).first().id)
+        val track = album.tracks.first()
+        for (start in listOf(0L, 1024L)) {
+            var response: ProviderMediaByteResponse? = null
+            var bytes = 0L
+            assertTrue(provider.streamTrackBytes(StreamRequest(track.id, StreamQuality.Original),
+                rangeHeader = "bytes=$start-${start + 1023}", headOnly = false,
+                onResponse = { response = it }, writeChunk = { _, count -> bytes += count }))
+            assertEquals(206, response?.statusCode)
+            assertTrue(response?.contentRange?.startsWith("bytes $start-${start + 1023}/") == true)
+            assertEquals(1024L, bytes)
+        }
+        println("Aurral range live result: initial=206/1024 bytes, nonzero=206/1024 bytes")
+    }
+
     @Test fun expandedCatalogContractsUseReadOnlyRoutesAndKeepIdentityNamespaces() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)

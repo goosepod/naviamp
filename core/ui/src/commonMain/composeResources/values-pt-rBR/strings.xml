@@ -1239,6 +1239,7 @@
     <string name="discovery_release_partial">Parcialmente disponível na biblioteca do servidor.</string>
     <string name="discovery_release_available">Disponível na biblioteca do servidor.</string>
     <string name="discovery_server_acquisition">As solicitações adicionam músicas à biblioteca do servidor.</string>
-    <string name="discovery_request_conflict">Resolva o conflito de propriedade no Aurral antes de solicitar novamente.</string>
     <string name="discovery_request_identity_unavailable">Solicitação indisponível: não foi possível verificar os créditos dos artistas.</string>
+    <string name="discovery_request_rejected">O Aurral rejeitou esta solicitação. Confira os detalhes antes de tentar novamente.</string>
+    <string name="discovery_request_conflict">Este álbum tem um conflito de pertencimento na biblioteca. Confira no Aurral.</string>
 </resources>

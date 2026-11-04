@@ -526,6 +526,7 @@
     <string name="discovery_release_partial">Częściowo dostępne w bibliotece serwera.</string>
     <string name="discovery_release_available">Dostępne w bibliotece serwera.</string>
     <string name="discovery_server_acquisition">Żądania dodają muzykę do biblioteki serwera.</string>
-    <string name="discovery_request_conflict">Rozwiąż konflikt własności w Aurral przed ponownym żądaniem.</string>
     <string name="discovery_request_identity_unavailable">Żądanie niedostępne: nie można zweryfikować wykonawców.</string>
+    <string name="discovery_request_rejected">Aurral odrzucił to żądanie. Sprawdź szczegóły przed ponowną próbą.</string>
+    <string name="discovery_request_conflict">Ten album ma konflikt przypisania w bibliotece. Sprawdź go w Aurral.</string>
 </resources>

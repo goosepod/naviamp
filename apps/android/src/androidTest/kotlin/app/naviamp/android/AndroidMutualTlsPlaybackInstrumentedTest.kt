@@ -23,6 +23,10 @@ class AndroidMutualTlsPlaybackInstrumentedTest {
         check(directory.mkdirs())
         try {
             verifyNaviampMobileMutualTls(object : NaviampMobileMutualTlsHost {
+                override suspend fun verifyNativeCallbackDelivery() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    check(android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
+                }
+
                 override fun fixtureControlPort(): Int = requireNotNull(
                     InstrumentationRegistry.getArguments().getString("naviamp.mtls.controlPort"),
                 ) { "Start the disposable fixture and supply naviamp.mtls.controlPort" }.toInt()

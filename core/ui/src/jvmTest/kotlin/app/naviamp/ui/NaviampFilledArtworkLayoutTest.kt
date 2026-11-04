@@ -33,6 +33,75 @@ class NaviampFilledArtworkLayoutTest {
         onNodeWithContentDescription("Settings").assertIsDisplayed()
     }
 
+    @Test fun narrowFilledMetadataBalancesAudioAroundRatingsAndFallsBackForLargeText() {
+        data class Case(val width: Int, val height: Int, val scale: Float, val audio: String,
+            val rating: Boolean = true, val showAudio: Boolean = true, val split: Boolean = false)
+        val cases = listOf(
+            Case(320, 704, 1f, "MP3 320 kbps", split = true),
+            Case(320, 704, 1.4f, "MP3 320 kbps", split = true),
+            Case(320, 704, 2f, "FLAC 24-bit / 192 kHz"),
+            Case(280, 500, 1f, "MP3 320 kbps", split = true),
+            Case(412, 818, 1f, "MP3 320 kbps", split = true),
+            Case(320, 704, 1f, "MP3 320 kbps", rating = false),
+            Case(320, 704, 1f, "MP3 320 kbps", showAudio = false),
+            Case(320, 704, 1f, "", rating = true),
+        )
+        for (case in cases) runDesktopComposeUiTest(width = case.width, height = case.height) {
+            val trackActions = mutableListOf<NowPlayingCurrentTrackUiActionRequest>()
+            val progress = MutableStateFlow(PlaybackProgress(2.0, 163.0))
+            setContent {
+                CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, case.scale)) {
+                    NaviampNowPlayingPanel(
+                        NowPlayingUi(id = "track", title = "Dip It Low", subtitle = "Ofenbach  •  Fabich",
+                            albumTitle = "Dip It Low", albumYear = 2022, stateLabel = "Paused",
+                            positionSeconds = 2.0, durationSeconds = 163.0, isPaused = true,
+                            waveform = app.naviamp.domain.waveform.AudioWaveform(List(80) { index ->
+                                (0.2f + kotlin.math.abs(kotlin.math.sin(index * 0.71f)) * 0.7f) }),
+                            canFavorite = case.rating, canRate = case.rating, audioInfo = case.audio),
+                        progress, NaviampColors.Dark,
+                        NaviampNowPlayingActions({}, {}, { trackActions += it }, {}, {}, {}, {}),
+                        displaySettings = NowPlayingDisplaySettings(fillArtworkArea = true, showAudioInfo = case.showAudio),
+                    )
+                }
+            }
+            val metadata = onNodeWithTag("now-playing-filled-metadata").fetchSemanticsNode().boundsInRoot
+            val transport = onNodeWithTag("now-playing-transport-row")
+            transport.assertIsDisplayed()
+            val density = onRoot().fetchSemanticsNode().layoutInfo.density.density
+            assertTrue(transport.fetchSemanticsNode().boundsInRoot.top - metadata.bottom >= 11.5f * density)
+            onNodeWithTag("now-playing-bottom-actions").assertIsDisplayed()
+            val durationLayouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            onNodeWithText("2:43").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) {
+                it(durationLayouts)
+            }
+            assertEquals(1, durationLayouts.single().lineCount, "Time labels must not wrap with larger text")
+            if (case.split) {
+                val format = onNodeWithText("MP3").fetchSemanticsNode().boundsInRoot
+                val quality = onNodeWithText("320 kbps").fetchSemanticsNode().boundsInRoot
+                val rating = onNodeWithTag("now-playing-filled-rating").fetchSemanticsNode().boundsInRoot
+                assertTrue(format.right <= rating.left && quality.left >= rating.right)
+                assertTrue(kotlin.math.abs(format.center.y - rating.center.y) < density)
+                assertTrue(kotlin.math.abs(quality.center.y - rating.center.y) < density)
+                assertTrue(kotlin.math.abs(rating.center.x - metadata.center.x) < density, "Rating bar stays centered")
+            } else if (case.rating && case.showAudio && case.audio.isNotBlank()) {
+                val audio = onNodeWithText(case.audio).fetchSemanticsNode().boundsInRoot
+                val rating = onNodeWithTag("now-playing-filled-rating").fetchSemanticsNode().boundsInRoot
+                assertTrue(audio.top - rating.bottom >= 7.5f * density, "Large text uses a readable second line")
+            }
+            if (case.rating) {
+                onNodeWithContentDescription("Favorite").performClick()
+                onNodeWithContentDescription("5 star rating").performClick()
+                assertTrue(trackActions.any { it.action == NowPlayingCurrentTrackAction.ToggleFavorite })
+                assertTrue(trackActions.any { it.action == NowPlayingCurrentTrackAction.SetRating && it.rating == 5 })
+            }
+            System.getenv("NAVIAMP_ARTWORK_CAPTURE")?.let { directory ->
+                File(directory).mkdirs()
+                ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", File(directory,
+                    "spacing-${case.width}-${case.height}-${case.scale}-${case.rating}-${case.showAudio}-${case.audio.isBlank()}.png"))
+            }
+        }
+    }
+
     @Test fun singlePaneFillAndLegacyWideLayoutsKeepControlsUsableAcrossPlaybackUpdates() {
         val cases = listOf(
             Triple(320, 720, NaviampPlayerPanelLayout.Adaptive),
@@ -83,11 +152,11 @@ class NaviampFilledArtworkLayoutTest {
                         val title = onNodeWithText("Artwork review").fetchSemanticsNode().boundsInRoot
                         val artist = onNodeWithText("Artist").fetchSemanticsNode().boundsInRoot
                         val album = onNodeWithText("Album").fetchSemanticsNode().boundsInRoot
-                        val audio = onNodeWithText("MP3 320 kbps").fetchSemanticsNode().boundsInRoot
+                        val audio = onNodeWithTag("now-playing-filled-metadata").fetchSemanticsNode().boundsInRoot
                         val transport = onNodeWithTag("now-playing-transport-row").fetchSemanticsNode().boundsInRoot
-                        assertTrue(artist.top - title.bottom >= 3.5f * density, "Title/artist spacing")
-                        assertTrue(album.top - artist.bottom >= 3.5f * density, "Artist/album spacing")
-                        assertTrue(transport.top - audio.bottom >= 5.5f * density, "Audio/transport spacing")
+                        assertTrue(artist.top - title.bottom >= 5.5f * density, "Title/artist spacing")
+                        assertTrue(album.top - artist.bottom >= 5.5f * density, "Artist/album spacing")
+                        assertTrue(transport.top - audio.bottom >= (if (height < 500) 7.5f else 11.5f) * density, "Metadata/transport spacing")
                         onNodeWithTag("now-playing-bottom-actions").assertIsDisplayed()
                     }
                     val before = loads.get()

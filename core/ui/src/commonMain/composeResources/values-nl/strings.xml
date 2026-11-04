@@ -407,6 +407,7 @@
     <string name="discovery_release_partial">Gedeeltelijk beschikbaar in de serverbibliotheek.</string>
     <string name="discovery_release_available">Beschikbaar in de serverbibliotheek.</string>
     <string name="discovery_server_acquisition">Verzoeken voegen muziek toe aan de serverbibliotheek.</string>
-    <string name="discovery_request_conflict">Los het eigendomsconflict in Aurral op voordat je opnieuw een verzoek indient.</string>
     <string name="discovery_request_identity_unavailable">Verzoek niet beschikbaar: artiestvermeldingen konden niet worden geverifieerd.</string>
+    <string name="discovery_request_rejected">Aurral heeft dit verzoek afgewezen. Controleer de details voordat je het opnieuw probeert.</string>
+    <string name="discovery_request_conflict">Dit album heeft een conflict met de bibliotheektoewijzing. Bekijk dit in Aurral.</string>
 </resources>

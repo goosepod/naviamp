@@ -158,3 +158,29 @@ The user selected continued automated coverage with physical-device checks left 
 package was installed on the connected TV device, and its installed Naviamp app was not modified.
 Keep the PR draft for physical remote/touch and assistive-technology acceptance; #477 can proceed
 on its own dependent branch while this gate remains open.
+
+## November 4: integrate accepted Aurral 2.13 compatibility
+
+Integrated accepted main `c5e119f2f49c721c6816f6b6b6000ab3ae82b996`, including #508.
+The artist branch had already moved discovery behavior out of Home, so the merged request policy
+now belongs to `NaviampCoreDiscoveryController`: recognized rejections allow an explicit retry;
+conflicts and uncertain submissions remain blocked, including at execution time and after related
+artist/release navigation and Back. Home continues to delegate rather than regaining a duplicate
+implementation. All maintained catalogs retain the artist heading and both request-status messages.
+
+The new navigation regression failed before the controller fix because Conflict was not blocked.
+After the fix, 86 focused JVM methods pass without failures, errors or skips: 23 Home/discovery
+controller, 47 Aurral/provider HTTP, and 16 rendered artist/discovery UI methods. The imported Home
+fixture now uses a valid artist MBID, matching this destination's existing identity validation;
+its no-replay and explicit-retry assertions remain intact. Architecture verification and shared
+Android, JVM, iOS ARM64 and iOS Simulator ARM64 compilation pass. No platform production file changed.
+
+Reproduction: run `:core:presentation:jvmTest` filtered to `NaviampCoreDiscoveryControllerTest` and
+`NaviampCoreHomeControllerTest`, `:providers:navidrome:jvmTest` filtered to `app.naviamp.provider.aurral.*`
+and `NavidromeHttpErrorResponseTest`, and `:core:ui:jvmTest` filtered to `NaviampAurralDiscoveryUiTest`
+and `NaviampDiscoveryArtistPageTest`, together with `verifyCoreFirstArchitecture`. Compile presentation
+and Navidrome with `compileDebugKotlinAndroid`, `compileKotlinIosArm64` and
+`compileKotlinIosSimulatorArm64`. The rendered tests exercise narrow/wide/TV layouts; they do not
+establish physical-device or screen-reader acceptance. No live mutation was submitted. Current-head
+CI and the previously recorded physical acceptance gates remain open; this update is not a merge
+or release acceptance claim.
