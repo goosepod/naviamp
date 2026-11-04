@@ -1232,4 +1232,6 @@
         <item quantity="other">%1$d itens</item>
     </plurals>
     <string name="discovery_similar_artists">Artistas semelhantes</string>
+    <string name="discovery_request_rejected">O Aurral rejeitou esta solicitação. Confira os detalhes antes de tentar novamente.</string>
+    <string name="discovery_request_conflict">Este álbum tem um conflito de pertencimento na biblioteca. Confira no Aurral.</string>
 </resources>

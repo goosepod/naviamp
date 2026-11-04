@@ -400,4 +400,6 @@
     <string name="settings_fill_now_playing_artwork_description">Recadrer la pochette pour remplir le lecteur, avec un dégradé sombre derrière les commandes.</string>
     <string name="now_playing_toggle_visualizer">Activer ou désactiver la visualisation</string>
     <string name="discovery_similar_artists">Artistes similaires</string>
+    <string name="discovery_request_rejected">Aurral a refusé cette demande. Vérifiez ses détails avant de réessayer.</string>
+    <string name="discovery_request_conflict">Cet album présente un conflit d’appartenance dans la bibliothèque. Vérifiez-le dans Aurral.</string>
 </resources>

@@ -12,6 +12,37 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun requestOutcomesRetainRetryPolicyAfterRelatedArtistAndReleaseNavigation() = runTest {
+        for (status in listOf(ProviderDiscoveryOperationStatus.Rejected,
+            ProviderDiscoveryOperationStatus.Conflict, ProviderDiscoveryOperationStatus.Uncertain)) {
+            var writes = 0
+            val native = object : DiscoveryNative() {
+                override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation {
+                    writes++
+                    return ProviderDiscoveryOperation(status)
+                }
+            }
+            val h = DiscoveryHarness(native)
+            h.open(First)
+            val action = ProviderDiscoveryAction.RequestAlbum(Release.id)
+            val request = NaviampCoreCommand.Home.DiscoveryAction(First.id, action)
+            h.controller.dispatch(request); h.controller.execute(request)
+            assertEquals(status, h.detail().operationStatus)
+            h.open(Second)
+            h.back()
+            val release = NaviampCoreCommand.Home.SelectDiscoveryRelease(Release.id)
+            h.controller.dispatch(release); h.controller.execute(release)
+            h.back()
+            assertEquals(status, h.detail().operationStatus)
+            assertEquals(status != ProviderDiscoveryOperationStatus.Rejected, action in h.detail().blockedActions)
+            val retry = NaviampCoreCommand.Home.DiscoveryAction(First.id, action)
+            h.controller.dispatch(retry)
+            // Execution must also enforce the policy if a caller runs a handled command.
+            h.controller.execute(retry)
+            assertEquals(if (status == ProviderDiscoveryOperationStatus.Rejected) 2 else 1, writes, status.name)
+        }
+    }
+
     @Test fun relatedArtistsAndReleasesReturnToTheSameArtistViewportAndFilters() = runTest {
         val h = DiscoveryHarness()
         h.open(First)

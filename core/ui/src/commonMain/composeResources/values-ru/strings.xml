@@ -400,4 +400,6 @@
     <string name="settings_fill_now_playing_artwork_description">Обрезать обложку по размеру плеера и добавить тёмный градиент под элементами управления.</string>
     <string name="now_playing_toggle_visualizer">Переключить визуализацию</string>
     <string name="discovery_similar_artists">Похожие исполнители</string>
+    <string name="discovery_request_rejected">Aurral отклонил этот запрос. Проверьте подробности перед повторной попыткой.</string>
+    <string name="discovery_request_conflict">Для этого альбома возник конфликт принадлежности в библиотеке. Проверьте его в Aurral.</string>
 </resources>

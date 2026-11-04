@@ -1230,4 +1230,6 @@
     <string name="settings_fill_now_playing_artwork_description">Recortar la carátula para llenar el reproductor, con un degradado oscuro detrás de los controles.</string>
     <string name="now_playing_toggle_visualizer">Activar o desactivar el visualizador</string>
     <string name="discovery_similar_artists">Artistas similares</string>
+    <string name="discovery_request_rejected">Aurral rechazó esta solicitud. Revisa sus detalles antes de volver a intentarlo.</string>
+    <string name="discovery_request_conflict">Este álbum tiene un conflicto de pertenencia en la biblioteca. Revísalo en Aurral.</string>
 </resources>

@@ -400,4 +400,6 @@
     <string name="settings_fill_now_playing_artwork_description">Kapağı oynatıcıyı dolduracak şekilde kırp ve denetimlerin arkasına koyu geçiş ekle.</string>
     <string name="now_playing_toggle_visualizer">Görselleştiriciyi aç veya kapat</string>
     <string name="discovery_similar_artists">Benzer sanatçılar</string>
+    <string name="discovery_request_rejected">Aurral bu isteği reddetti. Tekrar denemeden önce ayrıntılarını kontrol edin.</string>
+    <string name="discovery_request_conflict">Bu albümde kitaplık sahipliği çakışması var. Aurral üzerinden inceleyin.</string>
 </resources>

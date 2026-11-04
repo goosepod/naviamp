@@ -349,7 +349,7 @@ class NaviampCorePlaybackEngineAdapter(
         }
         if (!preservePreparedTransition) clearPreparedTransition()
         cancelAudioPrefetch()
-        startCurrent(startPositionSeconds = null)
+        startCurrent(startPositionSeconds = null, stopCurrentPlayback = !preservePreparedTransition)
     }
 
     override fun applyRepeatMode(mode: RepeatMode) {
@@ -393,6 +393,7 @@ class NaviampCorePlaybackEngineAdapter(
         pauseWhenStarted: Boolean = false,
         recoveryLocalAudio: PlaybackLocalAudio? = null,
         recoveryQuality: StreamQuality? = null,
+        stopCurrentPlayback: Boolean = false,
     ) {
         val track = queue.current ?: return
         deferredStart = false
@@ -405,6 +406,9 @@ class NaviampCorePlaybackEngineAdapter(
         val requestGeneration = ++generation
         val preparedNextInvalidation = preparedNextBarrier.currentInvalidation()
         resolutionJob?.cancel()
+        // Invalidate callbacks first, then stop before a dispatcher can start the next stream inline.
+        // Automatic advance retains the prepared transition and never takes this manual-skip path.
+        if (stopCurrentPlayback) engine.stop()
         resolutionJob = scope.launch {
             preparedNextInvalidation?.join()
             if (requestGeneration != generation) return@launch
