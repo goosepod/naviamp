@@ -1,6 +1,13 @@
 name: Verify
 
 on:
+  workflow_dispatch:
+    inputs:
+      macos_runner_label:
+        description: Unique temporary local ARM64 runner label (blank uses GitHub-hosted macOS)
+        type: string
+        required: false
+        default: ''
   workflow_call:
     inputs:
       source_ref:
@@ -27,11 +34,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_full: ${{ steps.classify.outputs.run_full }}
+      macos_runner: ${{ steps.classify.outputs.macos_runner }}
     steps:
       - name: Check out repository history
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
 
       - name: Classify changed paths
@@ -39,7 +47,17 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: scripts/classify-verification-scope.sh >> "$GITHUB_OUTPUT"
+          MACOS_RUNNER_LABEL: ${{ inputs.macos_runner_label }}
+        run: |
+          if [ -f scripts/select-verification-macos-runner.py ]; then
+            python3 scripts/select-verification-macos-runner.py >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] && [ -z "$MACOS_RUNNER_LABEL" ]; then
+            # Release recovery can check out a public source that predates this helper.
+            printf '%s\n' 'macos_runner="macos-latest"' >> "$GITHUB_OUTPUT"
+          else
+            exit 1
+          fi
+          scripts/classify-verification-scope.sh >> "$GITHUB_OUTPUT"
 
   shared-android:
     name: Shared and Android tests
@@ -54,7 +72,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
 
       - name: Validate release version metadata
@@ -131,12 +149,12 @@ jobs:
     name: Desktop native tests (macOS)
     needs: changes
     if: needs.changes.outputs.run_full == 'true'
-    runs-on: macos-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.macos_runner) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -178,7 +196,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
 
       - name: Validate documentation-only changes
@@ -320,7 +338,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -379,7 +397,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -432,14 +450,14 @@ jobs:
     name: iOS simulator tests
     needs: changes
     if: needs.changes.outputs.run_full == 'true'
-    runs-on: macos-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.macos_runner) }}
     env:
       GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -616,7 +634,7 @@ jobs:
       - ios
     if: >-
       always() &&
-      github.event_name == 'pull_request' &&
+      (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') &&
       needs.changes.outputs.run_full == 'true' &&
       needs.shared-android.result == 'success' &&
       needs.desktop-macos.result == 'success' &&
@@ -626,12 +644,12 @@ jobs:
       needs.ios.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the verified pull-request merge
+      - name: Check out the verified event commit
         uses: actions/checkout@v7
 
       - name: Write verification evidence
         env:
-          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
         run: |
           mkdir -p "$RUNNER_TEMP/naviamp-verification"
@@ -645,7 +663,7 @@ jobs:
       - name: Upload verification evidence
         uses: actions/upload-artifact@v7
         with:
-          name: verified-source-${{ github.event.pull_request.head.sha }}
+          name: verified-source-${{ github.event.pull_request.head.sha || github.sha }}
           if-no-files-found: error
           retention-days: 30
           path: ${{ runner.temp }}/naviamp-verification/evidence.txt
