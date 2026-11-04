@@ -954,6 +954,7 @@ fun SharedHomeRoute(
     scrollState: ScrollState = rememberScrollState(),
 ) {
     val collectionScrollState = remember(home.collectionPage?.section?.id) { ScrollState(0) }
+    home.providerDiscovery?.let { NaviampDiscoveryRequestsUi(it, colors, actions) }
     home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
         NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback)
         return
@@ -1017,7 +1018,8 @@ fun SharedHomeRoute(
                     home.providerDiscovery?.let { discovery ->
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback)
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                            onRequests = actions.onDiscoveryRequests)
                     }
                     SharedHome(
                         colors = colors,

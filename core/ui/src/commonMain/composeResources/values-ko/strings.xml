@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">출시 대기 중</string>
     <string name="discovery_waiting_for_release_date">출시 대기 중: %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral이 이 요청을 관리합니다.</string>
+    <string name="discovery_requests_title">최근 요청</string>
+    <string name="discovery_requests_empty">이 계정의 최근 요청이 없습니다.</string>
+    <string name="discovery_requests_stale">상태를 새로 고칠 수 없습니다. 저장된 정보를 표시합니다.</string>
+    <string name="discovery_requests_activity">서버 활동</string>
+    <string name="discovery_activity_complete">요청 완료.</string>
+    <string name="discovery_acquisition_processing">진행 중</string>
+    <string name="discovery_acquisition_downloading">다운로드 중</string>
+    <string name="discovery_acquisition_importing">가져오는 중</string>
+    <string name="discovery_acquisition_complete">요청 완료. 라이브러리를 확인하는 중입니다.</string>
+    <string name="discovery_acquisition_blocked">Aurral에서 검토 필요</string>
+    <string name="discovery_acquisition_failed">요청 실패</string>
+    <string name="discovery_acquisition_cancelled">요청 취소됨</string>
 </resources>

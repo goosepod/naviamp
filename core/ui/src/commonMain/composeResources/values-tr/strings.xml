@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">Yayınlanması bekleniyor</string>
     <string name="discovery_waiting_for_release_date">Yayınlanması bekleniyor: %1$s</string>
     <string name="discovery_waiting_for_release_description">Bu isteği Aurral yönetir.</string>
+    <string name="discovery_requests_title">Son istekler</string>
+    <string name="discovery_requests_empty">Bu hesap için son istek bulunmuyor.</string>
+    <string name="discovery_requests_stale">Durum yenilenemedi. Kaydedilmiş bilgiler gösteriliyor.</string>
+    <string name="discovery_requests_activity">Sunucu etkinliği</string>
+    <string name="discovery_activity_complete">İstek tamamlandı.</string>
+    <string name="discovery_acquisition_processing">Devam ediyor</string>
+    <string name="discovery_acquisition_downloading">İndiriliyor</string>
+    <string name="discovery_acquisition_importing">İçe aktarılıyor</string>
+    <string name="discovery_acquisition_complete">İstek tamamlandı; kitaplık denetleniyor.</string>
+    <string name="discovery_acquisition_blocked">Aurral içinde inceleme gerekiyor</string>
+    <string name="discovery_acquisition_failed">İstek başarısız</string>
+    <string name="discovery_acquisition_cancelled">İstek iptal edildi</string>
 </resources>

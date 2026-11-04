@@ -14,6 +14,100 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun openingASavedRequestCannotFinishAgainstANewConnection() = runTest {
+        val repository = MemoryDiscoveryAcquisitionRepository()
+        val record = DiscoveryAcquisitionRecord("saved", First.id, First.name, Release.id, true, Release.id, Release.title,
+            ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued), DiscoveryAcquisitionPhase.Queued, 42L)
+        repository.save(DiscoveryAcquisitionScope("account-one", "account-one"), record)
+        val gate = CompletableDeferred<Unit>(); val entered = CompletableDeferred<Unit>()
+        val native = object : DiscoveryNative() {
+            override suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult {
+                entered.complete(Unit); gate.await(); return super.artistDetails(artist)
+            }
+        }
+        val h = DiscoveryHarness(native, repository)
+        h.controller.dispatch(NaviampCoreCommand.Home.ShowDiscoveryRequests)
+        val command = NaviampCoreCommand.Home.OpenDiscoveryRequest(h.account, h.discovery().sourceGeneration, record.id)
+        val opening = launch { h.controller.execute(command) }
+        entered.await()
+        h.account = "account-two"; h.active = discoveryProvider(DiscoveryNative(), h.account)
+        h.open(First)
+        gate.complete(Unit); opening.join()
+        assertEquals(First.id, h.detail().artist.id)
+        assertNull(h.discovery().releasePage)
+        assertTrue(h.discovery().acquisitions.isEmpty())
+    }
+    @Test fun persistedRequestsHydrateANewControllerWithoutReposting() = runTest {
+        val repository = MemoryDiscoveryAcquisitionRepository()
+        var calls = 0
+        val native = object : DiscoveryNative() {
+            override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation {
+                calls++
+                return ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued,
+                    ProviderDiscoveryRequestIdentity(requestGroupId = DiscoveryRequestGroupId("group")))
+            }
+            override suspend fun requestActivity() = ProviderDiscoveryActivities(ProviderDiscoveryStatus.Ready,
+                listOf(ProviderDiscoveryActivity("history", "completed", ProviderDiscoveryRequestIdentity(requestGroupId = DiscoveryRequestGroupId("group")))))
+        }
+        val first = DiscoveryHarness(native, repository)
+        first.open(First); first.openRelease()
+        val request = first.releaseAction(ProviderDiscoveryAction.RequestAlbum(Release.id))
+        first.controller.dispatch(request); first.controller.execute(request)
+        val reopened = DiscoveryHarness(native, repository)
+        reopened.open(First); reopened.openRelease()
+        assertEquals(1, reopened.detail().acquisitions.size)
+        val duplicate = reopened.releaseAction(ProviderDiscoveryAction.RequestAlbum(Release.id))
+        assertTrue(reopened.controller.dispatch(duplicate) is NaviampCoreImmediateCommandResult.Handled)
+        reopened.controller.execute(duplicate)
+        reopened.controller.refreshAcquisitions()
+        assertEquals(DiscoveryAcquisitionPhase.Complete, reopened.discovery().acquisitions.single().phase)
+        assertNull(reopened.discovery().releasePage?.ownership?.libraryAlbum)
+        assertEquals(1, calls)
+    }
+    @Test fun staleStatusReadCannotPublishIntoTheNewAccount() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val entered = CompletableDeferred<Unit>()
+        val native = object : DiscoveryNative() {
+            override suspend fun requestActivity(): ProviderDiscoveryActivities {
+                entered.complete(Unit); gate.await()
+                return ProviderDiscoveryActivities(ProviderDiscoveryStatus.Ready,
+                    listOf(ProviderDiscoveryActivity("old-user", "processing", null)))
+            }
+        }
+        val h = DiscoveryHarness(native)
+        h.open(First)
+        val pending = launch { h.controller.refreshAcquisitions() }
+        entered.await()
+        val oldGeneration = h.discovery().sourceGeneration
+        h.account = "account-two"; h.active = discoveryProvider(DiscoveryNative(), h.account)
+        h.open(First)
+        gate.complete(Unit); pending.join()
+        assertTrue(h.discovery().sourceGeneration > oldGeneration)
+        assertTrue(h.discovery().requestActivity.items.isEmpty())
+        assertTrue(h.discovery().acquisitions.isEmpty())
+        assertFalse(h.discovery().requestsLoading)
+    }
+    @Test fun pollingCancellationStopsFurtherReadsAndManualReconnectRetainsRequests() = runTest {
+        var calls = 0
+        val native = object : DiscoveryNative() {
+            override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease) =
+                ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued)
+            override suspend fun requestActivity(): ProviderDiscoveryActivities {
+                calls++; return ProviderDiscoveryActivities(ProviderDiscoveryStatus.Ready)
+            }
+        }
+        val h = DiscoveryHarness(native)
+        h.open(First); h.openRelease()
+        val request = h.releaseAction(ProviderDiscoveryAction.RequestAlbum(Release.id))
+        h.controller.dispatch(request); h.controller.execute(request)
+        val polling = launch { h.controller.maintainAcquisitions() }
+        runCurrent(); assertEquals(1, calls)
+        polling.cancelAndJoin()
+        advanceTimeBy(120_000); runCurrent(); assertEquals(1, calls)
+        h.controller.refreshAcquisitions(); assertEquals(2, calls)
+        assertEquals(DiscoveryAcquisitionPhase.Queued, h.discovery().acquisitions.single().phase)
+    }
+
     @Test fun waitingAlbumRetainsContextAndNeverResubmitsAcrossNavigationDateOrSourceChanges() = runTest {
         var albumCalls = 0
         var trackCalls = 0
@@ -474,9 +568,11 @@ private open class DiscoveryNative : ProviderDiscovery {
 private fun discoveryProvider(native: ProviderDiscovery, account: String) = object : MediaProvider by FakeCoreMediaProvider() {
     override val id = ProviderId("aurral")
     override val cacheNamespace = account
+    override val discoveryAccountScope = account
     override val discovery = native
 }
-private class DiscoveryHarness(native: ProviderDiscovery = DiscoveryNative()) {
+private class DiscoveryHarness(native: ProviderDiscovery = DiscoveryNative(),
+    repository: DiscoveryAcquisitionRepository = MemoryDiscoveryAcquisitionRepository()) {
     var account = "account-one"
     var active: MediaProvider = discoveryProvider(native, account)
     val store = NaviampCoreStateStore()
@@ -488,7 +584,7 @@ private class DiscoveryHarness(native: ProviderDiscovery = DiscoveryNative()) {
     init { store.updateShell { it.copy(home = it.home.copy(providerDiscovery = SharedProviderDiscoveryUi("aurral",
         ProviderDiscoveryFeed(trending = listOf(First)))), shellChrome = it.shellChrome.copy(selectedRoute = SharedRoute.Search)) } }
     val controller = NaviampCoreDiscoveryController(store, { active }, { account }, {}, { played += it }, { stops++ }, { libraryOpens++ }, {},
-        restoreRoute = { returned += it }, openLibraryAlbum = { albumsOpened += it })
+        restoreRoute = { returned += it }, openLibraryAlbum = { albumsOpened += it }, acquisitionRepository = repository)
     fun discovery() = store.state.value.shell.home.providerDiscovery!!
     fun detail() = discovery().artistDetail!!
     fun releaseAction(action: ProviderDiscoveryAction) = NaviampCoreCommand.Home.DiscoveryReleaseAction(account, discovery().sourceGeneration, Release.id, action)

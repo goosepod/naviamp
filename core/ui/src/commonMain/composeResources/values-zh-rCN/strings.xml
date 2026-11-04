@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">等待发行</string>
     <string name="discovery_waiting_for_release_date">等待发行：%1$s</string>
     <string name="discovery_waiting_for_release_description">此请求由 Aurral 管理。</string>
+    <string name="discovery_requests_title">最近的请求</string>
+    <string name="discovery_requests_empty">此账户没有最近的请求。</string>
+    <string name="discovery_requests_stale">无法刷新状态。正在显示已保存的信息。</string>
+    <string name="discovery_requests_activity">服务器活动</string>
+    <string name="discovery_activity_complete">请求已完成。</string>
+    <string name="discovery_acquisition_processing">进行中</string>
+    <string name="discovery_acquisition_downloading">正在下载</string>
+    <string name="discovery_acquisition_importing">正在导入</string>
+    <string name="discovery_acquisition_complete">请求已完成，正在检查音乐库。</string>
+    <string name="discovery_acquisition_blocked">需要在 Aurral 中检查</string>
+    <string name="discovery_acquisition_failed">请求失败</string>
+    <string name="discovery_acquisition_cancelled">请求已取消</string>
 </resources>

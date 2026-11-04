@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">Menunggu rilis</string>
     <string name="discovery_waiting_for_release_date">Menunggu rilis: %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral mengelola permintaan ini.</string>
+    <string name="discovery_requests_title">Permintaan terbaru</string>
+    <string name="discovery_requests_empty">Tidak ada permintaan terbaru untuk akun ini.</string>
+    <string name="discovery_requests_stale">Status tidak dapat diperbarui. Menampilkan informasi tersimpan.</string>
+    <string name="discovery_requests_activity">Aktivitas server</string>
+    <string name="discovery_activity_complete">Permintaan selesai.</string>
+    <string name="discovery_acquisition_processing">Sedang berlangsung</string>
+    <string name="discovery_acquisition_downloading">Mengunduh</string>
+    <string name="discovery_acquisition_importing">Mengimpor</string>
+    <string name="discovery_acquisition_complete">Permintaan selesai; memeriksa pustaka.</string>
+    <string name="discovery_acquisition_blocked">Perlu ditinjau di Aurral</string>
+    <string name="discovery_acquisition_failed">Permintaan gagal</string>
+    <string name="discovery_acquisition_cancelled">Permintaan dibatalkan</string>
 </resources>

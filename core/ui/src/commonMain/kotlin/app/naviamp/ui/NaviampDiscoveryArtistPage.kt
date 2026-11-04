@@ -70,6 +70,9 @@ internal fun NaviampDiscoveryArtistPage(
         Column(Modifier.fillMaxSize().then(navigation).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             TextButton(onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
+            TextButton(onClick = actions.onDiscoveryRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
+            if (discovery.requestsStatus != null && discovery.requestsStatus != ProviderDiscoveryStatus.Ready)
+                Text(stringResource(Res.string.discovery_requests_stale), color = colors.secondaryText)
             Text(release.result?.release?.title ?: release.release.title, color = colors.primaryText,
                 modifier = Modifier.semantics { heading() })
             val metadata = release.result?.release ?: release.release
@@ -129,7 +132,8 @@ internal fun NaviampDiscoveryArtistPage(
                 Text(stringResource(Res.string.discovery_server_acquisition), color = colors.secondaryText)
             if (artist.actionBusy) Text(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
             albumOperation?.takeUnless { it.status == ProviderDiscoveryOperationStatus.WaitingForRelease && available }
-                ?.let { DiscoveryOperationResult(it, colors) }
+                ?.let { operation -> artist.acquisitions[ProviderDiscoveryAction.RequestAlbum(release.release.id)]
+                    ?.let { DiscoveryAcquisitionResult(it, colors) } ?: DiscoveryOperationResult(operation, colors) }
             Text(stringResource(Res.string.search_tracks_section), color = colors.primaryText, modifier = Modifier.semantics { heading() })
             when {
                 release.tracksLoading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
@@ -179,7 +183,8 @@ internal fun NaviampDiscoveryArtistPage(
                             if (recording in release.ownership?.ownedRecordings.orEmpty())
                                 Text(stringResource(Res.string.discovery_request_owned), color = colors.secondaryText)
                             artist.requestOperations[ProviderDiscoveryAction.RequestTrack(recording.value)]
-                                ?.let { DiscoveryOperationResult(it, colors) }
+                                ?.let { operation -> artist.acquisitions[ProviderDiscoveryAction.RequestTrack(recording.value)]
+                                    ?.let { DiscoveryAcquisitionResult(it, colors) } ?: DiscoveryOperationResult(operation, colors) }
                         }
                     }
                 }
@@ -195,6 +200,7 @@ internal fun NaviampDiscoveryArtistPage(
         onLibrary = { actions.onDiscoveryLibraryArtist(artist.artist.id) },
         onAction = { actions.onDiscoveryAction(artist.artist.id, it) }, playback = playback,
         fullPage = true, onArtistDetails = actions.onDiscoveryArtistDetails,
+        onRequests = actions.onDiscoveryRequests,
         onReleaseSelected = actions.onDiscoveryRelease, onViewport = actions.onDiscoveryViewport,
         stateKey = discovery.sourceId to discovery.sourceGeneration,
         navigationModifier = navigation,

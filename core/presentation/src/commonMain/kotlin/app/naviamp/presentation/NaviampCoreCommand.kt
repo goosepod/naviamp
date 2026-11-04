@@ -181,6 +181,11 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Home : NaviampCoreCommand {
+        data object ShowDiscoveryRequests : Home
+        data object DismissDiscoveryRequests : Home
+        data object RefreshDiscoveryRequests : Home
+        data class OpenDiscoveryRequest(val sourceId: String?, val generation: Long, val id: String) : Home
+        data class OpenDiscoveryRequestsExternal(val sourceId: String?, val generation: Long) : Home
         data object Refresh : Home
         data class OpenDiscoveryArtist(val id: String) : Home
         data class SelectDiscoveryArtist(val id: String) : Home

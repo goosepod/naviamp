@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">Ожидание релиза</string>
     <string name="discovery_waiting_for_release_date">Ожидание релиза: %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral управляет этим запросом.</string>
+    <string name="discovery_requests_title">Недавние запросы</string>
+    <string name="discovery_requests_empty">Для этой учётной записи нет недавних запросов.</string>
+    <string name="discovery_requests_stale">Не удалось обновить статус. Показаны сохранённые сведения.</string>
+    <string name="discovery_requests_activity">Активность сервера</string>
+    <string name="discovery_activity_complete">Запрос завершён.</string>
+    <string name="discovery_acquisition_processing">Выполняется</string>
+    <string name="discovery_acquisition_downloading">Загрузка</string>
+    <string name="discovery_acquisition_importing">Импорт</string>
+    <string name="discovery_acquisition_complete">Запрос завершён; проверка библиотеки.</string>
+    <string name="discovery_acquisition_blocked">Требуется проверка в Aurral</string>
+    <string name="discovery_acquisition_failed">Ошибка запроса</string>
+    <string name="discovery_acquisition_cancelled">Запрос отменён</string>
 </resources>

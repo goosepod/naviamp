@@ -1245,4 +1245,16 @@
     <string name="discovery_waiting_for_release">Aguardando lançamento</string>
     <string name="discovery_waiting_for_release_date">Aguardando lançamento: %1$s</string>
     <string name="discovery_waiting_for_release_description">O Aurral gerencia esta solicitação.</string>
+    <string name="discovery_requests_title">Solicitações recentes</string>
+    <string name="discovery_requests_empty">Nenhuma solicitação recente para esta conta.</string>
+    <string name="discovery_requests_stale">Não foi possível atualizar o status. Exibindo informações salvas.</string>
+    <string name="discovery_requests_activity">Atividade do servidor</string>
+    <string name="discovery_activity_complete">Solicitação concluída.</string>
+    <string name="discovery_acquisition_processing">Em andamento</string>
+    <string name="discovery_acquisition_downloading">Baixando</string>
+    <string name="discovery_acquisition_importing">Importando</string>
+    <string name="discovery_acquisition_complete">Solicitação concluída; verificando a biblioteca.</string>
+    <string name="discovery_acquisition_blocked">Precisa de revisão no Aurral</string>
+    <string name="discovery_acquisition_failed">A solicitação falhou</string>
+    <string name="discovery_acquisition_cancelled">Solicitação cancelada</string>
 </resources>

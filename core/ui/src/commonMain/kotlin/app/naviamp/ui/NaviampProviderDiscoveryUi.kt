@@ -59,11 +59,13 @@ internal fun NaviampProviderDiscoveryContent(
     onLibraryArtist: (String) -> Unit = {},
     onAction: (String, ProviderDiscoveryAction) -> Unit = { _, _ -> },
     playback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
+    onRequests: () -> Unit = {},
 ) {
     val providerName = localizedProviderName(discovery.providerId)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(Res.string.discovery_provider_title, providerName),
             color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        TextButton(onClick = onRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
         val message = when {
             discovery.loading -> Res.string.discovery_loading
             else -> when (discovery.feed.status) {
@@ -183,6 +185,7 @@ internal fun NaviampDiscoveryArtistPanel(
     stateKey: Any? = null,
     dismissModifier: Modifier = Modifier,
     navigationModifier: Modifier = Modifier,
+    onRequests: (() -> Unit)? = null,
 ) {
     val releases = screen.details?.releases.orEmpty()
     val sections = AlbumReleaseSection.entries.filter { section -> releases.any { it.section == section } }
@@ -202,6 +205,7 @@ internal fun NaviampDiscoveryArtistPanel(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(screen.artist.name, modifier = Modifier.weight(1f).semantics { heading() }, color = colors.primaryText,
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                onRequests?.let { TextButton(onClick = it) { Text(stringResource(Res.string.discovery_requests_title)) } }
                 TextButton(onClick = onDismiss, modifier = dismissModifier) { Text(stringResource(if (fullPage) Res.string.common_back else Res.string.common_close)) }
             }
             BoxWithConstraints(Modifier.fillMaxWidth().then(if (fullPage) Modifier.weight(1f) else Modifier)) {
@@ -392,6 +396,7 @@ private fun DiscoveryReleaseCard(
         operation?.takeIf { waiting }?.let {
             Text(discoveryOperationLabel(it), color = colors.secondaryText, fontSize = 11.sp, lineHeight = 14.sp)
         }
+        if (!waiting) screen.acquisitions[ProviderDiscoveryAction.RequestAlbum(release.id)]?.let { DiscoveryAcquisitionResult(it, colors) }
     }
 }
 

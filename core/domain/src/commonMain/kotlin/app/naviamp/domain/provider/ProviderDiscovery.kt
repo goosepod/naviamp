@@ -27,6 +27,7 @@ data class ProviderDiscoveryFeed(
 
 /** Optional native discovery; failure never disables the provider's standard playback contract. */
 fun interface ProviderDiscovery {
+    val requestsUrl: String? get() = null
     suspend fun load(): ProviderDiscoveryFeed
     suspend fun recommendations(offset: Int = 0, limit: Int = 100): ProviderRecommendationPage = ProviderRecommendationPage()
     suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int = 0, limit: Int = 24): ProviderCatalogPage = ProviderCatalogPage()
@@ -35,6 +36,7 @@ fun interface ProviderDiscovery {
     suspend fun releaseDetails(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseDetails = ProviderDiscoveryReleaseDetails()
     suspend fun releaseOwnership(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseOwnership = ProviderDiscoveryReleaseOwnership()
     suspend fun requestActivity(): ProviderDiscoveryActivities = ProviderDiscoveryActivities()
+    suspend fun acquisitionStatus(identity: ProviderDiscoveryRequestIdentity): ProviderDiscoveryAcquisitionStatus = ProviderDiscoveryAcquisitionStatus()
     suspend fun similarArtists(artist: DiscoveryArtistMbid): ProviderDiscoverySimilarArtists = ProviderDiscoverySimilarArtists()
     suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult =
         ProviderDiscoveryArtistResult(ProviderDiscoveryStatus.Unsupported)
@@ -100,8 +102,10 @@ data class ProviderDiscoverySample(val id: String, val title: String, val albumT
 const val DiscoveryPreviewTrackPrefix = "discovery-preview:"
 fun app.naviamp.domain.TrackId.isDiscoveryPreview(): Boolean = value.startsWith(DiscoveryPreviewTrackPrefix)
 data class ProviderDiscoverySamples(val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported, val tracks: List<ProviderDiscoverySample> = emptyList())
+@kotlinx.serialization.Serializable
 enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain, Rejected, Conflict, WaitingForRelease }
 /** A server-confirmed monitored request; a date alone never establishes this state. */
+@kotlinx.serialization.Serializable
 data class ProviderDiscoveryWaitingForRelease(
     val manager: DiscoveryLibraryManager,
     val releaseDate: String? = null,
@@ -113,6 +117,7 @@ val ProviderDiscoveryOperationStatus.blocksRepeatedRequest: Boolean
         ProviderDiscoveryOperationStatus.MissingSource, ProviderDiscoveryOperationStatus.Conflict,
         ProviderDiscoveryOperationStatus.Uncertain, ProviderDiscoveryOperationStatus.WaitingForRelease)
 
+@kotlinx.serialization.Serializable
 data class ProviderDiscoveryOperation(
     val status: ProviderDiscoveryOperationStatus = ProviderDiscoveryOperationStatus.Unsupported,
     val identity: ProviderDiscoveryRequestIdentity? = null,

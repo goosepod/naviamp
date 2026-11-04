@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">بانتظار الإصدار</string>
     <string name="discovery_waiting_for_release_date">بانتظار الإصدار: %1$s</string>
     <string name="discovery_waiting_for_release_description">يتولى Aurral إدارة هذا الطلب.</string>
+    <string name="discovery_requests_title">الطلبات الأخيرة</string>
+    <string name="discovery_requests_empty">لا توجد طلبات حديثة لهذا الحساب.</string>
+    <string name="discovery_requests_stale">تعذر تحديث الحالة. تُعرض المعلومات المحفوظة.</string>
+    <string name="discovery_requests_activity">نشاط الخادم</string>
+    <string name="discovery_activity_complete">اكتمل الطلب.</string>
+    <string name="discovery_acquisition_processing">قيد التنفيذ</string>
+    <string name="discovery_acquisition_downloading">جارٍ التنزيل</string>
+    <string name="discovery_acquisition_importing">جارٍ الاستيراد</string>
+    <string name="discovery_acquisition_complete">اكتمل الطلب؛ جارٍ التحقق من المكتبة.</string>
+    <string name="discovery_acquisition_blocked">تحتاج إلى مراجعة في Aurral</string>
+    <string name="discovery_acquisition_failed">فشل الطلب</string>
+    <string name="discovery_acquisition_cancelled">أُلغي الطلب</string>
 </resources>

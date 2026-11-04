@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">Wachten op uitgave</string>
     <string name="discovery_waiting_for_release_date">Wachten op uitgave: %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral beheert dit verzoek.</string>
+    <string name="discovery_requests_title">Recente verzoeken</string>
+    <string name="discovery_requests_empty">Geen recente verzoeken voor dit account.</string>
+    <string name="discovery_requests_stale">Status kon niet worden vernieuwd. Opgeslagen informatie wordt getoond.</string>
+    <string name="discovery_requests_activity">Serveractiviteit</string>
+    <string name="discovery_activity_complete">Verzoek voltooid.</string>
+    <string name="discovery_acquisition_processing">Bezig</string>
+    <string name="discovery_acquisition_downloading">Downloaden</string>
+    <string name="discovery_acquisition_importing">Importeren</string>
+    <string name="discovery_acquisition_complete">Verzoek voltooid; bibliotheek wordt gecontroleerd.</string>
+    <string name="discovery_acquisition_blocked">Controle in Aurral nodig</string>
+    <string name="discovery_acquisition_failed">Verzoek mislukt</string>
+    <string name="discovery_acquisition_cancelled">Verzoek geannuleerd</string>
 </resources>

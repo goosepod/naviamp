@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">リリース待ち</string>
     <string name="discovery_waiting_for_release_date">リリース待ち: %1$s</string>
     <string name="discovery_waiting_for_release_description">このリクエストは Aurral が管理します。</string>
+    <string name="discovery_requests_title">最近のリクエスト</string>
+    <string name="discovery_requests_empty">このアカウントの最近のリクエストはありません。</string>
+    <string name="discovery_requests_stale">状態を更新できませんでした。保存済みの情報を表示しています。</string>
+    <string name="discovery_requests_activity">サーバーのアクティビティ</string>
+    <string name="discovery_activity_complete">リクエスト完了。</string>
+    <string name="discovery_acquisition_processing">処理中</string>
+    <string name="discovery_acquisition_downloading">ダウンロード中</string>
+    <string name="discovery_acquisition_importing">インポート中</string>
+    <string name="discovery_acquisition_complete">リクエスト完了。ライブラリを確認中。</string>
+    <string name="discovery_acquisition_blocked">Aurral での確認が必要</string>
+    <string name="discovery_acquisition_failed">リクエスト失敗</string>
+    <string name="discovery_acquisition_cancelled">リクエスト取消済み</string>
 </resources>

@@ -976,6 +976,11 @@ data class SharedProviderDiscoveryUi(
     val sourceId: String? = null,
     val originRoute: SharedRoute? = null,
     val sourceGeneration: Long = 0,
+    val requestsOpen: Boolean = false,
+    val acquisitions: List<app.naviamp.domain.provider.DiscoveryAcquisitionRecord> = emptyList(),
+    val requestActivity: app.naviamp.domain.provider.ProviderDiscoveryActivities = app.naviamp.domain.provider.ProviderDiscoveryActivities(),
+    val requestsLoading: Boolean = false,
+    val requestsStatus: app.naviamp.domain.provider.ProviderDiscoveryStatus? = null,
 )
 
 data class SharedDiscoveryReleaseUi(
@@ -1007,6 +1012,7 @@ data class SharedProviderDiscoveryArtistUi(
     val blockedActions: Set<app.naviamp.domain.provider.ProviderDiscoveryAction> = emptySet(),
     val pendingAction: app.naviamp.domain.provider.ProviderDiscoveryAction? = null,
     val requestOperations: Map<app.naviamp.domain.provider.ProviderDiscoveryAction, app.naviamp.domain.provider.ProviderDiscoveryOperation> = emptyMap(),
+    val acquisitions: Map<app.naviamp.domain.provider.ProviderDiscoveryAction, app.naviamp.domain.provider.DiscoveryAcquisitionRecord> = emptyMap(),
     val similar: app.naviamp.domain.provider.ProviderDiscoverySimilarArtists? = null,
     val similarLoading: Boolean = false,
     val firstVisibleItem: Int = 0,
@@ -1036,6 +1042,11 @@ data class NaviampHomeActions(
     val onDiscoveryLibraryRelease: (String?, Long, String) -> Unit = { _, _, _ -> },
     val onDiscoveryReleaseAction: (String?, Long, String, app.naviamp.domain.provider.ProviderDiscoveryAction) -> Unit = { _, _, _, _ -> },
     val onDiscoveryViewport: (Int, Int, app.naviamp.domain.media.AlbumReleaseSection?) -> Unit = { _, _, _ -> },
+    val onDiscoveryRequests: () -> Unit = {},
+    val onDiscoveryRequestsDismiss: () -> Unit = {},
+    val onDiscoveryRequestsRefresh: () -> Unit = {},
+    val onDiscoveryRequestSelected: (String?, Long, String) -> Unit = { _, _, _ -> },
+    val onDiscoveryRequestsExternal: (String?, Long) -> Unit = { _, _ -> },
 )
 
 data class NaviampMediaActions(

@@ -30,6 +30,7 @@ internal class AurralDiscoveryClient(
     private suspend fun currentSession(): Session? = currentCoroutineContext()[NativeContext]?.session ?: session
     private suspend fun currentFeatures(): Set<String> = currentCoroutineContext()[NativeContext]?.features.orEmpty()
     private val base = connection.normalizedBaseUrl
+    override val requestsUrl: String get() = "$base/requests"
     private val headers = connection.customHeaders.mapNotNull { it.normalized() }
         .mapNotNull { header -> header.value?.let { header.name to it } }.toMap()
     private val json = Json { ignoreUnknownKeys = true }
@@ -158,13 +159,43 @@ internal class AurralDiscoveryClient(
         if ("activity" !in currentFeatures()) throw NavidromeHttpException(404)
         val rows = json.parseToJsonElement(http.get("$base/api/requests", headers = authorizedHeaders())) as? JsonArray
             ?: error("Missing activity rows")
-        ProviderDiscoveryActivities(ProviderDiscoveryStatus.Ready, rows.mapNotNull { row ->
+        ProviderDiscoveryActivities(ProviderDiscoveryStatus.Ready, rows.take(200).mapNotNull { row ->
             val item = row as? JsonObject ?: return@mapNotNull null
             val id = item.text("id")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            ProviderDiscoveryActivity(id, item.text("status"), item.requestIdentity(),
-                item.text("albumMbid")?.takeIf(MusicBrainzId::matches)?.let(::DiscoveryReleaseGroupMbid))
+            val qualified = if (item.text("source") == "lidarr") JsonObject(item + buildMap {
+                put("managedBy", JsonPrimitive("lidarr"))
+                item.text("albumId")?.let { put("album", buildJsonObject { put("id", it) }) }
+            }) else item
+            ProviderDiscoveryActivity(id, item.text("status"), qualified.requestIdentity(),
+                item.text("albumMbid")?.takeIf(MusicBrainzId::matches)?.let(::DiscoveryReleaseGroupMbid),
+                item.text("title") ?: item.text("albumName"), item.text("artistName"), item.text("kind"))
         })
     }
+
+    override suspend fun acquisitionStatus(identity: ProviderDiscoveryRequestIdentity): ProviderDiscoveryAcquisitionStatus =
+        nativeCall({ ProviderDiscoveryAcquisitionStatus(it) }) {
+            if ("activity" !in currentFeatures()) throw NavidromeHttpException(404)
+            val managed = identity.managedAlbumId ?: return@nativeCall ProviderDiscoveryAcquisitionStatus()
+            val response = when (managed.manager) {
+                DiscoveryLibraryManager.Aurral -> {
+                    val canonical = identity.canonicalAlbumId ?: return@nativeCall ProviderDiscoveryAcquisitionStatus()
+                    get("/api/library/albums/aurral/${canonical.value}/status").also {
+                        check(it.text("canonicalId") == canonical.value && it.text("managedBy") == "aurral")
+                    }
+                }
+                DiscoveryLibraryManager.Lidarr -> (get("/api/library/downloads/status?albumIds=${managed.value}")[managed.value] as? JsonObject)
+                    ?: return@nativeCall ProviderDiscoveryAcquisitionStatus(ProviderDiscoveryStatus.Unavailable)
+            }
+            check(response.text("error") == null)
+            val raw = response.text("status")
+            val phase = if (raw == "unreleased" && managed.manager != DiscoveryLibraryManager.Aurral)
+                DiscoveryAcquisitionPhase.Unknown else acquisitionPhase(raw)
+            ProviderDiscoveryAcquisitionStatus(ProviderDiscoveryStatus.Ready, phase, raw,
+                if (phase == DiscoveryAcquisitionPhase.WaitingForRelease && managed.manager == DiscoveryLibraryManager.Aurral)
+                    ProviderDiscoveryWaitingForRelease(managed.manager,
+                        (response["releaseDate"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+                            ?.trim()?.takeIf { it.isNotEmpty() && it.length <= 64 }) else null)
+        }
 
     override suspend fun releaseOwnership(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseOwnership =
         nativeCall({ ProviderDiscoveryReleaseOwnership(it) }) {

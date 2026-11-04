@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">रिलीज़ की प्रतीक्षा है</string>
     <string name="discovery_waiting_for_release_date">रिलीज़ की प्रतीक्षा है: %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral इस अनुरोध का प्रबंधन करता है।</string>
+    <string name="discovery_requests_title">हाल के अनुरोध</string>
+    <string name="discovery_requests_empty">इस खाते के लिए कोई हाल का अनुरोध नहीं है।</string>
+    <string name="discovery_requests_stale">स्थिति अपडेट नहीं हो सकी। सहेजी गई जानकारी दिखाई जा रही है।</string>
+    <string name="discovery_requests_activity">सर्वर गतिविधि</string>
+    <string name="discovery_activity_complete">अनुरोध पूरा हुआ।</string>
+    <string name="discovery_acquisition_processing">जारी है</string>
+    <string name="discovery_acquisition_downloading">डाउनलोड हो रहा है</string>
+    <string name="discovery_acquisition_importing">आयात हो रहा है</string>
+    <string name="discovery_acquisition_complete">अनुरोध पूरा हुआ; लाइब्रेरी जाँची जा रही है।</string>
+    <string name="discovery_acquisition_blocked">Aurral में समीक्षा आवश्यक है</string>
+    <string name="discovery_acquisition_failed">अनुरोध विफल हुआ</string>
+    <string name="discovery_acquisition_cancelled">अनुरोध रद्द हुआ</string>
 </resources>

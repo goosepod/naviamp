@@ -119,6 +119,7 @@ internal fun TelevisionHome(
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
+    home.providerDiscovery?.let { NaviampDiscoveryRequestsUi(it, colors, actions, television = true) }
     home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
         NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback, television = true,
             entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
@@ -219,7 +220,8 @@ internal fun TelevisionHome(
                     }) {
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback)
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                            onRequests = actions.onDiscoveryRequests)
                     }
                 }
             }

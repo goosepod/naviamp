@@ -8,6 +8,7 @@ import app.naviamp.ui.SharedDiscoveryReleaseUi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 /** Shared artist browsing, actions and preview lifecycle for every discovery entry point. */
 class NaviampCoreDiscoveryController(
@@ -22,7 +23,11 @@ class NaviampCoreDiscoveryController(
     private val showPage: () -> Unit = {},
     private val restoreRoute: (app.naviamp.ui.SharedRoute) -> Unit = {},
     private val openLibraryAlbum: suspend (app.naviamp.domain.Album) -> Unit = {},
+    acquisitionRepository: DiscoveryAcquisitionRepository = MemoryDiscoveryAcquisitionRepository(),
+    nowMillis: () -> Long = { 0L },
 ) : NaviampCoreCommandController {
+    private val acquisitions = DiscoveryAcquisitionTracker(acquisitionRepository, nowMillis)
+    private fun acquisitionScope(provider: MediaProvider) = DiscoveryAcquisitionScope(sourceId() ?: "__unbound__", provider.discoveryAccountScope)
     private var discoveryDetailGeneration = 0L
     private val scheduledDiscoveryCommands = mutableListOf<Pair<NaviampCoreCommand.Home, Long>>()
     private var boundProvider = providerSource.current()
@@ -37,6 +42,24 @@ class NaviampCoreDiscoveryController(
         val home = command as? NaviampCoreCommand.Home ?: return NaviampCoreImmediateCommandResult.Unhandled
         bindSource()
         return when (home) {
+            NaviampCoreCommand.Home.ShowDiscoveryRequests -> {
+                stopDiscoverySample()
+                publishAcquisitions()
+                updateDiscovery { it.copy(requestsOpen = true) }
+                NaviampCoreImmediateCommandResult.Handled()
+            }
+            NaviampCoreCommand.Home.DismissDiscoveryRequests -> {
+                updateDiscovery { it.copy(requestsOpen = false) }
+                NaviampCoreImmediateCommandResult.Handled()
+            }
+            NaviampCoreCommand.Home.RefreshDiscoveryRequests,
+            is NaviampCoreCommand.Home.OpenDiscoveryRequest -> NaviampCoreImmediateCommandResult.Deferred
+            is NaviampCoreCommand.Home.OpenDiscoveryRequestsExternal -> {
+                val page = stateStore.state.value.shell.home.providerDiscovery
+                if (home.sourceId == sourceId() && home.generation == page?.sourceGeneration)
+                    providerSource.current()?.discovery?.requestsUrl?.let(externalUri::open)
+                NaviampCoreImmediateCommandResult.Handled()
+            }
             is NaviampCoreCommand.Home.DiscoveryReleaseAction -> {
                 val page = stateStore.state.value.shell.home.providerDiscovery ?: return NaviampCoreImmediateCommandResult.Handled()
                 val artist = page.artistDetail?.artist ?: return NaviampCoreImmediateCommandResult.Handled()
@@ -147,6 +170,30 @@ class NaviampCoreDiscoveryController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         bindSource()
         when (command) {
+            NaviampCoreCommand.Home.RefreshDiscoveryRequests -> refreshAcquisitions()
+            NaviampCoreCommand.Home.ShowDiscoveryRequests -> Unit
+            NaviampCoreCommand.Home.DismissDiscoveryRequests -> Unit
+            is NaviampCoreCommand.Home.OpenDiscoveryRequest -> {
+                val provider = providerSource.current()
+                val page = stateStore.state.value.shell.home.providerDiscovery
+                val record = page?.acquisitions?.firstOrNull { it.id == command.id }
+                if (record != null && command.sourceId == sourceId() && command.generation == page.sourceGeneration) {
+                    updateDiscovery { it.copy(requestsOpen = false) }
+                    val artist = ProviderDiscoveryArtist(record.artistId, record.artistName, detailsAvailable = true)
+                    if (artist.artistMbid != null && prepareDiscoveryArtist(artist.id, artist)) {
+                        val generation = discoveryDetailGeneration
+                        loadDiscoveryArtist(artist.id)
+                        if (generation == discoveryDetailGeneration && provider != null && providerSource.isCurrent(provider) &&
+                            command.sourceId == sourceId()) {
+                            record.releaseId?.takeIf { runCatching { DiscoveryReleaseGroupMbid(it) }.isSuccess }?.let { id ->
+                                releaseGeneration++
+                                updateDiscovery { it.copy(releasePage = SharedDiscoveryReleaseUi(ProviderDiscoveryRelease(id, record.releaseTitle ?: id))) }
+                                loadRelease(id)
+                            }
+                        }
+                    }
+                }
+            }
             is NaviampCoreCommand.Home.DiscoveryReleaseAction -> {
                 val index = scheduledReleaseActions.indexOfFirst { it.first === command }
                 if (index >= 0) {
@@ -233,10 +280,18 @@ class NaviampCoreDiscoveryController(
                     if (releasePage != null) {
                         val context = releasePage.requestContext ?: return
                         val track = releasePage.tracks?.tracks?.firstOrNull { it.recordingMbid?.value == action.id } ?: return
-                        if (detail.details?.canRequestTracks == true) operation = discovery.requestReleaseTrack(context, track)
+                        if (detail.details?.canRequestTracks == true) operation = acquisitions.submit(acquisitionScope(provider), detail.artist,
+                            action, context.release, track.title) {
+                                if (!providerSource.isCurrent(provider)) throw CancellationException("Discovery source changed")
+                                discovery.requestReleaseTrack(context, track)
+                            }
                     } else {
                         val sample = detail.samples.firstOrNull { it.id == action.id } ?: return
-                        if (detail.details?.canRequestTracks == true) operation = discovery.requestTrack(detail.artist, sample)
+                        if (detail.details?.canRequestTracks == true) operation = acquisitions.submit(acquisitionScope(provider), detail.artist,
+                            action, null, sample.title) {
+                                if (!providerSource.isCurrent(provider)) throw CancellationException("Discovery source changed")
+                                discovery.requestTrack(detail.artist, sample)
+                            }
                     }
                 }
                 is ProviderDiscoveryAction.RequestAlbum -> {
@@ -244,7 +299,10 @@ class NaviampCoreDiscoveryController(
                     val release = if (releasePage != null) context?.release?.takeIf { it.id == action.id }
                         else detail.details?.releases?.firstOrNull { it.id == action.id }
                     if (release != null && detail.details?.canRequestAlbums == true)
-                        operation = discovery.requestAlbum(context?.artist ?: detail.artist, release)
+                        operation = acquisitions.submit(acquisitionScope(provider), context?.artist ?: detail.artist, action, release) {
+                            if (!providerSource.isCurrent(provider)) throw CancellationException("Discovery source changed")
+                            discovery.requestAlbum(context?.artist ?: detail.artist, release)
+                        }
                 }
                 is ProviderDiscoveryAction.SetMonitoring -> if (detail.details?.canChangeMonitoring == true)
                     operation = discovery.setMonitoring(detail.artist, action.enabled)
@@ -273,6 +331,7 @@ class NaviampCoreDiscoveryController(
                             else -> details.monitored
                         }) })
                 }) }
+                publishAcquisitions()
             }
         }
     }
@@ -281,15 +340,67 @@ class NaviampCoreDiscoveryController(
         requestLedger[artistId] = requestLedger[artistId].orEmpty() + (action to operation)
     }
 
+    private fun publishAcquisitions() {
+        val provider = providerSource.current() ?: return
+        val records = acquisitions.records(acquisitionScope(provider))
+        updateDiscovery { current -> current.copy(acquisitions = records,
+            artistDetail = current.artistDetail?.let(::withRetainedRequests)) }
+    }
+
+    suspend fun refreshAcquisitions(): DiscoveryAcquisitionSnapshot? {
+        bindSource()
+        val provider = providerSource.current() ?: return null
+        val discovery = provider.discovery ?: return null
+        val scope = acquisitionScope(provider)
+        val generation = sourceGeneration
+        updateDiscovery { it.copy(requestsLoading = true) }
+        val result = try { acquisitions.refresh(scope, discovery) } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            DiscoveryAcquisitionSnapshot(acquisitions.records(scope), status = ProviderDiscoveryStatus.Unavailable)
+        } finally {
+            if (generation == sourceGeneration && providerSource.isCurrent(provider))
+                updateDiscovery { it.copy(requestsLoading = false) }
+        }
+        if (generation != sourceGeneration || !providerSource.isCurrent(provider) || scope != acquisitionScope(providerSource.current() ?: return null)) return null
+        result.records.forEach { recordRequest(it.artistId, it.action, it.operation) }
+        updateDiscovery { current -> current.copy(acquisitions = result.records,
+            requestActivity = if (result.activity.status == ProviderDiscoveryStatus.Ready) result.activity else current.requestActivity.copy(status = result.activity.status),
+            requestsStatus = result.status, artistDetail = current.artistDetail?.let { artist ->
+                withRetainedRequests(artist).copy(operationStatus = artist.operationStatus.takeIf {
+                    it in setOf(ProviderDiscoveryOperationStatus.MonitoringEnabled, ProviderDiscoveryOperationStatus.MonitoringDisabled)
+                })
+            },
+            releasePage = current.releasePage?.let { page ->
+                val record = result.records.firstOrNull { it.artistId == current.artistDetail?.artist?.id && it.releaseId == page.release.id }
+                record?.let { result.ownership[it.id] }?.let { page.copy(ownership = it, ownershipLoading = false) } ?: page
+            }) }
+        return result
+    }
+
+    /** Called only by a visible, started common surface; cancellation stops in-flight reads. */
+    suspend fun maintainAcquisitions() {
+        var attempts = 0
+        var failures = 0
+        while (true) {
+            val result = refreshAcquisitions() ?: return
+            attempts++
+            failures = if (result.status == ProviderDiscoveryStatus.Ready) 0 else failures + 1
+            val wait = DiscoveryAcquisitionTracker.nextPollMillis(result, attempts, failures) ?: return
+            delay(wait)
+        }
+    }
+
     private fun requestBlocked(artist: SharedProviderDiscoveryArtistUi, action: ProviderDiscoveryAction,
         release: SharedDiscoveryReleaseUi?): Boolean = action in artist.blockedActions ||
         (action is ProviderDiscoveryAction.RequestTrack && release != null &&
             artist.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.release.id)]?.status == ProviderDiscoveryOperationStatus.WaitingForRelease)
 
     private fun withRetainedRequests(artist: SharedProviderDiscoveryArtistUi): SharedProviderDiscoveryArtistUi {
-        val operations = artist.requestOperations + requestLedger[artist.artist.id].orEmpty()
+        val stored = providerSource.current()?.let { acquisitions.records(acquisitionScope(it)) }.orEmpty()
+            .filter { it.artistId == artist.artist.id }.associateBy { it.action }
+        val operations = artist.requestOperations + requestLedger[artist.artist.id].orEmpty() + stored.mapValues { it.value.operation }
         val blocked = operations.filterValues { it.status.blocksRepeatedRequest }.keys
-        return artist.copy(requestOperations = operations, blockedActions = artist.blockedActions + blocked)
+        return artist.copy(requestOperations = operations, blockedActions = blocked, acquisitions = stored)
     }
 
     private fun discoveryArtist(id: String): ProviderDiscoveryArtist? {
@@ -466,6 +577,8 @@ class NaviampCoreDiscoveryController(
         releaseGeneration++
         sourceGeneration++
         requestLedger.clear()
+        updateDiscovery { it.copy(sourceGeneration = sourceGeneration, acquisitions = emptyList(), requestActivity = ProviderDiscoveryActivities(),
+            requestsOpen = false, requestsLoading = false, requestsStatus = null) }
     }
 
     private fun bindSource() {

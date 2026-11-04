@@ -532,4 +532,16 @@
     <string name="discovery_waiting_for_release">Oczekiwanie na wydanie</string>
     <string name="discovery_waiting_for_release_date">Oczekiwanie na wydanie: %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral zarządza tym żądaniem.</string>
+    <string name="discovery_requests_title">Ostatnie żądania</string>
+    <string name="discovery_requests_empty">Brak ostatnich żądań dla tego konta.</string>
+    <string name="discovery_requests_stale">Nie można odświeżyć stanu. Wyświetlane są zapisane informacje.</string>
+    <string name="discovery_requests_activity">Aktywność serwera</string>
+    <string name="discovery_activity_complete">Żądanie zakończone.</string>
+    <string name="discovery_acquisition_processing">W toku</string>
+    <string name="discovery_acquisition_downloading">Pobieranie</string>
+    <string name="discovery_acquisition_importing">Importowanie</string>
+    <string name="discovery_acquisition_complete">Żądanie zakończone; sprawdzanie biblioteki.</string>
+    <string name="discovery_acquisition_blocked">Wymaga sprawdzenia w Aurral</string>
+    <string name="discovery_acquisition_failed">Żądanie nie powiodło się</string>
+    <string name="discovery_acquisition_cancelled">Żądanie anulowane</string>
 </resources>

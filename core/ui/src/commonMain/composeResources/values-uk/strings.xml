@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">Очікування релізу</string>
     <string name="discovery_waiting_for_release_date">Очікування релізу: %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral керує цим запитом.</string>
+    <string name="discovery_requests_title">Останні запити</string>
+    <string name="discovery_requests_empty">Для цього облікового запису немає останніх запитів.</string>
+    <string name="discovery_requests_stale">Не вдалося оновити стан. Показано збережені відомості.</string>
+    <string name="discovery_requests_activity">Активність сервера</string>
+    <string name="discovery_activity_complete">Запит завершено.</string>
+    <string name="discovery_acquisition_processing">Виконується</string>
+    <string name="discovery_acquisition_downloading">Завантаження</string>
+    <string name="discovery_acquisition_importing">Імпортування</string>
+    <string name="discovery_acquisition_complete">Запит завершено; перевірка бібліотеки.</string>
+    <string name="discovery_acquisition_blocked">Потрібна перевірка в Aurral</string>
+    <string name="discovery_acquisition_failed">Помилка запиту</string>
+    <string name="discovery_acquisition_cancelled">Запит скасовано</string>
 </resources>

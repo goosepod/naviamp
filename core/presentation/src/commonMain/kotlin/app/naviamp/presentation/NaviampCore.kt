@@ -99,6 +99,7 @@ class NaviampCore private constructor(
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
+    private val homeController: NaviampCoreHomeController,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val samplePlayback: NaviampCoreSamplePlaybackController,
@@ -230,6 +231,7 @@ class NaviampCore private constructor(
     suspend fun maintainProviderSession() {
         providerSessionLifecycle.maintainWhileMounted()
     }
+    suspend fun maintainDiscoveryAcquisitions() = homeController.maintainDiscoveryAcquisitions()
 
     companion object {
         fun create(
@@ -324,6 +326,8 @@ class NaviampCore private constructor(
                 })) },
                 playDiscoverySample = { samplePlayback.toggle(it) },
                 stopDiscoverySample = samplePlayback::stop,
+                acquisitionRepository = services.content.discoveryAcquisitions,
+                nowMillis = services.clockEpochMillis,
             )
             val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
                 livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }
@@ -794,6 +798,7 @@ class NaviampCore private constructor(
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
+                homeController = home,
                 providerSource = providerSource,
                 sidecars = services.playback.sidecars,
                 samplePlayback = samplePlayback,

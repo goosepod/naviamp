@@ -413,4 +413,16 @@
     <string name="discovery_waiting_for_release">En attente de sortie</string>
     <string name="discovery_waiting_for_release_date">En attente de sortie : %1$s</string>
     <string name="discovery_waiting_for_release_description">Aurral gère cette demande.</string>
+    <string name="discovery_requests_title">Demandes récentes</string>
+    <string name="discovery_requests_empty">Aucune demande récente pour ce compte.</string>
+    <string name="discovery_requests_stale">Impossible de mettre à jour le statut. Les informations enregistrées sont affichées.</string>
+    <string name="discovery_requests_activity">Activité du serveur</string>
+    <string name="discovery_activity_complete">Demande terminée.</string>
+    <string name="discovery_acquisition_processing">En cours</string>
+    <string name="discovery_acquisition_downloading">Téléchargement en cours</string>
+    <string name="discovery_acquisition_importing">Importation en cours</string>
+    <string name="discovery_acquisition_complete">Demande terminée ; vérification de la bibliothèque.</string>
+    <string name="discovery_acquisition_blocked">À vérifier dans Aurral</string>
+    <string name="discovery_acquisition_failed">Échec de la demande</string>
+    <string name="discovery_acquisition_cancelled">Demande annulée</string>
 </resources>

@@ -8,11 +8,16 @@ data class DiscoveryReleaseGroupMbid(val value: String) { init { require(Discove
 data class DiscoveryRecordingMbid(val value: String) { init { require(DiscoveryMbid.matches(value)) } }
 data class DiscoveryReleaseMbid(val value: String) { init { require(DiscoveryMbid.matches(value)) } }
 data class DiscoveryDeezerPreviewId(val value: String) { init { require(value.toLongOrNull()?.let { it > 0 } == true) } }
+@kotlinx.serialization.Serializable
 data class DiscoveryCanonicalAlbumId(val value: String) { init { require(value.toLongOrNull()?.let { it > 0 } == true) } }
 data class DiscoveryCanonicalArtistId(val value: String) { init { require(value.toLongOrNull()?.let { it > 0 } == true) } }
+@kotlinx.serialization.Serializable
 data class DiscoveryJobId(val value: String) { init { require(value.isNotBlank()) } }
+@kotlinx.serialization.Serializable
 data class DiscoveryRequestGroupId(val value: String) { init { require(value.isNotBlank()) } }
+@kotlinx.serialization.Serializable
 enum class DiscoveryLibraryManager { Aurral, Lidarr }
+@kotlinx.serialization.Serializable
 data class DiscoveryManagedAlbumId(val manager: DiscoveryLibraryManager, val value: String) {
     init { require(value.toLongOrNull()?.let { it > 0 } == true) }
 }
@@ -23,6 +28,7 @@ val ProviderDiscoveryRelease.releaseGroupMbid: DiscoveryReleaseGroupMbid?
     get() = id.takeIf(DiscoveryMbid::matches)?.let(::DiscoveryReleaseGroupMbid)
 
 /** Correlation only: metadata saved, queued, and available in Subsonic are separate facts. */
+@kotlinx.serialization.Serializable
 data class ProviderDiscoveryRequestIdentity(
     val requestGroupId: DiscoveryRequestGroupId? = null,
     val jobIds: List<DiscoveryJobId> = emptyList(),
@@ -121,6 +127,9 @@ data class ProviderDiscoveryActivity(
     val status: String?,
     val identity: ProviderDiscoveryRequestIdentity?,
     val releaseGroupMbid: DiscoveryReleaseGroupMbid? = null,
+    val title: String? = null,
+    val artistName: String? = null,
+    val kind: String? = null,
 )
 data class ProviderDiscoveryActivities(
     val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported,

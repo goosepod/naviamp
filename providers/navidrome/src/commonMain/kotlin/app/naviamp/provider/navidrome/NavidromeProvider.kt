@@ -143,6 +143,7 @@ class NavidromeProvider(
                 append(selectedMusicFolderIds.joinToString(","))
             }
         }
+    override val discoveryAccountScope: String = "${id.value}:${connection.normalizedBaseUrl}:${connection.username}"
     private val customHeaders: Map<String, String> =
         connection.customHeaders
             .mapNotNull { header ->
