@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_full: ${{ steps.classify.outputs.run_full }}
+      run_translations: ${{ steps.classify.outputs.run_translations }}
     steps:
       - name: Check out repository history
         uses: actions/checkout@v7
@@ -48,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Require successful change classification
-        if: needs.changes.result != 'success' || (needs.changes.outputs.run_full != 'true' && needs.changes.outputs.run_full != 'false')
+        if: needs.changes.result != 'success' || (needs.changes.outputs.run_full != 'true' && needs.changes.outputs.run_full != 'false') || (needs.changes.outputs.run_translations != 'true' && needs.changes.outputs.run_translations != 'false')
         run: exit 1
 
       - name: Check out repository
@@ -63,12 +64,19 @@ jobs:
       - name: Test verification workflow helpers
         run: python3 -m unittest discover -s scripts/tests -p 'test_verification_*.py' -v
 
-      - name: Validate documentation-only changes
+      - name: Validate lightweight changes
         if: needs.changes.outputs.run_full == 'false'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: git diff --check "$BASE_SHA" "$HEAD_SHA"
+        run: git diff --check "$BASE_SHA...$HEAD_SHA"
+
+      - name: Validate translated resource catalogs
+        if: needs.changes.outputs.run_full == 'false' && needs.changes.outputs.run_translations == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/validate-translations.py --base "$BASE_SHA" --head "$HEAD_SHA"
 
       - name: Set up JDK
         if: needs.changes.outputs.run_full == 'true'
@@ -172,7 +180,7 @@ jobs:
         api-level: [30, 35]
     steps:
       - name: Require successful change classification
-        if: needs.changes.result != 'success' || (needs.changes.outputs.run_full != 'true' && needs.changes.outputs.run_full != 'false')
+        if: needs.changes.result != 'success' || (needs.changes.outputs.run_full != 'true' && needs.changes.outputs.run_full != 'false') || (needs.changes.outputs.run_translations != 'true' && needs.changes.outputs.run_translations != 'false')
         run: exit 1
 
       - name: Check out repository
@@ -181,12 +189,12 @@ jobs:
           ref: ${{ inputs.source_ref || github.ref }}
           fetch-depth: 0
 
-      - name: Validate documentation-only changes
+      - name: Validate lightweight changes
         if: needs.changes.outputs.run_full == 'false'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: git diff --check "$BASE_SHA" "$HEAD_SHA"
+        run: git diff --check "$BASE_SHA...$HEAD_SHA"
 
       - name: Set up JDK
         if: needs.changes.outputs.run_full == 'true'

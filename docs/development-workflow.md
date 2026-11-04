@@ -168,3 +168,27 @@ milestone, pull request, release notes, and Announcement just as for a normal re
 - [x] Documented and exercised non-forcing manual Forgejo mirroring.
 - [x] Marked current planning references to Forgejo's former role as historical while preserving
       dated acceptance records.
+
+## Translation-only pull-request verification
+
+Verify classifies changed files rather than the PR author or title. Modifications confined to
+existing `core/ui/src/commonMain/composeResources/values-*/strings.xml` locale catalogs use a
+lightweight path; documentation may accompany them. New, deleted or renamed catalogs, source
+`values/strings.xml`, code, build scripts and workflow changes require the full matrix.
+
+The lightweight path checks the diff and validates the changed catalogs against the source:
+XML structure, duplicate/unknown keys, resource types, plural quantities, arrays and indexed
+string/integer format arguments. Missing translations may use source fallback. It runs without
+Gradle, app builds, emulators or native playback tests. The existing required Shared/Android
+checks execute lightweight steps; native platform jobs report skipped checks under their unchanged
+names. Invalid catalogs fail the required Shared and Android check, and classification errors fail
+closed. No workflow-level path filter or bot exemption is used.
+
+Reusable release verification always runs the full matrix. Only a successful full matrix can
+publish verified-source evidence for release reuse; a successful translation-only run cannot.
+For local resource validation, run:
+
+```shell
+python3 scripts/validate-translations.py core/ui/src/commonMain/composeResources/values-de/strings.xml
+python3 -m unittest discover -s scripts/tests -p 'test_verification_*.py' -v
+```
