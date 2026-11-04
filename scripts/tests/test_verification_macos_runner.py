@@ -12,7 +12,7 @@ LABEL = 'naviamp-local-12345678123412341234123456789abc'
 
 
 class MacosRunnerRoutingTest(unittest.TestCase):
-    def test_only_manual_dispatch_can_select_local_execution(self):
+    def test_manual_and_unselected_events_preserve_safe_defaults(self):
         for event in ('pull_request', 'push', 'workflow_call', ''):
             self.assertEqual('macos-latest', SELECT(event, LABEL))
         self.assertEqual('macos-latest', SELECT('workflow_dispatch', ''))
@@ -23,6 +23,19 @@ class MacosRunnerRoutingTest(unittest.TestCase):
                       LABEL + '","other', LABEL.upper(), ' ' + LABEL):
             with self.subTest(label=label), self.assertRaises(ValueError):
                 SELECT('workflow_dispatch', label)
+
+    def test_only_authorized_same_repository_prs_can_use_the_owner_selector(self):
+        self.assertEqual(['self-hosted', 'macOS', 'ARM64', LABEL], SELECT('pull_request', LABEL, True))
+        self.assertEqual('macos-latest', SELECT('pull_request', LABEL, False))
+        self.assertEqual('macos-latest', SELECT('push', LABEL, True))
+        with self.assertRaises(ValueError):
+            SELECT('pull_request', '', True)
+        with self.assertRaises(ValueError):
+            SELECT('pull_request', 'invalid', True)
+        workflow = (ROOT / '.github/workflows/verify.yml').read_text()
+        self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', workflow)
+        self.assertIn("vars[format('NAVIAMP_LOCAL_MACOS_{0}', github.event.pull_request.number)]", workflow)
+        self.assertIn("contains(github.event.pull_request.labels.*.name, 'verify:local-macos')", workflow)
 
     def test_both_macos_jobs_use_the_validated_classification_output(self):
         workflow = (ROOT / '.github/workflows/verify.yml').read_text()
@@ -45,9 +58,11 @@ class MacosRunnerRoutingTest(unittest.TestCase):
         block = '\n'.join(line[10:] for line in workflow[start:end].splitlines())
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / 'output'
-            for event in ('workflow_call', 'workflow_dispatch'):
+            for event, source, expected in (('workflow_call', '', True),
+                    ('workflow_dispatch', 'v2.9.0', True), ('workflow_dispatch', '', False)):
                 output.write_text('')
                 result = subprocess.run(['bash', '-e', '-c', block], cwd=directory, capture_output=True,
-                    env={**os.environ, 'GITHUB_EVENT_NAME': event, 'MACOS_RUNNER_LABEL': '', 'GITHUB_OUTPUT': str(output)})
-                self.assertEqual(event == 'workflow_dispatch', result.returncode != 0)
-                self.assertEqual('macos_runner="macos-latest"\n' if event == 'workflow_call' else '', output.read_text())
+                    env={**os.environ, 'GITHUB_EVENT_NAME': event, 'MACOS_RUNNER_LABEL': '',
+                         'LOCAL_PR_AUTHORIZED': 'false', 'SOURCE_REF': source, 'GITHUB_OUTPUT': str(output)})
+                self.assertEqual(not expected, result.returncode != 0)
+                self.assertEqual('macos_runner="macos-latest"\n' if expected else '', output.read_text())
