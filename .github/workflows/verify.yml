@@ -49,7 +49,14 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           MACOS_RUNNER_LABEL: ${{ inputs.macos_runner_label }}
         run: |
-          python3 scripts/select-verification-macos-runner.py >> "$GITHUB_OUTPUT"
+          if [ -f scripts/select-verification-macos-runner.py ]; then
+            python3 scripts/select-verification-macos-runner.py >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] && [ -z "$MACOS_RUNNER_LABEL" ]; then
+            # Release recovery can check out a public source that predates this helper.
+            printf '%s\n' 'macos_runner="macos-latest"' >> "$GITHUB_OUTPUT"
+          else
+            exit 1
+          fi
           scripts/classify-verification-scope.sh >> "$GITHUB_OUTPUT"
 
   shared-android:

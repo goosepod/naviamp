@@ -29,7 +29,12 @@ Operator procedure:
 6. The final merge must still meet current-main and exact-head branch protection. Source changes
    after dispatch require fresh verification. Local success does not resolve intermittent #454.
 
-Local validation: three routing/failure tests and the complete 44 workflow-helper tests pass;
+Local validation: four routing/failure tests and the complete 45 workflow-helper tests pass;
 workflow YAML parses and `git diff --check` passes. The first unprivileged helper invocation could
 not bind its loopback test sockets; the normal local test context passes. Full Actions verification
 is pending. No platform production code changed.
+
+The selection step also preserves reusable recovery of an older public source without the new
+helper: only the unchanged hosted default is allowed in that case; manual dispatch fails closed
+if its helper is absent. The initial real local Actions desktop job passed in 4m 14s, but that
+run predates this recovery correction and is not final-head acceptance.

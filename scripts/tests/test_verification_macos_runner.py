@@ -1,6 +1,9 @@
 """Routing must preserve hosted defaults and reject ambiguous/injected local selectors."""
 from pathlib import Path
 import runpy
+import os
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,3 +37,17 @@ class MacosRunnerRoutingTest(unittest.TestCase):
         for command in (':platforms:ios:iosSimulatorArm64Test', 'xcodebuild build -quiet',
                         '-scheme NaviampTests', 'name: Record verified source tree'):
             self.assertIn(command, workflow)
+
+    def test_older_release_recovery_without_helper_stays_hosted_and_manual_fails_closed(self):
+        workflow = (ROOT / '.github/workflows/verify.yml').read_text()
+        start = workflow.index('          if [ -f scripts/select-verification-macos-runner.py ]; then')
+        end = workflow.index('          scripts/classify-verification-scope.sh', start)
+        block = '\n'.join(line[10:] for line in workflow[start:end].splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'output'
+            for event in ('workflow_call', 'workflow_dispatch'):
+                output.write_text('')
+                result = subprocess.run(['bash', '-e', '-c', block], cwd=directory, capture_output=True,
+                    env={**os.environ, 'GITHUB_EVENT_NAME': event, 'MACOS_RUNNER_LABEL': '', 'GITHUB_OUTPUT': str(output)})
+                self.assertEqual(event == 'workflow_dispatch', result.returncode != 0)
+                self.assertEqual('macos_runner="macos-latest"\n' if event == 'workflow_call' else '', output.read_text())
