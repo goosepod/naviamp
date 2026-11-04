@@ -67,3 +67,19 @@ transport/request evidence remains in `477-aurral-release-details.md`. Audible l
 physical touch/TV remote and screen-reader acceptance remain open; no server acquisition was
 submitted by these tests. The Windows first-frame observation remains a separate investigation,
 #493, and is not validated by a macOS native integration test.
+
+## November 4: refreshed 2.13 integration
+
+Refreshed this acceptance branch onto release head
+`6fec69fa0ba46834bc3baddbd7a4f3995c53f981`, which includes the updated artist destination and
+accepted main `c5e119f2f49c721c6816f6b6b6000ab3ae82b996` / #508. The native contract and
+assertions are unchanged. The reproduction command above passes both real native test cases
+with zero failures/errors/skips, along with Android/JVM/both iOS testkit compilation and
+architecture verification. No deadline, position tolerance or assertion was relaxed.
+
+The result verifies queue/current-index/session preservation, preview pause/resume/end/Back,
+stable paused native/shared position and explicit main Resume on this integrated tree. Output
+remains muted; this is not live Aurral audibility, physical-input or screen-reader acceptance.
+No live mutation was submitted. This passing execution does not establish the cause of the
+intermittent initial-clock issue #497. Current-head CI and the parent feature acceptance gates
+remain open, so #498 and the parent feature PRs remain drafts.
