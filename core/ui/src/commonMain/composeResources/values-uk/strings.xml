@@ -399,4 +399,6 @@
     <string name="settings_fill_now_playing_artwork">Заповнювати область обкладинки плеєра</string>
     <string name="settings_fill_now_playing_artwork_description">Обрізати обкладинку за розміром плеєра та додати темний градієнт під елементами керування.</string>
     <string name="now_playing_toggle_visualizer">Перемкнути візуалізацію</string>
+    <string name="discovery_request_rejected">Aurral відхилив цей запит. Перевірте подробиці перед повторною спробою.</string>
+    <string name="discovery_request_conflict">Для цього альбому виник конфлікт належності в бібліотеці. Перевірте його в Aurral.</string>
 </resources>

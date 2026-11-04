@@ -20,7 +20,7 @@ correlation and must distinguish accepted requests, imported files, and validate
 
 ## Evidence and version boundary
 
-The latest public GitHub release observed is v2.12.0, published October 27, 2026. Its annotated tag
+At the November 2 foundation review, the latest public GitHub release observed was v2.12.0, published October 27, 2026. Its annotated tag
 resolves to **2179971922ab3afe5df5dfe9b7777eb0b89cced4**. Upstream main inspected at
 **d828a84b4c6126e215032d63e421768496434021** is a separate compatibility target, not a released
 minimum. No earlier release was checked; 2.12.0 is the tested source baseline, not a claim that
@@ -48,6 +48,24 @@ Primary references:
   describe newer behavior. Upstream main also changes server framework; framework changes alone
   do not establish a new API version or imply equivalent payloads.
 
+## Released 2.13 follow-up (November 3, 2026)
+
+#502 extends this accepted foundation; it does not reopen #473. Aurral v2.13.0 is pinned at
+`3f01fa586f363f416f2e40c234a95550b87d74f7`. The owner reports that their instance is upgraded;
+that report is not a production-client test result. See
+[the follow-up evidence](502-aurral-213-compatibility.md) and #506 for live upgrade acceptance.
+
+| Contract | Released 2.12.0 | Released 2.13.0 | Naviamp behavior |
+| --- | --- | --- | --- |
+| API contract | v1 | v1 | Compare `api.version`, independently of `appVersion`. |
+| Native authentication | Password user session | Password user session | Renew expiring session; invalidate 401; never substitute an administrator key. |
+| Features | discover, flows, activity, review, trackDownloads, linkSearch, downloadCancel | Baseline plus playlistCoverTemplates, shareImports, trending, flowAutoDownload | Unknown optional features do not disable baseline routes. New consumers gate their own routes. |
+| Recommendation depth / first seen | Absent from released serializer | discoveryDepth / firstDiscoveredAt serialized | Keep absence/null unknown; preserve supplied values without inventing scores. |
+| Recommendation explanations | Tags, sources, supporting seeds | Retained, including chart sources; starter chart seeds excluded from basedOn | Preserve server context; #474 owns released grouping. |
+| Search, artist, release, recordings and activity | Foundation contracts below | Retained through Hono/Valibot routes | Existing fixtures remain the older-server regression baseline; stricter validation needs explicit probes. |
+| Album requests | HTTP 201, optional correlation/status | Retained, including nested waiting-for-release status/date | #503 owns truthful waiting state; #478 owns durable reconciliation. |
+| Full charts / genre blocks | Not established by foundation | New chart capability; blocked-tags has no separate flag | #504 uses trending; #505 uses a safe read probe. Never probe with a write. |
+
 ## Route / payload / permission / version matrix
 
 Paths are relative to the configured Aurral base, including any reverse-proxy subpath. All new
@@ -60,7 +78,7 @@ key fallback, credential export, administrator rebuild, or automatic mutation re
 | #474 | GET `/api/discover?limit=1..200&offset=N`; `recommendations`, `recommendationCount`, `basedOn`, `topGenres`, `topTags`, `lastUpdated`, `discoveryRunId` | Authenticated account, personalized result. GET can cause the server's own stale-cache refresh; Naviamp never calls administrative rebuild. | 2.12.0. Preserve server rank. Missing total stays unknown; never substitute page length as total. |
 | #474 | GET `/api/discover/status`; `isUpdating`, phase/progress, error, lastUpdated | Same user session; status independent of cached usable results | Existing Home client already reads this. Full-page loading/building/stale UI belongs to #474. |
 | #474 | Artist `matchedTags`, `sourceArtist(s)`, supporting seed names, sourceType, discoveryTier | Explanations are server context, not instructions to recompute score | 2.12.0. Preserve strings/rank without inventing recommendation scoring. |
-| #474 | Artist `discoveryDepth`, `firstDiscoveredAt` | No separate API v1 feature flag guarantees these fields | Absent in released serializer; present on pinned upstream main. Null stays null. Hide New/First seen/depth grouping when unavailable; #474 validates timestamps and cohort boundaries. |
+| #474 | Artist `discoveryDepth`, `firstDiscoveredAt` | No separate API v1 feature flag guarantees these fields | Absent in released 2.12 serializer; released in pinned 2.13. Null stays null. Hide New/First seen/depth grouping when unavailable; #474 validates timestamps and cohort boundaries. |
 | #475 | GET `/api/search?q=...&scope=artist\|album&limit=N&offset=N`; scope/query/count/offset/items; albums also hasMore | No acquisition permission needed to read catalog; metadata provider must be usable. Root auth still applies. | 2.12.0. Do not require unified search. Blank query makes no request. Scope/offset mismatch or malformed rows container is an unavailable response. |
 | #475 | Artist id/name/image/tags/disambiguation; album id/title/artistName/artistMbid/releaseDate/primaryType/secondaryTypes/coverUrl/inLibrary/status | `inLibrary`/status are hints. In this release artist search serializes inLibrary=false; album lookup consults Lidarr and is not a complete canonical ownership proof. | Keep hints separate from validated Library navigation. Detail identity requires a real MBID; labels cannot merge editions/artists. #475 adds disambiguation presentation. |
 | #476 | GET `/api/artists/:mbid?mode=core`, `/preview?artistName=...`, `/similar?artistName=...&limit=1..20` | Metadata/Deezer/similarity services can fail independently. Read access does not imply request/monitoring access. | 2.12.0. Reuse current details and sample transport; similar/details sections recover independently. |

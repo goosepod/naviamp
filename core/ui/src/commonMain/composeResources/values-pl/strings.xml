@@ -518,4 +518,6 @@
     <string name="settings_fill_now_playing_artwork">Wypełnij obszar okładki odtwarzacza</string>
     <string name="settings_fill_now_playing_artwork_description">Przytnij okładkę do obszaru odtwarzacza i dodaj ciemny gradient za elementami sterowania.</string>
     <string name="now_playing_toggle_visualizer">Włącz lub wyłącz wizualizację</string>
+    <string name="discovery_request_rejected">Aurral odrzucił to żądanie. Sprawdź szczegóły przed ponowną próbą.</string>
+    <string name="discovery_request_conflict">Ten album ma konflikt przypisania w bibliotece. Sprawdź go w Aurral.</string>
 </resources>

@@ -399,4 +399,6 @@
     <string name="settings_fill_now_playing_artwork">अभी चल रहा है में कवर का क्षेत्र भरें</string>
     <string name="settings_fill_now_playing_artwork_description">प्लेयर भरने के लिए कवर को क्रॉप करें और नियंत्रणों के पीछे गहरा ग्रेडिएंट दिखाएँ।</string>
     <string name="now_playing_toggle_visualizer">विज़ुअलाइज़र चालू या बंद करें</string>
+    <string name="discovery_request_rejected">Aurral ने यह अनुरोध अस्वीकार कर दिया। फिर से प्रयास करने से पहले उसका विवरण जाँचें।</string>
+    <string name="discovery_request_conflict">इस एल्बम के लाइब्रेरी स्वामित्व में विरोध है। Aurral में इसकी समीक्षा करें।</string>
 </resources>

@@ -399,4 +399,6 @@
     <string name="settings_fill_now_playing_artwork">ملء مساحة الغلاف في التشغيل الحالي</string>
     <string name="settings_fill_now_playing_artwork_description">اقتصاص الغلاف لملء المشغّل مع تدرج داكن خلف عناصر التحكم.</string>
     <string name="now_playing_toggle_visualizer">تبديل المؤثرات المرئية</string>
+    <string name="discovery_request_rejected">رفض Aurral هذا الطلب. تحقق من تفاصيله قبل المحاولة مجددًا.</string>
+    <string name="discovery_request_conflict">يوجد تعارض في ملكية هذا الألبوم في المكتبة. راجعه في Aurral.</string>
 </resources>

@@ -399,4 +399,6 @@
     <string name="settings_fill_now_playing_artwork">填满正在播放的封面区域</string>
     <string name="settings_fill_now_playing_artwork_description">裁剪封面以填满播放器，并在控件后方添加深色渐变。</string>
     <string name="now_playing_toggle_visualizer">切换可视化效果</string>
+    <string name="discovery_request_rejected">Aurral 拒绝了此请求。请先检查详细信息，然后再重试。</string>
+    <string name="discovery_request_conflict">此专辑存在音乐库归属冲突。请在 Aurral 中检查。</string>
 </resources>

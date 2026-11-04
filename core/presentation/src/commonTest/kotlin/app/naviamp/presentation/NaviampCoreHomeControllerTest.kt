@@ -40,6 +40,44 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test fun rejectedRequestsPermitExplicitRetryButConflictsAndUncertainResultsStayBlocked() = runTest {
+        for (status in listOf(ProviderDiscoveryOperationStatus.Rejected,
+            ProviderDiscoveryOperationStatus.Conflict, ProviderDiscoveryOperationStatus.Uncertain)) {
+            val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
+            var submissions = 0
+            val discovery = object : ProviderDiscovery {
+                override suspend fun load() = ProviderDiscoveryFeed(trending = listOf(artist))
+                override suspend fun artistDetails(artist: ProviderDiscoveryArtist) = ProviderDiscoveryArtistResult(
+                    ProviderDiscoveryStatus.Ready, ProviderDiscoveryArtistDetails(artist,
+                        releases = listOf(ProviderDiscoveryRelease("release", "Album")), canRequestAlbums = true))
+                override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation {
+                    submissions++
+                    return ProviderDiscoveryOperation(status)
+                }
+            }
+            val provider = HomeTestProvider(discovery = discovery)
+            val store = NaviampCoreStateStore()
+            val controller = NaviampCoreHomeController(store, NaviampCoreMediaProviderSource { provider },
+                NaviampCoreNavigationController(NaviampNavigationController(), store, NaviampCoreArtistNavigator {}),
+                NaviampCoreHomeDateSource { HomeDate(2026, 100) })
+            controller.execute(NaviampCoreCommand.Home.Refresh)
+            val select = NaviampCoreCommand.Home.SelectDiscoveryArtist("artist")
+            controller.dispatch(select); controller.execute(select)
+            fun request() = NaviampCoreCommand.Home.DiscoveryAction("artist", ProviderDiscoveryAction.RequestAlbum("release"))
+            val first = request()
+            controller.dispatch(first); controller.execute(first)
+            runCurrent()
+            assertEquals(1, submissions, "No automatic retry after $status")
+            val detail = store.state.value.shell.home.providerDiscovery!!.artistDetail!!
+            assertEquals(status, detail.operationStatus)
+            assertFalse(detail.actionBusy)
+            assertEquals(status != ProviderDiscoveryOperationStatus.Rejected, first.action in detail.blockedActions)
+            val explicitRetry = request()
+            controller.dispatch(explicitRetry); controller.execute(explicitRetry)
+            assertEquals(if (status == ProviderDiscoveryOperationStatus.Rejected) 2 else 1, submissions)
+        }
+    }
+
     @Test fun feedbackPreservesSamplesThatFinishWhileFeedbackIsPending() = runTest {
         val artist = ProviderDiscoveryArtist("artist", "Artist", detailsAvailable = true)
         val samples = kotlinx.coroutines.CompletableDeferred<ProviderDiscoverySamples>()
