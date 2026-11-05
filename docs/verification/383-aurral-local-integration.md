@@ -505,3 +505,14 @@ signature verifies and its process is running; the installed Naviamp process was
 left untouched. The owner subsequently reported “Looks like its working.” This is
 owner confirmation of the Mac review result, not a new physical TV/phone or full
 release acceptance claim. No new issue, push or hosted check was created.
+
+## Final acceptance follow-up and owner scope disposition
+
+On November 5 the owner explicitly deferred native request cancel/retry to the next
+milestone and accepted the current Aurral handoff for this scope. Windows checking
+is planned with the owner for November 7–8. Neither is additional implementation
+for today's Mac review. The fresh read-only/native acceptance results, prepared
+one-play listen check and remaining permission/data/manual boundaries are recorded
+in [506-aurral-final-acceptance.md](506-aurral-final-acceptance.md). The new increment
+changes acceptance tests/documentation only; the running r6 application remains the
+reviewed `94e0e363` implementation and does not need a rebuild for these test changes.

@@ -257,6 +257,85 @@ class AurralLiveTest {
         }
     }
 
+    @Test fun libraryLyricsArtworkAndPlaylistReadsUseTheNormalAccount() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val provider = NavidromeProvider(connection, readOnlyTransport(connection))
+        provider.validateConnection()
+        val track = provider.search("Rhythm Is a Dancer", 30).tracks.first {
+            it.artistName == "Snap!" && it.title == "Rhythm Is a Dancer" && it.albumTitle == "The Madman’s Return"
+        }
+        val lyrics = assertNotNull(provider.lyrics(track.id), "The known vocal track should provide server lyrics")
+        assertTrue(lyrics.lines.any { it.text.isNotBlank() })
+        val artwork = assertNotNull(provider.bytesForOwnedUrl(provider.coverArtUrl(assertNotNull(track.coverArtId))))
+        assertTrue(artwork.size > 1000)
+        val playlists = provider.playlists(20)
+        for (playlist in playlists.take(3)) {
+            provider.playlistTracks(playlist.id)
+            playlist.coverArtId?.let { assertNotNull(provider.bytesForOwnedUrl(provider.coverArtUrl(it))) }
+        }
+        println("Normal-account library reads: lyricsLines=${lyrics.lines.size}, timed=${lyrics.synced}, artworkBytes=${artwork.size}, playlists=${playlists.size}; no writes")
+    }
+
+    @Test fun freshUserSessionsReconcileAnExistingOwnedReleaseWithoutSubmission() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val release = DiscoveryReleaseGroupMbid("5065f9ad-d1dd-43c9-908f-0dde0a5f0104")
+        val recording = DiscoveryRecordingMbid("4791bbf4-41e5-4c54-97be-8d25680f3d5f")
+        var previousLibraryId: String? = null
+        repeat(2) {
+            // Recreate both the provider and native-session client, retaining only saved credentials.
+            val provider = NavidromeProvider(connection, readOnlyTransport(connection))
+            provider.validateConnection()
+            val discovery = assertNotNull(provider.discovery)
+            val history = discovery.requestActivity()
+            assertEquals(ProviderDiscoveryStatus.Ready, history.status)
+            val ownership = discovery.releaseOwnership(release)
+            assertEquals(ProviderDiscoveryStatus.Ready, ownership.status)
+            assertTrue(recording in ownership.ownedRecordings)
+            val album = assertNotNull(ownership.libraryAlbum)
+            assertTrue(provider.album(album.id).tracks.isNotEmpty())
+            if (previousLibraryId != null) assertEquals(previousLibraryId, album.id.value)
+            previousLibraryId = album.id.value
+            println("Fresh native session ${it + 1}: activity=${history.items.size}, existing recording ownership and Library identity validated")
+        }
+    }
+
+    @Test fun missingFlowPermissionBlocksChartSavingBeforeAnyMutation() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        var writes = 0
+        val transport = readOnlyTransport(connection) { writes++ }
+        val discovery = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, transport)
+        val charts = discovery.charts()
+        assertEquals(ProviderDiscoveryStatus.Ready, charts.status)
+        assertFalse(charts.canSave)
+        val result = discovery.saveChartPlaylist(assertNotNull(charts.playlistId))
+        assertEquals(ProviderDiscoveryOperationStatus.Forbidden, result.status)
+        assertEquals(0, writes)
+        println("Normal-account chart saving: Flow permission absent, Forbidden before any write; positive save remains not run")
+    }
+
+    private fun readOnlyTransport(connection: NavidromeConnection, unexpectedWrite: () -> Unit = {}): NavidromeHttpClient {
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        return object : NavidromeHttpClient by transport {
+            override suspend fun get(url: String, headers: Map<String, String>): String {
+                check(listOf("scrobble", "star.view", "unstar.view", "setRating", "createPlaylist", "updatePlaylist", "deletePlaylist")
+                    .none { it in url }) { "Read-only acceptance prohibits mutating Subsonic routes" }
+                return transport.get(url, headers)
+            }
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                if (url != connection.normalizedBaseUrl + "/api/auth/login" &&
+                    url != connection.normalizedBaseUrl + "/api/library/albums/lookup/batch") {
+                    unexpectedWrite()
+                    error("Read-only acceptance prohibits this POST")
+                }
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Read-only acceptance")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Read-only acceptance")
+        }
+    }
+
     private fun liveConnection(): NavidromeConnection? {
         val url = System.getenv("NAVIAMP_AURRAL_TEST_URL") ?: return null
         return NavidromeConnection.fromPassword(providerId = ProviderIdAurral, baseUrl = url,
