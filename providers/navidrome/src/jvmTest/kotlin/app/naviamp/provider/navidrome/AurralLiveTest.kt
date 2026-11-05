@@ -9,6 +9,24 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun originalFileTagsAndPropertiesLoadWithAudioCachingDisabled() = runBlocking {
+        val provider = NavidromeProvider(liveConnection() ?: return@runBlocking)
+        provider.validateConnection()
+        val track = provider.search("Rhythm Is a Dancer", 30).tracks.first {
+            it.artistName == "Snap!" && it.title == "Rhythm Is a Dancer" && it.albumTitle == "The Madman’s Return"
+        }
+        val metadata = app.naviamp.domain.audio.AudioMetadataSidecarService(
+            app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository(),
+        ) { error("No local file is required") }.metadataForTrack(
+            "read-only-acceptance", provider, track, StreamQuality.Original, false,
+        )
+        assertEquals(44100, metadata.audioInfo?.samplingRateHz)
+        assertEquals(16, metadata.audioInfo?.bitDepth)
+        assertTrue(metadata.tags.any { it.key == "Title" && it.value == "Rhythm Is a Dancer" })
+        assertTrue(metadata.tags.any { it.key == "Date" && it.value == "1992-03-24" })
+        println("Aurral original metadata: cache disabled, embedded title/date present, FLAC 44100 Hz / 16 bit")
+    }
+
     @Test fun trendingAndGenreBlockReadsUseTheCurrentUserWithoutMutations() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)

@@ -918,6 +918,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
         album: app.naviamp.domain.Album?,
         waveform: app.naviamp.domain.waveform.AudioWaveform?,
         audioTags: List<app.naviamp.domain.audio.AudioTag>?,
+        fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
         relatedTracks: List<app.naviamp.domain.Track>,
         relatedTracksSource: RelatedTracksSource,
         relatedTracksStatus: NaviampCoreRelatedTracksStatus,
@@ -927,6 +928,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
             album = album,
             waveform = waveform,
             audioTags = audioTags,
+            fileAudioInfo = fileAudioInfo,
             relatedTracks = relatedTracks,
             relatedTracksSource = relatedTracksSource,
             relatedTracksStatus = relatedTracksStatus,
@@ -1006,25 +1008,23 @@ class NaviampCoreProviderNowPlayingSidecars(
                 loadCoreRelatedTracks(provider, track, settings.effectiveSonicSimilarityEnabled())
             }
             val waveformResult = waveform.await()
-            val audioTags = runCatching {
-                audioMetadataSidecarService?.let { service ->
-                    waveformResult?.localAudio
-                        ?.let { service.audioTags(it) }
-                        ?: service.audioTagsForTrack(
-                            sourceId = activeSourceId,
-                            track = track,
-                            quality = quality,
-                            audioCachingEnabled = audioCachingEnabled(),
-                        )
-                }
-            }.getOrNull()
-            LoadedTrackSidecars(album.await(), waveformResult?.waveform, audioTags, related.await())
+            val metadata = audioMetadataSidecarService?.metadataForTrack(
+                sourceId = activeSourceId,
+                provider = provider,
+                track = track,
+                quality = quality,
+                audioCachingEnabled = audioCachingEnabled(),
+                localAudio = waveformResult?.localAudio,
+            )
+            LoadedTrackSidecars(album.await(), waveformResult?.waveform, metadata?.tags,
+                related.await(), metadata?.audioInfo)
         }
         if (generation == loadGeneration) {
             delegate.updateTrackSidecars(
                 album = loaded.album,
                 waveform = loaded.waveform,
                 audioTags = loaded.audioTags,
+                fileAudioInfo = loaded.fileAudioInfo,
                 relatedTracks = loaded.related.tracks,
                 relatedTracksSource = loaded.related.source,
                 relatedTracksStatus = loaded.related.status,
@@ -1140,6 +1140,7 @@ private data class LoadedTrackSidecars(
     val waveform: app.naviamp.domain.waveform.AudioWaveform?,
     val audioTags: List<app.naviamp.domain.audio.AudioTag>?,
     val related: LoadedRelatedTracks,
+    val fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
 )
 
 internal data class LoadedRelatedTracks(

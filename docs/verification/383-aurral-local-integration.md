@@ -442,3 +442,66 @@ The running review app is now
 the prior r4 review process is closed, and its existing isolated profile, queue, volume and
 connections are preserved. Packaged locale data remains present. The installed application and
 physical devices were not targeted; no GitHub issue, push or hosted check was added.
+
+## Track metadata with audio caching disabled and Aurora palette stability
+
+The owner's comparison of Snap!'s “Rhythm Is a Dancer” on 2026-11-05 exposed two
+metadata paths. Aurral's Subsonic song response supplies FLAC and 847 kbps but omits
+sample rate and bit depth. Its original audio stream contains FLAC STREAMINFO
+(44100 Hz, 16 bit) and readable Vorbis comments, including the title and date
+1992-03-24. The previous shared metadata service could read only a downloaded or
+cached local file, so disabling audio caching incorrectly resulted in an empty
+embedded-tag section without probing the stream. Enabling caching restored the
+comments but could not supply the missing provider audio properties.
+
+The common metadata service now uses the authenticated provider byte transport for
+an original-file header when local tags or provider file properties are missing.
+The probe requests at most 2 MiB, stops early when the FLAC properties and comments
+are available, stops consumption even if a server ignores Range, and times out after
+10 seconds. Cancellation propagates; failed probes remain retryable. Discovery
+samples are excluded, account/track identity scopes the in-memory result, and this
+read does not enable caching or persist a complete track. Existing local tags and
+provider properties are preserved. The shared Now Playing presenter fills missing
+file properties only for the matching track; bitrate remains in file details while
+the lossless player label can show sample rate / bit depth. Transcoded playback
+continues to use its actual stream-quality label.
+
+The read-only production-client acceptance test against that exact track passes
+with audio caching disabled: embedded title/date, 44100 Hz and 16-bit depth are
+present. No acquisition, genre mutation, listen submission or playlist write was
+performed by this test. Evidence: `/private/tmp/aurral-metadata-live.log` and the
+`AurralLiveTest.originalFileTagsAndPropertiesLoadWithAudioCachingDisabled` result.
+
+The owner's side-by-side screenshot also confirms matching Aurora controls but
+different displayed cover images: the Navidrome cover has a black background and
+brighter colors; Aurral's cover has a brown cast and different framing. Different
+artwork can legitimately produce different Aurora colors. A separate shared cache
+issue allowed the latest artwork display size to replace palette samples for a URL.
+Palette input now always uses the same 128-pixel decode and reuses its cached
+samples, making it independent of thumbnail/player load order. This does not force
+different server artwork to have identical colors or change the artwork selected
+by either provider. No animation policy, playback frequency, waveform behavior,
+settings, schema, translated UI copy or platform production adapter was changed.
+
+Final local validation passes **78 selected regression cases** (Domain 13, UI 18,
+Presentation 47), plus the one read-only production-client acceptance case above,
+with no failures, errors or skips. Coverage includes cache-disabled metadata,
+16/24-bit FLAC headers, malformed headers, preservation of local tags and provider
+properties, account separation, ignored/nonzero ranges, cancellation, timeout and
+retry, sample exclusion, lossless/transcoded label behavior, track identity guards,
+and artwork palette preload/load-order behavior.
+
+Android and both iOS targets compile, Desktop packaging/verifier, Android debug APK
+assembly and the common-first architecture guard pass: **317 tasks, 73 executed,
+11m39s**. Evidence is `/private/tmp/aurral-metadata-matrix.log` and
+`/private/tmp/aurral-metadata-test-summary.json`. No platform production file changed.
+The earlier large UI/alignment and backend acceptance matrices remain evidence for
+their recorded checkpoints; they are not counted again in this batch.
+
+The rebuilt isolated review application is
+`/private/tmp/aurral-acceptance-review-r6/Naviamp Aurral Acceptance r6.app`, using the
+existing r3 profile with a private backup under the r6 review directory. Its
+signature verifies and its process is running; the installed Naviamp process was
+left untouched. The owner subsequently reported “Looks like its working.” This is
+owner confirmation of the Mac review result, not a new physical TV/phone or full
+release acceptance claim. No new issue, push or hosted check was created.

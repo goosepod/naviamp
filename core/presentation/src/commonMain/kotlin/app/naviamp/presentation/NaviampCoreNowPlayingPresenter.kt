@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.audio.withMissingFileProperties
 import app.naviamp.domain.provider.isDiscoveryPreview
 
 import app.naviamp.app.NaviampLivePlaybackController
@@ -49,7 +50,7 @@ class NaviampCoreNowPlayingPresenter(
         val shell = stateStore.state.value.shell
         val provider = providerSource.current()
         val sidecar = sidecars.snapshot()
-        val track = live.currentTrack ?: live.queue.current
+        val track = sidecar.withFileProperties(live.currentTrack ?: live.queue.current)
         val lyricsSidecar = sidecar.lyricsForTrack(track?.id)
         val isLive = sidecar.currentInternetRadioStationId != null || track?.isInternetRadioTrack() == true
         val capabilities = nowPlayingTrackCapabilities(
@@ -141,3 +142,9 @@ internal fun NaviampCoreNowPlayingSidecars.waveformForTrack(
 internal fun NaviampCoreNowPlayingSidecars.lyricsForTrack(
     trackId: app.naviamp.domain.TrackId?,
 ) = takeIf { this.trackId == trackId }
+
+internal fun NaviampCoreNowPlayingSidecars.withFileProperties(track: app.naviamp.domain.Track?): app.naviamp.domain.Track? =
+    track?.let { item ->
+        if (trackId == item.id) item.copy(audioInfo = item.audioInfo.withMissingFileProperties(fileAudioInfo))
+        else item
+    }
