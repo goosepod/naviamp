@@ -14,6 +14,32 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun genreFiltersNeverBlockAndUncertainBlocksReconcileBeforeAnotherMutation() = runTest {
+        var mutations = 0; var blocked = false
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun blockedGenres() = ProviderDiscoveryBlockedGenres(ProviderDiscoveryStatus.Ready, if (blocked) listOf("rock") else emptyList())
+            override suspend fun recommendations(offset: Int, limit: Int) = ProviderRecommendationPage(ProviderDiscoveryStatus.Ready,
+                listOf(First), offset, genres = listOf("rock"))
+            override suspend fun setGenreBlocked(tag: String, value: Boolean): ProviderDiscoveryGenreMutation {
+                mutations++; blocked = value; return ProviderDiscoveryGenreMutation(ProviderDiscoveryOperationStatus.Uncertain)
+            }
+        })
+        suspend fun send(action: DiscoveryBrowseAction) { val c = NaviampCoreCommand.Home.Browse(action); h.controller.dispatch(c); h.controller.execute(c) }
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations))
+        send(DiscoveryBrowseAction.Genre("rock")); assertEquals(0, mutations)
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.BlockedGenres))
+        send(DiscoveryBrowseAction.BlockGenre("rock", true)); send(DiscoveryBrowseAction.BlockGenre("rock", true))
+        assertEquals(1, mutations)
+        assertEquals(ProviderDiscoveryOperationStatus.Uncertain, h.discovery().browser!!.genreMutation)
+        send(DiscoveryBrowseAction.Refresh)
+        assertEquals(listOf("rock"), h.discovery().browser!!.blockedGenres.tags)
+        assertTrue(h.discovery().browser!!.uncertainGenres.isEmpty())
+        send(DiscoveryBrowseAction.Close)
+        assertEquals(DiscoveryBrowsePage.Recommendations, h.discovery().browser!!.page)
+        assertEquals("rock", h.discovery().browser!!.genre)
+        assertEquals(listOf("rock"), h.discovery().browser!!.blockedGenres.tags)
+    }
+
     @Test fun chartsUseIndependentPreviewsAndReconcileUncertainSavesWithoutReplay() = runTest {
         var saves = 0
         val h = DiscoveryHarness(object : DiscoveryNative() {

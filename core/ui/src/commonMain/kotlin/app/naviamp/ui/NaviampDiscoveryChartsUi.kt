@@ -28,8 +28,8 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
                 }) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { send(DiscoveryBrowseAction.Refresh) }, enabled = !screen.loading) { Text(stringResource(Res.string.library_refresh)) }
-            if (screen.chartGenreId != null) TextButton(onClick = { send(DiscoveryBrowseAction.ChartGenre(null)) }) { Text(stringResource(Res.string.discovery_trending)) }
+            DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Refresh) }, enabled = !screen.loading) { Text(stringResource(Res.string.library_refresh)) }
+            if (screen.chartGenreId != null) DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.ChartGenre(null)) }) { Text(stringResource(Res.string.discovery_charts_title)) }
         }
         if (screen.loading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
         if (screen.status != ProviderDiscoveryStatus.Ready) Text(stringResource(discoveryStatusMessage(screen.status)), color = colors.secondaryText)
@@ -46,7 +46,7 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
                 if (spotlight.ranks.isNotEmpty()) Text(stringResource(Res.string.discovery_chart_rank_history,
                     spotlight.ranks.joinToString(" · ") { it?.toString() ?: "–" }), color = colors.secondaryText)
             }
-            if (screen.charts.canSave && screen.charts.playlistId != null) TextButton(
+            if (screen.charts.canSave && screen.charts.playlistId != null) DiscoveryTextButton(colors = colors,
                 onClick = { send(DiscoveryBrowseAction.SaveChart) }, enabled = !screen.loading && screen.charts.libraryPlaylistId == null &&
                     screen.chartSave?.status !in setOf(ProviderDiscoveryOperationStatus.Uncertain, ProviderDiscoveryOperationStatus.Saved)) {
                 Text(stringResource(Res.string.discovery_chart_save_playlist))
@@ -98,11 +98,11 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
                 val open = { if (entry.artist.artistMbid != null) actions.onDiscoveryArtistDetails(entry.artist.id)
                     else send(DiscoveryBrowseAction.ChartSearch(entry.artist.name, ProviderCatalogScope.Artist)) }
                 if (entry.artist.artistMbid != null) DiscoveryBrowserArtist(entry.artist, colors, open)
-                else TextButton(onClick = open) { Text(entry.artist.name) }
+                else DiscoveryTextButton(colors = colors, onClick = open) { Text(entry.artist.name) }
             }
         }
         DiscoveryChartSection.Genres -> items(screen.charts.genres, key = { "genre:${it.id}" }) { genre ->
-            TextButton(onClick = { send(DiscoveryBrowseAction.ChartGenre(genre.id)) }) { Text(genre.name) }
+            DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.ChartGenre(genre.id)) }) { Text(genre.name) }
         }
         else -> Unit
     }

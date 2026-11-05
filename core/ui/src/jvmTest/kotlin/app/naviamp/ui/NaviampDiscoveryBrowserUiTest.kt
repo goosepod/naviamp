@@ -10,6 +10,35 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryBrowserUiTest {
+    @Test fun chartsAndGenreBlocksRenderOnNarrowWideAndTvWithoutImplicitMutations() {
+        for ((width, height) in listOf(360 to 780, 1100 to 850, 1280 to 800)) runDesktopComposeUiTest(width, height) {
+            val screen = DiscoveryBrowserState(page = DiscoveryBrowsePage.Trending, charts = ProviderDiscoveryCharts(
+                ProviderDiscoveryStatus.Ready, region = "US", songs = listOf(DiscoveryChartSong("key", "Chart song", "Chart artist", previewId = DiscoveryDeezerPreviewId("42"))),
+                canSave = true, playlistId = "55"))
+            val page = mutableStateOf(discoveryPageFixture().copy(artistPage = false, artistDetail = null, browser = screen))
+            val commands = mutableListOf<DiscoveryBrowseAction>()
+            setContent { MaterialTheme(colorScheme = darkColorScheme()) {
+                NaviampDiscoveryBrowserUi(page.value, NaviampColors.Dark, discoveryPageFixtureActions(page, mutableListOf()).copy(
+                    onDiscoveryBrowse = { commands += (it as? DiscoveryBrowseAction.Scoped)?.action ?: it }))
+            } }
+            onNodeWithText("Back").assertIsFocused()
+            onNodeWithText("Save songs chart as playlist").assertIsDisplayed()
+            assertTrue(commands.none { it == DiscoveryBrowseAction.SaveChart })
+            onNodeWithContentDescription("Play sample").performScrollTo().performClick()
+            assertTrue(DiscoveryBrowseAction.ChartPreview("key") in commands)
+            captureBrowser("charts", width)
+            runOnIdle { page.value = page.value.copy(browser = screen.copy(page = DiscoveryBrowsePage.BlockedGenres,
+                genres = listOf("rock"), blockedGenres = ProviderDiscoveryBlockedGenres(ProviderDiscoveryStatus.Ready, listOf("jazz")))) }
+            onNodeWithText("Block genre").performScrollTo().performClick()
+            assertTrue(DiscoveryBrowseAction.BlockGenre("rock", true) in commands)
+            onNodeWithText("Unblock genre").performScrollTo().performClick()
+            assertTrue(DiscoveryBrowseAction.BlockGenre("jazz", false) in commands)
+            captureBrowser("genre-blocks", width)
+            runOnIdle { page.value = page.value.copy(browser = page.value.browser!!.copy(uncertainGenres = mapOf("rock" to true))) }
+            onNodeWithText("Block genre").assertIsNotEnabled()
+        }
+    }
+
     @Test fun catalogSearchIsExplicitAndMissingIdentitiesRemainInformational() = runDesktopComposeUiTest(360, 780) {
         val page = mutableStateOf(discoveryPageFixture().copy(artistPage = false, artistDetail = null,
             browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Search)))
@@ -52,5 +81,13 @@ class NaviampDiscoveryBrowserUiTest {
                 javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", target)
             }
         }
+    }
+}
+
+@OptIn(ExperimentalTestApi::class)
+private fun ComposeUiTest.captureBrowser(name: String, width: Int) {
+    System.getenv("NAVIAMP_DISCOVERY_BROWSER_CAPTURE")?.let { directory ->
+        val target = java.io.File(directory, "$name-$width.png"); target.parentFile.mkdirs()
+        javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", target)
     }
 }

@@ -9,6 +9,34 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun trendingAndGenreBlockReadsUseTheCurrentUserWithoutMutations() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        var logins = 0
+        val readOnly = object : NavidromeHttpClient by transport {
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                check(url == connection.normalizedBaseUrl + "/api/auth/login") { "Live acceptance is read-only" }
+                logins++
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Read-only acceptance")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Read-only acceptance")
+        }
+        val discovery = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, readOnly)
+        val charts = discovery.charts()
+        assertEquals(ProviderDiscoveryStatus.Ready, charts.status)
+        assertTrue(charts.songs != null || charts.albums != null || charts.artists != null)
+        val blocked = discovery.blockedGenres()
+        assertEquals(ProviderDiscoveryStatus.Ready, blocked.status)
+        charts.genres.firstOrNull()?.let { genre ->
+            assertEquals(ProviderDiscoveryStatus.Ready, discovery.genreChart(genre.id).status)
+        }
+        assertEquals(1, logins)
+        println("Aurral chart reads: songs=${charts.songs?.size}, albums=${charts.albums?.size}, artists=${charts.artists?.size}, genres=${charts.genres.size}, previews=${charts.songs.orEmpty().count { it.previewId != null }}, blockedGenres=${blocked.tags.size}")
+    }
+
     @Test fun releaseContextLoadsEditionAndPreviewMetadataWithoutAcquisition() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)

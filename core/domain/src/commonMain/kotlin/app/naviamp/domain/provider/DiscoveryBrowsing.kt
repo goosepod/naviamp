@@ -2,7 +2,7 @@ package app.naviamp.domain.provider
 
 import kotlin.time.Instant
 
-enum class DiscoveryBrowsePage { Recommendations, Search, Trending }
+enum class DiscoveryBrowsePage { Recommendations, Search, Trending, BlockedGenres }
 enum class DiscoveryRecommendationView { ForYou, All }
 enum class DiscoveryRecommendationSort { Rank, Name, FirstSeen }
 enum class DiscoveryRecommendationFilter { All, New, Direct, Further }
@@ -10,6 +10,7 @@ enum class DiscoveryRecommendationFilter { All, New, Direct, Further }
 sealed interface DiscoveryBrowseAction {
     data class Scoped(val sourceId: String?, val generation: Long, val action: DiscoveryBrowseAction) : DiscoveryBrowseAction
     data class Open(val page: DiscoveryBrowsePage) : DiscoveryBrowseAction
+    data class BlockGenre(val tag: String, val blocked: Boolean) : DiscoveryBrowseAction
     data class ChartSection(val section: DiscoveryChartSection) : DiscoveryBrowseAction
     data class ChartGenre(val id: String?) : DiscoveryBrowseAction
     data class ChartPreview(val key: String) : DiscoveryBrowseAction
@@ -33,6 +34,9 @@ sealed interface DiscoveryBrowseAction {
 
 data class DiscoveryBrowserState(
     val page: DiscoveryBrowsePage = DiscoveryBrowsePage.Recommendations,
+    val blockedGenres: ProviderDiscoveryBlockedGenres = ProviderDiscoveryBlockedGenres(),
+    val genreMutation: ProviderDiscoveryOperationStatus? = null,
+    val uncertainGenres: Map<String, Boolean> = emptyMap(),
     val charts: ProviderDiscoveryCharts = ProviderDiscoveryCharts(),
     val chartSection: DiscoveryChartSection = DiscoveryChartSection.Songs,
     val chartGenreId: String? = null,
@@ -88,7 +92,7 @@ data class DiscoveryBrowserState(
         val rows = filtered(); val used = mutableSetOf<String>()
         fun take(candidates: List<ProviderDiscoveryArtist>) = candidates.filter { used.add(it.id) }
         return buildList {
-            rows.firstOrNull()?.let { add(DiscoveryRecommendationGroup(DiscoveryRecommendationGroupKind.Top) to take(listOf(it))) }
+            rows.minByOrNull { it.recommendation?.rank ?: Int.MAX_VALUE }?.let { add(DiscoveryRecommendationGroup(DiscoveryRecommendationGroupKind.Top) to take(listOf(it))) }
             if (hasDates) add(DiscoveryRecommendationGroup(DiscoveryRecommendationGroupKind.New) to take(rows.filter(::isNew)))
             seeds.map { it.name }.map { seed -> seed to rows.filter {
                 (it.recommendation?.depth ?: 1) == 1 && likedSeeds(it).firstOrNull() == seed && it.id !in used

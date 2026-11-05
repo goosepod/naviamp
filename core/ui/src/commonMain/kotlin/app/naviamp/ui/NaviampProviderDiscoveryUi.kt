@@ -68,7 +68,8 @@ internal fun NaviampProviderDiscoveryContent(
             color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
         TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) }) { Text(stringResource(Res.string.discovery_recommendations)) }
         TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search)) }) { Text(stringResource(Res.string.discovery_catalog_search)) }
-        if (discovery.feed.chartsAvailable) TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) { Text(stringResource(Res.string.discovery_trending)) }
+        if (discovery.feed.chartsAvailable) TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) { Text(stringResource(Res.string.discovery_charts_title)) }
+        if (discovery.feed.genreBlockingAvailable) TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.BlockedGenres)) }) { Text(stringResource(Res.string.discovery_blocked_genres)) }
         TextButton(onClick = onRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
         val message = when {
             discovery.loading -> Res.string.discovery_loading

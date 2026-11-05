@@ -26,7 +26,7 @@ class AurralChartContractTest {
     @Test fun absentCapabilityNeverCallsNewRoutesAndMissingGenresAreUnavailable() = runTest {
         val http = ChartHttp().apply { features = "\"discover\"" }
         assertEquals(ProviderDiscoveryStatus.Unsupported, chartClient(http).charts().status)
-        assertEquals(ProviderDiscoveryStatus.Unsupported, chartClient(http).saveChartPlaylist("55").status)
+        assertEquals(ProviderDiscoveryOperationStatus.Unsupported, chartClient(http).saveChartPlaylist("55").status)
         assertEquals(0, http.chartReads); assertEquals(0, http.saves)
         http.features = "\"discover\",\"trending\",\"flows\""; http.missingGenre = true
         assertEquals(ProviderDiscoveryStatus.Unavailable, chartClient(http).genreChart("152").status)

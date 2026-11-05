@@ -49,7 +49,46 @@ internal class AurralDiscoveryClient(
             trending = feed.artists("globalTop"),
             lastUpdated = status.text("lastUpdated") ?: feed.text("lastUpdated"),
             chartsAvailable = "trending" in currentFeatures(),
+            genreBlockingAvailable = optional { get("/api/discover/blocked-tags").array("tags") } != null,
         )
+    }
+
+    override suspend fun blockedGenres(): ProviderDiscoveryBlockedGenres = nativeCall({ ProviderDiscoveryBlockedGenres(it) }) {
+        val payload = get("/api/discover/blocked-tags")
+        check(payload.array("tags") != null)
+        ProviderDiscoveryBlockedGenres(ProviderDiscoveryStatus.Ready, payload.strings("tags").distinct())
+    }
+    override suspend fun setGenreBlocked(tag: String, blocked: Boolean): ProviderDiscoveryGenreMutation {
+        val value = tag.trim()
+        if (value.isEmpty() || value.length > 100) return ProviderDiscoveryGenreMutation(ProviderDiscoveryOperationStatus.Rejected)
+        return mutationMutex.withLock { nativeCall({ ProviderDiscoveryGenreMutation(when (it) {
+            ProviderDiscoveryStatus.Unsupported -> ProviderDiscoveryOperationStatus.Unsupported
+            ProviderDiscoveryStatus.Forbidden -> ProviderDiscoveryOperationStatus.Forbidden
+            else -> ProviderDiscoveryOperationStatus.Uncertain
+        }) }) {
+            // Safe GET support probe; never mutate to detect support on an older server.
+            val existing = get("/api/discover/blocked-tags")
+            check(existing.array("tags") != null)
+            val tags = existing.strings("tags")
+            val key = discoveryGenreKey(value)
+            if (tags.any { discoveryGenreKey(it) == key } == blocked)
+                return@nativeCall ProviderDiscoveryGenreMutation(ProviderDiscoveryOperationStatus.Saved, tags)
+            if (blocked) {
+                val genres = get("/api/discover?limit=1&offset=0").strings("topGenres")
+                if (genres.none { discoveryGenreKey(it) == key }) return@nativeCall ProviderDiscoveryGenreMutation(ProviderDiscoveryOperationStatus.Rejected)
+            }
+            val result = try {
+                if (blocked) post("/api/discover/blocked-tags", buildJsonObject { put("tag", value) })
+                else http.deleteJson("$base/api/discover/blocked-tags?tag=${value.urlEncode()}", authorizedHeaders()).parseObject()
+            } catch (error: NavidromeHttpException) {
+                if (error.statusCode == 400) return@nativeCall ProviderDiscoveryGenreMutation(ProviderDiscoveryOperationStatus.Rejected)
+                throw error
+            }
+            check(result.array("tags") != null)
+            val confirmed = result.strings("tags")
+            check(confirmed.any { discoveryGenreKey(it) == key } == blocked)
+            ProviderDiscoveryGenreMutation(ProviderDiscoveryOperationStatus.Saved, confirmed)
+        } }
     }
 
     override suspend fun charts(): ProviderDiscoveryCharts = nativeCall({ ProviderDiscoveryCharts(status = it) }) {

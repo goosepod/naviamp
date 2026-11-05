@@ -5,7 +5,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -19,6 +26,8 @@ import org.jetbrains.compose.resources.stringResource
 internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, colors: NaviampColors, actions: NaviampHomeActions, playback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi()) {
     val screen = discovery.browser ?: return
     val send: (DiscoveryBrowseAction) -> Unit = { actions.onDiscoveryBrowse(DiscoveryBrowseAction.Scoped(discovery.sourceId, discovery.sourceGeneration, it)) }
+    val backFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(screen.page) { backFocus.requestFocus() }
     val list = remember(screen.page, screen.view, screen.sort, screen.genre, screen.seed, screen.filter) {
         LazyListState(screen.firstVisibleItem, screen.firstVisibleOffset)
     }
@@ -29,12 +38,30 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
     }
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(when (screen.page) { DiscoveryBrowsePage.Search -> Res.string.discovery_catalog_search; DiscoveryBrowsePage.Trending -> Res.string.discovery_trending; else -> Res.string.discovery_recommendations }), Modifier.weight(1f).semantics { heading() }, color = colors.primaryText)
-            TextButton(onClick = { send(DiscoveryBrowseAction.Close) }) { Text(stringResource(Res.string.common_back)) }
+            Text(stringResource(when (screen.page) { DiscoveryBrowsePage.Search -> Res.string.discovery_catalog_search; DiscoveryBrowsePage.Trending -> Res.string.discovery_charts_title; DiscoveryBrowsePage.BlockedGenres -> Res.string.discovery_blocked_genres; else -> Res.string.discovery_recommendations }), Modifier.weight(1f).semantics { heading() }, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Close) }, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
         }
         Text(stringResource(Res.string.discovery_provider_title, localizedProviderName(discovery.providerId)), color = colors.secondaryText)
         LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("discovery-browser-list"), state = list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (screen.page == DiscoveryBrowsePage.Trending) discoveryCharts(screen, colors, actions.copy(onDiscoveryBrowse = send), playback)
+            if (screen.page == DiscoveryBrowsePage.BlockedGenres) {
+                item(key = "genre-controls") {
+                    Text(stringResource(Res.string.discovery_genre_block_description), color = colors.secondaryText)
+                    DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Refresh) }, enabled = !screen.loading) { Text(stringResource(Res.string.library_refresh)) }
+                    if (screen.loading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+                    if (screen.blockedGenres.status != ProviderDiscoveryStatus.Ready) Text(stringResource(discoveryStatusMessage(screen.blockedGenres.status)), color = colors.secondaryText)
+                    screen.genreMutation?.let { Text(stringResource(discoveryOperationMessage(it)), color = colors.secondaryText) }
+                    if (screen.blockedGenres.status == ProviderDiscoveryStatus.Ready && screen.blockedGenres.tags.isEmpty()) Text(stringResource(Res.string.discovery_no_blocked_genres), color = colors.secondaryText)
+                }
+                if (screen.blockedGenres.status == ProviderDiscoveryStatus.Ready) {
+                    items(screen.blockedGenres.tags.distinct(), key = { "blocked:$it" }) { tag ->
+                        GenreBlockRow(tag, true, screen, colors, send)
+                    }
+                    items(screen.genres.distinct().filter { genre -> screen.blockedGenres.tags.none { discoveryGenreKey(it) == discoveryGenreKey(genre) } }, key = { "genre:$it" }) { tag ->
+                        GenreBlockRow(tag, false, screen, colors, send)
+                    }
+                }
+            }
+            else if (screen.page == DiscoveryBrowsePage.Trending) discoveryCharts(screen, colors, actions.copy(onDiscoveryBrowse = send), playback)
             else if (screen.page == DiscoveryBrowsePage.Search) {
                 item(key = "search") {
                     OutlinedTextField(value = screen.query, onValueChange = { send(DiscoveryBrowseAction.Query(it)) },
@@ -46,13 +73,13 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
                             onClick = { send(DiscoveryBrowseAction.Scope(scope)) }, label = {
                                 Text(stringResource(if (scope == ProviderCatalogScope.Artist) Res.string.discovery_catalog_artists else Res.string.discovery_catalog_albums))
                             }) }
-                        TextButton(onClick = { send(DiscoveryBrowseAction.Search) }, enabled = !screen.loading && screen.query.isNotBlank()) { Text(stringResource(Res.string.discovery_catalog_search_action)) }
+                        DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Search) }, enabled = !screen.loading && screen.query.isNotBlank()) { Text(stringResource(Res.string.discovery_catalog_search_action)) }
                     }
                     if (screen.loading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                     if (screen.status != ProviderDiscoveryStatus.Ready) Text(stringResource(discoveryStatusMessage(screen.status)), color = colors.secondaryText)
                     if (screen.submittedQuery.isNotEmpty()) Text(stringResource(Res.string.discovery_catalog_count,
                         (screen.catalog.artists.size + screen.catalog.albums.size).toString(), screen.catalog.totalCount?.toString() ?: "?"), color = colors.secondaryText)
-                    TextButton(onClick = { send(DiscoveryBrowseAction.External) }) { Text(stringResource(Res.string.discovery_open_provider, localizedProviderName(discovery.providerId))) }
+                    DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.External) }) { Text(stringResource(Res.string.discovery_open_provider, localizedProviderName(discovery.providerId))) }
                 }
                 items(screen.catalog.artists, key = { "catalog-artist:${it.id}" }) { artist -> DiscoveryBrowserArtist(artist, colors) { actions.onDiscoveryArtistDetails(artist.id) } }
                 items(screen.catalog.albums, key = { "catalog-album:${it.release.id}" }) { album ->
@@ -69,7 +96,7 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
                 }
                 if (screen.submittedQuery.isNotEmpty() && screen.catalog.artists.isEmpty() && screen.catalog.albums.isEmpty() && !screen.loading)
                     item { Text(stringResource(Res.string.discovery_catalog_empty), color = colors.secondaryText) }
-                if (screen.catalog.nextOffset != null) item { TextButton(onClick = { send(DiscoveryBrowseAction.More) }, enabled = !screen.loading) { Text(stringResource(Res.string.discovery_load_more)) } }
+                if (screen.catalog.nextOffset != null) item { DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.More) }, enabled = !screen.loading) { Text(stringResource(Res.string.discovery_load_more)) } }
             } else {
             item(key = "controls") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -78,7 +105,7 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
                             Text(stringResource(if (view == DiscoveryRecommendationView.ForYou) Res.string.discovery_for_you else Res.string.discovery_all_releases))
                         })
                     }
-                    TextButton(onClick = { send(DiscoveryBrowseAction.Refresh) }, enabled = !screen.loading) { Text(stringResource(Res.string.library_refresh)) }
+                    DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Refresh) }, enabled = !screen.loading) { Text(stringResource(Res.string.library_refresh)) }
                 }
                 Text(stringResource(Res.string.discovery_collection_count, screen.recommendations.size.toString(), screen.total?.toString() ?: "?"), color = colors.secondaryText)
                 if (screen.nextOffset != null) Text(stringResource(Res.string.discovery_collection_partial), color = colors.secondaryText)
@@ -87,6 +114,11 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
                 if (screen.status !in setOf(ProviderDiscoveryStatus.Ready, ProviderDiscoveryStatus.Building)) Text(stringResource(discoveryStatusMessage(screen.status)), color = colors.secondaryText)
                 screen.lastUpdated?.let { Text(stringResource(Res.string.discovery_last_updated, it), color = colors.secondaryText) }
                 DiscoveryRecommendationFilters(screen, send)
+                if (screen.blockedGenres.status == ProviderDiscoveryStatus.Ready) DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.BlockedGenres)) }) {
+                    Text(stringResource(Res.string.discovery_blocked_genres))
+                }
+                screen.genre?.takeIf { screen.blockedGenres.status == ProviderDiscoveryStatus.Ready }?.let { genre -> GenreBlockRow(
+                    genre, screen.blockedGenres.tags.any { discoveryGenreKey(it) == discoveryGenreKey(genre) }, screen, colors, send) }
             }
             val groups = if (screen.view == DiscoveryRecommendationView.ForYou) screen.groups()
                 else listOf(DiscoveryRecommendationGroup(DiscoveryRecommendationGroupKind.Other) to screen.filtered())
@@ -107,7 +139,7 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
                 }
             }
             if (screen.filtered().isEmpty() && !screen.loading) item { Text(stringResource(Res.string.discovery_empty), color = colors.secondaryText) }
-            if (screen.nextOffset != null) item { TextButton(onClick = { send(DiscoveryBrowseAction.More) }, enabled = !screen.loading) { Text(stringResource(Res.string.discovery_load_more)) } }
+            if (screen.nextOffset != null) item { DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.More) }, enabled = !screen.loading) { Text(stringResource(Res.string.discovery_load_more)) } }
             }
         }
     }
@@ -166,4 +198,27 @@ internal fun DiscoveryBrowserArtist(artist: ProviderDiscoveryArtist, colors: Nav
             }
         }
     }
+}
+
+@Composable
+private fun GenreBlockRow(tag: String, blocked: Boolean, screen: DiscoveryBrowserState, colors: NaviampColors, send: (DiscoveryBrowseAction) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(tag, Modifier.weight(1f), color = colors.primaryText)
+        DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.BlockGenre(tag, !blocked)) }, enabled = !screen.loading && discoveryGenreKey(tag) !in screen.uncertainGenres) {
+            Text(stringResource(if (blocked) Res.string.discovery_unblock_genre else Res.string.discovery_block_genre))
+        }
+    }
+}
+
+/** Shared high-contrast pointer/keyboard/remote controls; no host-specific focus policy. */
+@Composable
+internal fun DiscoveryTextButton(colors: NaviampColors, onClick: () -> Unit, modifier: Modifier = Modifier,
+    enabled: Boolean = true, content: @Composable RowScope.() -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val pressed by interaction.collectIsPressedAsState()
+    val active = focused || pressed
+    TextButton(onClick = onClick, modifier = modifier, enabled = enabled, interactionSource = interaction,
+        colors = ButtonDefaults.textButtonColors(containerColor = if (active) colors.primaryText else Color.Transparent,
+            contentColor = if (active) colors.background else colors.primaryText, disabledContentColor = colors.mutedText), content = content)
 }

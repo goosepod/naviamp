@@ -17,7 +17,9 @@ internal class NaviampDiscoveryBrowserController(
     private val openAlbum: suspend (ProviderCatalogAlbum) -> Unit,
     private val openExternal: (String) -> Unit,
     private val playPreview: suspend (app.naviamp.domain.Track) -> Unit,
+    private val refreshHome: suspend (MediaProvider) -> Unit,
 ) {
+    private val pendingGenres = mutableMapOf<Pair<String, String>, Boolean>()
     private val uncertainSaves = mutableSetOf<Pair<String, String>>()
     private val backStack = mutableListOf<DiscoveryBrowserState>()
     private var revision = 0L
@@ -28,11 +30,30 @@ internal class NaviampDiscoveryBrowserController(
         when (action) {
             is DiscoveryBrowseAction.Scoped -> return NaviampCoreImmediateCommandResult.Handled()
             is DiscoveryBrowseAction.Open -> {
+                state()?.browser?.takeIf { it.page != action.page }?.let { backStack += it }
                 revision++; read?.cancel(); showPage(); stopPreview()
                 update { it.copy(browser = it.browser?.copy(page = action.page) ?: DiscoveryBrowserState(page = action.page, nowMillis = nowMillis()),
                     artistPage = false, artistDetail = null, artistBackStack = emptyList(), releasePage = null) }
             }
-            is DiscoveryBrowseAction.ChartSection -> { stopPreview(); change { it.copy(chartSection = action.section, chartGenreId = null, firstVisibleItem = 0, firstVisibleOffset = 0) }; return NaviampCoreImmediateCommandResult.Handled() }
+            is DiscoveryBrowseAction.BlockGenre -> {
+                val screen = state()?.browser ?: return NaviampCoreImmediateCommandResult.Handled()
+                val account = provider()?.discoveryAccountScope ?: return NaviampCoreImmediateCommandResult.Handled()
+                val key = discoveryGenreKey(action.tag)
+                val approved = if (action.blocked) screen.genres else screen.blockedGenres.tags
+                if (screen.loading || screen.blockedGenres.status != ProviderDiscoveryStatus.Ready ||
+                    approved.none { discoveryGenreKey(it) == key } || (account to key) in pendingGenres)
+                    return NaviampCoreImmediateCommandResult.Handled()
+                pendingGenres[account to key] = action.blocked
+                change { it.copy(genreMutation = ProviderDiscoveryOperationStatus.Uncertain, uncertainGenres = it.uncertainGenres + (key to action.blocked)) }
+            }
+            is DiscoveryBrowseAction.ChartSection -> {
+                stopPreview()
+                val wasGenre = state()?.browser?.chartGenreId != null
+                if (wasGenre) { revision++; read?.cancel() }
+                change { it.copy(chartSection = action.section, chartGenreId = null, firstVisibleItem = 0, firstVisibleOffset = 0,
+                    loading = if (wasGenre) false else it.loading, status = if (wasGenre) it.charts.status else it.status) }
+                return NaviampCoreImmediateCommandResult.Handled()
+            }
             is DiscoveryBrowseAction.ChartGenre -> { revision++; read?.cancel(); stopPreview(); change { it.copy(chartGenreId = action.id, firstVisibleItem = 0, firstVisibleOffset = 0) } }
             is DiscoveryBrowseAction.ChartSearch -> {
                 state()?.browser?.let { backStack += it }
@@ -70,7 +91,12 @@ internal class NaviampDiscoveryBrowserController(
                 revision++; read?.cancel(); stopPreview()
                 when {
                     state()?.browser?.chartGenreId != null -> change { it.copy(chartGenreId = null, status = it.charts.status, loading = false) }
-                    backStack.isNotEmpty() -> { val previous = backStack.removeAt(backStack.lastIndex); update { it.copy(browser = previous.copy(loading = false)) } }
+                    backStack.isNotEmpty() -> { val previous = backStack.removeAt(backStack.lastIndex)
+                        val latest = state()?.browser
+                        update { it.copy(browser = previous.copy(loading = false, recommendations = latest?.recommendations ?: previous.recommendations,
+                            seeds = latest?.seeds ?: previous.seeds, genres = latest?.genres ?: previous.genres,
+                            blockedGenres = latest?.blockedGenres ?: previous.blockedGenres, uncertainGenres = latest?.uncertainGenres.orEmpty(),
+                            total = latest?.total, nextOffset = latest?.nextOffset, charts = latest?.charts ?: previous.charts)) } }
                     else -> reset()
                 }
                 return NaviampCoreImmediateCommandResult.Handled()
@@ -88,6 +114,20 @@ internal class NaviampDiscoveryBrowserController(
         change { it.copy(loading = true) }
         return NaviampCoreImmediateCommandResult.Deferred
     }
+    private suspend fun refreshBlockedGenres(native: ProviderDiscovery, owner: MediaProvider, current: () -> Boolean) {
+        val result = native.blockedGenres()
+        if (!current()) return
+        val account = owner.discoveryAccountScope
+        if (result.status == ProviderDiscoveryStatus.Ready) {
+            pendingGenres.entries.filter { it.key.first == account }.toList().forEach { (key, desired) ->
+                if (result.tags.any { discoveryGenreKey(it) == key.second } == desired) pendingGenres.remove(key)
+            }
+        }
+        val pending = pendingGenres.filterKeys { it.first == account }.mapKeys { it.key.second }
+        change { it.copy(blockedGenres = if (result.status == ProviderDiscoveryStatus.Ready) result else it.blockedGenres.copy(status = result.status),
+            uncertainGenres = pending, status = if (it.page == DiscoveryBrowsePage.BlockedGenres) result.status else it.status,
+            genreMutation = if (it.genreMutation == ProviderDiscoveryOperationStatus.Uncertain && pending.isEmpty()) ProviderDiscoveryOperationStatus.Saved else it.genreMutation) }
+    }
     private fun chartSong(key: String): DiscoveryChartSong? {
         val screen = state()?.browser ?: return null
         return (if (screen.chartGenreId != null) screen.genreChart?.songs else screen.charts.songs)?.firstOrNull { it.key == key }
@@ -99,9 +139,30 @@ internal class NaviampDiscoveryBrowserController(
         val owner = provider()
         val native = owner?.discovery
         if (owner == null || native == null) { change { it.copy(loading = false, status = ProviderDiscoveryStatus.Unsupported) }; return }
-        read = currentCoroutineContext()[Job]
+        val task = currentCoroutineContext()[Job]
+        read = task
         fun current() = token == revision && provider() === owner
         try {
+            if (action is DiscoveryBrowseAction.BlockGenre) {
+                val result = native.setGenreBlocked(action.tag, action.blocked)
+                if (!current()) return
+                val key = discoveryGenreKey(action.tag)
+                if (result.status != ProviderDiscoveryOperationStatus.Uncertain) pendingGenres.remove(owner.discoveryAccountScope to key)
+                change { it.copy(genreMutation = result.status,
+                    blockedGenres = result.tags?.let { tags -> ProviderDiscoveryBlockedGenres(ProviderDiscoveryStatus.Ready, tags) } ?: it.blockedGenres,
+                    uncertainGenres = if (result.status == ProviderDiscoveryOperationStatus.Uncertain) it.uncertainGenres else it.uncertainGenres - key) }
+                if (result.status != ProviderDiscoveryOperationStatus.Saved) return
+                refreshHome(owner)
+                if (!current()) return
+                // Continue through the complete bounded recommendation refresh after confirmed success.
+            }
+            if (state()?.browser?.page == DiscoveryBrowsePage.BlockedGenres && action !is DiscoveryBrowseAction.BlockGenre) {
+                refreshBlockedGenres(native, owner, ::current)
+                if (!current()) return
+                val context = native.recommendations(0, 1)
+                if (current() && context.status == ProviderDiscoveryStatus.Ready) change { it.copy(genres = context.genres) }
+                return
+            }
             if (action is DiscoveryBrowseAction.ChartPreview) {
                 val song = chartSong(action.key) ?: return
                 val preview = song.previewId ?: return
@@ -143,6 +204,8 @@ internal class NaviampDiscoveryBrowserController(
                 return
             }
             val more = action == DiscoveryBrowseAction.More
+            if (!more) refreshBlockedGenres(native, owner, ::current)
+            if (!current()) return
             if (!more) {
                 val feed = native.load()
                 if (!current()) return
@@ -179,6 +242,7 @@ internal class NaviampDiscoveryBrowserController(
             if (error is CancellationException) throw error
             if (current()) change { it.copy(status = ProviderDiscoveryStatus.Unavailable) }
         } finally {
+            if (read === task) read = null
             if (current()) change { it.copy(loading = false) }
         }
     }

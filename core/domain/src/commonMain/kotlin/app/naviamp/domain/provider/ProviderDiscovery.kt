@@ -24,12 +24,15 @@ data class ProviderDiscoveryFeed(
     val trending: List<ProviderDiscoveryArtist> = emptyList(),
     val lastUpdated: String? = null,
     val chartsAvailable: Boolean = false,
+    val genreBlockingAvailable: Boolean = false,
 )
 
 /** Optional native discovery; failure never disables the provider's standard playback contract. */
 fun interface ProviderDiscovery {
     val requestsUrl: String? get() = null
     val catalogUrl: String? get() = null
+    suspend fun blockedGenres(): ProviderDiscoveryBlockedGenres = ProviderDiscoveryBlockedGenres()
+    suspend fun setGenreBlocked(tag: String, blocked: Boolean): ProviderDiscoveryGenreMutation = ProviderDiscoveryGenreMutation()
     suspend fun charts(): ProviderDiscoveryCharts = ProviderDiscoveryCharts()
     suspend fun genreChart(id: String): ProviderDiscoveryGenreChart = ProviderDiscoveryGenreChart()
     suspend fun saveChartPlaylist(id: String): ProviderDiscoveryChartSave = ProviderDiscoveryChartSave()

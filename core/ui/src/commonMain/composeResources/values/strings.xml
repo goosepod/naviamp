@@ -1308,8 +1308,14 @@
     <string name="discovery_chart_rank_history">Recent ranks: %1$s</string>
     <string name="discovery_chart_save_playlist">Save songs chart as playlist</string>
     <string name="discovery_chart_saved">Chart saved as a synced playlist.</string>
-    <string name="discovery_chart_playlist_description">Saving creates a synced playlist in Aurral. Tracks may still need to be acquired.</string>
+    <string name="discovery_chart_playlist_description">Aurral syncs this playlist and may acquire missing tracks. Saving does not mean all tracks are playable.</string>
     <string name="discovery_chart_unavailable">This chart is not available yet.</string>
     <string name="discovery_chart_new">New entry</string>
     <string name="discovery_chart_movement">Movement: %1$s</string>
+    <string name="discovery_blocked_genres">Blocked genres</string>
+    <string name="discovery_block_genre">Block genre</string>
+    <string name="discovery_unblock_genre">Unblock genre</string>
+    <string name="discovery_no_blocked_genres">No blocked genres.</string>
+    <string name="discovery_genre_block_description">Genre blocks change Aurral discovery recommendations for this account. Your Library stays visible.</string>
+    <string name="discovery_charts_title">Trending</string>
 </resources>
