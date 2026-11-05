@@ -175,9 +175,9 @@ selected future scope, not a new release. No version, tag, release or announceme
 
 ## Open acceptance gates and handoff
 
-The corrected isolated Mac review app is at
-`/private/tmp/aurral-acceptance-review-r2/Naviamp Aurral Acceptance r2.app` and uses a fresh
-private test profile. The installed application and its profile were preserved. The computer-use
+The earlier, pre-redesign isolated Mac review app was at
+`/private/tmp/aurral-acceptance-review-r2/Naviamp Aurral Acceptance r2.app` with a fresh
+private test profile. The UI revision below supersedes it with r3. The installed application and its profile were preserved. The computer-use
 service timed out repeatedly, including a final call that ignored its requested timeout for
 approximately 75 minutes. Further native UI automation was stopped. **The corrected full-route
 walkthrough is not accepted** merely because the wrapper regression and builds now pass.
@@ -242,3 +242,83 @@ with separate section destinations and proper graphical controls instead of text
 All UI work remains within the existing Aurral tickets. The preceding implementation and
 acceptance results preserve backend evidence; they do not accept the rejected UI or validate
 the revised presentation. No new ticket is needed or created for this revision.
+
+The revision replaces Aurral's Home rails and section links with one branded entry card.
+Its dedicated hub contains a featured Recommendations card and responsive Search, Trending,
+Requests and Genres navigation cards, with icons, descriptions, chevrons and visible keyboard
+focus. Each section occupies its own destination. Requests is a full shared page above the
+underlying browser/artist destination, rather than a modal. System Back dismisses it first.
+
+Recommendations uses tabs, compact filter menus and responsive artist cards. Search has an
+explicit filled submit control, artist/album tabs, a separate external action and result cards.
+Trending uses category tabs, card surfaces and outlined preview controls; chart artists without
+a verified identity still go through explicit catalog selection. Genres uses labeled switches,
+with uncertain mutations disabled. Separator aliases are deduplicated using Aurral's existing
+normalization contract. Artist artwork stays circular and album artwork square.
+
+Hub navigation does not fetch the complete recommendation collection. Entering a section starts
+at its own top, and Back restores the hub viewport. All routing, state, controls and layouts are
+common code; this revision changes no Android/Desktop/iOS production file. Six new descriptions
+are present in English and all 16 maintained translations. Existing generic-provider rail tests
+continue exercising that presentation; new Aurral tests assert the single Home entry, card
+navigation and separate destinations. Directional artist-focus coverage follows the reachable
+control path rather than depending on the previous text-button widths.
+
+Initial rendering tests caught a real subcomposition focus problem: requesting Back focus before
+the responsive header existed did not focus its button. Focus is now requested from within the
+header's composition. An offscreen hub-card test was corrected to scroll the lazy container to
+its target before selecting it. No live mutations were repeated during UI verification.
+
+The first broad packaging attempt used Homebrew OpenJDK and was stopped by Compose's JDK vendor
+check. The final batch uses the already-installed JetBrains JDK 21.0.11 and keeps that check
+enabled. It includes discovery/domain and navigation/UI regression tests, Android debug packaging,
+Desktop app staging, both iOS common/host compile graphs, migration verification and the Core-first
+architecture check. Final results and review artifacts are recorded below.
+
+Final shared routing review also found that TV's shell-level Back handler could otherwise consume
+Back before a browser destination. Browser and Requests now register their own shared handlers;
+TV browser pages use the same directional focus policy as the existing artist page. A rendered
+TV hub test checks Back focus, D-pad activation of the Recommendations card, and the scoped Close
+command from system Back. The Requests route test verifies it replaces the hub/artist content,
+creates no dialog, and consumes system Back through the shared dispatcher.
+
+The responsive header also consumes TV sidebar entry generations and reports focus handoff,
+so re-entering a browser or Requests destination restores Back focus. The TV hub regression
+checks re-entry after activating a card, in addition to directional activation and system Back.
+
+The TV-sized cases run only in the local JVM Compose test renderer with simulated D-pad events.
+No physical TV was connected to, installed onto or tested during this revision. These checks do
+not accept physical remote navigation, TV display output or TV playback. The owner explicitly
+confirmed this distinction during the local verification run.
+
+
+### Revised UI verification result
+
+The frozen-source matrix passes: **349 tasks, 66 executed, 283 up to date, 8m33s**.
+The selected local regression suite contains **111 cases**, all passing with no errors or skips:
+31 domain cases, 49 controller/navigation cases and 31 rendered UI/resource cases. The sidebar
+re-entry regression failed against the preceding compiled UI, whose browser signature did not
+accept entry generations, and passes after the fix is compiled. The full Android debug APK,
+Desktop distributable and both iOS common/host graphs build successfully. Migration verification
+and `verifyCoreFirstArchitecture` pass. This is compile/render verification for the UI revision;
+it does not claim a new physical-device or audible native acceptance run.
+
+The isolated review app is now
+`/private/tmp/aurral-acceptance-review-r3/Naviamp Aurral Acceptance r3.app`, with a separate private
+test profile and bundle identifier. Its ad-hoc signature verifies and its process launches.
+The earlier task-owned r2 process was stopped after checking its exact executable path. The
+installed application and owner profile were preserved. The owned native acceptance simulator
+and TLS fixture were stopped; the SSH tunnel remains available for the isolated review app.
+
+Fixture screenshots are in `/private/tmp/aurral-redesign-captures`, including the hub,
+recommendations, charts and genres at 360/1100/1280 pixels, Search at 360 pixels, and Requests.
+The final build log is `/private/tmp/aurral-ui-redesign-verified-source.log`. The sanitized local
+candidate manifest and separate UI test summary are under `build/aurral-local-acceptance`.
+The original backend-checkpoint evidence remains distinct from this UI suite; its 187 cases
+are not added to or substituted for the 111 selected regression cases.
+
+The actual-window walkthrough and the other manual/live gates listed above remain open.
+Fixture images, accessibility semantics, a running process and a valid signature do not accept
+that walkthrough. No new GitHub ticket was opened, branch pushed, PR updated or hosted runner
+dispatched for this revision. All new/changed production files are common; the platform
+production diff for this revision is empty.

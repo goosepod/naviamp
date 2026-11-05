@@ -1,6 +1,8 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
@@ -16,9 +18,9 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
     actions: NaviampHomeActions, playback: DiscoverySamplePlaybackUi) {
     val send = actions.onDiscoveryBrowse
     item(key = "chart-controls") {
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(DiscoveryChartSection.entries) { section -> FilterChip(selected = screen.chartSection == section,
-                onClick = { send(DiscoveryBrowseAction.ChartSection(section)) }, label = {
+        ScrollableTabRow(selectedTabIndex = screen.chartSection.ordinal, containerColor = colors.background, contentColor = colors.primaryText, edgePadding = 0.dp) {
+            DiscoveryChartSection.entries.forEach { section -> Tab(selected = screen.chartSection == section,
+                onClick = { send(DiscoveryBrowseAction.ChartSection(section)) }, text = {
                     Text(stringResource(when (section) {
                         DiscoveryChartSection.Songs -> Res.string.discovery_chart_songs
                         DiscoveryChartSection.Albums -> Res.string.discovery_catalog_albums
@@ -28,8 +30,7 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
                 }) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Refresh) }, enabled = !screen.loading) { Text(stringResource(Res.string.library_refresh)) }
-            if (screen.chartGenreId != null) DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.ChartGenre(null)) }) { Text(stringResource(Res.string.discovery_charts_title)) }
+            if (screen.chartGenreId != null) DiscoveryActionButton(colors = colors, onClick = { send(DiscoveryBrowseAction.ChartGenre(null)) }) { Text(stringResource(Res.string.discovery_charts_title)) }
         }
         if (screen.loading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
         if (screen.status != ProviderDiscoveryStatus.Ready) Text(stringResource(discoveryStatusMessage(screen.status)), color = colors.secondaryText)
@@ -46,19 +47,19 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
                 if (spotlight.ranks.isNotEmpty()) Text(stringResource(Res.string.discovery_chart_rank_history,
                     spotlight.ranks.joinToString(" · ") { it?.toString() ?: "–" }), color = colors.secondaryText)
             }
-            if (screen.charts.canSave && screen.charts.playlistId != null) DiscoveryTextButton(colors = colors,
+            if (screen.charts.canSave && screen.charts.playlistId != null) DiscoveryActionButton(colors = colors, primary = true,
                 onClick = { send(DiscoveryBrowseAction.SaveChart) }, enabled = !screen.loading && screen.charts.libraryPlaylistId == null &&
                     screen.chartSave?.status !in setOf(ProviderDiscoveryOperationStatus.Uncertain, ProviderDiscoveryOperationStatus.Saved)) {
                 Text(stringResource(Res.string.discovery_chart_save_playlist))
             }
             if (screen.charts.libraryPlaylistId != null) Text(stringResource(Res.string.discovery_chart_saved), color = colors.secondaryText)
             else screen.chartSave?.let { Text(stringResource(discoveryOperationMessage(it.status)), color = colors.secondaryText) }
-            Text(stringResource(Res.string.discovery_chart_playlist_description), color = colors.secondaryText)
+            if (screen.charts.canSave) Text(stringResource(Res.string.discovery_chart_playlist_description), color = colors.secondaryText)
         }
         val songs = if (screen.chartGenreId != null) screen.genreChart?.takeIf { it.id == screen.chartGenreId }?.songs else screen.charts.songs
         if (songs == null) item { Text(stringResource(Res.string.discovery_chart_unavailable), color = colors.secondaryText) }
         else items(songs, key = { "chart-song:${it.key}" }) { song ->
-            Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth().background(colors.controlSurface, RoundedCornerShape(12.dp)).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 NaviampCoverArt(song.imageUrl, colors, 56.dp, resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 56.dp, 6.dp), mediaKind = SharedMediaItemKind.Album)
                 Column(Modifier.weight(1f).clickable(role = Role.Button, onClick = { send(DiscoveryBrowseAction.ChartSearch(song.artistName, ProviderCatalogScope.Artist)) })) {
                     Text(listOfNotNull(song.position?.toString(), song.title).joinToString(" · "), color = colors.primaryText)
@@ -70,7 +71,7 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
                 song.previewId?.let { preview ->
                     val active = playback.trackId == DiscoveryPreviewTrackPrefix + preview.value
                     val playing = active && playback.playing
-                    IconButton(onClick = { send(DiscoveryBrowseAction.ChartPreview(song.key)) }, enabled = !active || playback.canToggle) {
+                    OutlinedIconButton(onClick = { send(DiscoveryBrowseAction.ChartPreview(song.key)) }, enabled = !active || playback.canToggle) {
                         Icon(if (playing) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
                             stringResource(if (playing) Res.string.transport_pause else Res.string.discovery_play_sample), tint = colors.primaryText)
                     }
@@ -97,12 +98,16 @@ internal fun LazyListScope.discoveryCharts(screen: DiscoveryBrowserState, colors
                 // An unmatched chart artist goes through explicit catalog selection, never a name-to-ID guess.
                 val open = { if (entry.artist.artistMbid != null) actions.onDiscoveryArtistDetails(entry.artist.id)
                     else send(DiscoveryBrowseAction.ChartSearch(entry.artist.name, ProviderCatalogScope.Artist)) }
-                if (entry.artist.artistMbid != null) DiscoveryBrowserArtist(entry.artist, colors, open)
-                else DiscoveryTextButton(colors = colors, onClick = open) { Text(entry.artist.name) }
+                DiscoveryBrowserArtist(entry.artist, colors, canOpen = true, onOpen = open)
             }
         }
         DiscoveryChartSection.Genres -> items(screen.charts.genres, key = { "genre:${it.id}" }) { genre ->
-            DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.ChartGenre(genre.id)) }) { Text(genre.name) }
+            DiscoveryNavigationCard(colors, { send(DiscoveryBrowseAction.ChartGenre(genre.id)) }, Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(genre.name, color = colors.primaryText)
+                    Icon(NaviampIcons.ChevronRight, null, tint = colors.secondaryText)
+                }
+            }
         }
         else -> Unit
     }

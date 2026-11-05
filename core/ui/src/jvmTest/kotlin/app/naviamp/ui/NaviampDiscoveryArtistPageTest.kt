@@ -32,11 +32,12 @@ class NaviampDiscoveryArtistPageTest {
         }
         onNodeWithText("Back").assertIsFocused()
         runOnIdle { assertTrue(inputMode.requestInputMode(InputMode.Keyboard)) }
-        onNodeWithText("Back").performKeyInput { pressKey(Key.DirectionDown) }
-        onNodeWithText("Sample track").assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionUp) }
-        onNodeWithText("Refresh").assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionDown) }
+        // Outlined action controls can wrap as their translated labels grow. Follow the
+        // directional focus path rather than relying on the former text-button geometry.
+        repeat(8) {
+            if (onNodeWithText("Sample track").fetchSemanticsNode().config.getOrElse(SemanticsProperties.Focused) { false }) return@repeat
+            onNode(isFocused()).performKeyInput { pressKey(Key.DirectionDown) }
+        }
         onNodeWithText("Sample track").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionCenter) }
         runOnIdle { assertTrue("sample" in actions) }

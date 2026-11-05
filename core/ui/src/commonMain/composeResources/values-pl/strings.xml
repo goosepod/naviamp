@@ -583,4 +583,10 @@
     <string name="discovery_genre_block_description">Blokowanie gatunków zmienia rekomendacje odkrywania Aurral dla tego konta. Twoja biblioteka pozostaje widoczna.</string>
     <string name="discovery_charts_title">Na czasie</string>
     <string name="discovery_all_recommendations">Wszystkie</string>
+    <string name="discovery_hub_intro">Odkrywaj muzykę, listy przebojów i zarządzaj prośbami.</string>
+    <string name="discovery_hub_recommendations">Znajdź kolejnego ulubionego artystę na podstawie biblioteki.</string>
+    <string name="discovery_hub_search">Szukaj artystów i albumów w katalogu Aurral.</string>
+    <string name="discovery_hub_charts">Poznaj popularne utwory, albumy i artystów.</string>
+    <string name="discovery_hub_requests">Śledź pobieranie i dodatki do biblioteki.</string>
+    <string name="discovery_hub_genres">Wybierz gatunki wykluczone z rekomendacji.</string>
 </resources>

@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">Блокування жанрів змінює рекомендації Aurral для цього облікового запису. Медіатека залишається видимою.</string>
     <string name="discovery_charts_title">Популярне</string>
     <string name="discovery_all_recommendations">Усі</string>
+    <string name="discovery_hub_intro">Відкривайте музику, переглядайте чарти й керуйте запитами.</string>
+    <string name="discovery_hub_recommendations">Знайдіть нового улюбленого виконавця на основі медіатеки.</string>
+    <string name="discovery_hub_search">Шукайте виконавців та альбоми в каталозі Aurral.</string>
+    <string name="discovery_hub_charts">Переглядайте популярні пісні, альбоми й виконавців.</string>
+    <string name="discovery_hub_requests">Стежте за завантаженнями й поповненням медіатеки.</string>
+    <string name="discovery_hub_genres">Виберіть жанри для виключення з рекомендацій.</string>
 </resources>

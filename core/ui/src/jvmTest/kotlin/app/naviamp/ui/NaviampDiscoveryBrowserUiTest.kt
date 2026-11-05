@@ -3,6 +3,11 @@ package app.naviamp.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.test.*
 import androidx.compose.ui.graphics.toAwtImage
 import app.naviamp.domain.provider.*
@@ -10,6 +15,70 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryBrowserUiTest {
+    @Test fun televisionHubCardsSupportDirectionalActivationAndConsumeSystemBack() = runDesktopComposeUiTest(1280, 800) {
+        val page = mutableStateOf(discoveryPageFixture().copy(artistPage = false, artistDetail = null,
+            browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Hub)))
+        val commands = mutableListOf<DiscoveryBrowseAction>()
+        val dispatcher = NaviampSystemBackDispatcher()
+        val generation = mutableStateOf(1)
+        val handled = mutableListOf<Int>()
+        lateinit var inputMode: InputModeManager
+        setContent { CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides dispatcher) {
+            inputMode = LocalInputModeManager.current
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                TelevisionHome(NaviampHomeScreenUi(providerDiscovery = page.value), NaviampColors.Dark,
+                    discoveryPageFixtureActions(page, mutableListOf()).copy(onDiscoveryBrowse = {
+                        commands += (it as? DiscoveryBrowseAction.Scoped)?.action ?: it
+                    }), NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi(), generation.value, onEntryFocusHandled = { handled += it })
+            }
+        } }
+        onNodeWithText("Back").assertIsFocused()
+        runOnIdle { assertTrue(inputMode.requestInputMode(InputMode.Keyboard)) }
+        onNodeWithText("Back").performKeyInput { pressKey(Key.DirectionDown) }
+        onNodeWithText("Recommendations").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        assertTrue(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations) in commands)
+        runOnIdle { generation.value = 2 }
+        onNodeWithText("Back").assertIsFocused()
+        assertEquals(listOf(1, 2), handled)
+        runOnIdle { assertNotNull(dispatcher.currentHandler).invoke() }
+        assertEquals(DiscoveryBrowseAction.Close, commands.last())
+    }
+
+    @Test fun aurralHomeHasOneEntryAndHubCardsOpenSeparatePages() {
+        for ((width, height) in listOf(360 to 780, 1100 to 850, 1280 to 800)) runDesktopComposeUiTest(width, height) {
+            val page = mutableStateOf(discoveryPageFixture().copy(artistPage = false, artistDetail = null,
+                feed = ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, chartsAvailable = true, genreBlockingAvailable = true)))
+            val commands = mutableListOf<DiscoveryBrowseAction>()
+            var requests = 0
+            val send: (DiscoveryBrowseAction) -> Unit = { commands += (it as? DiscoveryBrowseAction.Scoped)?.action ?: it }
+            setContent { MaterialTheme(colorScheme = darkColorScheme()) {
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier) {
+                    if (page.value.browser == null) NaviampProviderDiscoveryContent(page.value, NaviampColors.Dark, {}, onBrowse = send)
+                    else NaviampDiscoveryBrowserUi(page.value, NaviampColors.Dark, discoveryPageFixtureActions(page, mutableListOf()).copy(
+                        onDiscoveryBrowse = send, onDiscoveryRequests = { requests++ }))
+                }
+            } }
+            onNodeWithText("Aurral").performClick()
+            assertEquals(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Hub), commands.last())
+            onNodeWithText("Recommendations").assertDoesNotExist()
+            onNodeWithText("Recent requests").assertDoesNotExist()
+            runOnIdle { page.value = page.value.copy(browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Hub)) }
+            onNodeWithText("Back").assertIsFocused()
+            captureBrowser("hub", width)
+            onNodeWithText("Recommendations").performScrollTo().performClick()
+            assertEquals(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations), commands.last())
+            onNodeWithText("Search").performScrollTo().performClick()
+            assertEquals(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search), commands.last())
+            onNodeWithText("Trending").performScrollTo().performClick()
+            assertEquals(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending), commands.last())
+            onNodeWithText("Recent requests").performScrollTo().performClick()
+            assertEquals(1, requests)
+            onNode(hasScrollAction()).performScrollToNode(hasText("Genres"))
+            onNodeWithText("Genres").performClick()
+            assertEquals(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.BlockedGenres), commands.last())
+        }
+    }
+
     @Test fun chartsAndGenreBlocksRenderOnNarrowWideAndTvWithoutImplicitMutations() {
         for ((width, height) in listOf(360 to 780, 1100 to 850, 1280 to 800)) runDesktopComposeUiTest(width, height) {
             val screen = DiscoveryBrowserState(page = DiscoveryBrowsePage.Trending, charts = ProviderDiscoveryCharts(
@@ -56,6 +125,7 @@ class NaviampDiscoveryBrowserUiTest {
         assertTrue(DiscoveryBrowseAction.Search in commands)
         onAllNodesWithText("Björk").assertCountEquals(2)
         onNodeWithText("Open in library").assertDoesNotExist()
+        captureBrowser("search", 360)
     }
 
     @Test fun recommendationsExposePartialCountsFiltersAndAccessibleArtistNavigation() {

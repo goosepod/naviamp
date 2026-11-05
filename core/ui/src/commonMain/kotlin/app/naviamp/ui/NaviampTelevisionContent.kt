@@ -119,14 +119,19 @@ internal fun TelevisionHome(
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
-    home.providerDiscovery?.let { NaviampDiscoveryRequestsUi(it, colors, actions, television = true) }
+    home.providerDiscovery?.takeIf { it.requestsOpen }?.let {
+        NaviampDiscoveryRequestsUi(it, colors, actions, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
     home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
         NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback, television = true,
             entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
         return
     }
     home.providerDiscovery?.takeIf { it.browser != null }?.let {
-        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback)
+        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
         return
     }
     val sections = televisionHomeSections(home.content.collectionSections)

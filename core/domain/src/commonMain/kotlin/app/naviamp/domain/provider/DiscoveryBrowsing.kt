@@ -2,7 +2,7 @@ package app.naviamp.domain.provider
 
 import kotlin.time.Instant
 
-enum class DiscoveryBrowsePage { Recommendations, Search, Trending, BlockedGenres }
+enum class DiscoveryBrowsePage { Hub, Recommendations, Search, Trending, BlockedGenres }
 enum class DiscoveryRecommendationView { ForYou, All }
 enum class DiscoveryRecommendationSort { Rank, Name, FirstSeen }
 enum class DiscoveryRecommendationFilter { All, New, Direct, Further }
@@ -75,7 +75,7 @@ data class DiscoveryBrowserState(
         (artist.recommendation?.supportingSeeds.orEmpty() + artist.recommendation?.sourceArtists.orEmpty()).distinct()
             .filter { name -> seeds.any { it.name == name } }
     fun filtered(): List<ProviderDiscoveryArtist> = recommendations.filter { artist ->
-        (genre == null || (artist.genres + artist.recommendation?.matchedTags.orEmpty()).any { it.equals(genre, true) }) &&
+        (genre == null || (artist.genres + artist.recommendation?.matchedTags.orEmpty()).any { discoveryGenreKey(it) == discoveryGenreKey(genre) }) &&
         (seed == null || (artist.recommendation?.depth ?: 1) < 2 && seed in likedSeeds(artist)) && when (filter) {
             DiscoveryRecommendationFilter.All -> true
             DiscoveryRecommendationFilter.New -> isNew(artist)

@@ -3,6 +3,7 @@ package app.naviamp.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.test.*
 import androidx.compose.ui.input.key.Key
@@ -11,6 +12,26 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryRequestsUiTest {
+    @Test fun requestsAreAFullDestinationAboveTheHubAndArtistPage() = runDesktopComposeUiTest(360, 780) {
+        val page = mutableStateOf(discoveryPageFixture().copy(requestsOpen = true,
+            browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Hub)))
+        var closed = 0
+        val dispatcher = NaviampSystemBackDispatcher()
+        setContent { CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides dispatcher) { MaterialTheme(colorScheme = darkColorScheme()) {
+            SharedHomeRoute(NaviampColors.Dark, NaviampHomeScreenUi(providerDiscovery = page.value),
+                discoveryPageFixtureActions(page, mutableListOf()).copy(onDiscoveryRequestsDismiss = { closed++ }),
+                NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi())
+        } } }
+        onNode(isDialog()).assertDoesNotExist()
+        onNodeWithText("Recent requests").assertIsDisplayed()
+        onNodeWithText("Discovery artist").assertDoesNotExist()
+        onNodeWithText("Recommendations").assertDoesNotExist()
+        onNodeWithText("Back").performClick()
+        assertEquals(1, closed)
+        runOnIdle { assertNotNull(dispatcher.currentHandler).invoke() }
+        assertEquals(2, closed)
+    }
+
     @Test fun savedRequestsStayVisibleWhenOfflineAndCallbacksCarrySourceAndGeneration() {
         for ((width, height) in listOf(360 to 760, 1100 to 800, 1280 to 720)) runDesktopComposeUiTest(width, height) {
             val initial = discoveryPageFixture()
@@ -32,12 +53,12 @@ class NaviampDiscoveryRequestsUiTest {
                             onDiscoveryRequestsDismiss = { dismissed++ }), television = width == 1280)
                 }
             }
-            onNodeWithText("Close").assertIsFocused()
+            onNodeWithText("Back").assertIsFocused()
             if (width == 1280) {
-                onNodeWithText("Close").performKeyInput { pressKey(Key.DirectionRight) }
-                onNodeWithText("Refresh").assertIsFocused()
-                onNodeWithText("Refresh").performKeyInput { pressKey(Key.DirectionLeft) }
-                onNodeWithText("Close").assertIsFocused()
+                onNodeWithText("Back").performKeyInput { pressKey(Key.DirectionRight) }
+                onNodeWithContentDescription("Refresh").assertIsFocused()
+                onNodeWithContentDescription("Refresh").performKeyInput { pressKey(Key.DirectionLeft) }
+                onNodeWithText("Back").assertIsFocused()
             }
             onNodeWithText("Album request").assertIsDisplayed()
             onNodeWithText("Request finished; checking Library.").assertIsDisplayed()
@@ -48,13 +69,13 @@ class NaviampDiscoveryRequestsUiTest {
             assertEquals("account-one", selected.single().first)
             assertEquals(17L, selected.single().second)
             assertEquals("request", selected.single().third)
-            onNodeWithText("Refresh").performClick(); assertEquals(1, refreshed)
+            onNodeWithContentDescription("Refresh").performClick(); assertEquals(1, refreshed)
             onNodeWithText("Open in Aurral").performClick(); assertEquals(1, external)
             capture(onAllNodes(isRoot()).onLast().captureToImage(), "requests-$width-$height")
             runOnIdle { page.value = page.value.copy(requestsLoading = true) }
-            onNodeWithText("Refresh").assertIsNotEnabled()
+            onNodeWithContentDescription("Refresh").assertIsNotEnabled()
             onNodeWithText("Album request").assertIsDisplayed()
-            onNodeWithText("Close").performClick(); assertEquals(1, dismissed)
+            onNodeWithText("Back").performClick(); assertEquals(1, dismissed)
         }
     }
     @Test fun emptyAndWaitingRequestsDoNotOfferAnAcquireOrPlaybackAction() = runDesktopComposeUiTest(360, 760) {

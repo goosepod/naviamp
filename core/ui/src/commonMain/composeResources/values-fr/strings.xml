@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">Le blocage des genres modifie les recommandations de découverte Aurral pour ce compte. Votre bibliothèque reste visible.</string>
     <string name="discovery_charts_title">Tendances</string>
     <string name="discovery_all_recommendations">Tout</string>
+    <string name="discovery_hub_intro">Découvrez la musique, les classements et vos demandes.</string>
+    <string name="discovery_hub_recommendations">Trouvez votre prochain artiste préféré grâce à votre bibliothèque.</string>
+    <string name="discovery_hub_search">Recherchez des artistes et albums dans le catalogue Aurral.</string>
+    <string name="discovery_hub_charts">Explorez les titres, albums et artistes populaires.</string>
+    <string name="discovery_hub_requests">Suivez les téléchargements et les ajouts à votre bibliothèque.</string>
+    <string name="discovery_hub_genres">Choisissez les genres à exclure des recommandations.</string>
 </resources>

@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">ジャンルのブロックは、このアカウントの Aurral のおすすめに反映されます。ライブラリは引き続き表示されます。</string>
     <string name="discovery_charts_title">トレンド</string>
     <string name="discovery_all_recommendations">すべて</string>
+    <string name="discovery_hub_intro">音楽を発見し、チャートを探索し、リクエストを管理。</string>
+    <string name="discovery_hub_recommendations">ライブラリをもとに、次のお気に入りアーティストを見つけましょう。</string>
+    <string name="discovery_hub_search">Aurralのカタログでアーティストやアルバムを検索。</string>
+    <string name="discovery_hub_charts">人気の曲、アルバム、アーティストを探索。</string>
+    <string name="discovery_hub_requests">ダウンロードやライブラリへの追加を確認。</string>
+    <string name="discovery_hub_genres">おすすめから除外するジャンルを選択。</string>
 </resources>

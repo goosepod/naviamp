@@ -7,6 +7,11 @@ class DiscoveryBrowsingTest {
     private fun artist(n: Int, depth: Int? = null, date: String? = null, seed: String = "Seed") = ProviderDiscoveryArtist(
         n.toString(), "Artist $n", genres = listOf("Rock"), recommendation = ProviderRecommendationContext(
             rank = n, sourceArtists = listOf(seed), depth = depth, firstDiscoveredAt = date))
+    @Test fun genreFilterMatchesTheProvidersSeparatorInsensitiveIdentity() {
+        val entry = artist(1).copy(genres = listOf("alternative_rock"))
+        assertEquals(listOf(entry), DiscoveryBrowserState(recommendations = listOf(entry), genre = "Alternative Rock").filtered())
+        assertTrue(DiscoveryBrowserState(recommendations = listOf(entry), genre = "jazz").filtered().isEmpty())
+    }
     @Test fun groupingExcludesFirstCohortAndNeverDuplicatesPicks() {
         val now = Instant.parse("2026-11-05T00:00:00Z").toEpochMilliseconds()
         val rows = (1..8).map { artist(it, 1, "2026-11-01T00:00:00Z") } +

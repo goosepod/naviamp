@@ -33,7 +33,7 @@ internal class NaviampDiscoveryBrowserController(
             is DiscoveryBrowseAction.Open -> {
                 state()?.browser?.takeIf { it.page != action.page }?.let { backStack += it }
                 revision++; read?.cancel(); showPage(); stopPreview()
-                update { it.copy(browser = it.browser?.copy(page = action.page) ?: DiscoveryBrowserState(page = action.page, nowMillis = nowMillis()),
+                update { it.copy(browser = it.browser?.copy(page = action.page, firstVisibleItem = 0, firstVisibleOffset = 0) ?: DiscoveryBrowserState(page = action.page, nowMillis = nowMillis()),
                     artistPage = false, artistDetail = null, artistBackStack = emptyList(), releasePage = null) }
             }
             is DiscoveryBrowseAction.BlockGenre -> {
@@ -144,6 +144,7 @@ internal class NaviampDiscoveryBrowserController(
         read = task
         fun current() = token == revision && isCurrentProvider(owner)
         try {
+            if (state()?.browser?.page == DiscoveryBrowsePage.Hub) return
             if (action is DiscoveryBrowseAction.BlockGenre) {
                 val result = native.setGenreBlocked(action.tag, action.blocked)
                 if (!current()) return

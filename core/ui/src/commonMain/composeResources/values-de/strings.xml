@@ -1290,4 +1290,10 @@
     <string name="discovery_genre_block_description">Genre-Sperren ändern die Aurral-Entdeckungsempfehlungen für dieses Konto. Deine Mediathek bleibt sichtbar.</string>
     <string name="discovery_charts_title">Trends</string>
     <string name="discovery_all_recommendations">Alle</string>
+    <string name="discovery_hub_intro">Musik entdecken, Charts erkunden und Anfragen verwalten.</string>
+    <string name="discovery_hub_recommendations">Finde neue Lieblingskünstler passend zu deiner Mediathek.</string>
+    <string name="discovery_hub_search">Künstler und Alben im Aurral-Katalog finden.</string>
+    <string name="discovery_hub_charts">Beliebte Songs, Alben und Künstler entdecken.</string>
+    <string name="discovery_hub_requests">Downloads und Ergänzungen deiner Mediathek verfolgen.</string>
+    <string name="discovery_hub_genres">Genres aus Empfehlungen ausschließen.</string>
 </resources>

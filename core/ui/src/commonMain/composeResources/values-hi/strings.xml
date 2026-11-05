@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">शैली ब्लॉक करने से इस खाते के लिए Aurral के खोज सुझाव बदलते हैं। आपकी लाइब्रेरी दिखाई देती रहती है।</string>
     <string name="discovery_charts_title">ट्रेंडिंग</string>
     <string name="discovery_all_recommendations">सभी</string>
+    <string name="discovery_hub_intro">संगीत खोजें, चार्ट देखें और अनुरोध प्रबंधित करें।</string>
+    <string name="discovery_hub_recommendations">अपनी लाइब्रेरी के आधार पर अपना अगला पसंदीदा कलाकार खोजें।</string>
+    <string name="discovery_hub_search">Aurral कैटलॉग में कलाकार और एल्बम खोजें।</string>
+    <string name="discovery_hub_charts">लोकप्रिय गाने, एल्बम और कलाकार देखें।</string>
+    <string name="discovery_hub_requests">डाउनलोड और अपनी लाइब्रेरी में जोड़ी गई सामग्री देखें।</string>
+    <string name="discovery_hub_genres">सुझावों से बाहर रखने वाली शैलियाँ चुनें।</string>
 </resources>

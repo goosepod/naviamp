@@ -11,6 +11,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class NaviampCoreSystemBackPolicyTest {
+    @Test fun requestsPageConsumesBackBeforeTheUnderlyingAurralPage() {
+        val initial = NaviampCoreState()
+        val discovery = app.naviamp.ui.SharedProviderDiscoveryUi("aurral", requestsOpen = true,
+            browser = app.naviamp.domain.provider.DiscoveryBrowserState(page = app.naviamp.domain.provider.DiscoveryBrowsePage.Hub))
+        val page = initial.copy(shell = initial.shell.copy(home = initial.shell.home.copy(providerDiscovery = discovery)))
+        assertEquals(NaviampCoreCommand.Home.DismissDiscoveryRequests, page.systemBackCommand())
+    }
     @Test fun discoveryPageConsumesBackOnlyWhileItsHomeDestinationIsVisible() {
         val initial = NaviampCoreState()
         val discovery = app.naviamp.ui.SharedProviderDiscoveryUi("aurral", artistPage = true,

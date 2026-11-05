@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.Alignment
@@ -69,8 +68,8 @@ internal fun NaviampDiscoveryArtistPage(
         val waiting = waitingRequest && !available
         Column(Modifier.fillMaxSize().then(navigation).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
-            TextButton(onClick = actions.onDiscoveryRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
+            DiscoveryActionButton(colors = colors, onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
+            DiscoveryActionButton(colors = colors, onClick = actions.onDiscoveryRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
             if (discovery.requestsStatus != null && discovery.requestsStatus != ProviderDiscoveryStatus.Ready)
                 Text(stringResource(Res.string.discovery_requests_stale), color = colors.secondaryText)
             Text(release.result?.release?.title ?: release.release.title, color = colors.primaryText,
@@ -87,7 +86,7 @@ internal fun NaviampDiscoveryArtistPage(
                 release.loading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                 release.result?.status != ProviderDiscoveryStatus.Ready -> {
                     Text(stringResource(discoveryStatusMessage(release.result?.status)), color = colors.secondaryText)
-                    TextButton(onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+                    DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
                 }
                 else -> {
                     Text(release.result.credits.joinToString(", ") { it.name }, color = colors.secondaryText)
@@ -104,7 +103,7 @@ internal fun NaviampDiscoveryArtistPage(
             if (release.ownershipLoading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
             else if (release.ownership?.status !in listOf(ProviderDiscoveryStatus.Ready, ProviderDiscoveryStatus.Unsupported)) {
                 Text(stringResource(discoveryStatusMessage(release.ownership?.status)), color = colors.secondaryText)
-                TextButton(onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+                DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
             }
             release.ownership?.availability?.let { availability ->
                 val label = when (availability) {
@@ -115,13 +114,13 @@ internal fun NaviampDiscoveryArtistPage(
                 }
                 label?.let { Text(stringResource(it), color = colors.secondaryText) }
             }
-            if (release.ownership?.libraryAlbum != null) TextButton(onClick = {
+            if (release.ownership?.libraryAlbum != null) DiscoveryActionButton(colors = colors, onClick = {
                 actions.onDiscoveryLibraryRelease(discovery.sourceId, discovery.sourceGeneration, release.release.id)
             }) { Text(stringResource(Res.string.discovery_open_library)) }
             if (!release.loading && release.result?.status == ProviderDiscoveryStatus.Ready && release.requestContext == null &&
                 (artist.details?.canRequestAlbums == true || artist.details?.canRequestTracks == true))
                 Text(stringResource(Res.string.discovery_request_identity_unavailable), color = colors.secondaryText)
-            if (artist.details?.canRequestAlbums == true) TextButton(
+            if (artist.details?.canRequestAlbums == true) DiscoveryActionButton(colors = colors,
                 enabled = !waiting && release.requestContext != null && !artist.actionBusy && !artist.savingFeedback && release.ownership?.availability != ProviderDiscoveryReleaseAvailability.Available &&
                     ProviderDiscoveryAction.RequestAlbum(release.release.id) !in artist.blockedActions,
                 onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration,
@@ -139,7 +138,7 @@ internal fun NaviampDiscoveryArtistPage(
                 release.tracksLoading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                 release.tracks?.status != ProviderDiscoveryStatus.Ready -> {
                     Text(stringResource(discoveryStatusMessage(release.tracks?.status)), color = colors.secondaryText)
-                    TextButton(onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+                    DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
                 }
                 release.tracks.tracks.isEmpty() -> Text(stringResource(Res.string.discovery_no_release_tracks), color = colors.secondaryText)
                 else -> {

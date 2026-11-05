@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">يغيّر حظر الأنواع توصيات الاستكشاف لهذا الحساب في Aurral. تبقى مكتبتك ظاهرة.</string>
     <string name="discovery_charts_title">الرائج</string>
     <string name="discovery_all_recommendations">الكل</string>
+    <string name="discovery_hub_intro">اكتشف الموسيقى وتصفح القوائم وأدر الطلبات.</string>
+    <string name="discovery_hub_recommendations">اعثر على فنانك المفضل التالي بناءً على مكتبتك.</string>
+    <string name="discovery_hub_search">ابحث عن الفنانين والألبومات في كتالوج Aurral.</string>
+    <string name="discovery_hub_charts">استكشف الأغاني والألبومات والفنانين الرائجين.</string>
+    <string name="discovery_hub_requests">تابع التنزيلات والإضافات إلى مكتبتك.</string>
+    <string name="discovery_hub_genres">اختر الأنواع المراد استبعادها من التوصيات.</string>
 </resources>

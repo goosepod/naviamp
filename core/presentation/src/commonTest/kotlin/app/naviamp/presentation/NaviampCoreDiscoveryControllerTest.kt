@@ -14,6 +14,30 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun hubNavigationDoesNotReadRecommendationsAndBackRestoresItsViewport() = runTest {
+        var reads = 0
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun recommendations(offset: Int, limit: Int): ProviderRecommendationPage {
+                reads++
+                return ProviderRecommendationPage(ProviderDiscoveryStatus.Ready, listOf(First), offset, totalCount = 1)
+            }
+        })
+        suspend fun send(action: DiscoveryBrowseAction) { val c = NaviampCoreCommand.Home.Browse(action); h.controller.dispatch(c); h.controller.execute(c) }
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Hub))
+        assertEquals(0, reads)
+        assertFalse(h.discovery().browser!!.loading)
+        send(DiscoveryBrowseAction.Viewport(2, 37))
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations))
+        assertEquals(1, reads)
+        assertEquals(0, h.discovery().browser!!.firstVisibleItem)
+        send(DiscoveryBrowseAction.Close)
+        assertEquals(DiscoveryBrowsePage.Hub, h.discovery().browser!!.page)
+        assertEquals(2, h.discovery().browser!!.firstVisibleItem)
+        assertEquals(37, h.discovery().browser!!.firstVisibleOffset)
+        send(DiscoveryBrowseAction.Close)
+        assertNull(h.discovery().browser)
+    }
+
     @Test fun recreatedProviderWrappersDoNotDiscardValidDiscoveryReads() = runTest {
         val h = DiscoveryHarness(object : DiscoveryNative() {
             override suspend fun recommendations(offset: Int, limit: Int) = ProviderRecommendationPage(

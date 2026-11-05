@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -63,14 +62,16 @@ internal fun NaviampProviderDiscoveryContent(
     onBrowse: (DiscoveryBrowseAction) -> Unit = {},
 ) {
     val providerName = localizedProviderName(discovery.providerId)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+    if (discovery.providerId == ProviderIdAurral) {
+        NaviampAurralHomeEntry(discovery, colors) { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Hub)) }
+    } else Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(Res.string.discovery_provider_title, providerName),
             color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-        TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) }) { Text(stringResource(Res.string.discovery_recommendations)) }
-        TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search)) }) { Text(stringResource(Res.string.discovery_catalog_search)) }
-        if (discovery.feed.chartsAvailable) TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) { Text(stringResource(Res.string.discovery_charts_title)) }
-        if (discovery.feed.genreBlockingAvailable) TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.BlockedGenres)) }) { Text(stringResource(Res.string.discovery_blocked_genres)) }
-        TextButton(onClick = onRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
+        DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) }) { Text(stringResource(Res.string.discovery_recommendations)) }
+        DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search)) }) { Text(stringResource(Res.string.discovery_catalog_search)) }
+        if (discovery.feed.chartsAvailable) DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) { Text(stringResource(Res.string.discovery_charts_title)) }
+        if (discovery.feed.genreBlockingAvailable) DiscoveryActionButton(colors = colors, onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.BlockedGenres)) }) { Text(stringResource(Res.string.discovery_blocked_genres)) }
+        DiscoveryActionButton(colors = colors, onClick = onRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
         val message = when {
             discovery.loading -> Res.string.discovery_loading
             else -> when (discovery.feed.status) {
@@ -212,8 +213,8 @@ internal fun NaviampDiscoveryArtistPanel(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(screen.artist.name, modifier = Modifier.weight(1f).semantics { heading() }, color = colors.primaryText,
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                onRequests?.let { TextButton(onClick = it) { Text(stringResource(Res.string.discovery_requests_title)) } }
-                TextButton(onClick = onDismiss, modifier = dismissModifier) { Text(stringResource(if (fullPage) Res.string.common_back else Res.string.common_close)) }
+                onRequests?.let { DiscoveryActionButton(colors = colors, onClick = it) { Text(stringResource(Res.string.discovery_requests_title)) } }
+                DiscoveryActionButton(colors = colors, onClick = onDismiss, modifier = dismissModifier) { Text(stringResource(if (fullPage) Res.string.common_back else Res.string.common_close)) }
             }
             BoxWithConstraints(Modifier.fillMaxWidth().then(if (fullPage) Modifier.weight(1f) else Modifier)) {
                 val releaseColumns = discoveryReleaseColumns(maxWidth.value)
@@ -238,18 +239,18 @@ internal fun NaviampDiscoveryArtistPanel(
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (screen.details?.canChangeMonitoring == true && screen.details.monitored != null) {
-                                TextButton(onClick = { onAction(ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true)) },
+                                DiscoveryActionButton(colors = colors, onClick = { onAction(ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true)) },
                                     enabled = !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.SetMonitoring(screen.details.monitored != true) !in screen.blockedActions) {
                                     Text(stringResource(if (screen.details.monitored == true) Res.string.discovery_stop_monitoring else Res.string.discovery_monitor_artist))
                                 }
                             }
-                            if (screen.details?.libraryArtist != null) TextButton(onClick = onLibrary) {
+                            if (screen.details?.libraryArtist != null) DiscoveryActionButton(colors = colors, onClick = onLibrary) {
                                 Text(stringResource(Res.string.discovery_open_library))
                             }
-                            if (screen.artist.externalUrl != null) TextButton(onClick = onExternal) {
+                            if (screen.artist.externalUrl != null) DiscoveryActionButton(colors = colors, onClick = onExternal) {
                                 Text(stringResource(Res.string.discovery_open_provider, providerName))
                             }
-                            TextButton(onClick = onRefresh, enabled = !screen.loading && !screen.savingFeedback && !screen.actionBusy) {
+                            DiscoveryActionButton(colors = colors, onClick = onRefresh, enabled = !screen.loading && !screen.savingFeedback && !screen.actionBusy) {
                                 Text(stringResource(Res.string.library_refresh))
                             }
                         }

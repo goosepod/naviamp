@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">Tür engelleri bu hesap için Aurral keşif önerilerini değiştirir. Kitaplığınız görünür kalır.</string>
     <string name="discovery_charts_title">Trendler</string>
     <string name="discovery_all_recommendations">Tümü</string>
+    <string name="discovery_hub_intro">Müzik keşfedin, listeleri inceleyin ve istekleri yönetin.</string>
+    <string name="discovery_hub_recommendations">Kitaplığınıza göre bir sonraki favori sanatçınızı bulun.</string>
+    <string name="discovery_hub_search">Aurral kataloğunda sanatçı ve albüm arayın.</string>
+    <string name="discovery_hub_charts">Popüler şarkıları, albümleri ve sanatçıları keşfedin.</string>
+    <string name="discovery_hub_requests">İndirmeleri ve kitaplığınıza eklenenleri takip edin.</string>
+    <string name="discovery_hub_genres">Önerilerden çıkarılacak türleri seçin.</string>
 </resources>

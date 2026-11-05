@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">Pemblokiran genre mengubah rekomendasi penemuan Aurral untuk akun ini. Pustaka Anda tetap terlihat.</string>
     <string name="discovery_charts_title">Tren</string>
     <string name="discovery_all_recommendations">Semua</string>
+    <string name="discovery_hub_intro">Temukan musik, jelajahi tangga lagu, dan kelola permintaan.</string>
+    <string name="discovery_hub_recommendations">Temukan artis favorit berikutnya berdasarkan pustaka Anda.</string>
+    <string name="discovery_hub_search">Cari artis dan album di katalog Aurral.</string>
+    <string name="discovery_hub_charts">Jelajahi lagu, album, dan artis populer.</string>
+    <string name="discovery_hub_requests">Pantau unduhan dan penambahan ke pustaka Anda.</string>
+    <string name="discovery_hub_genres">Pilih genre yang dikecualikan dari rekomendasi.</string>
 </resources>

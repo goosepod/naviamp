@@ -464,4 +464,10 @@
     <string name="discovery_genre_block_description">Genreblokkades veranderen Aurrals ontdekkingsaanbevelingen voor dit account. Je bibliotheek blijft zichtbaar.</string>
     <string name="discovery_charts_title">Trending</string>
     <string name="discovery_all_recommendations">Alles</string>
+    <string name="discovery_hub_intro">Ontdek muziek, bekijk hitlijsten en beheer aanvragen.</string>
+    <string name="discovery_hub_recommendations">Vind je volgende favoriete artiest op basis van je bibliotheek.</string>
+    <string name="discovery_hub_search">Zoek artiesten en albums in de Aurral-catalogus.</string>
+    <string name="discovery_hub_charts">Ontdek populaire nummers, albums en artiesten.</string>
+    <string name="discovery_hub_requests">Volg downloads en toevoegingen aan je bibliotheek.</string>
+    <string name="discovery_hub_genres">Kies welke genres je uitsluit van aanbevelingen.</string>
 </resources>
