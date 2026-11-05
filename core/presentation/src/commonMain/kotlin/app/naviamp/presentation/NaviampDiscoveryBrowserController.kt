@@ -96,6 +96,7 @@ internal class NaviampDiscoveryBrowserController(
                         val latest = state()?.browser
                         update { it.copy(browser = previous.copy(loading = false, recommendations = latest?.recommendations ?: previous.recommendations,
                             seeds = latest?.seeds ?: previous.seeds, genres = latest?.genres ?: previous.genres,
+                            genreOrder = latest?.genreOrder ?: previous.genreOrder,
                             blockedGenres = latest?.blockedGenres ?: previous.blockedGenres, uncertainGenres = latest?.uncertainGenres.orEmpty(),
                             total = latest?.total, nextOffset = latest?.nextOffset, charts = latest?.charts ?: previous.charts)) } }
                     else -> reset()
@@ -162,7 +163,7 @@ internal class NaviampDiscoveryBrowserController(
                 refreshBlockedGenres(native, owner, ::current)
                 if (!current()) return
                 val context = native.recommendations(0, 1)
-                if (current() && context.status == ProviderDiscoveryStatus.Ready) change { it.copy(genres = context.genres) }
+                if (current() && context.status == ProviderDiscoveryStatus.Ready) change { it.copy(genres = context.genres, genreOrder = mergeDiscoveryGenreOrder(it.genreOrder, context.genres + it.blockedGenres.tags)) }
                 return
             }
             if (action is DiscoveryBrowseAction.ChartPreview) {
@@ -235,6 +236,7 @@ internal class NaviampDiscoveryBrowserController(
                     recommendations = ((if (offset == 0) emptyList() else previous.recommendations) + page.artists).distinctBy { it.id },
                     seeds = if (offset == 0) page.seeds else previous.seeds,
                     genres = if (offset == 0) page.genres else previous.genres,
+                    genreOrder = mergeDiscoveryGenreOrder(previous.genreOrder, page.genres + previous.blockedGenres.tags),
                     lastUpdated = page.lastUpdated ?: previous.lastUpdated, runId = page.runId ?: previous.runId,
                     total = page.totalCount ?: previous.total, nextOffset = page.nextOffset, status = page.status,
                     nowMillis = nowMillis()) }

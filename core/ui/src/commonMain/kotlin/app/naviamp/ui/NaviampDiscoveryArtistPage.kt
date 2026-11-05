@@ -68,42 +68,42 @@ internal fun NaviampDiscoveryArtistPage(
         val waiting = waitingRequest && !available
         Column(Modifier.fillMaxSize().then(navigation).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            DiscoveryActionButton(colors = colors, onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { Text(stringResource(Res.string.common_back)) }
-            DiscoveryActionButton(colors = colors, onClick = actions.onDiscoveryRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
+            DiscoveryActionButton(colors = colors, onClick = actions.onDiscoveryArtistDismiss, modifier = Modifier.focusRequester(backFocus)) { DiscoveryText(stringResource(Res.string.common_back)) }
+            DiscoveryActionButton(colors = colors, onClick = actions.onDiscoveryRequests) { DiscoveryText(stringResource(Res.string.discovery_requests_title)) }
             if (discovery.requestsStatus != null && discovery.requestsStatus != ProviderDiscoveryStatus.Ready)
-                Text(stringResource(Res.string.discovery_requests_stale), color = colors.secondaryText)
-            Text(release.result?.release?.title ?: release.release.title, color = colors.primaryText,
+                DiscoveryText(stringResource(Res.string.discovery_requests_stale), color = colors.secondaryText)
+            DiscoveryText(release.result?.release?.title ?: release.release.title, color = colors.primaryText,
                 modifier = Modifier.semantics { heading() })
             val metadata = release.result?.release ?: release.release
-            val date = metadata.releaseDate ?: release.release.releaseDate
+            val date = discoveryCalendarDate(metadata.releaseDate ?: release.release.releaseDate)
             val kind = metadata.takeIf { it.type != null || it.secondaryTypes.isNotEmpty() }
                 ?: release.release.takeIf { it.type != null || it.secondaryTypes.isNotEmpty() }
             val context = listOfNotNull(date, kind?.let { albumReleaseSectionLabel(it.section) }).joinToString(" · ")
-            if (context.isNotEmpty()) Text(context, color = colors.secondaryText)
+            if (context.isNotEmpty()) DiscoveryText(context, color = colors.secondaryText)
             val cover = release.result?.release?.imageUrl ?: release.release.imageUrl
             NaviampCoverArt(cover, colors, 240.dp, resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 240.dp, 7.dp), mediaKind = SharedMediaItemKind.Album)
             when {
-                release.loading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+                release.loading -> DiscoveryText(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                 release.result?.status != ProviderDiscoveryStatus.Ready -> {
-                    Text(stringResource(discoveryStatusMessage(release.result?.status)), color = colors.secondaryText)
-                    DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+                    DiscoveryText(stringResource(discoveryStatusMessage(release.result?.status)), color = colors.secondaryText)
+                    DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { DiscoveryText(stringResource(Res.string.library_refresh)) }
                 }
                 else -> {
-                    Text(release.result.credits.joinToString(", ") { it.name }, color = colors.secondaryText)
+                    DiscoveryText(release.result.credits.joinToString(", ") { it.name }, color = colors.secondaryText)
                     NaviampProviderDescription(release.result.overview, release.release.id, colors)
-                    if (release.result.genres.isNotEmpty()) Text(release.result.genres.joinToString(", "), color = colors.secondaryText)
+                    if (release.result.genres.isNotEmpty()) DiscoveryText(release.result.genres.joinToString(", "), color = colors.secondaryText)
                     if (release.result.editions.isNotEmpty()) {
-                        Text(stringResource(Res.string.discovery_editions), color = colors.primaryText, modifier = Modifier.semantics { heading() })
+                        DiscoveryText(stringResource(Res.string.discovery_editions), color = colors.primaryText, modifier = Modifier.semantics { heading() })
                         release.result.editions.forEach { edition ->
-                            Text(listOfNotNull(edition.title, edition.date, edition.status).joinToString(" · "), color = colors.secondaryText)
+                            DiscoveryText(listOfNotNull(edition.title, discoveryCalendarDate(edition.date), edition.status).joinToString(" · "), color = colors.secondaryText)
                         }
                     }
                 }
             }
-            if (release.ownershipLoading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+            if (release.ownershipLoading) DiscoveryText(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
             else if (release.ownership?.status !in listOf(ProviderDiscoveryStatus.Ready, ProviderDiscoveryStatus.Unsupported)) {
-                Text(stringResource(discoveryStatusMessage(release.ownership?.status)), color = colors.secondaryText)
-                DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+                DiscoveryText(stringResource(discoveryStatusMessage(release.ownership?.status)), color = colors.secondaryText)
+                DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { DiscoveryText(stringResource(Res.string.library_refresh)) }
             }
             release.ownership?.availability?.let { availability ->
                 val label = when (availability) {
@@ -112,80 +112,38 @@ internal fun NaviampDiscoveryArtistPage(
                     ProviderDiscoveryReleaseAvailability.Partial -> Res.string.discovery_release_partial
                     ProviderDiscoveryReleaseAvailability.Available -> Res.string.discovery_release_available
                 }
-                label?.let { Text(stringResource(it), color = colors.secondaryText) }
+                label?.let { DiscoveryText(stringResource(it), color = colors.secondaryText) }
             }
             if (release.ownership?.libraryAlbum != null) DiscoveryActionButton(colors = colors, onClick = {
                 actions.onDiscoveryLibraryRelease(discovery.sourceId, discovery.sourceGeneration, release.release.id)
-            }) { Text(stringResource(Res.string.discovery_open_library)) }
+            }) { DiscoveryText(stringResource(Res.string.discovery_open_library)) }
             if (!release.loading && release.result?.status == ProviderDiscoveryStatus.Ready && release.requestContext == null &&
                 (artist.details?.canRequestAlbums == true || artist.details?.canRequestTracks == true))
-                Text(stringResource(Res.string.discovery_request_identity_unavailable), color = colors.secondaryText)
+                DiscoveryText(stringResource(Res.string.discovery_request_identity_unavailable), color = colors.secondaryText)
             if (artist.details?.canRequestAlbums == true) DiscoveryActionButton(colors = colors,
                 enabled = !waiting && release.requestContext != null && !artist.actionBusy && !artist.savingFeedback && release.ownership?.availability != ProviderDiscoveryReleaseAvailability.Available &&
                     ProviderDiscoveryAction.RequestAlbum(release.release.id) !in artist.blockedActions,
                 onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration,
                     release.release.id, ProviderDiscoveryAction.RequestAlbum(release.release.id)) }) {
-                Text(stringResource(if (waiting) Res.string.discovery_waiting_for_release else Res.string.discovery_request_album))
+                DiscoveryText(stringResource(if (waiting) Res.string.discovery_waiting_for_release else Res.string.discovery_request_album))
             }
             if (artist.details?.canRequestAlbums == true || artist.details?.canRequestTracks == true)
-                Text(stringResource(Res.string.discovery_server_acquisition), color = colors.secondaryText)
-            if (artist.actionBusy) Text(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
+                DiscoveryText(stringResource(Res.string.discovery_server_acquisition), color = colors.secondaryText)
+            if (artist.actionBusy) DiscoveryText(stringResource(Res.string.discovery_action_busy), color = colors.secondaryText)
             albumOperation?.takeUnless { it.status == ProviderDiscoveryOperationStatus.WaitingForRelease && available }
                 ?.let { operation -> artist.acquisitions[ProviderDiscoveryAction.RequestAlbum(release.release.id)]
                     ?.let { DiscoveryAcquisitionResult(it, colors) } ?: DiscoveryOperationResult(operation, colors) }
-            Text(stringResource(Res.string.search_tracks_section), color = colors.primaryText, modifier = Modifier.semantics { heading() })
+            DiscoveryText(stringResource(Res.string.search_tracks_section), color = colors.primaryText, modifier = Modifier.semantics { heading() })
             when {
-                release.tracksLoading -> Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+                release.tracksLoading -> DiscoveryText(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                 release.tracks?.status != ProviderDiscoveryStatus.Ready -> {
-                    Text(stringResource(discoveryStatusMessage(release.tracks?.status)), color = colors.secondaryText)
-                    DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { Text(stringResource(Res.string.library_refresh)) }
+                    DiscoveryText(stringResource(discoveryStatusMessage(release.tracks?.status)), color = colors.secondaryText)
+                    DiscoveryActionButton(colors = colors, onClick = { actions.onDiscoveryRelease(release.release.id) }) { DiscoveryText(stringResource(Res.string.library_refresh)) }
                 }
-                release.tracks.tracks.isEmpty() -> Text(stringResource(Res.string.discovery_no_release_tracks), color = colors.secondaryText)
+                release.tracks.tracks.isEmpty() -> DiscoveryText(stringResource(Res.string.discovery_no_release_tracks), color = colors.secondaryText)
                 else -> {
-                    if (playback.failed) Text(stringResource(Res.string.discovery_samples_failed), color = colors.secondaryText)
-                    var previousDisc: Int? = null
-                    release.tracks.tracks.forEach { track ->
-                        if (track.discNumber != previousDisc) {
-                            track.discNumber?.let { Text(stringResource(Res.string.album_disc_number, it), color = colors.secondaryText) }
-                            previousDisc = track.discNumber
-                        }
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(track.trackNumber?.toString().orEmpty(), color = colors.secondaryText)
-                            val preview = track.previewId
-                            if (preview != null) {
-                                val active = playback.trackId == DiscoveryPreviewTrackPrefix + preview.value
-                                val playing = active && playback.playing
-                                IconButton(enabled = !active || playback.canToggle,
-                                    onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration,
-                                        release.release.id, ProviderDiscoveryAction.PlaySample(preview.value)) }) {
-                                    Icon(if (playing) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
-                                        stringResource(if (playing) Res.string.transport_pause else Res.string.discovery_play_sample), tint = colors.primaryText)
-                                }
-                            }
-                            Column(Modifier.weight(1f)) {
-                                Text(track.title, color = colors.primaryText)
-                                if (preview == null) Text(stringResource(Res.string.discovery_preview_unavailable), color = colors.secondaryText)
-                            }
-                            Text(track.durationMillis?.let { (it / 1000.0).durationLabel() } ?: "", color = colors.secondaryText)
-                            track.recordingMbid?.let { recording ->
-                                val action = ProviderDiscoveryAction.RequestTrack(recording.value)
-                                if (artist.details?.canRequestTracks == true) IconButton(
-                                    enabled = !waitingRequest && release.requestContext != null && !artist.actionBusy && !artist.savingFeedback &&
-                                        action !in artist.blockedActions && recording !in release.ownership?.ownedRecordings.orEmpty(),
-                                    onClick = { actions.onDiscoveryReleaseAction(discovery.sourceId, discovery.sourceGeneration, release.release.id, action) }) {
-                                    Icon(NaviampIcons.Downloads, stringResource(Res.string.discovery_request_track), tint = colors.secondaryText)
-                                }
-                            }
-                        }
-                        track.recordingMbid?.let { recording ->
-                            if (recording in release.ownership?.ownedRecordings.orEmpty())
-                                Text(stringResource(Res.string.discovery_request_owned), color = colors.secondaryText)
-                            artist.requestOperations[ProviderDiscoveryAction.RequestTrack(recording.value)]
-                                ?.let { operation -> artist.acquisitions[ProviderDiscoveryAction.RequestTrack(recording.value)]
-                                    ?.let { DiscoveryAcquisitionResult(it, colors) } ?: DiscoveryOperationResult(operation, colors) }
-                        }
-                    }
+                    if (playback.failed) DiscoveryText(stringResource(Res.string.discovery_samples_failed), color = colors.secondaryText)
+                    NaviampDiscoveryReleaseTrackList(discovery, artist, release, colors, actions, playback, waitingRequest)
                 }
             }
         }

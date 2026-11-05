@@ -322,3 +322,86 @@ Fixture images, accessibility semantics, a running process and a valid signature
 that walkthrough. No new GitHub ticket was opened, branch pushed, PR updated or hosted runner
 dispatched for this revision. All new/changed production files are common; the platform
 production diff for this revision is empty.
+
+## Follow-up review cleanup
+
+Owner feedback after r3 requested regional date/time display, smaller Aurral typography consistent
+with the Library and the existing font preference, compact release tracks, stable genre-row order,
+mouse/phone Back parity, and capability-correct player ratings. This remains the same local batch
+of existing Aurral tickets; no new ticket or GitHub update is required.
+
+Common UI now parses complete instants before native formatting in the device locale and time
+zone. Calendar-only release dates explicitly use UTC for formatting so their day cannot shift;
+year-only/month-only precision is retained. Invalid timestamps are omitted rather than printed as
+raw protocol data. Android delegates its hour-cycle preference to the OS; JVM and Foundation use
+their native localized date/time styles. The unexplained raw rank array is removed, the useful
+days-at-number-one summary remains, and zero chart movement no longer adds a redundant line.
+
+Aurral body text uses the same 13sp baseline as Library rows. Existing `NaviampFontSizeScope` and
+system accessibility font scaling continue to apply; there is no second setting or density reset.
+Release tracks reuse shared `TrackRow` with every Library mutation/menu/swipe capability disabled.
+Only explicit, scoped preview/request controls remain. Genre rows retain their original order
+through block/unblock, refresh and temporarily omitted provider tags; unavailable actions remain
+disabled pending current provider context.
+
+Shared Back target selection now serves both the phone's existing native delegation and mouse
+Back presses. A held mouse button cannot pop multiple pages; full and docked player states respect
+the visible destination, and dialogs/menus consume Back before content behind them. This adds no
+platform navigation implementation. Heart and stars follow independent capabilities; stale rating
+metadata cannot render stars when track ratings are unsupported, and the missing controls reserve
+no empty rating space.
+
+A fresh authenticated, read-only `/api/discover/trending` comparison returned 100 songs for US
+with update epoch 1793896169854. Its first nine ranks exactly match the owner’s web screenshot:
+Choosin’ Texas, Boston, Been By Now, Be Her, BbY WOW, Nicole Kidman, Dracula (with JENNIE),
+Patient Zero and stupid song. The web page features #1 separately and starts its top-song list at
+#2; Naviamp includes #1 in its full list. No alternative ranking or provider query was introduced.
+Playback was left unchanged after the owner identified low volume; the new review app reuses the
+current isolated profile rather than reseeding the earlier zero-volume fixture.
+
+### Native boundary audit for the cleanup
+
+| Production file | Concrete native operation |
+| --- | --- |
+| `core/ui/src/androidMain/kotlin/app/naviamp/ui/AndroidDateTimeFormatting.kt` | Android Context and `android.text.format.DateFormat` supply regional formatting and the user's 12/24-hour preference. |
+| `core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopDateTimeFormatting.kt` | JDK `DateFormat`, `Locale` and `TimeZone` execute the shared formatting request against JVM system defaults. |
+| `core/ui/src/iosMain/kotlin/app/naviamp/ui/IosDateTimeFormatting.kt` | Foundation `NSDateFormatter`, `NSDate` and `NSTimeZone` execute native regional formatting. |
+
+All parsing, precision, timezone-selection policy, navigation, capability gating, typography and
+stable-order behavior is common. No host production file is changed. Tests use local renderers
+and synthetic mouse/phone-dispatch events; no physical TV or phone is accessed.
+
+### Cleanup verification result
+
+The final selected regression suite passes **154 cases** with no failures/errors/skips: 32 domain,
+68 rendered UI/resource cases and 54 controller/full-shell cases. Regional checks cover US/Pacific
+and German/Berlin date/time display, a local-day rollover, invalid instants and retained partial
+release precision. The typography check compares Aurral body text with a real Library row and
+verifies growth under the existing Small/Large preference. Mouse checks cover one press edge,
+held input across recomposition, ignored non-Back buttons, modal priority and the same scoped
+command through mouse input and the phone-style dispatcher. Rating controls follow independent
+capabilities even with stale cached metadata. Initial viewport reports are excluded from the
+full-shell test's navigation count.
+
+The complete local build matrix passes: **349 tasks, 57 executed, 292 up to date, 3m02s** on the
+final rerun. Android debug packaging, Desktop distributable verification, both iOS common/host
+compile graphs, migration verification and the Core-first architecture check pass. The Desktop
+packaging follow-up passes **67 tasks, 22 executed, 46s** and includes `jdk.localedata`, with a
+mandatory distributable check. A disposable copy of the packaged VM/module image produces the
+expected US/Pacific and German/Berlin formats; only a matching JDK command launcher is restored
+in that disposable copy because jpackage strips command tools. This tests the packaged locale
+data rather than relying on full-JDK test success. The build-script change is packaging metadata,
+not platform product behavior.
+
+Logs:
+
+- `/private/tmp/aurral-polish-verified-matrix.log`
+- `/private/tmp/aurral-polish-desktop-locales.log`
+- `/private/tmp/aurral-polish-packaged-locales.log`
+
+The updated fixture renders are in `/private/tmp/aurral-polish-captures`. The running review app
+is `/private/tmp/aurral-acceptance-review-r4/Naviamp Aurral Acceptance r4.app`; it reuses the private
+r3 review profile so volume, queue and connections are preserved, with a private rollback copy.
+Its signature verifies and only the r4 review process is running. The installed application was
+not targeted. No physical TV/phone, new GitHub ticket, push, PR update or hosted check was used.
+The manual and release gates above remain distinct from these local results.

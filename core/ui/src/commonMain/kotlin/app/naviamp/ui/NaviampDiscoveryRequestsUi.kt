@@ -47,35 +47,35 @@ internal fun NaviampDiscoveryRequestsUi(discovery: SharedProviderDiscoveryUi, co
                     closeFocus, discovery.providerId, onRefresh = actions.onDiscoveryRequestsRefresh, refreshing = discovery.requestsLoading, entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
                 DiscoveryActionButton(colors, { actions.onDiscoveryRequestsExternal(discovery.sourceId, discovery.sourceGeneration) }, Modifier.padding(horizontal = 20.dp)) {
                     Icon(NaviampIcons.ExternalLink, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
-                    Text(stringResource(Res.string.discovery_open_provider, localizedProviderName(discovery.providerId)))
+                    DiscoveryText(stringResource(Res.string.discovery_open_provider, localizedProviderName(discovery.providerId)))
                 }
-                if (discovery.requestsLoading) Text(stringResource(Res.string.library_refreshing), Modifier.padding(horizontal = 20.dp), color = colors.secondaryText)
+                if (discovery.requestsLoading) DiscoveryText(stringResource(Res.string.library_refreshing), Modifier.padding(horizontal = 20.dp), color = colors.secondaryText)
                 if (discovery.requestsStatus != null && discovery.requestsStatus != ProviderDiscoveryStatus.Ready)
-                    Text(stringResource(Res.string.discovery_requests_stale), Modifier.padding(horizontal = 20.dp), color = colors.secondaryText)
+                    DiscoveryText(stringResource(Res.string.discovery_requests_stale), Modifier.padding(horizontal = 20.dp), color = colors.secondaryText)
                 val activity = discovery.requestActivity.items.filter { it.releaseGroupMbid != null || it.identity?.managedAlbumId != null || it.kind in setOf("album_requested", "track_download", "album_grab") }
                 if (discovery.acquisitions.isEmpty() && activity.isEmpty() && !discovery.requestsLoading)
-                    Text(stringResource(Res.string.discovery_requests_empty), Modifier.padding(horizontal = 20.dp), color = colors.secondaryText)
+                    DiscoveryText(stringResource(Res.string.discovery_requests_empty), Modifier.padding(horizontal = 20.dp), color = colors.secondaryText)
                 LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(discovery.acquisitions, key = { "local:${it.id}" }) { record ->
                         Surface(Modifier.fillMaxWidth(), color = colors.controlSurface, shape = RoundedCornerShape(14.dp)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(record.trackTitle ?: record.releaseTitle ?: record.artistName, color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                            Text(record.artistName, color = colors.secondaryText)
+                            DiscoveryText(record.trackTitle ?: record.releaseTitle ?: record.artistName, color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                            DiscoveryText(record.artistName, color = colors.secondaryText)
                             DiscoveryAcquisitionResult(record, colors)
                             DiscoveryActionButton(colors, onClick = { actions.onDiscoveryRequestSelected(discovery.sourceId, discovery.sourceGeneration, record.id) }) {
-                                Text(stringResource(Res.string.discovery_view_artist))
+                                DiscoveryText(stringResource(Res.string.discovery_view_artist))
                             }
                         }
                         }
                     }
-                    if (activity.isNotEmpty()) item { Text(stringResource(Res.string.discovery_requests_activity), color = colors.primaryText,
+                    if (activity.isNotEmpty()) item { DiscoveryText(stringResource(Res.string.discovery_requests_activity), color = colors.primaryText,
                         modifier = Modifier.semantics { heading() }) }
                     items(activity, key = { "remote:${it.id}" }) { item ->
                         Surface(Modifier.fillMaxWidth(), color = colors.controlSurface, shape = RoundedCornerShape(14.dp)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(item.title ?: item.releaseGroupMbid?.value ?: stringResource(Res.string.common_unknown), color = colors.primaryText)
-                            item.artistName?.let { Text(it, color = colors.secondaryText) }
-                            Text(stringResource(if (acquisitionPhase(item.status) == DiscoveryAcquisitionPhase.Complete)
+                            DiscoveryText(item.title ?: item.releaseGroupMbid?.value ?: stringResource(Res.string.common_unknown), color = colors.primaryText)
+                            item.artistName?.let { DiscoveryText(it, color = colors.secondaryText) }
+                            DiscoveryText(stringResource(if (acquisitionPhase(item.status) == DiscoveryAcquisitionPhase.Complete)
                                 Res.string.discovery_activity_complete else acquisitionPhaseMessage(acquisitionPhase(item.status))), color = colors.secondaryText)
                         }
                         }
@@ -90,7 +90,7 @@ internal fun NaviampDiscoveryRequestsUi(discovery: SharedProviderDiscoveryUi, co
 internal fun DiscoveryAcquisitionResult(record: DiscoveryAcquisitionRecord, colors: NaviampColors) {
     if (record.phase == DiscoveryAcquisitionPhase.WaitingForRelease)
         DiscoveryOperationResult(record.operation.copy(status = ProviderDiscoveryOperationStatus.WaitingForRelease), colors)
-    else Text(stringResource(acquisitionPhaseMessage(record.phase)), color = colors.secondaryText)
+    else DiscoveryText(stringResource(acquisitionPhaseMessage(record.phase)), color = colors.secondaryText)
 }
 
 internal fun acquisitionPhaseMessage(phase: DiscoveryAcquisitionPhase) = when (phase) {

@@ -53,7 +53,8 @@ class NaviampDiscoveryReleasePageTest {
                         else SharedHomeRoute(NaviampColors.Dark, home, callbacks, NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi())
                     }
                 }
-                onNodeWithText("Deluxe edition · 2026-02-03 · Official").performScrollTo().assertIsDisplayed()
+                onNodeWithText("Deluxe edition", substring = true).performScrollTo().assertIsDisplayed()
+                onNodeWithText("Deluxe edition · 2026-02-03 · Official").assertDoesNotExist()
                 onNodeWithText("Disc 1").performScrollTo().assertIsDisplayed()
                 onNodeWithContentDescription("Play sample").performScrollTo().performClick()
                 runOnIdle { assertEquals(listOf("sample"), actions) }

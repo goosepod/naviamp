@@ -82,6 +82,21 @@ fun NaviampTelevisionAppShell(
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
 ) {
+    NaviampBackNavigation(uiState, actions, modifier) { contentModifier ->
+        NaviampTelevisionAppShellContent(modifier = contentModifier, uiState = uiState, settingsSync = settingsSync, playbackProgress = playbackProgress, visualizerBandsProvider = visualizerBandsProvider, actions = actions, syncActions = syncActions)
+    }
+}
+
+@Composable
+private fun NaviampTelevisionAppShellContent(
+    modifier: Modifier = Modifier,
+    uiState: NaviampAppShellUiState,
+    settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
+    visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
+    actions: NaviampAppShellActions,
+    syncActions: NaviampSettingsSyncActions,
+) {
     val colors = NaviampTelevisionColors
     val connection = uiState.connectionSettings.connection
     val interfaceSettings = uiState.general.interfaceSettings

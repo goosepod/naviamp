@@ -49,6 +49,7 @@ data class DiscoveryBrowserState(
     val recommendations: List<ProviderDiscoveryArtist> = emptyList(),
     val seeds: List<ProviderDiscoverySeed> = emptyList(),
     val genres: List<String> = emptyList(),
+    val genreOrder: List<String> = emptyList(),
     val lastUpdated: String? = null,
     val runId: String? = null,
     val total: Int? = null,
@@ -112,3 +113,12 @@ data class DiscoveryRecommendationGroup(val kind: DiscoveryRecommendationGroupKi
 private fun ProviderDiscoveryArtist.firstSeenMillis(): Long? = recommendation?.firstDiscoveredAt?.let {
     runCatching { Instant.parse(it).toEpochMilliseconds() }.getOrNull()
 }
+
+/** Keep the original discovery order; changing an exclusion never changes a row's position. */
+fun DiscoveryBrowserState.genreRows(): List<String> {
+    val available = (genres + blockedGenres.tags).distinctBy(::discoveryGenreKey)
+    val byKey = available.associateBy(::discoveryGenreKey)
+    return (genreOrder + available).distinctBy(::discoveryGenreKey).map { byKey[discoveryGenreKey(it)] ?: it }
+}
+fun mergeDiscoveryGenreOrder(previous: List<String>, incoming: List<String>): List<String> =
+    (previous + incoming).distinctBy(::discoveryGenreKey)

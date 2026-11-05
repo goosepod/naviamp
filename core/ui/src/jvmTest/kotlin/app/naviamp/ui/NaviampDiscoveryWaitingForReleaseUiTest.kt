@@ -26,7 +26,7 @@ class NaviampDiscoveryWaitingForReleaseUiTest {
                 }
             }
             onNodeWithText("Aurral manages this request.").assertIsDisplayed()
-            onNodeWithText("Waiting for release: 2027-03-05").performScrollTo().assertIsDisplayed()
+            onNodeWithText("Waiting for release: " + calendarDateExpectation("2027-03-05")).performScrollTo().assertIsDisplayed()
             onNodeWithContentDescription("Waiting for release").assertIsNotEnabled()
             capture(onRoot().captureToImage(), "artist-$width-$height-$television")
         }
@@ -54,7 +54,7 @@ class NaviampDiscoveryWaitingForReleaseUiTest {
                     else SharedHomeRoute(NaviampColors.Dark, home, discoveryPageFixtureActions(screen, mutableListOf()), NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi())
                 }
             }
-            val label = date?.let { "Waiting for release: $it" } ?: "Waiting for release"
+            val label = date?.let { "Waiting for release: " + calendarDateExpectation(it) } ?: "Waiting for release"
             onNode(hasText("Waiting for release") and hasClickAction()).performScrollTo().assertIsNotEnabled()
             onAllNodesWithText(label).onLast().performScrollTo().assertIsDisplayed()
             onNodeWithText("Aurral manages this request.").assertIsDisplayed()

@@ -124,7 +124,7 @@ class NaviampDiscoveryArtistPageTest {
                 onNodeWithText("Release 1").performScrollTo().performClick()
                 onNodeWithText("Release 1").assertIsDisplayed()
                 onNodeWithText("Release overview").assertIsDisplayed()
-                onNodeWithText("2026-01-01 · Albums").assertIsDisplayed()
+                onNodeWithText(calendarDateExpectation("2026-01-01") + " · Albums").assertIsDisplayed()
                 onNodeWithText("Request album").performScrollTo().performClick()
                 onNodeWithText("Request queued.").assertIsDisplayed()
                 onNodeWithText("Back").performClick()

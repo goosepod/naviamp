@@ -33,8 +33,8 @@ internal fun NaviampAurralHomeEntry(discovery: SharedProviderDiscoveryUi, colors
                 NaviampServiceIcon(discovery.providerId, colors.primaryText, 38.dp)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(localizedProviderName(discovery.providerId), color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                Text(stringResource(Res.string.discovery_hub_intro), color = colors.secondaryText, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                DiscoveryText(localizedProviderName(discovery.providerId), color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                DiscoveryText(stringResource(Res.string.discovery_hub_intro), color = colors.secondaryText, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Icon(NaviampIcons.ChevronRight, null, tint = colors.secondaryText, modifier = Modifier.size(24.dp))
         }
@@ -62,7 +62,7 @@ internal fun NaviampAurralHub(discovery: SharedProviderDiscoveryUi, colors: Navi
             LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 item(key = "intro") {
-                    Text(stringResource(Res.string.discovery_hub_intro), color = colors.secondaryText, fontSize = 15.sp)
+                    DiscoveryText(stringResource(Res.string.discovery_hub_intro), color = colors.secondaryText, fontSize = 13.sp)
                     if (discovery.feed.status !in setOf(ProviderDiscoveryStatus.Ready, ProviderDiscoveryStatus.Building))
                         DiscoveryStatusPanel(discovery.feed.status, colors)
                 }
@@ -72,8 +72,8 @@ internal fun NaviampAurralHub(discovery: SharedProviderDiscoveryUi, colors: Navi
                             horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 DiscoveryIconBadge(NaviampIcons.Brain, colors)
-                                Text(stringResource(Res.string.discovery_recommendations), color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
-                                Text(stringResource(Res.string.discovery_hub_recommendations), color = colors.secondaryText, fontSize = 14.sp)
+                                DiscoveryText(stringResource(Res.string.discovery_recommendations), color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                                DiscoveryText(stringResource(Res.string.discovery_hub_recommendations), color = colors.secondaryText, fontSize = 12.sp)
                             }
                             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
@@ -99,8 +99,8 @@ internal fun NaviampAurralHub(discovery: SharedProviderDiscoveryUi, colors: Navi
                                         DiscoveryIconBadge(section.icon, colors)
                                         Icon(NaviampIcons.ChevronRight, null, tint = colors.secondaryText, modifier = Modifier.size(20.dp))
                                     }
-                                    Text(stringResource(section.title), color = colors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(stringResource(section.description), color = colors.secondaryText, fontSize = 13.sp, lineHeight = 18.sp)
+                                    DiscoveryText(stringResource(section.title), color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                    DiscoveryText(stringResource(section.description), color = colors.secondaryText, fontSize = 13.sp, lineHeight = 18.sp)
                                 }
                             }
                         }
@@ -146,7 +146,7 @@ internal fun DiscoveryPageHeader(title: String, colors: NaviampColors, onBack: (
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 DiscoveryActionButton(colors, onBack, modifier = Modifier.focusRequester(backFocus)) {
-                    Icon(NaviampIcons.Back, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(Res.string.common_back))
+                    Icon(NaviampIcons.Back, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); DiscoveryText(stringResource(Res.string.common_back))
                 }
                 if (!narrow) {
                     if (hub) NaviampServiceIcon(providerId, colors.primaryText, 36.dp)
@@ -166,8 +166,8 @@ internal fun DiscoveryPageHeader(title: String, colors: NaviampColors, onBack: (
 @Composable
 private fun DiscoveryPageTitle(title: String, colors: NaviampColors, providerId: String, hub: Boolean, modifier: Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        if (!hub) Text(localizedProviderName(providerId), color = colors.mutedText, fontSize = 12.sp)
-        Text(title, color = colors.primaryText, fontSize = if (hub) 26.sp else 23.sp, fontWeight = FontWeight.SemiBold,
+        if (!hub) DiscoveryText(localizedProviderName(providerId), color = colors.mutedText, fontSize = 12.sp)
+        DiscoveryText(title, color = colors.primaryText, fontSize = if (hub) 20.sp else 18.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.semantics { heading() })
     }
 }
@@ -198,7 +198,7 @@ internal fun DiscoveryStatusPanel(status: ProviderDiscoveryStatus?, colors: Navi
     Surface(color = colors.controlSurface, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, colors.border.copy(alpha = .25f))) {
         Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(NaviampIcons.Info, null, tint = colors.secondaryText, modifier = Modifier.size(20.dp))
-            Text(stringResource(discoveryStatusMessage(status)), color = colors.secondaryText, fontSize = 13.sp)
+            DiscoveryText(stringResource(discoveryStatusMessage(status)), color = colors.secondaryText, fontSize = 13.sp)
         }
     }
 }

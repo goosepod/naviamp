@@ -7,6 +7,15 @@ class DiscoveryBrowsingTest {
     private fun artist(n: Int, depth: Int? = null, date: String? = null, seed: String = "Seed") = ProviderDiscoveryArtist(
         n.toString(), "Artist $n", genres = listOf("Rock"), recommendation = ProviderRecommendationContext(
             rank = n, sourceArtists = listOf(seed), depth = depth, firstDiscoveredAt = date))
+    @Test fun genreRowsStayInPlaceWhenBlockedAndUnblockedOrTheServerOmitsExcludedTags() {
+        val initial = DiscoveryBrowserState(genres = listOf("rock", "jazz", "pop"), genreOrder = listOf("rock", "jazz", "pop"),
+            blockedGenres = ProviderDiscoveryBlockedGenres(ProviderDiscoveryStatus.Ready))
+        assertEquals(listOf("rock", "jazz", "pop"), initial.genreRows())
+        val blocked = initial.copy(genres = listOf("rock", "pop"), blockedGenres = initial.blockedGenres.copy(tags = listOf("jazz")))
+        assertEquals(initial.genreRows(), blocked.genreRows())
+        assertEquals(initial.genreRows(), blocked.copy(blockedGenres = blocked.blockedGenres.copy(tags = emptyList())).genreRows())
+        assertEquals(initial.genreRows(), initial.copy(genres = listOf("pop", "jazz", "rock")).genreRows())
+    }
     @Test fun genreFilterMatchesTheProvidersSeparatorInsensitiveIdentity() {
         val entry = artist(1).copy(genres = listOf("alternative_rock"))
         assertEquals(listOf(entry), DiscoveryBrowserState(recommendations = listOf(entry), genre = "Alternative Rock").filtered())
