@@ -22,6 +22,8 @@ The recovery PR must also use a regular merge, not squash or rebase.
 - The current German catalog retains its two newer Aurral strings, for 1,209
   entries total.
 - Every maintained values*/strings.xml catalog parses and has unique names.
+- Compose resource conversion and common accessor generation passed with the
+  installed Android SDK configured for the isolated worktree.
 - No platform production files, settings, schemas or product behavior changed.
 
 ## Completion gate
