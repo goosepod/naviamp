@@ -188,10 +188,11 @@ screen-reader checks, a positive live unreleased/waiting example, source/account
 checks in the real app, and the remaining upgraded-server lyrics/cover/playlist/listen-reporting
 matrix. Initial AX information and rendered semantics do not establish spoken accessibility.
 
-Target-specific approval was requested for one new Radiohead recording from a different single
-and a temporary rock block/unblock on the dedicated account. Read-only identity/ownership checks
-prepared the exact candidate and confirmed no owned files. **Approval remains pending; neither
-mutation was sent.** The earlier Airbag acquisition was not repeated. The account lacks Flow
+The owner subsequently approved one new Radiohead recording from a different single and a
+temporary rock block/unblock on the dedicated account. Both guarded mutation tests pass:
+exactly one recording POST returns HTTP 202/Queued with one job; one genre block and one unblock
+restore the complete original blocklist. The earlier Airbag acquisition was not repeated.
+The new approved recording must not be submitted again. The account lacks Flow
 permission, so a positive live playlist-save path is unavailable without a separately scoped
 account/permission decision; no permission was changed.
 
@@ -203,3 +204,41 @@ All new product, UI, protocol, paging, normalization and lifecycle behavior is c
 adds no platform production change. The six existing #478 repository-injection adapters and their
 concrete OS/database lifetime boundaries remain audited in
 [478-aurral-acquisition-tracking.md](478-aurral-acquisition-tracking.md#platform-diff-audit).
+
+
+## Approved live acquisition and genre acceptance
+
+The specifically approved “A Punchup at a Wedding (edit)” from Radiohead’s single
+“A Punchup at a Wedding” was absent before one guarded request. Its atomic attempt marker
+was written before POST. HTTP 202 returned Queued with one job. The genre acceptance used
+one block POST and one unblock DELETE for rock, checking and restoring the original empty
+blocklist. Both configured methods pass; neither action was replayed.
+
+A separate read-only Desktop test reconstructs that accepted operation in the actual shared
+SQL store, closes/reopens the database, and invokes the production shared acquisition tracker
+and provider. Observed phases are Processing → Processing → Available over three bounded reads.
+The tracker requires the exact requested recording in validated ownership and a canonical/
+Subsonic Library album before Available. Server history independently reports completion.
+The reopened acceptance database contains no login credentials.
+
+The same test streams 26,836,983 bytes through the normal Library provider and executes the
+real Core/BASS/JNI engine against those acquired media bytes. Muted play, pause, seek to one
+second and resume pass, with native progress reaching about two seconds. This is genuine
+acquired-media/native playback, distinct from audible output, an app UI restart, or a qualifying
+reported listen. The approved recording remains in the server Library.
+
+The first new acceptance-test compilation omitted the explicit nullable range argument; it
+was corrected without changing production code. The final configured test passes with one
+case, no failures/errors/skips. Logs are `/private/tmp/aurral-506-approved-mutations.log` and
+`/private/tmp/aurral-506-acquisition-reconciliation-2.log`. One-shot markers and correlation files
+remain private local artifacts. The provider genre test executes the actual common protocol;
+the Desktop test exercises JVM filesystem/SQLite-driver and BASS/JNI boundaries while delegating
+reconciliation policy to common code. Neither adds platform production behavior.
+
+## Owner-directed UI revision
+
+The owner rejected the initial navigation/presentation and requested a dedicated Aurral hub,
+with separate section destinations and proper graphical controls instead of text navigation.
+All UI work remains within the existing Aurral tickets. The preceding implementation and
+acceptance results preserve backend evidence; they do not accept the rejected UI or validate
+the revised presentation. No new ticket is needed or created for this revision.
