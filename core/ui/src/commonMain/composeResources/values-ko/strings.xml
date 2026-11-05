@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">차단된 장르가 없습니다.</string>
     <string name="discovery_genre_block_description">장르 차단은 이 계정의 Aurral 탐색 추천을 변경합니다. 라이브러리는 계속 표시됩니다.</string>
     <string name="discovery_charts_title">인기 차트</string>
+    <string name="discovery_all_recommendations">전체</string>
 </resources>

@@ -27,7 +27,7 @@ class NaviampCoreDiscoveryController(
     nowMillis: () -> Long = { 0L },
 ) : NaviampCoreCommandController {
     private val browser = NaviampDiscoveryBrowserController(
-        { stateStore.state.value.shell.home.providerDiscovery }, ::updateDiscovery, providerSource::current, nowMillis, showPage, stopDiscoverySample, ::openCatalogAlbum, externalUri::open, playDiscoverySample, refreshFeed)
+        { stateStore.state.value.shell.home.providerDiscovery }, ::updateDiscovery, providerSource::current, nowMillis, showPage, stopDiscoverySample, ::openCatalogAlbum, externalUri::open, playDiscoverySample, refreshFeed, { providerSource.isCurrent(it) })
     private val acquisitions = DiscoveryAcquisitionTracker(acquisitionRepository, nowMillis)
     private fun acquisitionScope(provider: MediaProvider) = DiscoveryAcquisitionScope(sourceId() ?: "__unbound__", provider.discoveryAccountScope)
     private var discoveryDetailGeneration = 0L

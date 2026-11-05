@@ -14,6 +14,17 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun recreatedProviderWrappersDoNotDiscardValidDiscoveryReads() = runTest {
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun recommendations(offset: Int, limit: Int) = ProviderRecommendationPage(
+                ProviderDiscoveryStatus.Ready, listOf(First), offset, totalCount = 1)
+        }, decorateProviders = true)
+        val command = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations))
+        h.controller.dispatch(command); h.controller.execute(command)
+        assertEquals(listOf(First), h.discovery().browser!!.recommendations)
+        assertFalse(h.discovery().browser!!.loading)
+    }
+
     @Test fun genreFiltersNeverBlockAndUncertainBlocksReconcileBeforeAnotherMutation() = runTest {
         var mutations = 0; var blocked = false
         val h = DiscoveryHarness(object : DiscoveryNative() {
@@ -719,7 +730,8 @@ private fun discoveryProvider(native: ProviderDiscovery, account: String) = obje
     override val discovery = native
 }
 private class DiscoveryHarness(native: ProviderDiscovery = DiscoveryNative(),
-    repository: DiscoveryAcquisitionRepository = MemoryDiscoveryAcquisitionRepository()) {
+    repository: DiscoveryAcquisitionRepository = MemoryDiscoveryAcquisitionRepository(),
+    decorateProviders: Boolean = false) {
     var account = "account-one"
     var active: MediaProvider = discoveryProvider(native, account)
     val store = NaviampCoreStateStore()
@@ -730,7 +742,7 @@ private class DiscoveryHarness(native: ProviderDiscovery = DiscoveryNative(),
     val returned = mutableListOf<SharedRoute>()
     init { store.updateShell { it.copy(home = it.home.copy(providerDiscovery = SharedProviderDiscoveryUi("aurral",
         ProviderDiscoveryFeed(trending = listOf(First)))), shellChrome = it.shellChrome.copy(selectedRoute = SharedRoute.Search)) } }
-    val controller = NaviampCoreDiscoveryController(store, { active }, { account }, {}, { played += it }, { stops++ }, { libraryOpens++ }, {},
+    val controller = NaviampCoreDiscoveryController(store, { if (decorateProviders) object : MediaProvider by active {} else active }, { account }, {}, { played += it }, { stops++ }, { libraryOpens++ }, {},
         restoreRoute = { returned += it }, openLibraryAlbum = { albumsOpened += it }, acquisitionRepository = repository)
     fun discovery() = store.state.value.shell.home.providerDiscovery!!
     fun detail() = discovery().artistDetail!!

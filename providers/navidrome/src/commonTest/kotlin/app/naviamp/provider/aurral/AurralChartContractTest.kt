@@ -13,6 +13,7 @@ class AurralChartContractTest {
         assertEquals(ProviderDiscoveryStatus.Ready, charts.status)
         assertNull(charts.albums)
         assertEquals("US", charts.region)
+        assertEquals("1970-01-01T00:00:00.042Z", charts.updatedAt)
         assertNull(charts.songs!!.first().movement)
         assertEquals(DiscoveryDeezerPreviewId("42"), charts.songs!!.first().previewId)
         assertNull(charts.songs!![1].previewId, "A chart key does not establish a preview identity")

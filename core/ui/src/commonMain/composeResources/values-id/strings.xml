@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">Tidak ada genre diblokir.</string>
     <string name="discovery_genre_block_description">Pemblokiran genre mengubah rekomendasi penemuan Aurral untuk akun ini. Pustaka Anda tetap terlihat.</string>
     <string name="discovery_charts_title">Tren</string>
+    <string name="discovery_all_recommendations">Semua</string>
 </resources>

@@ -582,4 +582,5 @@
     <string name="discovery_no_blocked_genres">Brak zablokowanych gatunków.</string>
     <string name="discovery_genre_block_description">Blokowanie gatunków zmienia rekomendacje odkrywania Aurral dla tego konta. Twoja biblioteka pozostaje widoczna.</string>
     <string name="discovery_charts_title">Na czasie</string>
+    <string name="discovery_all_recommendations">Wszystkie</string>
 </resources>

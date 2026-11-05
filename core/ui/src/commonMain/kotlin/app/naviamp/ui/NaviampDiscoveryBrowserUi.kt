@@ -102,7 +102,7 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DiscoveryRecommendationView.entries.forEach { view ->
                         FilterChip(selected = screen.view == view, onClick = { send(DiscoveryBrowseAction.View(view)) }, label = {
-                            Text(stringResource(if (view == DiscoveryRecommendationView.ForYou) Res.string.discovery_for_you else Res.string.discovery_all_releases))
+                            Text(stringResource(if (view == DiscoveryRecommendationView.ForYou) Res.string.discovery_for_you else Res.string.discovery_all_recommendations))
                         })
                     }
                     DiscoveryTextButton(colors = colors, onClick = { send(DiscoveryBrowseAction.Refresh) }, enabled = !screen.loading) { Text(stringResource(Res.string.library_refresh)) }
@@ -164,7 +164,7 @@ private fun DiscoveryRecommendationFilters(screen: DiscoveryBrowserState, send: 
         } }) { filter ->
             FilterChip(selected = screen.filter == filter, onClick = { send(DiscoveryBrowseAction.Filter(filter)) }, label = {
                 Text(stringResource(when (filter) {
-                    DiscoveryRecommendationFilter.All -> Res.string.discovery_all_releases
+                    DiscoveryRecommendationFilter.All -> Res.string.discovery_all_recommendations
                     DiscoveryRecommendationFilter.New -> Res.string.discovery_new_this_week
                     DiscoveryRecommendationFilter.Direct -> Res.string.discovery_close_to_home
                     DiscoveryRecommendationFilter.Further -> Res.string.discovery_further_out

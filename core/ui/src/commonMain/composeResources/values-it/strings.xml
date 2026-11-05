@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">Nessun genere bloccato.</string>
     <string name="discovery_genre_block_description">Il blocco dei generi cambia i consigli di scoperta Aurral per questo account. La libreria resta visibile.</string>
     <string name="discovery_charts_title">Tendenze</string>
+    <string name="discovery_all_recommendations">Tutti</string>
 </resources>

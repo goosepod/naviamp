@@ -18,6 +18,7 @@ internal class NaviampDiscoveryBrowserController(
     private val openExternal: (String) -> Unit,
     private val playPreview: suspend (app.naviamp.domain.Track) -> Unit,
     private val refreshHome: suspend (MediaProvider) -> Unit,
+    private val isCurrentProvider: (MediaProvider) -> Boolean,
 ) {
     private val pendingGenres = mutableMapOf<Pair<String, String>, Boolean>()
     private val uncertainSaves = mutableSetOf<Pair<String, String>>()
@@ -141,7 +142,7 @@ internal class NaviampDiscoveryBrowserController(
         if (owner == null || native == null) { change { it.copy(loading = false, status = ProviderDiscoveryStatus.Unsupported) }; return }
         val task = currentCoroutineContext()[Job]
         read = task
-        fun current() = token == revision && provider() === owner
+        fun current() = token == revision && isCurrentProvider(owner)
         try {
             if (action is DiscoveryBrowseAction.BlockGenre) {
                 val result = native.setGenreBlocked(action.tag, action.blocked)

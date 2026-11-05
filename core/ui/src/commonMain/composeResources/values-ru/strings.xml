@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">Нет заблокированных жанров.</string>
     <string name="discovery_genre_block_description">Блокировка жанров меняет рекомендации Aurral для этой учётной записи. Медиатека остаётся видимой.</string>
     <string name="discovery_charts_title">Популярное</string>
+    <string name="discovery_all_recommendations">Все</string>
 </resources>

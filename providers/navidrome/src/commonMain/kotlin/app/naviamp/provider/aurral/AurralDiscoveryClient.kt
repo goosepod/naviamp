@@ -95,7 +95,7 @@ internal class AurralDiscoveryClient(
         if ("trending" !in currentFeatures()) throw NavidromeHttpException(404)
         val payload = get("/api/discover/trending")
         val songs = payload["songs"] as? JsonObject
-        ProviderDiscoveryCharts(ProviderDiscoveryStatus.Ready, payload.text("region"), payload.text("updatedAt"),
+        ProviderDiscoveryCharts(ProviderDiscoveryStatus.Ready, payload.text("region"), payload.chartUpdatedAt(),
             songs?.array("items")?.chartSongs(),
             payload.array("albums")?.mapNotNull { row ->
                 val album = row as? JsonObject ?: return@mapNotNull null
@@ -130,7 +130,7 @@ internal class AurralDiscoveryClient(
             if ("trending" !in currentFeatures()) return@nativeCall ProviderDiscoveryGenreChart()
             val payload = get("/api/discover/trending/genres/$id")
             check(payload.text("id") == id)
-            ProviderDiscoveryGenreChart(ProviderDiscoveryStatus.Ready, id, payload.text("name"), payload.text("region"), payload.text("updatedAt"),
+            ProviderDiscoveryGenreChart(ProviderDiscoveryStatus.Ready, id, payload.text("name"), payload.text("region"), payload.chartUpdatedAt(),
                 (payload.array("items") ?: error("Missing genre chart")).chartSongs())
         }
     }
@@ -154,6 +154,11 @@ internal class AurralDiscoveryClient(
             val playlist = result.text("playlistId")?.takeIf(String::isNotBlank) ?: error("Missing saved playlist")
             ProviderDiscoveryChartSave(ProviderDiscoveryOperationStatus.Saved, playlist)
         } }
+    }
+    private fun JsonObject.chartUpdatedAt(): String? {
+        val value = this["updatedAt"] as? JsonPrimitive ?: return null
+        return value.longOrNull?.let { runCatching { kotlin.time.Instant.fromEpochMilliseconds(it).toString() }.getOrNull() }
+            ?: value.takeIf { it.isString }?.contentOrNull?.takeIf { it.length <= 64 }
     }
     private fun JsonArray.chartSongs(): List<DiscoveryChartSong> = take(200).mapNotNull { row ->
         val song = row as? JsonObject ?: return@mapNotNull null

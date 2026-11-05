@@ -1289,4 +1289,5 @@
     <string name="discovery_no_blocked_genres">Keine blockierten Genres.</string>
     <string name="discovery_genre_block_description">Genre-Sperren ändern die Aurral-Entdeckungsempfehlungen für dieses Konto. Deine Mediathek bleibt sichtbar.</string>
     <string name="discovery_charts_title">Trends</string>
+    <string name="discovery_all_recommendations">Alle</string>
 </resources>

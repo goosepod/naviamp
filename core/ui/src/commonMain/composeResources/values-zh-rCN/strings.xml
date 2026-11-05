@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">没有已屏蔽的流派。</string>
     <string name="discovery_genre_block_description">屏蔽流派会更改此账号的 Aurral 发现推荐。你的资料库仍会显示。</string>
     <string name="discovery_charts_title">热门榜单</string>
+    <string name="discovery_all_recommendations">全部</string>
 </resources>

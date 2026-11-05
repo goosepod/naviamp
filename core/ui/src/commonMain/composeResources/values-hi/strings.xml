@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">कोई शैली ब्लॉक नहीं है।</string>
     <string name="discovery_genre_block_description">शैली ब्लॉक करने से इस खाते के लिए Aurral के खोज सुझाव बदलते हैं। आपकी लाइब्रेरी दिखाई देती रहती है।</string>
     <string name="discovery_charts_title">ट्रेंडिंग</string>
+    <string name="discovery_all_recommendations">सभी</string>
 </resources>

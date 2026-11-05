@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">Geen geblokkeerde genres.</string>
     <string name="discovery_genre_block_description">Genreblokkades veranderen Aurrals ontdekkingsaanbevelingen voor dit account. Je bibliotheek blijft zichtbaar.</string>
     <string name="discovery_charts_title">Trending</string>
+    <string name="discovery_all_recommendations">Alles</string>
 </resources>

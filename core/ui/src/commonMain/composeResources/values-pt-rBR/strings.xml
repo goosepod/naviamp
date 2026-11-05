@@ -1295,4 +1295,5 @@
     <string name="discovery_no_blocked_genres">Nenhum gênero bloqueado.</string>
     <string name="discovery_genre_block_description">O bloqueio de gêneros altera as recomendações de descoberta do Aurral para esta conta. Sua biblioteca continua visível.</string>
     <string name="discovery_charts_title">Em alta</string>
+    <string name="discovery_all_recommendations">Todos</string>
 </resources>

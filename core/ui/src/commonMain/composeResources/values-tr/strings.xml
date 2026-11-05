@@ -463,4 +463,5 @@
     <string name="discovery_no_blocked_genres">Engellenen tür yok.</string>
     <string name="discovery_genre_block_description">Tür engelleri bu hesap için Aurral keşif önerilerini değiştirir. Kitaplığınız görünür kalır.</string>
     <string name="discovery_charts_title">Trendler</string>
+    <string name="discovery_all_recommendations">Tümü</string>
 </resources>
