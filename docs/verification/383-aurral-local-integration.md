@@ -126,3 +126,80 @@ These direct HTTP results are separate from production-client, actual-window, au
 physical-device and mutation acceptance. Passwords, private addresses, tokens and raw
 configuration are excluded from this record. Production-client execution against the final
 candidate and the final native/output results are recorded below when complete.
+
+## Final local source and results
+
+Code checkpoint `85716735b9fe071845d6b13f88fa2c0a34e17640` fixes recreated-provider
+identity and the associated labels/timestamps. The failing wrapper regression now passes;
+all 32 discovery-controller cases pass, including stale-source rejection. No assertions,
+timeouts or playback cadence were weakened.
+
+The updated full local matrix passes: **374 tasks, 101 executed, 273 up to date, 9m13s**.
+It builds the Android debug APK and verified Desktop app, compiles both iOS hosts and
+common dependency graphs, links the real native iOS test binary, verifies the single
+unreleased migration and passes `verifyCoreFirstArchitecture`.
+
+Deterministic JVM coverage is **187 cases**, all passing with no errors/skips: domain 18,
+SQL storage 5, controllers/navigation 60, rendered UI/resource behavior 26, provider and
+transport 78. The standalone live run subsequently replaces the provider task's JUnit
+report; do not add the same provider cases twice or interpret replaced reports as failures.
+
+A separate configured execution runs **nine active read-only production-client methods**,
+all passing with no skips. The feedback mutation method is excluded by explicit method
+selection, rather than counted as an early-return pass. These cover bootstrap, catalog
+paging/search, artist/release/edition/track reads, validated owned-artist mapping, real cover
+images, MP3 preview bytes, initial/nonzero authenticated ranges, Trending and a genre chart,
+and the user's blocklist. No acquisition, feedback, monitoring, playlist-save, genre or
+server-configuration mutation was submitted.
+
+Fresh native execution passes **all 17 iOS methods** against an owned fixture/simulator,
+including the mTLS playback case that failed on earlier #498 CI, plus **both real Desktop
+preview contracts**. The Desktop fixtures are muted and synthetic; they verify queue,
+index, paused position and saved-session isolation. A passing execution does not identify
+or close the intermittent #454/#497 causes. Existing Windows-first-frame #493 and other
+unavailable platform findings remain open.
+
+Local logs:
+
+- `/private/tmp/aurral-506-wrapper-before.log` — reproduced real-window identity failure.
+- `/private/tmp/aurral-506-final-local-matrix.log` — final deterministic/build matrix.
+- `/private/tmp/aurral-506-native-and-live.log` — configured live and native execution.
+- `build/aurral-local-native-diagnostics` — bounded native observation artifacts.
+- `build/aurral-local-acceptance` — sanitized result summary and candidate manifest.
+- `/private/tmp/aurral-browser-captures` — inspected narrow/wide/TV component renders.
+
+The debug APK is `apps/android/build/outputs/apk/debug/android-debug.apk`, 52,679,516 bytes,
+SHA-256 `1a5b55d1d4b3a91957508b872bf0f247c5abe5e529b6264670d7ca0b6a604e19`.
+Repository version/build remain v2.10.0/60; these are local development artifacts for the
+selected future scope, not a new release. No version, tag, release or announcement was made.
+
+## Open acceptance gates and handoff
+
+The corrected isolated Mac review app is at
+`/private/tmp/aurral-acceptance-review-r2/Naviamp Aurral Acceptance r2.app` and uses a fresh
+private test profile. The installed application and its profile were preserved. The computer-use
+service timed out repeatedly, including a final call that ignored its requested timeout for
+approximately 75 minutes. Further native UI automation was stopped. **The corrected full-route
+walkthrough is not accepted** merely because the wrapper regression and builds now pass.
+
+Still open: actual Recommendations/Search/chart-to-artist/release/Back walkthrough after the
+correction, audible live previews with a nonempty main queue, physical touch/TV remote and spoken
+screen-reader checks, a positive live unreleased/waiting example, source/account restart/reconnect
+checks in the real app, and the remaining upgraded-server lyrics/cover/playlist/listen-reporting
+matrix. Initial AX information and rendered semantics do not establish spoken accessibility.
+
+Target-specific approval was requested for one new Radiohead recording from a different single
+and a temporary rock block/unblock on the dedicated account. Read-only identity/ownership checks
+prepared the exact candidate and confirmed no owned files. **Approval remains pending; neither
+mutation was sent.** The earlier Airbag acquisition was not repeated. The account lacks Flow
+permission, so a positive live playlist-save path is unavailable without a separately scoped
+account/permission decision; no permission was changed.
+
+Keep #383/#474/#475/#476/#477/#478/#502/#503/#504/#505/#506 and dependent drafts open where their
+acceptance criteria remain unmet. This local batch neither updates GitHub issues/PRs nor replaces
+protected exact-source checks. No new hosted runner was dispatched and no branch was pushed.
+
+All new product, UI, protocol, paging, normalization and lifecycle behavior is common. This batch
+adds no platform production change. The six existing #478 repository-injection adapters and their
+concrete OS/database lifetime boundaries remain audited in
+[478-aurral-acquisition-tracking.md](478-aurral-acquisition-tracking.md#platform-diff-audit).
