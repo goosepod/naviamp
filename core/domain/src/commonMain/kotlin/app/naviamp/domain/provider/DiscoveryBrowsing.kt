@@ -2,13 +2,18 @@ package app.naviamp.domain.provider
 
 import kotlin.time.Instant
 
-enum class DiscoveryBrowsePage { Recommendations }
+enum class DiscoveryBrowsePage { Recommendations, Search }
 enum class DiscoveryRecommendationView { ForYou, All }
 enum class DiscoveryRecommendationSort { Rank, Name, FirstSeen }
 enum class DiscoveryRecommendationFilter { All, New, Direct, Further }
 
 sealed interface DiscoveryBrowseAction {
     data class Open(val page: DiscoveryBrowsePage) : DiscoveryBrowseAction
+    data class Query(val query: String) : DiscoveryBrowseAction
+    data class Scope(val scope: ProviderCatalogScope) : DiscoveryBrowseAction
+    data object Search : DiscoveryBrowseAction
+    data class Album(val album: ProviderCatalogAlbum) : DiscoveryBrowseAction
+    data object External : DiscoveryBrowseAction
     data object Close : DiscoveryBrowseAction
     data object Refresh : DiscoveryBrowseAction
     data object More : DiscoveryBrowseAction
@@ -22,6 +27,10 @@ sealed interface DiscoveryBrowseAction {
 
 data class DiscoveryBrowserState(
     val page: DiscoveryBrowsePage = DiscoveryBrowsePage.Recommendations,
+    val query: String = "",
+    val submittedQuery: String = "",
+    val scope: ProviderCatalogScope = ProviderCatalogScope.Artist,
+    val catalog: ProviderCatalogPage = ProviderCatalogPage(),
     val recommendations: List<ProviderDiscoveryArtist> = emptyList(),
     val seeds: List<ProviderDiscoverySeed> = emptyList(),
     val genres: List<String> = emptyList(),

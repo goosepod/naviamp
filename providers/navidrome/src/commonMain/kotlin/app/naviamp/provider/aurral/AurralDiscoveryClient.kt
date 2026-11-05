@@ -31,6 +31,7 @@ internal class AurralDiscoveryClient(
     private suspend fun currentFeatures(): Set<String> = currentCoroutineContext()[NativeContext]?.features.orEmpty()
     private val base = connection.normalizedBaseUrl
     override val requestsUrl: String get() = "$base/requests"
+    override val catalogUrl: String get() = "$base/search"
     private val headers = connection.customHeaders.mapNotNull { it.normalized() }
         .mapNotNull { header -> header.value?.let { header.name to it } }.toMap()
     private val json = Json { ignoreUnknownKeys = true }

@@ -439,4 +439,11 @@
     <string name="discovery_sort_name">Название</string>
     <string name="discovery_sort_first_seen">Первое появление</string>
     <string name="discovery_via_artists">Через %1$s</string>
+    <string name="discovery_catalog_search">Поиск в каталоге Aurral</string>
+    <string name="discovery_catalog_query">Исполнители или релизы вне вашей медиатеки</string>
+    <string name="discovery_catalog_artists">Исполнители</string>
+    <string name="discovery_catalog_albums">Альбомы</string>
+    <string name="discovery_catalog_search_action">Найти</string>
+    <string name="discovery_catalog_count">Загружено %1$s из %2$s результатов каталога</string>
+    <string name="discovery_catalog_empty">В каталоге ничего не найдено.</string>
 </resources>

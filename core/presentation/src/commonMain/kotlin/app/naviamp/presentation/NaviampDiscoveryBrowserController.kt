@@ -14,6 +14,8 @@ internal class NaviampDiscoveryBrowserController(
     private val nowMillis: () -> Long,
     private val showPage: () -> Unit,
     private val stopPreview: () -> Unit,
+    private val openAlbum: suspend (ProviderCatalogAlbum) -> Unit,
+    private val openExternal: (String) -> Unit,
 ) {
     private var revision = 0L
     private var read: Job? = null
@@ -26,6 +28,23 @@ internal class NaviampDiscoveryBrowserController(
                 update { it.copy(browser = it.browser?.copy(page = action.page) ?: DiscoveryBrowserState(page = action.page, nowMillis = nowMillis()),
                     artistPage = false, artistDetail = null, artistBackStack = emptyList(), releasePage = null) }
             }
+            is DiscoveryBrowseAction.Query -> {
+                revision++; read?.cancel()
+                change { it.copy(query = action.query.take(1000), loading = false, catalog = ProviderCatalogPage(), submittedQuery = "", firstVisibleItem = 0, firstVisibleOffset = 0) }
+                return NaviampCoreImmediateCommandResult.Handled()
+            }
+            is DiscoveryBrowseAction.Scope -> {
+                revision++; read?.cancel()
+                change { it.copy(scope = action.scope, loading = false, catalog = ProviderCatalogPage(), submittedQuery = "", firstVisibleItem = 0, firstVisibleOffset = 0) }
+                return NaviampCoreImmediateCommandResult.Handled()
+            }
+            DiscoveryBrowseAction.External -> {
+                provider()?.discovery?.catalogUrl?.let(openExternal)
+                return NaviampCoreImmediateCommandResult.Handled()
+            }
+            is DiscoveryBrowseAction.Album -> if (state()?.browser?.catalog?.albums?.none { it == action.album } != false)
+                return NaviampCoreImmediateCommandResult.Handled()
+            DiscoveryBrowseAction.Search -> { revision++; read?.cancel() }
             DiscoveryBrowseAction.Close -> { reset(); stopPreview(); return NaviampCoreImmediateCommandResult.Handled() }
             is DiscoveryBrowseAction.View -> { change { it.copy(view = action.view) }; return NaviampCoreImmediateCommandResult.Handled() }
             is DiscoveryBrowseAction.Sort -> { change { it.copy(sort = action.sort, firstVisibleItem = 0, firstVisibleOffset = 0) }; return NaviampCoreImmediateCommandResult.Handled() }
@@ -34,7 +53,7 @@ internal class NaviampDiscoveryBrowserController(
             is DiscoveryBrowseAction.Seed -> { change { it.copy(seed = action.seed, firstVisibleItem = 0, firstVisibleOffset = 0) }; return NaviampCoreImmediateCommandResult.Handled() }
             is DiscoveryBrowseAction.Viewport -> { change { it.copy(firstVisibleItem = action.index.coerceAtLeast(0), firstVisibleOffset = action.offset.coerceAtLeast(0)) }; return NaviampCoreImmediateCommandResult.Handled() }
             DiscoveryBrowseAction.Refresh -> { revision++; read?.cancel() }
-            DiscoveryBrowseAction.More -> if (state()?.browser?.loading != false || state()?.browser?.nextOffset == null) return NaviampCoreImmediateCommandResult.Handled()
+            DiscoveryBrowseAction.More -> if (state()?.browser?.loading != false || (if (state()?.browser?.page == DiscoveryBrowsePage.Search) state()?.browser?.catalog?.nextOffset else state()?.browser?.nextOffset) == null) return NaviampCoreImmediateCommandResult.Handled()
         }
         scheduled += action to revision
         change { it.copy(loading = true) }
@@ -50,6 +69,22 @@ internal class NaviampDiscoveryBrowserController(
         read = currentCoroutineContext()[Job]
         fun current() = token == revision && provider() === owner
         try {
+            if (action is DiscoveryBrowseAction.Album) { openAlbum(action.album); return }
+            if (state()?.browser?.page == DiscoveryBrowsePage.Search) {
+                val screen = state()?.browser ?: return
+                val query = screen.query.trim()
+                if (query.isBlank()) { change { it.copy(catalog = ProviderCatalogPage(ProviderDiscoveryStatus.Ready, totalCount = 0), submittedQuery = "", status = ProviderDiscoveryStatus.Ready) }; return }
+                val offset = if (action == DiscoveryBrowseAction.More) screen.catalog.nextOffset ?: return else 0
+                val result = native.searchCatalog(query, screen.scope, offset, 24)
+                if (!current() || state()?.browser?.query?.trim() != query || state()?.browser?.scope != screen.scope) return
+                if (result.status != ProviderDiscoveryStatus.Ready || result.offset != offset || result.nextOffset?.let { it <= offset } == true) {
+                    change { it.copy(status = if (result.status == ProviderDiscoveryStatus.Ready) ProviderDiscoveryStatus.Unavailable else result.status) }; return
+                }
+                change { it.copy(submittedQuery = query, status = result.status, catalog = result.copy(
+                    artists = ((if (offset == 0) emptyList() else screen.catalog.artists) + result.artists).distinctBy { it.id },
+                    albums = ((if (offset == 0) emptyList() else screen.catalog.albums) + result.albums).distinctBy { it.release.id })) }
+                return
+            }
             val more = action == DiscoveryBrowseAction.More
             if (!more) {
                 val feed = native.load()

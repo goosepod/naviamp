@@ -14,6 +14,47 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun catalogSearchRejectsOldQueriesAndRetainsTheSubmittedScopeAcrossBack() = runTest {
+        val entered = CompletableDeferred<Unit>(); val gate = CompletableDeferred<Unit>()
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int, limit: Int): ProviderCatalogPage {
+                if (query == "old") { entered.complete(Unit); gate.await() }
+                return ProviderCatalogPage(ProviderDiscoveryStatus.Ready, artists = listOf(if (query == "old") First else Second), offset = offset, totalCount = 1)
+            }
+        })
+        suspend fun send(action: DiscoveryBrowseAction) { val c = NaviampCoreCommand.Home.Browse(action); h.controller.dispatch(c); h.controller.execute(c) }
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search))
+        send(DiscoveryBrowseAction.Query("old"))
+        val old = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Search); h.controller.dispatch(old)
+        val job = launch { h.controller.execute(old) }; entered.await()
+        send(DiscoveryBrowseAction.Query(" Björk & 宇多田 "))
+        send(DiscoveryBrowseAction.Search); gate.complete(Unit); job.join()
+        assertEquals(listOf(Second), h.discovery().browser!!.catalog.artists)
+        assertEquals("Björk & 宇多田", h.discovery().browser!!.submittedQuery)
+        h.open(Second); h.back()
+        assertEquals(" Björk & 宇多田 ", h.discovery().browser!!.query)
+        assertEquals(ProviderCatalogScope.Artist, h.discovery().browser!!.scope)
+    }
+    @Test fun albumSearchUsesVerifiedReleaseCreditsAndNeverAcquiresOnNavigation() = runTest {
+        var mutations = 0
+        val album = ProviderCatalogAlbum(Release, First.name)
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int, limit: Int) =
+                ProviderCatalogPage(ProviderDiscoveryStatus.Ready, albums = listOf(album), offset = offset, totalCount = 1)
+            override suspend fun releaseDetails(release: DiscoveryReleaseGroupMbid) = ProviderDiscoveryReleaseDetails(
+                ProviderDiscoveryStatus.Ready, Release, listOf(ProviderDiscoveryArtistCredit(First.name, First.artistMbid)))
+            override suspend fun requestAlbum(artist: ProviderDiscoveryArtist, release: ProviderDiscoveryRelease): ProviderDiscoveryOperation { mutations++; return ProviderDiscoveryOperation() }
+        })
+        suspend fun send(action: DiscoveryBrowseAction) { val c = NaviampCoreCommand.Home.Browse(action); h.controller.dispatch(c); h.controller.execute(c) }
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search)); send(DiscoveryBrowseAction.Scope(ProviderCatalogScope.Album))
+        send(DiscoveryBrowseAction.Query("Album")); send(DiscoveryBrowseAction.Search); send(DiscoveryBrowseAction.Album(album))
+        assertEquals(First.id, h.detail().artist.id)
+        assertEquals(Release.id, h.discovery().releasePage?.release?.id)
+        h.back(); h.back()
+        assertEquals(ProviderCatalogScope.Album, h.discovery().browser!!.scope)
+        assertEquals(0, mutations)
+    }
+
     @Test fun recommendationsLoadAllPagesDeduplicateAndRetainBackState() = runTest {
         var calls = 0
         val h = DiscoveryHarness(object : DiscoveryNative() {

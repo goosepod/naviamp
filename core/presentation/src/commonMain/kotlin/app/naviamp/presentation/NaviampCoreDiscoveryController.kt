@@ -27,7 +27,7 @@ class NaviampCoreDiscoveryController(
     nowMillis: () -> Long = { 0L },
 ) : NaviampCoreCommandController {
     private val browser = NaviampDiscoveryBrowserController(
-        { stateStore.state.value.shell.home.providerDiscovery }, ::updateDiscovery, providerSource::current, nowMillis, showPage, stopDiscoverySample)
+        { stateStore.state.value.shell.home.providerDiscovery }, ::updateDiscovery, providerSource::current, nowMillis, showPage, stopDiscoverySample, ::openCatalogAlbum, externalUri::open)
     private val acquisitions = DiscoveryAcquisitionTracker(acquisitionRepository, nowMillis)
     private fun acquisitionScope(provider: MediaProvider) = DiscoveryAcquisitionScope(sourceId() ?: "__unbound__", provider.discoveryAccountScope)
     private var discoveryDetailGeneration = 0L
@@ -412,6 +412,7 @@ class NaviampCoreDiscoveryController(
         if (discovery.providerId != providerSource.current()?.id?.value) return null
         return discovery.artistDetail?.artist?.takeIf { it.id == id }
             ?: discovery.artistDetail?.similar?.artists?.firstOrNull { it.id == id }
+            ?: discovery.browser?.catalog?.artists?.firstOrNull { it.id == id }
             ?: discovery.browser?.recommendations?.firstOrNull { it.id == id }
             ?: (discovery.feed.recommendations + discovery.feed.trending).firstOrNull { it.id == id }
     }
@@ -452,6 +453,26 @@ class NaviampCoreDiscoveryController(
             artistDetail = withRetainedRequests(if (!different && current != null) current.copy(loading = true, samplesLoading = true)
                 else SharedProviderDiscoveryArtistUi(artist))) }
         return true
+    }
+
+    private suspend fun openCatalogAlbum(album: ProviderCatalogAlbum) {
+        val provider = providerSource.current() ?: return
+        val mbid = album.release.releaseGroupMbid ?: return
+        val native = provider.discovery ?: return
+        val generation = sourceGeneration
+        val details = native.releaseDetails(mbid)
+        if (generation != sourceGeneration || !providerSource.isCurrent(provider)) return
+        val resolvedRelease = details.release ?: return
+        val credit = album.artistMbid ?: details.credits.firstNotNullOfOrNull { it.mbid }
+        if (credit == null || details.status != ProviderDiscoveryStatus.Ready || resolvedRelease.releaseGroupMbid != mbid) return
+        val artist = ProviderDiscoveryArtist(credit.value, album.artistName, detailsAvailable = true)
+        if (!prepareDiscoveryArtist(artist.id, artist)) return
+        val artistGeneration = discoveryDetailGeneration
+        loadDiscoveryArtist(artist.id)
+        if (artistGeneration != discoveryDetailGeneration || generation != sourceGeneration || !providerSource.isCurrent(provider)) return
+        releaseGeneration++
+        updateDiscovery { it.copy(releasePage = SharedDiscoveryReleaseUi(resolvedRelease)) }
+        loadRelease(mbid.value)
     }
 
     private suspend fun loadRelease(id: String) {

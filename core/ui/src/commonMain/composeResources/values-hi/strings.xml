@@ -439,4 +439,11 @@
     <string name="discovery_sort_name">नाम</string>
     <string name="discovery_sort_first_seen">पहली बार देखा गया</string>
     <string name="discovery_via_artists">%1$s के ज़रिए</string>
+    <string name="discovery_catalog_search">Aurral कैटलॉग में खोजें</string>
+    <string name="discovery_catalog_query">आपकी लाइब्रेरी के बाहर के कलाकार या रिलीज़</string>
+    <string name="discovery_catalog_artists">कलाकार</string>
+    <string name="discovery_catalog_albums">एल्बम</string>
+    <string name="discovery_catalog_search_action">खोजें</string>
+    <string name="discovery_catalog_count">कैटलॉग के %2$s में से %1$s परिणाम लोड हुए</string>
+    <string name="discovery_catalog_empty">कैटलॉग में कोई परिणाम नहीं।</string>
 </resources>

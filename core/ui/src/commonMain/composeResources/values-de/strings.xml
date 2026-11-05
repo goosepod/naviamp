@@ -1265,4 +1265,11 @@
     <string name="discovery_sort_name">Name</string>
     <string name="discovery_sort_first_seen">Zuerst entdeckt</string>
     <string name="discovery_via_artists">Über %1$s</string>
+    <string name="discovery_catalog_search">Aurral-Katalog durchsuchen</string>
+    <string name="discovery_catalog_query">Künstler oder Veröffentlichungen außerhalb deiner Mediathek</string>
+    <string name="discovery_catalog_artists">Künstler</string>
+    <string name="discovery_catalog_albums">Alben</string>
+    <string name="discovery_catalog_search_action">Suchen</string>
+    <string name="discovery_catalog_count">%1$s von %2$s Katalogergebnissen geladen</string>
+    <string name="discovery_catalog_empty">Keine Katalogergebnisse.</string>
 </resources>

@@ -439,4 +439,11 @@
     <string name="discovery_sort_name">Nama</string>
     <string name="discovery_sort_first_seen">Pertama ditemukan</string>
     <string name="discovery_via_artists">Melalui %1$s</string>
+    <string name="discovery_catalog_search">Cari katalog Aurral</string>
+    <string name="discovery_catalog_query">Artis atau rilisan di luar pustaka Anda</string>
+    <string name="discovery_catalog_artists">Artis</string>
+    <string name="discovery_catalog_albums">Album</string>
+    <string name="discovery_catalog_search_action">Cari</string>
+    <string name="discovery_catalog_count">%1$s dari %2$s hasil katalog dimuat</string>
+    <string name="discovery_catalog_empty">Tidak ada hasil katalog.</string>
 </resources>

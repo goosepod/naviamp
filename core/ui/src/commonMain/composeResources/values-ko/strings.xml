@@ -439,4 +439,11 @@
     <string name="discovery_sort_name">이름</string>
     <string name="discovery_sort_first_seen">처음 발견</string>
     <string name="discovery_via_artists">%1$s 경유</string>
+    <string name="discovery_catalog_search">Aurral 카탈로그 검색</string>
+    <string name="discovery_catalog_query">내 라이브러리 외의 아티스트 또는 발매작</string>
+    <string name="discovery_catalog_artists">아티스트</string>
+    <string name="discovery_catalog_albums">앨범</string>
+    <string name="discovery_catalog_search_action">검색</string>
+    <string name="discovery_catalog_count">카탈로그 결과 %2$s개 중 %1$s개 로드됨</string>
+    <string name="discovery_catalog_empty">카탈로그 검색 결과가 없습니다.</string>
 </resources>

@@ -10,6 +10,25 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryBrowserUiTest {
+    @Test fun catalogSearchIsExplicitAndMissingIdentitiesRemainInformational() = runDesktopComposeUiTest(360, 780) {
+        val page = mutableStateOf(discoveryPageFixture().copy(artistPage = false, artistDetail = null,
+            browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Search)))
+        val commands = mutableListOf<DiscoveryBrowseAction>()
+        setContent { MaterialTheme(colorScheme = darkColorScheme()) {
+            NaviampDiscoveryBrowserUi(page.value, NaviampColors.Dark, discoveryPageFixtureActions(page, mutableListOf()).copy(onDiscoveryBrowse = { commands += it }))
+        } }
+        onNodeWithText("Search").assertIsNotEnabled()
+        onNodeWithText("Artists or releases outside your Library").performTextInput("Björk")
+        assertEquals(DiscoveryBrowseAction.Query("Björk"), commands.last())
+        assertTrue(commands.none { it == DiscoveryBrowseAction.Search })
+        runOnIdle { page.value = page.value.copy(browser = page.value.browser!!.copy(query = "Björk", submittedQuery = "Björk",
+            catalog = ProviderCatalogPage(ProviderDiscoveryStatus.Ready, artists = listOf(ProviderDiscoveryArtist("unresolved", "Björk")), totalCount = 1))) }
+        onNodeWithText("Search").performClick()
+        assertTrue(DiscoveryBrowseAction.Search in commands)
+        onAllNodesWithText("Björk").assertCountEquals(2)
+        onNodeWithText("Open in library").assertDoesNotExist()
+    }
+
     @Test fun recommendationsExposePartialCountsFiltersAndAccessibleArtistNavigation() {
         for ((width, height) in listOf(360 to 780, 1100 to 850, 1280 to 800)) runDesktopComposeUiTest(width, height) {
             val artist = ProviderDiscoveryArtist("11111111-0000-0000-0000-000000000000", "A discovery artist", genres = listOf("Rock"),

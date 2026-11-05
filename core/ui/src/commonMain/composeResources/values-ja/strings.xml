@@ -439,4 +439,11 @@
     <string name="discovery_sort_name">名前</string>
     <string name="discovery_sort_first_seen">初めて発見</string>
     <string name="discovery_via_artists">%1$s 経由</string>
+    <string name="discovery_catalog_search">Aurral カタログを検索</string>
+    <string name="discovery_catalog_query">ライブラリにないアーティストやリリース</string>
+    <string name="discovery_catalog_artists">アーティスト</string>
+    <string name="discovery_catalog_albums">アルバム</string>
+    <string name="discovery_catalog_search_action">検索</string>
+    <string name="discovery_catalog_count">カタログの検索結果 %2$s 件中 %1$s 件を読み込み済み</string>
+    <string name="discovery_catalog_empty">カタログに検索結果がありません。</string>
 </resources>

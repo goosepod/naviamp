@@ -1271,4 +1271,11 @@
     <string name="discovery_sort_name">Nome</string>
     <string name="discovery_sort_first_seen">Primeira descoberta</string>
     <string name="discovery_via_artists">Via %1$s</string>
+    <string name="discovery_catalog_search">Buscar no catálogo do Aurral</string>
+    <string name="discovery_catalog_query">Artistas ou lançamentos fora da sua biblioteca</string>
+    <string name="discovery_catalog_artists">Artistas</string>
+    <string name="discovery_catalog_albums">Álbuns</string>
+    <string name="discovery_catalog_search_action">Buscar</string>
+    <string name="discovery_catalog_count">%1$s de %2$s resultados do catálogo carregados</string>
+    <string name="discovery_catalog_empty">Nenhum resultado no catálogo.</string>
 </resources>

@@ -439,4 +439,11 @@
     <string name="discovery_sort_name">الاسم</string>
     <string name="discovery_sort_first_seen">أول ظهور</string>
     <string name="discovery_via_artists">عبر %1$s</string>
+    <string name="discovery_catalog_search">البحث في كتالوج Aurral</string>
+    <string name="discovery_catalog_query">فنانون أو إصدارات خارج مكتبتك</string>
+    <string name="discovery_catalog_artists">الفنانون</string>
+    <string name="discovery_catalog_albums">الألبومات</string>
+    <string name="discovery_catalog_search_action">بحث</string>
+    <string name="discovery_catalog_count">تم تحميل %1$s من %2$s نتيجة</string>
+    <string name="discovery_catalog_empty">لا توجد نتائج في الكتالوج.</string>
 </resources>

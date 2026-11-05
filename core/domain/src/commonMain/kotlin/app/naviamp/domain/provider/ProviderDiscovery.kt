@@ -28,6 +28,7 @@ data class ProviderDiscoveryFeed(
 /** Optional native discovery; failure never disables the provider's standard playback contract. */
 fun interface ProviderDiscovery {
     val requestsUrl: String? get() = null
+    val catalogUrl: String? get() = null
     suspend fun load(): ProviderDiscoveryFeed
     suspend fun recommendations(offset: Int = 0, limit: Int = 100): ProviderRecommendationPage = ProviderRecommendationPage()
     suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int = 0, limit: Int = 24): ProviderCatalogPage = ProviderCatalogPage()

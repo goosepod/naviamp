@@ -29,11 +29,47 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
     }
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(Res.string.discovery_recommendations), Modifier.weight(1f).semantics { heading() }, color = colors.primaryText)
+            Text(stringResource(if (screen.page == DiscoveryBrowsePage.Search) Res.string.discovery_catalog_search else Res.string.discovery_recommendations), Modifier.weight(1f).semantics { heading() }, color = colors.primaryText)
             TextButton(onClick = { send(DiscoveryBrowseAction.Close) }) { Text(stringResource(Res.string.common_back)) }
         }
         Text(stringResource(Res.string.discovery_provider_title, localizedProviderName(discovery.providerId)), color = colors.secondaryText)
         LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("discovery-browser-list"), state = list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (screen.page == DiscoveryBrowsePage.Search) {
+                item(key = "search") {
+                    OutlinedTextField(value = screen.query, onValueChange = { send(DiscoveryBrowseAction.Query(it)) },
+                        label = { Text(stringResource(Res.string.discovery_catalog_query)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { send(DiscoveryBrowseAction.Search) }),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProviderCatalogScope.entries.forEach { scope -> FilterChip(selected = screen.scope == scope,
+                            onClick = { send(DiscoveryBrowseAction.Scope(scope)) }, label = {
+                                Text(stringResource(if (scope == ProviderCatalogScope.Artist) Res.string.discovery_catalog_artists else Res.string.discovery_catalog_albums))
+                            }) }
+                        TextButton(onClick = { send(DiscoveryBrowseAction.Search) }, enabled = !screen.loading && screen.query.isNotBlank()) { Text(stringResource(Res.string.discovery_catalog_search_action)) }
+                    }
+                    if (screen.loading) Text(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
+                    if (screen.status != ProviderDiscoveryStatus.Ready) Text(stringResource(discoveryStatusMessage(screen.status)), color = colors.secondaryText)
+                    if (screen.submittedQuery.isNotEmpty()) Text(stringResource(Res.string.discovery_catalog_count,
+                        (screen.catalog.artists.size + screen.catalog.albums.size).toString(), screen.catalog.totalCount?.toString() ?: "?"), color = colors.secondaryText)
+                    TextButton(onClick = { send(DiscoveryBrowseAction.External) }) { Text(stringResource(Res.string.discovery_open_provider, localizedProviderName(discovery.providerId))) }
+                }
+                items(screen.catalog.artists, key = { "catalog-artist:${it.id}" }) { artist -> DiscoveryBrowserArtist(artist, colors) { actions.onDiscoveryArtistDetails(artist.id) } }
+                items(screen.catalog.albums, key = { "catalog-album:${it.release.id}" }) { album ->
+                    Row(Modifier.fillMaxWidth().clickable(enabled = album.release.releaseGroupMbid != null && !screen.loading,
+                        role = Role.Button, onClick = { send(DiscoveryBrowseAction.Album(album)) }).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        NaviampCoverArt(album.release.imageUrl, colors, 64.dp,
+                            resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, 64.dp, 6.dp), mediaKind = SharedMediaItemKind.Album)
+                        Column(Modifier.weight(1f)) {
+                            Text(album.release.title, color = colors.primaryText)
+                            Text(album.artistName, color = colors.secondaryText)
+                            listOfNotNull(album.release.releaseDate, album.release.type).takeIf { it.isNotEmpty() }?.let { Text(it.joinToString(" · "), color = colors.secondaryText) }
+                        }
+                    }
+                }
+                if (screen.submittedQuery.isNotEmpty() && screen.catalog.artists.isEmpty() && screen.catalog.albums.isEmpty() && !screen.loading)
+                    item { Text(stringResource(Res.string.discovery_catalog_empty), color = colors.secondaryText) }
+                if (screen.catalog.nextOffset != null) item { TextButton(onClick = { send(DiscoveryBrowseAction.More) }, enabled = !screen.loading) { Text(stringResource(Res.string.discovery_load_more)) } }
+            } else {
             item(key = "controls") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DiscoveryRecommendationView.entries.forEach { view ->
@@ -71,6 +107,7 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
             }
             if (screen.filtered().isEmpty() && !screen.loading) item { Text(stringResource(Res.string.discovery_empty), color = colors.secondaryText) }
             if (screen.nextOffset != null) item { TextButton(onClick = { send(DiscoveryBrowseAction.More) }, enabled = !screen.loading) { Text(stringResource(Res.string.discovery_load_more)) } }
+            }
         }
     }
 }
