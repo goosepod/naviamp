@@ -405,3 +405,40 @@ r3 review profile so volume, queue and connections are preserved, with a private
 Its signature verifies and only the r4 review process is running. The installed application was
 not targeted. No physical TV/phone, new GitHub ticket, push, PR update or hosted check was used.
 The manual and release gates above remain distinct from these local results.
+
+## Track and Home label alignment follow-up
+
+The owner’s next live Mac review explicitly confirms working mouse Back, suitable font sizing,
+and working requests. Two remaining visual findings are handled in the existing UI work:
+track titles were above their controls, and Recently Added album/artist labels were too far apart.
+
+A rendered regression reproduces the first defect before the fix: a single-line title’s vertical
+center is seven pixels above its preview control. Shared `TrackRow` was still composing a blank
+subtitle, which reserved a second text line. It now omits blank subtitles while retaining real
+subtitles. Discovery release rows also reserve the same preview-control slot when a track has no
+preview, keeping titles in one column. Home collection cards explicitly use compact title and
+subtitle line heights rather than inheriting the larger Material body line height.
+
+The alignment checks cover phone/desktop widths, Small/Large font preferences, track numbers,
+preview controls, mixed preview availability, and compact non-overlapping album/artist labels.
+Only common UI production files change; no new setting, provider operation or native adapter is
+introduced. Owner feedback is evidence for those explicitly confirmed Mac behaviors, not a new
+physical TV/phone or full native/audio acceptance claim.
+
+The completed alignment batch passes **177 selected UI regression cases** with no failures,
+errors or skips. All four phone/desktop and Small/Large track-layout combinations align the
+single-line title with the preview and track-number centers and retain one title column when
+previews are missing. Home card labels remain compact, single-line and non-overlapping at both
+font settings. Captures are in `/private/tmp/aurral-alignment-captures`.
+
+Shared UI compilation for JVM, Android and both iOS targets, Desktop packaging and the architecture
+check pass: **104 tasks, 32 executed, 5m45s**. The refreshed Android debug APK also passes:
+**226 tasks, 20 executed, 1m47s**. Logs are `/private/tmp/aurral-alignment-matrix.log` and
+`/private/tmp/aurral-alignment-android.log`; the pre-fix failure is preserved in
+`/private/tmp/aurral-alignment-before.log`.
+
+The running review app is now
+`/private/tmp/aurral-acceptance-review-r5/Naviamp Aurral Acceptance r5.app`. Its signature verifies,
+the prior r4 review process is closed, and its existing isolated profile, queue, volume and
+connections are preserved. Packaged locale data remains present. The installed application and
+physical devices were not targeted; no GitHub issue, push or hosted check was added.

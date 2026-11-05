@@ -233,7 +233,7 @@ fun TrackRow(
                         Text(" - $albumTitle", color = colors.secondaryText, style = subtitleStyle)
                     }
                 }
-            } else {
+            } else if (track.subtitle.isNotBlank()) {
                 Text(track.subtitle, color = colors.secondaryText, style = subtitleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
