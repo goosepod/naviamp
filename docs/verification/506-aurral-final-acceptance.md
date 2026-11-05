@@ -69,17 +69,32 @@ Evidence:
 - `/private/tmp/aurral-final-native-acceptance.log` and
   `/private/tmp/aurral-final-native-acceptance-fixed.log` (raw harness/assertion failures).
 
-## Remaining acceptance and prepared checks
+## Approved qualifying live listen: passed
 
-- **One qualifying live listen:** a separate opt-in test is compiled and prepared,
-  pending the owner's explicit one-play approval. It targets only the existing
-  Radiohead “A Punchup at a Wedding (edit)” on account `test`, uses muted real native
-  progress and the actual shared `NaviampListenReporting` threshold, and verifies one
-  accepted submission without repeated observations submitting again. A one-shot
-  marker is created before the network effect; an uncertain attempt is never replayed.
-  The external runner checks the server's per-account/per-track play-event delta.
-  A preview qualification probe must emit zero presence/listen calls; that probe uses
-  simulated observations and is distinct from the real native main-track clock.
+The owner explicitly approved one test play on November 5. The configured native
+case executed against existing Radiohead “A Punchup at a Wedding (edit)” on account
+`test`, with no acquisition or playlist action. The real native clock crossed the
+shared `NaviampListenReporting` threshold of **116.5 seconds** at volume zero. The
+case passed in **126.456 seconds**; repeated observations did not resubmit a listen.
+Read-only server SQL verified this account/track's play-event count increased from
+**0 to 1**, exactly the approved one-play delta. The guarded no-replay marker remains
+in place; this approval is consumed and the test must not be replayed.
+
+The separate preview-policy probe crossed a simulated qualification threshold and
+emitted zero presence/listen calls. That probe is fixture evidence, distinct from
+the real native main-track clock and server-verified play event. Muted playback does
+not establish audible output or delivery to an external scrobbling service.
+
+Evidence: `/private/tmp/aurral-approved-qualified-listen.log`,
+`build/aurral-local-acceptance/listen-test-summary.json`, and preserved XML under
+`build/aurral-local-acceptance/final-live-qualified-listen-results`. Gradle passes
+**57 tasks, 17 executed, 2m39s** at test commit `8b9c81aa`. Together with the earlier
+batch this is **13 live read-only cases, four unique native cases, and 17 shared
+listen-policy regressions**, not repeated-run totals. No application production
+source or running review profile changed; another rebuild is unnecessary.
+
+## Remaining acceptance
+
 - **Positive waiting-for-release:** no future-dated album exists in the current
   library lookup, and current request history contains no waiting/unreleased entry.
   No new album request was made solely to manufacture test data. Shared waiting and
@@ -100,8 +115,8 @@ The repaired SQL/native recovery case also passes a second execution from the
 successfully available saved record, proving fixture reuse and reconnect recovery
 without clearing the database. The **17 shared listen-policy regressions** pass as
 well. These cover eligibility, qualification, preview exclusion, interruption,
-offline retry and timeline fallback with fixture providers; they are not the pending
-one-play live check. Log: `/private/tmp/aurral-final-repeated-recovery-and-listen-policy.log`
+offline retry and timeline fallback with fixture providers; they remain separate
+from the native/server-verified one-play check above. Log: `/private/tmp/aurral-final-repeated-recovery-and-listen-policy.log`
 (**60 tasks, 20 executed, 1m4s**). The configured 13-method read-only run takes 16s;
 the successful three-case native run takes 1m14s. Repeated executions are not counted
 as extra unique acceptance cases. No product production source changed.

@@ -25,7 +25,7 @@ import kotlinx.serialization.json.*
 import kotlin.math.abs
 import kotlin.test.*
 
-/** Read-only after the separately approved one-shot submission; never has an acquisition action. */
+/** No acquisition actions. Reconciliation is read-only; a separate listen test requires one-shot approval. */
 class DesktopAurralAcquisitionAcceptanceTest {
     /** Explicitly selected only after approval: one existing Library track, one timestamped listen. */
     @Test fun oneApprovedExistingTrackQualifiesOnceThroughRealNativeProgress() = runBlocking {

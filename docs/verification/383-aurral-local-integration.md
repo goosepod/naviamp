@@ -511,8 +511,8 @@ release acceptance claim. No new issue, push or hosted check was created.
 On November 5 the owner explicitly deferred native request cancel/retry to the next
 milestone and accepted the current Aurral handoff for this scope. Windows checking
 is planned with the owner for November 7–8. Neither is additional implementation
-for today's Mac review. The fresh read-only/native acceptance results, prepared
-one-play listen check and remaining permission/data/manual boundaries are recorded
+for today's Mac review. The fresh read-only/native acceptance results, approved
+one-play listen result and remaining permission/data/manual boundaries are recorded
 in [506-aurral-final-acceptance.md](506-aurral-final-acceptance.md). The new increment
 changes acceptance tests/documentation only; the running r6 application remains the
 reviewed `94e0e363` implementation and does not need a rebuild for these test changes.
