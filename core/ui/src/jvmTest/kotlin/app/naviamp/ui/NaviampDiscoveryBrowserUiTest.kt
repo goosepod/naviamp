@@ -15,7 +15,7 @@ class NaviampDiscoveryBrowserUiTest {
             browser = DiscoveryBrowserState(page = DiscoveryBrowsePage.Search)))
         val commands = mutableListOf<DiscoveryBrowseAction>()
         setContent { MaterialTheme(colorScheme = darkColorScheme()) {
-            NaviampDiscoveryBrowserUi(page.value, NaviampColors.Dark, discoveryPageFixtureActions(page, mutableListOf()).copy(onDiscoveryBrowse = { commands += it }))
+            NaviampDiscoveryBrowserUi(page.value, NaviampColors.Dark, discoveryPageFixtureActions(page, mutableListOf()).copy(onDiscoveryBrowse = { commands += (it as? DiscoveryBrowseAction.Scoped)?.action ?: it }))
         } }
         onNodeWithText("Search").assertIsNotEnabled()
         onNodeWithText("Artists or releases outside your Library").performTextInput("Björk")
@@ -38,7 +38,7 @@ class NaviampDiscoveryBrowserUiTest {
             val commands = mutableListOf<DiscoveryBrowseAction>(); val opened = mutableListOf<String>()
             setContent { MaterialTheme(colorScheme = darkColorScheme()) {
                 NaviampDiscoveryBrowserUi(page.value, NaviampColors.Dark, discoveryPageFixtureActions(page, mutableListOf()).copy(
-                    onDiscoveryBrowse = { commands += it }, onDiscoveryArtistDetails = { opened += it }))
+                    onDiscoveryBrowse = { commands += (it as? DiscoveryBrowseAction.Scoped)?.action ?: it }, onDiscoveryArtistDetails = { opened += it }))
             } }
             onNodeWithText("1 of 205 recommendations loaded").assertIsDisplayed()
             onNodeWithText("A discovery artist").performScrollTo().performClick()

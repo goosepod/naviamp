@@ -27,7 +27,7 @@ class NaviampCoreDiscoveryController(
     nowMillis: () -> Long = { 0L },
 ) : NaviampCoreCommandController {
     private val browser = NaviampDiscoveryBrowserController(
-        { stateStore.state.value.shell.home.providerDiscovery }, ::updateDiscovery, providerSource::current, nowMillis, showPage, stopDiscoverySample, ::openCatalogAlbum, externalUri::open)
+        { stateStore.state.value.shell.home.providerDiscovery }, ::updateDiscovery, providerSource::current, nowMillis, showPage, stopDiscoverySample, ::openCatalogAlbum, externalUri::open, playDiscoverySample)
     private val acquisitions = DiscoveryAcquisitionTracker(acquisitionRepository, nowMillis)
     private fun acquisitionScope(provider: MediaProvider) = DiscoveryAcquisitionScope(sourceId() ?: "__unbound__", provider.discoveryAccountScope)
     private var discoveryDetailGeneration = 0L
@@ -44,7 +44,13 @@ class NaviampCoreDiscoveryController(
         val home = command as? NaviampCoreCommand.Home ?: return NaviampCoreImmediateCommandResult.Unhandled
         bindSource()
         return when (home) {
-            is NaviampCoreCommand.Home.Browse -> browser.dispatch(home.action)
+            is NaviampCoreCommand.Home.Browse -> {
+                val action = scopedBrowseAction(home.action)
+                if (action == null) NaviampCoreImmediateCommandResult.Handled() else {
+                    updateDiscovery { it.copy(sourceId = sourceId(), sourceGeneration = sourceGeneration) }
+                    browser.dispatch(action)
+                }
+            }
             NaviampCoreCommand.Home.ShowDiscoveryRequests -> {
                 stopDiscoverySample()
                 publishAcquisitions()
@@ -173,7 +179,7 @@ class NaviampCoreDiscoveryController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         bindSource()
         when (command) {
-            is NaviampCoreCommand.Home.Browse -> browser.execute(command.action)
+            is NaviampCoreCommand.Home.Browse -> scopedBrowseAction(command.action)?.let { browser.execute(it) }
             NaviampCoreCommand.Home.RefreshDiscoveryRequests -> refreshAcquisitions()
             NaviampCoreCommand.Home.ShowDiscoveryRequests -> Unit
             NaviampCoreCommand.Home.DismissDiscoveryRequests -> Unit
@@ -340,6 +346,11 @@ class NaviampCoreDiscoveryController(
         }
     }
 
+    private fun scopedBrowseAction(action: DiscoveryBrowseAction): DiscoveryBrowseAction? =
+        if (action is DiscoveryBrowseAction.Scoped) action.action.takeIf {
+            action.sourceId == sourceId() && action.generation == sourceGeneration && action.action !is DiscoveryBrowseAction.Scoped
+        } else action
+
     private fun recordRequest(artistId: String, action: ProviderDiscoveryAction, operation: ProviderDiscoveryOperation) {
         requestLedger[artistId] = requestLedger[artistId].orEmpty() + (action to operation)
     }
@@ -412,6 +423,7 @@ class NaviampCoreDiscoveryController(
         if (discovery.providerId != providerSource.current()?.id?.value) return null
         return discovery.artistDetail?.artist?.takeIf { it.id == id }
             ?: discovery.artistDetail?.similar?.artists?.firstOrNull { it.id == id }
+            ?: discovery.browser?.charts?.artists?.firstOrNull { it.artist.id == id }?.artist
             ?: discovery.browser?.catalog?.artists?.firstOrNull { it.id == id }
             ?: discovery.browser?.recommendations?.firstOrNull { it.id == id }
             ?: (discovery.feed.recommendations + discovery.feed.trending).firstOrNull { it.id == id }

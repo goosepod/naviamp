@@ -48,8 +48,85 @@ internal class AurralDiscoveryClient(
             recommendations = feed.artists("recommendations"),
             trending = feed.artists("globalTop"),
             lastUpdated = status.text("lastUpdated") ?: feed.text("lastUpdated"),
+            chartsAvailable = "trending" in currentFeatures(),
         )
     }
+
+    override suspend fun charts(): ProviderDiscoveryCharts = nativeCall({ ProviderDiscoveryCharts(status = it) }) {
+        if ("trending" !in currentFeatures()) throw NavidromeHttpException(404)
+        val payload = get("/api/discover/trending")
+        val songs = payload["songs"] as? JsonObject
+        ProviderDiscoveryCharts(ProviderDiscoveryStatus.Ready, payload.text("region"), payload.text("updatedAt"),
+            songs?.array("items")?.chartSongs(),
+            payload.array("albums")?.mapNotNull { row ->
+                val album = row as? JsonObject ?: return@mapNotNull null
+                DiscoveryChartAlbum(album.text("key")?.takeIf(String::isNotBlank) ?: return@mapNotNull null,
+                    album.text("name")?.takeIf(String::isNotBlank) ?: return@mapNotNull null,
+                    album.text("artistName")?.takeIf(String::isNotBlank) ?: return@mapNotNull null,
+                    album.text("artworkUrl")?.let(::imageUrl), album.text("releaseDate"), album.nonNegativeInt("position"))
+            }?.distinctBy { it.key },
+            payload.array("artists")?.mapNotNull { row ->
+                val artist = row as? JsonObject ?: return@mapNotNull null
+                val key = artist.text("key")?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+                val mbid = artist.text("mbid")?.takeIf(MusicBrainzId::matches)
+                DiscoveryChartArtist(key, ProviderDiscoveryArtist(mbid ?: "chart:$key",
+                    artist.text("name")?.takeIf(String::isNotBlank) ?: return@mapNotNull null,
+                    artist.text("imageUrl")?.let(::imageUrl), detailsAvailable = mbid != null,
+                    externalUrl = mbid?.let { "$base/artist/$it" }), artist.nonNegativeInt("position"))
+            }?.distinctBy { it.key },
+            payload.array("genres").orEmpty().mapNotNull { row ->
+                val genre = row as? JsonObject ?: return@mapNotNull null
+                val id = genre.text("id")?.takeIf { it.matches(Regex("[0-9]{1,6}")) } ?: return@mapNotNull null
+                DiscoveryChartGenre(id, genre.text("name") ?: return@mapNotNull null, genre.strings("covers").mapNotNull(::imageUrl))
+            }.distinctBy { it.id }, songs?.text("playlistId")?.takeIf { it.toLongOrNull()?.let { n -> n > 0 } == true },
+            songs?.text("libraryPlaylistId"),
+            "flows" in currentFeatures() && currentSession()?.permissions?.get("accessFlow")?.jsonPrimitive?.booleanOrNull == true,
+            (songs?.get("spotlight") as? JsonObject)?.let { spotlight ->
+                DiscoveryChartSpotlight(spotlight.array("ranks").orEmpty().take(30).map { (it as? JsonPrimitive)?.intOrNull?.takeIf { n -> n > 0 } }, spotlight.nonNegativeInt("daysAtTop"))
+            })
+    }
+    override suspend fun genreChart(id: String): ProviderDiscoveryGenreChart {
+        require(id.matches(Regex("[0-9]{1,6}")))
+        return nativeCall({ ProviderDiscoveryGenreChart(status = it) }, notFoundStatus = ProviderDiscoveryStatus.Unavailable) {
+            if ("trending" !in currentFeatures()) return@nativeCall ProviderDiscoveryGenreChart()
+            val payload = get("/api/discover/trending/genres/$id")
+            check(payload.text("id") == id)
+            ProviderDiscoveryGenreChart(ProviderDiscoveryStatus.Ready, id, payload.text("name"), payload.text("region"), payload.text("updatedAt"),
+                (payload.array("items") ?: error("Missing genre chart")).chartSongs())
+        }
+    }
+    override suspend fun saveChartPlaylist(id: String): ProviderDiscoveryChartSave {
+        require(id.toLongOrNull()?.let { it > 0 } == true)
+        return mutationMutex.withLock { nativeCall({ ProviderDiscoveryChartSave(status = when (it) {
+            ProviderDiscoveryStatus.Forbidden -> ProviderDiscoveryOperationStatus.Forbidden
+            ProviderDiscoveryStatus.Unsupported -> ProviderDiscoveryOperationStatus.Unsupported
+            else -> ProviderDiscoveryOperationStatus.Uncertain
+        }) }) {
+            if ("trending" !in currentFeatures() || "flows" !in currentFeatures()) return@nativeCall ProviderDiscoveryChartSave()
+            if (currentSession()?.permissions?.get("accessFlow")?.jsonPrimitive?.booleanOrNull != true)
+                return@nativeCall ProviderDiscoveryChartSave(ProviderDiscoveryOperationStatus.Forbidden)
+            // Reconcile before the deliberate POST; this endpoint deduplicates by account and external ID.
+            val songs = get("/api/discover/trending")["songs"] as? JsonObject ?: error("Missing songs chart")
+            check(songs.text("playlistId") == id)
+            songs.text("libraryPlaylistId")?.takeIf(String::isNotBlank)?.let {
+                return@nativeCall ProviderDiscoveryChartSave(ProviderDiscoveryOperationStatus.Saved, it)
+            }
+            val result = post("/api/discover/editorial/$id/library", buildJsonObject {})
+            val playlist = result.text("playlistId")?.takeIf(String::isNotBlank) ?: error("Missing saved playlist")
+            ProviderDiscoveryChartSave(ProviderDiscoveryOperationStatus.Saved, playlist)
+        } }
+    }
+    private fun JsonArray.chartSongs(): List<DiscoveryChartSong> = take(200).mapNotNull { row ->
+        val song = row as? JsonObject ?: return@mapNotNull null
+        val key = song.text("key")?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+        val path = "/api/deezer/preview/$key.mp3"
+        val preview = song.text("preview_url")?.takeIf { it == path || it == "$base$path" }
+            ?.let { key.takeIf { value -> value.toLongOrNull()?.let { it > 0 } == true }?.let(::DiscoveryDeezerPreviewId) }
+        DiscoveryChartSong(key, song.text("trackName")?.takeIf(String::isNotBlank) ?: return@mapNotNull null,
+            song.text("artistName")?.takeIf(String::isNotBlank) ?: return@mapNotNull null, song.text("albumName"),
+            song.text("artworkUrl")?.let(::imageUrl), song.nonNegativeInt("position"),
+            (song["movement"] as? JsonPrimitive)?.intOrNull, song.text("movement") == "new", preview)
+    }.distinctBy { it.key }
 
     override suspend fun recommendations(offset: Int, limit: Int): ProviderRecommendationPage {
         require(limit in 1..200)

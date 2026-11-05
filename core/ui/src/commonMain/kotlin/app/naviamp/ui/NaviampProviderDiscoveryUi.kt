@@ -68,6 +68,7 @@ internal fun NaviampProviderDiscoveryContent(
             color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
         TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) }) { Text(stringResource(Res.string.discovery_recommendations)) }
         TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Search)) }) { Text(stringResource(Res.string.discovery_catalog_search)) }
+        if (discovery.feed.chartsAvailable) TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) { Text(stringResource(Res.string.discovery_trending)) }
         TextButton(onClick = onRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
         val message = when {
             discovery.loading -> Res.string.discovery_loading
@@ -86,7 +87,8 @@ internal fun NaviampProviderDiscoveryContent(
             DiscoveryArtistRail(stringResource(Res.string.discovery_recommendations), discovery.feed.recommendations, providerName, colors, onArtistSelected, onArtistDetails, onOpen = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) })
         }
         if (discovery.feed.trending.isNotEmpty()) {
-            DiscoveryArtistRail(stringResource(Res.string.discovery_trending), discovery.feed.trending, providerName, colors, onArtistSelected, onArtistDetails)
+            DiscoveryArtistRail(stringResource(Res.string.discovery_trending), discovery.feed.trending, providerName, colors, onArtistSelected, onArtistDetails,
+                onOpen = if (discovery.feed.chartsAvailable) ({ onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending)) }) else null)
         }
     }
     discovery.artistDetail?.takeIf { !discovery.artistPage }?.let { detail ->

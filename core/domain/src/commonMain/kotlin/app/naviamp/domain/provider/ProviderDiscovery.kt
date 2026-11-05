@@ -23,12 +23,16 @@ data class ProviderDiscoveryFeed(
     val recommendations: List<ProviderDiscoveryArtist> = emptyList(),
     val trending: List<ProviderDiscoveryArtist> = emptyList(),
     val lastUpdated: String? = null,
+    val chartsAvailable: Boolean = false,
 )
 
 /** Optional native discovery; failure never disables the provider's standard playback contract. */
 fun interface ProviderDiscovery {
     val requestsUrl: String? get() = null
     val catalogUrl: String? get() = null
+    suspend fun charts(): ProviderDiscoveryCharts = ProviderDiscoveryCharts()
+    suspend fun genreChart(id: String): ProviderDiscoveryGenreChart = ProviderDiscoveryGenreChart()
+    suspend fun saveChartPlaylist(id: String): ProviderDiscoveryChartSave = ProviderDiscoveryChartSave()
     suspend fun load(): ProviderDiscoveryFeed
     suspend fun recommendations(offset: Int = 0, limit: Int = 100): ProviderRecommendationPage = ProviderRecommendationPage()
     suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int = 0, limit: Int = 24): ProviderCatalogPage = ProviderCatalogPage()

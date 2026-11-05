@@ -2,13 +2,19 @@ package app.naviamp.domain.provider
 
 import kotlin.time.Instant
 
-enum class DiscoveryBrowsePage { Recommendations, Search }
+enum class DiscoveryBrowsePage { Recommendations, Search, Trending }
 enum class DiscoveryRecommendationView { ForYou, All }
 enum class DiscoveryRecommendationSort { Rank, Name, FirstSeen }
 enum class DiscoveryRecommendationFilter { All, New, Direct, Further }
 
 sealed interface DiscoveryBrowseAction {
+    data class Scoped(val sourceId: String?, val generation: Long, val action: DiscoveryBrowseAction) : DiscoveryBrowseAction
     data class Open(val page: DiscoveryBrowsePage) : DiscoveryBrowseAction
+    data class ChartSection(val section: DiscoveryChartSection) : DiscoveryBrowseAction
+    data class ChartGenre(val id: String?) : DiscoveryBrowseAction
+    data class ChartPreview(val key: String) : DiscoveryBrowseAction
+    data class ChartSearch(val query: String, val scope: ProviderCatalogScope) : DiscoveryBrowseAction
+    data object SaveChart : DiscoveryBrowseAction
     data class Query(val query: String) : DiscoveryBrowseAction
     data class Scope(val scope: ProviderCatalogScope) : DiscoveryBrowseAction
     data object Search : DiscoveryBrowseAction
@@ -27,6 +33,11 @@ sealed interface DiscoveryBrowseAction {
 
 data class DiscoveryBrowserState(
     val page: DiscoveryBrowsePage = DiscoveryBrowsePage.Recommendations,
+    val charts: ProviderDiscoveryCharts = ProviderDiscoveryCharts(),
+    val chartSection: DiscoveryChartSection = DiscoveryChartSection.Songs,
+    val chartGenreId: String? = null,
+    val genreChart: ProviderDiscoveryGenreChart? = null,
+    val chartSave: ProviderDiscoveryChartSave? = null,
     val query: String = "",
     val submittedQuery: String = "",
     val scope: ProviderCatalogScope = ProviderCatalogScope.Artist,

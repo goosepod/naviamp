@@ -14,6 +14,33 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun chartsUseIndependentPreviewsAndReconcileUncertainSavesWithoutReplay() = runTest {
+        var saves = 0
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun charts() = ProviderDiscoveryCharts(ProviderDiscoveryStatus.Ready,
+                songs = listOf(DiscoveryChartSong("chart-key", "Song", "Artist", previewId = DiscoveryDeezerPreviewId("42"))),
+                playlistId = "55", canSave = true)
+            override suspend fun saveChartPlaylist(id: String): ProviderDiscoveryChartSave { saves++; return ProviderDiscoveryChartSave(ProviderDiscoveryOperationStatus.Uncertain) }
+            override suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int, limit: Int) = ProviderCatalogPage(ProviderDiscoveryStatus.Ready, artists = listOf(First))
+        })
+        suspend fun send(action: DiscoveryBrowseAction) { val c = NaviampCoreCommand.Home.Browse(action); h.controller.dispatch(c); h.controller.execute(c) }
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Trending))
+        assertEquals(0, saves)
+        send(DiscoveryBrowseAction.ChartPreview("chart-key"))
+        assertEquals("discovery-preview:42", h.played.single().id.value)
+        send(DiscoveryBrowseAction.SaveChart); send(DiscoveryBrowseAction.SaveChart)
+        assertEquals(1, saves)
+        send(DiscoveryBrowseAction.ChartSearch("Artist", ProviderCatalogScope.Artist))
+        assertEquals(DiscoveryBrowsePage.Search, h.discovery().browser!!.page)
+        h.open(First); h.back(); send(DiscoveryBrowseAction.Close)
+        assertEquals(DiscoveryBrowsePage.Trending, h.discovery().browser!!.page)
+        send(DiscoveryBrowseAction.SaveChart); assertEquals(1, saves)
+        val stale = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Scoped(h.account, h.discovery().sourceGeneration, DiscoveryBrowseAction.SaveChart))
+        h.account = "other"; h.active = discoveryProvider(DiscoveryNative(), h.account)
+        assertTrue(h.controller.dispatch(stale) is NaviampCoreImmediateCommandResult.Handled)
+        h.controller.execute(stale); assertEquals(1, saves)
+    }
+
     @Test fun catalogSearchRejectsOldQueriesAndRetainsTheSubmittedScopeAcrossBack() = runTest {
         val entered = CompletableDeferred<Unit>(); val gate = CompletableDeferred<Unit>()
         val h = DiscoveryHarness(object : DiscoveryNative() {

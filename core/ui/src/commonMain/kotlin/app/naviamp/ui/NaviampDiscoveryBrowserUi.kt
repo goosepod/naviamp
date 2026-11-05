@@ -16,9 +16,9 @@ import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, colors: NaviampColors, actions: NaviampHomeActions) {
+internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, colors: NaviampColors, actions: NaviampHomeActions, playback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi()) {
     val screen = discovery.browser ?: return
-    val send = actions.onDiscoveryBrowse
+    val send: (DiscoveryBrowseAction) -> Unit = { actions.onDiscoveryBrowse(DiscoveryBrowseAction.Scoped(discovery.sourceId, discovery.sourceGeneration, it)) }
     val list = remember(screen.page, screen.view, screen.sort, screen.genre, screen.seed, screen.filter) {
         LazyListState(screen.firstVisibleItem, screen.firstVisibleOffset)
     }
@@ -29,12 +29,13 @@ internal fun NaviampDiscoveryBrowserUi(discovery: SharedProviderDiscoveryUi, col
     }
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(if (screen.page == DiscoveryBrowsePage.Search) Res.string.discovery_catalog_search else Res.string.discovery_recommendations), Modifier.weight(1f).semantics { heading() }, color = colors.primaryText)
+            Text(stringResource(when (screen.page) { DiscoveryBrowsePage.Search -> Res.string.discovery_catalog_search; DiscoveryBrowsePage.Trending -> Res.string.discovery_trending; else -> Res.string.discovery_recommendations }), Modifier.weight(1f).semantics { heading() }, color = colors.primaryText)
             TextButton(onClick = { send(DiscoveryBrowseAction.Close) }) { Text(stringResource(Res.string.common_back)) }
         }
         Text(stringResource(Res.string.discovery_provider_title, localizedProviderName(discovery.providerId)), color = colors.secondaryText)
         LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("discovery-browser-list"), state = list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (screen.page == DiscoveryBrowsePage.Search) {
+            if (screen.page == DiscoveryBrowsePage.Trending) discoveryCharts(screen, colors, actions.copy(onDiscoveryBrowse = send), playback)
+            else if (screen.page == DiscoveryBrowsePage.Search) {
                 item(key = "search") {
                     OutlinedTextField(value = screen.query, onValueChange = { send(DiscoveryBrowseAction.Query(it)) },
                         label = { Text(stringResource(Res.string.discovery_catalog_query)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),

@@ -126,7 +126,7 @@ class NaviampCoreNavigationController(
     }
 
     private fun selectRoute(route: NaviampRoute) {
-        if (stateStore.state.value.shell.home.providerDiscovery?.artistPage == true) onLeaveDiscovery()
+        if (stateStore.state.value.shell.home.providerDiscovery?.let { it.artistPage || it.browser != null } == true) onLeaveDiscovery()
         navigation.navigate(route)
         navigation.updateLastContentRoute(route)
         navigation.clearDetailHistory()

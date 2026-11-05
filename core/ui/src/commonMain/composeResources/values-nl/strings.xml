@@ -446,4 +446,15 @@
     <string name="discovery_catalog_search_action">Zoeken</string>
     <string name="discovery_catalog_count">%1$s van %2$s catalogusresultaten geladen</string>
     <string name="discovery_catalog_empty">Geen catalogusresultaten.</string>
+    <string name="discovery_chart_songs">Songs</string>
+    <string name="discovery_chart_genres">Genres</string>
+    <string name="discovery_chart_region">Chart region: %1$s</string>
+    <string name="discovery_chart_days_at_top">Days at number one: %1$s</string>
+    <string name="discovery_chart_rank_history">Recent ranks: %1$s</string>
+    <string name="discovery_chart_save_playlist">Save songs chart as playlist</string>
+    <string name="discovery_chart_saved">Chart saved as a synced playlist.</string>
+    <string name="discovery_chart_playlist_description">Saving creates a synced playlist in Aurral. Tracks may still need to be acquired.</string>
+    <string name="discovery_chart_unavailable">This chart is not available yet.</string>
+    <string name="discovery_chart_new">New entry</string>
+    <string name="discovery_chart_movement">Movement: %1$s</string>
 </resources>

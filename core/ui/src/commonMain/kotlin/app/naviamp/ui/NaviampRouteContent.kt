@@ -960,7 +960,7 @@ fun SharedHomeRoute(
         return
     }
     home.providerDiscovery?.takeIf { it.browser != null }?.let {
-        NaviampDiscoveryBrowserUi(it, colors, actions)
+        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback)
         return
     }
     home.collectionPage?.let { page ->

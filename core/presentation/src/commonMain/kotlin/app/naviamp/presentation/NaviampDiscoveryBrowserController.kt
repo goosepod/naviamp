@@ -16,17 +16,38 @@ internal class NaviampDiscoveryBrowserController(
     private val stopPreview: () -> Unit,
     private val openAlbum: suspend (ProviderCatalogAlbum) -> Unit,
     private val openExternal: (String) -> Unit,
+    private val playPreview: suspend (app.naviamp.domain.Track) -> Unit,
 ) {
+    private val uncertainSaves = mutableSetOf<Pair<String, String>>()
+    private val backStack = mutableListOf<DiscoveryBrowserState>()
     private var revision = 0L
     private var read: Job? = null
     private val scheduled = mutableListOf<Pair<DiscoveryBrowseAction, Long>>()
-    fun reset() { revision++; read?.cancel(); scheduled.clear(); update { it.copy(browser = null) } }
+    fun reset() { revision++; read?.cancel(); scheduled.clear(); backStack.clear(); update { it.copy(browser = null) } }
     fun dispatch(action: DiscoveryBrowseAction): NaviampCoreImmediateCommandResult {
         when (action) {
+            is DiscoveryBrowseAction.Scoped -> return NaviampCoreImmediateCommandResult.Handled()
             is DiscoveryBrowseAction.Open -> {
                 revision++; read?.cancel(); showPage(); stopPreview()
                 update { it.copy(browser = it.browser?.copy(page = action.page) ?: DiscoveryBrowserState(page = action.page, nowMillis = nowMillis()),
                     artistPage = false, artistDetail = null, artistBackStack = emptyList(), releasePage = null) }
+            }
+            is DiscoveryBrowseAction.ChartSection -> { stopPreview(); change { it.copy(chartSection = action.section, chartGenreId = null, firstVisibleItem = 0, firstVisibleOffset = 0) }; return NaviampCoreImmediateCommandResult.Handled() }
+            is DiscoveryBrowseAction.ChartGenre -> { revision++; read?.cancel(); stopPreview(); change { it.copy(chartGenreId = action.id, firstVisibleItem = 0, firstVisibleOffset = 0) } }
+            is DiscoveryBrowseAction.ChartSearch -> {
+                state()?.browser?.let { backStack += it }
+                revision++; read?.cancel(); stopPreview()
+                change { it.copy(page = DiscoveryBrowsePage.Search, query = action.query, scope = action.scope, catalog = ProviderCatalogPage(), submittedQuery = "", firstVisibleItem = 0, firstVisibleOffset = 0) }
+            }
+            is DiscoveryBrowseAction.ChartPreview -> if (chartSong(action.key)?.previewId == null) return NaviampCoreImmediateCommandResult.Handled()
+            DiscoveryBrowseAction.SaveChart -> {
+                val charts = state()?.browser?.charts ?: return NaviampCoreImmediateCommandResult.Handled()
+                val key = charts.playlistId ?: return NaviampCoreImmediateCommandResult.Handled()
+                val account = provider()?.discoveryAccountScope ?: return NaviampCoreImmediateCommandResult.Handled()
+                if (!charts.canSave || charts.libraryPlaylistId != null || state()?.browser?.loading == true || (account to key) in uncertainSaves)
+                    return NaviampCoreImmediateCommandResult.Handled()
+                uncertainSaves += account to key
+                change { it.copy(chartSave = ProviderDiscoveryChartSave(ProviderDiscoveryOperationStatus.Uncertain)) }
             }
             is DiscoveryBrowseAction.Query -> {
                 revision++; read?.cancel()
@@ -45,7 +66,15 @@ internal class NaviampDiscoveryBrowserController(
             is DiscoveryBrowseAction.Album -> if (state()?.browser?.catalog?.albums?.none { it == action.album } != false)
                 return NaviampCoreImmediateCommandResult.Handled()
             DiscoveryBrowseAction.Search -> { revision++; read?.cancel() }
-            DiscoveryBrowseAction.Close -> { reset(); stopPreview(); return NaviampCoreImmediateCommandResult.Handled() }
+            DiscoveryBrowseAction.Close -> {
+                revision++; read?.cancel(); stopPreview()
+                when {
+                    state()?.browser?.chartGenreId != null -> change { it.copy(chartGenreId = null, status = it.charts.status, loading = false) }
+                    backStack.isNotEmpty() -> { val previous = backStack.removeAt(backStack.lastIndex); update { it.copy(browser = previous.copy(loading = false)) } }
+                    else -> reset()
+                }
+                return NaviampCoreImmediateCommandResult.Handled()
+            }
             is DiscoveryBrowseAction.View -> { change { it.copy(view = action.view) }; return NaviampCoreImmediateCommandResult.Handled() }
             is DiscoveryBrowseAction.Sort -> { change { it.copy(sort = action.sort, firstVisibleItem = 0, firstVisibleOffset = 0) }; return NaviampCoreImmediateCommandResult.Handled() }
             is DiscoveryBrowseAction.Filter -> { change { it.copy(filter = action.filter, firstVisibleItem = 0, firstVisibleOffset = 0) }; return NaviampCoreImmediateCommandResult.Handled() }
@@ -59,16 +88,44 @@ internal class NaviampDiscoveryBrowserController(
         change { it.copy(loading = true) }
         return NaviampCoreImmediateCommandResult.Deferred
     }
+    private fun chartSong(key: String): DiscoveryChartSong? {
+        val screen = state()?.browser ?: return null
+        return (if (screen.chartGenreId != null) screen.genreChart?.songs else screen.charts.songs)?.firstOrNull { it.key == key }
+    }
     private fun change(transform: (DiscoveryBrowserState) -> DiscoveryBrowserState) = update { current -> current.copy(browser = current.browser?.let(transform)) }
     suspend fun execute(action: DiscoveryBrowseAction) {
         val index = scheduled.indexOfFirst { it.first === action }; if (index < 0) return
         val token = scheduled.removeAt(index).second; if (token != revision) return
         val owner = provider()
         val native = owner?.discovery
-        if (native == null) { change { it.copy(loading = false, status = ProviderDiscoveryStatus.Unsupported) }; return }
+        if (owner == null || native == null) { change { it.copy(loading = false, status = ProviderDiscoveryStatus.Unsupported) }; return }
         read = currentCoroutineContext()[Job]
         fun current() = token == revision && provider() === owner
         try {
+            if (action is DiscoveryBrowseAction.ChartPreview) {
+                val song = chartSong(action.key) ?: return
+                val preview = song.previewId ?: return
+                playPreview(ProviderDiscoverySample(preview.value, song.title, song.albumTitle, song.imageUrl).playbackTrack(song.artistName)); return
+            }
+            if (action == DiscoveryBrowseAction.SaveChart) {
+                val id = state()?.browser?.charts?.playlistId ?: return
+                val result = native.saveChartPlaylist(id)
+                if (!current()) return
+                change { it.copy(chartSave = result, charts = it.charts.copy(libraryPlaylistId = result.playlistId ?: it.charts.libraryPlaylistId)) }
+                if (result.status in setOf(ProviderDiscoveryOperationStatus.Rejected, ProviderDiscoveryOperationStatus.Forbidden, ProviderDiscoveryOperationStatus.Unsupported)) uncertainSaves -= owner.discoveryAccountScope to id
+                return
+            }
+            if (state()?.browser?.page == DiscoveryBrowsePage.Trending) {
+                val genreId = state()?.browser?.chartGenreId
+                if (genreId != null) {
+                    val result = native.genreChart(genreId)
+                    if (current()) change { it.copy(status = result.status, genreChart = if (result.status == ProviderDiscoveryStatus.Ready) result else it.genreChart?.takeIf { old -> old.id == genreId }) }
+                } else {
+                    val result = native.charts()
+                    if (current()) change { it.copy(status = result.status, charts = if (result.status == ProviderDiscoveryStatus.Ready) result else it.charts) }
+                }
+                return
+            }
             if (action is DiscoveryBrowseAction.Album) { openAlbum(action.album); return }
             if (state()?.browser?.page == DiscoveryBrowsePage.Search) {
                 val screen = state()?.browser ?: return

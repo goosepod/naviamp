@@ -126,7 +126,7 @@ internal fun TelevisionHome(
         return
     }
     home.providerDiscovery?.takeIf { it.browser != null }?.let {
-        NaviampDiscoveryBrowserUi(it, colors, actions)
+        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback)
         return
     }
     val sections = televisionHomeSections(home.content.collectionSections)
