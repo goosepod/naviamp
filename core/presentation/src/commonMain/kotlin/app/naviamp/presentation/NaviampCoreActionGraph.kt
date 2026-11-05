@@ -283,6 +283,7 @@ fun createNaviampCoreActions(
             onDiscoveryLibraryRelease = { source, generation, id -> send(NaviampCoreCommand.Home.OpenDiscoveryLibraryRelease(source, generation, id)) },
             onDiscoveryReleaseAction = { source, generation, id, action -> send(NaviampCoreCommand.Home.DiscoveryReleaseAction(source, generation, id, action)) },
             onDiscoveryViewport = { index, offset, section -> send(NaviampCoreCommand.Home.DiscoveryViewport(index, offset, section)) },
+            onDiscoveryBrowse = { send(NaviampCoreCommand.Home.Browse(it)) },
             onDiscoveryRequests = { send(NaviampCoreCommand.Home.ShowDiscoveryRequests) },
             onDiscoveryRequestsDismiss = { send(NaviampCoreCommand.Home.DismissDiscoveryRequests) },
             onDiscoveryRequestsRefresh = { send(NaviampCoreCommand.Home.RefreshDiscoveryRequests) },

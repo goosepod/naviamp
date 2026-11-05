@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Потрібна перевірка в Aurral</string>
     <string name="discovery_acquisition_failed">Помилка запиту</string>
     <string name="discovery_acquisition_cancelled">Запит скасовано</string>
+    <string name="discovery_for_you">Для вас</string>
+    <string name="discovery_collection_count">Завантажено %1$s із %2$s рекомендацій</string>
+    <string name="discovery_collection_partial">Фільтри й сортування застосовуються до завантажених рекомендацій. Завантажте ще, щоб включити решту.</string>
+    <string name="discovery_last_updated">Оновлено: %1$s</string>
+    <string name="discovery_top_pick">Найкращий вибір</string>
+    <string name="discovery_new_this_week">Нове цього тижня</string>
+    <string name="discovery_because_you_like">Тому що вам подобається %1$s</string>
+    <string name="discovery_close_to_home">Близько до ваших смаків</string>
+    <string name="discovery_further_out">Нові обрії</string>
+    <string name="discovery_load_more">Завантажити ще</string>
+    <string name="discovery_sort_rank">Місце</string>
+    <string name="discovery_sort_name">Назва</string>
+    <string name="discovery_sort_first_seen">Перша поява</string>
+    <string name="discovery_via_artists">Через %1$s</string>
 </resources>

@@ -26,6 +26,8 @@ class NaviampCoreDiscoveryController(
     acquisitionRepository: DiscoveryAcquisitionRepository = MemoryDiscoveryAcquisitionRepository(),
     nowMillis: () -> Long = { 0L },
 ) : NaviampCoreCommandController {
+    private val browser = NaviampDiscoveryBrowserController(
+        { stateStore.state.value.shell.home.providerDiscovery }, ::updateDiscovery, providerSource::current, nowMillis, showPage, stopDiscoverySample)
     private val acquisitions = DiscoveryAcquisitionTracker(acquisitionRepository, nowMillis)
     private fun acquisitionScope(provider: MediaProvider) = DiscoveryAcquisitionScope(sourceId() ?: "__unbound__", provider.discoveryAccountScope)
     private var discoveryDetailGeneration = 0L
@@ -42,6 +44,7 @@ class NaviampCoreDiscoveryController(
         val home = command as? NaviampCoreCommand.Home ?: return NaviampCoreImmediateCommandResult.Unhandled
         bindSource()
         return when (home) {
+            is NaviampCoreCommand.Home.Browse -> browser.dispatch(home.action)
             NaviampCoreCommand.Home.ShowDiscoveryRequests -> {
                 stopDiscoverySample()
                 publishAcquisitions()
@@ -170,6 +173,7 @@ class NaviampCoreDiscoveryController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         bindSource()
         when (command) {
+            is NaviampCoreCommand.Home.Browse -> browser.execute(command.action)
             NaviampCoreCommand.Home.RefreshDiscoveryRequests -> refreshAcquisitions()
             NaviampCoreCommand.Home.ShowDiscoveryRequests -> Unit
             NaviampCoreCommand.Home.DismissDiscoveryRequests -> Unit
@@ -408,6 +412,7 @@ class NaviampCoreDiscoveryController(
         if (discovery.providerId != providerSource.current()?.id?.value) return null
         return discovery.artistDetail?.artist?.takeIf { it.id == id }
             ?: discovery.artistDetail?.similar?.artists?.firstOrNull { it.id == id }
+            ?: discovery.browser?.recommendations?.firstOrNull { it.id == id }
             ?: (discovery.feed.recommendations + discovery.feed.trending).firstOrNull { it.id == id }
     }
 
@@ -568,7 +573,13 @@ class NaviampCoreDiscoveryController(
             latest.copy(savingFeedback = false, feedbackFailed = !success,
                 details = latest.details?.copy(feedback = if (success) result.selected else emptySet(), feedbackAvailable = success))
         }) }
-        if (success) refreshFeed(provider)
+        if (success) {
+            refreshFeed(provider)
+            if (stateStore.state.value.shell.home.providerDiscovery?.browser != null) {
+                browser.dispatch(DiscoveryBrowseAction.Refresh)
+                browser.execute(DiscoveryBrowseAction.Refresh)
+            }
+        }
     }
 
     fun resetForSourceChange() {
@@ -577,6 +588,7 @@ class NaviampCoreDiscoveryController(
         releaseGeneration++
         sourceGeneration++
         requestLedger.clear()
+        browser.reset()
         updateDiscovery { it.copy(sourceGeneration = sourceGeneration, acquisitions = emptyList(), requestActivity = ProviderDiscoveryActivities(),
             requestsOpen = false, requestsLoading = false, requestsStatus = null) }
     }

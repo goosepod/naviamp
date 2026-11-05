@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Требуется проверка в Aurral</string>
     <string name="discovery_acquisition_failed">Ошибка запроса</string>
     <string name="discovery_acquisition_cancelled">Запрос отменён</string>
+    <string name="discovery_for_you">Для вас</string>
+    <string name="discovery_collection_count">Загружено %1$s из %2$s рекомендаций</string>
+    <string name="discovery_collection_partial">Фильтры и сортировка применяются к загруженным рекомендациям. Загрузите ещё, чтобы включить остальные.</string>
+    <string name="discovery_last_updated">Обновлено: %1$s</string>
+    <string name="discovery_top_pick">Лучший выбор</string>
+    <string name="discovery_new_this_week">Новое на этой неделе</string>
+    <string name="discovery_because_you_like">Потому что вам нравится %1$s</string>
+    <string name="discovery_close_to_home">Близко к вашим вкусам</string>
+    <string name="discovery_further_out">Новые горизонты</string>
+    <string name="discovery_load_more">Загрузить ещё</string>
+    <string name="discovery_sort_rank">Место</string>
+    <string name="discovery_sort_name">Название</string>
+    <string name="discovery_sort_first_seen">Первое появление</string>
+    <string name="discovery_via_artists">Через %1$s</string>
 </resources>

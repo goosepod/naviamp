@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Controle in Aurral nodig</string>
     <string name="discovery_acquisition_failed">Verzoek mislukt</string>
     <string name="discovery_acquisition_cancelled">Verzoek geannuleerd</string>
+    <string name="discovery_for_you">Voor jou</string>
+    <string name="discovery_collection_count">%1$s van %2$s aanbevelingen geladen</string>
+    <string name="discovery_collection_partial">Filters en sortering gelden voor geladen aanbevelingen. Laad meer om de rest mee te nemen.</string>
+    <string name="discovery_last_updated">Bijgewerkt: %1$s</string>
+    <string name="discovery_top_pick">Beste keuze</string>
+    <string name="discovery_new_this_week">Nieuw deze week</string>
+    <string name="discovery_because_you_like">Omdat je %1$s leuk vindt</string>
+    <string name="discovery_close_to_home">Dicht bij je smaak</string>
+    <string name="discovery_further_out">Verder weg</string>
+    <string name="discovery_load_more">Meer laden</string>
+    <string name="discovery_sort_rank">Rang</string>
+    <string name="discovery_sort_name">Naam</string>
+    <string name="discovery_sort_first_seen">Eerst ontdekt</string>
+    <string name="discovery_via_artists">Via %1$s</string>
 </resources>

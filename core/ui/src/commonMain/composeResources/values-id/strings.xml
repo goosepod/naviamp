@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Perlu ditinjau di Aurral</string>
     <string name="discovery_acquisition_failed">Permintaan gagal</string>
     <string name="discovery_acquisition_cancelled">Permintaan dibatalkan</string>
+    <string name="discovery_for_you">Untuk Anda</string>
+    <string name="discovery_collection_count">%1$s dari %2$s rekomendasi dimuat</string>
+    <string name="discovery_collection_partial">Filter dan pengurutan berlaku pada rekomendasi yang dimuat. Muat lainnya untuk menyertakan sisanya.</string>
+    <string name="discovery_last_updated">Diperbarui: %1$s</string>
+    <string name="discovery_top_pick">Pilihan utama</string>
+    <string name="discovery_new_this_week">Baru minggu ini</string>
+    <string name="discovery_because_you_like">Karena Anda menyukai %1$s</string>
+    <string name="discovery_close_to_home">Sesuai selera</string>
+    <string name="discovery_further_out">Jelajahi lebih jauh</string>
+    <string name="discovery_load_more">Muat lainnya</string>
+    <string name="discovery_sort_rank">Peringkat</string>
+    <string name="discovery_sort_name">Nama</string>
+    <string name="discovery_sort_first_seen">Pertama ditemukan</string>
+    <string name="discovery_via_artists">Melalui %1$s</string>
 </resources>

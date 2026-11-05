@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Aurral içinde inceleme gerekiyor</string>
     <string name="discovery_acquisition_failed">İstek başarısız</string>
     <string name="discovery_acquisition_cancelled">İstek iptal edildi</string>
+    <string name="discovery_for_you">Sizin için</string>
+    <string name="discovery_collection_count">%2$s öneriden %1$s tanesi yüklendi</string>
+    <string name="discovery_collection_partial">Filtreler ve sıralama yüklenen önerilere uygulanır. Kalanları dahil etmek için daha fazla yükleyin.</string>
+    <string name="discovery_last_updated">Güncellendi: %1$s</string>
+    <string name="discovery_top_pick">En iyi seçim</string>
+    <string name="discovery_new_this_week">Bu hafta yeni</string>
+    <string name="discovery_because_you_like">%1$s sevdiğiniz için</string>
+    <string name="discovery_close_to_home">Zevkinize yakın</string>
+    <string name="discovery_further_out">Yeni ufuklar</string>
+    <string name="discovery_load_more">Daha fazla yükle</string>
+    <string name="discovery_sort_rank">Sıra</string>
+    <string name="discovery_sort_name">Ad</string>
+    <string name="discovery_sort_first_seen">İlk keşif</string>
+    <string name="discovery_via_artists">%1$s üzerinden</string>
 </resources>

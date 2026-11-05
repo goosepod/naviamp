@@ -14,6 +14,59 @@ import kotlin.test.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreDiscoveryControllerTest {
+    @Test fun recommendationsLoadAllPagesDeduplicateAndRetainBackState() = runTest {
+        var calls = 0
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun recommendations(offset: Int, limit: Int): ProviderRecommendationPage {
+                calls++
+                val artists = (offset until minOf(offset + limit, 205)).map { index -> First.copy(
+                    id = index.toString().padStart(8, '0') + "-0000-0000-0000-000000000000", name = "Pick $index") }
+                return ProviderRecommendationPage(ProviderDiscoveryStatus.Ready, artists, offset,
+                    (offset + limit).takeIf { it < 205 }, 205)
+            }
+        })
+        val command = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations))
+        h.controller.dispatch(command); h.controller.execute(command)
+        assertEquals(3, calls); assertEquals(205, h.discovery().browser!!.recommendations.size)
+        h.controller.dispatch(NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Genre("Rock")))
+        h.open(h.discovery().browser!!.recommendations.first()); h.back()
+        assertEquals("Rock", h.discovery().browser!!.genre)
+        assertFalse(h.discovery().artistPage)
+    }
+    @Test fun recommendationsRetainPartialResultsAndRetryAtTheFailedOffset() = runTest {
+        var fail = true
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun recommendations(offset: Int, limit: Int): ProviderRecommendationPage = when {
+                offset == 0 -> ProviderRecommendationPage(ProviderDiscoveryStatus.Ready, listOf(First), 0, 100, 205)
+                fail -> ProviderRecommendationPage(ProviderDiscoveryStatus.Unavailable, offset = offset)
+                else -> ProviderRecommendationPage(ProviderDiscoveryStatus.Ready, listOf(Second), offset, null, 205)
+            }
+        })
+        suspend fun send(action: DiscoveryBrowseAction) { val command = NaviampCoreCommand.Home.Browse(action); h.controller.dispatch(command); h.controller.execute(command) }
+        send(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations))
+        assertEquals(listOf(First), h.discovery().browser!!.recommendations)
+        assertEquals(100, h.discovery().browser!!.nextOffset)
+        fail = false; send(DiscoveryBrowseAction.More)
+        assertEquals(listOf(First, Second), h.discovery().browser!!.recommendations)
+        assertNull(h.discovery().browser!!.nextOffset)
+    }
+    @Test fun anOldRecommendationReadCannotPublishAfterSourceSwitch() = runTest {
+        val entered = CompletableDeferred<Unit>(); val gate = CompletableDeferred<Unit>()
+        val h = DiscoveryHarness(object : DiscoveryNative() {
+            override suspend fun recommendations(offset: Int, limit: Int): ProviderRecommendationPage {
+                entered.complete(Unit); gate.await()
+                return ProviderRecommendationPage(ProviderDiscoveryStatus.Ready, listOf(First))
+            }
+        })
+        val command = NaviampCoreCommand.Home.Browse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations))
+        h.controller.dispatch(command)
+        val loading = launch { h.controller.execute(command) }; entered.await()
+        h.account = "other"; h.active = discoveryProvider(DiscoveryNative(), h.account)
+        h.controller.dispatch(NaviampCoreCommand.Home.ShowDiscoveryRequests)
+        gate.complete(Unit); loading.join()
+        assertNull(h.discovery().browser)
+    }
+
     @Test fun openingASavedRequestCannotFinishAgainstANewConnection() = runTest {
         val repository = MemoryDiscoveryAcquisitionRepository()
         val record = DiscoveryAcquisitionRecord("saved", First.id, First.name, Release.id, true, Release.id, Release.title,

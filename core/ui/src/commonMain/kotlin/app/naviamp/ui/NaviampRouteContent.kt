@@ -959,6 +959,10 @@ fun SharedHomeRoute(
         NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback)
         return
     }
+    home.providerDiscovery?.takeIf { it.browser != null }?.let {
+        NaviampDiscoveryBrowserUi(it, colors, actions)
+        return
+    }
     home.collectionPage?.let { page ->
         Column(modifier = Modifier.fillMaxSize()) {
             HomeCollectionPageHeader(page, colors, actions)
@@ -1019,7 +1023,7 @@ fun SharedHomeRoute(
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
                             actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
-                            onRequests = actions.onDiscoveryRequests)
+                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
                     }
                     SharedHome(
                         colors = colors,

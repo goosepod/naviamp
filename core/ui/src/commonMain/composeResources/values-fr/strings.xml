@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">À vérifier dans Aurral</string>
     <string name="discovery_acquisition_failed">Échec de la demande</string>
     <string name="discovery_acquisition_cancelled">Demande annulée</string>
+    <string name="discovery_for_you">Pour vous</string>
+    <string name="discovery_collection_count">%1$s recommandations chargées sur %2$s</string>
+    <string name="discovery_collection_partial">Les filtres et le tri concernent les recommandations chargées. Chargez la suite pour inclure le reste.</string>
+    <string name="discovery_last_updated">Mise à jour : %1$s</string>
+    <string name="discovery_top_pick">Premier choix</string>
+    <string name="discovery_new_this_week">Nouveautés de la semaine</string>
+    <string name="discovery_because_you_like">Parce que vous aimez %1$s</string>
+    <string name="discovery_close_to_home">Proche de vos goûts</string>
+    <string name="discovery_further_out">Plus loin</string>
+    <string name="discovery_load_more">Charger la suite</string>
+    <string name="discovery_sort_rank">Classement</string>
+    <string name="discovery_sort_name">Nom</string>
+    <string name="discovery_sort_first_seen">Première découverte</string>
+    <string name="discovery_via_artists">Via %1$s</string>
 </resources>

@@ -181,6 +181,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Home : NaviampCoreCommand {
+        data class Browse(val action: app.naviamp.domain.provider.DiscoveryBrowseAction) : Home
         data object ShowDiscoveryRequests : Home
         data object DismissDiscoveryRequests : Home
         data object RefreshDiscoveryRequests : Home

@@ -125,6 +125,10 @@ internal fun TelevisionHome(
             entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
         return
     }
+    home.providerDiscovery?.takeIf { it.browser != null }?.let {
+        NaviampDiscoveryBrowserUi(it, colors, actions)
+        return
+    }
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
     val discoveryScope = rememberCoroutineScope()
@@ -221,7 +225,7 @@ internal fun TelevisionHome(
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
                             actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
-                            onRequests = actions.onDiscoveryRequests)
+                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
                     }
                 }
             }

@@ -1257,4 +1257,18 @@
     <string name="discovery_acquisition_blocked">Precisa de revisão no Aurral</string>
     <string name="discovery_acquisition_failed">A solicitação falhou</string>
     <string name="discovery_acquisition_cancelled">Solicitação cancelada</string>
+    <string name="discovery_for_you">Para você</string>
+    <string name="discovery_collection_count">%1$s de %2$s recomendações carregadas</string>
+    <string name="discovery_collection_partial">Os filtros e a ordenação se aplicam às recomendações carregadas. Carregue mais para incluir o restante.</string>
+    <string name="discovery_last_updated">Atualizado: %1$s</string>
+    <string name="discovery_top_pick">Melhor escolha</string>
+    <string name="discovery_new_this_week">Novidades da semana</string>
+    <string name="discovery_because_you_like">Porque você gosta de %1$s</string>
+    <string name="discovery_close_to_home">Perto do seu gosto</string>
+    <string name="discovery_further_out">Novos horizontes</string>
+    <string name="discovery_load_more">Carregar mais</string>
+    <string name="discovery_sort_rank">Posição</string>
+    <string name="discovery_sort_name">Nome</string>
+    <string name="discovery_sort_first_seen">Primeira descoberta</string>
+    <string name="discovery_via_artists">Via %1$s</string>
 </resources>

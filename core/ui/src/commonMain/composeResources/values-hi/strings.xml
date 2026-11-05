@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Aurral में समीक्षा आवश्यक है</string>
     <string name="discovery_acquisition_failed">अनुरोध विफल हुआ</string>
     <string name="discovery_acquisition_cancelled">अनुरोध रद्द हुआ</string>
+    <string name="discovery_for_you">आपके लिए</string>
+    <string name="discovery_collection_count">%2$s में से %1$s सुझाव लोड हुए</string>
+    <string name="discovery_collection_partial">फ़िल्टर और क्रम केवल लोड हुए सुझावों पर लागू होते हैं। बाकी के लिए और लोड करें।</string>
+    <string name="discovery_last_updated">अपडेट किया गया: %1$s</string>
+    <string name="discovery_top_pick">सबसे अच्छा सुझाव</string>
+    <string name="discovery_new_this_week">इस सप्ताह नया</string>
+    <string name="discovery_because_you_like">क्योंकि आपको %1$s पसंद है</string>
+    <string name="discovery_close_to_home">आपकी पसंद के करीब</string>
+    <string name="discovery_further_out">कुछ अलग</string>
+    <string name="discovery_load_more">और लोड करें</string>
+    <string name="discovery_sort_rank">रैंक</string>
+    <string name="discovery_sort_name">नाम</string>
+    <string name="discovery_sort_first_seen">पहली बार देखा गया</string>
+    <string name="discovery_via_artists">%1$s के ज़रिए</string>
 </resources>

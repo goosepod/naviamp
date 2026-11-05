@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Aurral에서 검토 필요</string>
     <string name="discovery_acquisition_failed">요청 실패</string>
     <string name="discovery_acquisition_cancelled">요청 취소됨</string>
+    <string name="discovery_for_you">맞춤 추천</string>
+    <string name="discovery_collection_count">추천 %2$s개 중 %1$s개 로드됨</string>
+    <string name="discovery_collection_partial">필터와 정렬은 로드된 추천에 적용됩니다. 나머지를 포함하려면 더 불러오세요.</string>
+    <string name="discovery_last_updated">업데이트: %1$s</string>
+    <string name="discovery_top_pick">최고의 추천</string>
+    <string name="discovery_new_this_week">이번 주 새로운 추천</string>
+    <string name="discovery_because_you_like">%1$s을(를) 좋아하므로</string>
+    <string name="discovery_close_to_home">취향과 가까운 음악</string>
+    <string name="discovery_further_out">새로운 발견</string>
+    <string name="discovery_load_more">더 불러오기</string>
+    <string name="discovery_sort_rank">순위</string>
+    <string name="discovery_sort_name">이름</string>
+    <string name="discovery_sort_first_seen">처음 발견</string>
+    <string name="discovery_via_artists">%1$s 경유</string>
 </resources>

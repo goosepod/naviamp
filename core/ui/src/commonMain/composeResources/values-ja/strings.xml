@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">Aurral での確認が必要</string>
     <string name="discovery_acquisition_failed">リクエスト失敗</string>
     <string name="discovery_acquisition_cancelled">リクエスト取消済み</string>
+    <string name="discovery_for_you">あなたへのおすすめ</string>
+    <string name="discovery_collection_count">%2$s 件中 %1$s 件のおすすめを読み込み済み</string>
+    <string name="discovery_collection_partial">絞り込みと並べ替えは読み込み済みのおすすめに適用されます。残りを含めるにはさらに読み込んでください。</string>
+    <string name="discovery_last_updated">更新日時: %1$s</string>
+    <string name="discovery_top_pick">イチオシ</string>
+    <string name="discovery_new_this_week">今週の新着</string>
+    <string name="discovery_because_you_like">%1$s がお好きなあなたに</string>
+    <string name="discovery_close_to_home">好みに近いもの</string>
+    <string name="discovery_further_out">新たな発見</string>
+    <string name="discovery_load_more">さらに読み込む</string>
+    <string name="discovery_sort_rank">順位</string>
+    <string name="discovery_sort_name">名前</string>
+    <string name="discovery_sort_first_seen">初めて発見</string>
+    <string name="discovery_via_artists">%1$s 経由</string>
 </resources>

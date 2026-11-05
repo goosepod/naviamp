@@ -1280,4 +1280,18 @@
     <string name="discovery_acquisition_blocked">Needs review in Aurral</string>
     <string name="discovery_acquisition_failed">Request failed</string>
     <string name="discovery_acquisition_cancelled">Request cancelled</string>
+    <string name="discovery_for_you">For you</string>
+    <string name="discovery_collection_count">%1$s of %2$s recommendations loaded</string>
+    <string name="discovery_collection_partial">Filters and sorting apply to the loaded recommendations. Load more to include the rest.</string>
+    <string name="discovery_last_updated">Updated: %1$s</string>
+    <string name="discovery_top_pick">Top pick</string>
+    <string name="discovery_new_this_week">New this week</string>
+    <string name="discovery_because_you_like">Because you like %1$s</string>
+    <string name="discovery_close_to_home">Close to home</string>
+    <string name="discovery_further_out">Further out</string>
+    <string name="discovery_load_more">Load more</string>
+    <string name="discovery_sort_rank">Rank</string>
+    <string name="discovery_sort_name">Name</string>
+    <string name="discovery_sort_first_seen">First seen</string>
+    <string name="discovery_via_artists">Via %1$s</string>
 </resources>

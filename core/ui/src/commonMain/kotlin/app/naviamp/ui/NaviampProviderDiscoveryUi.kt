@@ -60,11 +60,13 @@ internal fun NaviampProviderDiscoveryContent(
     onAction: (String, ProviderDiscoveryAction) -> Unit = { _, _ -> },
     playback: DiscoverySamplePlaybackUi = DiscoverySamplePlaybackUi(),
     onRequests: () -> Unit = {},
+    onBrowse: (DiscoveryBrowseAction) -> Unit = {},
 ) {
     val providerName = localizedProviderName(discovery.providerId)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(Res.string.discovery_provider_title, providerName),
             color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        TextButton(onClick = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) }) { Text(stringResource(Res.string.discovery_recommendations)) }
         TextButton(onClick = onRequests) { Text(stringResource(Res.string.discovery_requests_title)) }
         val message = when {
             discovery.loading -> Res.string.discovery_loading
@@ -80,7 +82,7 @@ internal fun NaviampProviderDiscoveryContent(
         }
         message?.let { Text(stringResource(it), color = colors.secondaryText, fontSize = 13.sp) }
         if (discovery.feed.recommendations.isNotEmpty()) {
-            DiscoveryArtistRail(stringResource(Res.string.discovery_recommendations), discovery.feed.recommendations, providerName, colors, onArtistSelected, onArtistDetails)
+            DiscoveryArtistRail(stringResource(Res.string.discovery_recommendations), discovery.feed.recommendations, providerName, colors, onArtistSelected, onArtistDetails, onOpen = { onBrowse(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Recommendations)) })
         }
         if (discovery.feed.trending.isNotEmpty()) {
             DiscoveryArtistRail(stringResource(Res.string.discovery_trending), discovery.feed.trending, providerName, colors, onArtistSelected, onArtistDetails)
@@ -104,11 +106,12 @@ private fun DiscoveryArtistRail(
     colors: NaviampColors,
     onArtistSelected: (String) -> Unit,
     onArtistDetails: (String) -> Unit,
+    onOpen: (() -> Unit)? = null,
 ) {
     val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f).semantics { heading() }, color = colors.primaryText, fontWeight = FontWeight.SemiBold)
+        Text(title, Modifier.weight(1f).semantics { heading() }.then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier), color = colors.primaryText, fontWeight = FontWeight.SemiBold)
         listOf(false, true).forEach { forward ->
             HomeRailArrow(forward, if (forward) state.canScrollForward else state.canScrollBackward, colors) {
                 scope.launch {

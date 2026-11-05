@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">需要在 Aurral 中检查</string>
     <string name="discovery_acquisition_failed">请求失败</string>
     <string name="discovery_acquisition_cancelled">请求已取消</string>
+    <string name="discovery_for_you">为你推荐</string>
+    <string name="discovery_collection_count">已加载 %2$s 条推荐中的 %1$s 条</string>
+    <string name="discovery_collection_partial">筛选和排序仅适用于已加载的推荐。加载更多以包含其余推荐。</string>
+    <string name="discovery_last_updated">更新时间：%1$s</string>
+    <string name="discovery_top_pick">首选推荐</string>
+    <string name="discovery_new_this_week">本周新发现</string>
+    <string name="discovery_because_you_like">因为你喜欢 %1$s</string>
+    <string name="discovery_close_to_home">贴近你的品味</string>
+    <string name="discovery_further_out">探索新领域</string>
+    <string name="discovery_load_more">加载更多</string>
+    <string name="discovery_sort_rank">排名</string>
+    <string name="discovery_sort_name">名称</string>
+    <string name="discovery_sort_first_seen">首次发现</string>
+    <string name="discovery_via_artists">通过 %1$s</string>
 </resources>

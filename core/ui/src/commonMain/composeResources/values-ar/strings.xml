@@ -425,4 +425,18 @@
     <string name="discovery_acquisition_blocked">تحتاج إلى مراجعة في Aurral</string>
     <string name="discovery_acquisition_failed">فشل الطلب</string>
     <string name="discovery_acquisition_cancelled">أُلغي الطلب</string>
+    <string name="discovery_for_you">لك</string>
+    <string name="discovery_collection_count">تم تحميل %1$s من %2$s توصية</string>
+    <string name="discovery_collection_partial">تُطبَّق التصفية والترتيب على التوصيات المحمّلة. حمّل المزيد لتضمين الباقي.</string>
+    <string name="discovery_last_updated">آخر تحديث: %1$s</string>
+    <string name="discovery_top_pick">أفضل اختيار</string>
+    <string name="discovery_new_this_week">جديد هذا الأسبوع</string>
+    <string name="discovery_because_you_like">لأنك تحب %1$s</string>
+    <string name="discovery_close_to_home">قريب من ذوقك</string>
+    <string name="discovery_further_out">آفاق أبعد</string>
+    <string name="discovery_load_more">تحميل المزيد</string>
+    <string name="discovery_sort_rank">الترتيب</string>
+    <string name="discovery_sort_name">الاسم</string>
+    <string name="discovery_sort_first_seen">أول ظهور</string>
+    <string name="discovery_via_artists">عبر %1$s</string>
 </resources>
