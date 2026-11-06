@@ -14,6 +14,64 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCastSessionControllerTest {
     @Test
+    fun unavailableSenderCleansUpRejectsCallbacksAndCanStartAgain() = runTest {
+        val effect = FakeCastEffect()
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val controller = NaviampCastSessionController(effect, outputs)
+        effect.startAction = { listener ->
+            val id = listener.onTargetSelected(NaviampCastTarget("restored", "Restored TV"))
+            listener.onConnected(id, "Restored TV")
+            error("Sender module unavailable")
+        }
+        effect.stopAction = { error("Partial native cleanup failed") }
+
+        assertFalse(controller.start())
+        val failedListener = effect.listener
+        assertEquals(1, effect.stops)
+        assertEquals(NaviampPlaybackOutputSelection.Local, outputs.state.value)
+        assertFalse(controller.selectTarget(discoveredTarget()))
+        assertEquals(-1L, failedListener.onTargetSelected(NaviampCastTarget("late", "Late TV")))
+        controller.stop()
+        controller.shutdown()
+        assertEquals(1, effect.stops)
+        assertEquals(0, effect.disconnects)
+
+        effect.startAction = {}
+        effect.stopAction = {}
+        assertTrue(controller.start())
+        assertTrue(controller.start())
+        assertEquals(2, effect.starts)
+        assertEquals(-1L, failedListener.onTargetSelected(NaviampCastTarget("old", "Old TV")))
+        assertTrue(controller.selectTarget(discoveredTarget()))
+        controller.stop()
+        assertEquals(2, effect.stops)
+    }
+
+    @Test
+    fun senderStartupFailureDoesNotDisplaceAnotherPlaybackOutput() {
+        val effect = FakeCastEffect().apply { startAction = { error("Sender unavailable") } }
+        val outputs = NaviampPlaybackOutputSelectionController()
+        val connectId = outputs.select(NaviampRemoteOutputTarget(NaviampRemoteOutputKind.Connect, "peer", "Peer"))
+        outputs.connected(connectId)
+        outputs.activatePlaybackAuthority(connectId)
+
+        assertFalse(NaviampCastSessionController(effect, outputs).start())
+        assertEquals(connectId, (outputs.state.value as NaviampPlaybackOutputSelection.Remote).selectionId)
+        assertTrue(outputs.hasRemotePlaybackAuthority())
+    }
+
+    @Test
+    fun cancelledSenderStartupCleansUpAndPropagatesCancellation() {
+        val cancelled = CancellationException("Host cancelled")
+        val effect = FakeCastEffect().apply { startAction = { throw cancelled } }
+        val controller = NaviampCastSessionController(effect, NaviampPlaybackOutputSelectionController())
+        val actual = kotlin.test.assertFailsWith<CancellationException> { controller.start() }
+        assertTrue(actual === cancelled)
+        assertEquals(1, effect.stops)
+        assertEquals(-1L, effect.listener.onTargetSelected(NaviampCastTarget("late", "Late TV")))
+    }
+
+    @Test
     fun stoppedNativePickerCannotSelectAfterRestart() {
         val effect = FakeCastEffect()
         val outputs = NaviampPlaybackOutputSelectionController()
@@ -221,11 +279,13 @@ class NaviampCastSessionControllerTest {
         var stops = 0
         var disconnects = 0
         var loadResult = true
+        var startAction: (NaviampCastSessionListener) -> Unit = {}
+        var stopAction: () -> Unit = {}
         var connectAction: suspend () -> Boolean = { true }
         val connections = mutableListOf<Pair<Long, NaviampCastDiscoveredTarget>>()
         val commands = mutableListOf<NaviampCastReceiverCommand>()
-        override fun start(listener: NaviampCastSessionListener) { starts++; this.listener = listener }
-        override fun stop() { stops++ }
+        override fun start(listener: NaviampCastSessionListener) { starts++; this.listener = listener; startAction(listener) }
+        override fun stop() { stops++; stopAction() }
         override fun disconnect() { disconnects++ }
         override suspend fun connect(selectionId: Long, target: NaviampCastDiscoveredTarget): Boolean {
             connections += selectionId to target

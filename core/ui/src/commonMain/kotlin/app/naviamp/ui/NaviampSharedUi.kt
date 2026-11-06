@@ -186,6 +186,7 @@ fun NaviampSharedAppShell(
         includeStandardScale = true,
     ) {
     CompositionLocalProvider(
+        LocalSquareAlbumArtwork provides interfaceSettings.squareAlbumArtwork,
         LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
         LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
     ) {
@@ -1157,7 +1158,7 @@ fun NaviampMiniNowPlaying(
                 .weight(1f)
                 .clickable(onClick = onOpen),
         ) {
-            NaviampCoverArt(nowPlaying.coverArtUrl, colors, 40.dp, 5.dp)
+            NaviampCoverArt(nowPlaying.coverArtUrl, colors, 40.dp, 5.dp, mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     nowPlaying.subtitle.ifBlank { "Nothing Playing" },

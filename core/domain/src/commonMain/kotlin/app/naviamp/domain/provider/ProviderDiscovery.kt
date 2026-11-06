@@ -9,6 +9,9 @@ data class ProviderDiscoveryArtist(
     val matchPercent: Int? = null,
     val externalUrl: String? = null,
     val detailsAvailable: Boolean = false,
+    val recommendation: ProviderRecommendationContext? = null,
+    val disambiguation: String? = null,
+    val artistType: String? = null,
 )
 
 enum class ProviderDiscoveryStatus {
@@ -25,6 +28,11 @@ data class ProviderDiscoveryFeed(
 /** Optional native discovery; failure never disables the provider's standard playback contract. */
 fun interface ProviderDiscovery {
     suspend fun load(): ProviderDiscoveryFeed
+    suspend fun recommendations(offset: Int = 0, limit: Int = 100): ProviderRecommendationPage = ProviderRecommendationPage()
+    suspend fun searchCatalog(query: String, scope: ProviderCatalogScope, offset: Int = 0, limit: Int = 24): ProviderCatalogPage = ProviderCatalogPage()
+    suspend fun releaseTracks(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseTracks = ProviderDiscoveryReleaseTracks()
+    suspend fun releaseDetails(release: DiscoveryReleaseGroupMbid): ProviderDiscoveryReleaseDetails = ProviderDiscoveryReleaseDetails()
+    suspend fun requestActivity(): ProviderDiscoveryActivities = ProviderDiscoveryActivities()
     suspend fun artistDetails(artist: ProviderDiscoveryArtist): ProviderDiscoveryArtistResult =
         ProviderDiscoveryArtistResult(ProviderDiscoveryStatus.Unsupported)
     suspend fun samples(artist: ProviderDiscoveryArtist): ProviderDiscoverySamples = ProviderDiscoverySamples()
@@ -83,8 +91,11 @@ data class ProviderDiscoverySample(val id: String, val title: String, val albumT
 const val DiscoveryPreviewTrackPrefix = "discovery-preview:"
 fun app.naviamp.domain.TrackId.isDiscoveryPreview(): Boolean = value.startsWith(DiscoveryPreviewTrackPrefix)
 data class ProviderDiscoverySamples(val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported, val tracks: List<ProviderDiscoverySample> = emptyList())
-enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain }
-data class ProviderDiscoveryOperation(val status: ProviderDiscoveryOperationStatus = ProviderDiscoveryOperationStatus.Unsupported)
+enum class ProviderDiscoveryOperationStatus { Queued, AlreadyQueued, AlreadyOwned, Saved, MonitoringEnabled, MonitoringDisabled, MissingSource, Forbidden, Unsupported, Unavailable, Uncertain, Rejected, Conflict }
+data class ProviderDiscoveryOperation(
+    val status: ProviderDiscoveryOperationStatus = ProviderDiscoveryOperationStatus.Unsupported,
+    val identity: ProviderDiscoveryRequestIdentity? = null,
+)
 sealed interface ProviderDiscoveryAction {
     data class PlaySample(val id: String) : ProviderDiscoveryAction
     data class RequestTrack(val id: String) : ProviderDiscoveryAction

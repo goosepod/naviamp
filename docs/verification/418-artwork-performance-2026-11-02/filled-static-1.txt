@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=filled-static-1 pid=53428 cpu=0.36554162847491445 compilation_ms=unavailable surface=parent:720x748 scale=1.0x1.0 visible=true iconified=false frames=0 renderer=METAL render_info=GraphicsApi: METAL OS: macos arm64 Video card: Apple M1 Total VRAM: 12124 MB  observer_attached=true physical_captures=false/false
