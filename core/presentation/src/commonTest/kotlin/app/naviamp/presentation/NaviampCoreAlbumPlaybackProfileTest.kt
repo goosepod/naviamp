@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.TestScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -21,6 +22,14 @@ import kotlin.test.assertNotNull
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreAlbumPlaybackProfileTest {
     @Test fun albumPlayResolvesSavedTransitionOverridesBeforePlaybackAndPreparation() = runTest {
+        verifyEntryPoint(selectTrack = false)
+    }
+
+    @Test fun albumTrackSelectionRetainsTheAlbumProfileBeforePlaybackAndPreparation() = runTest {
+        verifyEntryPoint(selectTrack = true)
+    }
+
+    private suspend fun TestScope.verifyEntryPoint(selectTrack: Boolean) {
         val cases = listOf(
             PlaybackProfile(transitionMode = PlaybackTransitionMode.Gapless) to 0,
             PlaybackProfile(transitionMode = PlaybackTransitionMode.Crossfade, crossfadeDurationSeconds = 3) to 3,
@@ -30,7 +39,7 @@ class NaviampCoreAlbumPlaybackProfileTest {
         for ((profile, expectedCrossfade) in cases) {
             val original = FakeCoreMediaProvider()
             val album = original.album
-            val tracks = (1..3).map { original.track.copy(id = TrackId("track-$it")) }
+            val tracks = (1..4).map { original.track.copy(id = TrackId("track-$it")) }
             val provider = object : MediaProvider by original {
                 override suspend fun album(albumId: AlbumId) = AlbumDetails(album, tracks)
             }
@@ -68,8 +77,14 @@ class NaviampCoreAlbumPlaybackProfileTest {
                 advanceUntilIdle()
                 core.execute(NaviampCoreCommand.Detail.Album(NaviampAlbumDetailActionRequest(item,
                     NaviampAlbumDetailCommand.SavePlaybackProfile(profile))))
-                core.execute(NaviampCoreCommand.Detail.Album(NaviampAlbumDetailActionRequest(item,
-                    NaviampAlbumDetailCommand.Play(shuffle = false))))
+                if (selectTrack) {
+                    val selected = assertNotNull(core.state.value.shell.albumDetail.detail).tracks[1]
+                    core.execute(NaviampCoreCommand.Detail.AlbumTrack(
+                        SharedTrackRowActionRequest(selected, SharedTrackRowAction.Select)))
+                } else {
+                    core.execute(NaviampCoreCommand.Detail.Album(NaviampAlbumDetailActionRequest(item,
+                        NaviampAlbumDetailCommand.Play(shuffle = false))))
+                }
                 advanceUntilIdle()
                 assertEquals(expectedCrossfade, engine.crossfadeAtPlay.single(), profile.toString())
                 val queue = assertNotNull(assertNotNull(core.state.value.shell.nowPlaying).queueSnapshot)
@@ -81,7 +96,7 @@ class NaviampCoreAlbumPlaybackProfileTest {
                 if (profile.transitionMode == PlaybackTransitionMode.Pause) {
                     assertEquals(emptyList(), engine.preparedIds)
                 } else {
-                    assertEquals(listOf<String?>("track-2"), engine.preparedIds)
+                    assertEquals(listOf<String?>(if (selectTrack) "track-3" else "track-2"), engine.preparedIds)
                     assertEquals(listOf(expectedCrossfade), engine.crossfadeAtPrepare)
                 }
                 engine.state(PlaybackState.Finished)

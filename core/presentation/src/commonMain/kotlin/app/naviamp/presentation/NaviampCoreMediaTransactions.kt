@@ -164,9 +164,10 @@ class NaviampCoreMediaTransactions(
         if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
     }
 
-    fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false) {
+    fun playAlbum(album: Album, tracks: List<Track>, shuffle: Boolean = false, index: Int = 0) {
         if (!queuePlayback.play(
                 tracks = tracks,
+                index = index,
                 shuffle = shuffle,
                 groupTarget = PlaybackProfileTarget(PlaybackProfileTargetType.Album, album.id.value),
                 groupLabel = album.title,
