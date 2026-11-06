@@ -278,7 +278,7 @@ fun TrackRow(
                 }
                 NaviampAction.StartTrackRadio -> if (canStartRadio) {
                     NaviampRowMenuItem(
-                        action.label,
+                        stringResource(Res.string.tv_start_radio),
                         action.icon,
                         { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
                         action.enabled,

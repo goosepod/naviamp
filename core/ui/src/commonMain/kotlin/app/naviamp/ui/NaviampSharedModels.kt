@@ -140,6 +140,7 @@ data class SharedTrackRowUi(
     val albumTitle: String? = null,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
     val trackNumber: Int? = null,
+    val canStartRadio: Boolean = false,
 )
 
 data class SharedArtistCreditUi(

@@ -5,6 +5,18 @@ import kotlin.test.assertEquals
 
 class NaviampActionCatalogTest {
     @Test
+    fun currentTrackMenuOffersRadioOnlyForAnEligibleTrack() {
+        fun actions(available: Boolean, live: Boolean = false) = nowPlayingTrackMenuActions(
+            visualizerAvailable = false, isLive = live, hasDetails = false,
+            canAddToPlaylist = false, canSaveQueueAsPlaylist = false, canEmptyQueue = false,
+            sleepTimerLabel = "Sleep timer", canStartRadio = available,
+        ).map { it.action }
+        assertEquals(true, NaviampAction.StartTrackRadio in actions(true))
+        assertEquals(false, NaviampAction.StartTrackRadio in actions(false))
+        assertEquals(false, NaviampAction.StartTrackRadio in actions(true, live = true))
+    }
+
+    @Test
     fun sharedMediaBaselineIncludesEveryCrossPlatformProductAction() {
         assertEquals(true, NaviampSharedMediaCapabilities.album.canAddToPlaylist)
         assertEquals(true, NaviampSharedMediaCapabilities.artist.canAddToQueue)
