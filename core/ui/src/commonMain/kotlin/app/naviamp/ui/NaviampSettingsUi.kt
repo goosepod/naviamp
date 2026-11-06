@@ -1422,6 +1422,7 @@ private fun AlbumExperienceSettings(
             }
         }
     } ?: run {
+        SquareAlbumArtworkSetting(colors, interfaceSettings, onInterfaceSettingsChanged)
         SettingsRow(
             title = AlbumExperiencePage.Presentation.title,
             subtitle = AlbumExperiencePage.Presentation.subtitle,
@@ -1448,6 +1449,22 @@ private fun AlbumExperienceSettings(
             },
         )
     }
+}
+
+
+@Composable
+internal fun SquareAlbumArtworkSetting(
+    colors: NaviampColors,
+    settings: InterfaceSettings,
+    onChanged: (InterfaceSettings) -> Unit,
+) {
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.squareAlbumArtwork,
+        label = stringResource(Res.string.settings_square_album_artwork),
+        subtitle = stringResource(Res.string.settings_square_album_artwork_description),
+        onCheckedChange = { onChanged(settings.copy(squareAlbumArtwork = it)) },
+    )
 }
 
 private enum class AlbumExperiencePage(val title: String, val subtitle: String) {
@@ -2148,6 +2165,14 @@ private fun NowPlayingDisplaySettings(
         onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = transform(settings)).normalized())
     }
 
+    SquareAlbumArtworkSetting(colors, interfaceSettings, onInterfaceSettingsChanged)
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.fillArtworkArea,
+        label = stringResource(Res.string.settings_fill_now_playing_artwork),
+        subtitle = stringResource(Res.string.settings_fill_now_playing_artwork_description),
+        onCheckedChange = { enabled -> update { it.copy(fillArtworkArea = enabled) } },
+    )
     SettingsCheckboxRow(
         colors = colors,
         checked = settings.showAlbumYear,

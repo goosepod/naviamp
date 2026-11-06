@@ -25,6 +25,29 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test fun artworkFillAndCornersAreIndependentPortablePreferences() {
+        for (square in listOf(false, true)) for (fill in listOf(false, true)) {
+            val settings = InterfaceSettings(squareAlbumArtwork = square,
+                nowPlaying = NowPlayingDisplaySettings(fillArtworkArea = fill, splitPaneBackgroundOpacityPercent = 999))
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(square, applied.interfaceSettings.squareAlbumArtwork)
+            assertEquals(fill, applied.interfaceSettings.nowPlaying.fillArtworkArea)
+            assertEquals(100, applied.interfaceSettings.nowPlaying.splitPaneBackgroundOpacityPercent)
+        }
+        assertFalse(SettingsSyncJson.decode("{}").preferences.interfaceSettings.nowPlaying.fillArtworkArea)
+    }
+    @Test fun squareAlbumArtworkAppliesThroughPortableExportImportAndDefaultsForOlderExports() {
+        for (square in listOf(false, true)) {
+            val settings = InterfaceSettings(squareAlbumArtwork = square)
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(interfaceSettings = settings), 1L, "test")
+            val applied = applySettingsSyncDocument(SettingsSyncJson.decode(SettingsSyncJson.encode(document)),
+                FakePlaybackEngine(false), RecordingProviderMediaSourceRepository(), RecordingRadioDjPresetRepository())
+            assertEquals(settings, applied.interfaceSettings)
+        }
+        assertFalse(SettingsSyncJson.decode("{}").preferences.interfaceSettings.squareAlbumArtwork)
+    }
     @Test fun aurralConnectionIdentityAndTlsPreferenceRoundTripWithoutSecrets() {
         val source = savedSource().copy(providerId = app.naviamp.domain.provider.ProviderIdAurral,
             password = "account-secret", nativeToken = "session-secret",

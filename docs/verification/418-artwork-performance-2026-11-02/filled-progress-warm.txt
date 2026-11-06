@@ -1,0 +1,1 @@
+APPLICATION_PROBE phase=filled-progress-warm pid=75370 cpu=3.6724742029088047 compilation_ms=unavailable surface=parent:380x748 scale=1.0x1.0 visible=true iconified=false frames=0 renderer=METAL render_info=GraphicsApi: METAL OS: macos arm64 Video card: Apple M1 Total VRAM: 12124 MB  observer_attached=true physical_captures=false/false

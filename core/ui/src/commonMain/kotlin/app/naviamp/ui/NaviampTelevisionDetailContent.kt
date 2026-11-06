@@ -76,6 +76,7 @@ internal fun TelevisionAlbumDetail(
         item(key = "album-hero:${detail.album.id}") {
             TelevisionDetailHero(
                 title = detail.album.title,
+                mediaKind = SharedMediaItemKind.Album,
                 subtitle = detail.album.subtitle,
                 metadata = listOfNotNull(
                     detail.album.releaseYear?.toString(),
@@ -167,7 +168,7 @@ internal fun TelevisionArtistDetail(
                 metadata = televisionReleaseCountLabel(detail.albums.size),
                 coverArtUrl = detail.artist.coverArtUrl,
                 fallbackCoverArtUrl = detail.artist.fallbackCoverArtUrl,
-                circularArtwork = true,
+                mediaKind = SharedMediaItemKind.Artist,
                 colors = colors,
                 topNavigationFocusRequester = topNavigationFocusRequester,
                 initialActionDownFocusRequester = if (popularTracksAvailable) {
@@ -272,8 +273,9 @@ internal fun TelevisionArtistDetail(
                                 Modifier.televisionMediaArtworkFocusEffect(
                                     focused,
                                     colors,
-                                    RoundedCornerShape(12.dp),
+                                    RoundedCornerShape(resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Album, TelevisionDetailAlbumCardWidth, 12.dp)),
                                 ),
+                                mediaKind = SharedMediaItemKind.Album,
                             )
                             TelevisionCardLabels(
                                 album.title,
@@ -320,6 +322,7 @@ internal fun TelevisionPlaylistDetail(
         item(key = "playlist-hero:${playlist.id}") {
             TelevisionDetailHero(
                 title = playlist.title,
+                mediaKind = SharedMediaItemKind.Playlist,
                 subtitle = playlist.subtitle,
                 metadata = televisionTrackCountLabel(detail.tracks.size),
                 coverArtUrl = playlist.coverArtUrl ?: playlist.coverArtUrls.firstOrNull(),
@@ -406,7 +409,7 @@ private fun TelevisionDetailHero(
     metadata: String,
     coverArtUrl: String?,
     fallbackCoverArtUrl: String? = null,
-    circularArtwork: Boolean = false,
+    mediaKind: SharedMediaItemKind,
     colors: NaviampColors,
     actions: List<TelevisionHeroAction>,
     initialActionDownFocusRequester: FocusRequester? = null,
@@ -423,8 +426,9 @@ private fun TelevisionDetailHero(
                 coverArtUrl,
                 colors,
                 TelevisionDetailHeroArtworkSize,
-                if (circularArtwork) TelevisionDetailHeroArtworkSize / 2 else 16.dp,
+                resolvedMediaArtworkCornerRadius(mediaKind, TelevisionDetailHeroArtworkSize, 16.dp),
                 fallbackUrl = fallbackCoverArtUrl,
+                mediaKind = mediaKind,
             )
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -574,7 +578,7 @@ internal fun TelevisionTrackRow(
             modifier = Modifier.width(34.dp),
         )
         if (showArtwork) {
-            NaviampCoverArt(track.coverArtUrl, colors, 52.dp, 7.dp)
+            NaviampCoverArt(track.coverArtUrl, colors, 52.dp, 7.dp, mediaKind = SharedMediaItemKind.Track)
             Spacer(Modifier.width(14.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {

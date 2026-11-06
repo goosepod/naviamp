@@ -1,4 +1,6 @@
+import org.gradle.api.attributes.Usage
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 
 plugins {
     alias(libs.plugins.android.library)
@@ -18,6 +20,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(project(":core:tls-testkit"))
             api(project(":core:presentation"))
             api(project(":providers:navidrome"))
             implementation(libs.ktor.network)
@@ -43,13 +46,20 @@ android {
     }
 }
 
-val mobileTlsFixtureTarget = kotlin.targets.getByName("jvm") as org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
-val mobileTlsFixtureRuntime = files(tasks.named("jvmJar"), mobileTlsFixtureTarget.compilations.getByName("main").runtimeDependencyFiles)
+// Resolve the server independently: preparing it must not build this module's application graph.
+val mobileTlsFixtureRuntime by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(KotlinPlatformType.attribute, KotlinPlatformType.jvm)
+    }
+}
+dependencies { add(mobileTlsFixtureRuntime.name, project(":core:tls-testkit")) }
 
 tasks.register<JavaExec>("runMobileMutualTlsFixture") {
     group = "verification"
     description = "Serve disposable certificates and mTLS audio to mobile integration tests on loopback"
-    dependsOn("jvmJar")
     classpath = mobileTlsFixtureRuntime
     mainClass.set("app.naviamp.testkit.NaviampMobileMutualTlsFixtureKt")
 }
