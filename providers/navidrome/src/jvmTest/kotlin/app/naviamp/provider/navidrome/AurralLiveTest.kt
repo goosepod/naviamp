@@ -11,21 +11,39 @@ import kotlin.test.*
 class AurralLiveTest {
     @Test fun instantMixAndRadioUseOwnedLibraryTracksWithoutSonicSupportOrMutations() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
-        val provider = NavidromeProvider(connection, readOnlyTransport(connection))
+        val readOnly = readOnlyTransport(connection)
+        val genreQueries = mutableListOf<Boolean>()
+        val observed = object : NavidromeHttpClient by readOnly {
+            override suspend fun get(url: String, headers: Map<String, String>): String {
+                if ("/getRandomSongs.view?" in url) genreQueries += ("genre=" in url)
+                return readOnly.get(url, headers)
+            }
+        }
+        val provider = NavidromeProvider(connection, observed)
         provider.validateConnection()
         assertFalse(provider.capabilities.supportsSonicSimilarity)
-        val seed = provider.album(provider.recentlyAddedAlbums(1).first().id).tracks.first()
+        val seed = provider.search("Every Morning", 30).tracks.firstOrNull {
+            it.artistName.equals("Sugar Ray", ignoreCase = true)
+        } ?: provider.album(provider.recentlyAddedAlbums(1).first().id).tracks.first()
         val direct = provider.instantMixTracks(seed.id, 20)
         assertTrue(direct.isNotEmpty(), "Aurral Instant Mix must produce playable Library tracks")
         assertTrue(direct.none { it.id == seed.id || it.id.isDiscoveryPreview() })
+        assertTrue(direct.map { it.artistName.trim().lowercase() }.distinct().size >= 4,
+            "The live fallback must include several artists, not only the seed artist")
+        assertTrue(direct.groupingBy { it.artistName.trim().lowercase() }.eachCount().values.all { it <= 5 })
         var endpoint: app.naviamp.domain.radio.SimilarityEndpoint? = null
         val radio = app.naviamp.domain.radio.RadioService(provider, count = 20,
             onSimilarityResult = { endpoint = it.source }).trackRadio(seed, preferSonicSimilarity = true)
         assertEquals(app.naviamp.domain.radio.SimilarityEndpoint.Regular, endpoint)
-        assertTrue(radio.isNotEmpty())
-        // Resolve a returned identity through the real Library path, rather than accepting a chart/preview ID.
-        assertEquals(direct.first().id, provider.track(direct.first().id)?.id)
-        println("Aurral read-only radio: Sonic advertised=false, Instant Mix tracks=${direct.size}, capability fallback tracks=${radio.size}, returned Library identity validated")
+        assertTrue(radio.map { it.artistName.trim().lowercase() }.distinct().size >= 4)
+        val other = direct.first { !it.artistName.equals(seed.artistName, ignoreCase = true) }
+        assertEquals(other.id, provider.track(other.id)?.id)
+        var status: Int? = null
+        assertTrue(provider.streamTrackBytes(StreamRequest(other.id, StreamQuality.Original),
+            rangeHeader = "bytes=0-1023", headOnly = true, onResponse = { status = it.statusCode },
+            writeChunk = { _, _ -> }))
+        assertTrue(status in listOf(200, 206), "A returned other-artist track must have a real stream")
+        println("Aurral read-only radio: Sonic advertised=false, Instant Mix tracks=${direct.size}, artists=${direct.map { it.artistName.trim().lowercase() }.distinct().size}, fallback Radio tracks=${radio.size}, artists=${radio.map { it.artistName.trim().lowercase() }.distinct().size}, genre queries=${genreQueries.count { it }}, general queries=${genreQueries.count { !it }}, reported seed=${seed.artistName.equals("Sugar Ray", ignoreCase = true)}, other-artist Library identity and stream validated")
     }
 
     @Test fun originalFileTagsAndPropertiesLoadWithAudioCachingDisabled() = runBlocking {

@@ -1376,45 +1376,36 @@ class NavidromeProvider(
         )
     }
 
-    override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> =
-        similarSongs(
-            endpoint = "getSimilarSongs2.view",
-            responseKey = "similarSongs2",
-            id = artistId.value,
-            count = count,
-        ).ifEmpty {
-            artistRadioFallback(artistId, count)
-        }
+    override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> {
+        val similar = similarSongs("getSimilarSongs2.view", "similarSongs2", artistId.value, count)
+        if (profile.providerId != app.naviamp.domain.provider.ProviderIdAurral)
+            return similar.ifEmpty { artistRadioFallback(artistId, count) }
+        val seed = knownTracks.load().values.firstOrNull { it.artistId == artistId }
+            ?: artistRadioFallback(artistId, 1).firstOrNull()
+        return seed?.let { aurralLibraryRadioFallback(it.id, count, similar) }.orEmpty()
+    }
 
-    override suspend fun albumRadio(albumId: AlbumId, count: Int): List<Track> =
-        similarSongs(
-            endpoint = "getSimilarSongs.view",
-            responseKey = "similarSongs",
-            id = albumId.value,
-            count = count,
-        ).ifEmpty {
-            albumRadioFallback(albumId, count)
-        }
+    override suspend fun albumRadio(albumId: AlbumId, count: Int): List<Track> {
+        val similar = similarSongs("getSimilarSongs.view", "similarSongs", albumId.value, count)
+        if (profile.providerId != app.naviamp.domain.provider.ProviderIdAurral)
+            return similar.ifEmpty { albumRadioFallback(albumId, count) }
+        val seed = knownTracks.load().values.firstOrNull { it.albumId == albumId }
+            ?: albumRadioFallback(albumId, 1).firstOrNull()
+        return seed?.let { aurralLibraryRadioFallback(it.id, count, similar) }.orEmpty()
+    }
 
     override suspend fun instantMixTracks(trackId: TrackId, count: Int): List<Track> =
-        if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) {
-            // Aurral can expose an empty/unsupported similarity route while still providing the
-            // owned library catalog. Reuse its validated album/artist radio fallback and IDs.
-            trackRadio(trackId, count)
-        } else similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
+        if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) trackRadio(trackId, count)
+        else similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
             .filterNot { it.id == trackId }
 
-    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> =
-        similarSongs(
-            endpoint = "getSimilarSongs.view",
-            responseKey = "similarSongs",
-            id = trackId.value,
-            count = count,
-        )
+    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+        val similar = similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
             .filterNot { it.id == trackId }
-            .ifEmpty {
-                trackRadioFallback(trackId, count)
-            }
+        return if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral)
+            aurralLibraryRadioFallback(trackId, count, similar)
+        else similar.ifEmpty { trackRadioFallback(trackId, count) }
+    }
 
     override suspend fun similarityAdminDiagnostics(): SimilarityAdminDiagnostics {
         if (!profile.nativeAuthentication) return SimilarityAdminDiagnostics(SimilarityAdminStatus.Unavailable)
@@ -1804,6 +1795,45 @@ class NavidromeProvider(
 
     private suspend fun albumRadioFallback(albumId: AlbumId, count: Int): List<Track> =
         album(albumId).tracks.shuffled().take(count.coerceAtLeast(1))
+
+    private suspend fun aurralLibraryRadioFallback(trackId: TrackId, count: Int, similar: List<Track> = emptyList()): List<Track> {
+        val known = knownTracks.load()[trackId]
+        val seed = if (known == null || known.genres.isEmpty()) {
+            try { song(trackId) ?: known } catch (failure: NavidromeException) {
+                if (!failure.isUnsupportedRadioCatalog()) throw failure
+                known
+            }
+        } else known
+        seed ?: return emptyList()
+        val target = count.coerceIn(1, 300)
+        val fetchCount = (target * 6).coerceIn(80, 300)
+        val genreMatches = similar.toMutableList()
+        val recommended = app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, count = target)
+        if (!app.naviamp.domain.radio.libraryRadioMixNeedsMoreCandidates(seed, recommended, target)) return recommended
+        for (genre in seed.genres.map(String::trim).filter(String::isNotEmpty).distinctBy(String::lowercase).take(3)) {
+            genreMatches += optionalRadioCatalog { randomSongs(fetchCount, genre = genre) }
+                // Guard servers ignoring the filter when returned tags explicitly disagree.
+                .filter { it.genres.isEmpty() || it.genres.any { tag -> tag.equals(genre, ignoreCase = true) } }
+                .shuffled()
+        }
+        val matched = app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, count = target)
+        if (!app.naviamp.domain.radio.libraryRadioMixNeedsMoreCandidates(seed, matched, target)) return matched
+        // Missing/sparse tags must not trap Radio on the seed artist. Fill from the same selected
+        // Library scope, still applying the shared artist cap and retaining genre priority.
+        val library = optionalRadioCatalog { randomSongs(fetchCount) }.shuffled()
+        val mixed = app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, library, count = target)
+        if (mixed.size >= target) return mixed
+        return app.naviamp.domain.radio.libraryRadioMixTracks(seed, genreMatches, library,
+            fallbackTracks = trackRadioFallback(trackId, target), count = target)
+    }
+
+    private suspend fun optionalRadioCatalog(load: suspend () -> List<Track>): List<Track> =
+        try { load() } catch (failure: NavidromeException) {
+            if (failure.isUnsupportedRadioCatalog()) emptyList() else throw failure
+        }
+
+    private fun NavidromeException.isUnsupportedRadioCatalog(): Boolean =
+        subsonicErrorCode == 70 || this is NavidromeHttpException && statusCode in listOf(404, 501)
 
     private suspend fun trackRadioFallback(trackId: TrackId, count: Int): List<Track> {
         val seed = knownTracks.load()[trackId] ?: song(trackId) ?: return emptyList()

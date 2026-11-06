@@ -238,3 +238,40 @@ changed production files match the reviewed source by normalized SHA-256. Owned 
 are removed. Rendered captures verify all three builder icons, compact preview-less rows and the
 queued clock overlay. No platform production file changes in this feedback follow-up; all product
 behavior and presentation changes are common. Final-source hosted verification remains required.
+
+## Broader Library Radio after owner review
+
+The owner accepts Mix Builder artwork, request icons, expanded artist portraits and preview-less
+spacing on `2a97577f7`. Radio still returned only the seed artist, exposing the narrowness of the
+initial fallback. The owner explicitly requests a broader mix and a relaunched Mac build; this
+continues #383/#506 without creating a new ticket. The existing development profile is already
+Mixed with balanced artist spread; no setting is changed to obtain variety.
+
+Shared `LibraryRadioMix` policy now interleaves and caps artists, excludes seed/duplicate/preview
+IDs, and gives genre-matched candidates priority. Aurral provider common code uses up to three seed
+genres, each with a bounded 80–300-track query. Missing or sparse tags can be supplemented by one
+bounded random-catalog query in the same selected Library scope. Full artist-album scans are only
+an optional last fallback; they are not the primary station. The rule also broadens a same-artist
+server recommendation list and is shared by track, album and artist Radio. A small library can
+return a shorter mix rather than fabricate diversity. Existing DJ tuning remains authoritative.
+
+Four or more candidate artists cap each artist at a quarter of the returned fallback pool, rounded
+up; smaller catalogs adapt the cap to their available artists. This is metadata/Library mixing,
+not Sonic analysis. Unsupported optional catalog routes can fall back, but permission failures,
+other provider errors and cancellation propagate. Normal Navidrome and raw diagnostic endpoint
+behavior remain unchanged. No setting, serialization schema, translation or platform production
+file changes in this increment.
+
+Local validation passes 1,111 domain, 584 presentation and 133 provider methods on Mac (1,828 total),
+including the live read-only test. Gaming PC validation passes 1,111 domain, 584 presentation,
+132 provider, 24 focused UI and two real native preview methods (1,853 total), plus packaging.
+All report zero failures/errors/skips. Android/JVM/both iOS common compilation and architecture
+verification pass. Live Aurral returns 20 tracks from 20 artists through both direct Instant Mix and
+capability-fallback Radio; an other-artist identity and its actual HTTP media stream are validated
+without playing audio or submitting a listen/acquisition/configuration mutation.
+
+The prior `2a97577f7` hosted run 42296271297 reproduces the still-open #497 native coverage failure:
+seek clocks advance to 23.2 seconds while shared Now Playing says Loading. Its failed report is
+preserved; it precedes this Radio-diversity increment and is not attributed to it. Passing local
+native checks do not resolve that intermittent investigation. Final-source hosted checks remain a
+merge/release gate.
