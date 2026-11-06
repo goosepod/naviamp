@@ -281,3 +281,27 @@ The final live trace uses the owner's reported Sugar Ray seed: both paths return
 Aurral negotiates Subsonic form POST for these reads. The acceptance transport now traces that
 method and applies the same read-only endpoint guard to form POST and both GET overloads; request
 bodies/credentials are never printed. The trace-only follow-up changes no production input.
+
+## Owner acceptance and Linux clocked-output correction (November 6)
+
+The owner accepted the final varied Radio behavior and complete Aurral experience on
+`f362ae016`, and explicitly requested closure and merge. PR #526 now targets main with the
+complete #525 integration; existing feature tickets close only when the merge succeeds.
+
+The same tree fails the dedicated Linux native preview/seek contract in Verify 42301485462.
+The added timeout diagnostics reproduce this locally in an owned amd64 Linux container using
+Temurin 21 and the exact shared/native test: ALSA `type null` leaves the output **Stalled** while
+the source remains **Playing** and decoded progress advances (23.6 seconds at timeout). Core's
+Loading state correctly reflects that native stall in this reproduction. The earlier statement
+that the configured ALSA null sink ruled out output provisioning was too strong: this sink is
+unclocked and unsuitable for native playback-clock acceptance. This evidence does not invalidate
+the separately reproduced atomic-state and observer-order regressions or establish a cause for
+historical #497 reports on other output paths.
+
+With unchanged playback code, assertions and deadlines, a PulseAudio clocked null sink passes the
+same real native Core contract three consecutive times (9.834, 8.966 and 5.408 seconds). The reusable
+`scripts/configure-linux-test-audio.sh` setup also passes it (16.887 seconds); its shutdown waits for
+the owned daemon to exit. Both the Linux native job and coverage aggregation now use this helper
+with ALSA's PulseAudio plugin. Its private runtime/socket and cleanup affect only that job's daemon.
+These tests execute actual BASS playback/seek/pause/resume and isolated previews with muted output;
+they do not establish audible quality. Fresh hosted full-matrix checks remain the merge gate.
