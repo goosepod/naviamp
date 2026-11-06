@@ -2297,6 +2297,7 @@ class NavidromeProvider(
             name = stringValue("name") ?: "Internet Radio",
             streamUrl = stringValue("streamUrl") ?: throw NavidromeException("Internet radio station is missing a stream URL."),
             homePageUrl = stringValue("homePageUrl"),
+            coverArtUrl = stringValue("coverArt")?.let { coverArtUrl(it) },
         )
 
     private fun JsonObject.toTrack(): Track =

@@ -1815,7 +1815,8 @@ private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
 }
 
 private fun radioStationArtworkUrl(station: InternetRadioStation): String =
-    knownRadioStationArtworkUrl(station)
+    station.coverArtUrl
+        ?: knownRadioStationArtworkUrl(station)
         ?: station.homePageUrl?.let(::faviconUrl)
         ?: generatedRadioTileUrl(station.name)
 
