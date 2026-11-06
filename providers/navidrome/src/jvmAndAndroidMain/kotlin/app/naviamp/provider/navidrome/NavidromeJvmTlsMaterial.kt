@@ -1,5 +1,6 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.source.ServerCertificateTrust
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -20,24 +21,30 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
 private val NavidromePkcs12Provider by lazy { BouncyCastleProvider() }
 
 /** JVM/Android KeyStore and SSLSocketFactory boundary, shared between both JVM-based hosts. */
-internal class NavidromeJvmTlsMaterial(settings: NavidromeTlsSettings) {
-    val trust: X509TrustManager = when {
-        settings.insecureSkipTlsVerification -> object : X509TrustManager {
+internal class NavidromeJvmTlsMaterial(
+    settings: NavidromeTlsSettings,
+    platformTrust: () -> X509TrustManager = { navidromeTrustManager(null) },
+) {
+    val trust: X509TrustManager = when (settings.serverCertificateTrust) {
+        ServerCertificateTrust.Unverified -> object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) = Unit
             override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) = Unit
             override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
         }
-        else -> {
-            val store = if (settings.hasCustomCertificate) KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+        ServerCertificateTrust.Platform -> platformTrust()
+        ServerCertificateTrust.PlatformAndCustom -> {
+            val platform = platformTrust()
+            val store = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
                 load(null, null)
+                platform.acceptedIssuers.forEachIndexed { index, certificate ->
+                    setCertificateEntry("naviamp-platform-$index", certificate)
+                }
                 val certificates = navidromeCertificateDerChain(File(checkNotNull(settings.customCertificatePath)).readBytes())
                 certificates.forEachIndexed { index, der ->
                     setCertificateEntry("naviamp-custom-$index", CertificateFactory.getInstance("X.509").generateCertificate(der.inputStream()))
                 }
-            } else null
-            val factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-            factory.init(store)
-            factory.trustManagers.filterIsInstance<X509TrustManager>().first()
+            }
+            navidromeTrustManager(store)
         }
     }
     private val keys: Array<KeyManager> = if (settings.hasClientCertificate) {
@@ -52,6 +59,12 @@ internal class NavidromeJvmTlsMaterial(settings: NavidromeTlsSettings) {
     } else emptyArray()
     val context: SSLContext = SSLContext.getInstance("TLS").apply { init(keys, arrayOf(trust), SecureRandom()) }
 }
+
+private fun navidromeTrustManager(store: KeyStore?): X509TrustManager =
+    TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).run {
+        init(store)
+        trustManagers.filterIsInstance<X509TrustManager>().first()
+    }
 
 internal fun createNavidromeJvmKtorClient(settings: NavidromeTlsSettings): HttpClient {
     val material = NavidromeJvmTlsMaterial(settings)

@@ -273,6 +273,7 @@ internal class DesktopComposition private constructor(
                     radioDjPresets = storage.radioDjPresets,
                     maintenance = storage.maintenance,
                     pendingProviderActions = storage.pendingProviderActions,
+                    discoveryAcquisitions = storage.discoveryAcquisitions,
                     updateAudioCacheLimit = storage::updateAudioCacheLimit,
                 ),
                 externalUri = DesktopExternalUriPort(),

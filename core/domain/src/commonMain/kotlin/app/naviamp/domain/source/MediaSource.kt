@@ -2,12 +2,24 @@ package app.naviamp.domain.source
 
 import kotlinx.serialization.Serializable
 
+/** Custom server authorities supplement normal platform trust, including redirected public media. */
+enum class ServerCertificateTrust(val includesPlatformAnchors: Boolean) {
+    Platform(true), PlatformAndCustom(true), Unverified(false),
+}
+
 data class ConnectionTlsSettings(
     val insecureSkipTlsVerification: Boolean = false,
     val customCertificatePath: String? = null,
     val clientCertificateKeyStorePath: String? = null,
     val clientCertificateKeyStorePassword: String? = null,
 ) {
+    val serverCertificateTrust: ServerCertificateTrust
+        get() = when {
+            insecureSkipTlsVerification -> ServerCertificateTrust.Unverified
+            hasCustomCertificate -> ServerCertificateTrust.PlatformAndCustom
+            else -> ServerCertificateTrust.Platform
+        }
+
     val hasCustomCertificate: Boolean
         get() = !customCertificatePath.isNullOrBlank()
 

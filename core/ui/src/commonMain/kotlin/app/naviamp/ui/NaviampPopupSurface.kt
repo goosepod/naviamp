@@ -162,7 +162,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
         val focus = LocalFocusManager.current
         SideEffect { moveFocus = focus::moveFocus }
         NaviampPopupPresence()
-        NaviampMenuActivationEffect(onDismissRequest)
+        NaviampMenuActivationEffect(onDismissRequest, properties.dismissOnBackPress)
         var menuBounds by remember { mutableStateOf(Rect.Zero) }
         Layout(content = {
             Box(Modifier.padding(32.dp)) {
@@ -172,7 +172,7 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
                     Column(modifier.padding(vertical = 8.dp).width(IntrinsicSize.Max).verticalScroll(scroll), content = content)
                 }
             }
-        }, modifier = menuKeys.fillMaxSize().clipToBounds().drawBehind {
+        }, modifier = menuKeys.fillMaxSize().naviampMouseBack { if (properties.dismissOnBackPress) onDismissRequest() }.clipToBounds().drawBehind {
             // Record the complete fixed viewport before transformed content. Native popup geometry
             // must not resize and translate a cached graphics layer after its first picture.
             drawRect(Color.Transparent, blendMode = BlendMode.Src)
@@ -193,8 +193,14 @@ internal fun NaviampWindowDropdownMenu(expanded: Boolean, onDismissRequest: () -
 @Composable
 internal fun NaviampDialog(onDismissRequest: () -> Unit, properties: DialogProperties = DialogProperties(),
     content: @Composable () -> Unit) {
+    val back = { if (properties.dismissOnBackPress) onDismissRequest() }
+    val dispatcher = LocalNaviampSystemBackDispatcher.current
+    val dialogContent: @Composable () -> Unit = {
+        NaviampSystemBackHandler(enabled = true, onBack = back)
+        Box(Modifier.naviampMouseBack { dispatcher?.currentHandler?.invoke() ?: back() }, propagateMinConstraints = true) { content() }
+    }
     if (!LocalNaviampOwnedPopupWindows.current) {
-        Dialog(onDismissRequest, properties, content)
+        Dialog(onDismissRequest, properties, dialogContent)
         return
     }
     NaviampViewportPopup(onDismissRequest, PopupProperties(focusable = true,
@@ -224,7 +230,7 @@ internal fun NaviampDialog(onDismissRequest: () -> Unit, properties: DialogPrope
             Box((if (properties.usePlatformDefaultWidth) Modifier.widthIn(max = 560.dp) else Modifier)
                 .onGloballyPositioned { dialogBounds = Rect(it.positionInWindow(), it.size.toSize()) }
                 .graphicsLayer { this.alpha = alpha; scaleX = scale; scaleY = scale }
-                .semantics { dialog() }, propagateMinConstraints = true) { content() }
+                .semantics { dialog() }, propagateMinConstraints = true) { dialogContent() }
         }
     }
 }
@@ -242,7 +248,10 @@ internal fun NaviampAlertDialog(onDismissRequest: () -> Unit, confirmButton: @Co
     tonalElevation: Dp = AlertDialogDefaults.TonalElevation,
     properties: DialogProperties = DialogProperties()) {
     if (!LocalNaviampOwnedPopupWindows.current) {
-        AlertDialog(onDismissRequest, confirmButton, modifier, dismissButton, icon, title, text, shape,
+        val back = { if (properties.dismissOnBackPress) onDismissRequest() }
+        val dispatcher = LocalNaviampSystemBackDispatcher.current
+        NaviampSystemBackHandler(enabled = true, onBack = back)
+        AlertDialog(onDismissRequest, confirmButton, modifier.naviampMouseBack { dispatcher?.currentHandler?.invoke() ?: back() }, dismissButton, icon, title, text, shape,
             containerColor, iconContentColor, titleContentColor, textContentColor, tonalElevation, properties)
         return
     }

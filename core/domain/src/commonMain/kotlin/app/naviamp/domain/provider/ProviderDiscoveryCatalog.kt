@@ -6,12 +6,18 @@ private val DiscoveryMbid = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-
 data class DiscoveryArtistMbid(val value: String) { init { require(DiscoveryMbid.matches(value)) } }
 data class DiscoveryReleaseGroupMbid(val value: String) { init { require(DiscoveryMbid.matches(value)) } }
 data class DiscoveryRecordingMbid(val value: String) { init { require(DiscoveryMbid.matches(value)) } }
+data class DiscoveryReleaseMbid(val value: String) { init { require(DiscoveryMbid.matches(value)) } }
 data class DiscoveryDeezerPreviewId(val value: String) { init { require(value.toLongOrNull()?.let { it > 0 } == true) } }
+@kotlinx.serialization.Serializable
 data class DiscoveryCanonicalAlbumId(val value: String) { init { require(value.toLongOrNull()?.let { it > 0 } == true) } }
 data class DiscoveryCanonicalArtistId(val value: String) { init { require(value.toLongOrNull()?.let { it > 0 } == true) } }
+@kotlinx.serialization.Serializable
 data class DiscoveryJobId(val value: String) { init { require(value.isNotBlank()) } }
+@kotlinx.serialization.Serializable
 data class DiscoveryRequestGroupId(val value: String) { init { require(value.isNotBlank()) } }
+@kotlinx.serialization.Serializable
 enum class DiscoveryLibraryManager { Aurral, Lidarr }
+@kotlinx.serialization.Serializable
 data class DiscoveryManagedAlbumId(val manager: DiscoveryLibraryManager, val value: String) {
     init { require(value.toLongOrNull()?.let { it > 0 } == true) }
 }
@@ -22,6 +28,7 @@ val ProviderDiscoveryRelease.releaseGroupMbid: DiscoveryReleaseGroupMbid?
     get() = id.takeIf(DiscoveryMbid::matches)?.let(::DiscoveryReleaseGroupMbid)
 
 /** Correlation only: metadata saved, queued, and available in Subsonic are separate facts. */
+@kotlinx.serialization.Serializable
 data class ProviderDiscoveryRequestIdentity(
     val requestGroupId: DiscoveryRequestGroupId? = null,
     val jobIds: List<DiscoveryJobId> = emptyList(),
@@ -82,6 +89,22 @@ data class ProviderDiscoveryReleaseTrack(
     val trackNumber: Int?,
     val durationMillis: Long?,
     val previewId: DiscoveryDeezerPreviewId? = null,
+    val releaseMbid: DiscoveryReleaseMbid? = null,
+)
+
+data class ProviderDiscoveryReleaseContext(val artist: ProviderDiscoveryArtist, val release: ProviderDiscoveryRelease)
+
+data class ProviderDiscoveryEdition(val mbid: DiscoveryReleaseMbid, val title: String?, val date: String?, val status: String?)
+
+enum class ProviderDiscoveryReleaseAvailability { NotOwned, Catalogued, Partial, Available }
+data class ProviderDiscoveryReleaseOwnership(
+    val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported,
+    val availability: ProviderDiscoveryReleaseAvailability? = null,
+    val canonicalAlbumId: DiscoveryCanonicalAlbumId? = null,
+    val managedAlbumId: DiscoveryManagedAlbumId? = null,
+    val ownedRecordings: Set<DiscoveryRecordingMbid> = emptySet(),
+    /** Present only after canonical identity and the playback provider's album response agree. */
+    val libraryAlbum: app.naviamp.domain.Album? = null,
 )
 data class ProviderDiscoveryReleaseTracks(
     val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported,
@@ -95,6 +118,7 @@ data class ProviderDiscoveryReleaseDetails(
     val credits: List<ProviderDiscoveryArtistCredit> = emptyList(),
     val overview: String? = null,
     val genres: List<String> = emptyList(),
+    val editions: List<ProviderDiscoveryEdition> = emptyList(),
 )
 
 /** Server activity is not proof that an imported track is available through the playback provider. */
@@ -103,6 +127,9 @@ data class ProviderDiscoveryActivity(
     val status: String?,
     val identity: ProviderDiscoveryRequestIdentity?,
     val releaseGroupMbid: DiscoveryReleaseGroupMbid? = null,
+    val title: String? = null,
+    val artistName: String? = null,
+    val kind: String? = null,
 )
 data class ProviderDiscoveryActivities(
     val status: ProviderDiscoveryStatus = ProviderDiscoveryStatus.Unsupported,

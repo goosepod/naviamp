@@ -107,7 +107,7 @@ jobs:
         if: needs.changes.outputs.run_full == 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxrender-dev
+          sudo apt-get install -y libx11-dev libxrender-dev pulseaudio libasound2-plugins
 
       - name: Install Android build packages
         if: needs.changes.outputs.run_full == 'true'
@@ -127,15 +127,17 @@ jobs:
           :apps:android:verifyReleaseOptimization
           :apps:android:bundleDebug
 
-      - name: Configure headless ALSA output for coverage aggregation
+      - name: Configure clocked headless audio for coverage aggregation
         if: needs.changes.outputs.run_full == 'true'
-        run: |
-          printf '%s\n' 'pcm.!default { type null }' > "$RUNNER_TEMP/naviamp-asound.conf"
-          echo "ALSA_CONFIG_PATH=$RUNNER_TEMP/naviamp-asound.conf" >> "$GITHUB_ENV"
+        run: scripts/configure-linux-test-audio.sh start
 
       - name: Verify and publish JVM coverage reports
         if: needs.changes.outputs.run_full == 'true'
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :koverVerify :koverHtmlReport :koverXmlReport
+
+      - name: Stop owned coverage audio sink
+        if: always() && needs.changes.outputs.run_full == 'true'
+        run: scripts/configure-linux-test-audio.sh stop
 
       - name: Upload test and coverage reports
         if: always() && needs.changes.result == 'success' && needs.changes.outputs.run_full == 'true'
@@ -408,12 +410,10 @@ jobs:
           java-version: "21"
 
       - name: Install native test dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxrender-dev libsecret-tools xcompmgr xvfb dbus-daemon playerctl
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxrender-dev libsecret-tools xcompmgr xvfb dbus-daemon playerctl pulseaudio libasound2-plugins
 
-      - name: Configure headless ALSA output
-        run: |
-          printf '%s\n' 'pcm.!default { type null }' > "$RUNNER_TEMP/naviamp-asound.conf"
-          echo "ALSA_CONFIG_PATH=$RUNNER_TEMP/naviamp-asound.conf" >> "$GITHUB_ENV"
+      - name: Configure clocked headless audio
+        run: scripts/configure-linux-test-audio.sh start
 
       - name: Run Desktop tests with Linux native libraries
         env:
@@ -437,6 +437,10 @@ jobs:
             env NAVIAMP_PROBE_INTEGRATED=true NAVIAMP_PROBE_VERIFY=true \
               ./gradlew -Pnaviamp.bass.platform=linux-x64 :core:ui:playerAnimationProbe --console=plain
           ' | tee build/linux-animation-probe.txt
+
+      - name: Stop owned Linux audio sink
+        if: always()
+        run: scripts/configure-linux-test-audio.sh stop
 
       - name: Upload test reports
         if: always()

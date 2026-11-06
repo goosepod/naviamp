@@ -9,6 +9,119 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun instantMixAndRadioUseOwnedLibraryTracksWithoutSonicSupportOrMutations() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val readOnly = readOnlyTransport(connection)
+        val genreQueries = mutableListOf<Boolean>()
+        val observed = object : NavidromeHttpClient by readOnly {
+            override suspend fun postForm(url: String, body: String, headers: Map<String, String>): String {
+                if (url.endsWith("/getRandomSongs.view")) genreQueries += ("genre=" in body)
+                return readOnly.postForm(url, body, headers)
+            }
+            override suspend fun get(url: String, headers: Map<String, String>): String {
+                if ("/getRandomSongs.view?" in url) genreQueries += ("genre=" in url)
+                return readOnly.get(url, headers)
+            }
+        }
+        val provider = NavidromeProvider(connection, observed)
+        provider.validateConnection()
+        assertFalse(provider.capabilities.supportsSonicSimilarity)
+        val seed = provider.search("Every Morning", 30).tracks.firstOrNull {
+            it.artistName.equals("Sugar Ray", ignoreCase = true)
+        } ?: provider.album(provider.recentlyAddedAlbums(1).first().id).tracks.first()
+        val direct = provider.instantMixTracks(seed.id, 20)
+        assertTrue(direct.isNotEmpty(), "Aurral Instant Mix must produce playable Library tracks")
+        assertTrue(direct.none { it.id == seed.id || it.id.isDiscoveryPreview() })
+        assertTrue(direct.map { it.artistName.trim().lowercase() }.distinct().size >= 4,
+            "The live fallback must include several artists, not only the seed artist")
+        assertTrue(direct.groupingBy { it.artistName.trim().lowercase() }.eachCount().values.all { it <= 5 })
+        var endpoint: app.naviamp.domain.radio.SimilarityEndpoint? = null
+        val radio = app.naviamp.domain.radio.RadioService(provider, count = 20,
+            onSimilarityResult = { endpoint = it.source }).trackRadio(seed, preferSonicSimilarity = true)
+        assertEquals(app.naviamp.domain.radio.SimilarityEndpoint.Regular, endpoint)
+        assertTrue(radio.map { it.artistName.trim().lowercase() }.distinct().size >= 4)
+        val other = direct.first { !it.artistName.equals(seed.artistName, ignoreCase = true) }
+        assertEquals(other.id, provider.track(other.id)?.id)
+        var status: Int? = null
+        assertTrue(provider.streamTrackBytes(StreamRequest(other.id, StreamQuality.Original),
+            rangeHeader = "bytes=0-1023", headOnly = true, onResponse = { status = it.statusCode },
+            writeChunk = { _, _ -> }))
+        assertTrue(status in listOf(200, 206), "A returned other-artist track must have a real stream")
+        println("Aurral read-only radio: Sonic advertised=false, Instant Mix tracks=${direct.size}, artists=${direct.map { it.artistName.trim().lowercase() }.distinct().size}, fallback Radio tracks=${radio.size}, artists=${radio.map { it.artistName.trim().lowercase() }.distinct().size}, genre queries=${genreQueries.count { it }}, general queries=${genreQueries.count { !it }}, reported seed=${seed.artistName.equals("Sugar Ray", ignoreCase = true)}, other-artist Library identity and stream validated")
+    }
+
+    @Test fun originalFileTagsAndPropertiesLoadWithAudioCachingDisabled() = runBlocking {
+        val provider = NavidromeProvider(liveConnection() ?: return@runBlocking)
+        provider.validateConnection()
+        val track = provider.search("Rhythm Is a Dancer", 30).tracks.first {
+            it.artistName == "Snap!" && it.title == "Rhythm Is a Dancer" && it.albumTitle == "The Madman’s Return"
+        }
+        val metadata = app.naviamp.domain.audio.AudioMetadataSidecarService(
+            app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository(),
+        ) { error("No local file is required") }.metadataForTrack(
+            "read-only-acceptance", provider, track, StreamQuality.Original, false,
+        )
+        assertEquals(44100, metadata.audioInfo?.samplingRateHz)
+        assertEquals(16, metadata.audioInfo?.bitDepth)
+        assertTrue(metadata.tags.any { it.key == "Title" && it.value == "Rhythm Is a Dancer" })
+        assertTrue(metadata.tags.any { it.key == "Date" && it.value == "1992-03-24" })
+        println("Aurral original metadata: cache disabled, embedded title/date present, FLAC 44100 Hz / 16 bit")
+    }
+
+    @Test fun trendingAndGenreBlockReadsUseTheCurrentUserWithoutMutations() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        var logins = 0
+        val readOnly = object : NavidromeHttpClient by transport {
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                check(url == connection.normalizedBaseUrl + "/api/auth/login") { "Live acceptance is read-only" }
+                logins++
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Read-only acceptance")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Read-only acceptance")
+        }
+        val discovery = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, readOnly)
+        val charts = discovery.charts()
+        assertEquals(ProviderDiscoveryStatus.Ready, charts.status)
+        assertTrue(charts.songs != null || charts.albums != null || charts.artists != null)
+        val blocked = discovery.blockedGenres()
+        assertEquals(ProviderDiscoveryStatus.Ready, blocked.status)
+        charts.genres.firstOrNull()?.let { genre ->
+            assertEquals(ProviderDiscoveryStatus.Ready, discovery.genreChart(genre.id).status)
+        }
+        assertEquals(1, logins)
+        println("Aurral chart reads: songs=${charts.songs?.size}, albums=${charts.albums?.size}, artists=${charts.artists?.size}, genres=${charts.genres.size}, previews=${charts.songs.orEmpty().count { it.previewId != null }}, blockedGenres=${blocked.tags.size}")
+    }
+
+    @Test fun releaseContextLoadsEditionAndPreviewMetadataWithoutAcquisition() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        val readOnly = object : NavidromeHttpClient by transport {
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                check(url == connection.normalizedBaseUrl + "/api/auth/login") { "Live acceptance cannot submit acquisition" }
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Read-only acceptance")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Read-only acceptance")
+        }
+        val client = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, readOnly)
+        val artist = ProviderDiscoveryArtist("a74b1b7f-71a5-4011-9441-d0b5e4122711", "Radiohead", detailsAvailable = true)
+        val releases = client.artistDetails(artist).details!!.releases
+        val release = releases.first { it.releaseGroupMbid != null }
+        val details = client.releaseDetails(release.releaseGroupMbid!!)
+        val tracks = client.releaseTracks(release.releaseGroupMbid!!, ProviderDiscoveryReleaseContext(artist, release))
+        assertEquals(ProviderDiscoveryStatus.Ready, details.status)
+        assertEquals(ProviderDiscoveryStatus.Ready, tracks.status)
+        assertTrue(tracks.tracks.isNotEmpty())
+        assertTrue(tracks.tracks.any { it.recordingMbid != null })
+        println("Aurral release context: editions=${details.editions.size}, tracks=${tracks.tracks.size}, previews=${tracks.tracks.count { it.previewId != null }}")
+    }
+
     @Test fun upgradedBootstrapRetainsV1AndAdvertisesTheExpectedRelease() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
@@ -55,6 +168,7 @@ class AurralLiveTest {
                 if ("/release-group/" in url) {
                     metadataFailures[if (url.endsWith("/tracks")) "tracks" else "details"] = failure.statusCode
                 }
+                if ("/similar?" in url) metadataFailures["similar"] = failure.statusCode
                 throw failure
             }
             override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
@@ -62,6 +176,8 @@ class AurralLiveTest {
                 loginCount++
                 return transport.postJson(url, body, headers)
             }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
             override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Live research is read-only")
             override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Live research is read-only")
         }
@@ -103,6 +219,9 @@ class AurralLiveTest {
             assertTrue(tracks.tracks.isNotEmpty())
             assertTrue(tracks.tracks.any { it.recordingMbid != null })
         }
+        val similar = discovery.similarArtists(DiscoveryArtistMbid("a74b1b7f-71a5-4011-9441-d0b5e4122711"))
+        assertEquals(expectedMetadataStatus("similar"), similar.status)
+        println("Aurral similar live result: status=${similar.status}, count=${similar.artists.size}")
         println("Aurral catalog live result: recommendationCount=${first.totalCount}, artistCount=${artists.totalCount}, release=${details.status}, tracks=${tracks.status}")
         assertEquals(ProviderDiscoveryStatus.Ready, discovery.requestActivity().status)
         assertEquals(1, loginCount)
@@ -176,6 +295,93 @@ class AurralLiveTest {
                 http.deleteJson(connection.normalizedBaseUrl + "/api/discover/feedback/" + id.urlEncode(), headers)
             }
             assertTrue(entries().isEmpty())
+        }
+    }
+
+    @Test fun libraryLyricsArtworkAndPlaylistReadsUseTheNormalAccount() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val provider = NavidromeProvider(connection, readOnlyTransport(connection))
+        provider.validateConnection()
+        val track = provider.search("Rhythm Is a Dancer", 30).tracks.first {
+            it.artistName == "Snap!" && it.title == "Rhythm Is a Dancer" && it.albumTitle == "The Madman’s Return"
+        }
+        val lyrics = assertNotNull(provider.lyrics(track.id), "The known vocal track should provide server lyrics")
+        assertTrue(lyrics.lines.any { it.text.isNotBlank() })
+        val artwork = assertNotNull(provider.bytesForOwnedUrl(provider.coverArtUrl(assertNotNull(track.coverArtId))))
+        assertTrue(artwork.size > 1000)
+        val playlists = provider.playlists(20)
+        for (playlist in playlists.take(3)) {
+            provider.playlistTracks(playlist.id)
+            playlist.coverArtId?.let { assertNotNull(provider.bytesForOwnedUrl(provider.coverArtUrl(it))) }
+        }
+        println("Normal-account library reads: lyricsLines=${lyrics.lines.size}, timed=${lyrics.synced}, artworkBytes=${artwork.size}, playlists=${playlists.size}; no writes")
+    }
+
+    @Test fun freshUserSessionsReconcileAnExistingOwnedReleaseWithoutSubmission() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val release = DiscoveryReleaseGroupMbid("5065f9ad-d1dd-43c9-908f-0dde0a5f0104")
+        val recording = DiscoveryRecordingMbid("4791bbf4-41e5-4c54-97be-8d25680f3d5f")
+        var previousLibraryId: String? = null
+        repeat(2) {
+            // Recreate both the provider and native-session client, retaining only saved credentials.
+            val provider = NavidromeProvider(connection, readOnlyTransport(connection))
+            provider.validateConnection()
+            val discovery = assertNotNull(provider.discovery)
+            val history = discovery.requestActivity()
+            assertEquals(ProviderDiscoveryStatus.Ready, history.status)
+            val ownership = discovery.releaseOwnership(release)
+            assertEquals(ProviderDiscoveryStatus.Ready, ownership.status)
+            assertTrue(recording in ownership.ownedRecordings)
+            val album = assertNotNull(ownership.libraryAlbum)
+            assertTrue(provider.album(album.id).tracks.isNotEmpty())
+            if (previousLibraryId != null) assertEquals(previousLibraryId, album.id.value)
+            previousLibraryId = album.id.value
+            println("Fresh native session ${it + 1}: activity=${history.items.size}, existing recording ownership and Library identity validated")
+        }
+    }
+
+    @Test fun missingFlowPermissionBlocksChartSavingBeforeAnyMutation() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        var writes = 0
+        val transport = readOnlyTransport(connection) { writes++ }
+        val discovery = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, transport)
+        val charts = discovery.charts()
+        assertEquals(ProviderDiscoveryStatus.Ready, charts.status)
+        assertFalse(charts.canSave)
+        val result = discovery.saveChartPlaylist(assertNotNull(charts.playlistId))
+        assertEquals(ProviderDiscoveryOperationStatus.Forbidden, result.status)
+        assertEquals(0, writes)
+        println("Normal-account chart saving: Flow permission absent, Forbidden before any write; positive save remains not run")
+    }
+
+    private fun readOnlyTransport(connection: NavidromeConnection, unexpectedWrite: () -> Unit = {}): NavidromeHttpClient {
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        fun checkReadOnlySubsonic(url: String) {
+            check(listOf("scrobble", "star.view", "unstar.view", "setRating", "createPlaylist", "updatePlaylist", "deletePlaylist")
+                .none { it in url }) { "Read-only acceptance prohibits mutating Subsonic routes" }
+        }
+        return object : NavidromeHttpClient by transport {
+            override suspend fun get(url: String): String = get(url, emptyMap())
+            override suspend fun get(url: String, headers: Map<String, String>): String {
+                checkReadOnlySubsonic(url)
+                return transport.get(url, headers)
+            }
+            override suspend fun postForm(url: String, body: String, headers: Map<String, String>): String {
+                checkReadOnlySubsonic(url)
+                return transport.postForm(url, body, headers)
+            }
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                if (url != connection.normalizedBaseUrl + "/api/auth/login" &&
+                    url != connection.normalizedBaseUrl + "/api/library/albums/lookup/batch") {
+                    unexpectedWrite()
+                    error("Read-only acceptance prohibits this POST")
+                }
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun postJsonResponse(url: String, body: String, headers: Map<String, String>) =
+                NavidromeHttpResponse(postJson(url, body, headers))
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Read-only acceptance")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Read-only acceptance")
         }
     }
 

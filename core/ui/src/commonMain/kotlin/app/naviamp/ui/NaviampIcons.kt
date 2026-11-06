@@ -251,6 +251,11 @@ object NaviampIcons {
         lineTo(5f, 16f)
         lineTo(8.2f, 16f)
     }
+    val Check = icon("Check") {
+        moveTo(5f, 12f)
+        lineTo(10f, 17f)
+        lineTo(19f, 7f)
+    }
     val Plus = icon("Plus") {
         moveTo(12f, 5f)
         lineTo(12f, 19f)

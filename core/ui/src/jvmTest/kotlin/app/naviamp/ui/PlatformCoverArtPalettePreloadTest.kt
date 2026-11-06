@@ -12,6 +12,23 @@ import kotlin.test.assertTrue
 
 class PlatformCoverArtPalettePreloadTest {
     @Test
+    fun paletteIsIndependentOfThumbnailLoadOrderAndSize() = runTest {
+        val bytes = assertNotNull(jvmGeneratedCoverArtBytes(
+            "naviamp-radio-tile://cover?label=P&from=7A2248&to=162A52",
+        ))
+        setJvmPlatformCoverArtByteLoader { bytes }
+        try {
+            val expected = jvmPlatformCoverArtPlayerColors("test://palette-first")
+            // Preloading uses the full artwork size; the player may request its palette first.
+            preloadJvmPlatformCoverArt(listOf("test://image-first", "test://palette-first"))
+            assertEquals(expected, jvmPlatformCoverArtPlayerColors("test://image-first"))
+            assertEquals(expected, jvmPlatformCoverArtPlayerColors("test://palette-first"))
+        } finally {
+            resetJvmPlatformCoverArtByteLoader()
+        }
+    }
+
+    @Test
     fun cancelledArtworkLoadDoesNotPoisonTheNextRequest() = runTest {
         val started = kotlinx.coroutines.CompletableDeferred<Unit>()
         val bytes = assertNotNull(jvmGeneratedCoverArtBytes(
