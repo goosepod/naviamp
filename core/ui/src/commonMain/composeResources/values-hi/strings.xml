@@ -398,4 +398,9 @@
     <string name="tv_keep_now_playing_controls_visible_description">कुछ सेकंड बाद अभी चल रहे संगीत के नियंत्रण न छिपाएँ</string>
     <string name="settings_square_album_artwork">चौकोर एल्बम कवर</string>
     <string name="settings_square_album_artwork_description">पूरे ऐप में एल्बम और ट्रैक कवर के लिए समकोण वाले कोने इस्तेमाल करें।</string>
+    <string name="settings_fill_now_playing_artwork">अभी चल रहा है में कवर का क्षेत्र भरें</string>
+    <string name="settings_fill_now_playing_artwork_description">प्लेयर भरने के लिए कवर को क्रॉप करें और नियंत्रणों के पीछे गहरा ग्रेडिएंट दिखाएँ।</string>
+    <string name="now_playing_toggle_visualizer">विज़ुअलाइज़र चालू या बंद करें</string>
+    <string name="discovery_request_rejected">Aurral ने यह अनुरोध अस्वीकार कर दिया। फिर से प्रयास करने से पहले उसका विवरण जाँचें।</string>
+    <string name="discovery_request_conflict">इस एल्बम के लाइब्रेरी स्वामित्व में विरोध है। Aurral में इसकी समीक्षा करें।</string>
 </resources>

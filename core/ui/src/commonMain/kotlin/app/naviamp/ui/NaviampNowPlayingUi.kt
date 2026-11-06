@@ -109,6 +109,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
@@ -359,6 +360,7 @@ fun NaviampNowPlayingPanel(
         val artSizeDefault = if (panelLayout == NaviampPlayerPanelLayout.Standalone) {
             (maxWidth - 48.dp).coerceIn(170.dp, 500.dp)
         } else 286.dp
+        val viewportMaxWidth = maxWidth
         val viewportMaxHeight = maxHeight
         val compactStackLayout = !wideLayout && viewportMaxHeight < CompactNowPlayingStackBreakpoint
         val stackedArtSize = ((viewportMaxHeight * 0.48f) - 18.dp)
@@ -392,7 +394,41 @@ fun NaviampNowPlayingPanel(
             Dp.Unspecified
         }
 
-        if (wideLayout && panelLayout == NaviampPlayerPanelLayout.Full) {
+        if (useFilledNowPlayingArtwork(displaySettings.fillArtworkArea,
+                nowPlaying.visualizerVisible && nowPlaying.visualizerAvailable,
+                nowPlaying.lyricsVisible && !showStationList, wideLayout, panelLayout)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                NaviampFilledNowPlayingArtwork(
+                    url = nowPlaying.coverArtUrl, colors = colors,
+                    mediaKind = if (nowPlaying.isLive) SharedMediaItemKind.RadioStation else SharedMediaItemKind.Track,
+                    modifier = Modifier.fillMaxWidth().height(viewportMaxHeight),
+                    onArtworkClick = if (nowPlaying.visualizerAvailable) {
+                        { actions.display(NowPlayingDisplayAction.ToggleVisualizer) }
+                    } else null,
+                ) {
+                    BoxWithConstraints(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                        NowPlayingDetails(
+                            nowPlaying = progressStableNowPlaying, playbackProgress = playbackProgress,
+                            colors = colors, playerColors = visualizerColors, actions = actions,
+                            selectedVisualizer = selectedVisualizer, displaySettings = displaySettings,
+                            onOpenPlaylistDialog = openPlaylistMembership,
+                            onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
+                            mobileLayout = true, filledArtworkLayout = true,
+                            compactLayout = viewportMaxHeight < 500.dp,
+                            compactSizing = maxWidth < 380.dp,
+                            matchVolumeToTransportWidth = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(max = viewportMaxHeight)
+                                .verticalScroll(rememberScrollState()).padding(16.dp),
+                        )
+                    }
+                }
+                NowPlayingSidePanel(progressStableNowPlaying, playbackProgress, colors,
+                    selectedTab, { selectedTab = it }, showStationList = showStationList,
+                    showLyrics = false, actions = actions,
+                    modifier = Modifier.fillMaxWidth().height(sidePanelHeight).padding(horizontal = 14.dp))
+            }
+        } else if (wideLayout && panelLayout == NaviampPlayerPanelLayout.Full) {
             val largeArtSize = minOf(
                 maxWidth * 0.385f - NowPlayingArtShadowMargin * 2,
                 maxHeight - FullNowPlayingControlsReserve,
@@ -840,6 +876,7 @@ private fun NowPlayingDetails(
     showIdentity: Boolean = true,
     showControls: Boolean = true,
     matchVolumeToTransportWidth: Boolean = false,
+    filledArtworkLayout: Boolean = false,
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
@@ -867,6 +904,8 @@ private fun NowPlayingDetails(
     } else if (useLargeSizing) 19 else 15
     val titleTextHeight = if (largePresentation) {
         with(LocalDensity.current) { (36f * effectiveLargePresentationScale).sp.toDp() }
+    } else if (filledArtworkLayout) {
+        with(LocalDensity.current) { (titleFontSize + 4).sp.toDp() }
     } else if (useLargeSizing) 23.dp else 18.dp
     val metadataFontSize = if (largePresentation) {
         (18f * effectiveLargePresentationScale).roundToInt()
@@ -882,7 +921,8 @@ private fun NowPlayingDetails(
     val ratingStarSlotWidth = if (useLargeSizing) 23.dp else 18.dp
     val ratingStarsWidth = if (useLargeSizing) 116.dp else 92.dp
     val scrubberTimeFontSize = if (useLargeSizing) 14.sp else 11.sp
-    val scrubberTimeWidth = if (useLargeSizing) 52.dp else 42.dp
+    val scrubberTimeWidth = (if (useLargeSizing) 52.dp else 42.dp) *
+        (if (filledArtworkLayout) LocalDensity.current.fontScale.coerceAtLeast(1f) else 1f)
     val secondaryTransportButtonSize = if (useLargeSizing) 36.dp else 28.dp
     val secondaryTransportIconSize = if (useLargeSizing) 21.dp else 16.dp
     val transportButtonSize = if (useLargeSizing) 42.dp else 34.dp
@@ -900,7 +940,9 @@ private fun NowPlayingDetails(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = if ((mobileLayout && !compactLayout) || pinBottomActions) {
+        verticalArrangement = if (filledArtworkLayout) {
+            Arrangement.spacedBy(if (compactLayout) 8.dp else 12.dp)
+        } else if ((mobileLayout && !compactLayout) || pinBottomActions) {
             Arrangement.SpaceBetween
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
@@ -942,7 +984,7 @@ private fun NowPlayingDetails(
                 Column(
                     horizontalAlignment = if (largePresentation) Alignment.Start else Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(
-                        if (largePresentation) largeIdentitySpacing else if (mobileLayout) 2.dp else 1.dp,
+                        if (largePresentation) largeIdentitySpacing else if (filledArtworkLayout) 6.dp else if (mobileLayout) 2.dp else 1.dp,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1023,7 +1065,16 @@ private fun NowPlayingDetails(
         }
 
         if (showControls) {
-            if (compactMetadataRow && (showRating || showAudioInfo)) {
+            if (filledArtworkLayout && (showRating || showAudioInfo)) {
+                FilledArtworkMetadataRow(
+                    nowPlaying = nowPlaying, colors = colors,
+                    showRating = showRating, showAudioInfo = showAudioInfo,
+                    largeSizing = useLargeSizing,
+                    onToggleFavorite = { actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite) },
+                    onRatingSelected = { rating -> actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = rating) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (compactMetadataRow && (showRating || showAudioInfo)) {
                     CompactMetadataRow(
                         nowPlaying = nowPlaying,
                         colors = colors,
@@ -1038,7 +1089,7 @@ private fun NowPlayingDetails(
             } else if (showRating || showAudioInfo) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (filledArtworkLayout) 4.dp else 1.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {
@@ -1445,6 +1496,67 @@ internal fun NowPlayingUi.selectedRemotePlaybackOutputName(): String? =
 internal fun nowPlayingActionMenuEnabled(nowPlaying: NowPlayingUi): Boolean =
     nowPlaying.menuEnabled || nowPlaying.remoteOutputDeviceName != null ||
         nowPlaying.playbackOutputs.isNotEmpty() || nowPlaying.castAvailable
+
+/** Keep ratings centered between audio fields, falling back to two lines when text cannot fit. */
+@Composable
+private fun FilledArtworkMetadataRow(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    showRating: Boolean,
+    showAudioInfo: Boolean,
+    largeSizing: Boolean,
+    onToggleFavorite: () -> Unit,
+    onRatingSelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (nowPlaying.isLive) return
+    val ratingVisible = showRating &&
+        (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)
+    val audioVisible = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
+    if (!ratingVisible && !audioVisible) return
+    val (format, quality) = nowPlaying.audioInfo.compactAudioInfoParts()
+    val textStyle = TextStyle(fontSize = if (largeSizing) 14.sp else 11.sp)
+    val measurer = rememberTextMeasurer()
+    val favoriteWidth = if (largeSizing) 30.dp else 24.dp
+    val starsWidth = if (largeSizing) 116.dp else 92.dp
+    val ratingWidth = favoriteWidth + starsWidth + 3.dp
+    val gap = 8.dp
+
+    @Composable fun ratings() {
+        RatingRow(nowPlaying.favoriteActive, nowPlaying.canFavorite, nowPlaying.userRating, nowPlaying.canRate,
+            colors, onToggleFavorite, onRatingSelected,
+            iconSize = if (largeSizing) 21.dp else 17.dp,
+            favoriteSlotWidth = favoriteWidth, starSlotWidth = if (largeSizing) 23.dp else 18.dp,
+            starsWidth = starsWidth, modifier = Modifier.testTag("now-playing-filled-rating"))
+    }
+
+    BoxWithConstraints(modifier.testTag("now-playing-filled-metadata")) {
+        val sideWidth = (maxWidth - ratingWidth - gap * 2) / 2
+        val requiredAudioWidth = with(LocalDensity.current) {
+            maxOf(measurer.measure(format, textStyle).size.width,
+                measurer.measure(quality, textStyle).size.width).toDp()
+        }
+        when {
+            ratingVisible && audioVisible && sideWidth >= requiredAudioWidth -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(format, color = colors.secondaryText, style = textStyle,
+                    textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.weight(1f))
+                ratings()
+                Text(quality, color = colors.secondaryText, style = textStyle,
+                    textAlign = TextAlign.Start, maxLines = 1, modifier = Modifier.weight(1f))
+            }
+            else -> Column(horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                if (ratingVisible) ratings()
+                if (audioVisible) Text(nowPlaying.audioInfo, color = colors.secondaryText,
+                    style = textStyle, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
 
 @Composable
 private fun CompactMetadataRow(

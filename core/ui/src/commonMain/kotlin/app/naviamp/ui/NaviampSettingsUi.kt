@@ -2165,6 +2165,14 @@ private fun NowPlayingDisplaySettings(
         onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = transform(settings)).normalized())
     }
 
+    SquareAlbumArtworkSetting(colors, interfaceSettings, onInterfaceSettingsChanged)
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.fillArtworkArea,
+        label = stringResource(Res.string.settings_fill_now_playing_artwork),
+        subtitle = stringResource(Res.string.settings_fill_now_playing_artwork_description),
+        onCheckedChange = { enabled -> update { it.copy(fillArtworkArea = enabled) } },
+    )
     SettingsCheckboxRow(
         colors = colors,
         checked = settings.showAlbumYear,

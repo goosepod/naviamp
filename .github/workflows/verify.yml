@@ -1,6 +1,13 @@
 name: Verify
 
 on:
+  workflow_dispatch:
+    inputs:
+      macos_runner_label:
+        description: Unique temporary local ARM64 runner label (blank uses GitHub-hosted macOS)
+        type: string
+        required: false
+        default: ''
   workflow_call:
     inputs:
       source_ref:
@@ -27,11 +34,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_full: ${{ steps.classify.outputs.run_full }}
+      macos_runner: ${{ steps.classify.outputs.macos_runner }}
     steps:
       - name: Check out repository history
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
 
       - name: Classify changed paths
@@ -39,7 +47,19 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: scripts/classify-verification-scope.sh >> "$GITHUB_OUTPUT"
+          MACOS_RUNNER_LABEL: ${{ inputs.macos_runner_label || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'verify:local-macos') && vars[format('NAVIAMP_LOCAL_MACOS_{0}', github.event.pull_request.number)]) || '' }}
+          LOCAL_PR_AUTHORIZED: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'verify:local-macos') }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          if [ -f scripts/select-verification-macos-runner.py ]; then
+            python3 scripts/select-verification-macos-runner.py >> "$GITHUB_OUTPUT"
+          elif [ -z "$MACOS_RUNNER_LABEL" ] && [ "$LOCAL_PR_AUTHORIZED" != true ] && { [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] || [ -n "$SOURCE_REF" ]; }; then
+            # Release recovery can check out a public source that predates this helper.
+            printf '%s\n' 'macos_runner="macos-latest"' >> "$GITHUB_OUTPUT"
+          else
+            exit 1
+          fi
+          scripts/classify-verification-scope.sh >> "$GITHUB_OUTPUT"
 
   shared-android:
     name: Shared and Android tests
@@ -54,7 +74,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
 
       - name: Validate release version metadata
@@ -131,12 +151,12 @@ jobs:
     name: Desktop native tests (macOS)
     needs: changes
     if: needs.changes.outputs.run_full == 'true'
-    runs-on: macos-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.macos_runner) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -178,7 +198,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
 
       - name: Validate documentation-only changes
@@ -245,15 +265,24 @@ jobs:
 
       - name: Start disposable mobile mTLS fixture
         if: needs.changes.outputs.run_full == 'true'
+        run: bash scripts/start-mobile-mtls-fixture.sh
+
+      - name: Route this fixture into the Android emulator
+        if: needs.changes.outputs.run_full == 'true'
         run: |
-          bash scripts/start-mobile-mtls-fixture.sh
-          for port in 59974 59975 59976 59977; do
-            adb reverse "tcp:$port" "tcp:$port"
+          fixture_ports="$(python3 scripts/mobile-mtls-fixture.py ports "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
+          for port in $fixture_ports; do
+            adb reverse --no-rebind "tcp:$port" "tcp:$port"
+            echo "$port" >> "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE.android-reverse-ports"
           done
 
       - name: Exercise native boundaries and raster animation
         if: needs.changes.outputs.run_full == 'true'
-        run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
+        run: |
+          control_port="$(python3 scripts/mobile-mtls-fixture.py control-port "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
+          ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.animationProbe=true \
+            "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
+            :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
       - name: Repeat API 35 DNS-SD discovery tests
         if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35
@@ -271,7 +300,13 @@ jobs:
 
       - name: Stop disposable mobile mTLS fixture
         if: always() && needs.changes.outputs.run_full == 'true'
-        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
+        run: |
+          if [ -n "${NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE:-}" ]; then
+            if [ -f "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE.android-reverse-ports" ]; then
+              while read -r port; do adb reverse --remove "tcp:$port" || true; done < "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE.android-reverse-ports"
+            fi
+            python3 scripts/mobile-mtls-fixture.py stop "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE"
+          fi
 
       - name: Capture Android discovery diagnostics
         if: failure() && needs.changes.outputs.run_full == 'true'
@@ -290,7 +325,7 @@ jobs:
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
-            build/mobile-mtls-fixture.log
+            build/mobile-mtls-run.*/fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log
             /tmp/naviamp-sdkmanager.log
@@ -305,7 +340,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -364,7 +399,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -417,14 +452,14 @@ jobs:
     name: iOS simulator tests
     needs: changes
     if: needs.changes.outputs.run_full == 'true'
-    runs-on: macos-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.macos_runner) }}
     env:
       GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || github.ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -481,15 +516,24 @@ jobs:
         run: |
           # The preceding step compiles this binary; this required step executes it
           # with real Apple trust services after the common standalone tests finish.
-          # Bootstrap is generated on the runner. Keep setup independent of a freshly
-          # booted simulator's first HTTP request; all HTTPS and server-state audits remain real.
-          fixture_bootstrap="$(cat build/mobile-mtls-fixture.bootstrap)"
+          # The generated bootstrap identifies this run's fixture. The shared contract
+          # verifies its live control endpoint through native HTTP before authentication.
+          fixture_bootstrap="$(cat "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE")"
           test -n "$fixture_bootstrap"
           export SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP="$fixture_bootstrap"
           started_at="$(date +%s)"
-          ./gradlew --max-workers=2 --console=plain \
+          native_test=(./gradlew --max-workers=2 --console=plain --profile \
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
-            :platforms:ios:iosSimulatorArm64Test
+            :platforms:ios:iosSimulatorArm64Test)
+          if [ -f scripts/ios-native-test-diagnostics.py ]; then
+            python3 scripts/ios-native-test-diagnostics.py \
+              --executable platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe \
+              --fixture-bootstrap "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE" \
+              --output build/ios-native-diagnostics -- "${native_test[@]}"
+          else
+            # Recovery may verify an older public source that predates the observer.
+            "${native_test[@]}"
+          fi
           grep -q 'mTLS runner bootstrap supplied' \
             platforms/ios/build/test-results/iosSimulatorArm64Test/TEST-app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest.xml
           elapsed_seconds="$(($(date +%s) - started_at))"
@@ -500,14 +544,26 @@ jobs:
         if: always() && env.NAVIAMP_IOS_TLS_TEST_DEVICE != ''
         run: |
           xcrun simctl spawn "$NAVIAMP_IOS_TLS_TEST_DEVICE" log show --style compact --last 5m \
-            --predicate 'process == "trustd" OR subsystem == "com.apple.CFNetwork"' \
+            --predicate 'process == "trustd" OR process == "test.kexe" OR subsystem == "com.apple.CFNetwork"' \
             > build/ios-tls-services.log 2>&1 || true
           xcrun simctl shutdown "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
           xcrun simctl delete "$NAVIAMP_IOS_TLS_TEST_DEVICE" || true
 
       - name: Stop disposable mobile mTLS fixture
         if: always()
-        run: curl --max-time 5 --silent --fail --output /dev/null http://127.0.0.1:59974/stop || true
+        run: |
+          if [ -n "${NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE:-}" ]; then
+            python3 scripts/mobile-mtls-fixture.py stop "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE"
+          fi
+
+      - name: Require independent cold native TLS replays
+        if: contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold')
+        timeout-minutes: 25
+        run: python3 scripts/replay-ios-native-tls.py --runs 2 --output build/ios-native-replays
+
+      - name: Clean up owned cold replay resources
+        if: always() && contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold')
+        run: python3 scripts/replay-ios-native-tls.py --cleanup-only --output build/ios-native-replays
 
       - name: Build the production iOS app
         run: |
@@ -551,9 +607,20 @@ jobs:
           if-no-files-found: error
           path: |
             **/build/reports/tests/iosSimulatorArm64Test/**
+            build/ios-native-diagnostics/**
+            build/ios-native-replays/plan.json
+            build/ios-native-replays/initial/**
+            build/ios-native-replays/run-*/summary.json
+            build/ios-native-replays/run-*/native.log
+            build/ios-native-replays/run-*/fixture.log
+            build/ios-native-replays/run-*/boot.log
+            build/ios-native-replays/run-*/services.log
+            build/ios-native-replays/run-*/diagnostics/**
+            build/ios-native-replays/run-*/results/**
+            build/ios-native-replays/run-*/report/**
             build/reports/profile/**
             build/ci-timings/ios.tsv
-            build/mobile-mtls-fixture.log
+            build/mobile-mtls-run.*/fixture.log
             build/ios-keychain-tests.xcresult
             build/ios-tls-services.log
 
@@ -569,7 +636,7 @@ jobs:
       - ios
     if: >-
       always() &&
-      github.event_name == 'pull_request' &&
+      (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') &&
       needs.changes.outputs.run_full == 'true' &&
       needs.shared-android.result == 'success' &&
       needs.desktop-macos.result == 'success' &&
@@ -579,12 +646,12 @@ jobs:
       needs.ios.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the verified pull-request merge
+      - name: Check out the verified event commit
         uses: actions/checkout@v7
 
       - name: Write verification evidence
         env:
-          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
         run: |
           mkdir -p "$RUNNER_TEMP/naviamp-verification"
@@ -598,7 +665,7 @@ jobs:
       - name: Upload verification evidence
         uses: actions/upload-artifact@v7
         with:
-          name: verified-source-${{ github.event.pull_request.head.sha }}
+          name: verified-source-${{ github.event.pull_request.head.sha || github.sha }}
           if-no-files-found: error
           retention-days: 30
           path: ${{ runner.temp }}/naviamp-verification/evidence.txt

@@ -398,4 +398,9 @@
     <string name="tv_keep_now_playing_controls_visible_description">Jangan sembunyikan kontrol Sedang Diputar setelah beberapa detik</string>
     <string name="settings_square_album_artwork">Sampul album persegi</string>
     <string name="settings_square_album_artwork_description">Gunakan sudut siku-siku untuk sampul album dan lagu di seluruh aplikasi.</string>
+    <string name="settings_fill_now_playing_artwork">Penuhi area sampul Sedang Diputar</string>
+    <string name="settings_fill_now_playing_artwork_description">Pangkas sampul agar memenuhi pemutar, dengan gradasi gelap di belakang kontrol.</string>
+    <string name="now_playing_toggle_visualizer">Aktifkan atau nonaktifkan visualisator</string>
+    <string name="discovery_request_rejected">Aurral menolak permintaan ini. Periksa detailnya sebelum mencoba lagi.</string>
+    <string name="discovery_request_conflict">Album ini memiliki konflik kepemilikan pustaka. Tinjau di Aurral.</string>
 </resources>
