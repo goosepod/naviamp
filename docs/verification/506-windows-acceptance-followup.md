@@ -19,8 +19,12 @@ database repair is added.
 The Linux native preview failure reports `main=Loading` while the native clock advances after seek.
 A deterministic common regression demonstrates a publication race: mapping an old Loading snapshot
 can complete after another callback publishes Playing and overwrite it. Now Playing mapping now
-runs inside the state store's atomic update, so a failed compare-and-set recomputes from current
-playback. The regression fails before the correction and passes afterward. This demonstrates a real
+runs inside the state store's atomic update, and a common single publisher drains the latest pending
+display request. This also handles playback returning to an identical previously rendered Playing
+value, where StateFlow equality cannot detect that an intervening publication occurred. Reentrant
+callbacks request another mapping without blocking or starting a second publisher. Ownership is
+released even if mapping fails. Both initial/equal-state regressions fail before their respective
+corrections and pass afterward. This demonstrates a real
 shared defect consistent with the failure, rather than proving every historical #497 timeout has
 the same cause. Playback deadlines and update frequency are unchanged.
 
@@ -105,6 +109,14 @@ The Gaming PC also executes **584 shared presentation, 70 storage, three certifi
 and two real native preview methods**, all with zero failures/errors/skips. The two native cases
 use actual output-device clocks with muted output, not BASS no-sound device 0. They verify native
 preview lifecycle plus real Core nonempty queue/session retention, seek and explicit main Resume.
+
+After the equal-state publication correction, the Gaming PC reruns all 584 presentation and both
+real native preview cases successfully, rebuilds/verifies the package, and passes another fresh
+cold/warm launch pair with both restores. Those final-revision captures are inspected separately
+under `presentation-final-owner`. Earlier six-launch results remain their own checkpoint; they are
+not relabeled as measurements of the later common publisher. In total, eight packaged launches and
+eight restores have positive evidence across the two checkpoints. No windowing production code
+changes between them.
 
 Raw evidence is retained in the Gaming PC's owned `naviamp-506-acceptance` directory and locally in
 `/private/tmp/naviamp-506-windows-evidence.zip`. No profile contents or private endpoints are

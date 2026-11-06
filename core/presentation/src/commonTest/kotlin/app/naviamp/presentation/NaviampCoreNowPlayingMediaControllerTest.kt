@@ -70,28 +70,40 @@ import kotlin.test.assertTrue
 class NaviampCoreNowPlayingMediaControllerTest {
     @Test
     fun delayedLoadingPresentationCannotOverwriteNewerPlayingState() {
-        val track = nowPlayingTrack("current")
-        val live = NaviampLivePlaybackController(NaviampLivePlaybackState(
-            currentTrack = track, queue = PlaybackQueue(listOf(track), 0),
-            playbackState = PlaybackState.Loading))
-        val store = NaviampCoreStateStore()
-        var duringProviderRead: (() -> Unit)? = null
-        val providers = NaviampCoreMediaProviderSource {
-            val callback = duringProviderRead
-            duringProviderRead = null
-            callback?.invoke()
-            null
-        }
-        val presenter = NaviampCoreNowPlayingPresenter(store, providers, live,
-            NaviampPlaybackQueueCoordinator(live), NowPlayingTestEffects(), NowPlayingTestSidecars())
-        // Model a native callback publishing Playing while another callback maps Loading.
-        duringProviderRead = {
-            live.updatePlaybackState(PlaybackState.Playing)
+        for (alreadyPlaying in listOf(false, true)) {
+            val track = nowPlayingTrack("current")
+            val live = NaviampLivePlaybackController(NaviampLivePlaybackState(
+                currentTrack = track, queue = PlaybackQueue(listOf(track), 0),
+                playbackState = PlaybackState.Loading))
+            val store = NaviampCoreStateStore()
+            var duringProviderRead: (() -> Unit)? = null
+            val providers = NaviampCoreMediaProviderSource {
+                val callback = duringProviderRead
+                duringProviderRead = null
+                callback?.invoke()
+                null
+            }
+            val presenter = NaviampCoreNowPlayingPresenter(store, providers, live,
+                NaviampPlaybackQueueCoordinator(live), NowPlayingTestEffects(), NowPlayingTestSidecars())
+            if (alreadyPlaying) {
+                live.updatePlaybackState(PlaybackState.Playing)
+                presenter.publish()
+                live.updatePlaybackState(PlaybackState.Loading)
+            }
+            // Model a native callback publishing Playing while another callback maps Loading.
+            duringProviderRead = {
+                live.updatePlaybackState(PlaybackState.Playing)
+                presenter.publish()
+            }
             presenter.publish()
+            assertEquals(PlaybackState.Playing, live.state.value.playbackState)
+            assertEquals(true, store.state.value.shell.nowPlaying?.isPlaying)
+            duringProviderRead = { throw IllegalStateException("Mapping failed") }
+            assertFailsWith<IllegalStateException> { presenter.publish() }
+            presenter.publish()
+            assertEquals(true, store.state.value.shell.nowPlaying?.isPlaying,
+                "A failed mapping must release the publication owner")
         }
-        presenter.publish()
-        assertEquals(PlaybackState.Playing, live.state.value.playbackState)
-        assertEquals(true, store.state.value.shell.nowPlaying?.isPlaying)
     }
 
     @Test

@@ -1,5 +1,9 @@
 package app.naviamp.presentation
 
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+
 import app.naviamp.domain.audio.withMissingFileProperties
 import app.naviamp.domain.provider.isDiscoveryPreview
 
@@ -27,6 +31,7 @@ data class NaviampCoreNowPlayingDisplayState(
 )
 
 /** Maps the complete live playback graph into the one authoritative shared Now Playing state. */
+@OptIn(ExperimentalAtomicApi::class)
 class NaviampCoreNowPlayingPresenter(
     private val stateStore: NaviampCoreStateStore,
     private val providerSource: NaviampCoreMediaProviderSource,
@@ -37,6 +42,9 @@ class NaviampCoreNowPlayingPresenter(
     private val network: NaviampCoreMobileNetworkPort = NaviampCoreMobileNetworkPort { false },
     private val internetRadioStations: () -> List<InternetRadioStation> = { emptyList() },
 ) {
+    private val publishing = AtomicBoolean(false)
+    private val pendingDisplay = AtomicReference<NaviampCoreNowPlayingDisplayState?>(null)
+
     fun updateStreamMetadata(metadata: PlaybackStreamMetadata) {
         sidecars.updateStreamMetadata(metadata)
     }
@@ -46,6 +54,26 @@ class NaviampCoreNowPlayingPresenter(
     }
 
     fun publish(display: NaviampCoreNowPlayingDisplayState = NaviampCoreNowPlayingDisplayState()) {
+        pendingDisplay.store(display)
+        do {
+            // One caller drains publication. A concurrent/reentrant callback replaces the pending
+            // display and returns; the owner maps current playback again before releasing ownership.
+            // This also covers Playing -> Loading -> identical Playing (no StateFlow value change).
+            if (!publishing.compareAndSet(false, true)) return
+            try {
+                while (true) {
+                    val next = pendingDisplay.exchange(null) ?: break
+                    publishSnapshot(next)
+                }
+            } finally {
+                publishing.store(false)
+            }
+            // Catch a request arriving between the last exchange and releasing the owner. If
+            // another caller acquired ownership first, the compare-and-set above simply returns.
+        } while (pendingDisplay.load() != null)
+    }
+
+    private fun publishSnapshot(display: NaviampCoreNowPlayingDisplayState) {
         // Map inside the atomic update. If a native callback publishes newer playback while
         // this mapping is in flight, retry from the current live state instead of restoring
         // the stale Loading/Paused snapshot over its Playing state.
