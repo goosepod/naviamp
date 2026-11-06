@@ -100,9 +100,10 @@ class NaviampCoreNowPlayingMediaControllerTest {
             assertEquals(true, store.state.value.shell.nowPlaying?.isPlaying)
             duringProviderRead = { throw IllegalStateException("Mapping failed") }
             assertFailsWith<IllegalStateException> { presenter.publish() }
+            live.updatePlaybackState(PlaybackState.Paused)
             presenter.publish()
-            assertEquals(true, store.state.value.shell.nowPlaying?.isPlaying,
-                "A failed mapping must release the publication owner")
+            assertEquals(true, store.state.value.shell.nowPlaying?.isPaused,
+                "A failed mapping must release the publication owner and publish new state")
         }
     }
 
