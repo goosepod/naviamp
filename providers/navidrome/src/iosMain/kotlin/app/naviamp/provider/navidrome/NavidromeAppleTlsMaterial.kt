@@ -2,6 +2,7 @@
 
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.source.ServerCertificateTrust
 import cnames.structs.__SecIdentity
 import cnames.structs.__CFDictionary
 import cnames.structs.__CFArray
@@ -13,10 +14,11 @@ import platform.posix.memcpy
 
 /** Apple Security/NSURLSession effects only; parsing and challenge decisions are common. */
 internal class NavidromeAppleTlsMaterial(settings: NavidromeTlsSettings) {
+    private val trustPolicy = settings.serverCertificateTrust
     val credential: NSURLCredential? = if (settings.hasClientCertificate) {
         importIdentity(readAppleTlsFile(checkNotNull(settings.clientCertificateKeyStorePath)), settings.clientCertificateKeyStorePassword.orEmpty())
     } else null
-    private val anchors = if (settings.hasCustomCertificate && !settings.insecureSkipTlsVerification) {
+    private val anchors = if (trustPolicy == ServerCertificateTrust.PlatformAndCustom) {
         navidromeCertificateDerChain(readAppleTlsFile(checkNotNull(settings.customCertificatePath)))
     } else emptyList()
 
@@ -43,7 +45,7 @@ internal class NavidromeAppleTlsMaterial(settings: NavidromeTlsSettings) {
             } }
             // Preserve NSURLSession's SSL policy, including the requested server hostname.
             return if (SecTrustSetAnchorCertificates(trust, array) == errSecSuccess &&
-                SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess) evaluateAppleTrust(trust) else false to null
+                SecTrustSetAnchorCertificatesOnly(trust, !trustPolicy.includesPlatformAnchors) == errSecSuccess) evaluateAppleTrust(trust) else false to null
         } finally { CFRelease(array) }
     }
 }

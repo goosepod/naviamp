@@ -73,6 +73,23 @@ class NavidromeProviderTest {
         assertTrue(http.urls.single().contains("/getSimilarSongs.view?"))
     }
 
+    @Test fun aurralInstantMixFallsBackToOwnedAlbumTracksForEmptyOrUnsupportedSimilarity() = runTest {
+        for (similar in listOf(
+            """{"subsonic-response":{"status":"ok","similarSongs":{"song":[]}}}""",
+            """{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Unsupported"}}}""")) {
+            val http = SequencedHttpClient(listOf(similar,
+                """{"subsonic-response":{"status":"ok","song":{"id":"seed","title":"Seed","artist":"Artist","albumId":"owned-album"}}}""",
+                """{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Unsupported catalog"}}}""",
+                """{"subsonic-response":{"status":"ok","album":{"id":"owned-album","name":"Album","song":[{"id":"seed","title":"Seed","artist":"Artist"},{"id":"owned-match","title":"Match","artist":"Artist"}]}}}"""))
+            val provider = NavidromeProvider(connection("https://music.example.test").copy(providerId = app.naviamp.domain.provider.ProviderIdAurral), http)
+            assertEquals(listOf("owned-match"), provider.instantMixTracks(TrackId("seed"), 1).map { it.id.value })
+            assertEquals(4, http.urls.size)
+            assertTrue(http.urls[1].contains("getSong.view"))
+            assertTrue(http.urls[2].contains("getRandomSongs.view"))
+            assertTrue(http.urls[3].contains("getAlbum.view"))
+        }
+    }
+
     @Test fun unsupportedSonicResponseIsReportedInsteadOfPretendingThereAreNoMatches() = runTest {
         val http = RecordingResponseHttpClient("""{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Not supported"}}}""")
         val provider = NavidromeProvider(connection("https://music.example.test"), http)

@@ -262,6 +262,7 @@ class NaviampIosApplication(
             radioDjPresets = repositories.radioDjPresets,
             maintenance = repositories.maintenance,
             pendingProviderActions = repositories.pendingProviderActions,
+            discoveryAcquisitions = repositories.discoveryAcquisitions,
             updateAudioCacheLimit = audioStore::updateAudioCacheLimit,
         ),
         externalUri = IosCoreExternalUriPort(),

@@ -318,6 +318,8 @@ fun HomeContent.toSharedHomeUi(
                 mediaKind = SharedMediaItemKind.MixBuilder,
                 action = SharedHomeCollectionItemAction.SelectMixBuilder,
                 mixBuilder = builder,
+                artwork = SharedHomeCollectionArtwork.MixBuilderGenerated,
+                artworkKey = builder.id,
             )
         })
         sonicDiscoveryRows.rows.forEach { row ->

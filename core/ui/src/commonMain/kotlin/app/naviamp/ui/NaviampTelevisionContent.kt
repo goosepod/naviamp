@@ -119,6 +119,21 @@ internal fun TelevisionHome(
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
+    home.providerDiscovery?.takeIf { it.requestsOpen }?.let {
+        NaviampDiscoveryRequestsUi(it, colors, actions, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
+        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.browser != null }?.let {
+        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
     val discoveryScope = rememberCoroutineScope()
@@ -214,7 +229,8 @@ internal fun TelevisionHome(
                     }) {
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback)
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
                     }
                 }
             }

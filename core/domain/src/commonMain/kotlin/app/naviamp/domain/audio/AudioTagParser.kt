@@ -18,6 +18,31 @@ fun audioTagsFromAudioBytes(bytes: ByteArray): List<AudioTag> =
         else -> emptyList()
     }
 
+/** FLAC STREAMINFO packs the sample rate, channel count and bit depth into eight bytes. */
+fun audioInfoFromAudioBytes(bytes: ByteArray): app.naviamp.domain.AudioInfo? {
+    if (!bytes.startsWith("fLaC") || bytes.size < 42 ||
+        (bytes[4].toInt() and 0x7f) != 0 ||
+        bytes[5] != 0.toByte() || bytes[6] != 0.toByte() || bytes[7] != 34.toByte()) return null
+    val rate = ((bytes[18].toInt() and 255) shl 12) or
+        ((bytes[19].toInt() and 255) shl 4) or ((bytes[20].toInt() and 255) ushr 4)
+    val depth = (((bytes[20].toInt() and 1) shl 4) or ((bytes[21].toInt() and 255) ushr 4)) + 1
+    if (rate == 0) return null
+    return app.naviamp.domain.AudioInfo(
+        codec = "FLAC", bitrateKbps = null, contentType = "audio/flac",
+        bitDepth = depth, samplingRateHz = rate,
+    )
+}
+
+/** Fill missing provider fields without substituting file properties for stream properties. */
+fun app.naviamp.domain.AudioInfo?.withMissingFileProperties(file: app.naviamp.domain.AudioInfo?): app.naviamp.domain.AudioInfo? =
+    if (file == null) this else app.naviamp.domain.AudioInfo(
+        codec = this?.codec ?: file.codec,
+        bitrateKbps = this?.bitrateKbps ?: file.bitrateKbps,
+        contentType = this?.contentType ?: file.contentType,
+        bitDepth = this?.bitDepth ?: file.bitDepth,
+        samplingRateHz = this?.samplingRateHz ?: file.samplingRateHz,
+    )
+
 fun lyricsFromAudioTags(tags: List<AudioTag>) =
     tags.firstNotNullOfOrNull { tag -> lyricsFromTaggedText(tag.key, tag.value) }
 

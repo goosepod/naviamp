@@ -261,6 +261,10 @@ class NaviampCoreMediaDetailController(
         loadArtist(item, pushCurrentArtist = true)
     }
 
+    internal suspend fun selectAlbum(item: SharedMediaItemUi) {
+        loadAlbum(item)
+    }
+
     internal fun interfaceSettingsChanged(settings: app.naviamp.domain.settings.InterfaceSettings) {
         val previousVisibility = stateStore.state.value.shell.artistDetail.detail?.playlistsVisible
         if (!settings.showArtistPlaylists) cancelArtistPlaylists()

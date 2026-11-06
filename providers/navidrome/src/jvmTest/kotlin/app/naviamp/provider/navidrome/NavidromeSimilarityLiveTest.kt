@@ -31,7 +31,7 @@ class NavidromeSimilarityLiveTest {
     }
 
     @Test
-    fun probeUsesRealServerAndRadioReportsUnavailableSonicWithoutSubstitution() = runBlocking {
+    fun probeUsesRealServerAndRadioResolvesUnadvertisedSonicToInstantMix() = runBlocking {
         val url = System.getenv("NAVIAMP_SIMILARITY_TEST_URL") ?: return@runBlocking
         val user = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_USER"))
         val password = checkNotNull(System.getenv("NAVIAMP_SIMILARITY_TEST_PASSWORD"))
@@ -48,7 +48,8 @@ class NavidromeSimilarityLiveTest {
             RadioService(provider, onSimilarityResult = { diagnostics = it.radioDiagnostics() })
                 .trackRadio(seed, preferSonicSimilarity = true)
         }.getOrDefault(emptyList())
-        assertTrue(tracks.isEmpty(), "Unavailable Sonic must not return regular tracks")
+        if (provider.capabilities.supportsSonicSimilarity) assertTrue(tracks.isEmpty(), "An advertised Sonic failure must remain visible")
+        else assertTrue(tracks.isNotEmpty(), "Unadvertised Sonic must select usable Instant Mix")
         assertTrue(diagnostics != null)
         val regular = RadioService(provider).trackRadio(seed, preferSonicSimilarity = false)
         assertTrue(regular.isNotEmpty(), "Explicit Instant Mix should use the test server recommendations")

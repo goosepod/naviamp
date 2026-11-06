@@ -74,6 +74,7 @@ class AndroidStorage private constructor(
     PlaybackProfileRepository by graph.repositories.playbackProfiles,
     LocalLibraryIndexRepository by graph.repositories.libraryIndex,
     PendingProviderActionRepository by graph.repositories.pendingProviderActions,
+    app.naviamp.domain.provider.DiscoveryAcquisitionRepository by graph.repositories.discoveryAcquisitions,
     RadioDjPresetRepository by graph.repositories.radioDjPresets,
     CacheMaintenanceRepository<StorageCacheStats> by graph.repositories.maintenance,
     SidecarStatusRepository by graph.sidecarStatuses,

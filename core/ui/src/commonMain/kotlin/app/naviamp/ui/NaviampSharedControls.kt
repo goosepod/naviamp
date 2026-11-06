@@ -492,7 +492,7 @@ fun NaviampDropdownMenu(
         properties = properties,
         tonalElevation = 0.dp,
         shadowElevation = 8.dp,
-        modifier = modifier.widthIn(min = 220.dp).onPreviewKeyEvent { event ->
+        modifier = modifier.widthIn(min = 220.dp).naviampMouseBack { if (properties.dismissOnBackPress) onDismissRequest() }.onPreviewKeyEvent { event ->
             if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) {
                 onDismissRequest()
                 true
@@ -500,7 +500,7 @@ fun NaviampDropdownMenu(
         },
         content = {
             NaviampPopupPresence()
-            NaviampMenuActivationEffect(onDismissRequest)
+            NaviampMenuActivationEffect(onDismissRequest, properties.dismissOnBackPress)
             content()
         },
     )

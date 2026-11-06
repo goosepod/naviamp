@@ -162,6 +162,7 @@ class KtorNavidromeHttpClient private constructor(
             NavidromeHttpResponse(
                 body = response.body<String>(),
                 headers = response.headers.entries().associate { (name, values) -> name to values.joinToString(",") },
+                statusCode = statusCode,
             ).also {
                 recordApiCall(
                     method = method.value,

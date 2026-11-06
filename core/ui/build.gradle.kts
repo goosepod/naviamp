@@ -135,6 +135,14 @@ val buildAnimationCompositorProbe by tasks.registering(Exec::class) {
     }
 }
 
+tasks.register<JavaExec>("discoveryArtistWindowProbe") {
+    group = "verification"
+    description = "Open the shared discovery artist page without a production profile"
+    dependsOn("jvmTestClasses")
+    classpath = tasks.named<Test>("jvmTest").get().classpath
+    mainClass.set("app.naviamp.ui.NaviampDiscoveryWindowProbeKt")
+}
+
 tasks.register<JavaExec>("smartPlaylistWindowProbe") {
     group = "verification"
     description = "Checks smart-playlist scrolling in a visible native owned window."
