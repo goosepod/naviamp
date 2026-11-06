@@ -1249,4 +1249,11 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Use this language for Naviamp.</string>
+    <string name="settings_square_album_artwork">Square album artwork</string>
+    <string name="settings_square_album_artwork_description">Use right-angle corners for album and track covers throughout the app.</string>
+    <string name="settings_fill_now_playing_artwork">Fill Now Playing artwork area</string>
+    <string name="settings_fill_now_playing_artwork_description">Crop the cover to fill the player, with a dark fade behind the controls.</string>
+    <string name="now_playing_toggle_visualizer">Toggle visualizer</string>
+    <string name="discovery_request_rejected">Aurral rejected this request. Check its details before trying again.</string>
+    <string name="discovery_request_conflict">This album has a library ownership conflict. Review it in Aurral.</string>
 </resources>

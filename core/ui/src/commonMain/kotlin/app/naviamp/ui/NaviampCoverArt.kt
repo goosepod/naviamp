@@ -58,6 +58,7 @@ fun NaviampCoverArt(
     modifier: Modifier = Modifier,
     decodeSize: Dp = size,
     fallbackUrl: String? = null,
+    mediaKind: SharedMediaItemKind,
 ) {
     val targetSidePx = with(LocalDensity.current) {
         ceil(decodeSize.toPx()).toInt().coerceIn(MinCoverArtSidePx, MaxCoverArtSidePx)
@@ -100,7 +101,7 @@ fun NaviampCoverArt(
     Box(
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
+            .clip(RoundedCornerShape(resolvedMediaArtworkCornerRadius(mediaKind, size, cornerRadius)))
             .background(colors.albumArtPlaceholder),
     ) {
         outgoingImage?.let {

@@ -244,6 +244,11 @@ class NaviampAurralDiscoveryUiTest {
                         operationStatus = ProviderDiscoveryOperationStatus.MissingSource)
                 }
                 onNodeWithText("Saved, but no download source is configured.").assertExists()
+                runOnIdle { detail.value = detail.value.copy(operationStatus = ProviderDiscoveryOperationStatus.Rejected) }
+                onNodeWithText("Aurral rejected this request. Check its details before trying again.").assertExists()
+                onNodeWithText("Could not confirm the result. Check in Aurral before trying again.").assertDoesNotExist()
+                runOnIdle { detail.value = detail.value.copy(operationStatus = ProviderDiscoveryOperationStatus.Conflict) }
+                onNodeWithText("This album has a library ownership conflict. Review it in Aurral.").assertExists()
                 onNodeWithContentDescription("Play sample").performScrollTo().performClick()
                 runOnIdle { assertEquals(ProviderDiscoveryAction.PlaySample("42"), actions.last()) }
                 onNodeWithContentDescription("Request track").performClick()

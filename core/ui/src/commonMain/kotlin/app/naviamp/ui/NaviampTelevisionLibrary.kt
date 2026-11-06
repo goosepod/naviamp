@@ -403,7 +403,7 @@ internal fun TelevisionLibrary(
                     } else TelevisionMediaGrid(
                         items = items.map { item -> TelevisionMediaGridItem(
                             key = item.id, title = item.title, subtitle = item.subtitle, coverArtUrl = item.coverArtUrl,
-                            artworkShape = if (view == NaviampLibraryView.Artists) TelevisionArtworkShape.Circle else TelevisionArtworkShape.RoundedSquare,
+                            mediaKind = if (view == NaviampLibraryView.Artists) SharedMediaItemKind.Artist else SharedMediaItemKind.Album,
                             action = {
                                 viewport.record(view, item.id)
                                 mediaActions.onMediaItemAction(if (view == NaviampLibraryView.Artists) {

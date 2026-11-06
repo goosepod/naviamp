@@ -1729,6 +1729,7 @@ fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
         title = name,
         subtitle = homePageUrl ?: "Internet radio",
         coverArtUrl = radioStationArtworkUrl(this),
+        mediaKind = SharedMediaItemKind.RadioStation,
     )
 
 fun radioArtworkUrl(

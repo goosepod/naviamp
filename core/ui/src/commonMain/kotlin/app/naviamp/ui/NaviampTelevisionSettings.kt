@@ -1088,6 +1088,14 @@ private fun TelevisionDisplaySettings(
                 } else Modifier,
             )
         }
+        item(key = "square-album-artwork") {
+            TelevisionSettingsToggleRow(
+                stringResource(Res.string.settings_square_album_artwork),
+                stringResource(Res.string.settings_square_album_artwork_description),
+                settings.squareAlbumArtwork, colors,
+                { actions.onInterfaceSettingsChanged(settings.copy(squareAlbumArtwork = !settings.squareAlbumArtwork)) },
+            )
+        }
         item(key = "album-release-grouping") {
             TelevisionSettingsToggleRow(
                 stringResource(Res.string.tv_group_albums_by_release_type),

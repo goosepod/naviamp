@@ -17,6 +17,7 @@ dependencies {
     kover(project(":core:presentation"))
     kover(project(":core:storage"))
     kover(project(":core:testkit"))
+    kover(project(":core:tls-testkit"))
     kover(project(":core:ui"))
     kover(project(":providers:jellyfin"))
     kover(project(":providers:navidrome"))

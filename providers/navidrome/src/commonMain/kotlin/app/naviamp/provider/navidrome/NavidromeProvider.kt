@@ -2613,7 +2613,7 @@ open class NavidromeException(
 class NavidromePasswordRequiredException :
     NavidromeException(ConnectionPasswordRequiredStatus, 41)
 
-class NavidromeHttpException(val statusCode: Int) :
+class NavidromeHttpException(val statusCode: Int, val responseBody: String? = null) :
     NavidromeException("Navidrome returned HTTP $statusCode.")
 
 class NavidromeRateLimitException(

@@ -104,6 +104,7 @@ fun NaviampAlbumBlurBackground(
                 colors = colors,
                 size = imageSize,
                 cornerRadius = 0.dp,
+                mediaKind = SharedMediaItemKind.Album,
             )
         }
         Box(
