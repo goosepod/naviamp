@@ -15,12 +15,10 @@ using System.Runtime.InteropServices;
 public static class NaviampPresentationWindow {
     [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] public struct Point { public int X, Y; }
-    [DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();
     [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint first, uint second, bool attach);
-    public static bool PrepareLauncher() {
-        IntPtr console = GetConsoleWindow();
+    public static bool PrepareLauncher(IntPtr console) {
         if (console == IntPtr.Zero) return false;
         ShowWindow(console, 9);
         uint ignored;
@@ -106,10 +104,19 @@ try {
             $process = $null
             $launcher = $null
             $originalFailure = $null
+            $launcherWindow = $null
             try {
                 # Establish a normal foreground launcher BEFORE the application exists. Nothing
                 # activates/resizes/repaints Naviamp between launch and its initial capture.
-                if (-not [NaviampPresentationWindow]::PrepareLauncher()) { throw 'Cannot prepare owned foreground launcher.' }
+                $launcherWindow = New-Object Windows.Forms.Form
+                $launcherWindow.Text = 'Naviamp startup acceptance'
+                $launcherWindow.StartPosition = 'Manual'
+                $launcherWindow.Size = New-Object Drawing.Size(280, 90)
+                $area = [Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+                $launcherWindow.Location = New-Object Drawing.Point(($area.Right - 280), ($area.Bottom - 90))
+                $launcherWindow.Show()
+                [Windows.Forms.Application]::DoEvents()
+                if (-not [NaviampPresentationWindow]::PrepareLauncher($launcherWindow.Handle)) { throw 'Cannot prepare owned foreground test launcher.' }
                 $clock = [Diagnostics.Stopwatch]::StartNew()
                 $launcher = Start-Process -FilePath $exe -PassThru -RedirectStandardOutput (Join-Path $output.FullName "$name.stdout.log") -RedirectStandardError (Join-Path $output.FullName "$name.stderr.log")
                 $process = $launcher
@@ -147,6 +154,7 @@ try {
                 $originalFailure = $_
                 throw
             } finally {
+                if ($launcherWindow) { $launcherWindow.Dispose() }
                 if ($process -and -not $process.HasExited) {
                     [void][NaviampPresentationWindow]::PostMessage($process.MainWindowHandle, 0x10, [IntPtr]::Zero, [IntPtr]::Zero)
                     if (-not $process.WaitForExit(10000)) {

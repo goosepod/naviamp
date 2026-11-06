@@ -57,7 +57,7 @@ TV (1280) widths; rendered captures have been visually inspected.
 Raw local logs are under `/private/tmp/naviamp-506-*`; generated reports are in this worktree's
 module build directories. Counts describe individual suites, not an invented nonoverlapping total.
 
-## Windows visible-window evidence and remaining gates
+## Gaming PC native and visible-window evidence
 
 `scripts/windows-initial-presentation.ps1` is an opt-in interactive probe for repeated cold/warm
 packaged launches with separate disposable profile pairs. It observes initial client pixels before
@@ -71,7 +71,56 @@ rather than its child JVM; the next correctly rejected lack of foreground owners
 occlusion guard subsequently rejected a covering fullscreen launcher. A later attempt could not
 prepare the scheduled task's console as the foreground launcher. None counts as a visible startup
 pass. Remote desktop input tooling also stalled during inspection; it supplies no new app evidence.
-Keep #493 open until unoccluded repeated launch/restore evidence is recorded.
+
+The final harness uses a small real, owned launcher form before Naviamp exists. It establishes
+normal launch focus without activating/resizing the application after startup. Native Z-order
+checks reject any launcher or foreign window covering the captured client. This is test-only
+setup; production code remains unchanged.
+
+On Windows 11 Pro build 26300, with NVIDIA GeForce RTX 5060 Ti driver `32.0.16.1742`, the exact
+candidate's ordinary Windows package passes **three cold/warm profile pairs**, six launches total.
+All six unoccluded initial captures show the connection UI without input or resize; all six restored
+captures are byte-identical to their corresponding initial images. Every image has been inspected
+visually, directly or by equality with its inspected initial capture. Captured client geometry is
+934 × 601 pixels in every run. The graphics inventory reports a 3840 × 2160, 60 Hz output; the
+Moonlight view is a separate remote observation and is not used to infer native pixel dimensions.
+The smooth Aurral vector also appears in the connection provider picker.
+
+| Launch | Initial capture after launch, ms | Five-second idle CPU, one core |
+| --- | ---: | ---: |
+| 1 cold | 10985 | 0.937% |
+| 1 warm | 5928 | 0.000% |
+| 2 cold | 6483 | 0.626% |
+| 2 warm | 5791 | 0.000% |
+| 3 cold | 6771 | 0.000% |
+| 3 warm | 5372 | 0.313% |
+
+These timings include the three-second observation delay and native-window discovery; they do not
+measure first-pixel latency. CPU zeroes reflect the short interval's process accounting resolution,
+not proof of zero cost. Concurrent build activity and the short static interval preclude animation
+budget conclusions. Parent-surface frames and GPU/compositor cost are not measured in this startup
+probe. The unrelated ongoing animation-performance gates remain open.
+
+The Gaming PC also executes **584 shared presentation, 70 storage, three certificate-validation,
+and two real native preview methods**, all with zero failures/errors/skips. The two native cases
+use actual output-device clocks with muted output, not BASS no-sound device 0. They verify native
+preview lifecycle plus real Core nonempty queue/session retention, seek and explicit main Resume.
+
+Raw evidence is retained in the Gaming PC's owned `naviamp-506-acceptance` directory and locally in
+`/private/tmp/naviamp-506-windows-evidence.zip`. No profile contents or private endpoints are
+included in the captured evidence bundle. #493 still retains baseline-causality comparison and
+broader input acceptance; six passing candidate launches alone do not prove its historical cause.
+
+## Independent local native replay
+
+The first additional fresh-fixture/fresh-simulator replay executes all 17 native cases with zero
+failures/errors/skips. The second replay fails during the simulator **clone RPC**, before a native
+test starts: `simctl clone` exceeds the existing 30-second provisioning bound. Its failure summary
+and cleanup-complete marker are retained in `build/506-cold-native-replays/run-2`; the owned partial
+clone and fixture are cleaned. No clone failure is counted as native acceptance, and no TLS or
+playback deadline is relaxed. This remains separate from the historical native HTTP bootstrap stall.
+
+## Remaining gates
 
 Exact-source cross-platform GitHub checks, Linux confirmation of the corrected seek presentation,
 repeated cold iOS acceptance, audible live previews/nonempty queue walkthrough, physical input and
@@ -80,11 +129,11 @@ single passing local native run. Native acquisition cancel/retry remains deferre
 
 ## Platform production audit relative to the Aurral integration branch
 
-- `providers/navidrome/src/jvmAndAndroidMain/.../NavidromeJvmTlsMaterial.kt`: Java KeyStore,
+- `providers/navidrome/src/jvmAndAndroidMain/kotlin/app/naviamp/provider/navidrome/NavidromeJvmTlsMaterial.kt`: Java KeyStore,
   TrustManagerFactory and SSLSocketFactory effects implement the common trust policy.
-- `providers/navidrome/src/iosMain/.../NavidromeAppleTlsMaterial.kt`: Apple Security's SecTrust
+- `providers/navidrome/src/iosMain/kotlin/app/naviamp/provider/navidrome/NavidromeAppleTlsMaterial.kt`: Apple Security's SecTrust
   anchor APIs implement the common trust policy while preserving platform anchors and SSL policy.
-- `core/ui/src/jvmMain/.../DesktopRasterPresenter.kt`: AWT visibility and EventQueue dispatch to
+- `core/ui/src/jvmMain/kotlin/app/naviamp/ui/DesktopRasterPresenter.kt`: AWT visibility and EventQueue dispatch to
   Skiko's native frame queue implement the common one-shot surface-presentation decision.
 
 This follow-up adds no platform production behavior. Its new product fix and logo resource remain
