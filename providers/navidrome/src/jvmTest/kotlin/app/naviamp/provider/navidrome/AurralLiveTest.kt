@@ -14,6 +14,10 @@ class AurralLiveTest {
         val readOnly = readOnlyTransport(connection)
         val genreQueries = mutableListOf<Boolean>()
         val observed = object : NavidromeHttpClient by readOnly {
+            override suspend fun postForm(url: String, body: String, headers: Map<String, String>): String {
+                if (url.endsWith("/getRandomSongs.view")) genreQueries += ("genre=" in body)
+                return readOnly.postForm(url, body, headers)
+            }
             override suspend fun get(url: String, headers: Map<String, String>): String {
                 if ("/getRandomSongs.view?" in url) genreQueries += ("genre=" in url)
                 return readOnly.get(url, headers)
@@ -352,11 +356,19 @@ class AurralLiveTest {
 
     private fun readOnlyTransport(connection: NavidromeConnection, unexpectedWrite: () -> Unit = {}): NavidromeHttpClient {
         val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        fun checkReadOnlySubsonic(url: String) {
+            check(listOf("scrobble", "star.view", "unstar.view", "setRating", "createPlaylist", "updatePlaylist", "deletePlaylist")
+                .none { it in url }) { "Read-only acceptance prohibits mutating Subsonic routes" }
+        }
         return object : NavidromeHttpClient by transport {
+            override suspend fun get(url: String): String = get(url, emptyMap())
             override suspend fun get(url: String, headers: Map<String, String>): String {
-                check(listOf("scrobble", "star.view", "unstar.view", "setRating", "createPlaylist", "updatePlaylist", "deletePlaylist")
-                    .none { it in url }) { "Read-only acceptance prohibits mutating Subsonic routes" }
+                checkReadOnlySubsonic(url)
                 return transport.get(url, headers)
+            }
+            override suspend fun postForm(url: String, body: String, headers: Map<String, String>): String {
+                checkReadOnlySubsonic(url)
+                return transport.postForm(url, body, headers)
             }
             override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
                 if (url != connection.normalizedBaseUrl + "/api/auth/login" &&

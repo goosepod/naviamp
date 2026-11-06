@@ -275,3 +275,9 @@ seek clocks advance to 23.2 seconds while shared Now Playing says Loading. Its f
 preserved; it precedes this Radio-diversity increment and is not attributed to it. Passing local
 native checks do not resolve that intermittent investigation. Final-source hosted checks remain a
 merge/release gate.
+
+The final live trace uses the owner's reported Sugar Ray seed: both paths return 20 tracks from
+20 artists using six genre-filtered catalog queries in total and zero unfiltered fill queries.
+Aurral negotiates Subsonic form POST for these reads. The acceptance transport now traces that
+method and applies the same read-only endpoint guard to form POST and both GET overloads; request
+bodies/credentials are never printed. The trace-only follow-up changes no production input.
