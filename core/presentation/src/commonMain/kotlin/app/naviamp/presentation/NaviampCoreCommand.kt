@@ -181,9 +181,21 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Home : NaviampCoreCommand {
+        data class Browse(val action: app.naviamp.domain.provider.DiscoveryBrowseAction) : Home
+        data object ShowDiscoveryRequests : Home
+        data object DismissDiscoveryRequests : Home
+        data object RefreshDiscoveryRequests : Home
+        data class OpenDiscoveryRequest(val sourceId: String?, val generation: Long, val id: String) : Home
+        data class OpenDiscoveryRequestsExternal(val sourceId: String?, val generation: Long) : Home
         data object Refresh : Home
         data class OpenDiscoveryArtist(val id: String) : Home
         data class SelectDiscoveryArtist(val id: String) : Home
+        data class BrowseDiscoveryArtist(val sourceId: String?, val artist: app.naviamp.domain.provider.ProviderDiscoveryArtist) : Home
+        data class SelectDiscoveryRelease(val id: String) : Home
+        data class OpenDiscoveryLibraryRelease(val sourceId: String?, val sourceGeneration: Long, val releaseId: String) : Home
+        data class DiscoveryReleaseAction(val sourceId: String?, val sourceGeneration: Long, val releaseId: String,
+            val action: app.naviamp.domain.provider.ProviderDiscoveryAction) : Home
+        data class DiscoveryViewport(val index: Int, val offset: Int, val section: app.naviamp.domain.media.AlbumReleaseSection?) : Home
         data object DismissDiscoveryArtist : Home
         data class DiscoveryAction(val id: String, val action: app.naviamp.domain.provider.ProviderDiscoveryAction) : Home
         data class DiscoveryFeedback(val id: String, val action: app.naviamp.domain.provider.ProviderDiscoveryFeedbackAction) : Home

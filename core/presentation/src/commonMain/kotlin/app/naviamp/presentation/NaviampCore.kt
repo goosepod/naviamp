@@ -99,6 +99,7 @@ class NaviampCore private constructor(
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
+    private val homeController: NaviampCoreHomeController,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val samplePlayback: NaviampCoreSamplePlaybackController,
@@ -230,6 +231,7 @@ class NaviampCore private constructor(
     suspend fun maintainProviderSession() {
         providerSessionLifecycle.maintainWhileMounted()
     }
+    suspend fun maintainDiscoveryAcquisitions() = homeController.maintainDiscoveryAcquisitions()
 
     companion object {
         fun create(
@@ -276,6 +278,7 @@ class NaviampCore private constructor(
                 navigationState,
                 stateStore,
                 deferredArtistNavigator,
+                onLeaveDiscovery = samplePlayback::stop,
                 persistNowPlayingOpen = { open ->
                     val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
                     services.playback.sessions.updateNowPlayingOpen(open, sourceId)
@@ -318,8 +321,13 @@ class NaviampCore private constructor(
                 observedAtIso8601 = services.favoritedAtIso8601,
                 externalUri = services.content.externalUri,
                 openLibraryArtist = { mediaDetails.selectArtist(it.toSharedMediaItemUi()) },
+                openLibraryAlbum = { album -> mediaDetails.selectAlbum(album.toSharedMediaItemUi(coverArtUrl = { id ->
+                    id?.let { providerSource.current()?.coverArtUrl(it) }
+                })) },
                 playDiscoverySample = { samplePlayback.toggle(it) },
                 stopDiscoverySample = samplePlayback::stop,
+                acquisitionRepository = services.content.discoveryAcquisitions,
+                nowMillis = services.clockEpochMillis,
             )
             val similarity = NaviampCoreSimilarityController(stateStore, providerSource) { provider ->
                 livePlayback.state.value.currentTrack?.takeUnless { it.isInternetRadioTrack() }
@@ -790,6 +798,7 @@ class NaviampCore private constructor(
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
+                homeController = home,
                 providerSource = providerSource,
                 sidecars = services.playback.sidecars,
                 samplePlayback = samplePlayback,

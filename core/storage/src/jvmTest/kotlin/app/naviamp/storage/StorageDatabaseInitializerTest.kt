@@ -48,7 +48,7 @@ class StorageDatabaseInitializerTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             // Recreate main's immediate pre-migration schema from the canonical schema.
-            NaviampStorageDatabase.Schema.create(driver)
+            driver.createSchemaWithoutAcquisitions()
             driver.removeDiscMetadataColumns()
             driver.execute(null, "DROP TABLE download_retention", 0)
             driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
@@ -94,7 +94,7 @@ class StorageDatabaseInitializerTest {
     fun versionTwentySixAddsAuthenticationModeAndPreservesSavedCredentials() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
-            NaviampStorageDatabase.Schema.create(driver)
+            driver.createSchemaWithoutAcquisitions()
             driver.removeDiscMetadataColumns()
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
             driver.execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
@@ -110,6 +110,37 @@ class StorageDatabaseInitializerTest {
             assertEquals("token", source.authentication_mode)
             assertEquals("saved-password", source.password)
             assertEquals("", source.token)
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
+    fun acceptedMainSchemaAddsAcquisitionsWithoutChangingExistingLibrary() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.createSchemaWithoutAcquisitions()
+            driver.execute(null, "PRAGMA user_version = 29", 0)
+            driver.execute(null, """
+                INSERT INTO media_source(id, provider_id, cache_namespace, display_name, base_url,
+                    username, token, salt, created_at_epoch_millis, authentication_mode)
+                VALUES ('source', 'aurral', 'cache', 'Server', 'https://example.test',
+                    'user', 'token', 'salt', 1, 'token')
+            """.trimIndent(), 0)
+            driver.execute(null, """
+                INSERT INTO library_album(source_id, remote_album_id, title, artist_name,
+                    search_title, search_artist_name, updated_at_epoch_millis, original_release_year)
+                VALUES ('source', 'album', 'Album', 'Artist', 'album', 'artist', 1, 1977)
+            """.trimIndent(), 0)
+
+            repeat(2) {
+                val database = initializeNaviampStorageDatabase(driver)
+                assertEquals(NaviampStorageSchema.version, driver.userVersion())
+                assertEquals("token", database.naviampStorageQueries.selectMediaSourceById("source")
+                    .executeAsOne().token)
+                assertEquals(1L, driver.queryLong("SELECT COUNT(*) FROM library_album WHERE remote_album_id = 'album' AND original_release_year = 1977"))
+                assertEquals(0L, driver.queryLong("SELECT COUNT(*) FROM discovery_acquisition"))
+            }
         } finally {
             driver.close()
         }
@@ -225,7 +256,7 @@ class StorageDatabaseInitializerTest {
     fun releasedVersionTwentyFiveAddsConnectPasswordWithoutChangingExistingData() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
-            NaviampStorageDatabase.Schema.create(driver)
+            driver.createSchemaWithoutAcquisitions()
             driver.removeDiscMetadataColumns()
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN password", 0)
             driver.execute(null, "ALTER TABLE media_source DROP COLUMN authentication_mode", 0)
@@ -256,7 +287,7 @@ class StorageDatabaseInitializerTest {
     fun releaseBaselineDatabaseAddsBranchTablesAndPreservesExistingLibrary() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
-            NaviampStorageDatabase.Schema.create(driver)
+            driver.createSchemaWithoutAcquisitions()
             driver.removeDiscMetadataColumns()
             driver.execute(null, "DROP TABLE favorite_artist_activity", 0)
             driver.execute(null, "DROP TABLE album_catalog_snapshot", 0)
@@ -307,7 +338,7 @@ class StorageDatabaseInitializerTest {
 private fun JdbcSqliteDriver.userVersion(): Long = queryLong("PRAGMA user_version")
 
 private fun JdbcSqliteDriver.createVersionTwentyOneSchema(includeSelectedMusicFolders: Boolean) {
-    NaviampStorageDatabase.Schema.create(this)
+    createSchemaWithoutAcquisitions()
     removeDiscMetadataColumns()
     execute(null, "ALTER TABLE keep_downloaded_collection DROP COLUMN artist_album_scope", 0)
     execute(null, "ALTER TABLE library_album DROP COLUMN original_release_year", 0)
@@ -351,4 +382,9 @@ private fun JdbcSqliteDriver.removeDiscMetadataColumns() {
             execute(null, "ALTER TABLE $table DROP COLUMN $column", 0)
         }
     }
+}
+/** Rewind the branch-only table before assigning a historical user_version to a fixture. */
+private fun JdbcSqliteDriver.createSchemaWithoutAcquisitions() {
+    NaviampStorageDatabase.Schema.create(this)
+    execute(null, "DROP TABLE discovery_acquisition", 0)
 }

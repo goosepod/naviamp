@@ -31,6 +31,7 @@ data class NaviampCoreContentServices(
     val libraryGenreRefresh: NaviampCoreLibraryGenreRefreshPort = NaviampCoreLibraryGenreRefreshPort { },
     val libraryIndex: LocalLibraryIndexRepository? = null,
     val albumIndex: AlbumLibraryIndex? = null,
+    val discoveryAcquisitions: app.naviamp.domain.provider.DiscoveryAcquisitionRepository = app.naviamp.domain.provider.MemoryDiscoveryAcquisitionRepository(),
 )
 
 fun interface NaviampCoreLibraryGenreRefreshPort {

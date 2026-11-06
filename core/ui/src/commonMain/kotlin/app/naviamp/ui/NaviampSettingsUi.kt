@@ -5266,7 +5266,7 @@ internal fun RadioSettingsSection(
     NaviampSimilarityTestContent(colors, similarityTest, onTestSimilarity, radioDiagnostics)
 }
 
-/** Shared method selection also appears on TV; unavailable Sonic never changes the stored choice. */
+/** Show the effective method for this server while retaining the portable preference. */
 @Composable
 internal fun RadioSimilarityChoices(
     colors: NaviampColors,
@@ -5278,7 +5278,7 @@ internal fun RadioSimilarityChoices(
         RadioSimilarityMethod.entries.forEach { method ->
             val sonic = method == RadioSimilarityMethod.SonicSimilarity
             val enabled = !sonic || supportsSonic
-            val selected = settings.radioSimilarityMethod() == method
+            val selected = settings.radioSimilarityMethod(supportsSonic) == method
             SelectableSettingsRow(
                 colors = colors,
                 title = stringResource(if (sonic) Res.string.settings_related_sonic_similarity else Res.string.radio_instant_mix),

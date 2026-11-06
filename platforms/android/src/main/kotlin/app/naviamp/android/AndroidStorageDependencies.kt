@@ -52,6 +52,7 @@ class AndroidStorageDependencies(
     PlaybackProfileRepository by storage,
     LocalLibraryIndexRepository by storage,
     PendingProviderActionRepository by storage,
+    app.naviamp.domain.provider.DiscoveryAcquisitionRepository by storage,
     RadioDjPresetRepository by storage,
     CacheMaintenanceRepository<StorageCacheStats> by storage,
     SidecarStatusRepository by storage,
