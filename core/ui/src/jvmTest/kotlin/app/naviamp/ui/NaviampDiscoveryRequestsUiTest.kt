@@ -111,7 +111,7 @@ class NaviampDiscoveryRequestsUiTest {
         onNodeWithText("Open in library").assertDoesNotExist()
     }
     private fun capture(bitmap: androidx.compose.ui.graphics.ImageBitmap, name: String) {
-        val directory = java.io.File("/private/tmp/478-request-captures").apply { mkdirs() }
+        val directory = java.io.File("build/reports/tests/discovery-requests").apply { mkdirs() }
         javax.imageio.ImageIO.write(bitmap.toAwtImage(), "png", directory.resolve("$name.png"))
     }
 }

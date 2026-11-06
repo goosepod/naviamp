@@ -77,7 +77,7 @@ class DesktopAurralWindowsPreviewTest {
             engine.stopPreview()
             assertEquals(PlaybackState.Stopped, state.value)
             assertEquals(0, binding.endSyncRegistrationCount, "Preview callback must be released")
-            println("Live chart preview clock advanced, paused and resumed with verified TLS and muted output")
+            println("Live chart preview clock advanced, paused and resumed with certificate verification enabled and muted output")
         } finally { engine.release(); relay.close() }
     }
 }

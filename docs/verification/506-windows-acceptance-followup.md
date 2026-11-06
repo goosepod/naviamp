@@ -47,8 +47,10 @@ TV (1280) widths; rendered captures have been visually inspected.
   zero failures/errors/skips, with muted output and actual native clocks.
 - Strengthened live Aurral preview: one method, zero failures/errors/skips (14.865 seconds) on
   macOS. The dedicated acceptance account is read-only for this probe. A temporary SSH tunnel
-  carries the server connection; an additional unrelated private fixture CA exercises preservation
-  of the public preview media's platform trust. No acquisition/listen/feedback mutation is made.
+  carries the server connection; the probe also configures an unrelated private fixture CA.
+  Certificate-validation fixtures independently establish preservation of platform trust; the
+  tunneled server connection is not evidence of a private-server TLS handshake.
+  No acquisition/listen/feedback mutation is made.
 - Fresh owned iOS simulator/fixture native suite: **17 methods, zero failures/errors/skips**.
   The fixture and cloned simulator are stopped/deleted afterward. This passing local run does
   not establish the cause of the intermittent hosted bootstrap stall in #454.
@@ -131,6 +133,23 @@ test starts: `simctl clone` exceeds the existing 30-second provisioning bound. I
 and cleanup-complete marker are retained in `build/506-cold-native-replays/run-2`; the owned partial
 clone and fixture are cleaned. No clone failure is counted as native acceptance, and no TLS or
 playback deadline is relaxed. This remains separate from the historical native HTTP bootstrap stall.
+
+## Final-source native and CI follow-up
+
+After serialized publication is added, all 584 presentation tests and Android/both iOS common
+compilation pass again. The Gaming PC's final package, verifier, two real native preview cases and
+fresh cold/warm app launches pass. The final source's full 17-case native iOS suite also passes on a
+newly created owned simulator (27-second Gradle execution, excluding provisioning), with zero
+failures/errors/skips. Creation is a separate local setup from the failed clone replay; the clone
+failure is preserved and is not relabeled as a pass. The owned device and fixture are removed.
+
+The superseded [81dc00f83 Verify run](https://github.com/goosepod/naviamp/actions/runs/42256634333)
+passes Linux/macOS Desktop and API 30/API 35 native checks. Its shared job reaches all 672 UI cases
+but fails a screenshot write in `NaviampDiscoveryRequestsUiTest`: the test hardcoded a Mac-only
+`/private/tmp/478-request-captures` directory. Its artifacts now go to the module's portable
+`build/reports/tests/discovery-requests` directory, where CI can also collect them. Assertions,
+request behavior and screenshot generation remain intact. Final revision checks remain the gate;
+passing checks from a superseded tree are supporting evidence only.
 
 ## Remaining gates
 
