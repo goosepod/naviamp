@@ -151,6 +151,36 @@ but fails a screenshot write in `NaviampDiscoveryRequestsUiTest`: the test hardc
 request behavior and screenshot generation remain intact. Final revision checks remain the gate;
 passing checks from a superseded tree are supporting evidence only.
 
+## Second shared race found by final-source coverage
+
+Run [42264936139](https://github.com/goosepod/naviamp/actions/runs/42264936139) passes the dedicated
+Linux/macOS/Windows native jobs and API 35. Its coverage aggregation reruns the real Desktop Core
+preview contract and times out during seek: the native/shared clock reaches 23.2 seconds while
+Now Playing remains Loading. The ALSA null sink was configured; this is not an audio-device
+provisioning failure. The preceding presenter correction alone is insufficient.
+
+`NaviampLivePlaybackController` also performed non-atomic whole-snapshot read/copy/write updates.
+A progress callback could overwrite a concurrent Playing callback with its stale Loading snapshot.
+The new common concurrency regression loses 4,767 of 8,000 seek-generation increments on the
+previous source. A deterministic reentrant observer regression also receives Playing then Loading,
+rather than Loading then Playing. Both failures are retained before the fix.
+
+Field updates now use atomic StateFlow transformations. One notification owner drains the latest
+canonical state to the progress flow and observers, including reentrant updates; this prevents an
+older nested notification from following a newer one. No native adapter, clock frequency,
+deadline, animation policy or test assertion is relaxed. This correction and its tests are common.
+
+The corrected full Core app suite (292 methods) and presentation suite (584 methods) pass on Mac
+and the Gaming PC. Android/JVM/both iOS common compilation and architecture checks pass. The
+Gaming PC also passes both real native preview contracts, packaging validation and a new
+cold/warm launch-and-restore pair. Five-second one-core CPU observations are 0.313% and 0.313%;
+these are quantized idle observations, not complete animation performance acceptance. Fresh iOS
+and final-source hosted validation remain required.
+
+The same hosted run's API 30 failure is the existing #486 Compose test-clock measure/layout
+reentrancy in the smart-playlist collapse test (36/37 rendered cases pass). Preserve that failure
+and require unchanged assertions on the final revision; do not attribute it to the Aurral icon.
+
 ## Remaining gates
 
 Exact-source cross-platform GitHub checks, Linux confirmation of the corrected seek presentation,
