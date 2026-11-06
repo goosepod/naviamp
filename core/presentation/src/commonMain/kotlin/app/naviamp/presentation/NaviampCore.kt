@@ -741,13 +741,16 @@ class NaviampCore private constructor(
                         services.clockEpochMillis)
                 }
             }
-            val castSessions = castEffect?.let { NaviampCastSessionController(it, playbackOutputs) }
-            val castPicker = services.cast?.discovery?.let { effect ->
+            val castSessions = castEffect?.let {
+                NaviampCastSessionController(it, playbackOutputs).takeIf { sessions -> sessions.start() }
+            }
+            val availableCast = services.cast?.takeIf { castSessions != null }
+            val castPicker = availableCast?.discovery?.let { effect ->
                 NaviampCoreCastPickerController(scope,
                     app.naviamp.app.NaviampCastDiscoveryController(effect, services.clockEpochMillis),
                     checkNotNull(castSessions), playbackOutputs)
             }
-            val cast = services.cast?.let { castServices ->
+            val cast = availableCast?.let { castServices ->
                 NaviampCoreCastController(
                     scope = scope,
                     sessions = checkNotNull(castSessions),
@@ -794,7 +797,7 @@ class NaviampCore private constructor(
                 connectController = connect,
                 castController = cast,
                 castPicker = castPicker,
-                showCastRoutePicker = services.cast?.showRoutePicker,
+                showCastRoutePicker = availableCast?.showRoutePicker,
                 playbackOutputs = playbackOutputs,
             )
         }

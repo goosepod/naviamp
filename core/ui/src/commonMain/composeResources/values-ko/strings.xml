@@ -394,4 +394,11 @@
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_ukrainian_title">Українська</string>
     <string name="settings_language_use_subtitle">Naviamp에 이 언어를 사용합니다.</string>
+    <string name="settings_square_album_artwork">직각 앨범 표지</string>
+    <string name="settings_square_album_artwork_description">앱 전체에서 앨범 및 트랙 표지의 모서리를 직각으로 표시합니다.</string>
+    <string name="settings_fill_now_playing_artwork">지금 재생 중 표지 영역 채우기</string>
+    <string name="settings_fill_now_playing_artwork_description">표지를 잘라 플레이어를 채우고 컨트롤 뒤에 어두운 그라데이션을 표시합니다.</string>
+    <string name="now_playing_toggle_visualizer">시각화 전환</string>
+    <string name="discovery_request_rejected">Aurral이 이 요청을 거부했습니다. 다시 시도하기 전에 세부 정보를 확인하세요.</string>
+    <string name="discovery_request_conflict">이 앨범에 라이브러리 소유권 충돌이 있습니다. Aurral에서 확인하세요.</string>
 </resources>

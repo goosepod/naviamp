@@ -1,0 +1,67 @@
+{
+  "phase": "filled-progress-visible",
+  "seconds": 12.498509999830276,
+  "window_server_cpu_one_core_percent": 51.36612284287559,
+  "whole_device_gpu_samples": [
+    {
+      "Tiler Utilization %": 17,
+      "Renderer Utilization %": 16,
+      "Device Utilization %": 18
+    },
+    {
+      "Tiler Utilization %": 15,
+      "Renderer Utilization %": 14,
+      "Device Utilization %": 15
+    },
+    {
+      "Tiler Utilization %": 15,
+      "Renderer Utilization %": 14,
+      "Device Utilization %": 15
+    },
+    {
+      "Tiler Utilization %": 15,
+      "Renderer Utilization %": 14,
+      "Device Utilization %": 15
+    },
+    {
+      "Tiler Utilization %": 15,
+      "Renderer Utilization %": 14,
+      "Device Utilization %": 15
+    },
+    {
+      "Tiler Utilization %": 16,
+      "Renderer Utilization %": 15,
+      "Device Utilization %": 17
+    },
+    {
+      "Tiler Utilization %": 16,
+      "Renderer Utilization %": 15,
+      "Device Utilization %": 17
+    },
+    {
+      "Tiler Utilization %": 17,
+      "Renderer Utilization %": 16,
+      "Device Utilization %": 18
+    },
+    {
+      "Tiler Utilization %": 16,
+      "Renderer Utilization %": 15,
+      "Device Utilization %": 16
+    },
+    {
+      "Tiler Utilization %": 16,
+      "Renderer Utilization %": 15,
+      "Device Utilization %": 16
+    },
+    {
+      "Tiler Utilization %": 16,
+      "Renderer Utilization %": 15,
+      "Device Utilization %": 16
+    },
+    {
+      "Tiler Utilization %": 18,
+      "Renderer Utilization %": 17,
+      "Device Utilization %": 18
+    }
+  ]
+}
