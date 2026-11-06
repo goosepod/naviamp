@@ -450,6 +450,9 @@ internal fun HomeCollectionArtwork(
         }
         SharedHomeCollectionArtwork.NavibeatGenerated -> navibeatMixArtwork(item.artworkKey.orEmpty())
         SharedHomeCollectionArtwork.StationGenerated -> stationArtwork(item.artworkKey.orEmpty())
+        SharedHomeCollectionArtwork.MixBuilderGenerated -> mixBuilderArtwork(item.artworkKey.orEmpty()).let {
+            NavibeatMixArtwork(it.icon, it.colors)
+        }
     }
     Box(
         contentAlignment = Alignment.Center,

@@ -1296,4 +1296,5 @@
     <string name="discovery_hub_charts">Beliebte Songs, Alben und Künstler entdecken.</string>
     <string name="discovery_hub_requests">Downloads und Ergänzungen deiner Mediathek verfolgen.</string>
     <string name="discovery_hub_genres">Genres aus Empfehlungen ausschließen.</string>
+    <string name="artwork_view_full_size">Bild in voller Größe anzeigen</string>
 </resources>

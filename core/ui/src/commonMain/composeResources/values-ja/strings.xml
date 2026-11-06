@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">人気の曲、アルバム、アーティストを探索。</string>
     <string name="discovery_hub_requests">ダウンロードやライブラリへの追加を確認。</string>
     <string name="discovery_hub_genres">おすすめから除外するジャンルを選択。</string>
+    <string name="artwork_view_full_size">アートワークを原寸で表示</string>
 </resources>

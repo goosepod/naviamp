@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">Ontdek populaire nummers, albums en artiesten.</string>
     <string name="discovery_hub_requests">Volg downloads en toevoegingen aan je bibliotheek.</string>
     <string name="discovery_hub_genres">Kies welke genres je uitsluit van aanbevelingen.</string>
+    <string name="artwork_view_full_size">Afbeelding op volledig formaat bekijken</string>
 </resources>

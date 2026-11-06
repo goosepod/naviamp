@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">인기 곡, 앨범, 아티스트를 살펴보세요.</string>
     <string name="discovery_hub_requests">다운로드와 라이브러리 추가를 확인하세요.</string>
     <string name="discovery_hub_genres">추천에서 제외할 장르를 선택하세요.</string>
+    <string name="artwork_view_full_size">원본 크기로 이미지 보기</string>
 </resources>

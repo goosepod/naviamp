@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">लोकप्रिय गाने, एल्बम और कलाकार देखें।</string>
     <string name="discovery_hub_requests">डाउनलोड और अपनी लाइब्रेरी में जोड़ी गई सामग्री देखें।</string>
     <string name="discovery_hub_genres">सुझावों से बाहर रखने वाली शैलियाँ चुनें।</string>
+    <string name="artwork_view_full_size">चित्र पूरे आकार में देखें</string>
 </resources>

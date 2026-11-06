@@ -662,6 +662,7 @@ enum class SharedHomeCollectionArtwork {
     CoverArt,
     NavibeatGenerated,
     StationGenerated,
+    MixBuilderGenerated,
 }
 
 enum class SharedHomeCollectionItemAction {

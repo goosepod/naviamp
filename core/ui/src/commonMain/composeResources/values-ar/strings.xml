@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">استكشف الأغاني والألبومات والفنانين الرائجين.</string>
     <string name="discovery_hub_requests">تابع التنزيلات والإضافات إلى مكتبتك.</string>
     <string name="discovery_hub_genres">اختر الأنواع المراد استبعادها من التوصيات.</string>
+    <string name="artwork_view_full_size">عرض الصورة بالحجم الكامل</string>
 </resources>

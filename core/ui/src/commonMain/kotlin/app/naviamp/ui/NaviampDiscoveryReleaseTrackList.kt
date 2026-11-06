@@ -17,6 +17,7 @@ internal fun NaviampDiscoveryReleaseTrackList(discovery: SharedProviderDiscovery
     artist: SharedProviderDiscoveryArtistUi, release: SharedDiscoveryReleaseUi, colors: NaviampColors,
     actions: NaviampHomeActions, playback: DiscoverySamplePlaybackUi, waitingRequest: Boolean) {
     val tracks = release.tracks?.tracks.orEmpty()
+    val hasPreviews = tracks.any { it.previewId != null }
     val numberWidth = trackNumberColumnWidth(tracks.maxOfOrNull { it.trackNumber ?: 0 } ?: 1)
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         var previousDisc: Int? = null
@@ -33,7 +34,7 @@ internal fun NaviampDiscoveryReleaseTrackList(discovery: SharedProviderDiscovery
                 canDownload = false, canAddToPlaylist = false, showCoverArt = false, verticalPadding = 0.dp,
                 modifier = Modifier.heightIn(min = 40.dp), trackNumber = track.trackNumber,
                 trackNumberWidth = numberWidth,
-                leadingContent = { Box(Modifier.width(36.dp), contentAlignment = Alignment.Center) { track.previewId?.let { preview ->
+                leadingContent = if (!hasPreviews) null else { { Box(Modifier.width(36.dp), contentAlignment = Alignment.Center) { track.previewId?.let { preview ->
                     val active = playback.trackId == DiscoveryPreviewTrackPrefix + preview.value
                     val playing = active && playback.playing
                     IconButton(enabled = !active || playback.canToggle, modifier = Modifier.size(36.dp), onClick = {
@@ -42,7 +43,7 @@ internal fun NaviampDiscoveryReleaseTrackList(discovery: SharedProviderDiscovery
                     }) { Icon(if (playing) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
                         stringResource(if (playing) Res.string.transport_pause else Res.string.discovery_play_sample),
                         Modifier.size(17.dp), tint = colors.primaryText) }
-                } } },
+                } } } },
                 trailingContent = {
                     DiscoveryText(track.durationMillis?.let { (it / 1000.0).durationLabel() }.orEmpty(), color = colors.mutedText, fontSize = 11.sp)
                     track.recordingMbid?.let { recording ->

@@ -199,3 +199,42 @@ single passing local native run. Native acquisition cancel/retry remains deferre
 
 This follow-up adds no platform production behavior. Its new product fix and logo resource remain
 common; the Desktop native test and Windows acceptance script exercise actual platform effects.
+
+## November 6 owner Mac feedback
+
+The owner reports that the five requested Mac checks pass on `01c863a6d`, apart from the
+specific defects below. This is owner acceptance of that Mac checkpoint, not physical-device
+acceptance for other hosts or proof that the historical Windows/iOS investigations are resolved.
+The follow-up remains within existing Aurral issues: #383 (Home/radio), #476 (artist portrait),
+#477 (release rows), #478 (request status), and #506 (integrated acceptance). No new issue is needed.
+
+- Home and full-collection Mix Builder grids now use the existing generated builder artwork and
+  icons, matching the list presentation instead of attempting to load an absent album cover.
+- A server that does not advertise Sonic Similarity uses Instant Mix for Radio/Autoplay, including
+  a saved Sonic preference. Settings show Instant Mix selected and Sonic disabled. The portable
+  stored preference survives switching to a capable server; export/import/sync format and defaults
+  are unchanged. An advertised Sonic endpoint's empty/error/timeout results are still reported;
+  they do not silently change the selected method.
+- Aurral Instant Mix reuses the existing owned-library album/artist fallback when its regular
+  similarity route is empty or unsupported. Native Navidrome's strict endpoint behavior and raw
+  diagnostic probes retain their existing contracts. A read-only live Aurral probe confirms Sonic
+  is unadvertised, both Instant Mix and capability-fallback Radio return 15 tracks, and a returned
+  identity resolves through the real Library API. The probe uses the dedicated normal account
+  over an owned SSH tunnel; it submits no acquisition, listen or configuration mutation.
+- Releases with no previews reclaim the empty playback-control column. Mixed releases keep their
+  shared title column so preview-less tracks remain aligned with playable previews.
+- Release request overlays use state-specific icons and accessible labels from the durable
+  acquisition ledger: queued/active/waiting, saved, finished, verified available, or uncertain/error.
+  A queued request no longer retains the fresh-download arrow. The icon remains legible while its
+  repeated-request action is disabled, including after refresh/restoration. Finished is distinct
+  from verified Library availability. The owner's Silver Panda requests are not replayed.
+- Aurral artist portraits open the existing shared full-size artwork viewer. The circular portrait
+  policy remains intact, absent images offer no action, and the new accessibility label is defined
+  in all 17 maintained catalogs.
+
+Gaming PC validation passes 1,106 domain, 584 presentation, 127 provider, 24 focused UI and two real
+native preview methods (1,843 total, zero failures/errors/skips), plus packaging validation. All 37
+changed production files match the reviewed source by normalized SHA-256. Owned scheduled tasks
+are removed. Rendered captures verify all three builder icons, compact preview-less rows and the
+queued clock overlay. No platform production file changes in this feedback follow-up; all product
+behavior and presentation changes are common. Final-source hosted verification remains required.

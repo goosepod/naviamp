@@ -34,7 +34,7 @@ class NaviampRadioMethodSettingsTest {
         onNodeWithText("Autoplay batch size").assertIsDisplayed()
     }
 
-    @Test fun methodsAreExclusiveAndCapabilityLossDoesNotSilentlyChangeTheSelection() = runDesktopComposeUiTest(480, 800) {
+    @Test fun methodsAreExclusiveAndCapabilityLossSelectsInstantMixWithoutLosingTheSavedPreference() = runDesktopComposeUiTest(480, 800) {
         val settings = mutableStateOf(PlaybackSettings())
         val supportsSonic = mutableStateOf(true)
         setContent {
@@ -47,7 +47,10 @@ class NaviampRadioMethodSettingsTest {
         onNodeWithText("Sonic Similarity").performClick().assertIsSelected()
         onNodeWithText("Instant Mix").assertIsNotSelected()
         runOnIdle { supportsSonic.value = false }
-        onNodeWithText("Sonic Similarity").assertIsSelected().assertIsNotEnabled()
+        onNodeWithText("Sonic Similarity").assertIsNotSelected().assertIsNotEnabled()
+        onNodeWithText("Instant Mix").assertIsSelected()
+        runOnIdle { assertTrue(settings.value.sonicSimilarityEnabled); supportsSonic.value = true }
+        onNodeWithText("Sonic Similarity").assertIsSelected().assertIsEnabled()
         onNodeWithText("Instant Mix").performClick().assertIsSelected()
         runOnIdle { assertFalse(settings.value.effectiveSonicSimilarityEnabled()) }
         System.getenv("NAVIAMP_RADIO_METHOD_QA_DIR")?.let { path ->

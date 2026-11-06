@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">Popüler şarkıları, albümleri ve sanatçıları keşfedin.</string>
     <string name="discovery_hub_requests">İndirmeleri ve kitaplığınıza eklenenleri takip edin.</string>
     <string name="discovery_hub_genres">Önerilerden çıkarılacak türleri seçin.</string>
+    <string name="artwork_view_full_size">Görseli tam boyutta görüntüle</string>
 </resources>

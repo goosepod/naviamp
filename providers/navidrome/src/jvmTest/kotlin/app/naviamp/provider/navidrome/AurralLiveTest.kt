@@ -9,6 +9,25 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun instantMixAndRadioUseOwnedLibraryTracksWithoutSonicSupportOrMutations() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val provider = NavidromeProvider(connection, readOnlyTransport(connection))
+        provider.validateConnection()
+        assertFalse(provider.capabilities.supportsSonicSimilarity)
+        val seed = provider.album(provider.recentlyAddedAlbums(1).first().id).tracks.first()
+        val direct = provider.instantMixTracks(seed.id, 20)
+        assertTrue(direct.isNotEmpty(), "Aurral Instant Mix must produce playable Library tracks")
+        assertTrue(direct.none { it.id == seed.id || it.id.isDiscoveryPreview() })
+        var endpoint: app.naviamp.domain.radio.SimilarityEndpoint? = null
+        val radio = app.naviamp.domain.radio.RadioService(provider, count = 20,
+            onSimilarityResult = { endpoint = it.source }).trackRadio(seed, preferSonicSimilarity = true)
+        assertEquals(app.naviamp.domain.radio.SimilarityEndpoint.Regular, endpoint)
+        assertTrue(radio.isNotEmpty())
+        // Resolve a returned identity through the real Library path, rather than accepting a chart/preview ID.
+        assertEquals(direct.first().id, provider.track(direct.first().id)?.id)
+        println("Aurral read-only radio: Sonic advertised=false, Instant Mix tracks=${direct.size}, capability fallback tracks=${radio.size}, returned Library identity validated")
+    }
+
     @Test fun originalFileTagsAndPropertiesLoadWithAudioCachingDisabled() = runBlocking {
         val provider = NavidromeProvider(liveConnection() ?: return@runBlocking)
         provider.validateConnection()

@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">Изучайте популярные песни, альбомы и исполнителей.</string>
     <string name="discovery_hub_requests">Следите за загрузками и пополнением медиатеки.</string>
     <string name="discovery_hub_genres">Выберите жанры для исключения из рекомендаций.</string>
+    <string name="artwork_view_full_size">Посмотреть изображение в полном размере</string>
 </resources>

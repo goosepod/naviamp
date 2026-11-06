@@ -589,4 +589,5 @@
     <string name="discovery_hub_charts">Poznaj popularne utwory, albumy i artystów.</string>
     <string name="discovery_hub_requests">Śledź pobieranie i dodatki do biblioteki.</string>
     <string name="discovery_hub_genres">Wybierz gatunki wykluczone z rekomendacji.</string>
+    <string name="artwork_view_full_size">Wyświetl grafikę w pełnym rozmiarze</string>
 </resources>

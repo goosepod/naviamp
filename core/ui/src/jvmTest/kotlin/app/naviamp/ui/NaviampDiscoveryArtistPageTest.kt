@@ -19,6 +19,48 @@ import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryArtistPageTest {
+    @Test fun portraitOpensTheSharedImageViewerAndMissingImagesDoNotOfferAnAction() = runDesktopComposeUiTest(1100, 850) {
+        val initial = discoveryPageFixture()
+        val page = mutableStateOf(initial.copy(artistDetail = initial.artistDetail!!.copy(
+            artist = initial.artistDetail.artist.copy(imageUrl = "https://images.example.invalid/portrait.png"))))
+        setContent { MaterialTheme { SharedHomeRoute(NaviampColors.Dark,
+            NaviampHomeScreenUi(providerDiscovery = page.value), discoveryPageFixtureActions(page, mutableListOf()),
+            NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi()) } }
+        onNodeWithContentDescription("View full-size artwork").performClick()
+        onNode(isDialog()).assertExists()
+        onNode(hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+        onNode(isDialog()).assertDoesNotExist()
+        runOnIdle { page.value = initial }
+        onNodeWithTag("discovery-artist-artwork").assertIsNotEnabled()
+    }
+
+    @Test fun queuedReleaseReplacesTheDownloadIconAndSurvivesRestoredRequestState() = runDesktopComposeUiTest(1100, 850) {
+        val initial = discoveryPageFixture()
+        val page = mutableStateOf(initial)
+        setContent { MaterialTheme { SharedHomeRoute(NaviampColors.Dark,
+            NaviampHomeScreenUi(providerDiscovery = page.value), discoveryPageFixtureActions(page, mutableListOf()),
+            NaviampMediaActions({}, {}), DiscoverySamplePlaybackUi()) } }
+        onNodeWithText("Release 1").performScrollTo()
+        onAllNodesWithContentDescription("Request album").onFirst().performClick()
+        onNodeWithContentDescription("Request queued.").assertIsNotEnabled()
+        runOnIdle {
+            val artist = page.value.artistDetail!!
+            val release = artist.details!!.releases.first()
+            val action = ProviderDiscoveryAction.RequestAlbum(release.id)
+            val record = DiscoveryAcquisitionRecord("restored", artist.artist.id, artist.artist.name,
+                release.id, true, release.id, release.title,
+                ProviderDiscoveryOperation(ProviderDiscoveryOperationStatus.Queued), DiscoveryAcquisitionPhase.Queued, 1L)
+            page.value = page.value.copy(artistDetail = artist.copy(requestOperations = emptyMap(),
+                acquisitions = mapOf(action to record), blockedActions = setOf(action)))
+        }
+        onNodeWithContentDescription("Request queued.").assertIsNotEnabled()
+        onAllNodesWithText("Request queued.", useUnmergedTree = true).onLast().assertExists()
+        System.getenv("NAVIAMP_DISCOVERY_ALIGNMENT_CAPTURE")?.let { directory ->
+            val target = java.io.File(directory, "queued-release.png"); target.parentFile.mkdirs()
+            javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", target)
+        }
+    }
+
     @Test fun televisionDpadCanReachAndActivateSampleWithoutPointerFocus() = runDesktopComposeUiTest(1280, 800) {
         val screen = mutableStateOf(discoveryPageFixture())
         val actions = mutableListOf<String>()

@@ -1325,4 +1325,5 @@
     <string name="discovery_hub_charts">Explore popular songs, albums and artists.</string>
     <string name="discovery_hub_requests">Follow downloads and additions to your library.</string>
     <string name="discovery_hub_genres">Choose which genres to exclude from recommendations.</string>
+    <string name="artwork_view_full_size">View full-size artwork</string>
 </resources>

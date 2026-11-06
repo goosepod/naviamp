@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.Dp
 import kotlin.math.floor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
@@ -195,6 +196,9 @@ internal fun NaviampDiscoveryArtistPanel(
     navigationModifier: Modifier = Modifier,
     onRequests: (() -> Unit)? = null,
 ) {
+    var imageOpen by remember(screen.artist.id, stateKey) { mutableStateOf(false) }
+    if (imageOpen) ExpandedMediaImageDialog(screen.artist.imageUrl, colors = colors,
+        onDismissRequest = { imageOpen = false })
     val releases = screen.details?.releases.orEmpty()
     val sections = AlbumReleaseSection.entries.filter { section -> releases.any { it.section == section } }
     var selectedSection by remember(screen.artist.id, stateKey) { mutableStateOf(screen.releaseSection) }
@@ -224,8 +228,14 @@ internal fun NaviampDiscoveryArtistPanel(
                 LazyColumn((if (fullPage) Modifier.fillMaxSize() else Modifier.fillMaxWidth().heightIn(max = 640.dp)).testTag("discovery-artist-list"),
                     state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
-                        NaviampCoverArt(screen.artist.imageUrl, colors, 96.dp,
-                            resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Artist, 96.dp, 6.dp), mediaKind = SharedMediaItemKind.Artist)
+                        val imageAction = stringResource(Res.string.artwork_view_full_size)
+                        Box(Modifier.testTag("discovery-artist-artwork").clickable(
+                            enabled = !screen.artist.imageUrl.isNullOrBlank(), role = Role.Button,
+                            onClickLabel = imageAction, onClick = { imageOpen = true })
+                            .semantics { contentDescription = imageAction }) {
+                            NaviampCoverArt(screen.artist.imageUrl, colors, 96.dp,
+                                resolvedMediaArtworkCornerRadius(SharedMediaItemKind.Artist, 96.dp, 6.dp), mediaKind = SharedMediaItemKind.Artist)
+                        }
                         if (screen.artist.genres.isNotEmpty()) DiscoveryText(screen.artist.genres.joinToString(", "), color = colors.secondaryText)
                         if (screen.loading) DiscoveryText(stringResource(Res.string.discovery_loading), color = colors.secondaryText)
                         if (!screen.loading && screen.status != ProviderDiscoveryStatus.Ready) {
@@ -383,7 +393,9 @@ private fun DiscoveryReleaseCard(
     onOpen: (() -> Unit)? = null,
 ) {
     val operation = screen.requestOperations[ProviderDiscoveryAction.RequestAlbum(release.id)]
+    val acquisition = screen.acquisitions[ProviderDiscoveryAction.RequestAlbum(release.id)]
     val waiting = operation?.status == ProviderDiscoveryOperationStatus.WaitingForRelease
+    val indicator = discoveryRequestIndicator(operation, acquisition)
     Column(Modifier.width(size).then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box {
@@ -393,7 +405,9 @@ private fun DiscoveryReleaseCard(
                 IconButton(onClick = { onAction(ProviderDiscoveryAction.RequestAlbum(release.id)) },
                     enabled = !waiting && !screen.actionBusy && !screen.savingFeedback && ProviderDiscoveryAction.RequestAlbum(release.id) !in screen.blockedActions,
                     modifier = Modifier.size(30.dp)) {
-                    Icon(NaviampIcons.Downloads, stringResource(if (waiting) Res.string.discovery_waiting_for_release else Res.string.discovery_request_album), Modifier.size(17.dp), tint = colors.primaryText)
+                    Icon(indicator?.icon ?: NaviampIcons.Downloads,
+                        stringResource(indicator?.label ?: Res.string.discovery_request_album),
+                        Modifier.size(17.dp), tint = colors.primaryText)
                 }
             }
         }

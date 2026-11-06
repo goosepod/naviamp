@@ -12,6 +12,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class NavibeatHomeCardMapperTest {
+    @Test fun mixBuildersCarryTheirGeneratedArtworkInHomeAndCollectionGrids() {
+        val section = HomeContent().toSharedHomeUi(coverArtUrl = { null }).collectionSections
+            .single { it.id == app.naviamp.domain.settings.HomeSectionIds.MixBuilders }
+        assertEquals(listOf("artist", "album", "genre"), section.items.map { it.artworkKey })
+        section.items.forEach { assertEquals(SharedHomeCollectionArtwork.MixBuilderGenerated, it.artwork) }
+    }
+
     @Test
     fun favoriteArtistsBecomeASortedTranslatableHomeSection() {
         val home = HomeContent(

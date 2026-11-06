@@ -41,7 +41,7 @@ class RadioService(
     suspend fun albumRadio(albumId: AlbumId, fallbackTracks: List<Track> = emptyList()): List<Track> {
         val albumTracks = fallbackTracks.ifEmpty { albumTracks(albumId) }
         val seedTrack = albumTracks.randomOrNull()
-        if (similarityMethod == RadioSimilarityMethod.SonicSimilarity) {
+        if (similarityMethod == RadioSimilarityMethod.SonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
             return seedTrack?.let { trackRadio(it, true) }.orEmpty()
         }
         val providerTracks = provider.albumRadio(albumId, count = fetchCount)
@@ -67,7 +67,7 @@ class RadioService(
     }
 
     suspend fun artistRadio(artistId: ArtistId): List<Track> {
-        if (similarityMethod == RadioSimilarityMethod.SonicSimilarity) {
+        if (similarityMethod == RadioSimilarityMethod.SonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
             val details = providerResponseService?.artist(provider, artistId) ?: provider.artist(artistId)
             return artistSeed(details.artist, details.albums)?.let { trackRadio(it, true) }.orEmpty()
         }
@@ -92,7 +92,7 @@ class RadioService(
         ))
         onSimilarityResult(result)
         val primary = result.getOrThrow().flatMap { seed -> seed.matches.map { it.track } }
-        return tunedTrackRadio(seedTrack, primary, allowArtistExpansion = !preferSonicSimilarity)
+        return tunedTrackRadio(seedTrack, primary, allowArtistExpansion = result.source != SimilarityEndpoint.Sonic)
     }
 
     suspend fun libraryRadio(): List<Track> =

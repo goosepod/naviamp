@@ -151,7 +151,8 @@ class NaviampCoreNowPlayingPresenter(
                     ?: playbackSettings.streamQualityForNetwork(network.isActiveNetworkMobileData()),
                 replayGainInspectorEnabled = playbackSettings.replayGainInspectorEnabled,
                 replayGainMode = playbackSettings.replayGainMode,
-                sonicSimilarityEnabled = playbackSettings.effectiveSonicSimilarityEnabled(),
+                sonicSimilarityEnabled = playbackSettings.effectiveSonicSimilarityEnabled() &&
+                    provider?.capabilities?.supportsSonicSimilarity == true,
                 radioDjs = playbackSettings.radioDjs,
                 activeRadioDjId = playbackSettings.activeRadioDjId,
                 playlistChoices = shell.playlistChoices,

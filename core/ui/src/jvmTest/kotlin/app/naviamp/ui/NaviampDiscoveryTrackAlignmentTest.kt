@@ -13,6 +13,29 @@ import kotlin.math.abs
 
 @OptIn(ExperimentalTestApi::class)
 class NaviampDiscoveryTrackAlignmentTest {
+    @Test fun releasesWithoutAnyPreviewsDoNotReserveAnEmptyPlaybackColumn() = runDesktopComposeUiTest(360, 400) {
+        val initial = discoveryPageFixture()
+        val release = initial.artistDetail!!.details!!.releases.first()
+        val preview = mutableStateOf<DiscoveryDeezerPreviewId?>(null)
+        setContent { MaterialTheme {
+            val detail = SharedDiscoveryReleaseUi(release, loading = false, tracksLoading = false,
+                tracks = ProviderDiscoveryReleaseTracks(ProviderDiscoveryStatus.Ready, listOf(
+                    ProviderDiscoveryReleaseTrack(null, "Track title", 1, 1, 180000, preview.value))))
+            NaviampDiscoveryReleaseTrackList(initial, initial.artistDetail, detail, NaviampColors.Dark,
+                discoveryPageFixtureActions(mutableStateOf(initial), mutableListOf()), DiscoverySamplePlaybackUi(), false)
+        } }
+        val compactLeft = onNodeWithText("Track title", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left
+        onNodeWithContentDescription("Play sample").assertDoesNotExist()
+        System.getenv("NAVIAMP_DISCOVERY_ALIGNMENT_CAPTURE")?.let { directory ->
+            val target = java.io.File(directory, "tracks-without-previews.png"); target.parentFile.mkdirs()
+            javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", target)
+        }
+        runOnIdle { preview.value = DiscoveryDeezerPreviewId("42") }
+        val previewLeft = onNodeWithText("Track title", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left
+        assertTrue(previewLeft - compactLeft >= 36f, "A preview-less release must reclaim the unused control column")
+        onNodeWithContentDescription("Play sample").assertIsDisplayed()
+    }
+
     @Test fun trackTitlesCenterWithControlsAndKeepOneColumnWhenPreviewsAreMissing() {
         for (width in listOf(360, 1100)) for (font in listOf(InterfaceFontSize.Small, InterfaceFontSize.Large)) {
             runDesktopComposeUiTest(width, 400) {

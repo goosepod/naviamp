@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">Explorez les titres, albums et artistes populaires.</string>
     <string name="discovery_hub_requests">Suivez les téléchargements et les ajouts à votre bibliothèque.</string>
     <string name="discovery_hub_genres">Choisissez les genres à exclure des recommandations.</string>
+    <string name="artwork_view_full_size">Afficher l’image en taille réelle</string>
 </resources>

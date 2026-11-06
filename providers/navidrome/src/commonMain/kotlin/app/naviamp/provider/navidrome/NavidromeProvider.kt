@@ -1397,7 +1397,11 @@ class NavidromeProvider(
         }
 
     override suspend fun instantMixTracks(trackId: TrackId, count: Int): List<Track> =
-        similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
+        if (profile.providerId == app.naviamp.domain.provider.ProviderIdAurral) {
+            // Aurral can expose an empty/unsupported similarity route while still providing the
+            // owned library catalog. Reuse its validated album/artist radio fallback and IDs.
+            trackRadio(trackId, count)
+        } else similarSongs("getSimilarSongs.view", "similarSongs", trackId.value, count)
             .filterNot { it.id == trackId }
 
     override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> =

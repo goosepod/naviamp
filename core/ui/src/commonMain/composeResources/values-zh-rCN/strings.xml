@@ -470,4 +470,5 @@
     <string name="discovery_hub_charts">探索热门歌曲、专辑和艺人。</string>
     <string name="discovery_hub_requests">跟踪下载和音乐库新增内容。</string>
     <string name="discovery_hub_genres">选择要从推荐中排除的流派。</string>
+    <string name="artwork_view_full_size">查看完整尺寸封面</string>
 </resources>
