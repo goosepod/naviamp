@@ -9,6 +9,105 @@ import kotlin.test.*
 
 /** Opt-in read-only acceptance; credentials and private server addresses never enter the repository. */
 class AurralLiveTest {
+    @Test fun upgradedBootstrapRetainsV1AndAdvertisesTheExpectedRelease() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        val bootstrap = Json.parseToJsonElement(transport.get(
+            connection.normalizedBaseUrl + "/api/health/bootstrap")).jsonObject
+        val api = bootstrap.getValue("api").jsonObject
+        assertEquals(1, api.getValue("version").jsonPrimitive.int)
+        val version = bootstrap.getValue("appVersion").jsonPrimitive.content
+        System.getenv("NAVIAMP_AURRAL_TEST_EXPECTED_VERSION")?.let { assertEquals(it, version) }
+        val features = api.getValue("features").jsonArray.map { it.jsonPrimitive.content }.toSet()
+        assertTrue("discover" in features)
+        if (version == "2.13.0") assertTrue(features.containsAll(setOf(
+            "playlistCoverTemplates", "shareImports", "trending", "flowAutoDownload")))
+        println("Aurral bootstrap live result: appVersion=$version, apiVersion=1, featureCount=${features.size}")
+    }
+
+    @Test fun libraryAudioServesInitialAndNonzeroByteRangesThroughTheProvider() = runBlocking {
+        val provider = NavidromeProvider(liveConnection() ?: return@runBlocking)
+        provider.validateConnection()
+        val album = provider.album(provider.recentlyAddedAlbums(1).first().id)
+        val track = album.tracks.first()
+        for (start in listOf(0L, 1024L)) {
+            var response: ProviderMediaByteResponse? = null
+            var bytes = 0L
+            assertTrue(provider.streamTrackBytes(StreamRequest(track.id, StreamQuality.Original),
+                rangeHeader = "bytes=$start-${start + 1023}", headOnly = false,
+                onResponse = { response = it }, writeChunk = { _, count -> bytes += count }))
+            assertEquals(206, response?.statusCode)
+            assertTrue(response?.contentRange?.startsWith("bytes $start-${start + 1023}/") == true)
+            assertEquals(1024L, bytes)
+        }
+        println("Aurral range live result: initial=206/1024 bytes, nonzero=206/1024 bytes")
+    }
+
+    @Test fun expandedCatalogContractsUseReadOnlyRoutesAndKeepIdentityNamespaces() = runBlocking {
+        val connection = liveConnection() ?: return@runBlocking
+        val transport = createDefaultNavidromeHttpClient(connection.tlsSettings)
+        var loginCount = 0
+        val metadataFailures = mutableMapOf<String, Int>()
+        val readOnly = object : NavidromeHttpClient by transport {
+            override suspend fun get(url: String, headers: Map<String, String>): String = try {
+                transport.get(url, headers)
+            } catch (failure: NavidromeHttpException) {
+                if ("/release-group/" in url) {
+                    metadataFailures[if (url.endsWith("/tracks")) "tracks" else "details"] = failure.statusCode
+                }
+                throw failure
+            }
+            override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+                check(url == connection.normalizedBaseUrl + "/api/auth/login") { "Live research cannot submit mutations" }
+                loginCount++
+                return transport.postJson(url, body, headers)
+            }
+            override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String = error("Live research is read-only")
+            override suspend fun deleteJson(url: String, headers: Map<String, String>): String = error("Live research is read-only")
+        }
+        val discovery = app.naviamp.provider.aurral.AurralDiscoveryClient(connection, readOnly)
+        val first = discovery.recommendations(0, 200)
+        assertEquals(ProviderDiscoveryStatus.Ready, first.status)
+        assertNotNull(first.totalCount)
+        assertTrue(first.artists.isNotEmpty())
+        val nextOffset = first.nextOffset
+        if (nextOffset != null) {
+            val next = discovery.recommendations(nextOffset, 200)
+            assertEquals(ProviderDiscoveryStatus.Ready, next.status)
+            assertTrue(next.artists.first().recommendation!!.rank!! > first.artists.last().recommendation!!.rank!!)
+        }
+        val artists = discovery.searchCatalog("Radiohead", ProviderCatalogScope.Artist, limit = 2)
+        assertEquals(ProviderDiscoveryStatus.Ready, artists.status)
+        // The configured catalog service can legitimately return no artist matches.
+        assertNotNull(artists.totalCount)
+        val albums = discovery.searchCatalog("Radiohead", ProviderCatalogScope.Album, limit = 2)
+        assertEquals(ProviderDiscoveryStatus.Ready, albums.status)
+        assertTrue(albums.albums.isNotEmpty())
+        // Album text search matches release titles, not necessarily releases by this artist.
+        // Use the existing artist discography for a known, cacheable release-detail probe.
+        val artist = discovery.artistDetails(ProviderDiscoveryArtist(
+            "a74b1b7f-71a5-4011-9441-d0b5e4122711", "Radiohead", detailsAvailable = true))
+        assertEquals(ProviderDiscoveryStatus.Ready, artist.status)
+        val release = assertNotNull(artist.details).releases.first().releaseGroupMbid!!
+        val details = discovery.releaseDetails(release)
+        fun expectedMetadataStatus(key: String) = if (metadataFailures[key] in setOf(404, 429, 500, 502, 503, 504))
+            ProviderDiscoveryStatus.Unavailable else ProviderDiscoveryStatus.Ready
+        assertEquals(expectedMetadataStatus("details"), details.status)
+        if (details.status == ProviderDiscoveryStatus.Ready) {
+            assertEquals(release.value, details.release?.id)
+            assertTrue(details.credits.isNotEmpty())
+        }
+        val tracks = discovery.releaseTracks(release)
+        assertEquals(expectedMetadataStatus("tracks"), tracks.status)
+        if (tracks.status == ProviderDiscoveryStatus.Ready) {
+            assertTrue(tracks.tracks.isNotEmpty())
+            assertTrue(tracks.tracks.any { it.recordingMbid != null })
+        }
+        println("Aurral catalog live result: recommendationCount=${first.totalCount}, artistCount=${artists.totalCount}, release=${details.status}, tracks=${tracks.status}")
+        assertEquals(ProviderDiscoveryStatus.Ready, discovery.requestActivity().status)
+        assertEquals(1, loginCount)
+    }
+
     @Test fun nativeSamplesAndReleaseCoversUseTheProviderTransport() = runBlocking {
         val connection = liveConnection() ?: return@runBlocking
         val provider = NavidromeProvider(connection)

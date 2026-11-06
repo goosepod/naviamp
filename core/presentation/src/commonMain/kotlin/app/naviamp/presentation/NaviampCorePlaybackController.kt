@@ -792,6 +792,11 @@ class NaviampCorePlaybackController(
 
     private fun PlaybackQueueSelectionUpdate.applyToLivePlayback() {
         if (!changed) return
+        // The previous track's sidecar load (waveform/audio download) must not outlive the skip:
+        // a slow stream may not reach Playing before the next skip, so nothing else cancels it.
+        sidecarLoadJob?.cancel()
+        sidecarLoadJob = null
+        sidecarTrackId = null
         playback.updateCurrentTrack(queue.current)
     }
 

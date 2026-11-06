@@ -183,6 +183,7 @@ data class InterfaceSettings(
     val showArtistTopTracks: Boolean = true,
     val artistTopTracksLimit: Int = DefaultArtistTopTracksLimit,
     val showAlbumInformation: Boolean = true,
+    val squareAlbumArtwork: Boolean = false,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,
     val auroraColorSteps: Int = 3,
@@ -435,6 +436,7 @@ data class NowPlayingDisplaySettings(
     val scrollTrackTitle: Boolean = true,
     val scrollArtistName: Boolean = false,
     val scrollAlbumName: Boolean = false,
+    val fillArtworkArea: Boolean = false,
 ) {
     fun normalized(): NowPlayingDisplaySettings = copy(
         splitPaneBackgroundOpacityPercent = splitPaneBackgroundOpacityPercent.coerceIn(0, 100),

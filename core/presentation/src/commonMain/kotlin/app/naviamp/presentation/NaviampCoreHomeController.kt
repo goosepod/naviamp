@@ -246,6 +246,7 @@ class NaviampCoreHomeController(
             playDiscoverySample(sample.playbackTrack(detail.artist.name))
             return
         }
+        if (command.action in detail.blockedActions) return
         val generation = discoveryDetailGeneration
         var operation: ProviderDiscoveryOperation? = null
         try {
@@ -272,7 +273,8 @@ class NaviampCoreHomeController(
                     latest.copy(actionBusy = false,
                         operationStatus = result ?: latest.operationStatus,
                         blockedActions = if (result in setOf(ProviderDiscoveryOperationStatus.Queued, ProviderDiscoveryOperationStatus.AlreadyQueued,
-                            ProviderDiscoveryOperationStatus.AlreadyOwned, ProviderDiscoveryOperationStatus.Saved, ProviderDiscoveryOperationStatus.Uncertain))
+                            ProviderDiscoveryOperationStatus.AlreadyOwned, ProviderDiscoveryOperationStatus.Saved,
+                            ProviderDiscoveryOperationStatus.Conflict, ProviderDiscoveryOperationStatus.Uncertain))
                             latest.blockedActions + command.action else latest.blockedActions,
                         details = latest.details?.let { details -> details.copy(monitored = when (result) {
                             ProviderDiscoveryOperationStatus.MonitoringEnabled -> true

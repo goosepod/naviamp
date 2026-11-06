@@ -3,6 +3,8 @@ import http.client
 import contextlib
 import io
 import json
+import struct
+import zlib
 from pathlib import Path
 import runpy
 import sys
@@ -12,10 +14,11 @@ from unittest.mock import patch
 
 
 class MediaFixtureRangesTest(unittest.TestCase):
+    artwork = False
     @classmethod
     def setUpClass(cls):
         script = Path(__file__).resolve().parents[1] / 'android-tv-fixture.py'
-        with patch.object(sys, 'argv', [str(script), '--track-seconds', '30']):
+        with patch.object(sys, 'argv', [str(script), '--track-seconds', '30'] + (['--artwork'] if cls.artwork else [])):
             cls.fixture = runpy.run_path(str(script))
         cls.server = cls.fixture['ThreadingHTTPServer'](('127.0.0.1', 0), cls.fixture['Handler'])
         cls.worker = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -35,6 +38,36 @@ class MediaFixtureRangesTest(unittest.TestCase):
             return response.status, dict(response.getheaders()), response.read()
         finally:
             connection.close()
+
+    def test_cover_art_is_opaque_decodable_and_opt_in(self):
+        status, _, body = self.request(path='/rest/getSong.view?id=fixture-track')
+        self.assertEqual(200, status)
+        song = json.loads(body)['subsonic-response']['song']
+        if not self.artwork:
+            self.assertNotIn('coverArt', song)
+            return
+        self.assertEqual('fixture-cover-0', song['coverArt'])
+        images = []
+        for cover in ('fixture-cover-0', 'fixture-cover-1'):
+            status, headers, image = self.request(path='/rest/getCoverArt.view?id=' + cover)
+            self.assertEqual(200, status)
+            self.assertEqual('image/png', headers['Content-Type'])
+            self.assertEqual(str(len(image)), headers['Content-Length'])
+            self.assertEqual(b'\x89PNG\r\n\x1a\n', image[:8])
+            width, height, depth, color = struct.unpack('>IIBB', image[16:26])
+            self.assertEqual((600, 600, 8, 2), (width, height, depth, color))
+            offset, pixels = 8, b''
+            while offset < len(image):
+                size = struct.unpack('>I', image[offset:offset+4])[0]
+                kind = image[offset+4:offset+8]
+                payload = image[offset+8:offset+8+size]
+                crc = struct.unpack('>I', image[offset+8+size:offset+12+size])[0]
+                self.assertEqual(crc, zlib.crc32(kind + payload) & 0xffffffff)
+                if kind == b'IDAT': pixels += payload
+                offset += size + 12
+            self.assertEqual(height * (1 + width * 3), len(zlib.decompress(pixels)))
+            images.append(image)
+        self.assertNotEqual(*images)
 
     def test_single_byte_probe_is_partial_and_bounded(self):
         status, headers, body = self.request('bytes=0-0')
@@ -103,6 +136,10 @@ class MediaFixtureRangesTest(unittest.TestCase):
         finally:
             self.request(path='/_test/on')
         self.assertEqual(206,self.request('bytes=800000-800001','/rest/stream.view?id=fixture-track')[0])
+
+
+class ArtworkFixtureRangesTest(MediaFixtureRangesTest):
+    artwork = True
 
 
 if __name__ == '__main__':
