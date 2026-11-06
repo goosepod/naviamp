@@ -96,11 +96,11 @@ function Save-Client([Diagnostics.Process]$Process, [string]$Name) {
 
 try {
     for ($cycle = 1; $cycle -le $Cycles; $cycle++) {
-        $profile = Join-Path $output.FullName "profile-$cycle"
+        $profileDirectory = Join-Path $output.FullName "profile-$cycle"
         foreach ($launch in @('cold', 'warm')) {
             $name = "$cycle-$launch"
-            $env:APPDATA = Join-Path $profile 'appdata'
-            $env:LOCALAPPDATA = Join-Path $profile 'localappdata'
+            $env:APPDATA = Join-Path $profileDirectory 'appdata'
+            $env:LOCALAPPDATA = Join-Path $profileDirectory 'localappdata'
             $process = $null
             $launcher = $null
             $originalFailure = $null
