@@ -28,6 +28,16 @@ import kotlin.test.assertTrue
 
 class NaviampNowPlayingPresentationTest {
     @Test
+    fun fileSampleRateAndDepthUseThePlayerFormatWhileDetailsKeepBitrate() {
+        val enriched = track("aurral").copy(audioInfo = AudioInfo("FLAC", 350, "audio/flac", 16, 44100))
+        assertEquals("FLAC  44.1 / 16", enriched.nowPlayingAudioInfoLabel())
+        val file = enriched.toNowPlayingDetailSections().first { it.title == "File" }
+        assertTrue("Bitrate" to "350 kbps" in file.rows)
+        assertTrue("Sample rate" to "44100 Hz" in file.rows)
+        assertTrue("Bit depth" to "16 bit" in file.rows)
+    }
+
+    @Test
     fun waveformSeekFractionUsesTheVisibleScrubberBounds() {
         assertEquals(0f, waveformSeekFraction(x = -20f, width = 200))
         assertEquals(0.5f, waveformSeekFraction(x = 100f, width = 200))

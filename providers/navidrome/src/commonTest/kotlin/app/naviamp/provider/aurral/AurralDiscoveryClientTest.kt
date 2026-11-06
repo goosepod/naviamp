@@ -9,6 +9,66 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class AurralDiscoveryClientTest {
+    @Test fun acquisitionAccountScopeSurvivesFolderSelectionButChangesWithTheUser() {
+        val original = connection()
+        val scope = NavidromeProvider(original, FakeAurralHttp()).discoveryAccountScope
+        assertEquals(scope, NavidromeProvider(original.copy(selectedMusicFolderIds = listOf("2")), FakeAurralHttp()).discoveryAccountScope)
+        assertNotEquals(scope, NavidromeProvider(original.copy(username = "other"), FakeAurralHttp()).discoveryAccountScope)
+    }
+    @Test fun acquisitionReadsUseQualifiedManagerRoutesAndNeverInferPlaybackAvailability() = runTest {
+        val http = FakeAurralHttp().also { it.bootstrap = """{"api":{"version":1,"features":["discover","activity"]}}""" }
+        val client = AurralDiscoveryClient(connection(), http, nowMillis = { 0L })
+        val aurral = ProviderDiscoveryRequestIdentity(canonicalAlbumId = DiscoveryCanonicalAlbumId("71"),
+            managedAlbumId = DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "71"))
+        http.status = """{"canonicalId":71,"managedBy":"aurral","status":"unreleased","releaseDate":"2027-03"}"""
+        val waiting = client.acquisitionStatus(aurral)
+        assertEquals(DiscoveryAcquisitionPhase.WaitingForRelease, waiting.phase)
+        assertEquals("2027-03", waiting.waitingForRelease?.releaseDate)
+        assertTrue(http.urls.last().endsWith("/library/albums/aurral/71/status"))
+        http.status = """{"canonicalId":71,"managedBy":"aurral","status":"complete"}"""
+        assertEquals(DiscoveryAcquisitionPhase.Complete, client.acquisitionStatus(aurral).phase)
+        http.status = """{"71":{"status":"processing"}}"""
+        val lidarr = aurral.copy(managedAlbumId = DiscoveryManagedAlbumId(DiscoveryLibraryManager.Lidarr, "71"))
+        assertEquals(DiscoveryAcquisitionPhase.Processing, client.acquisitionStatus(lidarr).phase)
+        assertTrue(http.urls.last().endsWith("/library/downloads/status?albumIds=71"))
+        http.status = """{"71":{"status":"unreleased","releaseDate":"2027"}}"""
+        val unrecognizedLidarr = client.acquisitionStatus(lidarr)
+        assertEquals(DiscoveryAcquisitionPhase.Unknown, unrecognizedLidarr.phase)
+        assertNull(unrecognizedLidarr.waitingForRelease)
+        assertTrue(http.authenticatedGets.all { it["Authorization"] == "Bearer session" && it["X-Proxy"] == "value" })
+        assertEquals(1, http.logins)
+        assertEquals("https://music.test/aurral/requests", client.requestsUrl)
+    }
+    @Test fun acquisitionReadsRejectWrongOwnerAndUnknownStatusesStayUnknown() = runTest {
+        val http = FakeAurralHttp().also { it.bootstrap = """{"api":{"version":1,"features":["discover","activity"]}}""" }
+        val client = AurralDiscoveryClient(connection(), http, nowMillis = { 0L })
+        val identity = ProviderDiscoveryRequestIdentity(canonicalAlbumId = DiscoveryCanonicalAlbumId("71"),
+            managedAlbumId = DiscoveryManagedAlbumId(DiscoveryLibraryManager.Aurral, "71"))
+        for (body in listOf("""{"canonicalId":72,"managedBy":"aurral","status":"complete"}""",
+            """{"canonicalId":71,"managedBy":"lidarr","status":"complete"}""")) {
+            http.status = body
+            assertEquals(ProviderDiscoveryStatus.Unavailable, client.acquisitionStatus(identity).status)
+        }
+        http.status = """{"canonicalId":71,"managedBy":"aurral","status":"future"}"""
+        assertEquals(DiscoveryAcquisitionPhase.Unknown, client.acquisitionStatus(identity).phase)
+        for ((code, expected) in listOf(403 to ProviderDiscoveryStatus.Forbidden, 404 to ProviderDiscoveryStatus.Unsupported,
+            401 to ProviderDiscoveryStatus.SignInRequired)) {
+            http.failure = NavidromeHttpException(code)
+            assertEquals(expected, client.acquisitionStatus(identity).status)
+        }
+        assertEquals(1, http.logins)
+    }
+    @Test fun activityKeepsLidarrNamespacesAndDoesNotTreatDownloadSourcesAsManagers() = runTest {
+        val http = FakeAurralHttp().also { it.bootstrap = """{"api":{"version":1,"features":["discover","activity"]}}"""
+            it.activity = """[{"id":"one","source":"lidarr","albumId":71,"title":"Album","artistName":"Artist","status":"processing"},
+                {"id":"two","source":"deezer","albumId":71,"status":"completed","kind":"album_requested","requestGroupId":"group"}]""" }
+        val rows = AurralDiscoveryClient(connection(), http, nowMillis = { 0L }).requestActivity().items
+        assertEquals(DiscoveryManagedAlbumId(DiscoveryLibraryManager.Lidarr, "71"), rows[0].identity?.managedAlbumId)
+        assertEquals("Album", rows[0].title)
+        assertNull(rows[1].identity?.managedAlbumId)
+        assertEquals(DiscoveryRequestGroupId("group"), rows[1].identity?.requestGroupId)
+    }
+
     @Test fun missingMusicBrainzIdsRemainDiscoveryCardsWithoutInventingPlaybackOrExternalIds() = runTest {
         val http = FakeAurralHttp().also { it.discovery = """{"recommendations":[{"id":null,"name":"Unmatched artist","image":"javascript:bad"}],"globalTop":[]}""" }
         val feed = AurralDiscoveryClient(connection(), http, nowMillis = { 0L }).load()
@@ -149,6 +209,9 @@ private class FakeAurralHttp : NavidromeHttpClient {
         binaryHeaders = headers
         return byteArrayOf(1, 2, 3)
     }
+    var status = "{}"
+    var activity = "[]"
+    val urls = mutableListOf<String>()
     var failure: Throwable? = null
     val authenticatedGets = mutableListOf<Map<String, String>>()
     override suspend fun get(url: String) = get(url, emptyMap())
@@ -156,7 +219,10 @@ private class FakeAurralHttp : NavidromeHttpClient {
         assertTrue(url.startsWith("https://music.test/aurral/api/"))
         if (url.endsWith("/health/bootstrap")) return bootstrap
         authenticatedGets += headers
+        urls += url
         failure?.let { throw it }
+        if (url.endsWith("/requests")) return activity
+        if (url.contains("/library/albums/aurral/") || url.contains("/library/downloads/status?")) return status
         if (url.contains("/cover?artistName=")) { coverRequests++; return cover }
         return if (url.endsWith("/discover/status")) """{"isUpdating":true,"error":null,"lastUpdated":"yesterday"}"""
         else discovery

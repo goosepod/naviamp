@@ -1092,7 +1092,7 @@ private fun NowPlayingDetails(
                         verticalArrangement = Arrangement.spacedBy(if (filledArtworkLayout) 4.dp else 1.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {
+                        if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate)) {
                             RatingRow(
                                 favoriteActive = nowPlaying.favoriteActive,
                                 canFavorite = nowPlaying.canFavorite,
@@ -1511,7 +1511,7 @@ private fun FilledArtworkMetadataRow(
 ) {
     if (nowPlaying.isLive) return
     val ratingVisible = showRating &&
-        (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)
+        (nowPlaying.canFavorite || nowPlaying.canRate)
     val audioVisible = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
     if (!ratingVisible && !audioVisible) return
     val (format, quality) = nowPlaying.audioInfo.compactAudioInfoParts()
@@ -1519,7 +1519,9 @@ private fun FilledArtworkMetadataRow(
     val measurer = rememberTextMeasurer()
     val favoriteWidth = if (largeSizing) 30.dp else 24.dp
     val starsWidth = if (largeSizing) 116.dp else 92.dp
-    val ratingWidth = favoriteWidth + starsWidth + 3.dp
+    val ratingWidth = (if (nowPlaying.canFavorite) favoriteWidth else 0.dp) +
+        (if (nowPlaying.canRate) starsWidth else 0.dp) +
+        (if (nowPlaying.canFavorite && nowPlaying.canRate) 3.dp else 0.dp)
     val gap = 8.dp
 
     @Composable fun ratings() {
@@ -1571,7 +1573,7 @@ private fun CompactMetadataRow(
     if (nowPlaying.isLive) return
 
     val showRatingControls = showRating &&
-        (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)
+        (nowPlaying.canFavorite || nowPlaying.canRate)
     val showAudioText = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
     if (!showRatingControls && !showAudioText) return
     val (audioType, audioQuality) = nowPlaying.audioInfo.compactAudioInfoParts()
@@ -2118,7 +2120,7 @@ private fun DrawScope.drawFallbackScrubLine(
 }
 
 @Composable
-private fun RatingRow(
+internal fun RatingRow(
     favoriteActive: Boolean,
     canFavorite: Boolean,
     rating: Int?,
@@ -2138,7 +2140,7 @@ private fun RatingRow(
         modifier = modifier.padding(vertical = 1.dp),
     ) {
         val inactiveColor = colors.primaryText.copy(alpha = 0.72f)
-        Box(
+        if (canFavorite) Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .width(favoriteSlotWidth)
@@ -2151,7 +2153,7 @@ private fun RatingRow(
                 modifier = Modifier.size(iconSize),
             )
         }
-        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(starsWidth)) {
+        if (canRate) Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(starsWidth)) {
             (1..5).forEach { value ->
                 val selected = (rating ?: 0) >= value
                 Box(

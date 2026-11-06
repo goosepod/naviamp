@@ -107,7 +107,8 @@ class LyricsSidecarService(
             displayTimingPreference = displayTimingPreference,
             activeSearchOrder = activeSearchOrder,
         )
-        completedLookupMutex.withLock {
+        // Only remember hits: a provider such as Octo can answer empty while it is still fetching.
+        if (result.lyrics != null) completedLookupMutex.withLock {
             completedLookups[lookupKey] = result
             while (completedLookups.size > MaxCompletedLyricsLookups) {
                 completedLookups.remove(completedLookups.keys.first())

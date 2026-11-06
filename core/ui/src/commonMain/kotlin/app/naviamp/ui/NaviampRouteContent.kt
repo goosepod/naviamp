@@ -417,6 +417,7 @@ internal fun HomeCollectionGridCard(
             text = item.title,
             color = colors.primaryText,
             fontSize = 12.sp,
+            lineHeight = 14.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -426,6 +427,7 @@ internal fun HomeCollectionGridCard(
             text = item.subtitle,
             color = colors.secondaryText,
             fontSize = 10.sp,
+            lineHeight = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 2.dp),
@@ -448,6 +450,9 @@ internal fun HomeCollectionArtwork(
         }
         SharedHomeCollectionArtwork.NavibeatGenerated -> navibeatMixArtwork(item.artworkKey.orEmpty())
         SharedHomeCollectionArtwork.StationGenerated -> stationArtwork(item.artworkKey.orEmpty())
+        SharedHomeCollectionArtwork.MixBuilderGenerated -> mixBuilderArtwork(item.artworkKey.orEmpty()).let {
+            NavibeatMixArtwork(it.icon, it.colors)
+        }
     }
     Box(
         contentAlignment = Alignment.Center,
@@ -954,6 +959,18 @@ fun SharedHomeRoute(
     scrollState: ScrollState = rememberScrollState(),
 ) {
     val collectionScrollState = remember(home.collectionPage?.section?.id) { ScrollState(0) }
+    home.providerDiscovery?.takeIf { it.requestsOpen }?.let {
+        NaviampDiscoveryRequestsUi(it, colors, actions)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
+        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.browser != null }?.let {
+        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback)
+        return
+    }
     home.collectionPage?.let { page ->
         Column(modifier = Modifier.fillMaxSize()) {
             HomeCollectionPageHeader(page, colors, actions)
@@ -1013,7 +1030,8 @@ fun SharedHomeRoute(
                     home.providerDiscovery?.let { discovery ->
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback)
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
                     }
                     SharedHome(
                         colors = colors,

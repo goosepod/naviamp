@@ -10,6 +10,16 @@ import kotlin.test.*
 
 /** Synthetic payload excerpts from the pinned source in docs/verification/473-aurral-contract.md. */
 class AurralCatalogContractTest {
+    @Test fun similarArtistMetadataUsesTheSameSessionAndKeepsUnavailableResponsesLocal() = runTest {
+        val http = ContractHttp()
+        val client = client(http)
+        val result = client.similarArtists(DiscoveryArtistMbid(ArtistMbid))
+        assertEquals(ProviderDiscoveryStatus.Ready, result.status)
+        assertEquals(ArtistMbid, result.artists.single().artistMbid?.value)
+        assertEquals(listOf("login"), http.writes)
+        http.failure = NavidromeHttpException(404)
+        assertEquals(ProviderDiscoveryStatus.Unavailable, client.similarArtists(DiscoveryArtistMbid(ArtistMbid)).status)
+    }
     @Test fun recommendationsBeyondTwoHundredKeepRawOffsetsRanksAndOlderServerContext() = runTest {
         val http = ContractHttp()
         val client = client(http)
@@ -211,6 +221,7 @@ private class ContractHttp : NavidromeHttpClient {
         tokens += headers.getValue("Authorization")
         failure?.let { throw it }
         return when {
+            "/similar?" in url -> """{"artists":[{"id":"$ArtistMbid","name":"Similar artist","tags":["rock"]}]}"""
             "/discover?" in url -> discoveryOverride ?: buildJsonObject {
                 val offset = url.substringAfter("offset=").toInt()
                 val limit = url.substringAfter("limit=").substringBefore('&').toInt()

@@ -29,6 +29,15 @@ import kotlin.test.assertFalse
 import kotlin.test.assertSame
 
 class RadioServiceTest {
+    @Test fun unavailableSonicUsesInstantMixForTrackAndAlbumRadioWithoutCallingSonic() = runTest {
+        val provider = FakeRadioProvider(radioTracks = listOf(track("regular")))
+        val service = RadioService(provider, similarityMethod = RadioSimilarityMethod.SonicSimilarity)
+        assertEquals(listOf("regular"), service.trackRadio(track("seed"), true).map { it.id.value })
+        assertEquals(listOf("regular"), service.trackRadio(TrackId("seed")).map { it.id.value })
+        assertTrue(service.albumRadio(AlbumId("album-one")).any { it.id.value == "regular" })
+        assertEquals(0, provider.sonicCalls)
+    }
+
     @Test
     fun albumSeedUsesProviderResponseServiceForAlbumTracks() = runTest {
         val cache = RecordingProviderResponseCacheRepository()
@@ -176,10 +185,13 @@ class RadioServiceTest {
         assertEquals(0, provider.trackRadioCalls)
     }
 
-    @Test fun unsupportedSonicIsReportedAndExplicitInstantMixWorks() = runTest {
+    @Test fun unadvertisedSonicReportsInstantMixAsTheActualSource() = runTest {
         val provider = FakeRadioProvider(radioTracks = listOf(track("regular")))
-        assertFailsWith<SimilarityRequestException> { RadioService(provider).trackRadio(track("seed"), true) }
-        assertEquals(0, provider.trackRadioCalls)
+        var endpoint: SimilarityEndpoint? = null
+        assertEquals(listOf(track("regular")), RadioService(provider,
+            onSimilarityResult = { endpoint = it.source }).trackRadio(track("seed"), true))
+        assertEquals(SimilarityEndpoint.Regular, endpoint)
+        assertEquals(1, provider.trackRadioCalls)
         assertEquals(listOf(track("regular")), RadioService(provider).trackRadio(track("seed"), false))
         assertEquals(0, provider.sonicCalls)
     }

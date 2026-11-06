@@ -1,0 +1,9 @@
+-- Main baseline is 28. All unreleased #478 persistence changes belong in this migration.
+CREATE TABLE discovery_acquisition (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  account_key TEXT NOT NULL,
+  request_key TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY (source_id, account_key, request_key)
+);

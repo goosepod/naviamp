@@ -75,6 +75,7 @@ import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.radioTrackArtworkMatch
 import app.naviamp.ui.radioTrackArtworkQuery
 import kotlinx.coroutines.CancellationException
 import app.naviamp.app.NaviampPlaybackStreamRelay
@@ -918,6 +919,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
         album: app.naviamp.domain.Album?,
         waveform: app.naviamp.domain.waveform.AudioWaveform?,
         audioTags: List<app.naviamp.domain.audio.AudioTag>?,
+        fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
         relatedTracks: List<app.naviamp.domain.Track>,
         relatedTracksSource: RelatedTracksSource,
         relatedTracksStatus: NaviampCoreRelatedTracksStatus,
@@ -927,6 +929,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
             album = album,
             waveform = waveform,
             audioTags = audioTags,
+            fileAudioInfo = fileAudioInfo,
             relatedTracks = relatedTracks,
             relatedTracksSource = relatedTracksSource,
             relatedTracksStatus = relatedTracksStatus,
@@ -1006,25 +1009,23 @@ class NaviampCoreProviderNowPlayingSidecars(
                 loadCoreRelatedTracks(provider, track, settings.effectiveSonicSimilarityEnabled())
             }
             val waveformResult = waveform.await()
-            val audioTags = runCatching {
-                audioMetadataSidecarService?.let { service ->
-                    waveformResult?.localAudio
-                        ?.let { service.audioTags(it) }
-                        ?: service.audioTagsForTrack(
-                            sourceId = activeSourceId,
-                            track = track,
-                            quality = quality,
-                            audioCachingEnabled = audioCachingEnabled(),
-                        )
-                }
-            }.getOrNull()
-            LoadedTrackSidecars(album.await(), waveformResult?.waveform, audioTags, related.await())
+            val metadata = audioMetadataSidecarService?.metadataForTrack(
+                sourceId = activeSourceId,
+                provider = provider,
+                track = track,
+                quality = quality,
+                audioCachingEnabled = audioCachingEnabled(),
+                localAudio = waveformResult?.localAudio,
+            )
+            LoadedTrackSidecars(album.await(), waveformResult?.waveform, metadata?.tags,
+                related.await(), metadata?.audioInfo)
         }
         if (generation == loadGeneration) {
             delegate.updateTrackSidecars(
                 album = loaded.album,
                 waveform = loaded.waveform,
                 audioTags = loaded.audioTags,
+                fileAudioInfo = loaded.fileAudioInfo,
                 relatedTracks = loaded.related.tracks,
                 relatedTracksSource = loaded.related.source,
                 relatedTracksStatus = loaded.related.status,
@@ -1123,9 +1124,9 @@ class NaviampCoreProviderNowPlayingSidecars(
         val provider = providerSource.current() ?: return
         val query = radioTrackArtworkQuery(metadata.title) ?: return
         val artworkUrl = runCatching {
-            provider.search(query, limit = 5)
-                .tracks
-                .firstOrNull { it.coverArtId != null }
+            // The Subsonic default page size: the announced song is not always the first hit, and some
+            // servers only add songs from outside the library to a full-size search.
+            radioTrackArtworkMatch(provider.search(query, limit = 20).tracks, metadata.title)
                 ?.coverArtId
                 ?.let(provider::coverArtUrl)
         }.getOrNull()
@@ -1140,6 +1141,7 @@ private data class LoadedTrackSidecars(
     val waveform: app.naviamp.domain.waveform.AudioWaveform?,
     val audioTags: List<app.naviamp.domain.audio.AudioTag>?,
     val related: LoadedRelatedTracks,
+    val fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
 )
 
 internal data class LoadedRelatedTracks(
