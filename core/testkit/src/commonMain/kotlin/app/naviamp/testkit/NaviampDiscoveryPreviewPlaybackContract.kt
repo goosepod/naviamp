@@ -54,7 +54,8 @@ suspend fun verifyNaviampDiscoveryPreviewPlayback(
     suspend fun <T> phase(name: String, block: suspend () -> T): T = try { block() }
     catch (timeout: TimeoutCancellationException) {
         throw AssertionError("Preview acceptance timed out during $name; main=${core.state.value.shell.nowPlaying?.stateLabel}; " +
-            "progress=${core.playbackProgress.value}; sample=${core.state.value.shell.home.samplePlayback}", timeout)
+            "progress=${core.playbackProgress.value}; sample=${core.state.value.shell.home.samplePlayback}; " +
+            "diagnostics=${core.playbackDiagnostics()}", timeout)
     }
     suspend fun playback(action: NowPlayingPlaybackAction, seek: Double? = null) =
         core.execute(NaviampCoreCommand.NowPlaying.Playback(NowPlayingPlaybackActionRequest(action, seekSeconds = seek)))
