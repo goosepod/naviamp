@@ -9,7 +9,12 @@ import app.naviamp.domain.provider.*
 import app.naviamp.provider.navidrome.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassStreamHandle
+import kotlin.math.abs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.withTimeout
 import org.junit.Assume.assumeTrue
 import kotlin.test.Test
@@ -29,8 +34,14 @@ class DesktopAurralWindowsPreviewTest {
         val charts = assertNotNull(provider.discovery).charts()
         assertEquals(ProviderDiscoveryStatus.Ready, charts.status)
         val preview = assertNotNull(charts.songs?.firstOrNull { it.previewId != null }?.previewId)
-        val engine = CoreBassPlaybackEngine(Result.success(DesktopBassAudioBackend(
-            DesktopBassJniBinding.load().getOrThrow())), DesktopBassPlaybackEngineRuntime())
+        val binding = DesktopBassJniBinding.load().getOrThrow()
+        val native = DesktopBassAudioBackend(binding)
+        val previewChannel = MutableStateFlow<BassStreamHandle?>(null)
+        val observed = object : BassAudioBackend by native {
+            override fun createRandomAccessStream(source: PlaybackRandomAccessSource, decode: Boolean) =
+                native.createRandomAccessStream(source, decode).onSuccess { previewChannel.value = it }
+        }
+        val engine = CoreBassPlaybackEngine(Result.success(observed), DesktopBassPlaybackEngineRuntime())
         val relay = NaviampPlaybackStreamRelay(this) { it === provider }
         try {
             println("Native preview outputs: ${engine.outputDevices()}")
@@ -46,7 +57,27 @@ class DesktopAurralWindowsPreviewTest {
             }
             assertEquals(PlaybackState.Playing, result,
                 "Live native preview failed; transport failure=${source?.failure}; outputs=${engine.outputDevices()}")
-            println("Live chart preview reached native Playing with TLS verification and muted output")
+            val channel = assertNotNull(previewChannel.value)
+            suspend fun awaitPositionAfter(position: Double) = withTimeout(5_000) {
+                while ((native.positionSeconds(channel) ?: 0.0) <= position) {
+                    check(state.value !is PlaybackState.Error) { "Preview failed: ${state.value}" }
+                    delay(25)
+                }
+            }
+            awaitPositionAfter(0.5)
+            engine.pausePreview()
+            assertEquals(PlaybackState.Paused, state.value)
+            val paused = assertNotNull(native.positionSeconds(channel))
+            delay(350)
+            assertTrue(abs(assertNotNull(native.positionSeconds(channel)) - paused) < 0.1,
+                "Native preview clock must remain paused")
+            engine.resumePreview()
+            assertEquals(PlaybackState.Playing, state.value)
+            awaitPositionAfter(paused + 0.5)
+            engine.stopPreview()
+            assertEquals(PlaybackState.Stopped, state.value)
+            assertEquals(0, binding.endSyncRegistrationCount, "Preview callback must be released")
+            println("Live chart preview clock advanced, paused and resumed with verified TLS and muted output")
         } finally { engine.release(); relay.close() }
     }
 }

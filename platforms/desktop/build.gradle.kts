@@ -269,6 +269,8 @@ tasks.named<Test>("desktopTest") {
     val mprisIntegration = providers.environmentVariable("NAVIAMP_MPRIS_INTEGRATION").orElse("false")
     inputs.property("mprisIntegration", mprisIntegration)
     outputs.upToDateWhen { mprisIntegration.get() != "true" }
+    // Live acceptance must execute against the configured server rather than reuse a test report.
+    outputs.upToDateWhen { !providers.environmentVariable("NAVIAMP_AURRAL_TEST_URL").isPresent }
     dependsOn(prepareDesktopNativeResources)
     providers.gradleProperty("naviamp.bass.test.outputDevice").orNull?.let { outputDevice ->
         systemProperty("naviamp.bass.test.outputDevice", outputDevice)

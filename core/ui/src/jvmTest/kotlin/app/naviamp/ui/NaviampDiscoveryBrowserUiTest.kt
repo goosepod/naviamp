@@ -58,6 +58,7 @@ class NaviampDiscoveryBrowserUiTest {
                         onDiscoveryBrowse = send, onDiscoveryRequests = { requests++ }))
                 }
             } }
+            captureBrowser("home-entry", width)
             onNodeWithText("Aurral").performClick()
             assertEquals(DiscoveryBrowseAction.Open(DiscoveryBrowsePage.Hub), commands.last())
             onNodeWithText("Recommendations").assertDoesNotExist()

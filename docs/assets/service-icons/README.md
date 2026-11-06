@@ -9,7 +9,7 @@ respective owners.
 
 | Resource | Source |
 | --- | --- |
-| `service_aurral.png` | Owner-supplied https://github.com/lklynet/aurral/blob/main/docs/public/favicon.svg, retrieved 2026-10-27. The original is retained as `aurral-favicon.svg`; rasterized proportionally at width 512 with `rsvg-convert`, retaining its original lime color and transparency. |
+| `service_aurral.xml` | Owner-supplied https://github.com/lklynet/aurral/blob/main/docs/public/favicon.svg, retrieved 2026-10-27. The original is retained as `aurral-favicon.svg`; the original path is bundled as a Compose vector drawable with the same viewport, lime fill and transparency. It is rasterized at the actual display size, keeping the Home card and smaller service icons smooth at fractional display scales. |
 | `service_bandcamp.png` | Aqua circle button from https://bandcamp.com/buttons; https://s4.bcbits.com/vite/corp-pages/client/v1/en/assets/bandcamp-button-circle-aqua-512-DR-rk-YT.png |
 | `service_opensubsonic.png` | OpenSubsonic organization avatar supplied by the owner: https://avatars.githubusercontent.com/u/125784570?s=200&v=4 |
 | `service_navidrome.png` | https://github.com/navidrome/navidrome/blob/master/resources/logo-192x192.png |
