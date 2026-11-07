@@ -109,3 +109,7 @@ test command and deadlines, without adding pre-test memory/JVM snapshots or extr
 job. The wrapper records the actual native command exit status before observer teardown. Ordinary
 PR runs keep their existing invocation. All 23 selected helper tests pass, including rejection of
 capture without an owned fixture and preservation of a native failure despite observer failure.
+The separate `ios_fixture_packet_diagnostic` input enables that ordinary-job capture without
+launching the paired comparison jobs. This provides a control without the paired job's extra
+fixture processes or pre-test host snapshots. Both inputs default to false and neither changes
+which standard jobs are required.

@@ -96,7 +96,7 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/verify.yml').read_text()
         standard, diagnostic = workflow.split('  ios-fixture-lifetime-diagnostic:', 1)
         standard_jobs = standard.split('jobs:', 1)[1]
-        self.assertNotRegex(standard_jobs, r'if:.*ios_fixture_lifetime_diagnostic')
+        self.assertNotRegex(standard_jobs, r'if:.*ios_fixture_(lifetime|packet)_diagnostic')
         for context in ('Shared and Android tests', 'Desktop native tests (macOS)',
                         'Desktop native tests (Windows)', 'Desktop native tests (Linux)', 'iOS simulator tests'):
             self.assertIn('name: ' + context, standard_jobs)

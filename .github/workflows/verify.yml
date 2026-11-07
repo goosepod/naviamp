@@ -13,6 +13,11 @@ on:
         type: boolean
         required: false
         default: false
+      ios_fixture_packet_diagnostic:
+        description: Observe owned loopback packet metadata in the ordinary iOS job only
+        type: boolean
+        required: false
+        default: false
   workflow_call:
     inputs:
       source_ref:
@@ -535,7 +540,7 @@ jobs:
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
             :platforms:ios:iosSimulatorArm64Test)
           packet_capture=()
-          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.ios_fixture_lifetime_diagnostic }}" = true ]; then
+          if [ "${{ github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic) }}" = true ]; then
             packet_capture=(--capture-loopback)
           fi
           if [ -f scripts/ios-native-test-diagnostics.py ]; then
