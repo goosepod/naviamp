@@ -491,9 +491,6 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Start disposable mobile mTLS fixture
-        run: bash scripts/start-mobile-mtls-fixture.sh
-
       - name: Compile both targets and run common simulator tests
         run: |
           mkdir -p build/ci-timings
@@ -525,10 +522,15 @@ jobs:
           xcrun simctl boot "$device_id"
           xcrun simctl bootstatus "$device_id" -b
 
+      # Only the native contract needs this server. Keep its JVM out of compilation and
+      # simulator boot, which can leave an idle fixture responding after the test deadline.
+      - name: Start disposable mobile mTLS fixture
+        run: bash scripts/start-mobile-mtls-fixture.sh
+
       - name: Exercise native TLS and BASS on the booted simulator
         timeout-minutes: 5
         run: |
-          # The preceding step compiles this binary; this required step executes it
+          # The earlier compile stage builds this binary; this required step executes it
           # with real Apple trust services after the common standalone tests finish.
           # The generated bootstrap identifies this run's fixture. The shared contract
           # verifies its live control endpoint through native HTTP before authentication.
@@ -540,7 +542,7 @@ jobs:
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
             :platforms:ios:iosSimulatorArm64Test)
           packet_capture=()
-          if [ "${{ github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic) }}" = true ]; then
+          if [ "${{ (github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic)) || contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold') }}" = true ]; then
             packet_capture=(--capture-loopback)
           fi
           if [ -f scripts/ios-native-test-diagnostics.py ]; then

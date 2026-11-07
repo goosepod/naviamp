@@ -140,3 +140,34 @@ passes its complete iOS job, including all 17 native cases, app build and Keycha
 the initial control connection, the 175-byte GET is followed by the server's first 79 response
 bytes after approximately 2.177 seconds, then its complete body. This is a passing timing baseline,
 not a captured reproduction of the original timeout or proof of its cause.
+
+## Captured failure and corrective lifecycle
+
+Cancellation of the long-running `08dc265a7` comparison preserves three completed suites in the
+single-use-daemon condition and an incomplete fourth. The first aged suite executes all 17 cases
+and fails only at fixture bootstrap. Its fixture is 1094 seconds old at native-command preparation.
+Two fresh fixtures (91 and 158 seconds old at preparation) each pass all 17 cases, with the same
+native executable hash `eb551e6eac1c9b092175113a522906a9ce79c21f28b9fb22987e25b4e68f693c`.
+The fourth aged suite has no completed native result and is not counted. The comparison remains
+partial; it does not establish that every aged fixture fails.
+
+The failed control connection provides the missing evidence:
+
+- `22:51:40.076434`: native client sends its 175-byte GET; the host acknowledges it immediately.
+- `22:51:50.242033`: client cancels the connection after its existing ten-second deadline.
+- `22:51:59.076583`: the host emits its first 79 response bytes, **19.000149 seconds after the GET**.
+- No response body is delivered on that connection. The post-test host probe succeeds in 0.401s.
+- The two fresh fixtures' first response bytes arrive after 0.174s and 4.243s, respectively.
+
+This locates the reproduced failure on the fixture/host response path: the response is sent after
+the client's deadline, not discarded by a functioning client before that deadline. It also occurs
+without a retained Gradle daemon. The precise reason the long-lived JVM was delayed (paging,
+scheduling, or another host/JVM effect) is not established by this packet trace.
+
+The ordinary iOS workflow now starts its fixture **after** common compilation and simulator boot,
+immediately before the native contract needs it. The server is no longer kept idle through the
+build. The live native fixture check, ten-second bootstrap deadline, negative authentication,
+positive authentication, streaming and seek assertions remain unchanged. A regression checks the
+compile → boot → fixture → native ordering; all 27 selected helper tests pass. PR #531 uses
+`verify:ios-native-cold` for three independent complete native suites (initial plus two replays),
+with packet metadata on each. Hosted acceptance of this corrective revision is pending.

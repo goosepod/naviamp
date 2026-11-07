@@ -138,6 +138,7 @@ def replay(root, output, runs):
                 env = os.environ.copy()
                 env['SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP'] = bootstrap.read_text()
                 command = ['python3', 'scripts/ios-native-test-diagnostics.py',
+                           '--capture-loopback',
                            '--executable', str(root / 'platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe'),
                            '--fixture-bootstrap', str(bootstrap), '--output', str(run / 'diagnostics'), '--',
                            './gradlew', '--max-workers=2', '--console=plain', '--profile',

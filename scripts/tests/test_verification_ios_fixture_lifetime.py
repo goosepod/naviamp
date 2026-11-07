@@ -128,3 +128,14 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
         self.assertIn("github.event_name == 'workflow_dispatch' && inputs.ios_fixture_lifetime_diagnostic", diagnostic)
         self.assertNotIn('Write verification evidence', diagnostic)
         self.assertNotIn('verified-source-', diagnostic)
+
+    def test_ordinary_ios_fixture_starts_after_compilation_and_simulator_boot(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/verify.yml').read_text()
+        ios = re.split(r'\n  [a-z][a-z0-9-]*:', workflow.split('\n  ios:', 1)[1], maxsplit=1)[0]
+        stages = [ios.index('name: ' + stage) for stage in (
+            'Compile both targets and run common simulator tests',
+            'Boot a dedicated simulator for native TLS services',
+            'Start disposable mobile mTLS fixture',
+            'Exercise native TLS and BASS on the booted simulator')]
+        self.assertEqual(sorted(stages), stages)
+        self.assertEqual(1, ios.count('run: bash scripts/start-mobile-mtls-fixture.sh'))
