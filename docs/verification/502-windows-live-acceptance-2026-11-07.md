@@ -39,21 +39,27 @@ The first launch failed during Gradle task selection because PowerShell split a 
 argument. It executed no cases. Correcting the launcher produced the fourteen passing cases
 above; no application change or relaxed assertion was involved.
 
-## Native preview remains blocked by the Windows output environment
+## Initial native attempt and successful output rerun
 
 The single selected `DesktopAurralWindowsPreviewTest` case fails in 5.493 seconds at
 `setAudioOutputDevice(null)`: **BASS_SetDevice failed: driver error**. It does not reach playback.
 BASS reports only an uninitialized Default alias. Windows audio service is running, but present
 AudioEndpoint inventory exposes only an AMD microphone and no playback endpoint.
 
-This is not passing native-clock or audible acceptance. No no-sound device is substituted, and
-no playback deadline or assertion is changed. A real playback output is required before rerunning
-the existing muted clock/pause/resume/cleanup case. With the configured test URL, user, password
-and CA supplied privately, select only that case:
+That attempt does not establish native-clock acceptance. After the owner confirmed speakers were
+attached, Windows exposed the BenQ/AMD playback endpoint. The same native case was rerun by itself
+with the configured test URL, user, password and CA supplied privately:
 
 ```text
 ./gradlew :platforms:desktop:desktopTest --rerun --tests app.naviamp.desktop.playback.bass.DesktopAurralWindowsPreviewTest.liveChartPreviewReachesNativePlayingThroughAuthenticatedByteTransport
 ```
+
+The native case passes in **8.394 seconds**, zero failures/errors/skips. Authenticated preview
+playback reaches Playing, its real output clock advances, remains stationary while paused,
+advances after resume, and stops with no end-sync registrations left behind. Output is muted;
+audible quality is not claimed. No no-sound device, timeout adjustment, application change or
+server mutation is used. The fourteen provider cases were not repeated in this native-only run.
+The earlier failed XML is retained separately rather than overwritten as accepted evidence.
 
 ## Owner disposition and remaining gate
 
@@ -61,10 +67,10 @@ The older #506 report's pending checklist predates the owner's final acceptance.
 records acceptance of the complete Aurral experience and closes #506 through the verified #527
 integration at `62851e1c3`. That accepted scope is not reopened by this API-contract follow-up.
 Earlier accepted Mac/Gaming PC native queue/preview evidence remains valid for those builds;
-the failed current Windows attempt above is separate and is not relabeled as a pass.
+the failed initial Windows attempt remains separate from the successful native-only rerun.
 
 The standalone output/startup investigations #493/#497 remain explicitly deferred by the owner.
-A real output is needed for a future Windows native rerun. Positive chart/playlist writes were
+The successful output rerun does not close those broader investigations. Positive chart/playlist writes were
 not exercised by this read-only batch; none are newly authorized or required for the focused CA
 test-harness correction. No acquisition, feedback, playlist edit, account change, administrator
 fallback or listen was sent. The previous single-use listen approval is not reused.
