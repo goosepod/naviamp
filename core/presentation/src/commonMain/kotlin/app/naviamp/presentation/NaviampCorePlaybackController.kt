@@ -395,9 +395,16 @@ class NaviampCorePlaybackController(
             }
 
             override fun onProgressChanged(progress: PlaybackProgress) {
+                // Native Pause can precede its final clock sample. That sample is the resume
+                // checkpoint even when Pause just saved an older position inside the throttle.
+                val pausedPositionChanged = playback.state.value.let { live ->
+                    live.playbackState == PlaybackState.Paused &&
+                        progress.positionSeconds != null &&
+                        live.progress.positionSeconds != progress.positionSeconds
+                }
                 playback.updateProgress(progress)
                 reportPlayback(playback.state.value.playbackState, progress)
-                persistSession(force = false)
+                persistSession(force = pausedPositionChanged)
             }
 
             override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {
