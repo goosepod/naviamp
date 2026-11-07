@@ -47,7 +47,7 @@ class NativeReplayCleanupTest(unittest.TestCase):
     device_id = '12345678-1234-1234-1234-123456789abc'
     name = 'Naviamp TLS cold replay 1 owned-marker'
 
-    def test_failed_boot_never_starts_a_fixture_and_still_cleans_the_owned_device(self):
+    def test_failed_boot_cleans_its_prepared_fixture_and_owned_device(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             results = root / 'platforms/ios/build/test-results/iosSimulatorArm64Test'
@@ -57,20 +57,24 @@ class NativeReplayCleanupTest(unittest.TestCase):
             output = root / 'build/replays'
             output.mkdir(parents=True)
             cleanup = Mock()
+            stop = Mock()
+            fixture = Mock(pid=12345)
             def simctl(*arguments):
                 if arguments[0] == 'list':
                     return json.dumps({'devices': {'runtime': [{'name': 'iPhone test', 'udid': self.device_id}]}})
                 if arguments[0] == 'clone':
                     return self.device_id
                 raise RuntimeError('owned boot failed')
-            with patch.dict(HELPER['replay'].__globals__, simctl=simctl, remove_owned_device=cleanup), \
+            with patch.dict(HELPER['replay'].__globals__, simctl=simctl, remove_owned_device=cleanup,
+                            stop_fixture=stop, wait_fixture_ready=Mock()), \
                     patch.dict('os.environ', JAVA_HOME=directory), \
                     patch('subprocess.check_output', return_value='test-commit'), \
-                    patch('subprocess.run'), patch('subprocess.Popen') as launch:
+                    patch('subprocess.run'), patch('subprocess.Popen', return_value=fixture) as launch:
                 with self.assertRaisesRegex(RuntimeError, 'owned boot failed'):
                     HELPER['replay'](root, output, 1)
-                launch.assert_not_called()
+                launch.assert_called_once()
                 cleanup.assert_called_once()
+                stop.assert_called_once_with(fixture, output / 'run-1/fixture.bootstrap', root)
             failure = json.loads((output / 'run-1/summary.json').read_text())
             self.assertEqual('simulator boot', failure['stage'])
 

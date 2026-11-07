@@ -196,3 +196,25 @@ pre-test provisioning, not the native ten-second HTTP deadline or any TLS/playba
 Three regressions cover bootstrap publication after 95 seconds, bounded missing-bootstrap failure,
 and immediate failure of an exited fixture. All 31 selected local helper tests pass. Exact-head
 acceptance still requires all three independent native suites and the full required matrix.
+
+## Certificate generation and final resource staging
+
+[Verify 42353532414](https://github.com/goosepod/naviamp/actions/runs/42353532414), head `0669f587e`,
+fails before native execution while starting the fixture after simulator boot. The JVM reports
+`Disposable certificate generation timed out` at the RSA key-pair generation operation: one
+keytool child exceeds its existing 45-second limit. This is not another native bootstrap timeout,
+and no native result is counted for that job.
+
+The final staging is therefore **compile → prepare/start fresh fixture → boot → native tests**.
+The fixture is kept out of the long compile, and its 26 keytool subprocesses finish before cold
+simulator services start. This matches the successful fresh-fixture controls in the paired job.
+The ordinary iOS job also inherits the repository's global single-use Gradle policy instead of
+retaining the measured approximately 2.3 GiB build daemon into simulator execution. An aged
+fixture already failed without a retained daemon, so daemon retention is not claimed as the
+sole cause; removing the unnecessary retained heap provides measured resource headroom.
+
+Both the per-keytool 45-second deadline and native HTTP/authentication/playback deadlines stay
+unchanged. The separate bounded provisioning budget and startup trace remain. The lifecycle
+regression now protects compilation before fixture creation and certificate preparation before
+boot; boot-failure coverage checks cleanup of both the prepared fixture and its owned device.
+All 31 selected local helper tests pass. Hosted exact-head acceptance remains required.
