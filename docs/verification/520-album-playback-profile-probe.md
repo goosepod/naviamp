@@ -58,7 +58,8 @@ state before the transition, and advancement to the next within-album track. An 
 profile is the positive control and must activate eight-second native crossfade. This is native
 state evidence, not an audible-continuity measurement.
 
-Device execution is deferred at the owner's request. Nothing was installed or run on the phone.
+Device execution was initially deferred at the owner's request. The later authorized phone run
+is recorded below.
 `:apps:android:compileDebugAndroidTestKotlin` passes for the new probe and its production dependencies.
 Local logs are retained under ignored `build/sven-review/` in this worktree.
 The test remains opt-in and requires a fresh disposable test installation plus this loopback
@@ -72,5 +73,80 @@ adb shell am instrument -w -e tvLocalFixture true -e class app.naviamp.android.A
 
 The Android change is an integration test of the Android application/storage/BASS boundary;
 there are no changed platform production files. The original report remains unresolved pending
-native execution and audible acceptance. Active profile edits and restored-queue native transitions
+reproduction of the reported failure and audible acceptance. Active profile edits and restored-queue native transitions
 also remain separate acceptance items.
+
+## Pixel 6a native execution
+
+The owner subsequently made a USB-connected Pixel 6a available and authorized testing. The phone
+reports Android 17 / API 37. Existing Naviamp, v2 Test and Cast test installations were preserved.
+An ignored Gradle init script assigned the disposable package `app.naviamp.android.sven520`, with
+its own instrumentation package and fresh synthetic source. No real server credentials were used.
+
+The production code from PR head `977c538a3` passes the native probe with three 30-second WAV
+tracks from the loopback fixture, with audio caching disabled. At 25 seconds into the first track:
+
+| Saved album mode | Native crossfade duration | Native crossfade active | Prepared next state | Next within-album track |
+| --- | --- | --- | --- | --- |
+| Gapless | Off | false | Ready, correct second track | Advances with duration Off and album profile retained |
+| Inherit | 8s | true | Ready, correct second track | Advances with duration 8s and album profile retained |
+
+The strengthened current-branch run reports `OK (1 test)` in 62.274 seconds; both cases run inside
+that one test. It exercises the Core command used by the album Play button, Android's actual
+file-backed profile repository and native BASS preparation/advance. It does not automate the
+settings dialog or physically tap the Play button, and it does not measure audible continuity.
+This does not reproduce Sven's reported override loss for this fresh-source WAV scenario.
+
+The initial device attempt found a test-harness error: external playback media IDs have a queue
+prefix and cannot be compared directly with raw track IDs. The test now compares raw identity
+through Now Playing, while using the external bridge's state and opaque identity for transitions.
+The first timeout is not evidence of a product playback failure. The final test additionally
+requires the correct prepared native stream to be Ready, preventing an unprepared sequential
+advance from satisfying the probe.
+
+Logs and APKs remain under the worktree's ignored build directories. The successful strengthened
+run is `build/sven-review/pixel-album-profile-instrumentation.log`; earlier attempts have separate
+logs.
+
+The identical strengthened test also passes against v2.10.0's unmodified production source at
+`6e602832a`, rebuilt as the same isolated debug package. The detached baseline checkout has no
+tracked differences; its only added source is this test. The test SHA-256 matches in both trees
+(`3f42b4fb06743026b35b7a4f2fbca84589789b79ffa53688cd08761a64891cea`). Both cases produce the
+same native values in the table above; the release-source run reports `OK (1 test)` in 63.593
+seconds. Its log is copied to `build/sven-review/pixel-v2100-album-profile-instrumentation.log`.
+This is a debug rebuild of the release source, not the signed public release binary.
+
+The clean-source WAV reproduction therefore does not fail on either the release or PR production
+tree. Do not infer that a newer mainline change fixed Sven's report. The remaining reproduction
+needs the reporter's server/album/format and saved-state details, plus audible verification.
+Active profile edits, restored queues, other codecs and upgraded existing databases are not
+covered by these native runs. The original issue remains open.
+
+### Isolated phone reproduction
+
+Save this as an ignored `build/sven-review/isolated-android.init.gradle` before building. It changes
+only the debug package ID; product code stays unchanged.
+
+```groovy
+gradle.beforeProject { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        project.extensions.getByName('androidComponents').finalizeDsl { android ->
+            android.buildTypes.getByName('debug').applicationIdSuffix = '.sven520'
+        }
+    }
+}
+```
+
+Build `:apps:android:assembleDebug :apps:android:assembleDebugAndroidTest` using that init script
+and `-Pandroid.injected.build.abi=arm64-v8a` (quote the complete property argument in PowerShell).
+Verify both APK metadata files identify `.sven520` / `.sven520.test` before installation. With this
+injected ABI property the APKs are under `apps/android/build/intermediates/apk/`. Install using
+`adb -s <serial> install -t <apk>` on a device without those disposable packages already present.
+Do not clear an existing personal installation. The test refuses a nonempty source setup.
+
+Start the fixture with `--tracks 3 --albums 1 --track-seconds 30 --burst-seconds 4 --artwork`,
+reverse port 18080 on the selected device, and run the earlier instrumentation command with the
+runner package replaced by `app.naviamp.android.sven520.test` and an explicit `-s <serial>`.
+The two mode checks take approximately one minute in total. The temporary packages and owned
+reverse mapping were removed after recording both results, and the owned loopback fixture was
+stopped. Package inventory afterward matches the original three Naviamp installations.

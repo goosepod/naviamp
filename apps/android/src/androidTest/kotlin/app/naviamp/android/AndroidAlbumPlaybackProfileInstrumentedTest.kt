@@ -53,7 +53,7 @@ class AndroidAlbumPlaybackProfileInstrumentedTest {
                     }
                     await("$mode first track playing") {
                         core.externalPlaybackBridge().snapshot().state == NaviampExternalPlaybackState.Playing &&
-                            core.externalPlaybackBridge().snapshot().current?.mediaId == firstTrackId &&
+                            core.state.value.shell.nowPlaying?.id == firstTrackId &&
                             (core.playbackProgress.value.positionSeconds ?: -1.0) in 0.0..10.0
                     }
                     val queue = assertNotNull(core.state.value.shell.nowPlaying?.queueSnapshot)
@@ -71,15 +71,16 @@ class AndroidAlbumPlaybackProfileInstrumentedTest {
                     await("$mode mixer state") {
                         val rows = core.statsForNerdsDiagnostics().sections.flatMap { it.rows }.toMap()
                         core.externalPlaybackBridge().snapshot().current?.mediaId == firstId &&
-                            rows["Crossfade duration"] == expectedSeconds && rows["Crossfade active"] == expectedActive
+                            rows["Crossfade duration"] == expectedSeconds && rows["Crossfade active"] == expectedActive &&
+                            rows["Prepared next state"] == "Ready" && rows["Prepared next"] == queue.tracks[1].id.value
                     }
-                    record("$mode before transition: duration=$expectedSeconds active=$expectedActive")
+                    record("$mode before transition: duration=$expectedSeconds active=$expectedActive next=Ready")
                     await("$mode next within-album track") {
                         val snapshot = core.externalPlaybackBridge().snapshot()
                         snapshot.state == NaviampExternalPlaybackState.Playing && snapshot.current?.mediaId != firstId
                     }
                     assertEquals(profile, core.state.value.shell.nowPlaying?.queueSnapshot?.groups?.single()?.profile)
-                    assertEquals(queue.tracks[1].id.value, core.externalPlaybackBridge().snapshot().current?.mediaId)
+                    assertEquals(queue.tracks[1].id.value, core.state.value.shell.nowPlaying?.id)
                     assertEquals(expectedSeconds, core.statsForNerdsDiagnostics().sections.flatMap { it.rows }
                         .toMap()["Crossfade duration"])
                     record("$mode advanced within the album with duration=$expectedSeconds")
