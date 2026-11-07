@@ -11,6 +11,22 @@ import kotlin.test.assertNull
 
 class NaviampCoreNowPlayingPresenterTest {
     @Test
+    fun originalFilePropertiesEnrichOnlyTheirOwnTrackAndPreserveBitrate() {
+        val track = app.naviamp.domain.Track(TrackId("first"), "Track", artistName = "Artist",
+            albumTitle = null, durationSeconds = null, coverArtId = null, replayGain = null,
+            audioInfo = app.naviamp.domain.AudioInfo("FLAC", 350, "audio/flac"))
+        val sidecars = NaviampCoreNowPlayingSidecars(trackId = track.id,
+            fileAudioInfo = app.naviamp.domain.AudioInfo("FLAC", null, "audio/flac", 16, 44100))
+        val enriched = sidecars.withFileProperties(track)!!
+        assertEquals(44100, enriched.audioInfo?.samplingRateHz)
+        assertEquals(16, enriched.audioInfo?.bitDepth)
+        assertEquals(350, enriched.audioInfo?.bitrateKbps)
+        val next = track.copy(id = TrackId("next"))
+        assertEquals(next, sidecars.withFileProperties(next))
+        assertNull(sidecars.withFileProperties(null))
+    }
+
+    @Test
     fun trackSidecarsAreHiddenAsSoonAsCurrentTrackIdentityChanges() {
         val sidecars = NaviampCoreNowPlayingSidecars(
             trackId = TrackId("first"),

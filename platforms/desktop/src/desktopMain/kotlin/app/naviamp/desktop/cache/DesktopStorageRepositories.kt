@@ -43,6 +43,7 @@ class DesktopStorageRepositories private constructor(
     val playbackProfiles get() = repositories.playbackProfiles
     val playbackHistory get() = repositories.playbackHistory
     val radioDjPresets get() = repositories.radioDjPresets
+    val discoveryAcquisitions get() = repositories.discoveryAcquisitions
     val maintenance: CacheMaintenanceRepository<StorageCacheStats> get() = repositories.maintenance
 
     fun updateAudioCacheLimit(maxBytes: Long) {

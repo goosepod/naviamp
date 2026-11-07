@@ -112,6 +112,19 @@ class SettingsSyncDocumentTest {
         assertEquals(InterfaceFontSize.Standard, older.nowPlayingFontSize)
     }
 
+    @Test fun keepTelevisionControlsVisibleRoundTripsAndOlderExportsDefaultOff() {
+        for (enabled in listOf(false, true)) {
+            val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(
+                interfaceSettings = InterfaceSettings(
+                    nowPlaying = NowPlayingDisplaySettings(keepTelevisionControlsVisible = enabled),
+                )), 1L, "test")
+            val imported = SettingsSyncJson.decode(SettingsSyncJson.encode(document)).preferences.interfaceSettings.normalized()
+            assertEquals(enabled, imported.nowPlaying.keepTelevisionControlsVisible)
+        }
+        assertFalse(SettingsSyncJson.decode("""{"preferences":{"interfaceSettings":{"nowPlaying":{}}}}""")
+            .preferences.interfaceSettings.nowPlaying.keepTelevisionControlsVisible)
+    }
+
     @Test fun keepScreenAwakeRoundTripsAndOlderExportsDefaultOff() {
         for (enabled in listOf(false, true)) {
             val document = buildSettingsSyncDocument(SettingsSyncLocalSnapshot(

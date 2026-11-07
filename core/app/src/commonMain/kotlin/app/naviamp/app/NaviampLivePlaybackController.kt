@@ -10,6 +10,9 @@ import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 data class NaviampLivePlaybackState(
     val currentTrack: Track? = null,
@@ -24,24 +27,29 @@ data class NaviampLivePlaybackState(
 )
 
 /** Shared owner of live, user-visible playback state; it does not execute audio commands. */
+@OptIn(ExperimentalAtomicApi::class)
 class NaviampLivePlaybackController(
     initialState: NaviampLivePlaybackState = NaviampLivePlaybackState(),
 ) {
     private val mutableState = MutableStateFlow(initialState)
     private val mutableProgress = MutableStateFlow(initialState.progress)
-    private val observers = mutableListOf<(NaviampLivePlaybackState) -> Unit>()
+    private val observers = MutableStateFlow(emptyList<(NaviampLivePlaybackState) -> Unit>())
+    private val notifying = AtomicBoolean(false)
+    private val notificationPending = AtomicBoolean(false)
+    private var notifiedState = initialState
 
     val state: StateFlow<NaviampLivePlaybackState> = mutableState.asStateFlow()
     /** High-frequency playback clock isolated from the structural playback snapshot. */
     val progress: StateFlow<PlaybackProgress> = mutableProgress.asStateFlow()
 
     fun replace(state: NaviampLivePlaybackState) {
-        publish(state)
+        mutableState.value = state
+        notifyObservers()
     }
 
     /** Observes canonical state mutations without requiring a host lifecycle coroutine. */
     fun observe(observer: (NaviampLivePlaybackState) -> Unit) {
-        observers += observer
+        observers.update { it + observer }
     }
 
     fun updateCurrentTrack(track: Track?) = update { current ->
@@ -113,13 +121,29 @@ class NaviampLivePlaybackController(
         update { current -> current.copy(shuffledUpNextSnapshot = snapshot) }
 
     private inline fun update(transform: (NaviampLivePlaybackState) -> NaviampLivePlaybackState) {
-        publish(transform(mutableState.value))
+        // Native state and clock callbacks can arrive on different threads. Retry field changes
+        // against the latest snapshot so a clock cannot restore a stale Loading state.
+        mutableState.update(transform)
+        notifyObservers()
     }
 
-    private fun publish(updated: NaviampLivePlaybackState) {
-        if (updated == mutableState.value) return
-        mutableState.value = updated
-        mutableProgress.value = updated.progress
-        observers.toList().forEach { it(updated) }
+    private fun notifyObservers() {
+        notificationPending.store(true)
+        do {
+            if (!notifying.compareAndSet(false, true)) return
+            try {
+                while (notificationPending.exchange(false)) {
+                    val updated = mutableState.value
+                    if (updated == notifiedState) continue
+                    notifiedState = updated
+                    mutableProgress.value = updated.progress
+                    // Drain reentrant updates after this snapshot reaches every observer. This
+                    // prevents an older callback from following its newer nested notification.
+                    observers.value.forEach { it(updated) }
+                }
+            } finally {
+                notifying.store(false)
+            }
+        } while (notificationPending.load())
     }
 }

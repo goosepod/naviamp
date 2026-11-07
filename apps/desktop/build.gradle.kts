@@ -158,7 +158,7 @@ compose.desktop {
             copyright = "Copyright 2026 Naviamp contributors"
             licenseFile.set(rootProject.file("LICENSE"))
             appResourcesRootDir.set(generatedDesktopNativeAppResources)
-            modules("java.net.http", "java.sql", "jdk.httpserver")
+            modules("java.net.http", "java.sql", "jdk.httpserver", "jdk.localedata")
             if (desktopNativePlatform.get().startsWith("linux-")) {
                 // dbus-java obtains the Unix user ID through com.sun.security.auth.module.UnixSystem.
                 modules("jdk.security.auth")
@@ -341,6 +341,9 @@ tasks.register("verifyDesktopDistributable") {
             .removePrefix("MODULES=").trim('"').split(' ')
         check("jdk.httpserver" in castRuntimeModules) {
             "Desktop runtime is missing jdk.httpserver, required for Cast media serving."
+        }
+        check("jdk.localedata" in castRuntimeModules) {
+            "Desktop runtime is missing jdk.localedata, required for system-locale date and time formatting."
         }
         if (platform.startsWith("linux-")) {
             val runtimeRelease = appDirectory.resolve("lib/runtime/release")

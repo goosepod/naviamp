@@ -244,6 +244,11 @@ class NaviampAurralDiscoveryUiTest {
                         operationStatus = ProviderDiscoveryOperationStatus.MissingSource)
                 }
                 onNodeWithText("Saved, but no download source is configured.").assertExists()
+                runOnIdle { detail.value = detail.value.copy(operationStatus = ProviderDiscoveryOperationStatus.Rejected) }
+                onNodeWithText("Aurral rejected this request. Check its details before trying again.").assertExists()
+                onNodeWithText("Could not confirm the result. Check in Aurral before trying again.").assertDoesNotExist()
+                runOnIdle { detail.value = detail.value.copy(operationStatus = ProviderDiscoveryOperationStatus.Conflict) }
+                onNodeWithText("This album has a library ownership conflict. Review it in Aurral.").assertExists()
                 onNodeWithContentDescription("Play sample").performScrollTo().performClick()
                 runOnIdle { assertEquals(ProviderDiscoveryAction.PlaySample("42"), actions.last()) }
                 onNodeWithContentDescription("Request track").performClick()
@@ -279,7 +284,7 @@ class NaviampAurralDiscoveryUiTest {
                 var external: String? = null
                 setContent {
                     Column(Modifier.width(620.dp).height(400.dp)) {
-                        NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdAurral,
+                        NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdNavidrome,
                             ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, recommendations = listOf(
                                 ProviderDiscoveryArtist("native", "Native artist", imageUrl = "test://clickable-portrait",
                                     detailsAvailable = true, externalUrl = "https://music.test/artist/native"),
@@ -318,7 +323,7 @@ class NaviampAurralDiscoveryUiTest {
             runComposeUiTest {
                 setContent {
                     Column(Modifier.width(400.dp).height(400.dp).background(NaviampColors.Dark.background)) {
-                        NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdAurral,
+                        NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdNavidrome,
                             ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, trending = listOf(
                                 ProviderDiscoveryArtist("portrait", "Portrait", imageUrl = "test://discovery-portrait")))),
                             NaviampColors.Dark, {})
@@ -341,7 +346,7 @@ class NaviampAurralDiscoveryUiTest {
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Column(Modifier.width(400.dp).height(700.dp)) {
-                    NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdAurral,
+                    NaviampProviderDiscoveryContent(SharedProviderDiscoveryUi(ProviderIdNavidrome,
                         ProviderDiscoveryFeed(ProviderDiscoveryStatus.Ready, recommendations = artists, trending = artists)),
                         NaviampColors.Dark, {})
                 }
@@ -427,38 +432,38 @@ class NaviampAurralDiscoveryUiTest {
     }
 
     @Test fun loadingBuildingTrendingAndPermissionStatesRenderWithSeparateExternalActions() = runComposeUiTest {
-        val state = mutableStateOf(SharedProviderDiscoveryUi(ProviderIdAurral, loading = true))
+        val state = mutableStateOf(SharedProviderDiscoveryUi(ProviderIdNavidrome, loading = true))
         var selected: String? = null
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Column(Modifier.width(640.dp).height(620.dp).background(NaviampColors.Dark.background).padding(16.dp)) {
-                    NaviampServiceIcon(ProviderIdAurral, NaviampColors.Dark.primaryText)
+                    NaviampServiceIcon(ProviderIdNavidrome, NaviampColors.Dark.primaryText)
                     NaviampProviderDiscoveryContent(state.value, NaviampColors.Dark, { selected = it })
                 }
             }
         }
-        onNodeWithText("Aurral discovery").assertExists()
+        onNodeWithText("Navidrome discovery").assertExists()
         onNodeWithText("Loading discovery…").assertExists()
         runOnIdle {
-            state.value = SharedProviderDiscoveryUi(ProviderIdAurral, ProviderDiscoveryFeed(ProviderDiscoveryStatus.Building,
+            state.value = SharedProviderDiscoveryUi(ProviderIdNavidrome, ProviderDiscoveryFeed(ProviderDiscoveryStatus.Building,
                 trending = listOf(ProviderDiscoveryArtist("mbid", "Radiohead", genres = listOf("alternative rock"),
                     externalUrl = "https://music.test/artist/mbid"))))
         }
         onNodeWithText("Your personal recommendations are being built.").assertExists()
         onNodeWithText("Trending artists").assertExists()
         onNodeWithText("Radiohead").assertExists()
-        onNodeWithText("Open in Aurral").performClick()
+        onNodeWithText("Open in Navidrome").performClick()
         runOnIdle { assertEquals("mbid", selected) }
         assertEquals(64.dp, mediaArtworkCornerRadius(SharedMediaItemKind.Artist, 128.dp, 7.dp))
         assertEquals(7.dp, mediaArtworkCornerRadius(SharedMediaItemKind.Album, 128.dp, 7.dp))
-        assertNotNull(serviceIconResource(ProviderIdAurral))
+        assertNotNull(serviceIconResource(ProviderIdNavidrome))
         System.getenv("NAVIAMP_AURRAL_CAPTURE")?.let { directory ->
             java.io.File(directory).mkdirs()
             javax.imageio.ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", java.io.File(directory, "discovery.png"))
         }
-        runOnIdle { state.value = SharedProviderDiscoveryUi(ProviderIdAurral, ProviderDiscoveryFeed(ProviderDiscoveryStatus.Forbidden)) }
+        runOnIdle { state.value = SharedProviderDiscoveryUi(ProviderIdNavidrome, ProviderDiscoveryFeed(ProviderDiscoveryStatus.Forbidden)) }
         onNodeWithText("Your account cannot access discovery.").assertExists()
-        onNodeWithText("Open in Aurral").assertDoesNotExist()
+        onNodeWithText("Open in Navidrome").assertDoesNotExist()
         onNodeWithText("Your personal recommendations will appear here.").assertDoesNotExist()
     }
 }

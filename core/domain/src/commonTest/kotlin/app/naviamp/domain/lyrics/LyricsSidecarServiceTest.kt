@@ -388,6 +388,26 @@ class LyricsSidecarServiceTest {
         assertTrue(wordLyrics.hasKaraokeCues)
     }
 
+    @Test
+    fun missingLyricsAreRetriedBecauseProviderMayStillBeFetchingThem() = runTest {
+        val repository = RecordingLyricsRepository()
+        val service = service(repository)
+        suspend fun load() = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = false,
+            onlineLyricsEnabled = false,
+        ).lyrics
+
+        assertEquals(null, load())
+        val late = lyrics(LyricsSource.Provider, synced = true, text = "Late")
+        repository.providerLyrics = late
+
+        assertSame(late, load())
+    }
+
     private fun service(
         repository: RecordingLyricsRepository,
         audioAssets: PlaybackAudioAssetRepository = RecordingAudioAssets(),
@@ -404,7 +424,7 @@ class LyricsSidecarServiceTest {
 }
 
 private class RecordingLyricsRepository(
-    private val providerLyrics: Lyrics? = null,
+    var providerLyrics: Lyrics? = null,
     private val onlineLyrics: Lyrics? = null,
     private val onlineError: Throwable? = null,
     providers: List<LyricsProvider>? = null,

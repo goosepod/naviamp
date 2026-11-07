@@ -77,11 +77,10 @@ class SimilarityService(private val provider: MediaProvider) {
                 failureCause = cause.takeIf { completed })
         }
 
-        val endpoint = if (request.preferSonic) SimilarityEndpoint.Sonic else SimilarityEndpoint.Regular
-        if (request.preferSonic && !provider.capabilities.supportsSonicSimilarity) {
-            return SimilarityResult(endpoint, seeds.map { SimilaritySeedMatches(it, emptyList()) },
-                failure = SimilarityEndpointResult(SimilarityResultKind.Unsupported))
-        }
+        // Capability absence selects Instant Mix before dispatch. Errors or empty results from an
+        // advertised Sonic endpoint remain visible; they do not silently change the method.
+        val endpoint = if (request.preferSonic && provider.capabilities.supportsSonicSimilarity)
+            SimilarityEndpoint.Sonic else SimilarityEndpoint.Regular
         return batch(endpoint)
     }
 }

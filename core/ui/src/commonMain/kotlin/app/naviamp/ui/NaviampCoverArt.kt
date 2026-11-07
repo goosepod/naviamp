@@ -254,7 +254,15 @@ private object NaviampCoverArtCache {
                         try {
                             platformCoverArtBytes(url)
                                 ?.takeIf { it.isNotEmpty() }
-                                ?.let { decodePlatformCoverArt(it, targetSidePx) }
+                                ?.let { bytes ->
+                                    val image = decodePlatformCoverArt(bytes, targetSidePx) ?: return@let null
+                                    // Palette input has a fixed resolution, independent of which
+                                    // thumbnail or player cover won the loading race.
+                                    val samples = mutex.withLock { palettes[url] } ?:
+                                        if (targetSidePx == PaletteCoverArtSidePx) image.rgbSamples else
+                                            decodePlatformCoverArt(bytes, PaletteCoverArtSidePx)?.rgbSamples ?: image.rgbSamples
+                                    image.copy(rgbSamples = samples)
+                                }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {

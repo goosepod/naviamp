@@ -10,8 +10,46 @@ import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class NaviampLivePlaybackControllerTest {
+    @Test
+    fun concurrentNativeProgressAndSeekCallbacksPreserveEverySeekGeneration() = runBlocking {
+        val controller = NaviampLivePlaybackController()
+        coroutineScope {
+            repeat(4) {
+                launch(Dispatchers.Default) {
+                    repeat(2_000) {
+                        controller.applySeekPlan(PlaybackProgress(5.0, 180.0), 5.0, 1000L)
+                    }
+                }
+            }
+            launch(Dispatchers.Default) {
+                repeat(8_000) { controller.updateProgress(PlaybackProgress(6.0, 180.0)) }
+                controller.updatePlaybackState(PlaybackState.Playing)
+            }
+        }
+        assertEquals(8_000L, controller.state.value.progress.seekGeneration)
+        assertEquals(PlaybackState.Playing, controller.state.value.playbackState)
+        assertEquals(controller.state.value.progress, controller.progress.value)
+    }
+
+    @Test
+    fun reentrantNativeCallbacksNotifyObserversInStateOrder() {
+        val controller = NaviampLivePlaybackController()
+        val observed = mutableListOf<PlaybackState>()
+        controller.observe {
+            if (it.playbackState == PlaybackState.Loading) controller.updatePlaybackState(PlaybackState.Playing)
+        }
+        controller.observe { observed += it.playbackState }
+        controller.updatePlaybackState(PlaybackState.Loading)
+        assertEquals(listOf(PlaybackState.Loading, PlaybackState.Playing), observed)
+        assertEquals(PlaybackState.Playing, controller.state.value.playbackState)
+    }
+
     @Test
     fun seeksAdvanceGenerationAndEngineProgressPreservesIt() {
         val controller = NaviampLivePlaybackController()

@@ -318,6 +318,8 @@ fun HomeContent.toSharedHomeUi(
                 mediaKind = SharedMediaItemKind.MixBuilder,
                 action = SharedHomeCollectionItemAction.SelectMixBuilder,
                 mixBuilder = builder,
+                artwork = SharedHomeCollectionArtwork.MixBuilderGenerated,
+                artworkKey = builder.id,
             )
         })
         sonicDiscoveryRows.rows.forEach { row ->
@@ -1782,6 +1784,17 @@ fun radioTrackArtworkQuery(streamTitle: String?): String? =
         ?.trim()
         ?.takeIf { it.length >= 3 }
 
+/** The search result that is the song a station announces, as "Artist - Title" or as the title alone. */
+fun radioTrackArtworkMatch(tracks: List<Track>, streamTitle: String?): Track? {
+    val announced = radioTrackArtworkQuery(streamTitle) ?: return null
+    return tracks.firstOrNull { track ->
+        track.coverArtId != null && (
+            announced.equals("${track.artistName} - ${track.title}", ignoreCase = true) ||
+                announced.equals(track.title, ignoreCase = true)
+            )
+    }
+}
+
 private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
     val artworkKeys = setOf(
         "artwork",
@@ -1804,7 +1817,8 @@ private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
 }
 
 private fun radioStationArtworkUrl(station: InternetRadioStation): String =
-    knownRadioStationArtworkUrl(station)
+    station.coverArtUrl
+        ?: knownRadioStationArtworkUrl(station)
         ?: station.homePageUrl?.let(::faviconUrl)
         ?: generatedRadioTileUrl(station.name)
 

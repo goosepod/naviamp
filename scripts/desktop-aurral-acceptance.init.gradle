@@ -1,0 +1,14 @@
+// Explicit child-process isolation for the disposable profile prepared by the test fixture.
+gradle.projectsEvaluated {
+    def requested = gradle.startParameter.projectProperties.get('naviamp.aurral.fixtureDirectory')
+    if (!requested) throw new GradleException('Supply -Pnaviamp.aurral.fixtureDirectory with the prepared disposable profile')
+    def fixture = new File(requested).canonicalFile
+    if (!new File(fixture, 'Roaming/Naviamp Development').isDirectory()) {
+        throw new GradleException('Prepare the disposable Aurral profile before launching')
+    }
+    gradle.rootProject.project(':apps:desktop').tasks.withType(JavaExec).matching { it.name in ['run', 'desktopRun'] }.configureEach {
+        systemProperty 'user.home', fixture.absolutePath
+        systemProperty 'naviamp.developmentDataProfile', 'true'
+        environment 'APPDATA', new File(fixture, 'Roaming').absolutePath
+    }
+}

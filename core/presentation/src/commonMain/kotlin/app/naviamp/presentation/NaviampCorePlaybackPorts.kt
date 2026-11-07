@@ -70,6 +70,7 @@ data class NaviampCoreNowPlayingSidecars(
     val album: app.naviamp.domain.Album? = null,
     val waveform: AudioWaveform? = null,
     val audioTags: List<AudioTag>? = null,
+    val fileAudioInfo: app.naviamp.domain.AudioInfo? = null,
     val lyrics: Lyrics? = null,
     val lyricsAvailableTiming: LyricsTiming? = null,
     val lyricsStatus: String? = null,

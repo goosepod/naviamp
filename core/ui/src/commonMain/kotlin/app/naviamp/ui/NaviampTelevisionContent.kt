@@ -119,6 +119,21 @@ internal fun TelevisionHome(
     entryFocusGeneration: Int? = null,
     onEntryFocusHandled: (Int) -> Unit = {},
 ) {
+    home.providerDiscovery?.takeIf { it.requestsOpen }?.let {
+        NaviampDiscoveryRequestsUi(it, colors, actions, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.artistPage && it.artistDetail != null }?.let {
+        NaviampDiscoveryArtistPage(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
+    home.providerDiscovery?.takeIf { it.browser != null }?.let {
+        NaviampDiscoveryBrowserUi(it, colors, actions, discoveryPlayback, television = true,
+            entryFocusGeneration = entryFocusGeneration, onEntryFocusHandled = onEntryFocusHandled)
+        return
+    }
     val sections = televisionHomeSections(home.content.collectionSections)
     val listState = rememberLazyListState()
     val discoveryScope = rememberCoroutineScope()
@@ -214,7 +229,8 @@ internal fun TelevisionHome(
                     }) {
                         NaviampProviderDiscoveryContent(discovery, colors, actions.onDiscoveryArtistSelected,
                             actions.onDiscoveryArtistDetails, actions.onDiscoveryArtistDismiss,
-                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback)
+                            actions.onDiscoveryFeedback, actions.onDiscoveryLibraryArtist, actions.onDiscoveryAction, discoveryPlayback,
+                            onRequests = actions.onDiscoveryRequests, onBrowse = actions.onDiscoveryBrowse)
                     }
                 }
             }
@@ -1408,8 +1424,8 @@ internal fun TelevisionNowPlaying(
     var controlsVisible by remember(interactive) { mutableStateOf(interactive) }
     var interactionSequence by remember { mutableIntStateOf(0) }
     var consumedWakeKey by remember { mutableStateOf<Key?>(null) }
-    LaunchedEffect(controlsVisible, interactionSequence, interactive, queueOpen) {
-        if (interactive && controlsVisible && !queueOpen) {
+    LaunchedEffect(controlsVisible, interactionSequence, interactive, queueOpen, displaySettings.keepTelevisionControlsVisible) {
+        if (interactive && controlsVisible && !queueOpen && !displaySettings.keepTelevisionControlsVisible) {
             delay(TelevisionNowPlayingControlsTimeoutMillis)
             controlsVisible = false
         }
@@ -1627,14 +1643,16 @@ internal fun TelevisionNowPlaying(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.align(Alignment.Center),
                     ) {
-                        TelevisionIconButton(
-                            nowPlaying.hasPrevious,
-                            NaviampTransportIcons.Previous,
-                            stringResource(Res.string.transport_previous),
-                            colors,
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.Previous)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.hasPrevious,
+                                NaviampTransportIcons.Previous,
+                                stringResource(Res.string.transport_previous),
+                                colors,
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.Previous)
+                            }
                         }
                         TelevisionIconButton(
                             enabled = nowPlaying.canPlayPause,
@@ -1654,14 +1672,16 @@ internal fun TelevisionNowPlaying(
                                 },
                             )
                         }
-                        TelevisionIconButton(
-                            nowPlaying.hasNext,
-                            NaviampTransportIcons.Next,
-                            stringResource(Res.string.transport_next),
-                            colors,
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.Next)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.hasNext,
+                                NaviampTransportIcons.Next,
+                                stringResource(Res.string.transport_next),
+                                colors,
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.Next)
+                            }
                         }
                     }
                     Row(
@@ -1669,21 +1689,23 @@ internal fun TelevisionNowPlaying(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.align(Alignment.CenterEnd),
                     ) {
-                        TelevisionIconButton(
-                            nowPlaying.lyricsAvailable,
-                            NaviampTransportIcons.Lyrics,
-                            stringResource(Res.string.settings_lyrics_title),
-                            colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.lyricsVisible && !queueOpen,
-                            whiteHighlight = true,
-                        ) {
-                            if (queueOpen) {
-                                queueOpen = false
-                                if (!nowPlaying.lyricsVisible) actions.display(NowPlayingDisplayAction.ToggleLyrics)
-                            } else {
-                                actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.lyricsAvailable,
+                                NaviampTransportIcons.Lyrics,
+                                stringResource(Res.string.settings_lyrics_title),
+                                colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.lyricsVisible && !queueOpen,
+                                whiteHighlight = true,
+                            ) {
+                                if (queueOpen) {
+                                    queueOpen = false
+                                    if (!nowPlaying.lyricsVisible) actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                                } else {
+                                    actions.display(NowPlayingDisplayAction.ToggleLyrics)
+                                }
                             }
                         }
                         TelevisionIconButton(
@@ -1701,44 +1723,50 @@ internal fun TelevisionNowPlaying(
                             queueActionItem = null
                             queueReorder = null
                         }
-                        TelevisionIconButton(
-                            nowPlaying.canFavorite,
-                            if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
-                            stringResource(Res.string.tv_favorite),
-                            colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.favoriteActive,
-                            whiteHighlight = true,
-                            selectedKeepsDarkBackground = true,
-                            iconTint = Color(0xFFFF4D5A).takeIf { nowPlaying.favoriteActive },
-                        ) {
-                            actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.canFavorite,
+                                if (nowPlaying.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
+                                stringResource(Res.string.tv_favorite),
+                                colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.favoriteActive,
+                                whiteHighlight = true,
+                                selectedKeepsDarkBackground = true,
+                                iconTint = Color(0xFFFF4D5A).takeIf { nowPlaying.favoriteActive },
+                            ) {
+                                actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
+                            }
                         }
-                        TelevisionIconButton(
-                            enabled = nowPlaying.canRepeat,
-                            icon = NaviampTransportIcons.Repeat,
-                            description = televisionRepeatModeDescription(nowPlaying.repeatMode),
-                            colors = colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
-                            centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                enabled = nowPlaying.canRepeat,
+                                icon = NaviampTransportIcons.Repeat,
+                                description = televisionRepeatModeDescription(nowPlaying.repeatMode),
+                                colors = colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
+                                centerText = naviampRepeatIconCenterText(nowPlaying.repeatMode),
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.CycleRepeatMode)
+                            }
                         }
-                        TelevisionIconButton(
-                            nowPlaying.shuffleEnabled,
-                            NaviampTransportIcons.Shuffle,
-                            stringResource(Res.string.transport_shuffle),
-                            colors,
-                            size = TelevisionNowPlayingSecondaryButtonSize,
-                            iconSize = TelevisionNowPlayingSecondaryIconSize,
-                            selected = nowPlaying.shuffleActive,
-                            whiteHighlight = true,
-                        ) {
-                            actions.playback(NowPlayingPlaybackAction.ToggleShuffle)
+                        if (!nowPlaying.isLive) {
+                            TelevisionIconButton(
+                                nowPlaying.shuffleEnabled,
+                                NaviampTransportIcons.Shuffle,
+                                stringResource(Res.string.transport_shuffle),
+                                colors,
+                                size = TelevisionNowPlayingSecondaryButtonSize,
+                                iconSize = TelevisionNowPlayingSecondaryIconSize,
+                                selected = nowPlaying.shuffleActive,
+                                whiteHighlight = true,
+                            ) {
+                                actions.playback(NowPlayingPlaybackAction.ToggleShuffle)
+                            }
                         }
                         TelevisionIconButton(
                             true,

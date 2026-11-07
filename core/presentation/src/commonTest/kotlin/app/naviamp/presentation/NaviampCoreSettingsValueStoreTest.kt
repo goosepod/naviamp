@@ -112,12 +112,17 @@ class NaviampCoreSettingsValueStoreTest {
             albumBlurRadiusDp = 999,
             keepScreenAwake = true,
             squareAlbumArtwork = true,
-            nowPlaying = NowPlayingDisplaySettings(splitPaneBackgroundOpacityPercent = 42, fillArtworkArea = true),
+            nowPlaying = NowPlayingDisplaySettings(
+                splitPaneBackgroundOpacityPercent = 42,
+                keepTelevisionControlsVisible = true,
+                fillArtworkArea = true,
+            ),
         ))
         assertEquals(48, settings.loadInterface().albumBlurRadiusDp)
         assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().keepScreenAwake)
         assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().squareAlbumArtwork)
         assertEquals(42, settings.loadInterface().nowPlaying.splitPaneBackgroundOpacityPercent)
+        assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().nowPlaying.keepTelevisionControlsVisible)
         assertEquals(true, naviampCoreSettingsValueCatalog(values).storedSettings.loadInterface().nowPlaying.fillArtworkArea)
         catalog.savePlayback(PlaybackSettings(crossfadeDurationSeconds = 999))
         assertEquals(999, settings.loadPlayback().crossfadeDurationSeconds)

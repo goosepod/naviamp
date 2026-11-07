@@ -139,11 +139,30 @@ class KtorNavidromeHttpClient private constructor(
             val statusCode = response.status.value
             if (!response.status.isSuccess()) {
                 rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])?.let { throw it }
-                throw NavidromeHttpException(statusCode)
+                // Keep a small response for provider-specific rejection interpretation. It must
+                // never enter exception messages or API history, and oversized bodies are unknown.
+                val channel = response.bodyAsChannel()
+                val bytes = ByteArray(8_193)
+                var count = 0
+                val errorBody = try {
+                    while (count < bytes.size) {
+                        val read = channel.readAvailable(bytes, count, bytes.size - count)
+                        if (read < 0) break
+                        count += read
+                    }
+                    if (count < bytes.size) bytes.decodeToString(endIndex = count) else null
+                } catch (error: Throwable) {
+                    if (error is CancellationException) throw error
+                    null
+                } finally {
+                    channel.cancel(null)
+                }
+                throw NavidromeHttpException(statusCode, errorBody)
             }
             NavidromeHttpResponse(
                 body = response.body<String>(),
                 headers = response.headers.entries().associate { (name, values) -> name to values.joinToString(",") },
+                statusCode = statusCode,
             ).also {
                 recordApiCall(
                     method = method.value,
