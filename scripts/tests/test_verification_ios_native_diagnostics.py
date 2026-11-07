@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import json
 import runpy
 import shlex
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,11 @@ HELPER = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'ios-native-te
 
 
 class NativeDiagnosticOwnershipTest(unittest.TestCase):
+    def test_slow_process_inventory_is_bounded_and_does_not_abort_observation(self):
+        with patch('subprocess.check_output', side_effect=subprocess.TimeoutExpired(['ps'], 5)) as inventory:
+            self.assertEqual(set(), HELPER['processes']('/owned/test.kexe'))
+        self.assertEqual(5, inventory.call_args.kwargs['timeout'])
+
     def test_manual_capture_retains_native_failure_even_if_observer_cleanup_fails(self):
         @contextmanager
         def observer(bootstrap, output):

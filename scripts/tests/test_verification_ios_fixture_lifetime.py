@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import re
 import runpy
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -11,6 +12,29 @@ HELPER = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'diagnose-ios-
 
 
 class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
+    def test_optional_snapshot_timeout_does_not_abort_native_experiment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / 'snapshot.log'
+            with patch.dict(HELPER['diagnostic_logged'].__globals__, run_logged=Mock(
+                    side_effect=subprocess.TimeoutExpired(['ps'], 10))):
+                self.assertIsNone(HELPER['diagnostic_logged'](['ps'], log, Path(directory), 10))
+            self.assertIn('Snapshot unavailable', log.read_text())
+
+    def test_jvm_memory_timeout_is_optional_too(self):
+        def capture(command, log, root, timeout):
+            if command[0] == 'ps':
+                raise subprocess.TimeoutExpired(command, timeout)
+            log.write_text('123 org.gradle.launcher.daemon.bootstrap.GradleDaemon\n'
+                           if str(command[0]).endswith('jps') else 'snapshot\n')
+            return 0
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(HELPER['host_snapshot'].__globals__, run_logged=capture), \
+                patch.dict('os.environ', JAVA_HOME=directory):
+            HELPER['host_snapshot'](Path(directory), Path(directory), 'before-native')
+            self.assertIn('Snapshot unavailable',
+                          (Path(directory) / 'before-native-jvm-memory.log').read_text())
+
     def test_packet_cleanup_signals_only_its_verified_isolated_group(self):
         process = Mock(pid=12345)
         process.poll.return_value = None

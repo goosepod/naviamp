@@ -93,6 +93,16 @@ def run_logged(command, log, root, env=None, timeout=900):
                               stderr=subprocess.STDOUT, timeout=timeout).returncode
 
 
+def diagnostic_logged(command, log, root, timeout):
+    """Optional observation must not prevent the native experiment from executing."""
+    try:
+        return run_logged(command, log, root, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        with log.open('a') as output:
+            output.write('\nSnapshot unavailable: ' + str(error) + '\n')
+        return None
+
+
 def host_snapshot(root, directory, stage):
     # Aggregate host pressure and JVM identities only; no environment/argument-vector dumps.
     commands = {
@@ -102,17 +112,14 @@ def host_snapshot(root, directory, stage):
         'jvms': [str(Path(os.environ['JAVA_HOME']) / 'bin/jps'), '-l'],
     }
     for label, command in commands.items():
-        try:
-            run_logged(command, directory / f'{stage}-{label}.log', root, timeout=10)
-        except (OSError, subprocess.TimeoutExpired) as error:
-            (directory / f'{stage}-{label}.log').write_text('Snapshot unavailable: ' + str(error))
+        diagnostic_logged(command, directory / f'{stage}-{label}.log', root, timeout=10)
     identifiers = [line.split()[0] for line in (directory / f'{stage}-jvms.log').read_text().splitlines()
                    if line.split() and line.split()[0].isdigit()
                    and any(owner in line for owner in ('GradleDaemon', 'KotlinCompileDaemon',
                                                         'NaviampMobileMutualTlsFixtureKt'))]
     if identifiers:
-        run_logged(['ps', '-p', ','.join(identifiers), '-o', 'pid=,pcpu=,rss=,vsz=,etime=,comm='],
-                   directory / f'{stage}-jvm-memory.log', root, timeout=10)
+        diagnostic_logged(['ps', '-p', ','.join(identifiers), '-o', 'pid=,pcpu=,rss=,vsz=,etime=,comm='],
+                          directory / f'{stage}-jvm-memory.log', root, timeout=10)
 
 
 @contextmanager
@@ -194,9 +201,10 @@ def native_run(root, directory, bootstrap, fixture_started, replay, expected_has
         try:
             if record.exists() and json.loads(record.read_text()).get('id'):
                 device = json.loads(record.read_text())['id']
-                run_logged(['xcrun', 'simctl', 'spawn', device, 'log', 'show', '--style', 'compact', '--last', '5m',
-                            '--predicate', 'process == "test.kexe" OR process == "trustd" OR subsystem == "com.apple.CFNetwork"'],
-                           directory / 'services.log', root, timeout=45)
+                summary['serviceLogExitCode'] = diagnostic_logged(
+                    ['xcrun', 'simctl', 'spawn', device, 'log', 'show', '--style', 'compact', '--last', '5m',
+                     '--predicate', 'process == "test.kexe" OR process == "trustd" OR subsystem == "com.apple.CFNetwork"'],
+                    directory / 'services.log', root, timeout=45)
         finally:
             try:
                 replay['remove_owned_device'](record)

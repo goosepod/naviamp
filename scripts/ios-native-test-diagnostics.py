@@ -26,9 +26,9 @@ def matching_pids(process_table, executable):
 def processes(executable):
     try:
         # Read executable paths, not every process's potentially paged-out argument vector.
-        table = subprocess.check_output(['ps', '-axo', 'pid=,comm='], text=True)
+        table = subprocess.check_output(['ps', '-axo', 'pid=,comm='], text=True, timeout=5)
         return matching_pids(table, executable)
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(f'Native process diagnostics unavailable: {error}', flush=True)
         return set()
 
@@ -56,7 +56,8 @@ def capture(pid, output, age, fixture_bootstrap=None):
         pid_file = fixture_bootstrap.with_name('fixture.pid')
         try:
             fixture_pid = int(pid_file.read_text().strip())
-            command = subprocess.check_output(['ps', '-p', str(fixture_pid), '-o', 'command='], text=True).strip()
+            command = subprocess.check_output(['ps', '-p', str(fixture_pid), '-o', 'command='],
+                                              text=True, timeout=5).strip()
             # A recycled PID or another fixture must never be sampled.
             if owns_fixture(command, fixture_bootstrap):
                 jcmd = Path(os.environ['JAVA_HOME']) / 'bin/jcmd'
@@ -64,7 +65,7 @@ def capture(pid, output, age, fixture_bootstrap=None):
                 commands.insert(0, ('fixture-sockets', ['lsof', '-nP', '-a', '-p', str(fixture_pid), '-iTCP']))
                 if age == 'failed':
                     commands.append(('fixture-threads', [str(jcmd), str(fixture_pid), 'Thread.print']))
-        except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
+        except (OSError, ValueError, KeyError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             pass
     for name, command in commands:
         with Path(str(stem) + f'.{name}.log').open('w') as log:

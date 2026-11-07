@@ -113,3 +113,18 @@ The separate `ios_fixture_packet_diagnostic` input enables that ordinary-job cap
 launching the paired comparison jobs. This provides a control without the paired job's extra
 fixture processes or pre-test host snapshots. Both inputs default to false and neither changes
 which standard jobs are required.
+
+The next comparison, [42347030189](https://github.com/goosepod/naviamp/actions/runs/42347030189),
+source `08dc265a7`, passes its observer lifecycle check. Its persistent-daemon condition then
+stops before native execution: the optional pre-test JVM `ps` snapshot exceeds ten seconds, and
+the service-log observation exceeds 45 seconds during cleanup. Its individual summary and owned
+device cleanup are preserved, but it supplies zero native comparison cases. Host pressure reports
+31% free memory before that attempted native run. This is a diagnostic failure, not evidence that
+persistent daemons cause the HTTP timeout.
+
+All optional resource and service-log observations now retain timeout/error text and continue to
+the native experiment. Native command, boot, ownership and comparison checks remain strict.
+The ordinary native observer's process inventory also had no deadline; it now has a bounded
+five-second lookup and treats unavailable inventory as missing diagnostics, preserving the native
+command result. This addresses demonstrated host-tool stalls without lengthening any native test
+deadline. All 26 selected helper tests pass, including optional snapshot and inventory timeouts.
