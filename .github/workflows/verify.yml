@@ -304,12 +304,14 @@ jobs:
           evidence="$PWD/build/android-compose-replays"
           mkdir -p "$evidence"
           cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
-          for attempt in 1 2 3; do
+          for attempt in $(seq 1 10); do
+            status=0
             ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
               -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest \
               :core:ui:connectedDebugAndroidTest --rerun --console=plain \
-              | tee "$evidence/run-$attempt.log"
+              | tee "$evidence/run-$attempt.log" || status=$?
             cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
+            if [ "$status" -ne 0 ]; then exit "$status"; fi
           done
 
       - name: Repeat API 35 DNS-SD discovery tests
