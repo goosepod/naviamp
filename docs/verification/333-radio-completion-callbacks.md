@@ -32,3 +32,37 @@ This corrects the reproduced callback defect; it does not establish the original
 cause. Physical TV retest remains pending because the owner paused device use. No TV commands,
 installation or server playlist mutations are part of this fix. Proactive Radio top-up is not
 implemented by the current queue-end Autoplay design and is not asserted as passing here.
+
+## Current-source physical TV retest — November 7, 2026
+
+Accepted main `ac1e407dea6ea5624f6b8ba2b03faacc84e49c3a` is retested on the owner's onn 4K Pro,
+Android 14, armeabi-v7a. The TV is explicitly available again. An isolated debug host and its
+instrumentation use `.tvverify20261107`; the existing `.v2test` installation/profile is untouched.
+No production source or native adapter changes are needed for this retest.
+
+The new opt-in `AndroidTvRadioContinuationInstrumentedTest` runs the actual shared application
+and real Android BASS engine against a credential-free Sonic protocol fixture. Start
+`scripts/android-tv-fixture.py --sonic --silent --tracks 60 --track-seconds 30`, reverse port
+18080 only on the authorized device, and run this class with `-e tvLocalFixture true` in an
+empty disposable installation. Without that explicit argument the hardware test is skipped.
+The fixture's new Sonic behavior is opt-in; existing default responses are preserved.
+
+The test starts seed-plus-ten Radio, advances to its last item, seeks to 23 seconds of the
+30-second track, then waits for actual native completion rather than issuing Next at EOF.
+Foreground completion extends 11 -> 21, starts index 11, preserves the original queue prefix
+and contains only unique track IDs. Repeating with the launcher demonstrably foreground
+extends 21 -> 31 and starts index 21 with the same retention/uniqueness checks. Native progress
+advances at least one second on each appended current track. The complete test passes in
+45.508 seconds, one executed case with no failure or skip. It pauses in `finally`; the isolated
+host is subsequently force-stopped.
+
+The fixture advertises Sonic v1 and returns twenty distinct, seed-excluding matches, with at
+least ten eligible IDs after excluding the queue at both tested ends. These real HTTP protocol
+checks and all eighteen existing media-fixture range/artwork tests pass. The ordinary Android
+app, instrumentation and optimized benchmark builds plus architecture verification pass.
+
+This is controlled-provider, real-TV native/lifecycle acceptance. It complements the earlier
+live-library foreground/background results in `386-physical-tv-functional-2026-10-29.md`;
+it does not claim those live-provider requests were repeated, subjective HDMI audio quality,
+proactive top-up or proof of the exact original failure's cause. Hosted verification of the
+new acceptance harness and its exact source tree is recorded on the linked PR.
