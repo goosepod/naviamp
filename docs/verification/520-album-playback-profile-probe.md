@@ -150,3 +150,59 @@ runner package replaced by `app.naviamp.android.sven520.test` and an explicit `-
 The two mode checks take approximately one minute in total. The temporary packages and owned
 reverse mapping were removed after recording both results, and the owned loopback fixture was
 stopped. Package inventory afterward matches the original three Naviamp installations.
+
+## Real Navidrome with FLAC
+
+The owner then identified Navidrome and tentatively FLAC. To avoid treating the earlier Subsonic
+fixture as real Navidrome coverage, started a separate loopback-only
+[Navidrome 0.64.2 release](https://github.com/navidrome/navidrome/releases/tag/v0.64.2), build
+`10114574`, with its own empty data directory, a disposable `fixture` account and no personal
+library. The Windows AMD64 archive SHA-256 matches the official asset digest:
+`72e06c9101fca6b14ff1437f9a56beb7ad6fe4bd7f25ff62cd5b70a075fee305`.
+
+Generated three tagged 30-second stereo FLAC tracks at 44.1 kHz / 16-bit in one album. The real
+server reports `type=navidrome`, `openSubsonic=true`, `contentType=audio/flac`, `suffix=flac`,
+correct track order and a 90-second album duration. Audio caching remains disabled on the phone.
+All 26 streaming log entries across these two runs report original FLAC, raw delivery and
+`transcoding=false`; the test is not silently exercising a converted WAV or MP3 stream.
+
+Reused the same two isolated APK builds and identical strengthened instrumentation test from the
+WAV comparison. The production trees remain PR `977c538a3` and release `6e602832a`; no product
+source was changed to make this pass.
+
+| Production source | Result | Gapless before advance | Inherited control before advance |
+| --- | --- | --- | --- |
+| PR | OK, 1 test in 61.920 seconds | Off / inactive / correct next stream Ready | 8s / active / correct next stream Ready |
+| v2.10.0 source | OK, 1 test in 63.323 seconds | Off / inactive / correct next stream Ready | 8s / active / correct next stream Ready |
+
+Both modes advance to the correct second track and retain their album profiles. This still does
+not reproduce Sven's reported failure. It establishes native override behavior with real
+Navidrome and original FLAC in a fresh installation; it does not establish audible continuity,
+the behavior of Sven's exact album/server version, upgraded existing profile state, cached files,
+active edits or restored queues. Keep #520 open.
+
+Evidence under ignored `build/sven-review/`: `pixel-navidrome-flac-current.log`,
+`pixel-navidrome-flac-v2100.log`, and `navidrome/` containing server logs, album metadata, release
+and FLAC checksums, configuration and the stream-verification summary. The ordinary phone apps
+are preserved; the session-owned `.sven520` packages and reverse mapping were removed afterward,
+and the owned Navidrome server was stopped.
+
+### FLAC reproduction delta
+
+`scripts/generate-playback-profile-flac.py` creates the album and refuses a nonempty output
+directory. Its output was decoded and checked for all three durations, channel/sample format and
+album/track tags. The run used numpy 2.5.4, soundfile 0.14.0 and mutagen 1.48.1, installed only in
+the ignored local tool directory. For example, in PowerShell:
+
+```powershell
+python3.14 -m pip install --target build/sven-review/python-libs numpy soundfile mutagen
+$env:PYTHONPATH = (Resolve-Path build/sven-review/python-libs).Path
+python3.14 scripts/generate-playback-profile-flac.py build/sven-review/navidrome/music
+```
+
+Use the real server in place of `android-tv-fixture.py`, bound only to `127.0.0.1:18080` with fresh
+DataFolder/MusicFolder paths, external services disabled, and a working FFmpeg path. The test
+used FFmpeg 9.0.2 (no stream transcoding occurred). Create the disposable `fixture` / `fixture`
+account using that server's first-admin setup. Wait until its API lists exactly the one album
+with three 30-second tracks, then use the same isolated-phone instrumentation command above.
+Do not point this server or the generator at an existing personal library or database.
