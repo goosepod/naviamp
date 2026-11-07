@@ -26,10 +26,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.max
-import kotlin.math.min
 
 /** Android publishes only its visible lifecycle and hardware-compositor presentation boundary. */
 @Composable
@@ -112,6 +108,7 @@ private class AndroidRasterRegion(
         var bufferChanged: Boolean = false,
         val source: AndroidRect = AndroidRect(),
         val destination: AndroidRect = AndroidRect(),
+        val frame: NaviampRasterFrame = NaviampRasterFrame(),
         var visible: Boolean = false,
         var ordered: Boolean = false,
     )
@@ -198,13 +195,13 @@ private class AndroidRasterRegion(
 
     override fun synchronizeDraw() {
         if (!needsUpdate || !hostReady || layers.isEmpty()) return
-        // The SurfaceView render thread owns parent movement. Each child transaction contains
-        // complete current geometry, so layout/image handoffs can commit without waiting on a
-        // root draw that some Android compositors never deliver.
+        // The SurfaceView render thread owns parent movement. Commit the shared owner's changed
+        // child geometry or native buffers without waiting on a root draw that some Android
+        // compositors never deliver.
         SurfaceControl.Transaction().use { transaction ->
-            updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
+            val changed = updateSurfaces(transaction, SystemClock.uptimeMillis() - startedAt)
             needsUpdate = false
-            transaction.apply()
+            if (changed) transaction.apply()
         }
         invalidate()
     }
@@ -301,21 +298,9 @@ private class AndroidRasterRegion(
         retiredLayers.clear()
         layers.forEachIndexed { index, layer ->
                 if (!layer.control.isValid) return@forEachIndexed
-                val spec = layer.spec
-                val dx = spec.translation?.valueAt(elapsed) ?: 0f
-                val imageLeft = bounds.left + spec.origin.x + dx
-                val imageTop = bounds.top + spec.origin.y
-                var visibleLeft = max(clip.left, imageLeft)
-                var visibleRight = min(clip.right, imageLeft + spec.image.width)
-                val visibleTop = max(clip.top, imageTop)
-                val visibleBottom = min(clip.bottom, imageTop + spec.image.height)
-                val reveal = spec.revealMotion?.valueAt(elapsed) ?: spec.reveal
-                val edge = bounds.left + bounds.width * reveal
-                if (spec.translation == null) {
-                    if (spec.clipFromStart) visibleLeft = max(visibleLeft, edge)
-                    else visibleRight = min(visibleRight, edge)
-                }
-                if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) {
+                val frame = layer.frame
+                val geometryChanged = frame.update(layer.spec, bounds, clip, elapsed)
+                if (!frame.visible) {
                     if (layer.visible) {
                         transaction.setVisibility(layer.control, false)
                         layer.visible = false
@@ -323,28 +308,26 @@ private class AndroidRasterRegion(
                     }
                     return@forEachIndexed
                 }
-                layer.source.set(
-                    floor(visibleLeft - imageLeft).toInt(), floor(visibleTop - imageTop).toInt(),
-                    ceil(visibleRight - imageLeft).toInt(), ceil(visibleBottom - imageTop).toInt(),
-                )
-                layer.destination.set(
-                    floor(visibleLeft - bounds.left).toInt(), floor(visibleTop - bounds.top).toInt(),
-                    ceil(visibleRight - bounds.left).toInt(), ceil(visibleBottom - bounds.top).toInt(),
-                )
                 if (!layer.visible) {
                     transaction.setVisibility(layer.control, true)
                     layer.visible = true
+                    changed = true
                 }
                 if (!layer.ordered) {
                     // Keep cached children above the host SurfaceView's own buffer. Android 15
                     // resolves a layer-zero tie in favor of the parent, hiding child pixels.
                     transaction.setLayer(layer.control, index + 1)
                     layer.ordered = true
+                    changed = true
                 }
                 if (Build.VERSION.SDK_INT >= 34 && layer.bufferChanged) {
                     transaction.setBuffer(layer.control, requireNotNull(layer.hardwareBitmap).hardwareBuffer)
                     layer.bufferChanged = false
+                    changed = true
                 }
+                if (!geometryChanged) return@forEachIndexed
+                layer.source.set(frame.sourceLeft, frame.sourceTop, frame.sourceRight, frame.sourceBottom)
+                layer.destination.set(frame.destinationLeft, frame.destinationTop, frame.destinationRight, frame.destinationBottom)
                 if (Build.VERSION.SDK_INT >= 33) {
                     val scaleX = layer.destination.width().toFloat() / layer.source.width()
                     val scaleY = layer.destination.height().toFloat() / layer.source.height()
