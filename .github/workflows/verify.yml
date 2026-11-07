@@ -296,6 +296,22 @@ jobs:
             "-Pandroid.testInstrumentationRunnerArguments.naviamp.mtls.controlPort=$control_port" \
             :apps:android:connectedDebugAndroidTest :core:ui:connectedDebugAndroidTest
 
+      - name: Require repeated API 30 smart-playlist UI execution
+        if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 30 && contains(github.event.pull_request.labels.*.name, 'verify:android-ui-repeat')
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          evidence="$PWD/build/android-compose-replays"
+          mkdir -p "$evidence"
+          cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/initial"
+          for attempt in 1 2 3; do
+            ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false \
+              -Pandroid.testInstrumentationRunnerArguments.class=app.naviamp.ui.NaviampSmartPlaylistSummaryUiTest \
+              :core:ui:connectedDebugAndroidTest --rerun --console=plain \
+              | tee "$evidence/run-$attempt.log"
+            cp -R core/ui/build/outputs/androidTest-results/connected/debug "$evidence/run-$attempt"
+          done
+
       - name: Repeat API 35 DNS-SD discovery tests
         if: needs.changes.outputs.run_full == 'true' && matrix.api-level == 35
         run: |
@@ -337,6 +353,7 @@ jobs:
             core/ui/build/reports/androidTests/**
             core/ui/build/outputs/androidTest-results/**
             build/android-emulator-diagnostics/**
+            build/android-compose-replays/**
             build/mobile-mtls-run.*/fixture.log
             /tmp/naviamp-dnssd-repeat-*.txt
             /tmp/naviamp-emulator.log

@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import androidx.compose.ui.test.*
+import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.runtime.mutableStateOf
 import app.naviamp.domain.smartplaylist.*
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
