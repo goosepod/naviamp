@@ -84,3 +84,29 @@ profile. Raw local build/setup logs and the HTTP contract result are under `buil
 The connected Pixel is charging at 72%, but its display is locked. A fresh owned test profile is
 prepared; native Android menu input remains pending an unlock. TV checks remain deferred by the
 owner. Final-base CI follows the accepted iOS fixture correction in #531.
+
+## Android native menu checks after owner unlock, November 7
+
+The owner unlocked the connected Pixel 6a (Android 17/API 37). Launched only the isolated
+`app.naviamp.android.sven519` debug application; existing installed app profiles remain untouched.
+The initial connection screen did not recognize the prepared database, so the connection was
+created through the normal UI using only disposable loopback fixture credentials. A separately
+owned ADB reverse for port 18081 connects the same three-track protocol fixture used on Windows.
+No TV or personal media server was contacted.
+
+- The first album track's overflow exposes **Start Radio**. Selecting it dismisses the menu,
+  opens Now Playing with the selected seed and starts native playback. Its clock advances from
+  0:00 to 0:18.
+- The current track's **Track actions** overflow also exposes **Start Radio**. Selecting it
+  dismisses the menu and retains the currently playing seed and elapsed position (0:41), rather
+  than restarting at zero.
+- Playback automatically advances from the seed to fixture track 2. Its clock reaches 0:26.
+  The shared Now Playing queue shows track 3 under **UP NEXT** and the original seed under
+  **BACK TO**, establishing distinct generated queue entries and actual native advancement.
+- Playback is paused at 0:26 after inspection. These are UI/native-clock checks against a
+  controlled Subsonic protocol fixture, not an audible-quality assertion or a live external
+  recommendation-service test. The prior real-Navidrome empty-result control remains separate.
+
+The installed APK is the previously built production checkpoint `6189184ae`; later changes to
+this branch only add test evidence and integrate accepted main. Its menu implementation is
+unchanged. Required final-base CI is recorded on PR #528. No platform production file changes.
