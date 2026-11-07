@@ -268,3 +268,9 @@ contains 6,553 events with no private environment sentinel or sensitive metadata
 The recorder-only aged/fresh run at `42358080227` remains pinned to the preceding `cd45c2cb5`
 source so it can preserve the original first-handshake behavior. Hosted corrective acceptance is
 still required; readiness is a candidate, not a claim that the OS/JVM delay is fully explained.
+
+Corrective PR acceptance disables JVM flight recording even with the cold-native label. Only
+explicit manual diagnostic inputs enable the recorder. The three corrective cold suites must
+therefore pass without the profiler affecting fixture residency or scheduling; the separately
+pinned recorder-only comparison retains its instrumentation. Loopback packet metadata remains
+available on the acceptance run, as on the previously captured failures.

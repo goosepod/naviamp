@@ -468,7 +468,7 @@ jobs:
     if: needs.changes.outputs.run_full == 'true'
     runs-on: ${{ fromJSON(needs.changes.outputs.macos_runner) }}
     env:
-      NAVIAMP_MTLS_FIXTURE_JFR: ${{ (github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic)) || contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold') }}
+      NAVIAMP_MTLS_FIXTURE_JFR: ${{ github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7

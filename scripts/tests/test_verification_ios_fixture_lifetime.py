@@ -145,3 +145,6 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
             self.assertIn('build/ios-native-replays/run-*/' + evidence, ios)
         self.assertIn('build/mobile-mtls-run.*/fixture.jfr', ios)
         self.assertIn('NAVIAMP_MTLS_FIXTURE_JFR:', ios)
+        recorder = next(line for line in ios.splitlines() if 'NAVIAMP_MTLS_FIXTURE_JFR:' in line)
+        self.assertIn("github.event_name == 'workflow_dispatch'", recorder)
+        self.assertNotIn('verify:ios-native-cold', recorder)
