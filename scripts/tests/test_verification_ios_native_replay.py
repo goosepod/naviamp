@@ -141,4 +141,3 @@ class NativeReplayFixtureStartupTest(unittest.TestCase):
         self.assertEqual('Owned fixture exited during startup', error)
         self.assertEqual('failed', report['status'])
         self.assertEqual(0, probes)
-
