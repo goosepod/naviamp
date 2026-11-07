@@ -236,6 +236,10 @@ def main():
     with ExitStack() as owners:
         aged = [owners.enter_context(fixture(root, output / f'aged-fixture-{index}', replay))
                 for index in range(args.pairs)]
+        # Fail fast on observer lifecycle problems before the expensive native compilation.
+        # This sends no HTTP request and does not warm the aged fixture's control endpoint.
+        with packets(aged[0][0], output / 'packet-observer-startup.log'):
+            time.sleep(0.25)
         compile_command = ['./gradlew', '--parallel', '--max-workers=2', '--console=plain', '--profile']
         if args.compile_full:
             compile_command += ['verifyCoreFirstArchitecture', 'iosSimulatorArm64Test',

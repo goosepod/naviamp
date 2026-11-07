@@ -88,6 +88,11 @@ fixture is 879 seconds old and all 17 native cases pass. Packet metadata records
 on the control connection. The job then fails in diagnostic observer teardown: signalling the
 `sudo` parent PID leaves the packet observer running and `wait(15)` expires. Native XML and
 packet logs are preserved, but this is only one condition, not a completed comparison or a fix.
+The persistent-daemon condition subsequently also passes all 17 cases on its first aged fixture
+(1152 seconds old), then encounters the same observer teardown problem. Its post-compilation
+Gradle JVM occupies about 2313 MiB resident memory, versus no retained Gradle daemon in the other
+condition. This confirms the resource-policy difference, but does not show that it causes the
+bootstrap timeout. The ordinary job's native test step also passes in this run.
 
 The observer now starts in its own session and verifies that owned process group before signalling
 the group, including the sudo monitor and tcpdump child. Native results are captured before
@@ -95,3 +100,5 @@ observer teardown, and device cleanup plus the individual summary are attempted 
 service logs fails. Two local ownership tests cover the correct group and refusal of a changed group;
 all 21 selected iOS helper tests pass. The native deadlines and required verification matrix remain
 unchanged.
+An observer lifecycle check now runs before native compilation without issuing HTTP requests,
+so observer setup/cleanup failures are detected early without warming the aged control endpoint.
