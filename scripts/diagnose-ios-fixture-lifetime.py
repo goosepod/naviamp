@@ -69,9 +69,9 @@ def packets(bootstrap, output):
             yield
         finally:
             if process.poll() is None:
-                command = subprocess.check_output(['ps', '-p', str(process.pid), '-o', 'command='], text=True)
-                if ('tcpdump' not in command or expression not in command
-                        or os.getpgid(process.pid) != process.pid):
+                # This is our live, unreaped Popen child, so its PID cannot have been reused.
+                # Do not read its potentially paged-out argument vector through ps for ownership.
+                if os.getpgid(process.pid) != process.pid:
                     raise RuntimeError('Packet observer ownership changed; refusing signal')
                 # sudo can retain a monitor parent. Signalling that PID alone does not reliably
                 # reach tcpdump. This isolated session contains only our observer and its monitor.
@@ -166,7 +166,6 @@ def native_run(root, directory, bootstrap, fixture_started, replay, expected_has
             raise RuntimeError('Native binary changed between matched cases')
         summary['fixtureAgeAtExecutionSeconds'] = time.monotonic() - fixture_started
         summary['nativeExecutableSha256'] = expected_hash
-        host_snapshot(root, directory, 'before-native')
         env = os.environ.copy()
         env['SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP'] = bootstrap.read_text()
         command = ['python3', 'scripts/ios-native-test-diagnostics.py', '--executable', str(executable),
@@ -186,7 +185,7 @@ def native_run(root, directory, bootstrap, fixture_started, replay, expected_has
             raise RuntimeError('Native task did not execute; cached output is not evidence')
         # Probe only AFTER execution; heartbeats must not warm an aged baseline.
         started = time.monotonic()
-        summary['hostControlAfterTestExitCode'] = run_logged(
+        summary['hostControlAfterTestExitCode'] = diagnostic_logged(
             ['python3', 'scripts/mobile-mtls-fixture.py', 'ready', str(bootstrap)],
             directory / 'host-control-after-test.log', root, timeout=10)
         summary['hostControlAfterTestSeconds'] = time.monotonic() - started
@@ -258,7 +257,8 @@ def main():
         if run_logged(compile_command,
                       output / 'compile-native.log', root, timeout=1800):
             raise RuntimeError('Native diagnostic binary compilation failed')
-        host_snapshot(root, output, 'after-compilation')
+        # Observe resources only after native execution: pre-test JVM/process inspection can
+        # page in an otherwise idle fixture or delay execution, perturbing the aged baseline.
         # A first simctl RPC can start CoreSimulatorService. Treat that as explicit host
         # provisioning, before the existing short per-device ownership RPCs are used.
         # This does not change any authentication, playback or native-test deadline.

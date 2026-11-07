@@ -44,7 +44,6 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, \
                 patch.dict(globals_, fixture_ports=lambda _: ports), \
                 patch('subprocess.Popen', return_value=process) as popen, \
-                patch('subprocess.check_output', return_value='sudo tcpdump ' + expression), \
                 patch('os.getpgid', return_value=12345, create=True), \
                 patch('subprocess.run') as run:
             with HELPER['packets'](None, Path(directory) / 'packets.log'):
@@ -60,7 +59,6 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, \
                 patch.dict(HELPER['packets'].__wrapped__.__globals__, fixture_ports=lambda _: ports), \
                 patch('subprocess.Popen', return_value=process), \
-                patch('subprocess.check_output', return_value='sudo tcpdump ' + expression), \
                 patch('os.getpgid', return_value=999, create=True), \
                 patch('subprocess.run') as run:
             with self.assertRaisesRegex(RuntimeError, 'ownership changed'):

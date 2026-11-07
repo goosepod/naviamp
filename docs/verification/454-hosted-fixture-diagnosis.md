@@ -128,3 +128,15 @@ The ordinary native observer's process inventory also had no deadline; it now ha
 five-second lookup and treats unavailable inventory as missing diagnostics, preserving the native
 command result. This addresses demonstrated host-tool stalls without lengthening any native test
 deadline. All 26 selected helper tests pass, including optional snapshot and inventory timeouts.
+
+Subsequent comparisons collect resource snapshots only after each native suite. Pre-test process
+inspection both delayed the experiment and could perturb an idle fixture's residency, so it is
+removed from the aged/fresh baseline. The packet observer's live, unreaped `Popen` child handle
+and isolated process-group identity establish ownership without reading paged-out process arguments.
+The ordinary-job-only control at
+[42347900114](https://github.com/goosepod/naviamp/actions/runs/42347900114), source `c609ce1fd`,
+passes its complete iOS job, including all 17 native cases, app build and Keychain check. It retains
+`native-command-result.json` with exit code zero and packet metadata with zero kernel drops. On
+the initial control connection, the 175-byte GET is followed by the server's first 79 response
+bytes after approximately 2.177 seconds, then its complete body. This is a passing timing baseline,
+not a captured reproduction of the original timeout or proof of its cause.
