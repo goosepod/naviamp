@@ -174,6 +174,8 @@ class Handler(BaseHTTPRequestHandler):
             'getSong': {'song': next((track for track in TRACKS if track['id'] == query.get('id', [''])[0]), TRACKS[0])},
             'search3': {'searchResult3': {'song':TRACKS, 'album':ALBUMS, 'artist':[]}},
             'getRandomSongs': {'randomSongs': {'song':TRACKS}},
+            'getSimilarSongs': {'similarSongs': {'song': [track for track in TRACKS if track['id'] != query.get('id', [''])[0]][:max(0, int(query.get('count', ['50'])[0]))]}},
+            'getSimilarSongs2': {'similarSongs2': {'song': TRACKS[:max(0, int(query.get('count', ['50'])[0]))]}},
             'getStarred2': {'starred2': {'song':[], 'album':[], 'artist':[]}},
             'getPlaylists': {'playlists': {'playlist':[]}},
             'getGenres': {'genres': {'genre':[]}},
