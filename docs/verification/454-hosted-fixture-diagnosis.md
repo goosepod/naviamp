@@ -102,3 +102,10 @@ all 21 selected iOS helper tests pass. The native deadlines and required verific
 unchanged.
 An observer lifecycle check now runs before native compilation without issuing HTTP requests,
 so observer setup/cleanup failures are detected early without warming the aged control endpoint.
+
+The ordinary iOS native step can also opt into the same packet metadata capture when the manual
+diagnostic input is enabled. This retains its existing fixture, compilation graph, simulator boot,
+test command and deadlines, without adding pre-test memory/JVM snapshots or extra fixtures to that
+job. The wrapper records the actual native command exit status before observer teardown. Ordinary
+PR runs keep their existing invocation. All 23 selected helper tests pass, including rejection of
+capture without an owned fixture and preservation of a native failure despite observer failure.

@@ -534,8 +534,13 @@ jobs:
           native_test=(./gradlew --max-workers=2 --console=plain --profile \
             -Pnaviamp.ios.testDevice="$NAVIAMP_IOS_TLS_TEST_DEVICE" \
             :platforms:ios:iosSimulatorArm64Test)
+          packet_capture=()
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.ios_fixture_lifetime_diagnostic }}" = true ]; then
+            packet_capture=(--capture-loopback)
+          fi
           if [ -f scripts/ios-native-test-diagnostics.py ]; then
             python3 scripts/ios-native-test-diagnostics.py \
+              "${packet_capture[@]}" \
               --executable platforms/ios/build/bin/iosSimulatorArm64/debugTest/test.kexe \
               --fixture-bootstrap "$NAVIAMP_MTLS_FIXTURE_BOOTSTRAP_FILE" \
               --output build/ios-native-diagnostics -- "${native_test[@]}"

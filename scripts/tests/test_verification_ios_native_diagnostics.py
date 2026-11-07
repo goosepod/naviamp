@@ -1,15 +1,43 @@
 """Process snapshots must never target another checkout or an enclosing shell."""
 from pathlib import Path
+from contextlib import contextmanager
+import json
 import runpy
 import shlex
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 HELPER = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'ios-native-test-diagnostics.py'))
 
 
 class NativeDiagnosticOwnershipTest(unittest.TestCase):
+    def test_manual_capture_retains_native_failure_even_if_observer_cleanup_fails(self):
+        @contextmanager
+        def observer(bootstrap, output):
+            yield
+            raise RuntimeError('observer cleanup failed')
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'diagnostics'
+            arguments = ['diagnostics', '--executable', str(Path(directory) / 'test.kexe'),
+                         '--fixture-bootstrap', str(Path(directory) / 'fixture.bootstrap'),
+                         '--output', str(output), '--capture-loopback', '--', 'native-command']
+            with patch.object(sys, 'argv', arguments), \
+                    patch.dict(HELPER['main'].__globals__, observe=lambda *args: 7), \
+                    patch('runpy.run_path', return_value={'packets': observer}):
+                with self.assertRaisesRegex(RuntimeError, 'observer cleanup failed'):
+                    HELPER['main']()
+            self.assertEqual({'exitCode': 7}, json.loads((output / 'native-command-result.json').read_text()))
+
+    def test_manual_capture_requires_owned_fixture(self):
+        arguments = ['diagnostics', '--executable', 'test.kexe', '--output', 'unused',
+                     '--capture-loopback', '--', 'native-command']
+        with patch.object(sys, 'argv', arguments), self.assertRaises(SystemExit) as error:
+            HELPER['main']()
+        self.assertEqual(2, error.exception.code)
+
     def test_fixture_pid_must_still_belong_to_this_bootstrap(self):
         with tempfile.TemporaryDirectory() as directory:
             bootstrap = Path(directory) / 'fixture-run' / 'fixture.bootstrap'

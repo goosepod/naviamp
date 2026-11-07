@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Observe only this invocation's standalone native test; preserve its exit status."""
 import argparse
+from contextlib import nullcontext
+import json
 import os
 from pathlib import Path
+import runpy
 import shlex
 import subprocess
 import time
@@ -107,12 +110,25 @@ def main():
     parser.add_argument('--executable', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--fixture-bootstrap', type=Path)
+    parser.add_argument('--capture-loopback', action='store_true',
+                        help='Capture packet metadata on this owned fixture only (manual diagnosis)')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ['--'] else args.command
     if not command:
         parser.error('A test command is required after --')
-    return observe(command, str(args.executable.resolve()), args.output, args.fixture_bootstrap)
+    if args.capture_loopback and args.fixture_bootstrap is None:
+        parser.error('Loopback observation requires the owned fixture bootstrap')
+    args.output.mkdir(parents=True, exist_ok=True, mode=0o700)
+    scope = nullcontext()
+    if args.capture_loopback:
+        helper = runpy.run_path(str(Path(__file__).with_name('diagnose-ios-fixture-lifetime.py')))
+        scope = helper['packets'](args.fixture_bootstrap, args.output / 'loopback-packets.log')
+    with scope:
+        result = observe(command, str(args.executable.resolve()), args.output, args.fixture_bootstrap)
+        # Retain the actual command result even if diagnostic observer teardown fails afterward.
+        (args.output / 'native-command-result.json').write_text(json.dumps({'exitCode': result}))
+    return result
 
 
 if __name__ == '__main__':
