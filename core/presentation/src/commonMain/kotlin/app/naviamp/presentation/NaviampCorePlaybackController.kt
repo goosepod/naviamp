@@ -46,6 +46,8 @@ import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NaviampVisualizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 /** Owns Now Playing transport, queue commands, volume, repeat/shuffle, and sleep-timer policy. */
@@ -85,6 +87,7 @@ class NaviampCorePlaybackController(
     private var sidecarLoadJob: Job? = null
     private var streamMetadata = PlaybackStreamMetadata()
     private var streamMetadataTrackId: app.naviamp.domain.TrackId? = null
+    private var observedPlaybackTrackId = playback.state.value.currentTrack?.id
     private var sonicAutoplayJob: Job? = null
     private val sonicAutoplay = SonicAutoplayService(providerSource::current)
     private var persistedQueue = PlaybackQueue()
@@ -348,7 +351,19 @@ class NaviampCorePlaybackController(
 
     fun attachNativePlayback() {
         effects.setVisualizerFramesEnabled(display.visualizerVisible)
-        playback.observe { persistSession(force = false) }
+        playback.observe { live ->
+            if (live.currentTrack?.id != observedPlaybackTrackId) {
+                observedPlaybackTrackId = live.currentTrack?.id
+                // Invalidate synchronously when leaving a track, even if the next track never
+                // reaches Playing or its queued sidecar load is cancelled before starting.
+                sidecarLoadJob?.cancel()
+                sidecarTrackId = null
+                streamMetadata = PlaybackStreamMetadata()
+                streamMetadataTrackId = null
+                presenter.updateStreamMetadata(PlaybackStreamMetadata())
+            }
+            persistSession(force = false)
+        }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
                 if (state == PlaybackState.Playing) connectHandoffAwaitingStart = false
@@ -607,6 +622,9 @@ class NaviampCorePlaybackController(
         streamMetadata = PlaybackStreamMetadata()
         streamMetadataTrackId = null
         sidecars.loadForTrack(track)
+        // A native/file sidecar operation can finish after cancellation. Returning to the same
+        // track does not make that earlier playback's cached title current again.
+        currentCoroutineContext().ensureActive()
         if (cachedMetadata != null && streamMetadataTrackId == null) publishStreamMetadata(cachedMetadata)
         val lyricsNeeded = display.lyricsVisible ||
             stateStore.state.value.shell.shellChrome.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel

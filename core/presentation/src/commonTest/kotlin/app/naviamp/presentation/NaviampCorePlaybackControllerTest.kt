@@ -527,6 +527,67 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun rapidReturnDoesNotRestoreATitlePublishedAfterTheInitialSidecarLoad() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - later title"))
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        }
+        runCurrent()
+        assertEquals(listOf("two", "two"), fixture.sidecars.loadedTracks)
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun leavingAStationBeforeTheNextOnePlaysInvalidatesItsTitle() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - old title"))
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+        }
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        assertEquals(PlaybackStreamMetadata(), fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
+    fun cancelledOldSidecarLoadCannotOverwriteAFreshTitleAfterReturningToTheStation() = runTest {
+        val releaseOldLoad = CompletableDeferred<Unit>()
+        var first = true
+        val sidecars = PlaybackTestSidecars(beforeLoad = { track ->
+            if (track.id.value == "two" && first) {
+                first = false
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { releaseOldLoad.await() }
+            }
+        })
+        val fixture = playbackFixture(this, sidecars)
+        fixture.controller.attachNativePlayback()
+        fixture.effects.observer!!.onMetadataChanged(PlaybackStreamMetadata(title = "A - old title"))
+        fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        val fresh = PlaybackStreamMetadata(title = "A - fresh title")
+        for (index in listOf(2, 1)) {
+            val queue = fixture.live.state.value.queue.copy(currentIndex = index)
+            fixture.live.replace(fixture.live.state.value.copy(currentTrack = queue.current, queue = queue))
+            fixture.effects.observer!!.onStateChanged(PlaybackState.Playing)
+            if (index == 1) fixture.effects.observer!!.onMetadataChanged(fresh)
+            runCurrent()
+        }
+        releaseOldLoad.complete(Unit)
+        runCurrent()
+        assertEquals(fresh, fixture.sidecars.snapshot().streamMetadata)
+    }
+
+    @Test
     fun restoredTrackIsPublishedBeforeItsSidecarsFinishLoading() = runTest {
         val sidecars = PlaybackTestSidecars(blockingTrackId = "long-track")
         val fixture = playbackFixture(this, sidecars)
@@ -1197,6 +1258,7 @@ private class RecordingPlaybackSessionRepository : PlaybackSessionRepository {
 
 private class PlaybackTestSidecars(
     private val blockingTrackId: String? = null,
+    private val beforeLoad: suspend (Track) -> Unit = {},
 ) : NaviampCoreNowPlayingSidecarPort {
     val loadedTracks = mutableListOf<String>()
     val cancelledTracks = mutableListOf<String>()
@@ -1209,6 +1271,7 @@ private class PlaybackTestSidecars(
         // Like the production sidecars, a track load starts from empty sidecars.
         streamMetadata = PlaybackStreamMetadata()
         loadedTracks += track.id.value
+        beforeLoad(track)
         if (track.id.value == blockingTrackId) {
             try {
                 awaitCancellation()
