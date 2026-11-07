@@ -63,16 +63,28 @@ def packets(bootstrap, output):
     expression = packet_filter(fixture_ports(bootstrap))
     with output.open('w') as log:
         process = subprocess.Popen(['sudo', '-n', '/usr/sbin/tcpdump', '-n', '-tttt', '-l', '-q',
-                                    '-i', 'lo0', expression], stdout=log, stderr=subprocess.STDOUT)
+                                    '-i', 'lo0', expression], stdout=log, stderr=subprocess.STDOUT,
+                                   start_new_session=True)
         try:
             yield
         finally:
             if process.poll() is None:
                 command = subprocess.check_output(['ps', '-p', str(process.pid), '-o', 'command='], text=True)
-                if 'tcpdump' not in command or expression not in command:
+                if ('tcpdump' not in command or expression not in command
+                        or os.getpgid(process.pid) != process.pid):
                     raise RuntimeError('Packet observer ownership changed; refusing signal')
-                subprocess.run(['sudo', '-n', 'kill', '-INT', str(process.pid)], check=True, timeout=10)
-                process.wait(timeout=15)
+                # sudo can retain a monitor parent. Signalling that PID alone does not reliably
+                # reach tcpdump. This isolated session contains only our observer and its monitor.
+                subprocess.run(['sudo', '-n', '/bin/kill', '-INT', '--', '-' + str(process.pid)],
+                               check=True, timeout=10)
+                try:
+                    process.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    if os.getpgid(process.pid) != process.pid:
+                        raise RuntimeError('Packet observer group ownership changed')
+                    subprocess.run(['sudo', '-n', '/bin/kill', '-TERM', '--', '-' + str(process.pid)],
+                                   check=True, timeout=10)
+                    process.wait(timeout=15)
 
 
 def run_logged(command, log, root, env=None, timeout=900):
@@ -157,9 +169,10 @@ def native_run(root, directory, bootstrap, fixture_started, replay, expected_has
         started = time.monotonic()
         with packets(bootstrap, directory / 'loopback-packets.log'):
             summary['exitCode'] = run_logged(command, directory / 'native.log', root, env, timeout=300)
+            # Preserve executed native cases even if observer teardown subsequently fails.
+            summary['cases'] = read_results(root / 'platforms/ios/build/test-results/iosSimulatorArm64Test')
         summary['nativeCommandSeconds'] = time.monotonic() - started
         host_snapshot(root, directory, 'after-native')
-        summary['cases'] = read_results(root / 'platforms/ios/build/test-results/iosSimulatorArm64Test')
         task = '> Task :platforms:ios:iosSimulatorArm64Test'
         lines = (directory / 'native.log').read_text().splitlines()
         if task not in lines and task + ' FAILED' not in lines:
@@ -178,13 +191,17 @@ def native_run(root, directory, bootstrap, fixture_started, replay, expected_has
             source = root / relative
             if source.exists():
                 shutil.move(str(source), str(directory / destination))
-        if record.exists() and json.loads(record.read_text()).get('id'):
-            device = json.loads(record.read_text())['id']
-            run_logged(['xcrun', 'simctl', 'spawn', device, 'log', 'show', '--style', 'compact', '--last', '5m',
-                        '--predicate', 'process == "test.kexe" OR process == "trustd" OR subsystem == "com.apple.CFNetwork"'],
-                       directory / 'services.log', root, timeout=45)
-        replay['remove_owned_device'](record)
-        (directory / 'summary.json').write_text(json.dumps(summary, indent=2))
+        try:
+            if record.exists() and json.loads(record.read_text()).get('id'):
+                device = json.loads(record.read_text())['id']
+                run_logged(['xcrun', 'simctl', 'spawn', device, 'log', 'show', '--style', 'compact', '--last', '5m',
+                            '--predicate', 'process == "test.kexe" OR process == "trustd" OR subsystem == "com.apple.CFNetwork"'],
+                           directory / 'services.log', root, timeout=45)
+        finally:
+            try:
+                replay['remove_owned_device'](record)
+            finally:
+                (directory / 'summary.json').write_text(json.dumps(summary, indent=2))
     return summary
 
 

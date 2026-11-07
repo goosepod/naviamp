@@ -5,11 +5,45 @@ import re
 import runpy
 import tempfile
 import unittest
+from unittest.mock import Mock, patch
 
 HELPER = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'diagnose-ios-fixture-lifetime.py'))
 
 
 class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
+    def test_packet_cleanup_signals_only_its_verified_isolated_group(self):
+        process = Mock(pid=12345)
+        process.poll.return_value = None
+        ports = [41001, 41002, 41003, 41004]
+        expression = HELPER['packet_filter'](ports)
+        globals_ = HELPER['packets'].__wrapped__.__globals__
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(globals_, fixture_ports=lambda _: ports), \
+                patch('subprocess.Popen', return_value=process) as popen, \
+                patch('subprocess.check_output', return_value='sudo tcpdump ' + expression), \
+                patch('os.getpgid', return_value=12345, create=True), \
+                patch('subprocess.run') as run:
+            with HELPER['packets'](None, Path(directory) / 'packets.log'):
+                pass
+            self.assertTrue(popen.call_args.kwargs['start_new_session'])
+            self.assertEqual(['sudo', '-n', '/bin/kill', '-INT', '--', '-12345'], run.call_args.args[0])
+
+    def test_packet_cleanup_refuses_an_unowned_group(self):
+        process = Mock(pid=12345)
+        process.poll.return_value = None
+        ports = [41001, 41002, 41003, 41004]
+        expression = HELPER['packet_filter'](ports)
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(HELPER['packets'].__wrapped__.__globals__, fixture_ports=lambda _: ports), \
+                patch('subprocess.Popen', return_value=process), \
+                patch('subprocess.check_output', return_value='sudo tcpdump ' + expression), \
+                patch('os.getpgid', return_value=999, create=True), \
+                patch('subprocess.run') as run:
+            with self.assertRaisesRegex(RuntimeError, 'ownership changed'):
+                with HELPER['packets'](None, Path(directory) / 'packets.log'):
+                    pass
+            run.assert_not_called()
+
     def report(self, text):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)

@@ -42,7 +42,8 @@ does not demonstrate a fix. No assertion, authentication case or deadline is rel
 Opt-in workflow-dispatch input `ios_fixture_lifetime_diagnostic` adds a separately named
 diagnostic job; the entire original required Verify matrix remains unchanged. The experiment:
 
-- Starts two independent fixtures before compilation and leaves each idle for at least 20 minutes.
+- Starts two independent fixtures before compilation and leaves each idle through compilation
+  (the initial experiment also added a 20-minute minimum age).
 - Uses two additional fresh fixtures and a separate cold cloned simulator for each of four cases.
 - Runs the same complete native binary, recording its SHA-256, preserving failures and retaining
   the original negative authentication, positive authentication and native playback/seek checks.
@@ -80,3 +81,17 @@ comparison conditions cannot be erased by a later passing control in the final t
 macOS packaging tools, a newline filename and unavailable WSL Bash are outside its capabilities;
 those failures are retained separately rather than counted as passes. No application production
 code has changed at this checkpoint.
+
+The follow-up [42344966834](https://github.com/goosepod/naviamp/actions/runs/42344966834),
+source `990794cbd`, reaches native execution in its single-use-daemon condition. The first aged
+fixture is 879 seconds old and all 17 native cases pass. Packet metadata records response data
+on the control connection. The job then fails in diagnostic observer teardown: signalling the
+`sudo` parent PID leaves the packet observer running and `wait(15)` expires. Native XML and
+packet logs are preserved, but this is only one condition, not a completed comparison or a fix.
+
+The observer now starts in its own session and verifies that owned process group before signalling
+the group, including the sudo monitor and tcpdump child. Native results are captured before
+observer teardown, and device cleanup plus the individual summary are attempted even if collecting
+service logs fails. Two local ownership tests cover the correct group and refusal of a changed group;
+all 21 selected iOS helper tests pass. The native deadlines and required verification matrix remain
+unchanged.
