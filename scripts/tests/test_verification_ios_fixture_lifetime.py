@@ -141,5 +141,7 @@ class FixtureLifetimeDiagnosticsTest(unittest.TestCase):
         self.assertEqual(1, ios.count('run: bash scripts/start-mobile-mtls-fixture.sh'))
         self.assertNotIn('GRADLE_OPTS:', ios)
         self.assertIn('GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g', workflow)
-        for evidence in ('fixture-startup.json', 'fixture-readiness.log', 'cleanup-complete'):
+        for evidence in ('fixture-startup.json', 'fixture-readiness.log', 'cleanup-complete', 'fixture.jfr'):
             self.assertIn('build/ios-native-replays/run-*/' + evidence, ios)
+        self.assertIn('build/mobile-mtls-run.*/fixture.jfr', ios)
+        self.assertIn('NAVIAMP_MTLS_FIXTURE_JFR:', ios)

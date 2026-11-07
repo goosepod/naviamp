@@ -467,6 +467,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.run_full == 'true'
     runs-on: ${{ fromJSON(needs.changes.outputs.macos_runner) }}
+    env:
+      NAVIAMP_MTLS_FIXTURE_JFR: ${{ (github.event_name == 'workflow_dispatch' && (inputs.ios_fixture_lifetime_diagnostic || inputs.ios_fixture_packet_diagnostic)) || contains(github.event.pull_request.labels.*.name, 'verify:ios-native-cold') }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -634,6 +636,7 @@ jobs:
             build/ios-native-replays/run-*/fixture.log
             build/ios-native-replays/run-*/fixture-startup.json
             build/ios-native-replays/run-*/fixture-readiness.log
+            build/ios-native-replays/run-*/fixture.jfr
             build/ios-native-replays/run-*/cleanup-complete
             build/ios-native-replays/run-*/boot.log
             build/ios-native-replays/run-*/services.log
@@ -643,6 +646,7 @@ jobs:
             build/reports/profile/**
             build/ci-timings/ios.tsv
             build/mobile-mtls-run.*/fixture.log
+            build/mobile-mtls-run.*/fixture.jfr
             build/ios-keychain-tests.xcresult
             build/ios-tls-services.log
 
@@ -703,6 +707,7 @@ jobs:
         daemon: [true, false]
     env:
       GRADLE_OPTS: -Dorg.gradle.daemon=${{ matrix.daemon }} -Dorg.gradle.jvmargs=-Xmx4g
+      NAVIAMP_MTLS_FIXTURE_JFR: 'true'
       TZ: America/Los_Angeles
     steps:
       - uses: actions/checkout@v7
@@ -730,5 +735,6 @@ jobs:
           path: |
             build/ios-fixture-lifetime/**/*.log
             build/ios-fixture-lifetime/**/*.json
+            build/ios-fixture-lifetime/**/*.jfr
             build/ios-fixture-lifetime/**/results/**
             build/ios-fixture-lifetime/**/report/**

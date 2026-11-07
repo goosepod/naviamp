@@ -202,7 +202,7 @@ acceptance still requires all three independent native suites and the full requi
 [Verify 42353532414](https://github.com/goosepod/naviamp/actions/runs/42353532414), head `0669f587e`,
 fails before native execution while starting the fixture after simulator boot. The JVM reports
 `Disposable certificate generation timed out` at the RSA key-pair generation operation: one
-keytool child exceeds its existing 45-second limit. This is not another native bootstrap timeout,
+keytool child exceeds its existing 30-second limit. This is not another native bootstrap timeout,
 and no native result is counted for that job.
 
 The final staging is therefore **compile → prepare/start fresh fixture → boot → native tests**.
@@ -213,8 +213,35 @@ retaining the measured approximately 2.3 GiB build daemon into simulator executi
 fixture already failed without a retained daemon, so daemon retention is not claimed as the
 sole cause; removing the unnecessary retained heap provides measured resource headroom.
 
-Both the per-keytool 45-second deadline and native HTTP/authentication/playback deadlines stay
+Both the per-keytool 30-second deadline and native HTTP/authentication/playback deadlines stay
 unchanged. The separate bounded provisioning budget and startup trace remain. The lifecycle
 regression now protects compilation before fixture creation and certificate preparation before
 boot; boot-failure coverage checks cleanup of both the prepared fixture and its owned device.
 All 31 selected local helper tests pass. Hosted exact-head acceptance remains required.
+
+## Fresh-start candidate still fails during TLS
+
+[Verify 42355618596](https://github.com/goosepod/naviamp/actions/runs/42355618596), head `29d7b9584`,
+executes 17 native cases with one failure, now at missing-client-identity rejection. Bootstrap
+succeeds: the control GET at `00:53:21.736601` receives its first response at `00:53:21.799078`
+(approximately 62ms). On the separate mutual-TLS port, the client sends 1514 bytes at
+`00:53:21.827138`. The host acknowledges immediately, but its first 2076 response bytes appear
+only at `00:54:16.258443`, approximately 54.43 seconds later. The client has already cancelled
+after its unchanged 25-second rejection deadline. No TLS challenge callback is recorded.
+
+The later fixture thread dump shows idle dispatchers and an idle worker, after the stalled
+exchange has ended. The ordinary observer also records five-second process-inventory timeouts.
+Fresh staging and removal of a retained build daemon are therefore insufficient to establish
+resolution. This candidate is not accepted, and none of its independent cold replays execute.
+
+The opt-in fixture observation now includes a bounded 16 MiB Java Flight Recording, started
+before fixture creation and written on shutdown, to preserve stacks and blocking/CPU events
+during the delay rather than attaching only afterwards. It is restricted to this disposable
+server JVM. Environment-variable, system-property, process-inventory and child-process-command
+events are disabled before recording to avoid collecting hosted credentials. Recordings and
+replay startup/cleanup traces are explicitly included in the diagnostic artifact. Recording is
+enabled only for the existing diagnostic inputs or cold-native acceptance label. Native tests
+and deadlines are unchanged; a passing observed run alone will not prove why the delay occurs.
+
+Earlier issue/PR checkpoint text described the keytool limit as 45 seconds. Source inspection
+confirms its actual unchanged limit is 30 seconds; the timeout classification remains valid.
