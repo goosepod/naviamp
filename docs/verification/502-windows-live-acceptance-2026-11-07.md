@@ -55,16 +55,24 @@ and CA supplied privately, select only that case:
 ./gradlew :platforms:desktop:desktopTest --rerun --tests app.naviamp.desktop.playback.bass.DesktopAurralWindowsPreviewTest.liveChartPreviewReachesNativePlayingThroughAuthenticatedByteTransport
 ```
 
-## Remaining gates
+## Owner disposition and remaining gate
 
-- Connect a Windows playback endpoint, then complete the native preview clock/pause/resume and
-  callback-cleanup assertions. Muted native results still do not establish audible quality.
-- Positive chart save requires suitable Flow access and an approved small chart. Positive
-  playlist/cover editing requires an approved disposable target. No acquisition, feedback,
-  playlist edit, account change, administrator fallback or listen was sent by this batch.
-- The broader application restart, physical input and spoken accessibility gates in the #506
-  acceptance record remain separate from API/transport evidence.
-- Required CI must pass on the final test-harness PR. Keep #502 open while these gates remain.
+The older #506 report's pending checklist predates the owner's final acceptance. Merged #526
+records acceptance of the complete Aurral experience and closes #506 through the verified #527
+integration at `62851e1c3`. That accepted scope is not reopened by this API-contract follow-up.
+Earlier accepted Mac/Gaming PC native queue/preview evidence remains valid for those builds;
+the failed current Windows attempt above is separate and is not relabeled as a pass.
+
+The standalone output/startup investigations #493/#497 remain explicitly deferred by the owner.
+A real output is needed for a future Windows native rerun. Positive chart/playlist writes were
+not exercised by this read-only batch; none are newly authorized or required for the focused CA
+test-harness correction. No acquisition, feedback, playlist edit, account change, administrator
+fallback or listen was sent. The previous single-use listen approval is not reused.
+
+The remaining #502 gate is required exact-head CI for the final CA test-harness PR. After it
+passes, combine this fourteen-case live contract result with the already accepted implementation,
+2.12/2.13 fixture matrix and #506 integration evidence to close #502. Do not hold it on historical
+checklist items already dispositioned by the owner, or claim unperformed current hardware tests.
 
 Private evidence: `build/aurral-502-windows/` and the acceptance checkout's provider/Desktop XML
 reports. No local profile data, build artifact, endpoint or credential is committed.
