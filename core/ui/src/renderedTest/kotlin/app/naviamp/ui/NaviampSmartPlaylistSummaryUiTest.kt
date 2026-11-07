@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import androidx.compose.ui.test.*
+import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.runtime.mutableStateOf
 import app.naviamp.domain.smartplaylist.*
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
@@ -110,11 +111,13 @@ class NaviampSmartPlaylistSummaryUiTest {
 
     @Test fun collapsingOptionsAndAdvancedPreservesTheWholeDefinition() = runComposeUiTest {
         var saved: SmartPlaylistDefinition? = null
+        val visible = mutableStateOf(true)
         val initial = definition()
         setContent {
-            SmartPlaylistBuilderDialog(NaviampColors(), SmartPlaylistDraft.fromDefinition(initial),
+            if (visible.value) SmartPlaylistBuilderDialog(NaviampColors(), SmartPlaylistDraft.fromDefinition(initial),
                 availableLibraries = listOf(ConnectionFormMusicFolder("a", "A"), ConnectionFormMusicFolder("b", "B")),
-                selectedConnectionLibraryIds = listOf("a", "b"), onDismissRequest = {}, onSave = { saved = it })
+                selectedConnectionLibraryIds = listOf("a", "b"),
+                onDismissRequest = { visible.value = false }, onSave = { saved = it })
         }
         onNodeWithText("Refresh delay").assertDoesNotExist()
         onNodeWithTag("smart-playlist-options-toggle").performScrollTo().performClick()
@@ -127,7 +130,11 @@ class NaviampSmartPlaylistSummaryUiTest {
         onNodeWithText("Import JSON").assertDoesNotExist()
         onNodeWithTag(SmartPlaylistSaveTestTag).performClick()
         waitUntil(timeoutMillis = 5_000) { saved != null }
-        assertEquals(initial, saved)
+        // The callback precedes saving-state updates and dismissal. Finish that UI work before
+        // test-host cleanup drains its frame scope outside the normal UI-thread synchronization.
+        awaitIdle()
+        onNodeWithTag(SmartPlaylistSaveTestTag).assertDoesNotExist()
+        runOnIdle { assertEquals(initial, saved) }
     }
 
     private fun definition() = SmartPlaylistDefinition("Owned mix", comment = "", match = SmartPlaylistMatch.All,
