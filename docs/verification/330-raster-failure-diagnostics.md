@@ -27,6 +27,8 @@ source and assertions. Initial reports, every replay's reports and output are re
 `build/android-raster-replays`. The first failing invocation ends the step with its failing status;
 later passes cannot replace it. This is a bounded diagnostic experiment, not retry-until-green.
 The label does not enable replays on API 30 or change ordinary PR execution.
+The label must be present on the event that starts verification. After adding it to an existing
+PR, push the next reviewed source update; rerunning an older event does not update its payload.
 
 ## Local verification, November 7
 
