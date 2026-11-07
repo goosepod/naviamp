@@ -168,6 +168,9 @@ The ordinary iOS workflow now starts its fixture **after** common compilation an
 immediately before the native contract needs it. The server is no longer kept idle through the
 build. The live native fixture check, ten-second bootstrap deadline, negative authentication,
 positive authentication, streaming and seek assertions remain unchanged. A regression checks the
-compile → boot → fixture → native ordering; all 27 selected helper tests pass. PR #531 uses
+compile → boot → fixture → native ordering; all 28 selected helper tests pass. PR #531 uses
 `verify:ios-native-cold` for three independent complete native suites (initial plus two replays),
-with packet metadata on each. Hosted acceptance of this corrective revision is pending.
+with packet metadata on each. Replay fixtures also start after their own simulator boots, and a
+failed-boot regression proves that no fixture starts and the owned device is still cleaned up.
+Exact-source hosted acceptance is recorded on PR #531; this document preserves the reproduction
+and verification plan without treating earlier passing controls as corrective-head acceptance.

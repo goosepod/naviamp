@@ -107,12 +107,22 @@ def replay(root, output, runs):
         run.mkdir(mode=0o700)
         bootstrap = run / 'fixture.bootstrap'
         device_record = run / 'device.json'
-        stage = 'fixture startup'
+        stage = 'simulator boot'
+        fixture = None
         with (run / 'fixture.log').open('w') as log:
-            fixture = subprocess.Popen([str(java), '@build/mobile-mtls-fixture.args', str(bootstrap)],
-                                       cwd=root, stdout=log, stderr=subprocess.STDOUT)
-            (run / 'fixture.pid').write_text(str(fixture.pid))
             try:
+                name = f'Naviamp TLS cold replay {index} {uuid.uuid4().hex[:12]}'
+                device_record.write_text(json.dumps({'id': None, 'name': name}))
+                device = simctl('clone', template['udid'], name)
+                device_record.write_text(json.dumps({'id': device, 'name': name}))
+                simctl('boot', device)
+                with (run / 'boot.log').open('w') as boot_log:
+                    subprocess.run(['xcrun', 'simctl', 'bootstatus', device, '-b'], check=True,
+                                   stdout=boot_log, stderr=subprocess.STDOUT, timeout=300)
+                stage = 'fixture startup'
+                fixture = subprocess.Popen([str(java), '@build/mobile-mtls-fixture.args', str(bootstrap)],
+                                           cwd=root, stdout=log, stderr=subprocess.STDOUT)
+                (run / 'fixture.pid').write_text(str(fixture.pid))
                 deadline = time.monotonic() + 90
                 while True:
                     if fixture.poll() is not None:
@@ -125,15 +135,6 @@ def replay(root, output, runs):
                     if time.monotonic() >= deadline:
                         raise RuntimeError('Owned fixture did not become ready')
                     time.sleep(0.25)
-                stage = 'simulator boot'
-                name = f'Naviamp TLS cold replay {index} {uuid.uuid4().hex[:12]}'
-                device_record.write_text(json.dumps({'id': None, 'name': name}))
-                device = simctl('clone', template['udid'], name)
-                device_record.write_text(json.dumps({'id': device, 'name': name}))
-                simctl('boot', device)
-                with (run / 'boot.log').open('w') as boot_log:
-                    subprocess.run(['xcrun', 'simctl', 'bootstatus', device, '-b'], check=True,
-                                   stdout=boot_log, stderr=subprocess.STDOUT, timeout=300)
                 stage = 'native execution'
                 env = os.environ.copy()
                 env['SIMCTL_CHILD_NAVIAMP_MTLS_FIXTURE_BOOTSTRAP'] = bootstrap.read_text()
@@ -185,7 +186,8 @@ def replay(root, output, runs):
                     try:
                         remove_owned_device(device_record)
                     finally:
-                        stop_fixture(fixture, bootstrap, root)
+                        if fixture is not None:
+                            stop_fixture(fixture, bootstrap, root)
                 (run / 'cleanup-complete').write_text('Owned fixture and simulator released\n')
             (run / 'summary.json').write_text(json.dumps(summary))
             print(f'Cold native replay {index}: {len(expected)} executed, zero failures/errors/skips; owned resources cleaned', flush=True)

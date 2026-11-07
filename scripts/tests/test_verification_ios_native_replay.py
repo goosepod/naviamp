@@ -4,7 +4,7 @@ import json
 import runpy
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 HELPER = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'replay-ios-native-tls.py'))
 OWNER = 'app.naviamp.ios.playback.IosMutualTlsPlaybackIntegrationTest'
@@ -46,6 +46,33 @@ class NativeReplayResultsTest(unittest.TestCase):
 class NativeReplayCleanupTest(unittest.TestCase):
     device_id = '12345678-1234-1234-1234-123456789abc'
     name = 'Naviamp TLS cold replay 1 owned-marker'
+
+    def test_failed_boot_never_starts_a_fixture_and_still_cleans_the_owned_device(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            results = root / 'platforms/ios/build/test-results/iosSimulatorArm64Test'
+            results.mkdir(parents=True)
+            (results / 'TEST-native.xml').write_text(
+                f'<testsuite tests="1"><testcase classname="{OWNER}" name="{NAME}"/></testsuite>')
+            output = root / 'build/replays'
+            output.mkdir(parents=True)
+            cleanup = Mock()
+            def simctl(*arguments):
+                if arguments[0] == 'list':
+                    return json.dumps({'devices': {'runtime': [{'name': 'iPhone test', 'udid': self.device_id}]}})
+                if arguments[0] == 'clone':
+                    return self.device_id
+                raise RuntimeError('owned boot failed')
+            with patch.dict(HELPER['replay'].__globals__, simctl=simctl, remove_owned_device=cleanup), \
+                    patch.dict('os.environ', JAVA_HOME=directory), \
+                    patch('subprocess.check_output', return_value='test-commit'), \
+                    patch('subprocess.run'), patch('subprocess.Popen') as launch:
+                with self.assertRaisesRegex(RuntimeError, 'owned boot failed'):
+                    HELPER['replay'](root, output, 1)
+                launch.assert_not_called()
+                cleanup.assert_called_once()
+            failure = json.loads((output / 'run-1/summary.json').read_text())
+            self.assertEqual('simulator boot', failure['stage'])
 
     def test_never_removes_a_device_whose_name_changed(self):
         with tempfile.TemporaryDirectory() as directory:
