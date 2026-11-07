@@ -46,6 +46,8 @@ import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NaviampVisualizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 /** Owns Now Playing transport, queue commands, volume, repeat/shuffle, and sleep-timer policy. */
@@ -83,6 +85,9 @@ class NaviampCorePlaybackController(
     private var reportingTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarLoadJob: Job? = null
+    private var streamMetadata = PlaybackStreamMetadata()
+    private var streamMetadataTrackId: app.naviamp.domain.TrackId? = null
+    private var observedPlaybackTrackId = playback.state.value.currentTrack?.id
     private var sonicAutoplayJob: Job? = null
     private val sonicAutoplay = SonicAutoplayService(providerSource::current)
     private var persistedQueue = PlaybackQueue()
@@ -346,7 +351,19 @@ class NaviampCorePlaybackController(
 
     fun attachNativePlayback() {
         effects.setVisualizerFramesEnabled(display.visualizerVisible)
-        playback.observe { persistSession(force = false) }
+        playback.observe { live ->
+            if (live.currentTrack?.id != observedPlaybackTrackId) {
+                observedPlaybackTrackId = live.currentTrack?.id
+                // Invalidate synchronously when leaving a track, even if the next track never
+                // reaches Playing or its queued sidecar load is cancelled before starting.
+                sidecarLoadJob?.cancel()
+                sidecarTrackId = null
+                streamMetadata = PlaybackStreamMetadata()
+                streamMetadataTrackId = null
+                presenter.updateStreamMetadata(PlaybackStreamMetadata())
+            }
+            persistSession(force = false)
+        }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
                 if (state == PlaybackState.Playing) connectHandoffAwaitingStart = false
@@ -384,14 +401,9 @@ class NaviampCorePlaybackController(
             }
 
             override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {
-                presenter.updateStreamMetadata(metadata)
-                presenter.publish(display)
-                playback.state.value.currentStation?.let { station ->
-                    scope.launch {
-                        sidecars.loadInternetRadioArtwork(station, metadata)
-                        presenter.publish(display)
-                    }
-                }
+                streamMetadata = metadata
+                streamMetadataTrackId = playback.state.value.currentTrack?.id
+                publishStreamMetadata(metadata)
             }
 
             override fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) {
@@ -589,8 +601,31 @@ class NaviampCorePlaybackController(
         }
     }
 
+    private fun publishStreamMetadata(metadata: PlaybackStreamMetadata) {
+        presenter.updateStreamMetadata(metadata)
+        presenter.publish(display)
+        playback.state.value.currentStation?.let { station ->
+            scope.launch {
+                sidecars.loadInternetRadioArtwork(station, metadata)
+                presenter.publish(display)
+            }
+        }
+    }
+
     private suspend fun loadTrackSidecars(track: app.naviamp.domain.Track) {
+        // Loading sidecars starts the track from empty sidecars, stream metadata included. The engine only
+        // publishes metadata when it changes, and a live stream usually reports its first title before this
+        // asynchronous load starts, so restore what the engine already published for this same track.
+        // The cache is consumed by this load: it bridges one sidecar load only, never a later playback
+        // of the same track, so returning to a station cannot resurface its previous session's title.
+        val cachedMetadata = if (streamMetadataTrackId == track.id) streamMetadata else null
+        streamMetadata = PlaybackStreamMetadata()
+        streamMetadataTrackId = null
         sidecars.loadForTrack(track)
+        // A native/file sidecar operation can finish after cancellation. Returning to the same
+        // track does not make that earlier playback's cached title current again.
+        currentCoroutineContext().ensureActive()
+        if (cachedMetadata != null && streamMetadataTrackId == null) publishStreamMetadata(cachedMetadata)
         val lyricsNeeded = display.lyricsVisible ||
             stateStore.state.value.shell.shellChrome.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel
         if (lyricsNeeded && playback.state.value.currentTrack?.id == track.id) {
