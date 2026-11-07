@@ -8,6 +8,11 @@ on:
         type: string
         required: false
         default: ''
+      ios_fixture_lifetime_diagnostic:
+        description: Also run a matched aged/fresh iOS fixture experiment (does not replace verification)
+        type: boolean
+        required: false
+        default: false
   workflow_call:
     inputs:
       source_ref:
@@ -673,3 +678,40 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: ${{ runner.temp }}/naviamp-verification/evidence.txt
+
+  ios-fixture-lifetime-diagnostic:
+    name: iOS fixture lifetime diagnosis (diagnostic only)
+    if: github.event_name == 'workflow_dispatch' && inputs.ios_fixture_lifetime_diagnostic
+    runs-on: macos-latest
+    timeout-minutes: 75
+    env:
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+      TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - name: Compare aged and fresh fixtures with the same native binary
+        run: |
+          python3 scripts/diagnose-ios-fixture-lifetime.py \
+            --minimum-age-seconds 1200 --pairs 2 \
+            --output build/ios-fixture-lifetime
+      - name: Preserve diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-fixture-lifetime-diagnostics
+          if-no-files-found: error
+          path: |
+            build/ios-fixture-lifetime/**/*.log
+            build/ios-fixture-lifetime/**/*.json
+            build/ios-fixture-lifetime/**/results/**
+            build/ios-fixture-lifetime/**/report/**
